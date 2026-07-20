@@ -3,6 +3,7 @@ import "./globals.css";
 import { Geist } from "next/font/google";
 import { cn } from "@/lib/utils";
 import Sidebar from "@/components/sidebar";
+import { Analytics } from "@vercel/analytics/next"
 const geist = Geist({
   subsets: ["latin"],
   variable: "--font-sans",
@@ -28,6 +29,7 @@ export default function RootLayout({
       {children}
     </main>
   </div>
+  <Analytics />
 </body>
     </html>
   );
