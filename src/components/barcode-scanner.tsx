@@ -69,17 +69,13 @@ if (data.success) {
     ...data.product,
     ...listing,
   });
+
+  await scanner.stop();
+  setScanning(false);
 }
           } catch (err) {
             console.error(err);
           }
-
-          scanner
-            .stop()
-            .then(() => {
-              setScanning(false);
-            })
-            .catch(console.error);
         },
         () => {}
       )
