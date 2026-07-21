@@ -103,87 +103,117 @@ if (data.success) {
         />
       )}
 {product && (
-  <div className="rounded-xl border bg-white p-4 shadow">
+  <div className="rounded-xl border bg-white p-6 shadow-lg">
     <img
       src={product.image}
       alt={product.name}
-      className="mb-4 h-40 w-full rounded-lg object-contain"
+      className="mx-auto mb-6 h-48 w-full rounded-lg object-contain"
     />
 
-    <h2 className="text-xl font-bold">
+    <h2 className="text-2xl font-bold">
       {product.name}
     </h2>
 
-    <p className="mt-2 text-gray-600">
-      <strong>Brand:</strong> {product.brand}
-    </p>
+    <div className="mt-4 space-y-2 text-gray-700">
+      <p>
+        <strong>Brand:</strong> {product.brand}
+      </p>
 
-    <p className="text-gray-600">
-      <strong>Category:</strong> {product.category}
-    </p>
+      <p>
+        <strong>Category:</strong> {product.category}
+      </p>
 
-    <p className="mt-3 text-lg font-semibold text-green-600">
-      Suggested Price: ${product.suggestedPrice}
-    </p>
+      <p className="text-lg font-semibold text-green-600">
+        Suggested Price: ${product.suggestedPrice}
+      </p>
+    </div>
 
-<Button
-  className="mt-4 w-full"
-  onClick={async () => {
-    if (!product) return;
+    <div className="mt-6 rounded-lg bg-gray-100 p-4">
+      <h3 className="text-lg font-bold">
+        📝 Listing Preview
+      </h3>
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+      <div className="mt-4">
+        <p className="font-semibold">Title</p>
+        <p>{product.title}</p>
+      </div>
 
-    if (!user) {
-      alert("Please log in first.");
-      return;
-    }
+      <div className="mt-4">
+        <p className="font-semibold">Description</p>
 
-   const { data, error } = await createListing({
-  userId: user.id,
-  product: product.title,
-  description: product.description,
-  price: product.suggestedPrice,
-  cost: 0,
-  image: product.image,
-  status: "Draft",
-});
+        <p className="whitespace-pre-wrap text-sm">
+          {product.description}
+        </p>
+      </div>
 
-    if (error) {
-      console.error(error);
-      alert(JSON.stringify(error, null, 2));
-      return;
-    }
+      <div className="mt-4">
+        <strong>Condition:</strong> {product.condition}
+      </div>
+    </div>
 
-    alert("✅ Listing created!");
-    console.log(data);
-  }}
-><div className="mt-4 rounded-lg bg-gray-100 p-4">
-  <h3 className="font-bold text-lg">
-    Listing Preview
-  </h3>
+    <div className="mt-6 flex gap-3">
+      <Button
+        variant="outline"
+        className="flex-1"
+        onClick={() => {
+          setProduct(null);
+          setBarcode("");
+        }}
+      >
+        ❌ Close
+      </Button>
 
-  <p className="mt-3 font-semibold">
-    Title
-  </p>
+      <Button
+        variant="outline"
+        className="flex-1"
+        onClick={() => {
+          setProduct(null);
+          setBarcode("");
+          setScanning(true);
+        }}
+      >
+        🔄 Scan Again
+      </Button>
+    </div>
 
-  <p>{product.title}</p>
+    <Button
+      className="mt-4 w-full"
+      onClick={async () => {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
 
-  <p className="mt-3 font-semibold">
-    Description
-  </p>
+        if (!user) {
+          alert("Please log in first.");
+          return;
+        }
 
-  <p className="whitespace-pre-wrap text-sm">
-    {product.description}
-  </p>
+        const { data, error } = await createListing({
+          userId: user.id,
+          product: product.title,
+          description: product.description,
+          price: product.suggestedPrice,
+          cost: 0,
+          image: product.image,
+          status: "Draft",
+        });
 
-  <p className="mt-3">
-    <strong>Condition:</strong> {product.condition}
-  </p>
-</div>
-  ➕ Create Listing
-</Button>
+        if (error) {
+          console.error(error);
+          alert(JSON.stringify(error, null, 2));
+          return;
+        }
+
+        alert("✅ Listing created!");
+
+        setProduct(null);
+        setBarcode("");
+
+        console.log(data);
+      }}
+    >
+      ➕ Create Listing
+    </Button>
   </div>
 )}
       {barcode && (
