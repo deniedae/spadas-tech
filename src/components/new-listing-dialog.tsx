@@ -22,77 +22,77 @@ export default function NewListingDialog({
 }: {
   initialData?: any;
 }) {
-   const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(false);
   const router = useRouter();
-const [generating, setGenerating] = useState(false);
-const [product, setProduct] = useState(
-  
-  initialData?.name ?? ""
-);
- const [price, setPrice] = useState(
-  initialData?.suggestedPrice?.toString() ?? ""
-);
+  const [generating, setGenerating] = useState(false);
+  const [product, setProduct] = useState(
+
+    initialData?.name ?? ""
+  );
+  const [price, setPrice] = useState(
+    initialData?.suggestedPrice?.toString() ?? ""
+  );
   const [cost, setCost] = useState("");
- const [description, setDescription] = useState(
-  initialData?.brand
-    ? `Brand: ${initialData.brand}
+  const [description, setDescription] = useState(
+    initialData?.brand
+      ? `Brand: ${initialData.brand}
 
 Category: ${initialData.category}`
-    : ""
-);
- const [image, setImage] = useState<File | null>(null);
-const [imagePreview, setImagePreview] = useState("");
-const [uploading, setUploading] = useState(false);
-const onDrop = (acceptedFiles: File[]) => {
-  if (!acceptedFiles.length) return;
+      : ""
+  );
+  const [image, setImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const onDrop = (acceptedFiles: File[]) => {
+    if (!acceptedFiles.length) return;
 
-  const file = acceptedFiles[0];
+    const file = acceptedFiles[0];
 
-  setImage(file);
-  setImagePreview(URL.createObjectURL(file));
-};
+    setImage(file);
+    setImagePreview(URL.createObjectURL(file));
+  };
 
-const { getRootProps, getInputProps, isDragActive } = useDropzone({
-  onDrop,
-  accept: {
-    "image/*": [],
-  },
-  multiple: false,
-});
-async function generateWithAI() {
-  if (!product.trim()) {
-    alert("Enter a product name first.");
-    return;
-  }
-
-  setGenerating(true);
-
-  try {
-    const response = await fetch("/api/ai-listing", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        product,
-      }),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.error || "AI failed.");
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {
+      "image/*": [],
+    },
+    multiple: false,
+  });
+  async function generateWithAI() {
+    if (!product.trim()) {
+      alert("Enter a product name first.");
+      return;
     }
 
-    setDescription(data.description || "");
-    setPrice(data.price?.toString() || "");
-  } catch (err) {
-    console.error(err);
-    alert("AI couldn't generate a listing.");
-  }
+    setGenerating(true);
 
-  setGenerating(false);
-}
+    try {
+      const response = await fetch("/api/ai-listing", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          product,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "AI failed.");
+      }
+
+      setDescription(data.description || "");
+      setPrice(data.price?.toString() || "");
+    } catch (err) {
+      console.error(err);
+      alert("AI couldn't generate a listing.");
+    }
+
+    setGenerating(false);
+  }
   async function saveListing() {
     // Validation
     if (!product.trim()) {
@@ -145,31 +145,31 @@ async function generateWithAI() {
       alert("Please log in.");
       return;
     }
-let imageUrl = "";
+    let imageUrl = "";
 
-if (image) {
-  setUploading(true);
+    if (image) {
+      setUploading(true);
 
-  const fileName = `${user.id}-${Date.now()}-${image.name}`;
+      const fileName = `${user.id}-${Date.now()}-${image.name}`;
 
-  const { error: uploadError } = await supabase.storage
-    .from("listing-images")
-    .upload(fileName, image);
+      const { error: uploadError } = await supabase.storage
+        .from("listing-images")
+        .upload(fileName, image);
 
-  if (uploadError) {
-    alert(uploadError.message);
-    setUploading(false);
-    return;
-  }
+      if (uploadError) {
+        alert(uploadError.message);
+        setUploading(false);
+        return;
+      }
 
-  const { data } = supabase.storage
-    .from("listing-images")
-    .getPublicUrl(fileName);
+      const { data } = supabase.storage
+        .from("listing-images")
+        .getPublicUrl(fileName);
 
-  imageUrl = data.publicUrl;
+      imageUrl = data.publicUrl;
 
-  setUploading(false);
-}
+      setUploading(false);
+    }
     const { error } = await supabase.from("listings").insert([
       {
         user_id: user.id,
@@ -189,27 +189,27 @@ if (image) {
       return;
     }
 
-setOpen(false);
+    setOpen(false);
 
-setProduct("");
-setPrice("");
-setCost("");
-setDescription("");
-setImage(null);
-setImagePreview("");
+    setProduct("");
+    setPrice("");
+    setCost("");
+    setDescription("");
+    setImage(null);
+    setImagePreview("");
 
-router.refresh();
-
-return (
-  <Dialog open={open} onOpenChange={setOpen}>
-    <DialogTrigger asChild>
-      <Button
-        type="button"
-        className="bg-blue-600 hover:bg-blue-700"
-      >
-        + New Listing
-      </Button>
-    </DialogTrigger>
+    router.refresh();
+  }
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button
+          type="button"
+          className="bg-blue-600 hover:bg-blue-700"
+        >
+          + New Listing
+        </Button>
+      </DialogTrigger>
 
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
@@ -229,13 +229,13 @@ return (
 
           <div>
             <Label htmlFor="price">Price</Label>
-<Input
-  id="price"
-  type="number"
-  placeholder="120"
-  value={price}
-  onChange={(e) => setPrice(e.target.value)}
-/>
+            <Input
+              id="price"
+              type="number"
+              placeholder="120"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+            />
           </div>
 
           <div>
@@ -252,53 +252,52 @@ return (
           </div>
 
           <div>
-  <div>
-  <Label>Image</Label>
+            <div>
+              <Label>Image</Label>
 
-  <div
-    {...getRootProps()}
-    className={`mt-2 cursor-pointer rounded-xl border-2 border-dashed p-8 text-center transition ${
-      isDragActive
-        ? "border-blue-500 bg-blue-50"
-        : "border-gray-300 hover:border-blue-400"
-    }`}
-  >
-    <input {...getInputProps()} />
+              <div
+                {...getRootProps()}
+                className={`mt-2 cursor-pointer rounded-xl border-2 border-dashed p-8 text-center transition ${isDragActive
+                    ? "border-blue-500 bg-blue-50"
+                    : "border-gray-300 hover:border-blue-400"
+                  }`}
+              >
+                <input {...getInputProps()} />
 
-{imagePreview ? (
-  <div className="space-y-3">
-    <img
-      src={imagePreview}
-      alt="Preview"
-      className="mx-auto h-48 rounded-xl object-contain"
-    />
+                {imagePreview ? (
+                  <div className="space-y-3">
+                    <img
+                      src={imagePreview}
+                      alt="Preview"
+                      className="mx-auto h-48 rounded-xl object-contain"
+                    />
 
-    <p className="text-sm text-gray-500">
-      Click or drag another image to replace it
-    </p>
-  </div>
-) : (
-      <>
-        <p className="text-lg font-semibold">
-          📷 Drag & Drop an Image
-        </p>
+                    <p className="text-sm text-gray-500">
+                      Click or drag another image to replace it
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-lg font-semibold">
+                      📷 Drag & Drop an Image
+                    </p>
 
-        <p className="mt-2 text-sm text-gray-500">
-          or click to browse
-        </p>
-      </>
-    )}
-  </div>
-</div>
+                    <p className="mt-2 text-sm text-gray-500">
+                      or click to browse
+                    </p>
+                  </>
+                )}
+              </div>
+            </div>
 
-  <Label htmlFor="description">Description</Label>
-  <Textarea
-    id="description"
-    placeholder="Describe your item..."
-    value={description}
-    onChange={(e) => setDescription(e.target.value)}
-  />
-</div>
+            <Label htmlFor="description">Description</Label>
+            <Textarea
+              id="description"
+              placeholder="Describe your item..."
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
+          </div>
 <Button
   type="button"
   variant="outline"
@@ -308,11 +307,19 @@ return (
 >
   {generating ? "Generating..." : "✨ Generate with AI"}
 </Button>
-          <Button className="w-full" onClick={saveListing}>
-            Save Listing
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
+
+<Button
+  className="w-full"
+  onClick={saveListing}
+>
+  Save Listing
+</Button>
+
+</div>
+
+</DialogContent>
+
+</Dialog>
+
+);
 }
