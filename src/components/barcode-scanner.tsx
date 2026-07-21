@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabase";
 import { createListing } from "@/app/lib/createlisting";
-
+import { generateListing } from "@/app/lib/generateListing";
 type Product = {
   barcode: string;
   name: string;
@@ -61,7 +61,12 @@ export default function BarcodeScanner({
            console.log("Barcode API:", data);
 
 if (data.success) {
-  setProduct(data.product);
+  const listing = generateListing(data.product);
+
+  setProduct({
+    ...data.product,
+    ...listing,
+  });
 }
           } catch (err) {
             console.error(err);
@@ -135,15 +140,15 @@ if (data.success) {
       return;
     }
 
-    const { data, error } = await createListing({
-      userId: user.id,
-      product: product.name,
-      description: "",
-      price: product.suggestedPrice,
-      cost: 0,
-      image: product.image,
-      status: "Draft",
-    });
+   const { data, error } = await createListing({
+  userId: user.id,
+  product: product.title,
+  description: product.description,
+  price: product.suggestedPrice,
+  cost: 0,
+  image: product.image,
+  status: "Draft",
+});
 
     if (error) {
       console.error(error);
@@ -154,7 +159,29 @@ if (data.success) {
     alert("✅ Listing created!");
     console.log(data);
   }}
->
+><div className="mt-4 rounded-lg bg-gray-100 p-4">
+  <h3 className="font-bold text-lg">
+    Listing Preview
+  </h3>
+
+  <p className="mt-3 font-semibold">
+    Title
+  </p>
+
+  <p>{product.title}</p>
+
+  <p className="mt-3 font-semibold">
+    Description
+  </p>
+
+  <p className="whitespace-pre-wrap text-sm">
+    {product.description}
+  </p>
+
+  <p className="mt-3">
+    <strong>Condition:</strong> {product.condition}
+  </p>
+</div>
   ➕ Create Listing
 </Button>
   </div>
