@@ -2,17 +2,28 @@
 
 import * as React from "react";
 
-const DialogContext = React.createContext<{
+type DialogContextType = {
   open: boolean;
   setOpen: React.Dispatch<React.SetStateAction<boolean>>;
-} | null>(null);
+};
+
+const DialogContext = React.createContext<DialogContextType | null>(null);
+
+type DialogProps = {
+  children: React.ReactNode;
+  open?: boolean;
+  onOpenChange?: React.Dispatch<React.SetStateAction<boolean>>;
+};
 
 export function Dialog({
   children,
-}: {
-  children: React.ReactNode;
-}) {
-  const [open, setOpen] = React.useState(false);
+  open: controlledOpen,
+  onOpenChange,
+}: DialogProps) {
+  const [internalOpen, setInternalOpen] = React.useState(false);
+
+  const open = controlledOpen ?? internalOpen;
+  const setOpen = onOpenChange ?? setInternalOpen;
 
   return (
     <DialogContext.Provider value={{ open, setOpen }}>
@@ -23,8 +34,10 @@ export function Dialog({
 
 export function DialogTrigger({
   children,
+  asChild,
 }: {
   children: React.ReactNode;
+  asChild?: boolean;
 }) {
   const ctx = React.useContext(DialogContext);
 

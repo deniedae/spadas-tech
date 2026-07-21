@@ -22,9 +22,11 @@ export default function NewListingDialog({
 }: {
   initialData?: any;
 }) {
+   const [open, setOpen] = useState(false);
   const router = useRouter();
 const [generating, setGenerating] = useState(false);
 const [product, setProduct] = useState(
+  
   initialData?.name ?? ""
 );
  const [price, setPrice] = useState(
@@ -187,23 +189,27 @@ if (image) {
       return;
     }
 
-    alert("Listing created!");
+setOpen(false);
 
-    setProduct("");
-    setPrice("");
-    setCost("");
-    setDescription("");
+setProduct("");
+setPrice("");
+setCost("");
+setDescription("");
+setImage(null);
+setImagePreview("");
 
-    router.refresh();
-  }
+router.refresh();
 
-  return (
-    <Dialog>
-      <DialogTrigger>
-        <Button type="button" className="bg-blue-600 hover:bg-blue-700">
-          + New Listing
-        </Button>
-      </DialogTrigger>
+return (
+  <Dialog open={open} onOpenChange={setOpen}>
+    <DialogTrigger asChild>
+      <Button
+        type="button"
+        className="bg-blue-600 hover:bg-blue-700"
+      >
+        + New Listing
+      </Button>
+    </DialogTrigger>
 
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
