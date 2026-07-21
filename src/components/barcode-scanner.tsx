@@ -28,9 +28,7 @@ export default function BarcodeScanner({
 
   useEffect(() => {
     if (!scanning) return;
-useEffect(() => {
-  console.log("Product state changed:", product);
-}, [product]);
+
     const scanner = new Html5Qrcode("reader");
     scannerRef.current = scanner;
 
@@ -63,17 +61,6 @@ useEffect(() => {
            console.log("Barcode API:", data);
            console.log("Success:", data.success);
 console.log("Product:", data.product);
-
-if (data.success) {
-  const listing = generateListing(data.product);
-
-  console.log("Generated listing:", listing);
-
-  setProduct({
-    ...data.product,
-    ...listing,
-  });
-}
 
 if (data.success) {
   const listing = generateListing(data.product);
