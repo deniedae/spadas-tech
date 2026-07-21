@@ -12,25 +12,44 @@ export async function POST(req: Request) {
     const completion = await openai.responses.create({
       model: "gpt-5",
       input: `
-You are an expert eBay and Facebook Marketplace seller.
+You are an expert eBay, Facebook Marketplace and Vinted seller.
 
-Create a listing for:
+A user is selling:
 
 ${product}
 
-Return only the listing description.
+Respond ONLY in valid JSON.
+
+{
+  "title": "",
+  "description": "",
+  "price": 0
+}
+
+The title should be SEO friendly.
+
+The description should be professional.
+
+The price should be a realistic Australian resale price.
 `,
     });
 
-    return NextResponse.json({
-      result: completion.output_text,
-    });
-  } catch (err) {
-    console.error("OpenAI Error:", err);
+    const text = completion.output_text;
 
-    // Fallback so the app still works without AI
-    return NextResponse.json({
-      result: "",
-    });
+    const listing = JSON.parse(text);
+
+    return NextResponse.json(listing);
+
+  } catch (err) {
+    console.error(err);
+
+    return NextResponse.json(
+      {
+        title: "",
+        description: "",
+        price: ""
+      },
+      { status: 200 }
+    );
   }
 }

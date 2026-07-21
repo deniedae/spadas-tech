@@ -7,9 +7,10 @@ import Link from "next/link";
 import NewListingDialog from "@/components/new-listing-dialog";
 export default function Dashboard() {
   const router = useRouter();
-  const [stats, setStats] = useState({
+ const [stats, setStats] = useState({
   listings: 0,
   inventory: 0,
+  revenue: 0,
   profit: 0,
   sold: 0,
 });
@@ -26,19 +27,17 @@ useEffect(() => {
   }
 
   const { data } = await supabase
-    .from("listings")
-    .select("*")
-    .eq("user_id", user.id);
+  .from("listings")
+  .select("*")
+  .eq("user_id", user.id)
+  .order("created_at", { ascending: false });
 
   if (!data) return;
-setRecentListings(
-  [...data]
-    .sort((a, b) => b.id - a.id)
-    .slice(0, 5)
-);
+setRecentListings(data.slice(0, 5));
     let inventory = 0;
-    let profit = 0;
-    let sold = 0;
+let revenue = 0;
+let profit = 0;
+let sold = 0;
 
     data.forEach((item) => {
       const matches = String(item.price).match(/\d+(?:\.\d+)?/g);
@@ -57,21 +56,23 @@ console.log({
 });
 
 inventory += price;
+revenue += price;
 profit += price - cost;
-      
 
       if (item.status === "Sold") {
         sold++;
       }
     });
 
-    setStats({
-      listings: data.length,
-      inventory,
-      profit,
-      sold,
-    });
-  }
+ setStats({
+  listings: data.length,
+  inventory,
+  revenue,
+  profit,
+  sold,
+});
+
+  } // closes async function
 
   loadDashboard();
 }, [router]);
@@ -146,16 +147,19 @@ profit += price - cost;
             View and manage your listings.
           </p>
         </Link>
+<div className="bg-white rounded-2xl shadow-md border border-gray-200 p-8">
+  <h2 className="text-2xl font-bold">
+    💰 Revenue
+  </h2>
 
-        <div className="bg-white rounded-2xl shadow-md border border-gray-200 p-8">
-          <h2 className="text-2xl font-bold">
-            📈 Analytics
-          </h2>
+  <h3 className="text-5xl font-bold text-blue-600 mt-4">
+    ${stats.revenue.toFixed(2)}
+  </h3>
 
-          <p className="mt-3 text-gray-500">
-            Charts and insights coming soon.
-          </p>
-        </div>
+  <p className="mt-3 text-gray-500">
+    Total value of your listings.
+  </p>
+</div>
 
       </div>
 
@@ -170,36 +174,59 @@ profit += price - cost;
 
           <thead className="text-left border-b border-gray-200">
 
-            <tr>
-              <th className="pb-4">Product</th>
-              <th className="pb-4">Price</th>
-              <th className="pb-4">Status</th>
-            </tr>
+          <tr>
+  <th className="pb-4">Product</th>
+  <th className="pb-4">Price</th>
+  <th className="pb-4">Status</th>
+  <th className="pb-4">Added</th>
+</tr>
 
           </thead>
 
-          <tbody>
-  {recentListings.map((item) => (
-    <tr key={item.id} className="border-t">
-      <td className="p-4">{item.product}</td>
-
-      <td className="p-4">
-        {item.price}
-      </td>
-
-      <td className="p-4">
-        <span
-          className={`font-semibold ${
-            item.status === "Sold"
-              ? "text-green-600"
-              : "text-blue-600"
-          }`}
-        >
-          {item.status}
-        </span>
+<tbody>
+  {recentListings.length === 0 ? (
+    <tr>
+      <td colSpan={4} className="p-8 text-center text-gray-500">
+        No listings yet.
       </td>
     </tr>
-  ))}
+  ) : (
+    recentListings.map((item) => (
+      <tr key={item.id} className="border-t">
+       <td className="p-4">
+  <div className="flex items-center gap-3">
+    <img
+      src={item.image_url || "/placeholder.png"}
+      alt={item.product}
+      className="h-12 w-12 rounded-lg border object-cover"
+    />
+
+    <span>{item.product}</span>
+  </div>
+</td>
+
+       <td className="p-4">
+  ${Number(item.price).toFixed(2)}
+</td>
+
+        <td className="p-4">
+          <span
+            className={`font-semibold ${
+              item.status === "Sold"
+                ? "text-green-600"
+                : "text-blue-600"
+            }`}
+          >
+            {item.status}
+          </span>
+        </td>
+
+        <td className="p-4 text-gray-500">
+          {new Date(item.created_at).toLocaleDateString()}
+        </td>
+      </tr>
+    ))
+  )}
 </tbody>
 
         </table>

@@ -16,17 +16,67 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-
+import { useDropzone } from "react-dropzone";
 export default function NewListingDialog() {
   const router = useRouter();
-
+const [generating, setGenerating] = useState(false);
   const [product, setProduct] = useState("");
   const [price, setPrice] = useState("");
   const [cost, setCost] = useState("");
   const [description, setDescription] = useState("");
-  const [image, setImage] = useState<File | null>(null);
+ const [image, setImage] = useState<File | null>(null);
+const [imagePreview, setImagePreview] = useState("");
 const [uploading, setUploading] = useState(false);
+const onDrop = (acceptedFiles: File[]) => {
+  if (!acceptedFiles.length) return;
 
+  const file = acceptedFiles[0];
+
+  setImage(file);
+  setImagePreview(URL.createObjectURL(file));
+};
+
+const { getRootProps, getInputProps, isDragActive } = useDropzone({
+  onDrop,
+  accept: {
+    "image/*": [],
+  },
+  multiple: false,
+});
+async function generateWithAI() {
+  if (!product.trim()) {
+    alert("Enter a product name first.");
+    return;
+  }
+
+  setGenerating(true);
+
+  try {
+    const response = await fetch("/api/ai-listing", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        product,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "AI failed.");
+    }
+
+    setDescription(data.description || "");
+    setPrice(data.price?.toString() || "");
+  } catch (err) {
+    console.error(err);
+    alert("AI couldn't generate a listing.");
+  }
+
+  setGenerating(false);
+}
   async function saveListing() {
     // Validation
     if (!product.trim()) {
@@ -182,21 +232,45 @@ if (image) {
           </div>
 
           <div>
-  <Label htmlFor="image">Image</Label>
+  <div>
+  <Label>Image</Label>
 
-  <Input
-    id="image"
-    type="file"
-    accept="image/*"
-    onChange={(e) => {
-      if (e.target.files?.length) {
-        setImage(e.target.files[0]);
-      }
-    }}
-  />
+  <div
+    {...getRootProps()}
+    className={`mt-2 cursor-pointer rounded-xl border-2 border-dashed p-8 text-center transition ${
+      isDragActive
+        ? "border-blue-500 bg-blue-50"
+        : "border-gray-300 hover:border-blue-400"
+    }`}
+  >
+    <input {...getInputProps()} />
+
+{imagePreview ? (
+  <div className="space-y-3">
+    <img
+      src={imagePreview}
+      alt="Preview"
+      className="mx-auto h-48 rounded-xl object-contain"
+    />
+
+    <p className="text-sm text-gray-500">
+      Click or drag another image to replace it
+    </p>
+  </div>
+) : (
+      <>
+        <p className="text-lg font-semibold">
+          📷 Drag & Drop an Image
+        </p>
+
+        <p className="mt-2 text-sm text-gray-500">
+          or click to browse
+        </p>
+      </>
+    )}
+  </div>
 </div>
-
-<div>
+)
   <Label htmlFor="description">Description</Label>
   <Textarea
     id="description"
@@ -205,7 +279,15 @@ if (image) {
     onChange={(e) => setDescription(e.target.value)}
   />
 </div>
-
+<Button
+  type="button"
+  variant="outline"
+  className="w-full"
+  onClick={generateWithAI}
+  disabled={generating}
+>
+  {generating ? "Generating..." : "✨ Generate with AI"}
+</Button>
           <Button className="w-full" onClick={saveListing}>
             Save Listing
           </Button>

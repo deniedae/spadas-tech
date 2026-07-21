@@ -1,10 +1,13 @@
 "use client";
-
+import ExportListingDialog from "../../components/export-listing-dialog";
 import DashboardCards from "@/components/dashboard-cards";
 import { useEffect, useState } from "react";
 import { supabase } from "@/app/lib/supabase";
 import EditListingDialog from "@/components/edit-listing-dialog";
+import Link from "next/link";
+import BarcodeScanner from "@/components/barcode-scanner";
 export default function ListingsPage() {
+  
   const [listings, setListings] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const totalListings = listings.length;
@@ -109,12 +112,15 @@ const inventoryValue = listings.reduce(
     </p>
   </div>
 
-  <button className="rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-700">
-    + New Listing
-  </button>
+  <Link
+  href="/listings/new"
+  className="rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-700"
+>
+  + New Listing
+</Link>
 </div>
    
-
+<BarcodeScanner />
 <DashboardCards
   totalListings={totalListings}
   soldListings={soldListings}
@@ -200,17 +206,21 @@ const inventoryValue = listings.reduce(
                   </td>
 
                   <td className="p-4 space-x-2">
-                   <EditListingDialog
+                  <EditListingDialog
   listing={item}
   onUpdated={loadListings}
 />
 
-                    <button
-                      onClick={() => deleteListing(item.id)}
-                      className="rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700"
-                    >
-                      🗑 Delete
-                    </button>
+<ExportListingDialog
+  listing={item}
+/>
+
+<button
+  onClick={() => deleteListing(item.id)}
+  className="rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700"
+>
+  🗑 Delete
+</button>
                   </td>
                 </tr>
               );
