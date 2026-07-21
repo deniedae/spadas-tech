@@ -121,12 +121,38 @@ if (data.success) {
       Suggested Price: ${product.suggestedPrice}
     </p>
 
-   <Button
+<Button
   className="mt-4 w-full"
-  onClick={() => {
-    if (onCreateListing && product) {
-      onCreateListing(product);
+  onClick={async () => {
+    if (!product) return;
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      alert("Please log in first.");
+      return;
     }
+
+    const { data, error } = await createListing({
+      userId: user.id,
+      product: product.name,
+      description: "",
+      price: product.suggestedPrice,
+      cost: 0,
+      image: product.image,
+      status: "Draft",
+    });
+
+    if (error) {
+      console.error(error);
+      alert(JSON.stringify(error, null, 2));
+      return;
+    }
+
+    alert("✅ Listing created!");
+    console.log(data);
   }}
 >
   ➕ Create Listing
