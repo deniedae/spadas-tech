@@ -3,6 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/app/lib/supabase";
+import { createListing } from "@/app/lib/createlisting";
 
 type Product = {
   barcode: string;
