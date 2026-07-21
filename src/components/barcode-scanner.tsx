@@ -29,8 +29,12 @@ export default function BarcodeScanner({
   useEffect(() => {
     if (!scanning) return;
 
-    const scanner = new Html5Qrcode("reader");
-    scannerRef.current = scanner;
+  if (scannerRef.current) {
+  return;
+}
+
+const scanner = new Html5Qrcode("reader");
+scannerRef.current = scanner;
 
     scanner
       .start(
@@ -56,22 +60,31 @@ export default function BarcodeScanner({
               }),
             });
 
-            const data = await res.json();
+    const data = await res.json();
 
-           console.log("Barcode API:", data);
-           console.log("Success:", data.success);
+console.log("Barcode API:", data);
+console.log("Success:", data.success);
 console.log("Product:", data.product);
 
+if (!data.success) {
+  console.log("No product found");
+  return;
+}
 if (data.success) {
+    
   const listing = generateListing(data.product);
 
-  setProduct({
-    ...data.product,
-    ...listing,
-  });
+ setProduct({
+  ...data.product,
+  ...listing,
+});
 
-  await scanner.stop();
-  setScanning(false);
+console.log("Product state should now update");
+
+await scanner.stop().catch(() => {});
+scannerRef.current = null;
+setScanning(false);
+
 }
           } catch (err) {
             console.error(err);
@@ -81,25 +94,30 @@ if (data.success) {
       )
       .catch(console.error);
 
-    return () => {
-      if (scannerRef.current?.isScanning) {
-        scannerRef.current.stop().catch(console.error);
-      }
-    };
+   return () => {
+  if (scannerRef.current) {
+    scannerRef.current
+      .stop()
+      .catch(() => {})
+      .finally(() => {
+        scannerRef.current = null;
+      });
+  }
+};
   }, [scanning]);
 
   return (
     <div className="space-y-4 rounded-xl border p-6">
       <Button
-  onClick={() => {
-    setProduct(null);
-    setBarcode("");
-    setScanning(false);
+onClick={() => {
+  setProduct(null);
+  setBarcode("");
+  setScanning(false);
 
-    setTimeout(() => {
-      setScanning(true);
-    }, 100);
-  }}
+  setTimeout(() => {
+    setScanning(true);
+  }, 200);
+}}
 >
   📷 Scan Barcode
 </Button>
@@ -163,10 +181,11 @@ if (data.success) {
       <Button
         variant="outline"
         className="flex-1"
-        onClick={() => {
-          setProduct(null);
-          setBarcode("");
-        }}
+      onClick={() => {
+  setProduct(null);
+  setBarcode("");
+  setScanning(false);
+}}
       >
         ❌ Close
       </Button>
