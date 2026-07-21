@@ -17,13 +17,27 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useDropzone } from "react-dropzone";
-export default function NewListingDialog() {
+export default function NewListingDialog({
+  initialData,
+}: {
+  initialData?: any;
+}) {
   const router = useRouter();
 const [generating, setGenerating] = useState(false);
-  const [product, setProduct] = useState("");
-  const [price, setPrice] = useState("");
+const [product, setProduct] = useState(
+  initialData?.name ?? ""
+);
+ const [price, setPrice] = useState(
+  initialData?.suggestedPrice?.toString() ?? ""
+);
   const [cost, setCost] = useState("");
-  const [description, setDescription] = useState("");
+ const [description, setDescription] = useState(
+  initialData?.brand
+    ? `Brand: ${initialData.brand}
+
+Category: ${initialData.category}`
+    : ""
+);
  const [image, setImage] = useState<File | null>(null);
 const [imagePreview, setImagePreview] = useState("");
 const [uploading, setUploading] = useState(false);
@@ -270,7 +284,7 @@ if (image) {
     )}
   </div>
 </div>
-)
+
   <Label htmlFor="description">Description</Label>
   <Textarea
     id="description"

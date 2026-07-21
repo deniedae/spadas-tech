@@ -11,7 +11,12 @@ export default function ListingsPage() {
   const [listings, setListings] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const totalListings = listings.length;
+const handleCreateListing = (product: any) => {
+  console.log("Scanned product:", product);
 
+  // We'll replace this with opening the New Listing dialog
+  // and pre-filling the form.
+};
 const soldListings = listings.filter(
   (item) => item.status === "Sold"
 ).length;
@@ -120,7 +125,9 @@ const inventoryValue = listings.reduce(
 </Link>
 </div>
    
-<BarcodeScanner />
+<BarcodeScanner
+  onCreateListing={handleCreateListing}
+/>
 <DashboardCards
   totalListings={totalListings}
   soldListings={soldListings}

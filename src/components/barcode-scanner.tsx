@@ -4,9 +4,23 @@ import { useEffect, useRef, useState } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import { Button } from "@/components/ui/button";
 
-export default function BarcodeScanner() {
+type Product = {
+  barcode: string;
+  name: string;
+  brand: string;
+  category: string;
+  image: string;
+  suggestedPrice: number;
+};
+
+export default function BarcodeScanner({
+  onCreateListing,
+}: {
+  onCreateListing?: (product: Product) => void;
+}) {
   const [scanning, setScanning] = useState(false);
   const [barcode, setBarcode] = useState("");
+  const [product, setProduct] = useState<any>(null);
   const scannerRef = useRef<Html5Qrcode | null>(null);
 
   useEffect(() => {
@@ -25,8 +39,30 @@ export default function BarcodeScanner() {
             height: 120,
           },
         },
-        (decodedText) => {
+        async (decodedText) => {
           setBarcode(decodedText);
+
+          try {
+            const res = await fetch("/api/barcode", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                barcode: decodedText,
+              }),
+            });
+
+            const data = await res.json();
+
+           console.log("Barcode API:", data);
+
+if (data.success) {
+  setProduct(data.product);
+}
+          } catch (err) {
+            console.error(err);
+          }
 
           scanner
             .stop()
@@ -40,10 +76,7 @@ export default function BarcodeScanner() {
       .catch(console.error);
 
     return () => {
-      if (
-        scannerRef.current &&
-        scannerRef.current.isScanning
-      ) {
+      if (scannerRef.current?.isScanning) {
         scannerRef.current.stop().catch(console.error);
       }
     };
@@ -61,7 +94,42 @@ export default function BarcodeScanner() {
           className="w-full overflow-hidden rounded-lg border"
         />
       )}
+{product && (
+  <div className="rounded-xl border bg-white p-4 shadow">
+    <img
+      src={product.image}
+      alt={product.name}
+      className="mb-4 h-40 w-full rounded-lg object-contain"
+    />
 
+    <h2 className="text-xl font-bold">
+      {product.name}
+    </h2>
+
+    <p className="mt-2 text-gray-600">
+      <strong>Brand:</strong> {product.brand}
+    </p>
+
+    <p className="text-gray-600">
+      <strong>Category:</strong> {product.category}
+    </p>
+
+    <p className="mt-3 text-lg font-semibold text-green-600">
+      Suggested Price: ${product.suggestedPrice}
+    </p>
+
+   <Button
+  className="mt-4 w-full"
+  onClick={() => {
+    if (onCreateListing && product) {
+      onCreateListing(product);
+    }
+  }}
+>
+  ➕ Create Listing
+</Button>
+  </div>
+)}
       {barcode && (
         <div className="rounded-lg bg-green-100 p-4">
           <p className="font-semibold">Barcode Found:</p>
@@ -69,5 +137,6 @@ export default function BarcodeScanner() {
         </div>
       )}
     </div>
+    
   );
 }
