@@ -4,20 +4,42 @@ export async function POST(req: Request) {
   try {
     const { barcode } = await req.json();
 
-    // Placeholder product for now
-    const product = {
-      barcode,
-      name: "Nintendo Switch Pro Controller",
-      brand: "Nintendo",
-      category: "Gaming Accessories",
-      image:
-        "https://dummyimage.com/500x500/000/fff&text=Nintendo+Controller",
-      suggestedPrice: 69.99,
-    };
+    const response = await fetch(
+      `https://api.barcodelookup.com/v3/products?barcode=${barcode}&formatted=y&key=${process.env.BARCODE_LOOKUP_API_KEY}`
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: data,
+        },
+        { status: response.status }
+      );
+    }
+
+    if (!data.products || data.products.length === 0) {
+      return NextResponse.json({
+        success: false,
+        message: "Product not found",
+      });
+    }
+
+    const product = data.products[0];
 
     return NextResponse.json({
       success: true,
-      product,
+      product: {
+        barcode: product.barcode_number,
+        name: product.title,
+        brand: product.brand,
+        category: product.category,
+        image: product.images?.[0] ?? "",
+        description: product.description ?? "",
+        suggestedPrice: Number(product.stores?.[0]?.price) || 0,
+      },
     });
   } catch (error) {
     console.error(error);
@@ -25,7 +47,7 @@ export async function POST(req: Request) {
     return NextResponse.json(
       {
         success: false,
-        message: "Failed to lookup barcode",
+        message: "Barcode lookup failed",
       },
       { status: 500 }
     );
