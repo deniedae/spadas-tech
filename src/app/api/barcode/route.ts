@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
-import { getCachedBarcode } from "../../lib/barcode/cache";
-import { lookupGoogleBooks } from "../../lib/barcode/google-books";
-import { saveBarcode } from "../../lib/barcode/cache";
+import { resolveBarcode } from "@/app/lib/barcode/resolver";
 
 export async function POST(req: Request) {
   try {
@@ -20,34 +18,18 @@ export async function POST(req: Request) {
     console.log("Scanning:", barcode);
 
     // Check Supabase cache first
-    const cached = await getCachedBarcode(barcode);
+    const product = await resolveBarcode(barcode);
 
-    if (cached) {
-      console.log("Found in barcode cache");
-
-      return NextResponse.json({
-        success: true,
-        product: cached,
-      });
-    }
-
-    // Nothing found yet
-    // Check Google Books
-const googleBook = await lookupGoogleBooks(barcode);
-
-if (googleBook) {
-  await saveBarcode(googleBook);
-
+if (!product) {
   return NextResponse.json({
-    success: true,
-    product: googleBook,
+    success: false,
+    message: "Product not found",
   });
 }
 
-// Nothing found
 return NextResponse.json({
-  success: false,
-  message: "Product not found",
+  success: true,
+  product,
 });
   } catch (error) {
     console.error("Barcode Route Error:", error);
