@@ -21,11 +21,15 @@ const soldListings = listings.filter(
   (item) => item.status === "Sold"
 ).length;
 
-const totalProfit = listings.reduce(
-  (total, item) =>
-    total + (Number(item.price) - Number(item.cost)),
-  0
-);
+const totalProfit = listings.reduce((total, item) => {
+  const price = Number(item.price) || 0;
+  const purchasePrice = Number(item.purchase_price) || 0;
+  const soldPrice = Number(item.sold_price) || price;
+  const shipping = Number(item.shipping_cost) || 0;
+  const fees = Number(item.fees) || 0;
+
+  return total + (soldPrice - purchasePrice - shipping - fees);
+}, 0);
 
 const inventoryValue = listings.reduce(
   (total, item) => total + Number(item.price),
@@ -179,11 +183,17 @@ const profit =
                 <tr key={item.id} className="border-t hover:bg-gray-50">
                   <td className="p-4">
   <div className="flex items-center gap-3">
-    <img
-      src={item.image_url}
-      alt={item.product}
-      className="h-16 w-16 rounded-lg border object-cover"
-    />
+    {item.image_url ? (
+      <img
+        src={item.image_url}
+        alt={item.product}
+        className="h-16 w-16 rounded-lg border object-cover"
+      />
+    ) : (
+      <div className="h-16 w-16 rounded-lg border bg-gray-100 flex items-center justify-center text-xs text-gray-400">
+        No Image
+      </div>
+    )}
 
     <div>
       <p className="font-semibold">{item.product}</p>

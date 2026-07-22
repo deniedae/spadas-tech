@@ -32,38 +32,41 @@ useEffect(() => {
   .eq("user_id", user.id)
   .order("created_at", { ascending: false });
 
-  if (!data) return;
+ if (!data) return;
 setRecentListings(data.slice(0, 5));
-    let inventory = 0;
+
+let inventory = 0;
 let revenue = 0;
 let profit = 0;
 let sold = 0;
 
-    data.forEach((item) => {
-      const matches = String(item.price).match(/\d+(?:\.\d+)?/g);
+data.forEach((item) => {
+  const purchasePrice = Number(item.purchase_price) || 0;
+  const soldPrice = Number(item.sold_price) || 0;
+  const shipping = Number(item.shipping_cost) || 0;
+  const fees = Number(item.fees) || 0;
 
-const price = matches
-  ? Number(matches[matches.length - 1])
-  : 0;
+  if (item.status !== "Sold") {
+    inventory += purchasePrice;
+  }
 
-   const cost = Number(item.cost) || 0;
+  if (item.status === "Sold") {
+    sold++;
 
-console.log({
-  price: item.price,
-  parsedPrice: price,
-  cost,
-  status: item.status,
+    revenue += soldPrice;
+
+    profit += soldPrice - purchasePrice - shipping - fees;
+  }
+
+  console.log({
+    product: item.product,
+    purchasePrice,
+    soldPrice,
+    shipping,
+    fees,
+    status: item.status,
+  });
 });
-
-inventory += price;
-revenue += price;
-profit += price - cost;
-
-      if (item.status === "Sold") {
-        sold++;
-      }
-    });
-
  setStats({
   listings: data.length,
   inventory,

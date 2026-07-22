@@ -53,30 +53,37 @@ export default function EditListingDialog({
   }, [listing]);
 
   async function saveChanges() {
-    const { error } = await supabase
-      .from("listings")
-      .update({
-        product,
-        price: Number(price),
-        cost: Number(cost),
+  console.log("Editing listing:", listing);
+  
 
-        purchase_price: Number(purchasePrice),
-        sold_price: Number(soldPrice),
-        shipping_cost: Number(shippingCost),
-        fees: Number(fees),
+  const { data, error } = await supabase
+    .from("listings")
+    .update({
+      product,
+      price: Number(price),
+      cost: Number(cost),
+      purchase_price: Number(purchasePrice),
+      sold_price: Number(soldPrice),
+      shipping_cost: Number(shippingCost),
+      fees: Number(fees),
+      status,
+    })
+    .eq("id", listing.id)
+    .select();
 
-        status,
-      })
-      .eq("id", listing.id);
 
-    if (error) {
-      alert(error.message);
-      return;
-    }
+  console.log("Updated rows:", data);
 
-    setOpen(false);
-    onUpdated();
+  if (error) {
+    console.error("Supabase update failed:", error);
+    alert(error.message);
+    return;
   }
+
+  console.log("Saved successfully!");
+  setOpen(false);
+  onUpdated();
+}
 
   return (
     <>
@@ -95,19 +102,31 @@ export default function EditListingDialog({
             </h2>
 
             <div className="space-y-4">
-              <input
-                className="w-full rounded-lg border p-3"
-                value={product}
-                onChange={(e) => setProduct(e.target.value)}
-                placeholder="Product"
-              />
+            <div>
+  <label className="mb-1 block text-sm font-medium text-gray-700">
+    Product
+  </label>
 
-              <input
-                className="w-full rounded-lg border p-3"
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
-                placeholder="Price"
-              />
+  <input
+    className="w-full rounded-lg border p-3"
+    value={product}
+    onChange={(e) => setProduct(e.target.value)}
+    placeholder="Product"
+  />
+</div>
+
+              <div>
+  <label className="mb-1 block text-sm font-medium text-gray-700">
+    Listing Price
+  </label>
+
+  <input
+    className="w-full rounded-lg border p-3"
+    value={price}
+    onChange={(e) => setPrice(e.target.value)}
+    placeholder="Price"
+  />
+</div>
 
               <input
                 className="w-full rounded-lg border p-3"
@@ -116,42 +135,80 @@ export default function EditListingDialog({
                 placeholder="Cost"
               />
 
-              <input
-                className="w-full rounded-lg border p-3"
-                value={purchasePrice}
-                onChange={(e) => setPurchasePrice(e.target.value)}
-                placeholder="Purchase Price"
-              />
+            <div>
+  <label className="mb-1 block text-sm font-medium text-gray-700">
+    Purchase Price
+  </label>
 
-              <input
-                className="w-full rounded-lg border p-3"
-                value={soldPrice}
-                onChange={(e) => setSoldPrice(e.target.value)}
-                placeholder="Sold Price"
-              />
+  <input
+    className="w-full rounded-lg border p-3"
+    value={purchasePrice}
+    onChange={(e) => setPurchasePrice(e.target.value)}
+    placeholder="Purchase Price"
+  />
+</div>
+{status === "Sold" && (
+  <div className="space-y-4">
+    <hr className="my-4" />
 
-              <input
-                className="w-full rounded-lg border p-3"
-                value={shippingCost}
-                onChange={(e) => setShippingCost(e.target.value)}
-                placeholder="Shipping Cost"
-              />
+    <h3 className="text-lg font-semibold text-gray-800">
+      Sale Details
+    </h3>
 
-              <input
-                className="w-full rounded-lg border p-3"
-                value={fees}
-                onChange={(e) => setFees(e.target.value)}
-                placeholder="Fees"
-              />
+    <div>
+      <label className="mb-1 block text-sm font-medium text-gray-700">
+        Sold Price
+      </label>
 
-              <select
-                className="w-full rounded-lg border p-3"
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-              >
-                <option>Active</option>
-                <option>Sold</option>
-              </select>
+      <input
+        className="w-full rounded-lg border p-3"
+        value={soldPrice}
+        onChange={(e) => setSoldPrice(e.target.value)}
+        placeholder="Sold Price"
+      />
+    </div>
+
+    <div>
+      <label className="mb-1 block text-sm font-medium text-gray-700">
+        Shipping Cost
+      </label>
+
+      <input
+        className="w-full rounded-lg border p-3"
+        value={shippingCost}
+        onChange={(e) => setShippingCost(e.target.value)}
+        placeholder="Shipping Cost"
+      />
+    </div>
+
+    <div>
+      <label className="mb-1 block text-sm font-medium text-gray-700">
+        Marketplace Fees
+      </label>
+
+      <input
+        className="w-full rounded-lg border p-3"
+        value={fees}
+        onChange={(e) => setFees(e.target.value)}
+        placeholder="Marketplace Fees"
+      />
+    </div>
+  </div>
+)}
+             <div>
+  <label className="mb-1 block text-sm font-medium text-gray-700">
+    Status
+  </label>
+
+  <select
+    className="w-full rounded-lg border p-3"
+    value={status}
+    onChange={(e) => setStatus(e.target.value)}
+  >
+    <option>Draft</option>
+    <option>Sold</option>
+  </select>
+</div>
 
               <div className="flex gap-2">
                 <button
