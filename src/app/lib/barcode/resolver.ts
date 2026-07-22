@@ -1,9 +1,10 @@
 import { getCachedBarcode, saveBarcode } from "./cache";
 import { lookupGoogleBooks } from "./google-books";
+import { lookupOpenLibrary } from "./open-library";
 import { lookupOpenFoodFacts } from "./open-food-facts";
 import { estimatePrice } from "./pricing";
 import { normalizeProduct } from "./ai";
-import { lookupOpenLibrary } from "./open-library";
+
 export async function resolveBarcode(barcode: string) {
   // 1. Cache
   const cached = await getCachedBarcode(barcode);
@@ -14,32 +15,57 @@ export async function resolveBarcode(barcode: string) {
 
   let product = null;
 
-// Books (Google Books)
-product = await lookupGoogleBooks(barcode);
+  // Check both book providers
+  const googleBook = await lookupGoogleBooks(barcode);
+  const openBook = await lookupOpenLibrary(barcode);
 
-// Books (Open Library fallback)
-if (!product) {
-  product = await lookupOpenLibrary(barcode);
-}
+  // Merge Google Books + Open Library
+  if (googleBook || openBook) {
+    product = {
+      ...(openBook || {}),
+      ...(googleBook || {}),
 
-// Food
-if (!product) {
-  product = await lookupOpenFoodFacts(barcode);
-}
+      // Use Open Library only when Google is missing data
+      image: googleBook?.image || openBook?.image,
+      description: googleBook?.description || openBook?.description,
+      brand: googleBook?.brand || openBook?.brand,
+
+      source:
+        googleBook && openBook
+          ? "Google Books + Open Library"
+          : googleBook
+          ? "Google Books"
+          : "Open Library",
+    };
+  }
+
+  // Food
+  if (!product) {
+    product = await lookupOpenFoodFacts(barcode);
+  }
+
   if (!product) {
     return null;
   }
 
-  // 4. Price
-  const pricing = await estimatePrice(product);
+  // Price
+  const pricing = await estimatePrice({
+    name: product.name ?? "",
+    category: product.category ?? "",
+  });
 
- const ai = await normalizeProduct(product);
+  // AI normalization
+  const ai = await normalizeProduct({
+    name: product.name ?? "",
+    category: product.category,
+    brand: product.brand,
+  });
 
-const finalProduct = {
-  ...product,
-  ...ai,
-  ...pricing,
-};
+  const finalProduct = {
+    ...product,
+    ...ai,
+    ...pricing,
+  };
 
   await saveBarcode(finalProduct);
 

@@ -15,13 +15,15 @@ export async function lookupGoogleBooks(
 
   const book = json.items[0].volumeInfo;
 
-  return 
+  return {
     barcode,
     name: book.title,
-    brand: book.authors?.join(", "),
+    brand: book.authors?.join(", ") || "",
     category: "Books",
-    image: book.imageLinks?.thumbnail,
-    description: book.description,
+    image: book.imageLinks?.thumbnail || "",
+    description: book.description || "",
+    suggestedPrice: 0,
+    confidence: "Unknown",
     source: "Google Books",
   };
 }
