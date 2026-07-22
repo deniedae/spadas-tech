@@ -40,17 +40,14 @@ const scannerRef = useRef<Html5Qrcode | null>(null);
 const scanner = new Html5Qrcode("reader");
 scannerRef.current = scanner;
 
-    scanner
-      .start(
-        { facingMode: "environment" },
-        {
-          fps: 10,
-          qrbox: {
-            width: 250,
-            height: 120,
-          },
-        },
-        async (decodedText) => {
+ scanner
+  .start(
+    { facingMode: "environment" },
+    {
+      fps: 15,
+      qrbox: 250,
+    },
+    async (decodedText) => {
           setBarcode(decodedText);
 
           try {
@@ -64,9 +61,8 @@ scannerRef.current = scanner;
               }),
             });
 
-  const data = await res.json();
+const data = await res.json();
 
-alert(JSON.stringify(data, null, 2));
 
 console.log("Barcode API:", data);
 console.log("Success:", data.success);
@@ -94,9 +90,12 @@ if (data.success) {
 
   console.log("setProduct called");
 
-  await scanner.stop().catch(() => {});
+if (scannerRef.current) {
+  await scannerRef.current.stop().catch(() => {});
   scannerRef.current = null;
-  setScanning(false);
+}
+
+setScanning(false);
 }
           } catch (err) {
             console.error(err);
