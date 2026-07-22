@@ -21,11 +21,15 @@ export default function BarcodeScanner({
 }: {
   onCreateListing?: (product: Product) => void;
 }) {
-  const [scanning, setScanning] = useState(false);
-  const [barcode, setBarcode] = useState("");
-  const [product, setProduct] = useState<any>(null);
-  const scannerRef = useRef<Html5Qrcode | null>(null);
+const [scanning, setScanning] = useState(false);
+const [barcode, setBarcode] = useState("");
+const [product, setProduct] = useState<any>(null);
 
+useEffect(() => {
+  console.log("Product changed:", product);
+}, [product]);
+
+const scannerRef = useRef<Html5Qrcode | null>(null);
   useEffect(() => {
     if (!scanning) return;
 
@@ -71,20 +75,26 @@ if (!data.success) {
   return;
 }
 if (data.success) {
-    
+  console.log("About to generate listing...");
+
   const listing = generateListing(data.product);
 
- setProduct({
-  ...data.product,
-  ...listing,
-});
+  console.log("Listing:", listing);
 
-console.log("Product state should now update");
+  const merged = {
+    ...data.product,
+    ...listing,
+  };
 
-await scanner.stop().catch(() => {});
-scannerRef.current = null;
-setScanning(false);
+  console.log("Merged product:", merged);
 
+  setProduct(merged);
+
+  console.log("setProduct called");
+
+  await scanner.stop().catch(() => {});
+  scannerRef.current = null;
+  setScanning(false);
 }
           } catch (err) {
             console.error(err);
