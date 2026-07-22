@@ -64,7 +64,9 @@ scannerRef.current = scanner;
               }),
             });
 
-    const data = await res.json();
+  const data = await res.json();
+
+alert(JSON.stringify(data, null, 2));
 
 console.log("Barcode API:", data);
 console.log("Success:", data.success);
