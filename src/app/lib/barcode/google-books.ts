@@ -3,15 +3,27 @@ import { BarcodeProduct } from "./types";
 export async function lookupGoogleBooks(
   barcode: string
 ): Promise<BarcodeProduct | null> {
-  const res = await fetch(
-    `https://www.googleapis.com/books/v1/volumes?q=isbn:${barcode}`
-  );
+  console.log("Looking up Google Books:", barcode);
 
-  if (!res.ok) return null;
+const apiKey = process.env.GOOGLE_BOOKS_API_KEY;
+
+const url = `https://www.googleapis.com/books/v1/volumes?q=isbn:${barcode}&key=${apiKey}`;
+
+  const res = await fetch(url);
+
+  console.log("Google Books status:", res.status);
+
+  if (!res.ok) {
+    console.log("Google Books request failed");
+    return null;
+  }
 
   const data = await res.json();
 
+  console.log("Google Books response:", JSON.stringify(data, null, 2));
+
   if (!data.items || data.items.length === 0) {
+    console.log("No Google Books results");
     return null;
   }
 
