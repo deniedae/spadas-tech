@@ -8,6 +8,12 @@ type Listing = {
   product: string;
   price: number;
   cost: number;
+
+  purchase_price: number;
+  sold_price: number;
+  shipping_cost: number;
+  fees: number;
+
   status: string;
 };
 
@@ -25,24 +31,38 @@ export default function EditListingDialog({
   const [product, setProduct] = useState("");
   const [price, setPrice] = useState("");
   const [cost, setCost] = useState("");
+  const [purchasePrice, setPurchasePrice] = useState("");
+const [soldPrice, setSoldPrice] = useState("");
+const [shippingCost, setShippingCost] = useState("");
+const [fees, setFees] = useState("");
   const [status, setStatus] = useState("");
 
   useEffect(() => {
     setProduct(listing.product);
     setPrice(String(listing.price));
     setCost(String(listing.cost));
+    setPurchasePrice(String(listing.purchase_price ?? 0));
+setSoldPrice(String(listing.sold_price ?? 0));
+setShippingCost(String(listing.shipping_cost ?? 0));
+setFees(String(listing.fees ?? 0));
     setStatus(listing.status);
   }, [listing]);
 
   async function saveChanges() {
     const { error } = await supabase
       .from("listings")
-      .update({
-        product,
-        price: Number(price),
-        cost: Number(cost),
-        status,
-      })
+     .update({
+  product,
+  price: Number(price),
+  cost: Number(cost),
+
+  purchase_price: Number(purchasePrice),
+  sold_price: Number(soldPrice),
+  shipping_cost: Number(shippingCost),
+  fees: Number(fees),
+
+  status,
+})
       .eq("id", listing.id);
 
     if (error) {
@@ -56,6 +76,33 @@ export default function EditListingDialog({
 
   return (
     <>
+    <input
+  className="w-full rounded-lg border p-3"
+  value={purchasePrice}
+  onChange={(e) => setPurchasePrice(e.target.value)}
+  placeholder="Purchase Price"
+/>
+
+<input
+  className="w-full rounded-lg border p-3"
+  value={soldPrice}
+  onChange={(e) => setSoldPrice(e.target.value)}
+  placeholder="Sold Price"
+/>
+
+<input
+  className="w-full rounded-lg border p-3"
+  value={shippingCost}
+  onChange={(e) => setShippingCost(e.target.value)}
+  placeholder="Shipping Cost"
+/>
+
+<input
+  className="w-full rounded-lg border p-3"
+  value={fees}
+  onChange={(e) => setFees(e.target.value)}
+  placeholder="Fees"
+/>
       <button
         onClick={() => setOpen(true)}
         className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"

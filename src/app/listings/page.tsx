@@ -164,7 +164,16 @@ const inventoryValue = listings.reduce(
   .map((item) => {
               const price = Number(item.price) || 0;
               const cost = Number(item.cost) || 0;
-              const profit = price - cost;
+              const purchasePrice = Number(item.purchase_price) || 0;
+const soldPrice = Number(item.sold_price) || price;
+const shipping = Number(item.shipping_cost) || 0;
+const fees = Number(item.fees) || 0;
+
+const profit =
+  soldPrice -
+  purchasePrice -
+  shipping -
+  fees;
 
               return (
                 <tr key={item.id} className="border-t hover:bg-gray-50">
