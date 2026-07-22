@@ -1,10 +1,11 @@
 export interface BarcodeProduct {
   barcode: string;
   name: string;
-  brand: string;
+  brand?: string;
   category: string;
-  image: string;
-  description: string;
-  suggestedPrice: number;
+  image?: string;
+  description?: string;
+  suggestedPrice?: number;
+  confidence?: string;
   source: string;
 }

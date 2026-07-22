@@ -3,7 +3,7 @@ import { lookupGoogleBooks } from "./google-books";
 import { lookupOpenFoodFacts } from "./open-food-facts";
 import { estimatePrice } from "./pricing";
 import { normalizeProduct } from "./ai";
-
+import { lookupOpenLibrary } from "./open-library";
 export async function resolveBarcode(barcode: string) {
   // 1. Cache
   const cached = await getCachedBarcode(barcode);
@@ -14,14 +14,18 @@ export async function resolveBarcode(barcode: string) {
 
   let product = null;
 
-  // 2. Books
-  product = await lookupGoogleBooks(barcode);
+// Books (Google Books)
+product = await lookupGoogleBooks(barcode);
 
-  // 3. Food
-  if (!product) {
-    product = await lookupOpenFoodFacts(barcode);
-  }
+// Books (Open Library fallback)
+if (!product) {
+  product = await lookupOpenLibrary(barcode);
+}
 
+// Food
+if (!product) {
+  product = await lookupOpenFoodFacts(barcode);
+}
   if (!product) {
     return null;
   }
