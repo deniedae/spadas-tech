@@ -6,7 +6,8 @@ export async function lookupGoogleBooks(
   console.log("Looking up Google Books:", barcode);
 
 const apiKey = process.env.GOOGLE_BOOKS_API_KEY;
-
+console.log("API Key loaded:", !!apiKey);
+console.log("Google URL:", url);
 const url = `https://www.googleapis.com/books/v1/volumes?q=isbn:${barcode}&key=${apiKey}`;
 
   const res = await fetch(url);
