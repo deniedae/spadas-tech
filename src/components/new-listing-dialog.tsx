@@ -41,7 +41,9 @@ Category: ${initialData.category}`
       : ""
   );
   const [image, setImage] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState("");
+const [imagePreview, setImagePreview] = useState(
+  initialData?.image ?? ""
+);
   const [uploading, setUploading] = useState(false);
   const onDrop = (acceptedFiles: File[]) => {
     if (!acceptedFiles.length) return;
@@ -145,7 +147,7 @@ Category: ${initialData.category}`
       alert("Please log in.");
       return;
     }
-    let imageUrl = "";
+   let imageUrl = initialData?.image ?? "";
 
     if (image) {
       setUploading(true);
