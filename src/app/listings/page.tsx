@@ -1,4 +1,15 @@
 "use client";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import ExportListingDialog from "../../components/export-listing-dialog";
 import DashboardCards from "@/components/dashboard-cards";
 import { useEffect, useState } from "react";
@@ -6,11 +17,15 @@ import { supabase } from "@/app/lib/supabase";
 import EditListingDialog from "@/components/edit-listing-dialog";
 import Link from "next/link";
 import BarcodeScanner from "@/components/barcode-scanner";
+import { toast } from "sonner";
+import NewListingDialog from "@/components/new-listing-dialog";
+
 export default function ListingsPage() {
   
   const [listings, setListings] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const totalListings = listings.length;
+  const [loading, setLoading] = useState(true);
 const handleCreateListing = (product: any) => {
   console.log("Scanned product:", product);
 
@@ -40,20 +55,24 @@ const inventoryValue = listings.reduce(
     loadListings();
   }, []);
 
-  async function loadListings() {
-    const { data, error } = await supabase
-      .from("listings")
-      .select("*")
-      .order("id", { ascending: false });
+ async function loadListings() {
+  setLoading(true);
 
-    if (error) {
-      console.error(error);
-      return;
-    }
+  const { data, error } = await supabase
+    .from("listings")
+    .select("*")
+    .order("id", { ascending: false });
 
-    setListings(data || []);
+  if (error) {
+    console.error(error);
+    toast.error("Failed to load listings.");
+    setLoading(false);
+    return;
   }
 
+  setListings(data || []);
+  setLoading(false);
+}
   async function editListing(item: any) {
     const product = window.prompt("Product", item.product);
     if (product === null) return;
@@ -81,7 +100,7 @@ const inventoryValue = listings.reduce(
       .eq("id", item.id);
 
     if (error) {
-      alert(error.message);
+   toast.error(error.message);
       return;
     }
 
@@ -89,26 +108,35 @@ const inventoryValue = listings.reduce(
   }
 
   async function deleteListing(id: number) {
-    const confirmed = window.confirm(
-      "Are you sure you want to delete this listing?"
-    );
-
-    if (!confirmed) return;
-
     const { error } = await supabase
       .from("listings")
       .delete()
       .eq("id", id);
 
     if (error) {
-      alert(error.message);
+    toast.error(error.message);
       return;
     }
-
+toast.success("Listing deleted!");
     loadListings();
   }
-
+if (loading) {
   return (
+    <main className="space-y-8">
+      <h1 className="text-4xl font-bold">📦 My Listings</h1>
+
+      <div className="animate-pulse space-y-4">
+        <div className="h-12 rounded-xl bg-gray-200"></div>
+
+        <div className="h-24 rounded-xl bg-gray-200"></div>
+
+        <div className="h-96 rounded-xl bg-gray-200"></div>
+      </div>
+    </main>
+  );
+}
+  return (
+    
     <main className="space-y-8">
     <div className="flex items-center justify-between">
   <div>
@@ -121,12 +149,7 @@ const inventoryValue = listings.reduce(
     </p>
   </div>
 
-  <Link
-  href="/listings/new"
-  className="rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-700"
->
-  + New Listing
-</Link>
+  <NewListingDialog />
 </div>
    
 <BarcodeScanner
@@ -240,28 +263,57 @@ const profit =
 <ExportListingDialog
   listing={item}
 />
+<AlertDialog>
+  <AlertDialogTrigger
+    render={
+      <button className="rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700">
+        🗑 Delete
+      </button>
+    }
+  />
 
-<button
-  onClick={() => deleteListing(item.id)}
-  className="rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700"
->
-  🗑 Delete
-</button>
+  <AlertDialogContent>
+    <AlertDialogHeader>
+      <AlertDialogTitle>Delete Listing?</AlertDialogTitle>
+
+      <AlertDialogDescription>
+        This action cannot be undone. This will permanently delete this listing.
+      </AlertDialogDescription>
+    </AlertDialogHeader>
+
+    <AlertDialogFooter>
+      <AlertDialogCancel>Cancel</AlertDialogCancel>
+
+      <AlertDialogAction onClick={() => deleteListing(item.id)}>
+        Delete
+      </AlertDialogAction>
+    </AlertDialogFooter>
+  </AlertDialogContent>
+</AlertDialog>
                   </td>
                 </tr>
               );
             })}
 
-            {listings.length === 0 && (
-              <tr>
-                <td
-                  colSpan={6}
-                  className="p-8 text-center text-gray-500"
-                >
-                  No listings found.
-                </td>
-              </tr>
-            )}
+       {listings.length === 0 && (
+  <tr>
+    <td colSpan={6} className="p-16">
+      <div className="flex flex-col items-center justify-center text-center">
+        <div className="mb-4 text-6xl">📦</div>
+
+        <h2 className="text-2xl font-bold text-gray-900">
+          Welcome to Spadas AI
+        </h2>
+
+        <p className="mt-2 max-w-md text-gray-500">
+          You don't have any listings yet.
+          Create your first listing or scan a barcode to get started.
+        </p>
+<NewListingDialog />
+      </div>
+    </td>
+  </tr>
+)}
           </tbody>
         </table>
       </div>

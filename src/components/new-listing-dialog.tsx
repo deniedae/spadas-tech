@@ -11,17 +11,19 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useDropzone } from "react-dropzone";
 export default function NewListingDialog({
+  
   initialData,
 }: {
   initialData?: any;
 }) {
+    const [saving, setSaving] = useState(false);
   const [open, setOpen] = useState(false);
   const router = useRouter();
   const [generating, setGenerating] = useState(false);
@@ -63,7 +65,7 @@ const [imagePreview, setImagePreview] = useState(
   });
   async function generateWithAI() {
     if (!product.trim()) {
-      alert("Enter a product name first.");
+    toast.error("Please enter a product name.");
       return;
     }
 
@@ -90,25 +92,29 @@ const [imagePreview, setImagePreview] = useState(
       setPrice(data.price?.toString() || "");
     } catch (err) {
       console.error(err);
-      alert("AI couldn't generate a listing.");
+      toast.error("AI couldn't generate a listing.");
     }
 
     setGenerating(false);
   }
   async function saveListing() {
+    setSaving(true);
     // Validation
     if (!product.trim()) {
-      alert("Please enter a product name.");
+      toast.error("Please enter a product name.");
+      setSaving(false);
       return;
     }
 
     if (isNaN(Number(price)) || Number(price) <= 0) {
-      alert("Please enter a valid price.");
+      toast.error("Please enter a valid price.");
+      setSaving(false);
       return;
     }
 
     if (isNaN(Number(cost)) || Number(cost) < 0) {
-      alert("Please enter a valid cost.");
+      toast.error("Please enter a valid cost.");
+      setSaving(false);
       return;
     }
 
@@ -138,13 +144,14 @@ const [imagePreview, setImagePreview] = useState(
       error: authError,
     } = await supabase.auth.getUser();
 
-    if (authError) {
-      alert(authError.message);
-      return;
-    }
+  if (authError) {
+  toast.error(authError.message);
+  setSaving(false);
+  return;
+}
 
     if (!user) {
-      alert("Please log in.");
+      toast.error("Please log in.");
       return;
     }
    let imageUrl = initialData?.image ?? "";
@@ -159,7 +166,7 @@ const [imagePreview, setImagePreview] = useState(
         .upload(fileName, image);
 
       if (uploadError) {
-        alert(uploadError.message);
+        toast.error(uploadError.message);
         setUploading(false);
         return;
       }
@@ -185,40 +192,46 @@ const [imagePreview, setImagePreview] = useState(
       },
     ]);
 
-    if (error) {
-      console.error(error);
-      alert(error.message);
-      return;
-    }
+   if (error) {
+  console.error(error);
+  toast.error(error.message);
+  return;
+}
 
-    setOpen(false);
+toast.success("✅ Listing created!");
 
-    setProduct("");
-    setPrice("");
-    setCost("");
-    setDescription("");
-    setImage(null);
-    setImagePreview("");
+setOpen(false);
 
-    router.refresh();
+setProduct("");
+setPrice("");
+setCost("");
+setDescription("");
+setImage(null);
+setImagePreview("");
+
+router.refresh();
   }
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button
-          type="button"
-          className="bg-blue-600 hover:bg-blue-700"
-        >
-          + New Listing
-        </Button>
-      </DialogTrigger>
+      <Button
+  type="button"
+  className="bg-blue-600 hover:bg-blue-700"
+  onClick={() => setOpen(true)}
+>
+  + New Listing
+</Button>
 
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Create New Listing</DialogTitle>
-        </DialogHeader>
+  <DialogContent className="sm:max-w-3xl">
+  <DialogHeader>
+    <DialogTitle>
+      📦 Create New Listing
+    </DialogTitle>
 
-        <div className="space-y-4">
+    <p className="mt-2 text-sm text-gray-500">
+      Add a new product to your inventory.
+    </p>
+  </DialogHeader>
+<div className="space-y-6">
           <div>
             <Label htmlFor="product">Product</Label>
             <Input
@@ -300,23 +313,29 @@ const [imagePreview, setImagePreview] = useState(
               onChange={(e) => setDescription(e.target.value)}
             />
           </div>
-<Button
-  type="button"
-  variant="outline"
-  className="w-full"
-  onClick={generateWithAI}
-  disabled={generating}
->
-  {generating ? "Generating..." : "✨ Generate with AI"}
-</Button>
+<div className="flex gap-3 pt-2">
+  <Button
+    type="button"
+    className="flex-1 bg-slate-100 text-slate-800 hover:bg-slate-200"
+    onClick={generateWithAI}
+    disabled={generating}
+  >
+    {generating ? "Generating..." : "✨ Generate AI"}
+  </Button>
 
-<Button
-  className="w-full"
-  onClick={saveListing}
->
-  Save Listing
-</Button>
-
+  <Button
+    type="button"
+    className="flex-1 bg-blue-600 hover:bg-blue-700"
+    onClick={saveListing}
+    disabled={saving || uploading}
+  >
+    {uploading
+      ? "Uploading..."
+      : saving
+      ? "Saving..."
+      : "💾 Save Listing"}
+  </Button>
+</div>
 </div>
 
 </DialogContent>

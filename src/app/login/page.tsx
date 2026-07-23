@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabase";
+import { toast } from "sonner";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -27,7 +28,7 @@ export default function LoginPage() {
   console.log("Login error:", error);
 
   if (error) {
-    alert(error.message);
+  toast.error(error.message);
     return;
   }
 
@@ -38,7 +39,7 @@ export default function LoginPage() {
   console.log("Current user:", user);
 
   if (!user) {
-    alert("Login failed - no user session found.");
+   toast.error("Login failed - no user session found.");
     return;
   }
 

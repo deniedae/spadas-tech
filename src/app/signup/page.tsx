@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabase";
+import { toast } from "sonner";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -24,11 +25,10 @@ export default function SignupPage() {
     setLoading(false);
 
     if (error) {
-      alert(error.message);
+      toast.error(error.message);
       return;
     }
-
-    alert("Account created successfully!");
+toast.success("Account created successfully!");
 
     router.push("/login");
   }

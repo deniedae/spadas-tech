@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 type Listing = {
   product: string;
@@ -56,7 +57,7 @@ Happy to answer any questions.`,
       exportData[marketplace as keyof typeof exportData].title
     );
 
-    alert("✅ Title copied!");
+   toast.success("Title copied!");
   }
 
   async function copyDescription() {
@@ -64,7 +65,7 @@ Happy to answer any questions.`,
       exportData[marketplace as keyof typeof exportData].description
     );
 
-    alert("✅ Description copied!");
+toast.success("Description copied!");
   }
 
   return (

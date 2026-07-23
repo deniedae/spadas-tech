@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/app/lib/supabase";
+import { toast } from "sonner";
 
 type Listing = {
   id: number;
@@ -13,7 +14,7 @@ type Listing = {
   sold_price: number;
  shipping_cost: number;
   fees: number;
-
+sold_at: string | null;
   status: string;
 };
 
@@ -55,34 +56,39 @@ export default function EditListingDialog({
   async function saveChanges() {
   console.log("Editing listing:", listing);
   
+const { data, error } = await supabase
+  .from("listings")
+  .update({
+    product,
+    price: Number(price),
+    cost: Number(cost),
+    purchase_price: Number(purchasePrice),
+    sold_price: Number(soldPrice),
+    shipping_cost: Number(shippingCost),
+    fees: Number(fees),
+    status,
 
-  const { data, error } = await supabase
-    .from("listings")
-    .update({
-      product,
-      price: Number(price),
-      cost: Number(cost),
-      purchase_price: Number(purchasePrice),
-      sold_price: Number(soldPrice),
-      shipping_cost: Number(shippingCost),
-      fees: Number(fees),
-      status,
-    })
-    .eq("id", listing.id)
-    .select();
-
+    sold_at:
+      status === "Sold"
+        ? listing.sold_at ?? new Date().toISOString()
+        : null,
+  })
+  .eq("id", listing.id)
+  .select();
 
   console.log("Updated rows:", data);
 
   if (error) {
-    console.error("Supabase update failed:", error);
-    alert(error.message);
-    return;
-  }
+  console.error("Supabase update failed:", error);
+  toast.error(error.message);
+  return;
+}
 
-  console.log("Saved successfully!");
-  setOpen(false);
-  onUpdated();
+console.log("Saved successfully!");
+toast.success("Listing updated successfully!");
+
+setOpen(false);
+onUpdated();
 }
 
   return (

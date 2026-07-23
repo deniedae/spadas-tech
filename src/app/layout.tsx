@@ -4,6 +4,7 @@ import { Geist } from "next/font/google";
 import { cn } from "@/lib/utils";
 import Sidebar from "@/components/sidebar";
 import { Analytics } from "@vercel/analytics/next"
+import { Toaster } from "@/components/ui/sonner";
 const geist = Geist({
   subsets: ["latin"],
   variable: "--font-sans",
@@ -30,6 +31,7 @@ export default function RootLayout({
     </main>
   </div>
   <Analytics />
+  <Toaster richColors position="top-right" />
 </body>
     </html>
   );

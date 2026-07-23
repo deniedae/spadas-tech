@@ -1,5 +1,10 @@
 "use client";
-
+import {
+  Package,
+  DollarSign,
+  TrendingUp,
+  ShoppingCart,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabase";
@@ -80,6 +85,26 @@ data.forEach((item) => {
   loadDashboard();
 }, [router]);
   return (
+    <>
+  <div className="mb-8 rounded-2xl bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 p-8 text-white shadow-xl">
+    <div className="flex items-center justify-between">
+      <div>
+        <h1 className="text-3xl font-bold">
+          Welcome back 👋
+        </h1>
+
+        <p className="mt-2 max-w-xl text-blue-100">
+          Manage your inventory, generate AI listings, and track your profits from one dashboard.
+        </p>
+
+      </div>
+
+      <div className="hidden rounded-2xl bg-white/10 p-6 backdrop-blur md:block">
+        <div className="text-sm text-blue-100">Version</div>
+        <div className="text-2xl font-bold">Beta v0.9</div>
+      </div>
+    </div>
+  </div>
     <div className="space-y-8">
 
       {/* Header */}
@@ -94,7 +119,7 @@ data.forEach((item) => {
           </p>
         </div>
 
-    <NewListingDialog />
+    
       </div>
 
       {/* Stats */}
@@ -235,7 +260,7 @@ data.forEach((item) => {
         </table>
 
       </div>
-
     </div>
+  </>
   );
 }

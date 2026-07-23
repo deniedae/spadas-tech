@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabase";
 import { createListing } from "@/app/lib/createlisting";
+import { toast } from "sonner";
 import { generateListing } from "@/app/lib/generateListing";
 type Product = {
   barcode: string;
@@ -221,10 +222,10 @@ onClick={() => {
           data: { user },
         } = await supabase.auth.getUser();
 
-        if (!user) {
-          alert("Please log in first.");
-          return;
-        }
+  if (!user) {
+  toast.error("Please log in first.");
+  return;
+}
 
         const { data, error } = await createListing({
           userId: user.id,
@@ -236,13 +237,13 @@ onClick={() => {
           status: "Draft",
         });
 
-        if (error) {
-          console.error(error);
-          alert(JSON.stringify(error, null, 2));
-          return;
-        }
+       if (error) {
+  console.error(error);
+  toast.error(error.message || "Failed to create listing.");
+  return;
+}
 
-      alert("✅ Listing created!");
+  toast.success("Listing created successfully!");
 
 setProduct(null);
 setBarcode("");

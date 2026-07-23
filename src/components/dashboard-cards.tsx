@@ -1,3 +1,10 @@
+import {
+  Package,
+  DollarSign,
+  TrendingUp,
+  ShoppingCart,
+} from "lucide-react";
+
 type Props = {
   totalListings: number;
   soldListings: number;
@@ -12,31 +19,75 @@ export default function DashboardCards({
   inventoryValue,
 }: Props) {
   return (
-    <div className="grid gap-4 md:grid-cols-4">
-      <div className="rounded-xl border bg-white p-6 shadow-sm">
-        <p className="text-sm text-gray-500">📦 Total Listings</p>
-        <h2 className="mt-2 text-4xl font-bold">{totalListings}</h2>
-      </div>
+    <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+      <Card
+        title="Total Listings"
+        value={totalListings}
+        subtitle="Items in your inventory"
+        icon={<Package className="h-6 w-6 text-blue-600" />}
+        iconBg="bg-blue-100"
+      />
 
-      <div className="rounded-xl border bg-white p-6 shadow-sm">
-        <p className="text-sm text-gray-500">💰 Total Profit</p>
-        <h2 className="mt-2 text-4xl font-bold text-green-600">
-          ${totalProfit.toFixed(2)}
-        </h2>
-      </div>
+      <Card
+        title="Total Profit"
+        value={`$${totalProfit.toFixed(2)}`}
+        subtitle="Profit from sold items"
+        icon={<TrendingUp className="h-6 w-6 text-green-600" />}
+        iconBg="bg-green-100"
+      />
 
-      <div className="rounded-xl border bg-white p-6 shadow-sm">
-        <p className="text-sm text-gray-500">💵 Inventory Value</p>
-        <h2 className="mt-2 text-4xl font-bold">
-          ${inventoryValue.toFixed(2)}
-        </h2>
-      </div>
+      <Card
+        title="Inventory Value"
+        value={`$${inventoryValue.toFixed(2)}`}
+        subtitle="Current inventory worth"
+        icon={<DollarSign className="h-6 w-6 text-amber-600" />}
+        iconBg="bg-amber-100"
+      />
 
-      <div className="rounded-xl border bg-white p-6 shadow-sm">
-        <p className="text-sm text-gray-500">✅ Sold Listings</p>
-        <h2 className="mt-2 text-4xl font-bold text-blue-600">
-          {soldListings}
-        </h2>
+      <Card
+        title="Sold Listings"
+        value={soldListings}
+        subtitle="Completed sales"
+        icon={<ShoppingCart className="h-6 w-6 text-purple-600" />}
+        iconBg="bg-purple-100"
+      />
+    </div>
+  );
+}
+
+function Card({
+  title,
+  value,
+  subtitle,
+  icon,
+  iconBg,
+}: {
+  title: string;
+  value: string | number;
+  subtitle: string;
+  icon: React.ReactNode;
+  iconBg: string;
+}) {
+  return (
+    <div className="group rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-sm font-medium text-gray-500">
+            {title}
+          </p>
+
+          <h2 className="mt-3 text-4xl font-bold text-gray-900">
+            {value}
+          </h2>
+
+          <p className="mt-3 text-sm text-gray-400">
+            {subtitle}
+          </p>
+        </div>
+
+        <div className={`rounded-xl p-3 ${iconBg}`}>
+          {icon}
+        </div>
       </div>
     </div>
   );
