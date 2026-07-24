@@ -1,14 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabase";
 import { toast } from "sonner";
 import Link from "next/link";
 
 export default function LoginPage() {
-  const router = useRouter();
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -24,26 +21,20 @@ export default function LoginPage() {
 
     setLoading(false);
 
-    console.log("Login data:", data);
-    console.log("Login error:", error);
-
     if (error) {
       toast.error(error.message);
       return;
     }
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    console.log("Current user:", user);
-
-    if (!user) {
+    if (!data.user) {
       toast.error("Login failed - no user session found.");
       return;
     }
 
-    router.push("/dashboard");
+    toast.success("Welcome back!");
+    // Full page load so the middleware sees the new auth cookie.
+    // router.push() does client-side navigation which skips middleware.
+    window.location.href = "/dashboard";
   }
 
   return (
