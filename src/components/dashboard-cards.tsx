@@ -4,6 +4,7 @@ import {
   TrendingUp,
   ShoppingCart,
 } from "lucide-react";
+import { fmtMoney } from "@/app/lib/listings";
 
 type Props = {
   totalListings: number;
@@ -30,7 +31,7 @@ export default function DashboardCards({
 
       <Card
         title="Total Profit"
-        value={`$${totalProfit.toFixed(2)}`}
+        value={fmtMoney(totalProfit)}
         subtitle="Profit from sold items"
         icon={<TrendingUp className="h-6 w-6 text-green-600" />}
         iconBg="bg-green-100"
@@ -38,7 +39,7 @@ export default function DashboardCards({
 
       <Card
         title="Inventory Value"
-        value={`$${inventoryValue.toFixed(2)}`}
+        value={fmtMoney(inventoryValue)}
         subtitle="Current inventory worth"
         icon={<DollarSign className="h-6 w-6 text-amber-600" />}
         iconBg="bg-amber-100"
