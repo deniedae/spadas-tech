@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Search, LayoutDashboard, Package, BarChart3, Settings, Plus, Sparkles, Home } from "lucide-react";
+import { Search, LayoutDashboard, Package, BarChart3, Settings, Plus, Sparkles, Home, Crosshair } from "lucide-react";
+
 interface Command {
   id: string;
   label: string;
@@ -27,7 +28,8 @@ export default function CommandPalette() {
     {
   id: "sourcing",
   label: "Sourcing Assistant",
-  icon: Target,
+   icon: Crosshair,
+
   group: "Actions",
   action: () => router.push("/sourcing"),
 },
