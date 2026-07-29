@@ -1,4 +1,12 @@
-import type { AiListingResult, AiGenerationStage } from "@/types/ai-listing";
+import type { AiListingResult } from "@/types/ai-listing";
+
+export type AiGenerationStage =
+  | "uploading"
+  | "analyzing"
+  | "generating-titles"
+  | "estimating-price"
+  | "finalizing";
+
 
 export interface GenerateListingInput {
   imageUrls: string[];
@@ -29,6 +37,6 @@ export async function generateListing(
     throw new Error(body.error ?? "AI generation failed.");
   }
 
-  onProgress?.("finalizing" as AiGenerationStage, 1);
+  onProgress?.("finalizing", 1);
   return (await res.json()) as AiListingResult;
 }

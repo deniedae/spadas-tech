@@ -1,13 +1,9 @@
-export type AiGenerationStage =
-  | "uploading"
-  | "analyzing"
-  | "identifying"
-  | "pricing"
-  | "generating"
-  | "complete";
+// AI listing domain types — additive, no existing types touched.
+// AiGenerationStage is NOT exported here — it lives in lib/ai/listing-generator.ts.
 
 export type Confidence = "high" | "medium" | "low";
 
+/** What the vision model extracts from the uploaded photos. */
 export interface ProductAnalysis {
   product_name: string;
   brand: string | null;
@@ -18,9 +14,10 @@ export interface ProductAnalysis {
   condition: string;
   accessories_detected: string[];
   confidence: Confidence;
-  confidence_score: number;
+  confidence_score: number; // 0..1
 }
 
+/** Marketplace-specific generated copy. */
 export interface MarketTitles {
   ebay: string;
   facebook_marketplace: string;
@@ -28,48 +25,35 @@ export interface MarketTitles {
   depop: string;
 }
 
+export type ShippingSize = "small" | "medium" | "large" | "extra-large";
+
 export interface ShippingEstimate {
-  size: "small" | "medium" | "large" | "extra-large";
+  size: ShippingSize;
   estimated_weight_grams: number;
-  dimensions_cm: {
-    length: number;
-    width: number;
-    height: number;
-  } | null;
+  dimensions_cm: { length: number; width: number; height: number } | null;
   notes: string | null;
 }
 
+/** Full AI-generated listing payload. */
 export interface AiListingResult {
   analysis: ProductAnalysis;
-
   market_titles: MarketTitles;
-
   seo_description: string;
-
   detailed_description: string;
-
   shipping_estimate: ShippingEstimate;
-
   item_specifics: Record<string, string>;
-
   suggested_keywords: string[];
-
   suggested_price_min: number;
-
   suggested_price_max: number;
-
-  suggested_price_currency: "AUD";
+  suggested_price_currency: "USD" | "AUD" | "GBP" | "EUR";
 }
 
+/** Row in the ai_listing_analyses table. */
 export interface AiListingAnalysisRecord {
   id: string;
-  created_at: string;
-  listing_id: string | null;
+  user_id: string;
+  image_urls: string[];
   result: AiListingResult;
+  listing_id: string | null; // set once the user saves it as a listing
+  created_at: string;
 }
-
-export type ShippingSize =
-  | "small"
-  | "medium"
-  | "large"
-  | "extra-large";

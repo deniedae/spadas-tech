@@ -6,7 +6,8 @@ import { supabase } from "@/app/lib/supabase";
 import { toast } from "sonner";
 import ImageDropzone from "@/components/image-dropzone";
 import { generateListing } from "@/lib/ai/listing-generator";
-import type { AiListingResult, Confidence } from "@/types/ai-listing";
+import type { AiListingResult, Confidence, ShippingSize } from "@/types/ai-listing";
+
 import { ArrowLeft, Sparkles, Loader2, Save, TrendingUp, ShieldCheck } from "lucide-react";
 
 type AiGenerationStage = "analyzing" | "generating-titles" | "estimating-price" | "finalizing";
