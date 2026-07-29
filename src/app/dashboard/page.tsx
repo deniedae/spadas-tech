@@ -12,7 +12,10 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabase";
 import Link from "next/link";
+import NewListingDialog from "@/components/new-listing-dialog";
 import { fmtMoney, calcProfit, calcInventoryValue } from "@/app/lib/listings";
+// ^ NewListingDialog is imported but not yet rendered. Wire it to a "Quick add"
+//   button when ready. Left in place per your instruction not to remove features.
 
 // --- Types (was: any[]) ---------------------------------------------------
 interface Listing {
@@ -59,13 +62,13 @@ function StatCard({
   loading: boolean;
 }) {
   return (
-    <div className="bg-white rounded-2xl shadow-md p-6 border border-gray-200 transition-shadow hover:shadow-lg">
+    <div className="bg-card text-card-foreground rounded-2xl shadow-sm p-6 border border-border transition-shadow hover:shadow-md">
       <div className="flex items-center justify-between">
-        <p className="text-gray-500">{label}</p>
-        {Icon && <Icon className="h-5 w-5 text-gray-400" aria-hidden="true" />}
+        <p className="text-muted-foreground">{label}</p>
+        {Icon && <Icon className="h-5 w-5 text-muted-foreground/70" aria-hidden="true" />}
       </div>
       {loading ? (
-        <div className="mt-2 h-9 w-28 animate-pulse rounded bg-gray-200" />
+        <div className="mt-2 h-9 w-28 animate-pulse rounded bg-muted" />
       ) : (
         <h2 className={`text-4xl font-bold mt-2 tabular-nums ${valueClassName}`}>
           {value}
@@ -142,7 +145,7 @@ export default function Dashboard() {
 
   return (
     <>
-      {/* Hero */}
+      {/* Hero — brand gradient, stays raw by design */}
       <div className="mb-8 rounded-2xl bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 p-8 text-white shadow-xl">
         <div className="flex items-center justify-between">
           <div>
@@ -163,7 +166,7 @@ export default function Dashboard() {
         {error && (
           <div
             role="alert"
-            className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"
+            className="flex items-start gap-3 rounded-2xl border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive"
           >
             <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0" aria-hidden="true" />
             <p className="flex-1">{error}</p>
@@ -171,7 +174,7 @@ export default function Dashboard() {
               type="button"
               onClick={() => setError(null)}
               aria-label="Dismiss"
-              className="rounded p-1 text-red-600 hover:bg-red-100"
+              className="rounded p-1 text-destructive hover:bg-destructive/15"
             >
               <X className="h-4 w-4" />
             </button>
@@ -193,44 +196,52 @@ export default function Dashboard() {
         </div>
 
         {/* Quick Actions */}
-        <div className="grid md:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-6">
+
           <Link
             href="/generator"
-            className="bg-blue-600 text-white rounded-2xl p-8 shadow-lg transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 motion-safe:hover:scale-[1.02]"
+            className="bg-primary text-primary-foreground rounded-2xl p-8 shadow-sm transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-safe:hover:scale-[1.02]"
           >
             <h2 className="text-2xl font-bold">🤖 Generate Listing</h2>
-            <p className="mt-3 text-blue-100">Create AI listings in seconds.</p>
+            <p className="mt-3 text-primary-foreground/80">Create AI listings in seconds.</p>
+          </Link>
+          <Link
+            href="/sourcing"
+            className="bg-card text-card-foreground rounded-2xl shadow-sm border border-border p-8 hover:shadow-md transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          >
+            <h2 className="text-2xl font-bold">🎯 Sourcing Assistant</h2>
+            <p className="mt-3 text-muted-foreground">Get a buy/pass verdict before you spend.</p>
           </Link>
 
           <Link
             href="/listings"
-            className="bg-white rounded-2xl shadow-md border border-gray-200 p-8 hover:shadow-xl transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
+            className="bg-card text-card-foreground rounded-2xl shadow-sm border border-border p-8 hover:shadow-md transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
-            <h2 className="text-2xl font-bold text-gray-900">📦 My Listings</h2>
-            <p className="mt-3 text-gray-500">View and manage your listings.</p>
+            <h2 className="text-2xl font-bold">📦 My Listings</h2>
+            <p className="mt-3 text-muted-foreground">View and manage your listings.</p>
           </Link>
 
-          <div className="bg-white rounded-2xl shadow-md border border-gray-200 p-8">
+          <div className="bg-card text-card-foreground rounded-2xl shadow-sm border border-border p-8">
             <h2 className="text-2xl font-bold">💰 Revenue</h2>
             {loading ? (
-              <div className="mt-4 h-12 w-40 animate-pulse rounded bg-gray-200" />
+              <div className="mt-4 h-12 w-40 animate-pulse rounded bg-muted" />
             ) : (
-              <h3 className="text-5xl font-bold text-blue-600 mt-4 tabular-nums">
+              <h3 className="text-5xl font-bold text-primary mt-4 tabular-nums">
                 {fmtMoney(stats.revenue)}
               </h3>
             )}
-            <p className="mt-3 text-gray-500">Total value of your listings.</p>
+            <p className="mt-3 text-muted-foreground">Total value of your listings.</p>
           </div>
         </div>
 
         {/* Recent Listings */}
-        <div className="bg-white rounded-2xl shadow-md border border-gray-200 p-8">
+        <div className="bg-card text-card-foreground rounded-2xl shadow-sm border border-border p-8">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold">Recent Listings</h2>
             {recentListings.length > 0 && (
               <Link
                 href="/listings"
-                className="text-sm font-medium text-blue-600 hover:text-blue-700"
+                className="text-sm font-medium text-primary hover:text-primary/80"
               >
                 View all →
               </Link>
@@ -239,33 +250,33 @@ export default function Dashboard() {
 
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="text-left border-b border-gray-200">
+              <thead className="text-left border-b border-border">
                 <tr>
-                  <th scope="col" className="pb-4">Product</th>
-                  <th scope="col" className="pb-4">Price</th>
-                  <th scope="col" className="pb-4">Status</th>
-                  <th scope="col" className="pb-4">Added</th>
+                  <th scope="col" className="pb-4 text-muted-foreground">Product</th>
+                  <th scope="col" className="pb-4 text-muted-foreground">Price</th>
+                  <th scope="col" className="pb-4 text-muted-foreground">Status</th>
+                  <th scope="col" className="pb-4 text-muted-foreground">Added</th>
                 </tr>
               </thead>
               <tbody>
                 {/* Loading skeleton rows */}
                 {loading &&
                   Array.from({ length: 4 }).map((_, i) => (
-                    <tr key={i} className="border-t">
+                    <tr key={i} className="border-t border-border">
                       <td className="p-4">
                         <div className="flex items-center gap-3">
-                          <div className="h-12 w-12 rounded-lg bg-gray-200 animate-pulse" />
-                          <div className="h-4 w-32 rounded bg-gray-200 animate-pulse" />
+                          <div className="h-12 w-12 rounded-lg bg-muted animate-pulse" />
+                          <div className="h-4 w-32 rounded bg-muted animate-pulse" />
                         </div>
                       </td>
                       <td className="p-4">
-                        <div className="h-4 w-16 rounded bg-gray-200 animate-pulse" />
+                        <div className="h-4 w-16 rounded bg-muted animate-pulse" />
                       </td>
                       <td className="p-4">
-                        <div className="h-5 w-16 rounded-full bg-gray-200 animate-pulse" />
+                        <div className="h-5 w-16 rounded-full bg-muted animate-pulse" />
                       </td>
                       <td className="p-4">
-                        <div className="h-4 w-20 rounded bg-gray-200 animate-pulse" />
+                        <div className="h-4 w-20 rounded bg-muted animate-pulse" />
                       </td>
                     </tr>
                   ))}
@@ -275,14 +286,14 @@ export default function Dashboard() {
                   <tr>
                     <td colSpan={4} className="p-0">
                       <div className="flex flex-col items-center justify-center px-6 py-12 text-center">
-                        <Package className="h-10 w-10 text-gray-300" aria-hidden="true" />
-                        <p className="mt-3 text-sm font-medium text-gray-900">No listings yet</p>
-                        <p className="mt-1 text-sm text-gray-500">
+                        <Package className="h-10 w-10 text-muted-foreground/40" aria-hidden="true" />
+                        <p className="mt-3 text-sm font-medium">No listings yet</p>
+                        <p className="mt-1 text-sm text-muted-foreground">
                           Generate your first AI listing to get started.
                         </p>
                         <Link
                           href="/generator"
-                          className="mt-4 inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
+                          className="mt-4 inline-flex items-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                         >
                           Generate listing
                         </Link>
@@ -296,7 +307,7 @@ export default function Dashboard() {
                   recentListings.map((item) => {
                     const isSold = item.status === "Sold";
                     return (
-                      <tr key={item.id} className="border-t transition-colors hover:bg-gray-50">
+                      <tr key={item.id} className="border-t border-border transition-colors hover:bg-muted/50">
                         <td className="p-4">
                           <div className="flex items-center gap-3">
                             <img
@@ -305,26 +316,26 @@ export default function Dashboard() {
                               width={48}
                               height={48}
                               loading="lazy"
-                              className="h-12 w-12 rounded-lg border object-cover"
+                              className="h-12 w-12 rounded-lg border border-border object-cover"
                             />
-                            <span className="font-medium text-gray-900">{item.product}</span>
+                            <span className="font-medium">{item.product}</span>
                           </div>
                         </td>
-                        <td className="p-4 tabular-nums text-gray-700">
+                        <td className="p-4 tabular-nums text-muted-foreground">
                           {fmtMoney(Number(item.price) || 0)}
                         </td>
                         <td className="p-4">
                           <span
                             className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
                               isSold
-                                ? "bg-green-100 text-green-700"
-                                : "bg-blue-100 text-blue-700"
+                                ? "bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-400"
+                                : "bg-primary/10 text-primary"
                             }`}
                           >
                             {item.status}
                           </span>
                         </td>
-                        <td className="p-4 text-gray-500">
+                        <td className="p-4 text-muted-foreground">
                           {new Date(item.created_at).toLocaleDateString("en-AU")}
                         </td>
                       </tr>

@@ -1,49 +1,55 @@
 import OpenAI from "openai";
 import { NextResponse } from "next/server";
-import { supabase } from "../../lib/supabase";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-export async function POST(request: Request) {
-  const { product } = await request.json();
+export async function POST(req: Request) {
+  try {
+    const { product } = await req.json();
 
-  const completion = await openai.responses.create({
-    model: "gpt-5",
-    input: `
-You are an expert eBay and Facebook Marketplace seller.
+    if (!product || typeof product !== "string" || !product.trim()) {
+      return NextResponse.json(
+        { error: "Product name is required." },
+        { status: 400 }
+      );
+    }
 
-Return ONLY valid JSON.
+    const completion = await openai.responses.create({
+      model: "gpt-5",
+      input: `
+You are an expert eBay, Facebook Marketplace and Vinted seller.
 
-Create the best listing possible for:
+A user is selling:
 
 ${product}
 
-The JSON must contain:
+Respond ONLY with valid JSON in exactly this shape:
 
 {
-  "title": "...",
-  "price": "...",
-  "description": "...",
-  "condition": "...",
-  "keywords": ["...", "...", "..."]
+  "title": "",
+  "description": "",
+  "price": 0
 }
+
+Rules:
+- The title must be SEO-friendly and under 80 characters.
+- The description must be professional, 2-3 short sentences, plain text, no markdown, no emoji.
+- The price must be a realistic Australian resale price in AUD, as a number (not a string).
+- Do not include any text outside the JSON object.
 `,
-  });
+    });
 
-  const listing = JSON.parse(completion.output_text);
+    const text = completion.output_text ?? "";
+    const listing = JSON.parse(text);
 
-  const { error } = await supabase
-    .from("listings")
-    .insert([listing]);
-
-  if (error) {
+    return NextResponse.json(listing);
+  } catch (err) {
+    console.error("[generate] failed:", err);
     return NextResponse.json(
-      { error: error.message },
+      { error: "Failed to generate listing." },
       { status: 500 }
     );
   }
-
-  return NextResponse.json(listing);
 }

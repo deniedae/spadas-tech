@@ -107,33 +107,33 @@ export default function ListingsPage() {
       <main className="space-y-8 animate-fade-in">
         <div className="flex items-center justify-between">
           <div className="space-y-2">
-            <div className="h-9 w-48 rounded-lg bg-gray-200 animate-pulse" />
-            <div className="h-4 w-72 rounded bg-gray-200 animate-pulse" />
+            <div className="h-9 w-48 rounded-lg bg-muted animate-pulse" />
+            <div className="h-4 w-72 rounded bg-muted animate-pulse" />
           </div>
-          <div className="h-9 w-32 rounded-lg bg-gray-200 animate-pulse" />
+          <div className="h-9 w-32 rounded-lg bg-muted animate-pulse" />
         </div>
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <div
               key={i}
-              className="h-28 rounded-2xl bg-white border border-gray-200 shadow-sm animate-pulse"
+              className="h-28 rounded-2xl bg-card border border-border shadow-sm animate-pulse"
             />
           ))}
         </div>
-        <div className="h-11 max-w-md rounded-xl bg-gray-200 animate-pulse" />
-        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <div className="h-11 max-w-md rounded-xl bg-muted animate-pulse" />
+        <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
           <div className="space-y-px">
             {Array.from({ length: 7 }).map((_, i) => (
               <div
                 key={i}
-                className="flex items-center gap-4 border-b border-gray-100 p-4 last:border-0"
+                className="flex items-center gap-4 border-b border-border p-4 last:border-0"
               >
-                <div className="h-14 w-14 rounded-lg bg-gray-200 animate-pulse" />
-                <div className="h-4 w-48 rounded bg-gray-200 animate-pulse" />
-                <div className="ml-auto h-4 w-16 rounded bg-gray-200 animate-pulse" />
-                <div className="h-4 w-16 rounded bg-gray-200 animate-pulse" />
-                <div className="h-6 w-16 rounded-full bg-gray-200 animate-pulse" />
-                <div className="h-8 w-24 rounded-lg bg-gray-200 animate-pulse" />
+                <div className="h-14 w-14 rounded-lg bg-muted animate-pulse" />
+                <div className="h-4 w-48 rounded bg-muted animate-pulse" />
+                <div className="ml-auto h-4 w-16 rounded bg-muted animate-pulse" />
+                <div className="h-4 w-16 rounded bg-muted animate-pulse" />
+                <div className="h-6 w-16 rounded-full bg-muted animate-pulse" />
+                <div className="h-8 w-24 rounded-lg bg-muted animate-pulse" />
               </div>
             ))}
           </div>
@@ -147,10 +147,10 @@ export default function ListingsPage() {
       {/* Page header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
-          <h1 className="text-2xl font-bold tracking-tight text-gray-900">
+          <h1 className="text-2xl font-bold tracking-tight">
             My Listings
           </h1>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-muted-foreground">
             Manage your inventory, profits and sales.
           </p>
         </div>
@@ -161,7 +161,7 @@ export default function ListingsPage() {
       {error && (
         <div
           role="alert"
-          className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"
+          className="flex items-start gap-3 rounded-2xl border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive"
         >
           <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0" aria-hidden="true" />
           <p className="flex-1">{error}</p>
@@ -169,7 +169,7 @@ export default function ListingsPage() {
             type="button"
             onClick={() => setError(null)}
             aria-label="Dismiss"
-            className="rounded p-1 text-red-600 hover:bg-red-100"
+            className="rounded p-1 text-destructive hover:bg-destructive/15"
           >
             <X className="h-4 w-4" />
           </button>
@@ -188,33 +188,33 @@ export default function ListingsPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <BarcodeScanner onCreateListing={handleCreateListing} />
         <div className="relative w-full sm:max-w-xs">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
             type="text"
             placeholder="Search listings…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="h-11 w-full rounded-xl border border-gray-200 bg-gray-50 pl-10 pr-3 text-sm shadow-sm transition-colors placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+            className="h-11 w-full rounded-xl border border-input bg-muted/50 pl-10 pr-3 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus:border-ring focus:bg-background focus:outline-none focus:ring-2 focus:ring-ring/30"
           />
         </div>
       </div>
 
       {/* Table */}
-      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+      <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="sticky top-0 border-b border-gray-200 bg-gray-50/80 backdrop-blur">
+            <thead className="sticky top-0 border-b border-border bg-muted/50 backdrop-blur">
               <tr>
-                <th scope="col" className="p-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Product</th>
-                <th scope="col" className="p-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Price</th>
-                <th scope="col" className="p-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Cost</th>
-                <th scope="col" className="p-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Profit</th>
-                <th scope="col" className="p-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Status</th>
-                <th scope="col" className="p-4 text-right text-xs font-semibold uppercase tracking-wider text-gray-500">Actions</th>
+                <th scope="col" className="p-4 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Product</th>
+                <th scope="col" className="p-4 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Price</th>
+                <th scope="col" className="p-4 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Cost</th>
+                <th scope="col" className="p-4 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Profit</th>
+                <th scope="col" className="p-4 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Status</th>
+                <th scope="col" className="p-4 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">Actions</th>
               </tr>
             </thead>
 
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-border">
               {listings
                 .filter((item) =>
                   item.product.toLowerCase().includes(search.toLowerCase())
@@ -225,7 +225,7 @@ export default function ListingsPage() {
                   const profit = calcProfit(item);
 
                   return (
-                    <tr key={item.id} className="group transition-colors hover:bg-gray-50/70">
+                    <tr key={item.id} className="group transition-colors hover:bg-muted/40">
                       <td className="p-4">
                         <div className="flex items-center gap-3">
                           {item.image_url ? (
@@ -233,30 +233,30 @@ export default function ListingsPage() {
                               src={item.image_url}
                               alt={item.product}
                               loading="lazy"
-                              className="h-14 w-14 rounded-lg border border-gray-200 object-cover shadow-sm"
+                              className="h-14 w-14 rounded-lg border border-border object-cover shadow-sm"
                             />
                           ) : (
-                            <div className="flex h-14 w-14 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 text-gray-300">
+                            <div className="flex h-14 w-14 items-center justify-center rounded-lg border border-border bg-muted text-muted-foreground/50">
                               <ImageIcon className="h-5 w-5" />
                             </div>
                           )}
-                          <p className="font-semibold text-gray-900">{item.product}</p>
+                          <p className="font-semibold">{item.product}</p>
                         </div>
                       </td>
 
-                      <td className="p-4 tabular-nums text-gray-700">
+                      <td className="p-4 tabular-nums text-muted-foreground">
                         {fmtMoney(price)}
                       </td>
 
-                      <td className="p-4 tabular-nums text-gray-700">
+                      <td className="p-4 tabular-nums text-muted-foreground">
                         {fmtMoney(cost)}
                       </td>
 
                       <td className="p-4">
                         <span className={`inline-flex items-center rounded-md px-2 py-1 text-sm font-semibold tabular-nums ${
                           profit >= 0
-                            ? "bg-emerald-50 text-emerald-700"
-                            : "bg-red-50 text-red-700"
+                            ? "bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-400"
+                            : "bg-destructive/10 text-destructive"
                         }`}>
                           {fmtMoney(profit)}
                         </span>
@@ -265,8 +265,8 @@ export default function ListingsPage() {
                       <td className="p-4">
                         <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${
                           item.status === "Sold"
-                            ? "bg-green-100 text-green-700"
-                            : "bg-blue-100 text-blue-700"
+                            ? "bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-400"
+                            : "bg-primary/10 text-primary"
                         }`}>
                           {item.status}
                         </span>
@@ -279,7 +279,7 @@ export default function ListingsPage() {
                           <AlertDialog>
                             <AlertDialogTrigger
                               render={
-                                <button className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40">
+                                <button className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive/40">
                                   <Trash2 className="h-4 w-4" />
                                 </button>
                               }
@@ -310,13 +310,13 @@ export default function ListingsPage() {
                 <tr>
                   <td colSpan={6} className="p-0">
                     <div className="flex flex-col items-center justify-center px-6 py-20 text-center">
-                      <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-blue-50 text-blue-600">
+                      <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary">
                         <PackageOpen className="h-8 w-8" />
                       </div>
-                      <h2 className="text-lg font-semibold text-gray-900">
+                      <h2 className="text-lg font-semibold">
                         Welcome to Spadas AI
                       </h2>
-                      <p className="mt-1 max-w-sm text-sm text-gray-500">
+                      <p className="mt-1 max-w-sm text-sm text-muted-foreground">
                         You don't have any listings yet. Create your first listing or scan a barcode to get started.
                       </p>
                       <div className="mt-6">

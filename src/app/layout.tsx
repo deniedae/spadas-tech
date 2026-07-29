@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Geist } from "next/font/google";
 import { cn } from "@/lib/utils";
@@ -11,10 +11,58 @@ const geist = Geist({
   variable: "--font-sans",
 });
 
+
+
 export const metadata: Metadata = {
-  title: "SpadasTechnology",
-  description: "AI-powered reseller platform",
+  title: {
+    default: "Spadas AI — Reseller Inventory & Analytics",
+    template: "%s · Spadas AI",
+  },
+  description:
+    "Track inventory, profits, and sales across marketplaces in one dashboard built for resellers.",
+
+  metadataBase: new URL("https://spadas-tech.vercel.app"),
+
+  applicationName: "Spadas AI",
+  authors: [{ name: "SpadasTechnology" }],
+  keywords: [
+    "reseller",
+    "inventory",
+    "marketplace",
+    "ebay",
+    "vinted",
+    "depop",
+    "flip",
+  ],
+
+  openGraph: {
+    type: "website",
+    url: "https://spadas-tech.vercel.app",
+    title: "Spadas AI — Reseller Inventory & Analytics",
+    description:
+      "Track inventory, profits, and sales in one dashboard built for resellers.",
+    siteName: "Spadas AI",
+  },
+
+  twitter: {
+    card: "summary_large_image",
+    title: "Spadas AI",
+    description: "Reseller inventory management and analytics.",
+  },
+
+  icons: {
+    icon: "/icon.svg",
+    apple: "/icon.svg",
+  },
 };
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+  ],
+};
+
 
 export default function RootLayout({
   children,
@@ -22,6 +70,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
+
+    
     <html lang="en" className={cn("font-sans", geist.variable)}>
       <body className="min-h-screen bg-gray-100 text-gray-900 antialiased">
         <div className="flex min-h-screen">

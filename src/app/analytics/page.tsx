@@ -47,7 +47,6 @@ export default function AnalyticsPage() {
         if (cancelled) return;
         if (!data) return;
 
-        // Only SOLD items contribute to revenue and profit.
         const soldItems = data.filter((item) => item.status === "Sold");
 
         const revenue = soldItems.reduce(
@@ -55,14 +54,11 @@ export default function AnalyticsPage() {
           0
         );
 
-        // FIX: profit only from sold items — was summing ALL listings,
-        // making unsold inventory show as negative profit.
         const profit = soldItems.reduce(
           (sum, item) => sum + calcProfit(item),
           0
         );
 
-        // Shared helper — same definition as Dashboard and ListingsPage.
         const inventory = calcInventoryValue(data);
 
         const sold = soldItems.length;
@@ -109,7 +105,7 @@ export default function AnalyticsPage() {
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Analytics</h1>
-        <p className="mt-1 text-sm text-gray-500">
+        <p className="mt-1 text-sm text-muted-foreground">
           Track your business performance.
         </p>
       </div>
@@ -117,7 +113,7 @@ export default function AnalyticsPage() {
       {error && (
         <div
           role="alert"
-          className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"
+          className="flex items-start gap-3 rounded-2xl border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive"
         >
           <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0" aria-hidden="true" />
           <p className="flex-1">{error}</p>
@@ -125,7 +121,7 @@ export default function AnalyticsPage() {
             type="button"
             onClick={() => setError(null)}
             aria-label="Dismiss"
-            className="rounded p-1 text-red-600 hover:bg-red-100"
+            className="rounded p-1 text-destructive hover:bg-destructive/15"
           >
             <X className="h-4 w-4" />
           </button>
@@ -134,10 +130,10 @@ export default function AnalyticsPage() {
 
       {/* Stat cards */}
       <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-          <p className="text-sm text-gray-500">Revenue</p>
+        <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+          <p className="text-sm text-muted-foreground">Revenue</p>
           {loading ? (
-            <div className="mt-2 h-8 w-28 animate-pulse rounded bg-gray-200" />
+            <div className="mt-2 h-8 w-28 animate-pulse rounded bg-muted" />
           ) : (
             <h2 className="mt-2 text-3xl font-bold tabular-nums">
               {fmtMoney(stats.revenue)}
@@ -145,21 +141,21 @@ export default function AnalyticsPage() {
           )}
         </div>
 
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-          <p className="text-sm text-gray-500">Profit</p>
+        <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+          <p className="text-sm text-muted-foreground">Profit</p>
           {loading ? (
-            <div className="mt-2 h-8 w-28 animate-pulse rounded bg-gray-200" />
+            <div className="mt-2 h-8 w-28 animate-pulse rounded bg-muted" />
           ) : (
-            <h2 className="mt-2 text-3xl font-bold tabular-nums text-green-600">
+            <h2 className="mt-2 text-3xl font-bold tabular-nums text-green-600 dark:text-green-400">
               {fmtMoney(stats.profit)}
             </h2>
           )}
         </div>
 
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-          <p className="text-sm text-gray-500">Inventory Value</p>
+        <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+          <p className="text-sm text-muted-foreground">Inventory Value</p>
           {loading ? (
-            <div className="mt-2 h-8 w-28 animate-pulse rounded bg-gray-200" />
+            <div className="mt-2 h-8 w-28 animate-pulse rounded bg-muted" />
           ) : (
             <h2 className="mt-2 text-3xl font-bold tabular-nums">
               {fmtMoney(stats.inventory)}
@@ -167,10 +163,10 @@ export default function AnalyticsPage() {
           )}
         </div>
 
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-          <p className="text-sm text-gray-500">Items Sold</p>
+        <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+          <p className="text-sm text-muted-foreground">Items Sold</p>
           {loading ? (
-            <div className="mt-2 h-8 w-28 animate-pulse rounded bg-gray-200" />
+            <div className="mt-2 h-8 w-28 animate-pulse rounded bg-muted" />
           ) : (
             <h2 className="mt-2 text-3xl font-bold tabular-nums">
               {stats.sold}
@@ -179,15 +175,15 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
-      {/* Revenue chart — now actually rendered */}
+      {/* Revenue chart */}
       {!loading && chartData.length > 0 && (
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
           <h2 className="mb-4 text-lg font-semibold">Revenue by Month</h2>
           <RevenueChart data={chartData} />
         </div>
       )}
 
-      {/* Top profitable items — moved out of the stat grid */}
+      {/* Top profitable items */}
       {!loading && <TopProfitableItems />}
     </div>
   );

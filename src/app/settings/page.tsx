@@ -4,8 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabase";
 import { toast } from "sonner";
-import { User, Shield, Palette, MessageSquare, Info, Gem, Loader2 } from "lucide-react";
-import { fmtMoney } from "@/app/lib/listings";
+import { User, Shield, Palette, MessageSquare, Info, Gem, Loader2, X } from "lucide-react";
 
 interface UserMeta {
   email: string;
@@ -25,15 +24,14 @@ export default function SettingsPage() {
 
     async function loadUser() {
       try {
-       const {
-  data: { user },
-} = await supabase.auth.getUser();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
 
-if (!user) {
-  router.push("/login");
-  return;
-}
-
+        if (!user) {
+          router.push("/login");
+          return;
+        }
 
         if (cancelled) return;
         setUser({ email: user.email ?? "" });
@@ -108,7 +106,7 @@ if (!user) {
 
   return (
     <div className="space-y-8">
-      {/* Hero */}
+      {/* Hero — brand gradient, stays raw by design */}
       <div className="rounded-2xl bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 p-8 text-white shadow-xl">
         <div className="flex items-center justify-between">
           <div>
@@ -128,7 +126,7 @@ if (!user) {
       {error && (
         <div
           role="alert"
-          className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"
+          className="flex items-start gap-3 rounded-2xl border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive"
         >
           <Info className="mt-0.5 h-5 w-5 flex-shrink-0" aria-hidden="true" />
           <p className="flex-1">{error}</p>
@@ -136,51 +134,51 @@ if (!user) {
             type="button"
             onClick={() => setError(null)}
             aria-label="Dismiss"
-            className="rounded p-1 text-red-600 hover:bg-red-100"
+            className="rounded p-1 text-destructive hover:bg-destructive/15"
           >
-            <Info className="h-4 w-4" />
+            <X className="h-4 w-4" />
           </button>
         </div>
       )}
 
       {/* Account */}
-      <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-lg">
+      <div className="rounded-2xl border border-border bg-card p-6 shadow-sm transition hover:shadow-md">
         <div className="mb-6 flex items-center gap-2">
-          <User size={22} className="text-blue-600" aria-hidden="true" />
+          <User size={22} className="text-primary" aria-hidden="true" />
           <h2 className="text-xl font-semibold">Account</h2>
         </div>
 
         <div className="grid gap-6 md:grid-cols-2">
           <div>
-            <p className="text-sm text-gray-500">Email</p>
+            <p className="text-sm text-muted-foreground">Email</p>
             {loading ? (
-              <div className="mt-1 h-5 w-48 animate-pulse rounded bg-gray-200" />
+              <div className="mt-1 h-5 w-48 animate-pulse rounded bg-muted" />
             ) : (
-              <p className="font-medium text-gray-900">{user?.email ?? "—"}</p>
+              <p className="font-medium">{user?.email ?? "—"}</p>
             )}
           </div>
 
           <div>
-            <p className="text-sm text-gray-500">Account Status</p>
-            <span className="mt-1 inline-flex rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-700">
+            <p className="text-sm text-muted-foreground">Account Status</p>
+            <span className="mt-1 inline-flex rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-700 dark:bg-green-500/15 dark:text-green-400">
               Active
             </span>
           </div>
 
           <div>
-            <p className="text-sm text-gray-500">Plan</p>
-            <p className="font-medium text-gray-900">Free Beta</p>
+            <p className="text-sm text-muted-foreground">Plan</p>
+            <p className="font-medium">Free Beta</p>
           </div>
         </div>
       </div>
 
       {/* Security */}
-      <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-lg">
+      <div className="rounded-2xl border border-border bg-card p-6 shadow-sm transition hover:shadow-md">
         <div className="mb-1 flex items-center gap-2">
-          <Shield size={20} className="text-blue-600" aria-hidden="true" />
+          <Shield size={20} className="text-primary" aria-hidden="true" />
           <h2 className="text-xl font-semibold">Security</h2>
         </div>
-        <p className="mt-1 text-sm text-gray-500">
+        <p className="mt-1 text-sm text-muted-foreground">
           Manage your password and account security.
         </p>
 
@@ -188,7 +186,7 @@ if (!user) {
           <button
             onClick={resetPassword}
             disabled={resettingPassword}
-            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 font-medium text-white transition hover:bg-blue-700 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
+            className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 font-medium text-primary-foreground transition hover:bg-primary/90 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             {resettingPassword && (
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
@@ -199,7 +197,7 @@ if (!user) {
           <button
             onClick={logout}
             disabled={loggingOut}
-            className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-5 py-2.5 font-medium text-white transition hover:bg-red-700 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-2"
+            className="inline-flex items-center gap-2 rounded-xl bg-destructive px-5 py-2.5 font-medium text-destructive-foreground transition hover:bg-destructive/90 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive/40 focus-visible:ring-offset-2"
           >
             {loggingOut && (
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
@@ -210,31 +208,31 @@ if (!user) {
       </div>
 
       {/* Preferences */}
-      <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-lg">
+      <div className="rounded-2xl border border-border bg-card p-6 shadow-sm transition hover:shadow-md">
         <div className="mb-1 flex items-center gap-2">
-          <Palette size={20} className="text-blue-600" aria-hidden="true" />
+          <Palette size={20} className="text-primary" aria-hidden="true" />
           <h2 className="text-xl font-semibold">Preferences</h2>
         </div>
-        <p className="mt-1 text-sm text-gray-600">
+        <p className="mt-1 text-sm text-muted-foreground">
           Customize how Spadas AI works for you.
         </p>
-        <div className="mt-5 inline-flex rounded-full bg-yellow-100 px-3 py-1 text-sm font-medium text-yellow-700">
+        <div className="mt-5 inline-flex rounded-full bg-yellow-100 px-3 py-1 text-sm font-medium text-yellow-700 dark:bg-yellow-500/15 dark:text-yellow-400">
           Coming Soon
         </div>
       </div>
 
       {/* Feedback */}
-      <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-lg">
+      <div className="rounded-2xl border border-border bg-card p-6 shadow-sm transition hover:shadow-md">
         <div className="mb-1 flex items-center gap-2">
-          <MessageSquare size={20} className="text-blue-600" aria-hidden="true" />
+          <MessageSquare size={20} className="text-primary" aria-hidden="true" />
           <h2 className="text-xl font-semibold">Feedback</h2>
         </div>
-        <p className="mt-1 text-sm text-gray-500">
+        <p className="mt-1 text-sm text-muted-foreground">
           Help improve Spadas AI by reporting bugs or suggesting new features.
         </p>
         <a
           href="mailto:deniedae@gmail.com?subject=Spadas%20AI%20Beta%20Feedback"
-          className="mt-5 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 font-medium text-white transition hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
+          className="mt-5 inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 font-medium text-primary-foreground transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
           <MessageSquare className="h-4 w-4" aria-hidden="true" />
           Report a Bug
@@ -242,14 +240,14 @@ if (!user) {
       </div>
 
       {/* About */}
-      <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-lg">
+      <div className="rounded-2xl border border-border bg-card p-6 shadow-sm transition hover:shadow-md">
         <div className="mb-1 flex items-center gap-2">
-          <Info size={20} className="text-blue-600" aria-hidden="true" />
+          <Info size={20} className="text-primary" aria-hidden="true" />
           <h2 className="text-xl font-semibold">Spadas AI</h2>
         </div>
-        <p className="mt-1 text-sm text-gray-500">Version v0.9 Beta</p>
+        <p className="mt-1 text-sm text-muted-foreground">Version v0.9 Beta</p>
 
-        <div className="mt-5 space-y-2 text-sm text-gray-700">
+        <div className="mt-5 space-y-2 text-sm text-muted-foreground">
           <p className="flex items-center gap-2">
             <span className="h-1.5 w-1.5 rounded-full bg-green-500" aria-hidden="true" />
             Inventory Management
@@ -270,19 +268,19 @@ if (!user) {
       </div>
 
       {/* Subscription */}
-      <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-lg">
+      <div className="rounded-2xl border border-border bg-card p-6 shadow-sm transition hover:shadow-md">
         <div className="mb-1 flex items-center gap-2">
-          <Gem size={20} className="text-blue-600" aria-hidden="true" />
+          <Gem size={20} className="text-primary" aria-hidden="true" />
           <h2 className="text-xl font-semibold">Subscription</h2>
         </div>
-        <p className="mt-1 text-sm text-gray-600">
-          Current Plan: <span className="font-semibold text-gray-900">Free Beta</span>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Current Plan: <span className="font-medium text-foreground">Free Beta</span>
         </p>
 
         <button
           onClick={upgradeToPro}
           disabled={upgrading}
-          className="mt-5 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 font-medium text-white transition hover:bg-blue-700 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
+          className="mt-5 inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 font-medium text-primary-foreground transition hover:bg-primary/90 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
           {upgrading && (
             <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
