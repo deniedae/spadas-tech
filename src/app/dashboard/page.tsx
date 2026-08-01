@@ -150,6 +150,14 @@ export default function Dashboard() {
               Manage your inventory, generate AI listings, and track your profits from one dashboard.
             </p>
           </div>
+          <NewListingDialog
+            trigger={
+              <button className="rounded-lg bg-white/30 px-6 py-3 font-semibold text-white transition hover:bg-white/40">
+                Quick Add Listing
+              </button>
+            }
+          />
+
           <div className="hidden rounded-2xl bg-white/10 p-6 backdrop-blur md:block">
             <div className="text-sm text-blue-100">Version</div>
             <div className="text-2xl font-bold">Beta v0.9</div>

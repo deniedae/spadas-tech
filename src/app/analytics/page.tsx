@@ -184,12 +184,7 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Revenue chart */}
-      {!loading && chartData.length > 0 && (
-        <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-          <h2 className="mb-4 text-lg font-semibold">Revenue by Month</h2>
-          <RevenueChart data={chartData} loading={loading} />
-        </div>
-      )}
+      
 
       {/* Top profitable items */}
       {!loading && <TopProfitableItems />}

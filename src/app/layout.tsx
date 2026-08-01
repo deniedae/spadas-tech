@@ -70,7 +70,6 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-
     
     <html lang="en" className={cn("font-sans", geist.variable)}>
       <body className="min-h-screen bg-gray-100 text-gray-900 antialiased">
