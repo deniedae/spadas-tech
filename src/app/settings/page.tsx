@@ -4,7 +4,16 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabase";
 import { toast } from "sonner";
-import { User, Shield, Palette, MessageSquare, Info, Gem, Loader2, X } from "lucide-react";
+import {
+  User,
+  Shield,
+  Palette,
+  MessageSquare,
+  Info,
+  Gem,
+  Loader2,
+  X,
+} from "lucide-react";
 
 interface UserMeta {
   email: string;
@@ -18,36 +27,31 @@ export default function SettingsPage() {
   const [resettingPassword, setResettingPassword] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [upgrading, setUpgrading] = useState(false);
+  const [confirmLogout, setConfirmLogout] = useState(false);
+  const [confirmUpgrade, setConfirmUpgrade] = useState(false);
+
+  async function loadUser() {
+    setLoading(true);
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        router.push("/login");
+        return;
+      }
+      setUser({ email: user.email ?? "" });
+      setError(null);
+    } catch {
+      setError("Couldn't load your account. Please try refreshing.");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function loadUser() {
-      try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-
-        if (!user) {
-          router.push("/login");
-          return;
-        }
-
-        if (cancelled) return;
-        setUser({ email: user.email ?? "" });
-      } catch (err) {
-        if (!cancelled) {
-          setError("Couldn't load your account. Please try refreshing.");
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-
     loadUser();
-    return () => {
-      cancelled = true;
-    };
   }, [router]);
 
   async function resetPassword() {
@@ -58,9 +62,7 @@ export default function SettingsPage() {
       if (error) throw error;
       toast.success("Password reset email sent — check your inbox.");
     } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Couldn't send reset email."
-      );
+      toast.error(err instanceof Error ? err.message : "Couldn't send reset email.");
     } finally {
       setResettingPassword(false);
     }
@@ -72,7 +74,7 @@ export default function SettingsPage() {
       await supabase.auth.signOut();
       toast.success("Signed out.");
       window.location.href = "/login";
-    } catch (err) {
+    } catch {
       toast.error("Couldn't sign out. Please try again.");
       setLoggingOut(false);
     }
@@ -85,30 +87,23 @@ export default function SettingsPage() {
         method: "POST",
       });
 
-      if (!response.ok) {
-        throw new Error("Checkout session failed.");
-      }
+      if (!response.ok) throw new Error("Checkout session failed.");
 
       const data = await response.json();
 
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        throw new Error("No checkout URL returned.");
-      }
+      if (data.url) window.location.href = data.url;
+      else throw new Error("No checkout URL returned.");
     } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Couldn't start checkout."
-      );
+      toast.error(err instanceof Error ? err.message : "Couldn't start checkout.");
       setUpgrading(false);
     }
   }
 
   return (
     <div className="space-y-8">
-      {/* Hero — brand gradient, stays raw by design */}
+      {/* Hero — brand gradient */}
       <div className="rounded-2xl bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 p-8 text-white shadow-xl">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
             <h1 className="text-3xl font-bold">Settings</h1>
             <p className="mt-2 max-w-xl text-blue-100">
@@ -132,6 +127,13 @@ export default function SettingsPage() {
           <p className="flex-1">{error}</p>
           <button
             type="button"
+            onClick={() => loadUser()}
+            className="rounded bg-primary px-3 py-1 text-white hover:bg-primary/90"
+          >
+            Retry
+          </button>
+          <button
+            type="button"
             onClick={() => setError(null)}
             aria-label="Dismiss"
             className="rounded p-1 text-destructive hover:bg-destructive/15"
@@ -142,7 +144,10 @@ export default function SettingsPage() {
       )}
 
       {/* Account */}
-      <div className="rounded-2xl border border-border bg-card p-6 shadow-sm transition hover:shadow-md">
+      <section
+        aria-busy={loading}
+        className="rounded-2xl border border-border bg-card p-6 shadow-sm transition hover:shadow-md"
+      >
         <div className="mb-6 flex items-center gap-2">
           <User size={22} className="text-primary" aria-hidden="true" />
           <h2 className="text-xl font-semibold">Account</h2>
@@ -160,7 +165,7 @@ export default function SettingsPage() {
 
           <div>
             <p className="text-sm text-muted-foreground">Account Status</p>
-            <span className="mt-1 inline-flex rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-700 dark:bg-green-500/15 dark:text-green-400">
+            <span className="mt-1 inline-flex rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-700">
               Active
             </span>
           </div>
@@ -170,10 +175,10 @@ export default function SettingsPage() {
             <p className="font-medium">Free Beta</p>
           </div>
         </div>
-      </div>
+      </section>
 
       {/* Security */}
-      <div className="rounded-2xl border border-border bg-card p-6 shadow-sm transition hover:shadow-md">
+      <section className="rounded-2xl border border-border bg-card p-6 shadow-sm transition hover:shadow-md">
         <div className="mb-1 flex items-center gap-2">
           <Shield size={20} className="text-primary" aria-hidden="true" />
           <h2 className="text-xl font-semibold">Security</h2>
@@ -195,7 +200,7 @@ export default function SettingsPage() {
           </button>
 
           <button
-            onClick={logout}
+            onClick={() => setConfirmLogout(true)}
             disabled={loggingOut}
             className="inline-flex items-center gap-2 rounded-xl bg-destructive px-5 py-2.5 font-medium text-destructive-foreground transition hover:bg-destructive/90 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive/40 focus-visible:ring-offset-2"
           >
@@ -205,10 +210,36 @@ export default function SettingsPage() {
             Log Out
           </button>
         </div>
-      </div>
+
+        {/* Logout confirmation modal */}
+        {confirmLogout && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+            <div className="bg-white rounded-lg p-6 shadow-lg max-w-sm w-full text-center">
+              <p className="mb-4 font-semibold text-lg">Confirm Logout?</p>
+              <div className="flex justify-center gap-4">
+                <button
+                  onClick={() => {
+                    setConfirmLogout(false);
+                    logout();
+                  }}
+                  className="bg-destructive px-4 py-2 text-white rounded hover:bg-destructive/90"
+                >
+                  Logout
+                </button>
+                <button
+                  onClick={() => setConfirmLogout(false)}
+                  className="px-4 py-2 rounded border hover:bg-gray-100"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </section>
 
       {/* Preferences */}
-      <div className="rounded-2xl border border-border bg-card p-6 shadow-sm transition hover:shadow-md">
+      <section className="rounded-2xl border border-border bg-card p-6 shadow-sm transition hover:shadow-md">
         <div className="mb-1 flex items-center gap-2">
           <Palette size={20} className="text-primary" aria-hidden="true" />
           <h2 className="text-xl font-semibold">Preferences</h2>
@@ -216,13 +247,13 @@ export default function SettingsPage() {
         <p className="mt-1 text-sm text-muted-foreground">
           Customize how Spadas AI works for you.
         </p>
-        <div className="mt-5 inline-flex rounded-full bg-yellow-100 px-3 py-1 text-sm font-medium text-yellow-700 dark:bg-yellow-500/15 dark:text-yellow-400">
+        <div className="mt-5 inline-flex rounded-full bg-yellow-100 px-3 py-1 text-sm font-medium text-yellow-700">
           Coming Soon
         </div>
-      </div>
+      </section>
 
       {/* Feedback */}
-      <div className="rounded-2xl border border-border bg-card p-6 shadow-sm transition hover:shadow-md">
+      <section className="rounded-2xl border border-border bg-card p-6 shadow-sm transition hover:shadow-md">
         <div className="mb-1 flex items-center gap-2">
           <MessageSquare size={20} className="text-primary" aria-hidden="true" />
           <h2 className="text-xl font-semibold">Feedback</h2>
@@ -237,10 +268,10 @@ export default function SettingsPage() {
           <MessageSquare className="h-4 w-4" aria-hidden="true" />
           Report a Bug
         </a>
-      </div>
+      </section>
 
       {/* About */}
-      <div className="rounded-2xl border border-border bg-card p-6 shadow-sm transition hover:shadow-md">
+      <section className="rounded-2xl border border-border bg-card p-6 shadow-sm transition hover:shadow-md">
         <div className="mb-1 flex items-center gap-2">
           <Info size={20} className="text-primary" aria-hidden="true" />
           <h2 className="text-xl font-semibold">Spadas AI</h2>
@@ -265,10 +296,10 @@ export default function SettingsPage() {
             AI Listing Generator (Coming Soon)
           </p>
         </div>
-      </div>
+      </section>
 
       {/* Subscription */}
-      <div className="rounded-2xl border border-border bg-card p-6 shadow-sm transition hover:shadow-md">
+      <section className="rounded-2xl border border-border bg-card p-6 shadow-sm transition hover:shadow-md">
         <div className="mb-1 flex items-center gap-2">
           <Gem size={20} className="text-primary" aria-hidden="true" />
           <h2 className="text-xl font-semibold">Subscription</h2>
@@ -278,16 +309,39 @@ export default function SettingsPage() {
         </p>
 
         <button
-          onClick={upgradeToPro}
+          onClick={() => setConfirmUpgrade(true)}
           disabled={upgrading}
           className="mt-5 inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 font-medium text-primary-foreground transition hover:bg-primary/90 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
-          {upgrading && (
-            <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-          )}
+          {upgrading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
           Upgrade to Pro
         </button>
-      </div>
+
+        {confirmUpgrade && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+            <div className="bg-white rounded-lg p-6 shadow-lg max-w-sm w-full text-center">
+              <p className="mb-4 font-semibold text-lg">Confirm Upgrade to Pro?</p>
+              <div className="flex justify-center gap-4">
+                <button
+                  onClick={() => {
+                    setConfirmUpgrade(false);
+                    upgradeToPro();
+                  }}
+                  className="bg-primary px-4 py-2 text-white rounded hover:bg-primary/90"
+                >
+                  Upgrade
+                </button>
+                <button
+                  onClick={() => setConfirmUpgrade(false)}
+                  className="px-4 py-2 rounded border hover:bg-gray-100"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </section>
     </div>
   );
 }

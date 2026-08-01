@@ -9,7 +9,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -17,373 +16,268 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useDropzone } from "react-dropzone";
+import { Loader2, X } from "lucide-react";
+
 export default function NewListingDialog({
-  
   initialData,
+  trigger,
 }: {
   initialData?: any;
+  trigger?: React.ReactNode;
 }) {
-    const [saving, setSaving] = useState(false);
-  const [open, setOpen] = useState(false);
   const router = useRouter();
-  const [generating, setGenerating] = useState(false);
-  const [product, setProduct] = useState(
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
 
-    initialData?.name ?? ""
-  );
-  const [price, setPrice] = useState(
-    initialData?.suggestedPrice?.toString() ?? ""
-  );
+  const [product, setProduct] = useState(initialData?.name ?? "");
+  const [price, setPrice] = useState(initialData?.suggestedPrice?.toString() ?? "");
   const [cost, setCost] = useState("");
   const [description, setDescription] = useState(
     initialData?.brand
-      ? `Brand: ${initialData.brand}
-
-Category: ${initialData.category}`
+      ? `Brand: ${initialData.brand}\n\nCategory: ${initialData.category}`
       : ""
   );
+
   const [image, setImage] = useState<File | null>(null);
-const [imagePreview, setImagePreview] = useState(
-  initialData?.image ?? ""
-);
-  const [uploading, setUploading] = useState(false);
-  const onDrop = (acceptedFiles: File[]) => {
-    if (!acceptedFiles.length) return;
-
-    const file = acceptedFiles[0];
-
-    setImage(file);
-    setImagePreview(URL.createObjectURL(file));
-  };
+  const [imagePreview, setImagePreview] = useState(initialData?.image ?? "");
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    accept: {
-      "image/*": [],
+    onDrop: (files: File[]) => {
+      if (files.length === 0) return;
+      setImage(files[0]);
+      setImagePreview(URL.createObjectURL(files[0]));
     },
+    accept: { "image/*": [] },
     multiple: false,
   });
- async function generateWithAI() {
-  if (!image) {
-    toast.error("Please upload an image first.");
-    return;
-  }
 
-  setGenerating(true);
-
-  try {
-    // Get current user
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      throw new Error("Please log in first.");
-    }
-
-    // Upload image to Supabase
-    const fileName = `${user.id}-ai-${Date.now()}-${image.name}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from("listing-images")
-      .upload(fileName, image);
-
-    if (uploadError) {
-      throw uploadError;
-    }
-
-    // Get PUBLIC URL
-    const { data } = supabase.storage
-      .from("listing-images")
-      .getPublicUrl(fileName);
-
-    const imageUrl = data.publicUrl;
-
-    // Call AI
-    const response = await fetch("/api/ai-listing", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        imageUrls: [imageUrl],
-      }),
-    });
-
-    const result = await response.json();
-
-    if (!response.ok) {
-      throw new Error(result.error || "AI failed.");
-    }
-
-    setProduct(result.analysis?.product_name ?? product);
-    setDescription(
-      result.detailed_description ??
-      result.seo_description ??
-      ""
-    );
-
-    if (result.suggested_price_min) {
-      setPrice(String(result.suggested_price_min));
-    }
-
-    toast.success("AI listing generated!");
-  } catch (err) {
-    console.error(err);
-    toast.error(err instanceof Error ? err.message : "AI generation failed.");
-  }
-
-  setGenerating(false);
-}
-  async function saveListing() {
-    setSaving(true);
-    // Validation
-    if (!product.trim()) {
-      toast.error("Please enter a product name.");
-      setSaving(false);
+  async function handleGenerateAI() {
+    if (!image) {
+      toast.error("Please upload an image first.");
       return;
     }
+    setAiLoading(true);
 
-    if (isNaN(Number(price)) || Number(price) <= 0) {
-      toast.error("Please enter a valid price.");
-      setSaving(false);
-      return;
-    }
-
-    if (isNaN(Number(cost)) || Number(cost) < 0) {
-      toast.error("Please enter a valid cost.");
-      setSaving(false);
-      return;
-    }
-
-    let aiDescription = description;
-
-    // Try AI (don't fail if unavailable)
     try {
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) throw new Error("Please log in first.");
+
+      const filename = `${user.id}-ai-${Date.now()}-${image.name}`;
+      const { error: uploadError } = await supabase.storage.from("listing-images").upload(filename, image);
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage.from("listing-images").getPublicUrl(filename);
+      const imageUrl = data.publicUrl;
+
       const response = await fetch("/api/ai-listing", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ imageUrls: [imagePreview] }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageUrls: [imageUrl] }),
       });
 
-      if (response.ok) {
-        const ai = await response.json();
-        aiDescription = ai.result || description;
-      }
-    } catch {
-      console.log("AI unavailable, using manual description.");
+      const result = await response.json();
+
+      if (!response.ok) throw new Error(result.error || "AI failed.");
+
+      setProduct(result.analysis?.product_name ?? product);
+      setDescription(result.detailed_description ?? result.seo_description ?? "");
+      if (result.suggested_price_min) setPrice(String(result.suggested_price_min));
+
+      toast.success("AI listing generated!");
+    } catch (err: any) {
+      toast.error(err.message || "AI generation failed.");
+    } finally {
+      setAiLoading(false);
     }
+  }
 
-    // Get logged in user
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-  if (authError) {
-  toast.error(authError.message);
-  setSaving(false);
-  return;
-}
-
-    if (!user) {
-      toast.error("Please log in.");
+  async function saveListing() {
+    if (!product.trim()) {
+      toast.error("Please enter a product name.");
       return;
     }
-   let imageUrl = initialData?.image ?? "";
+    if (isNaN(Number(price)) || Number(price) <= 0) {
+      toast.error("Please enter a valid price.");
+      return;
+    }
+    if (isNaN(Number(cost)) || Number(cost) < 0) {
+      toast.error("Please enter a valid cost.");
+      return;
+    }
+    setSaving(true);
 
-if (!imageUrl && imagePreview.startsWith("http")) {
-  imageUrl = imagePreview;
-}
+    let imageUrl = initialData?.image ?? "";
+    if (!imageUrl && imagePreview && imagePreview.startsWith("http")) {
+      imageUrl = imagePreview;
+    }
 
     if (image) {
       setUploading(true);
-
-      const fileName = `${user.id}-${Date.now()}-${image.name}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("listing-images")
-        .upload(fileName, image);
-
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        toast.error("Please log in.");
+        setUploading(false);
+        setSaving(false);
+        return;
+      }
+      const filename = `${user.id}-${Date.now()}-${image.name}`;
+      const { error: uploadError } = await supabase.storage.from("listing-images").upload(filename, image);
       if (uploadError) {
         toast.error(uploadError.message);
         setUploading(false);
+        setSaving(false);
         return;
       }
-
-      const { data } = supabase.storage
-        .from("listing-images")
-        .getPublicUrl(fileName);
-
+      const { data } = supabase.storage.from("listing-images").getPublicUrl(filename);
       imageUrl = data.publicUrl;
-
       setUploading(false);
     }
-    const { error } = await supabase.from("listings").insert([
-      {
-        user_id: user.id,
-        title: product,
-        product,
-        price: Number(price),
-        cost: Number(cost),
-        description: aiDescription,
-        image_url: imageUrl,
-        status: "Active",
-      },
-    ]);
 
-   if (error) {
-  console.error(error);
-  toast.error(error.message);
-  return;
-}
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      toast.error("Please log in.");
+      setSaving(false);
+      return;
+    }
 
-toast.success("✅ Listing created!");
+    const { error } = await supabase.from("listings").insert([{
+      user_id: user.id,
+      title: product,
+      product,
+      price: Number(price),
+      cost: Number(cost),
+      description,
+      image_url: imageUrl,
+      status: "Active",
+    }]);
 
-setOpen(false);
+    if (error) {
+      toast.error(error.message);
+      setSaving(false);
+      return;
+    }
 
-setProduct("");
-setPrice("");
-setCost("");
-setDescription("");
-setImage(null);
-setImagePreview("");
+    toast.success("Listing created!");
+    setOpen(false);
 
-router.refresh();
+    setProduct("");
+    setPrice("");
+    setCost("");
+    setDescription("");
+    setImage(null);
+    setImagePreview("");
+
+    router.refresh();
+    setSaving(false);
   }
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <Button
-  type="button"
-  className="bg-blue-600 hover:bg-blue-700"
-  onClick={() => setOpen(true)}
->
-  + New Listing
-</Button>
+      {trigger ? (
+        <div onClick={() => setOpen(true)} style={{ cursor: "pointer", display: "inline-block" }}>
+          {trigger}
+        </div>
+      ) : (
+        <Button onClick={() => setOpen(true)} className="bg-blue-600 hover:bg-blue-700">
+          + New Listing
+        </Button>
+      )}
 
-  <DialogContent className="sm:max-w-3xl">
-  <DialogHeader>
-    <DialogTitle>
-      📦 Create New Listing
-    </DialogTitle>
+      <DialogContent className="sm:max-w-3xl relative">
 
-    <p className="mt-2 text-sm text-gray-500">
-      Add a new product to your inventory.
-    </p>
-  </DialogHeader>
-<div className="space-y-6">
+
+
+        <div className="mt-4 space-y-6">
           <div>
-            <Label htmlFor="product">Product</Label>
-            <Input
-              id="product"
-              placeholder="Nintendo DS Lite"
-              value={product}
-              onChange={(e) => setProduct(e.target.value)}
-            />
+            <Label htmlFor="product">Product Name</Label>
+            <Input id="product" value={product} onChange={(e) => setProduct(e.target.value)} placeholder="Product name" required />
           </div>
 
-          <div>
-            <Label htmlFor="price">Price</Label>
-            <Input
-              id="price"
-              type="number"
-              placeholder="120"
-              value={price}
-              onChange={(e) => setPrice(e.target.value)}
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="cost">Cost</Label>
-            <Input
-              id="cost"
-              type="number"
-              min="0"
-              step="0.01"
-              placeholder="40"
-              value={cost}
-              onChange={(e) => setCost(e.target.value)}
-            />
-          </div>
-
-          <div>
+          <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label>Image</Label>
-
-              <div
-                {...getRootProps()}
-                className={`mt-2 cursor-pointer rounded-xl border-2 border-dashed p-8 text-center transition ${isDragActive
-                    ? "border-blue-500 bg-blue-50"
-                    : "border-gray-300 hover:border-blue-400"
-                  }`}
-              >
-                <input {...getInputProps()} />
-
-                {imagePreview ? (
-                  <div className="space-y-3">
-                    <img
-                      src={imagePreview}
-                      alt="Preview"
-                      className="mx-auto h-48 rounded-xl object-contain"
-                    />
-
-                    <p className="text-sm text-gray-500">
-                      Click or drag another image to replace it
-                    </p>
-                  </div>
-                ) : (
-                  <>
-                    <p className="text-lg font-semibold">
-                      📷 Drag & Drop an Image
-                    </p>
-
-                    <p className="mt-2 text-sm text-gray-500">
-                      or click to browse
-                    </p>
-                  </>
-                )}
-              </div>
+              <Label htmlFor="price">Price ($)</Label>
+              <Input
+                id="price"
+                type="number"
+                min="0.01"
+                step="0.01"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                placeholder="0.00"
+                required
+              />
             </div>
+            <div>
+              <Label htmlFor="cost">Cost ($)</Label>
+              <Input
+                id="cost"
+                type="number"
+                min="0"
+                step="0.01"
+                value={cost}
+                onChange={(e) => setCost(e.target.value)}
+                placeholder="0.00"
+              />
+            </div>
+          </div>
 
+          <div>
             <Label htmlFor="description">Description</Label>
             <Textarea
               id="description"
-              placeholder="Describe your item..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
+              placeholder="Enter detailed description"
+              rows={4}
             />
           </div>
-<div className="flex gap-3 pt-2">
-  <Button
-    type="button"
-    className="flex-1 bg-slate-100 text-slate-800 hover:bg-slate-200"
-    onClick={generateWithAI}
-    disabled={generating}
-  >
-    {generating ? "Generating..." : "✨ Generate AI"}
-  </Button>
 
-  <Button
-    type="button"
-    className="flex-1 bg-blue-600 hover:bg-blue-700"
-    onClick={saveListing}
-    disabled={saving || uploading}
-  >
-    {uploading
-      ? "Uploading..."
-      : saving
-      ? "Saving..."
-      : "💾 Save Listing"}
-  </Button>
-</div>
-</div>
+          <div>
+            <Label>Upload Image</Label>
+            <div
+              {...getRootProps()}
+              className={`mt-2 cursor-pointer rounded-lg border-2 border-dashed p-8 text-center ${
+                isDragActive ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-blue-400"
+              }`}
+            >
+              <input {...getInputProps()} />
+              {imagePreview ? (
+                <img src={imagePreview} alt="Preview" className="mx-auto max-h-48 rounded-lg object-contain" />
+              ) : (
+                <p className="text-muted-foreground">Drag & drop or click to upload image</p>
+              )}
+            </div>
+          </div>
 
-</DialogContent>
+          <div className="flex gap-4 justify-end">
+            <Button
+              onClick={handleGenerateAI}
+              disabled={aiLoading || saving || uploading}
+              variant="outline"
+            >
+              {aiLoading ? (
+                <>
+                  <Loader2 className="animate-spin h-4 w-4 mr-2" />
+                  Generating AI...
+                </>
+              ) : (
+                "Generate AI Listing"
+              )}
+            </Button>
 
-</Dialog>
-
-);
+            <Button
+              onClick={saveListing}
+              disabled={saving || uploading || aiLoading}
+              className="flex items-center gap-2"
+            >
+              {(saving || uploading) && <Loader2 className="animate-spin h-5 w-5" />}
+              {saving ? "Saving..." : "Create Listing"}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
 }

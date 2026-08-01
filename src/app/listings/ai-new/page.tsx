@@ -10,7 +10,11 @@ import type { AiListingResult, Confidence, ShippingSize } from "@/types/ai-listi
 
 import { ArrowLeft, Sparkles, Loader2, Save, TrendingUp, ShieldCheck } from "lucide-react";
 
-type AiGenerationStage = "analyzing" | "generating-titles" | "estimating-price" | "finalizing";
+type AiGenerationStage =
+  | "analyzing"
+  | "generating-titles"
+  | "estimating-price"
+  | "finalizing";
 
 const STAGES: { key: AiGenerationStage; label: string }[] = [
   { key: "analyzing", label: "Analyzing images" },
@@ -40,12 +44,27 @@ export default function AiNewListingPage() {
   const stageTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const [form, setForm] = useState({
-  product: "", price: "", cost: "", status: "Draft", condition: "",
-  brand: "", model: "", category: "", color: "", material: "",
-  seo_description: "", detailed_description: "", keywords: "",
-  ebay_title: "", fb_title: "", vinted_title: "", depop_title: "",
-  shipping_size: "medium", shipping_weight: "", shipping_notes: "",
-});
+    product: "",
+    price: "",
+    cost: "",
+    status: "Draft",
+    condition: "",
+    brand: "",
+    model: "",
+    category: "",
+    color: "",
+    material: "",
+    seo_description: "",
+    detailed_description: "",
+    keywords: "",
+    ebay_title: "",
+    fb_title: "",
+    vinted_title: "",
+    depop_title: "",
+    shipping_size: "medium" as ShippingSize,
+    shipping_weight: "",
+    shipping_notes: "",
+  });
   const update = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
   useEffect(() => {
@@ -101,29 +120,34 @@ export default function AiNewListingPage() {
 
   async function handleGenerate() {
     if (!canGenerate) return;
+
     setGenerating(true);
     setResult(null);
     try {
       const r = await generateListing({ imageUrls });
       setResult(r);
-   setForm({
-  product: r.analysis.product_name || "",
-  price: r.suggested_price_max ? String(r.suggested_price_max) : "",
-  cost: "", status: "Draft", condition: r.analysis.condition || "",
-  brand: r.analysis.brand || "", model: r.analysis.model || "",
-  category: r.analysis.category || "", color: r.analysis.color || "",
-  material: r.analysis.material || "", seo_description: r.seo_description || "",
-  detailed_description: r.detailed_description || "",
-  keywords: r.suggested_keywords.join(", "),
-  ebay_title: r.market_titles.ebay || "",
-  fb_title: r.market_titles.facebook_marketplace || "",
-  vinted_title: r.market_titles.vinted || "",
-  depop_title: r.market_titles.depop || "",
-  shipping_size: r.shipping_estimate?.size || "medium",
-  shipping_weight: r.shipping_estimate?.estimated_weight_grams
-    ? String(r.shipping_estimate.estimated_weight_grams) : "",
-  shipping_notes: r.shipping_estimate?.notes || "",
-});
+      setForm({
+        product: r.analysis.product_name || "",
+        price: r.suggested_price_max ? String(r.suggested_price_max) : "",
+        cost: "",
+        status: "Draft",
+        condition: r.analysis.condition || "",
+        brand: r.analysis.brand || "",
+        model: r.analysis.model || "",
+        category: r.analysis.category || "",
+        color: r.analysis.color || "",
+        material: r.analysis.material || "",
+        seo_description: r.seo_description || "",
+        detailed_description: r.detailed_description || "",
+        keywords: r.suggested_keywords.join(", "),
+        ebay_title: r.market_titles.ebay || "",
+        fb_title: r.market_titles.facebook_marketplace || "",
+        vinted_title: r.market_titles.vinted || "",
+        depop_title: r.market_titles.depop || "",
+        shipping_size: r.shipping_estimate?.size || "medium",
+        shipping_weight: r.shipping_estimate?.estimated_weight_grams ? String(r.shipping_estimate.estimated_weight_grams) : "",
+        shipping_notes: r.shipping_estimate?.notes || "",
+      });
       toast.success("AI listing generated!");
     } catch (err: any) {
       if (err.name !== "AbortError") toast.error(err.message || "AI generation failed.");
@@ -176,21 +200,18 @@ export default function AiNewListingPage() {
             vinted: form.vinted_title,
             depop: form.depop_title,
           },
-        seo_description: form.seo_description,
-
-detailed_description: form.detailed_description,
-
-shipping_estimate: {
-  size: form.shipping_size as ShippingSize,
-  estimated_weight_grams: Number(form.shipping_weight) || 0,
-  dimensions_cm: result.shipping_estimate?.dimensions_cm ?? null,
-  notes: form.shipping_notes || null,
-},
-
-suggested_keywords: form.keywords
-  .split(",")
-  .map((k) => k.trim())
-  .filter(Boolean),
+          seo_description: form.seo_description,
+          detailed_description: form.detailed_description,
+          shipping_estimate: {
+            size: form.shipping_size as ShippingSize,
+            estimated_weight_grams: Number(form.shipping_weight) || 0,
+            dimensions_cm: result.shipping_estimate?.dimensions_cm ?? null,
+            notes: form.shipping_notes || null,
+          },
+          suggested_keywords: form.keywords
+            .split(",")
+            .map((k) => k.trim())
+            .filter(Boolean),
         }
       : null;
 
@@ -248,9 +269,13 @@ suggested_keywords: form.keywords
               className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {generating ? (
-                <><Loader2 className="h-4 w-4 animate-spin" /> Generating…</>
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" /> Generating…
+                </>
               ) : (
-                <><Sparkles className="h-4 w-4" /> Generate AI Listing</>
+                <>
+                  <Sparkles className="h-4 w-4" /> Generate AI Listing
+                </>
               )}
             </button>
             <p className="mt-2 text-center text-xs text-muted-foreground">
@@ -297,30 +322,30 @@ suggested_keywords: form.keywords
                 <Detail label="Model" value={result.analysis.model} />
               </dl>
               {result.shipping_estimate && (
-  <div className="mt-3 rounded-lg bg-muted/50 p-3 text-sm">
-    <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-      Estimated shipping
-    </p>
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-      <span>
-        Size: <strong className="capitalize">{result.shipping_estimate.size.replace("-", " ")}</strong>
-      </span>
-      {result.shipping_estimate.estimated_weight_grams > 0 && (
-        <span>~{result.shipping_estimate.estimated_weight_grams} g</span>
-      )}
-      {result.shipping_estimate.dimensions_cm && (
-        <span>
-          {result.shipping_estimate.dimensions_cm.length}×
-          {result.shipping_estimate.dimensions_cm.width}×
-          {result.shipping_estimate.dimensions_cm.height} cm
-        </span>
-      )}
-    </div>
-    {result.shipping_estimate.notes && (
-      <p className="mt-1.5 text-xs text-muted-foreground">{result.shipping_estimate.notes}</p>
-    )}
-  </div>
-)}
+                <div className="mt-3 rounded-lg bg-muted/50 p-3 text-sm">
+                  <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Estimated shipping
+                  </p>
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                    <span>
+                      Size: <strong className="capitalize">{result.shipping_estimate.size.replace("-", " ")}</strong>
+                    </span>
+                    {result.shipping_estimate.estimated_weight_grams > 0 && (
+                      <span>~{result.shipping_estimate.estimated_weight_grams} g</span>
+                    )}
+                    {result.shipping_estimate.dimensions_cm && (
+                      <span>
+                        {result.shipping_estimate.dimensions_cm.length}×
+                        {result.shipping_estimate.dimensions_cm.width}×
+                        {result.shipping_estimate.dimensions_cm.height} cm
+                      </span>
+                    )}
+                  </div>
+                  {result.shipping_estimate.notes && (
+                    <p className="mt-1.5 text-xs text-muted-foreground">{result.shipping_estimate.notes}</p>
+                  )}
+                </div>
+              )}
 
               {result.analysis.accessories_detected.length > 0 && (
                 <div className="mt-4">
@@ -334,6 +359,7 @@ suggested_keywords: form.keywords
                   </div>
                 </div>
               )}
+
               <div className="mt-4 flex items-center gap-2 rounded-lg bg-muted/50 p-3 text-sm">
                 <TrendingUp className="h-4 w-4 text-primary" />
                 <span>
@@ -416,44 +442,44 @@ suggested_keywords: form.keywords
                 <Field label="Keywords" hint="comma separated">
                   <input className={inputCls} value={form.keywords} onChange={(e) => update("keywords", e.target.value)} />
                 </Field>
-<Field label="Detailed description" hint="marketplace body">
-  <textarea
-    className={`${inputCls} min-h-[160px] resize-y`}
-    value={form.detailed_description}
-    onChange={(e) => update("detailed_description", e.target.value)}
-  />
-</Field>
+                <Field label="Detailed description" hint="marketplace body">
+                  <textarea
+                    className={`${inputCls} min-h-[160px] resize-y`}
+                    value={form.detailed_description}
+                    onChange={(e) => update("detailed_description", e.target.value)}
+                  />
+                </Field>
+                <Field label="Shipping estimate">
+                  <div className="grid grid-cols-2 gap-3">
+                    <select
+                      className={inputCls}
+                      value={form.shipping_size}
+                      onChange={(e) => update("shipping_size", e.target.value)}
+                    >
+                      <option value="small">Small (satchel)</option>
+                      <option value="medium">Medium (small box)</option>
+                      <option value="large">Large (medium box)</option>
+                      <option value="extra-large">Extra-large (bulky)</option>
+                    </select>
 
-<Field label="Shipping estimate">
-  <div className="grid grid-cols-2 gap-3">
-    <select
-      className={inputCls}
-      value={form.shipping_size}
-      onChange={(e) => update("shipping_size", e.target.value)}
-    >
-      <option value="small">Small (satchel)</option>
-      <option value="medium">Medium (small box)</option>
-      <option value="large">Large (medium box)</option>
-      <option value="extra-large">Extra-large (bulky)</option>
-    </select>
+                    <input
+                      className={inputCls}
+                      type="number"
+                      inputMode="numeric"
+                      placeholder="Weight (g)"
+                      value={form.shipping_weight}
+                      onChange={(e) => update("shipping_weight", e.target.value)}
+                    />
+                  </div>
 
-    <input
-      className={inputCls}
-      type="number"
-      inputMode="numeric"
-      placeholder="Weight (g)"
-      value={form.shipping_weight}
-      onChange={(e) => update("shipping_weight", e.target.value)}
-    />
-  </div>
+                  <input
+                    className={inputCls}
+                    placeholder="Shipping notes (optional)"
+                    value={form.shipping_notes}
+                    onChange={(e) => update("shipping_notes", e.target.value)}
+                  />
+                </Field>
 
-  <input
-    className={inputCls}
-    placeholder="Shipping notes (optional)"
-    value={form.shipping_notes}
-    onChange={(e) => update("shipping_notes", e.target.value)}
-  />
-</Field>
                 <button
                   type="button"
                   onClick={handleSave}

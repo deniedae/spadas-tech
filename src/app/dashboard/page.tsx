@@ -14,10 +14,7 @@ import { supabase } from "@/app/lib/supabase";
 import Link from "next/link";
 import NewListingDialog from "@/components/new-listing-dialog";
 import { fmtMoney, calcProfit, calcInventoryValue } from "@/app/lib/listings";
-// ^ NewListingDialog is imported but not yet rendered. Wire it to a "Quick add"
-//   button when ready. Left in place per your instruction not to remove features.
 
-// --- Types (was: any[]) ---------------------------------------------------
 interface Listing {
   id: string;
   product: string;
@@ -47,7 +44,6 @@ const INITIAL_STATS: DashboardStats = {
   sold: 0,
 };
 
-// --- Stat card extracted (was: copy-pasted 4×) ----------------------------
 function StatCard({
   label,
   value,
@@ -65,7 +61,9 @@ function StatCard({
     <div className="bg-card text-card-foreground rounded-2xl shadow-sm p-6 border border-border transition-shadow hover:shadow-md">
       <div className="flex items-center justify-between">
         <p className="text-muted-foreground">{label}</p>
-        {Icon && <Icon className="h-5 w-5 text-muted-foreground/70" aria-hidden="true" />}
+        {Icon && (
+          <Icon className="h-5 w-5 text-muted-foreground/70" aria-hidden="true" />
+        )}
       </div>
       {loading ? (
         <div className="mt-2 h-9 w-28 animate-pulse rounded bg-muted" />
@@ -123,7 +121,6 @@ export default function Dashboard() {
           }
         });
 
-        // inventory = sum of selling prices for unsold listings (shared helper)
         const inventory = calcInventoryValue(data);
 
         if (cancelled) return;
@@ -145,9 +142,8 @@ export default function Dashboard() {
 
   return (
     <>
-      {/* Hero — brand gradient, stays raw by design */}
       <div className="mb-8 rounded-2xl bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 p-8 text-white shadow-xl">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
             <h1 className="text-3xl font-bold">Welcome back 👋</h1>
             <p className="mt-2 max-w-xl text-blue-100">
@@ -162,7 +158,6 @@ export default function Dashboard() {
       </div>
 
       <div className="space-y-8">
-        {/* Error banner */}
         {error && (
           <div
             role="alert"
@@ -181,7 +176,6 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
           <StatCard label="Listings" value={String(stats.listings)} icon={Package} loading={loading} />
           <StatCard label="Inventory Value" value={fmtMoney(stats.inventory)} icon={DollarSign} loading={loading} />
@@ -195,9 +189,7 @@ export default function Dashboard() {
           <StatCard label="Items Sold" value={String(stats.sold)} icon={ShoppingCart} loading={loading} />
         </div>
 
-        {/* Quick Actions */}
-          <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-6">
-
+        <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-6">
           <Link
             href="/generator"
             className="bg-primary text-primary-foreground rounded-2xl p-8 shadow-sm transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-safe:hover:scale-[1.02]"
@@ -234,7 +226,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Recent Listings */}
         <div className="bg-card text-card-foreground rounded-2xl shadow-sm border border-border p-8">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold">Recent Listings</h2>
@@ -249,7 +240,7 @@ export default function Dashboard() {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full" aria-label="Recent listings table">
               <thead className="text-left border-b border-border">
                 <tr>
                   <th scope="col" className="pb-4 text-muted-foreground">Product</th>
@@ -259,7 +250,6 @@ export default function Dashboard() {
                 </tr>
               </thead>
               <tbody>
-                {/* Loading skeleton rows */}
                 {loading &&
                   Array.from({ length: 4 }).map((_, i) => (
                     <tr key={i} className="border-t border-border">
@@ -281,12 +271,14 @@ export default function Dashboard() {
                     </tr>
                   ))}
 
-                {/* Empty state */}
                 {!loading && recentListings.length === 0 && (
                   <tr>
                     <td colSpan={4} className="p-0">
                       <div className="flex flex-col items-center justify-center px-6 py-12 text-center">
-                        <Package className="h-10 w-10 text-muted-foreground/40" aria-hidden="true" />
+                        <Package
+                          className="h-10 w-10 text-muted-foreground/40"
+                          aria-hidden="true"
+                        />
                         <p className="mt-3 text-sm font-medium">No listings yet</p>
                         <p className="mt-1 text-sm text-muted-foreground">
                           Generate your first AI listing to get started.
@@ -302,17 +294,19 @@ export default function Dashboard() {
                   </tr>
                 )}
 
-                {/* Rows */}
                 {!loading &&
                   recentListings.map((item) => {
                     const isSold = item.status === "Sold";
                     return (
-                      <tr key={item.id} className="border-t border-border transition-colors hover:bg-muted/50">
+                      <tr
+                        key={item.id}
+                        className="border-t border-border transition-colors hover:bg-muted/50"
+                      >
                         <td className="p-4">
                           <div className="flex items-center gap-3">
                             <img
                               src={item.image_url || "/placeholder.png"}
-                              alt={item.product}
+                              alt={item.product || "Product image"}
                               width={48}
                               height={48}
                               loading="lazy"

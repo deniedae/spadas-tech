@@ -23,7 +23,10 @@ export default function ImageDropzone({
   const [previews, setPreviews] = useState<{ url: string; name: string }[]>([]);
 
   useEffect(() => {
-    const next = files.map((f) => ({ url: URL.createObjectURL(f), name: f.name }));
+    const next = files.map((f) => ({
+      url: URL.createObjectURL(f),
+      name: f.name,
+    }));
     setPreviews(next);
     return () => next.forEach((p) => URL.revokeObjectURL(p.url));
   }, [files]);
@@ -37,10 +40,13 @@ export default function ImageDropzone({
       if (allowed.length === 0) return;
       onFilesChange([...files, ...allowed]);
     },
-    [files, onFilesChange, max, disabled],
+    [files, onFilesChange, max, disabled]
   );
 
-  const removeAt = (idx: number) => onFilesChange(files.filter((_, i) => i !== idx));
+  const removeAt = (idx: number) => {
+    onFilesChange(files.filter((_, i) => i !== idx));
+  };
+
   const full = files.length >= max;
 
   return (
@@ -70,7 +76,7 @@ export default function ImageDropzone({
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
           dragging && "border-primary bg-primary/5",
           disabled && "cursor-not-allowed opacity-60",
-          !disabled && "cursor-pointer hover:border-primary/50 hover:bg-muted/50",
+          !disabled && "cursor-pointer hover:border-primary/50 hover:bg-muted/50"
         )}
       >
         <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">

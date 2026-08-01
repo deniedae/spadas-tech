@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "@/app/lib/supabase";
 import { toast } from "sonner";
+import { X } from "lucide-react";
 
 type Listing = {
   id: number;
@@ -48,6 +49,14 @@ export default function EditListingDialog({ listing, onUpdated }: Props) {
     setFees(String(listing.fees ?? 0));
     setStatus(listing.status);
   }, [listing.id]);
+
+  useEffect(() => {
+    if (open) document.body.style.overflow = "hidden";
+    else document.body.style.overflow = "";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [open]);
 
   async function saveChanges() {
     if (!product.trim()) {
@@ -104,25 +113,35 @@ export default function EditListingDialog({ listing, onUpdated }: Props) {
       {open &&
         createPortal(
           <div
-            className="fixed inset-0 flex items-center justify-center bg-black/50 p-4"
+            className="fixed inset-0 flex items-center justify-center bg-black/50 p-4 z-50"
             onClick={() => setOpen(false)}
             onKeyDown={handleKeyDown}
             role="dialog"
             aria-modal="true"
-            aria-label="Edit listing"
+            aria-labelledby="edit-listing-title"
+            tabIndex={-1}
           >
             <div
-              className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-xl bg-white p-6 shadow-xl"
+              className="relative w-full max-w-md max-h-[90vh] overflow-y-auto rounded-xl bg-white p-6 shadow-xl"
               onClick={(e) => e.stopPropagation()}
             >
-              <h2 className="mb-4 text-2xl font-bold">Edit Listing</h2>
+              <div className="flex justify-between items-center">
+                <h2 id="edit-listing-title" className="text-2xl font-bold">
+                  Edit Listing
+                </h2>
+                <button
+                  aria-label="Close edit listing dialog"
+                  onClick={() => setOpen(false)}
+                  className="rounded p-1 text-muted-foreground hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary"
+                  style={{ width: 32, height: 32 }}
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
 
-              <div className="space-y-4">
+              <div className="mt-4 space-y-4">
                 <div>
-                  <label
-                    htmlFor="edit-product"
-                    className="mb-1 block text-sm font-medium text-gray-700"
-                  >
+                  <label htmlFor="edit-product" className="mb-1 block text-sm font-medium text-gray-700">
                     Product
                   </label>
                   <input
@@ -135,10 +154,7 @@ export default function EditListingDialog({ listing, onUpdated }: Props) {
                 </div>
 
                 <div>
-                  <label
-                    htmlFor="edit-price"
-                    className="mb-1 block text-sm font-medium text-gray-700"
-                  >
+                  <label htmlFor="edit-price" className="mb-1 block text-sm font-medium text-gray-700">
                     Listing Price
                   </label>
                   <input
@@ -154,10 +170,7 @@ export default function EditListingDialog({ listing, onUpdated }: Props) {
                 </div>
 
                 <div>
-                  <label
-                    htmlFor="edit-cost"
-                    className="mb-1 block text-sm font-medium text-gray-700"
-                  >
+                  <label htmlFor="edit-cost" className="mb-1 block text-sm font-medium text-gray-700">
                     Cost
                   </label>
                   <input
@@ -173,10 +186,7 @@ export default function EditListingDialog({ listing, onUpdated }: Props) {
                 </div>
 
                 <div>
-                  <label
-                    htmlFor="edit-purchase-price"
-                    className="mb-1 block text-sm font-medium text-gray-700"
-                  >
+                  <label htmlFor="edit-purchase-price" className="mb-1 block text-sm font-medium text-gray-700">
                     Purchase Price
                   </label>
                   <input
@@ -192,7 +202,7 @@ export default function EditListingDialog({ listing, onUpdated }: Props) {
                 </div>
 
                 {status === "Sold" && (
-                  <div className="space-y-4">
+                  <>
                     <hr className="my-4" />
 
                     <h3 className="text-lg font-semibold text-gray-800">
@@ -200,10 +210,7 @@ export default function EditListingDialog({ listing, onUpdated }: Props) {
                     </h3>
 
                     <div>
-                      <label
-                        htmlFor="edit-sold-price"
-                        className="mb-1 block text-sm font-medium text-gray-700"
-                      >
+                      <label htmlFor="edit-sold-price" className="mb-1 block text-sm font-medium text-gray-700">
                         Sold Price
                       </label>
                       <input
@@ -219,10 +226,7 @@ export default function EditListingDialog({ listing, onUpdated }: Props) {
                     </div>
 
                     <div>
-                      <label
-                        htmlFor="edit-shipping"
-                        className="mb-1 block text-sm font-medium text-gray-700"
-                      >
+                      <label htmlFor="edit-shipping" className="mb-1 block text-sm font-medium text-gray-700">
                         Shipping Cost
                       </label>
                       <input
@@ -238,10 +242,7 @@ export default function EditListingDialog({ listing, onUpdated }: Props) {
                     </div>
 
                     <div>
-                      <label
-                        htmlFor="edit-fees"
-                        className="mb-1 block text-sm font-medium text-gray-700"
-                      >
+                      <label htmlFor="edit-fees" className="mb-1 block text-sm font-medium text-gray-700">
                         Marketplace Fees
                       </label>
                       <input
@@ -255,14 +256,11 @@ export default function EditListingDialog({ listing, onUpdated }: Props) {
                         placeholder="Marketplace Fees"
                       />
                     </div>
-                  </div>
+                  </>
                 )}
 
                 <div>
-                  <label
-                    htmlFor="edit-status"
-                    className="mb-1 block text-sm font-medium text-gray-700"
-                  >
+                  <label htmlFor="edit-status" className="mb-1 block text-sm font-medium text-gray-700">
                     Status
                   </label>
                   <select
@@ -277,7 +275,7 @@ export default function EditListingDialog({ listing, onUpdated }: Props) {
                   </select>
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex gap-2 mt-4">
                   <button
                     onClick={saveChanges}
                     disabled={saving}
@@ -296,7 +294,7 @@ export default function EditListingDialog({ listing, onUpdated }: Props) {
               </div>
             </div>
           </div>,
-          document.body,
+          document.body
         )}
     </>
   );

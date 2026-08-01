@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 const SOLD_COMPS_KEY = process.env.SOLD_COMPS_API_KEY;
-const SOLD_COMPS_URL = "[api.sold-comps.com](https://api.sold-comps.com/v1/scrape)";
+const SOLD_COMPS_URL = "https://api.sold-comps.com/v1/scrape";
 
 export interface PriceSuggestion {
   suggested_min: number;
@@ -85,9 +85,6 @@ export async function POST(req: Request) {
     const min = prices.length ? Math.min(...prices) : 0;
     const max = prices.length ? Math.max(...prices) : 0;
 
-    // A tighter, more usable range: 80% of median → 120% of median.
-    // Keeps the suggestion grounded in the cluster of recent sales
-    // rather than one outlier auction.
     const suggested_min = Math.round(med * 0.8 * 100) / 100;
     const suggested_max = Math.round(med * 1.2 * 100) / 100;
 

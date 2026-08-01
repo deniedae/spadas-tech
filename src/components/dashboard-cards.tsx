@@ -25,32 +25,32 @@ export default function DashboardCards({
         title="Total Listings"
         value={totalListings}
         subtitle="Items in your inventory"
-        icon={<Package className="h-6 w-6 text-blue-600" />}
-        iconBg="bg-blue-100"
+        icon={<Package className="h-7 w-7 text-blue-600" />}
+        iconBg="bg-gradient-to-tr from-blue-200 to-blue-100"
       />
 
       <Card
         title="Total Profit"
         value={fmtMoney(totalProfit)}
         subtitle="Profit from sold items"
-        icon={<TrendingUp className="h-6 w-6 text-green-600" />}
-        iconBg="bg-green-100"
+        icon={<TrendingUp className="h-7 w-7 text-green-600" />}
+        iconBg="bg-gradient-to-tr from-green-200 to-green-100"
       />
 
       <Card
         title="Inventory Value"
         value={fmtMoney(inventoryValue)}
         subtitle="Current inventory worth"
-        icon={<DollarSign className="h-6 w-6 text-amber-600" />}
-        iconBg="bg-amber-100"
+        icon={<DollarSign className="h-7 w-7 text-amber-600" />}
+        iconBg="bg-gradient-to-tr from-amber-200 to-amber-100"
       />
 
       <Card
         title="Sold Listings"
         value={soldListings}
         subtitle="Completed sales"
-        icon={<ShoppingCart className="h-6 w-6 text-purple-600" />}
-        iconBg="bg-purple-100"
+        icon={<ShoppingCart className="h-7 w-7 text-purple-600" />}
+        iconBg="bg-gradient-to-tr from-purple-200 to-purple-100"
       />
     </div>
   );
@@ -70,23 +70,22 @@ function Card({
   iconBg: string;
 }) {
   return (
-    <div className="group rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
+    <div
+      tabIndex={0}
+      role="region"
+      aria-label={`${title}: ${value}`}
+      className="group rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition-transform duration-300 hover:-translate-y-1 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+    >
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-sm font-medium text-gray-500">
-            {title}
-          </p>
-
-          <h2 className="mt-3 text-4xl font-bold text-gray-900">
-            {value}
-          </h2>
-
-          <p className="mt-3 text-sm text-gray-400">
-            {subtitle}
-          </p>
+          <p className="text-base font-semibold text-gray-600">{title}</p>
+          <h2 className="mt-3 text-4xl font-extrabold text-gray-900">{value}</h2>
+          <p className="mt-2 text-sm text-gray-400">{subtitle}</p>
         </div>
-
-        <div className={`rounded-xl p-3 ${iconBg}`}>
+        <div
+          className={`${iconBg} rounded-xl p-4 flex items-center justify-center shadow-md`}
+          aria-hidden="true"
+        >
           {icon}
         </div>
       </div>
