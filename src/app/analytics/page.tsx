@@ -8,6 +8,12 @@ import { supabase } from "@/app/lib/supabase";
 import { fmtMoney, calcInventoryValue, calcProfit } from "@/app/lib/listings";
 import { AlertCircle, X } from "lucide-react";
 
+type DataPoint = {
+  month: string;
+  revenue: number;
+  profit: number;
+};
+
 export default function AnalyticsPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -20,9 +26,7 @@ export default function AnalyticsPage() {
     sold: 0,
   });
 
-  const [chartData, setChartData] = useState<
-    { month: string; revenue: number }[]
-  >([]);
+  const [chartData, setChartData] = useState<DataPoint[]>([]); // Updated to include profit
 
   useEffect(() => {
     let cancelled = false;
@@ -64,6 +68,7 @@ export default function AnalyticsPage() {
         const sold = soldItems.length;
 
         const monthlyRevenue: Record<string, number> = {};
+        const monthlyProfit: Record<string, number> = {};
 
         soldItems.forEach((item) => {
           if (!item.sold_at) return;
@@ -72,8 +77,8 @@ export default function AnalyticsPage() {
             month: "short",
           });
 
-          monthlyRevenue[month] =
-            (monthlyRevenue[month] || 0) + (Number(item.sold_price) || 0);
+          monthlyRevenue[month] = (monthlyRevenue[month] || 0) + (Number(item.sold_price) || 0);
+          monthlyProfit[month] = (monthlyProfit[month] || 0) + calcProfit(item);
         });
 
         if (cancelled) return;
@@ -82,6 +87,7 @@ export default function AnalyticsPage() {
           Object.entries(monthlyRevenue).map(([month, rev]) => ({
             month,
             revenue: rev,
+            profit: monthlyProfit[month] || 0,
           }))
         );
 
