@@ -26,7 +26,7 @@ export default function AnalyticsPage() {
     sold: 0,
   });
 
-  const [chartData, setChartData] = useState<DataPoint[]>([]); // Updated to include profit
+  const [chartData, setChartData] = useState<DataPoint[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -77,8 +77,10 @@ export default function AnalyticsPage() {
             month: "short",
           });
 
-          monthlyRevenue[month] = (monthlyRevenue[month] || 0) + (Number(item.sold_price) || 0);
-          monthlyProfit[month] = (monthlyProfit[month] || 0) + calcProfit(item);
+          monthlyRevenue[month] =
+            (monthlyRevenue[month] || 0) + (Number(item.sold_price) || 0);
+          monthlyProfit[month] =
+            (monthlyProfit[month] || 0) + calcProfit(item);
         });
 
         if (cancelled) return;
@@ -185,7 +187,7 @@ export default function AnalyticsPage() {
       {!loading && chartData.length > 0 && (
         <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
           <h2 className="mb-4 text-lg font-semibold">Revenue by Month</h2>
-          <RevenueChart data={chartData} />
+          <RevenueChart data={chartData} loading={loading} />
         </div>
       )}
 
