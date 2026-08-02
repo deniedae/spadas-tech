@@ -124,7 +124,7 @@ export default function SignupPage() {
     const msg = "Account created! Welcome to Spadas AI.";
     toast.success(msg);
     announceToScreenReader(msg);
-    router.push("/dashboard");
+    window.location.href = "/dashboard";
   }
 
   return (

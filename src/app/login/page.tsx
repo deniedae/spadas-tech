@@ -50,7 +50,13 @@ export default function LoginPage() {
     toast.success(successMsg);
     announceToScreenReader(successMsg);
 
-    router.push("/dashboard");
+    const redirectUrl =
+      typeof window !== "undefined"
+        ? new URLSearchParams(window.location.search).get("redirect") || "/dashboard"
+        : "/dashboard";
+
+    // Use full page load so Supabase SSR cookies are fresh for Next.js Middleware
+    window.location.href = redirectUrl;
   }
 
   function announceToScreenReader(message: string) {
