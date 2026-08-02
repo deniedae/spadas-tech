@@ -18,11 +18,19 @@ import { Textarea } from "@/components/ui/textarea";
 import { useDropzone } from "react-dropzone";
 import { Loader2, X } from "lucide-react";
 
+type InitialListingData = {
+  name?: string;
+  suggestedPrice?: number;
+  brand?: string;
+  category?: string;
+  image?: string;
+};
+
 export default function NewListingDialog({
   initialData,
   trigger,
 }: {
-  initialData?: any;
+  initialData?: InitialListingData;
   trigger?: React.ReactNode;
 }) {
   const router = useRouter();
@@ -86,8 +94,9 @@ export default function NewListingDialog({
       if (result.suggested_price_min) setPrice(String(result.suggested_price_min));
 
       toast.success("AI listing generated!");
-    } catch (err: any) {
-      toast.error(err.message || "AI generation failed.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "AI generation failed.";
+      toast.error(message);
     } finally {
       setAiLoading(false);
     }
@@ -244,7 +253,7 @@ export default function NewListingDialog({
             >
               <input {...getInputProps()} />
               {imagePreview ? (
-                <img src={imagePreview} alt="Preview" className="mx-auto max-h-48 rounded-lg object-contain" />
+                <img src={imagePreview} alt="Listing preview" className="mx-auto max-h-48 rounded-lg object-contain" />
               ) : (
                 <p className="text-muted-foreground">Drag & drop or click to upload image</p>
               )}

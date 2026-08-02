@@ -12,7 +12,16 @@ export async function getCachedBarcode(barcode: string) {
   return data;
 }
 
-export async function saveBarcode(product: any) {
+export async function saveBarcode(product: {
+  barcode: string;
+  name: string;
+  brand?: string;
+  category?: string;
+  image?: string;
+  description?: string;
+  suggestedPrice?: number;
+  source?: string;
+}) {
   await supabase.from("barcode_cache").upsert({
     barcode: product.barcode,
     name: product.name,

@@ -13,23 +13,25 @@ import {
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
-type Listing = {
+type ListingLike = {
   product: string;
-  description: string;
-  price: number;
+  description?: string;
+  price?: number | string | null;
 };
 
 export default function ExportListingDialog({
   listing,
 }: {
-  listing: Listing;
+  listing: ListingLike;
 }) {
   const [marketplace, setMarketplace] = useState("ebay");
+  const descriptionText = listing.description ?? "";
+  const priceValue = Number(listing.price ?? 0);
 
   const exportData = {
     ebay: {
       title: `${listing.product} | Fast Shipping`,
-      description: `${listing.description}
+      description: `${descriptionText}
 
 ✔ Fast postage
 ✔ Trusted seller
@@ -38,7 +40,7 @@ export default function ExportListingDialog({
 
     facebook: {
       title: listing.product,
-      description: `${listing.description}
+      description: `${descriptionText}
 
 Pickup available.
 Happy to answer any questions.`,
@@ -46,7 +48,7 @@ Happy to answer any questions.`,
 
     vinted: {
       title: listing.product,
-      description: `${listing.description}
+      description: `${descriptionText}
 
 #gaming #electronics #vinted`,
     },
@@ -102,7 +104,7 @@ toast.success("Description copied!");
             </p>
 
             <p className="mt-3 font-semibold">
-              Price: ${listing.price.toFixed(2)}
+              Price: ${priceValue.toFixed(2)}
             </p>
 
             <div className="mt-6 flex gap-3">

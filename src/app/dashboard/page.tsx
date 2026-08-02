@@ -15,6 +15,7 @@ import Link from "next/link";
 import NewListingDialog from "@/components/new-listing-dialog";
 import { fmtMoney, calcProfit, calcInventoryValue } from "@/app/lib/listings";
 
+// --- Types (was: any[]) ---------------------------------------------------
 interface Listing {
   id: string;
   product: string;
@@ -44,6 +45,7 @@ const INITIAL_STATS: DashboardStats = {
   sold: 0,
 };
 
+// --- Stat card extracted (was: copy-pasted 4×) ----------------------------
 function StatCard({
   label,
   value,
@@ -61,9 +63,7 @@ function StatCard({
     <div className="bg-card text-card-foreground rounded-2xl shadow-sm p-6 border border-border transition-shadow hover:shadow-md">
       <div className="flex items-center justify-between">
         <p className="text-muted-foreground">{label}</p>
-        {Icon && (
-          <Icon className="h-5 w-5 text-muted-foreground/70" aria-hidden="true" />
-        )}
+        {Icon && <Icon className="h-5 w-5 text-muted-foreground/70" aria-hidden="true" />}
       </div>
       {loading ? (
         <div className="mt-2 h-9 w-28 animate-pulse rounded bg-muted" />
@@ -121,6 +121,7 @@ export default function Dashboard() {
           }
         });
 
+        // inventory = sum of selling prices for unsold listings (shared helper)
         const inventory = calcInventoryValue(data);
 
         if (cancelled) return;
@@ -142,22 +143,15 @@ export default function Dashboard() {
 
   return (
     <>
+      {/* Hero — brand gradient, stays raw by design */}
       <div className="mb-8 rounded-2xl bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 p-8 text-white shadow-xl">
-        <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold">Welcome back 👋</h1>
             <p className="mt-2 max-w-xl text-blue-100">
               Manage your inventory, generate AI listings, and track your profits from one dashboard.
             </p>
           </div>
-          <NewListingDialog
-            trigger={
-              <button className="rounded-lg bg-white/30 px-6 py-3 font-semibold text-white transition hover:bg-white/40">
-                Quick Add Listing
-              </button>
-            }
-          />
-
           <div className="hidden rounded-2xl bg-white/10 p-6 backdrop-blur md:block">
             <div className="text-sm text-blue-100">Version</div>
             <div className="text-2xl font-bold">Beta v0.9</div>
@@ -166,6 +160,7 @@ export default function Dashboard() {
       </div>
 
       <div className="space-y-8">
+        {/* Error banner */}
         {error && (
           <div
             role="alert"
@@ -184,6 +179,7 @@ export default function Dashboard() {
           </div>
         )}
 
+        {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
           <StatCard label="Listings" value={String(stats.listings)} icon={Package} loading={loading} />
           <StatCard label="Inventory Value" value={fmtMoney(stats.inventory)} icon={DollarSign} loading={loading} />
@@ -197,7 +193,9 @@ export default function Dashboard() {
           <StatCard label="Items Sold" value={String(stats.sold)} icon={ShoppingCart} loading={loading} />
         </div>
 
-        <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-6">
+        {/* Quick Actions */}
+          <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-6">
+
           <Link
             href="/generator"
             className="bg-primary text-primary-foreground rounded-2xl p-8 shadow-sm transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-safe:hover:scale-[1.02]"
@@ -222,18 +220,21 @@ export default function Dashboard() {
           </Link>
 
           <div className="bg-card text-card-foreground rounded-2xl shadow-sm border border-border p-8">
-            <h2 className="text-2xl font-bold">💰 Revenue</h2>
-            {loading ? (
-              <div className="mt-4 h-12 w-40 animate-pulse rounded bg-muted" />
-            ) : (
-              <h3 className="text-5xl font-bold text-primary mt-4 tabular-nums">
-                {fmtMoney(stats.revenue)}
-              </h3>
-            )}
-            <p className="mt-3 text-muted-foreground">Total value of your listings.</p>
+            <h2 className="text-2xl font-bold">⚡ Quick Add</h2>
+            <p className="mt-3 text-muted-foreground">Create a fresh listing in seconds.</p>
+            <div className="mt-6">
+              <NewListingDialog
+                trigger={
+                  <button className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90">
+                    + Add listing
+                  </button>
+                }
+              />
+            </div>
           </div>
         </div>
 
+        {/* Recent Listings */}
         <div className="bg-card text-card-foreground rounded-2xl shadow-sm border border-border p-8">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold">Recent Listings</h2>
@@ -248,7 +249,7 @@ export default function Dashboard() {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full" aria-label="Recent listings table">
+            <table className="w-full">
               <thead className="text-left border-b border-border">
                 <tr>
                   <th scope="col" className="pb-4 text-muted-foreground">Product</th>
@@ -258,6 +259,7 @@ export default function Dashboard() {
                 </tr>
               </thead>
               <tbody>
+                {/* Loading skeleton rows */}
                 {loading &&
                   Array.from({ length: 4 }).map((_, i) => (
                     <tr key={i} className="border-t border-border">
@@ -279,14 +281,12 @@ export default function Dashboard() {
                     </tr>
                   ))}
 
+                {/* Empty state */}
                 {!loading && recentListings.length === 0 && (
                   <tr>
                     <td colSpan={4} className="p-0">
                       <div className="flex flex-col items-center justify-center px-6 py-12 text-center">
-                        <Package
-                          className="h-10 w-10 text-muted-foreground/40"
-                          aria-hidden="true"
-                        />
+                        <Package className="h-10 w-10 text-muted-foreground/40" aria-hidden="true" />
                         <p className="mt-3 text-sm font-medium">No listings yet</p>
                         <p className="mt-1 text-sm text-muted-foreground">
                           Generate your first AI listing to get started.
@@ -302,19 +302,17 @@ export default function Dashboard() {
                   </tr>
                 )}
 
+                {/* Rows */}
                 {!loading &&
                   recentListings.map((item) => {
                     const isSold = item.status === "Sold";
                     return (
-                      <tr
-                        key={item.id}
-                        className="border-t border-border transition-colors hover:bg-muted/50"
-                      >
+                      <tr key={item.id} className="border-t border-border transition-colors hover:bg-muted/50">
                         <td className="p-4">
                           <div className="flex items-center gap-3">
                             <img
                               src={item.image_url || "/placeholder.png"}
-                              alt={item.product || "Product image"}
+                              alt={item.product}
                               width={48}
                               height={48}
                               loading="lazy"

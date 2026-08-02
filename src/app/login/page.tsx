@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabase";
 import { toast } from "sonner";
 import Link from "next/link";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 
 export default function LoginPage() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -48,8 +50,7 @@ export default function LoginPage() {
     toast.success(successMsg);
     announceToScreenReader(successMsg);
 
-    // Full page load to trigger middleware session recognition
-    window.location.href = "/dashboard";
+    router.push("/dashboard");
   }
 
   function announceToScreenReader(message: string) {

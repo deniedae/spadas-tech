@@ -1,30 +1,42 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabase";
 import { toast } from "sonner";
 import Link from "next/link";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 
 export default function SignupPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const router = useRouter();
+  const getStoredForm = () => {
+    if (typeof window === "undefined") return { email: "", password: "", confirmPassword: "" };
+    try {
+      const saved = window.localStorage.getItem("signupForm");
+      if (!saved) return { email: "", password: "", confirmPassword: "" };
+      const data = JSON.parse(saved) as {
+        email?: string;
+        password?: string;
+        confirmPassword?: string;
+      };
+      return {
+        email: data.email || "",
+        password: data.password || "",
+        confirmPassword: data.confirmPassword || "",
+      };
+    } catch {
+      return { email: "", password: "", confirmPassword: "" };
+    }
+  };
+
+  const [email, setEmail] = useState(() => getStoredForm().email);
+  const [password, setPassword] = useState(() => getStoredForm().password);
+  const [confirmPassword, setConfirmPassword] = useState(() => getStoredForm().confirmPassword);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const liveRegionRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const saved = localStorage.getItem("signupForm");
-    if (saved) {
-      const data = JSON.parse(saved);
-      setEmail(data.email || "");
-      setPassword(data.password || "");
-      setConfirmPassword(data.confirmPassword || "");
-    }
-  }, []);
 
   useEffect(() => {
     if (!loading) {
@@ -105,14 +117,14 @@ export default function SignupPage() {
       const msg = "Account created! Check your email to confirm your account.";
       toast.success(msg);
       announceToScreenReader(msg);
-      window.location.href = "/login";
+      router.push("/login");
       return;
     }
 
     const msg = "Account created! Welcome to Spadas AI.";
     toast.success(msg);
     announceToScreenReader(msg);
-    window.location.href = "/dashboard";
+    router.push("/dashboard");
   }
 
   return (

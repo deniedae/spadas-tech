@@ -7,9 +7,8 @@ import { toast } from "sonner";
 import ImageDropzone from "@/components/image-dropzone";
 import {
   Sparkles, Loader2, AlertCircle, CheckCircle2, XCircle,
-  TrendingUp, DollarSign, Crosshair, ArrowRight,
+  TrendingUp, DollarSign, Target, ArrowRight,
 } from "lucide-react";
-
 
 interface SourcingVerdict {
   identification: {
@@ -86,33 +85,38 @@ export default function SourcingPage() {
     });
   }, [router]);
 
-  // Upload images when files change (same pattern as your other pages)
-  useEffect(() => {
-    if (files.length === 0) {
+  const handleFilesChange = async (nextFiles: File[]) => {
+    setFiles(nextFiles);
+    if (nextFiles.length === 0) {
       setImageUrls([]);
       return;
     }
-    let cancelled = false;
-    (async () => {
-      setUploading(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { setUploading(false); return; }
-      const urls: string[] = [];
-      for (const file of files) {
-        const ext = file.name.split(".").pop() || "jpg";
-        const path = `${user.id}/${crypto.randomUUID()}.${ext}`;
-        const { error } = await supabase.storage
-          .from("listing-images")
-          .upload(path, file, { upsert: false, contentType: file.type });
-        if (error) { toast.error(`Upload failed: ${error.message}`); continue; }
-        const { data } = supabase.storage.from("listing-images").getPublicUrl(path);
-        urls.push(data.publicUrl);
-      }
-      if (!cancelled) setImageUrls(urls);
+
+    setUploading(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
       setUploading(false);
-    })();
-    return () => { cancelled = true; };
-  }, [files]);
+      return;
+    }
+
+    const urls: string[] = [];
+    for (const file of nextFiles) {
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `${user.id}/${crypto.randomUUID()}.${ext}`;
+      const { error } = await supabase.storage
+        .from("listing-images")
+        .upload(path, file, { upsert: false, contentType: file.type });
+      if (error) {
+        toast.error(`Upload failed: ${error.message}`);
+        continue;
+      }
+      const { data } = supabase.storage.from("listing-images").getPublicUrl(path);
+      urls.push(data.publicUrl);
+    }
+
+    setImageUrls(urls);
+    setUploading(false);
+  };
 
   const canCheck =
     imageUrls.length > 0 && !uploading && !checking && cost && Number(cost) >= 0;
@@ -155,7 +159,7 @@ export default function SourcingPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Sourcing Assistant</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Snap a photo, enter what you'd pay, and get a buy/pass verdict based on real eBay sold prices.
+          Snap a photo, enter what you&apos;d pay, and get a buy/pass verdict based on real eBay sold prices.
         </p>
       </div>
 
@@ -165,7 +169,7 @@ export default function SourcingPage() {
             <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
               1. Product photos
             </h2>
-            <ImageDropzone files={files} onFilesChange={setFiles} max={10} />
+            <ImageDropzone files={files} onFilesChange={handleFilesChange} max={10} />
             {uploading && (
               <p className="mt-3 inline-flex items-center gap-2 text-xs text-muted-foreground">
                 <Loader2 className="h-3.5 w-3.5 animate-spin" /> Uploading…
@@ -265,8 +269,7 @@ export default function SourcingPage() {
               </div>
             </dl>
             <div className="mt-4 flex items-center gap-2 rounded-lg bg-muted/50 p-3 text-sm">
-           <Crosshair className="h-4 w-4 text-primary" />
-
+              <Target className="h-4 w-4 text-primary" />
               <span>
                 AI confidence:{" "}
                 <strong className="capitalize">{verdict.identification.confidence}</strong>{" "}
@@ -352,7 +355,8 @@ export default function SourcingPage() {
             </button>
             <button
               type="button"
-              onClick={() => router.push("/listings/ai-new")}
+             onClick={() => router.push("/generator")}
+
               className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
             >
               List this item

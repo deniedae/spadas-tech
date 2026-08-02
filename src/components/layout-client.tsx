@@ -27,6 +27,20 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
   // Pages that don't show sidebar layout (public pages)
   const publicPages = ["/", "/login", "/signup"];
 
+  useEffect(() => {
+    if (sidebarOpen) {
+      const firstLink = document.querySelector("nav a");
+      if (firstLink instanceof HTMLElement) firstLink.focus();
+      document.body.style.overflow = "hidden";
+    } else {
+      hamburgerButtonRef.current?.focus();
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [sidebarOpen]);
+
   // If on a public page, render children plainly
   if (publicPages.includes(pathname)) {
     return <>{children}</>;
@@ -54,23 +68,6 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
     "/settings": "Settings",
   };
   const pageTitle = pageTitleMap[pathname] || "SpadasTechnology";
-
-  /**
-   * Locks body scroll when sidebar is open, manages focus trapping and restoration.
-   */
-  useEffect(() => {
-    if (sidebarOpen) {
-      const firstLink = document.querySelector("nav a");
-      if (firstLink instanceof HTMLElement) firstLink.focus();
-      document.body.style.overflow = "hidden";
-    } else {
-      hamburgerButtonRef.current?.focus();
-      document.body.style.overflow = "";
-    }
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [sidebarOpen]);
 
   /**
    * Touch gesture handlers for swipe to open/close sidebar on mobile.

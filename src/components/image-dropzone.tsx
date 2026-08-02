@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { Upload, X, Camera } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -20,16 +20,15 @@ export default function ImageDropzone({
   const inputRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
-  const [previews, setPreviews] = useState<{ url: string; name: string }[]>([]);
 
-  useEffect(() => {
-    const next = files.map((f) => ({
-      url: URL.createObjectURL(f),
-      name: f.name,
-    }));
-    setPreviews(next);
-    return () => next.forEach((p) => URL.revokeObjectURL(p.url));
-  }, [files]);
+  const previews = useMemo(
+    () =>
+      files.map((file) => ({
+        url: URL.createObjectURL(file),
+        name: file.name,
+      })),
+    [files]
+  );
 
   const addFiles = useCallback(
     (incoming: FileList | null) => {

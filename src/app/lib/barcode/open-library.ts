@@ -8,7 +8,17 @@ export async function lookupOpenLibrary(
       `https://openlibrary.org/api/books?bibkeys=ISBN:${barcode}&format=json&jscmd=data`
     );
 
-    const json = await res.json();
+    interface OpenLibraryBook {
+      title?: string;
+      authors?: Array<{ name?: string }>;
+      cover?: {
+        large?: string;
+        medium?: string;
+        small?: string;
+      };
+    }
+
+    const json = (await res.json()) as Record<string, OpenLibraryBook>;
 
     const book = json[`ISBN:${barcode}`];
 
@@ -16,8 +26,8 @@ export async function lookupOpenLibrary(
 
     return {
       barcode,
-      name: book.title,
-      brand: book.authors?.map((a: any) => a.name).join(", ") || "",
+      name: book.title ?? "Unknown title",
+      brand: book.authors?.map((author) => author.name ?? "").filter(Boolean).join(", ") || "",
       category: "Books",
       image:
         book.cover?.large ||

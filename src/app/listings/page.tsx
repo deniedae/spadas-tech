@@ -1,5 +1,24 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/app/lib/supabase";
+import EditListingDialog from "@/components/edit-listing-dialog";
+import ExportListingDialog from "@/components/export-listing-dialog";
+import BarcodeScanner from "@/components/barcode-scanner";
+import NewListingDialog from "@/components/new-listing-dialog";
+import { toast } from "sonner";
+import { createListing } from "@/app/lib/createlisting";
+import { fmtMoney, calcProfit, calcInventoryValue } from "@/app/lib/listings";
+import {
+  Package,
+  Search,
+  ImageIcon,
+  Trash2,
+  PackageOpen,
+  AlertCircle,
+  X,
+} from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -11,31 +30,77 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import ExportListingDialog from "@/components/export-listing-dialog";
 import DashboardCards from "@/components/dashboard-cards";
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { supabase } from "@/app/lib/supabase";
-import EditListingDialog from "@/components/edit-listing-dialog";
-import Link from "next/link";
-import BarcodeScanner from "@/components/barcode-scanner";
-import { toast } from "sonner";
-import NewListingDialog from "@/components/new-listing-dialog";
-import { fmtMoney, calcProfit, calcInventoryValue } from "@/app/lib/listings";
-import { Package, Search, ImageIcon, Trash2, PackageOpen, AlertCircle, X } from "lucide-react";
-
 export default function ListingsPage() {
+ type ScannedProduct = {
+  barcode?: string;
+  name?: string;
+  title?: string;
+  brand?: string;
+  category?: string;
+  image?: string;
+  description?: string;
+  suggestedPrice?: number;
+};
+  type Listing = {
+    id: string;
+    product: string;
+    price: number | string | null;
+    cost: number | string | null;
+    purchase_price: number | string | null;
+    sold_price: number | string | null;
+    shipping_cost: number | string | null;
+    fees: number | string | null;
+    sold_at: string | null;
+    status: "Draft" | "Active" | "Sold" | string;
+    image_url: string | null;
+    created_at?: string;
+  };
+
   const router = useRouter();
-  const [listings, setListings] = useState<any[]>([]);
+  const [listings, setListings] = useState<Listing[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const totalListings = listings.length;
 
-  const handleCreateListing = (product: any) => {
-    console.log("Scanned product:", product);
-  };
+const handleCreateListing = async (product: ScannedProduct) => {
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      toast.error("Please log in to create a listing.");
+      return;
+    }
+
+    const listingTitle = product.title || product.name || "New listing";
+    const listingPrice = Number(product.suggestedPrice ?? 0);
+
+    const { error } = await createListing({
+      userId: user.id,
+      product: listingTitle,
+      description: product.description ?? `Brand: ${product.brand ?? "Unknown"}\nCategory: ${product.category ?? "General"}`,
+      price: Number.isFinite(listingPrice) ? listingPrice : 0,
+      cost: 0,
+      image: product.image,
+      status: "Draft",
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    toast.success("Barcode product added as a draft listing.");
+    await loadListings();
+  } catch (error) {
+    console.error(error);
+    toast.error("Couldn't create listing from barcode scan.");
+  }
+};
+
 
   const soldListings = listings.filter((item) => item.status === "Sold").length;
 
@@ -45,14 +110,14 @@ export default function ListingsPage() {
   );
 
   const inventoryValue = calcInventoryValue(listings);
-
   useEffect(() => {
-    loadListings();
-  }, []);
+    void loadListings();
+  }, [router]);
 
-  async function loadListings() {
-    setLoading(true);
+async function loadListings() {
+  setLoading(true);
 
+  try {
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -69,19 +134,22 @@ export default function ListingsPage() {
       .order("id", { ascending: false });
 
     if (error) {
-      console.error(error);
-      toast.error("Failed to load listings.");
-      setError("Couldn't load your listings. Please try refreshing.");
-      setLoading(false);
-      return;
+      throw error;
     }
 
     setListings(data || []);
     setError(null);
+  } catch (err) {
+    console.error(err);
+    toast.error("Failed to load listings.");
+    setError("Couldn't load your listings. Please try refreshing.");
+  } finally {
     setLoading(false);
   }
+}
 
-  async function deleteListing(id: number) {
+async function deleteListing(id: string) {
+
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -198,6 +266,24 @@ export default function ListingsPage() {
           />
         </div>
       </div>
+{listings.length > 0 &&
+  listings.filter((item) =>
+    (item.product || "").toLowerCase().includes(search.toLowerCase())
+  ).length === 0 && (
+    <tr>
+      <td colSpan={6} className="p-0">
+        <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
+          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-muted text-muted-foreground">
+            <Search className="h-6 w-6" />
+          </div>
+          <h2 className="text-lg font-semibold">No matching listings</h2>
+          <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+            Try a different search term.
+          </p>
+        </div>
+      </td>
+    </tr>
+  )}
 
       {/* Table */}
       <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
@@ -317,7 +403,7 @@ export default function ListingsPage() {
                         Welcome to Spadas AI
                       </h2>
                       <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-                        You don't have any listings yet. Create your first listing or scan a barcode to get started.
+                        You don&apos;t have any listings yet. Create your first listing or scan a barcode to get started.
                       </p>
                       <div className="mt-6">
                         <NewListingDialog />

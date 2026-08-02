@@ -184,7 +184,15 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Revenue chart */}
-      
+      {!loading && chartData.length > 0 && (
+        <RevenueChart data={chartData} />
+      )}
+
+      {!loading && chartData.length === 0 && (
+        <div className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground shadow-sm">
+          No sold listings yet — revenue and profit charts will appear once you mark an item as sold.
+        </div>
+      )}
 
       {/* Top profitable items */}
       {!loading && <TopProfitableItems />}

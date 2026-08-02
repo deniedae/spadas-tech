@@ -1,458 +1,614 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabase";
 import { toast } from "sonner";
 import ImageDropzone from "@/components/image-dropzone";
-import { Sparkles, Loader2, AlertCircle, Package, Save, ArrowRight, ArrowLeft } from "lucide-react";
+import type { AiListingResult, Confidence, ShippingSize } from "@/types/ai-listing";
+import { ArrowLeft, Sparkles, Loader2, Save, TrendingUp, ShieldCheck } from "lucide-react";
 
-interface GeneratedListing {
-  title: string;
-  description: string;
-  price?: string | number;
-}
+type AiGenerationStage = "analyzing" | "generating-titles" | "estimating-price" | "finalizing";
 
-type Step = "input" | "review" | "saving";
+const STAGES: { key: AiGenerationStage; label: string }[] = [
+  { key: "analyzing", label: "Analyzing images" },
+  { key: "generating-titles", label: "Writing marketplace titles" },
+  { key: "estimating-price", label: "Estimating price" },
+  { key: "finalizing", label: "Finalizing" },
+];
 
-export default function GeneratorPage() {
+const confidenceStyles: Record<Confidence, string> = {
+  high: "bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-400",
+  medium: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400",
+  low: "bg-muted text-muted-foreground",
+};
+
+const inputCls =
+  "h-11 w-full rounded-lg border border-input bg-background px-3 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30";
+
+export default function AiNewListingPage() {
   const router = useRouter();
-  const [step, setStep] = useState<Step>("input");
-  const [product, setProduct] = useState("");
-  const [listing, setListing] = useState<GeneratedListing | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(false);
-
-  // Editable form fields (after generation)
-  
-  const [editTitle, setEditTitle] = useState("");
-  const [editDescription, setEditDescription] = useState("");
-  const [editPrice, setEditPrice] = useState("");
-  const [editCost, setEditCost] = useState("");
-  const [editStatus, setEditStatus] = useState("Draft");
-
-  // Images
   const [files, setFiles] = useState<File[]>([]);
   const [imageUrls, setImageUrls] = useState<string[]>([]);
+  const [keyword, setKeyword] = useState("");
   const [uploading, setUploading] = useState(false);
-  // Real sold-price suggestion
-  const [priceSuggestion, setPriceSuggestion] = useState<{
-    suggested_min: number;
-    suggested_max: number;
-    suggested_median: number;
-    sample_size: number;
-    currency: string;
-  } | null>(null);
-  const [priceLoading, setPriceLoading] = useState(false);
-  const [priceError, setPriceError] = useState<string | null>(null);
+  const [generating, setGenerating] = useState(false);
+  const [stageIdx, setStageIdx] = useState(0);
+  const [result, setResult] = useState<AiListingResult | null>(null);
+  const [saving, setSaving] = useState(false);
+  const stageTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const inputCls =
-    "h-11 w-full rounded-lg border border-input bg-background px-3 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30";
+  const [form, setForm] = useState({
+    product: "",
+    price: "",
+    cost: "",
+    status: "Draft" as const,
+    condition: "",
+    brand: "",
+    model: "",
+    category: "",
+    color: "",
+    material: "",
+    seo_description: "",
+    detailed_description: "",
+    keywords: "",
+    ebay_title: "",
+    fb_title: "",
+    vinted_title: "",
+    depop_title: "",
+    shipping_size: "medium" as ShippingSize,
+    shipping_weight: "",
+    shipping_notes: "",
+  });
 
-  // Upload images whenever they change
+  const update = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }));
+
   useEffect(() => {
-    if (files.length === 0) {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) router.push("/login");
+    });
+  }, [router]);
+
+  useEffect(() => {
+    if (!stageTimer.current) return;
+    return () => {
+      clearInterval(stageTimer.current!);
+      stageTimer.current = null;
+    };
+  }, []);
+
+  const handleFilesChange = async (nextFiles: File[]) => {
+    setFiles(nextFiles);
+
+    if (nextFiles.length === 0) {
       setImageUrls([]);
       return;
     }
-    let cancelled = false;
-    (async () => {
-      setUploading(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { setUploading(false); return; }
-      const urls: string[] = [];
-      for (const file of files) {
-        const ext = file.name.split(".").pop() || "jpg";
-        const path = `${user.id}/${crypto.randomUUID()}.${ext}`;
-        const { error } = await supabase.storage
-          .from("listing-images")
-          .upload(path, file, { upsert: false, contentType: file.type });
-        if (error) { toast.error(`Upload failed: ${error.message}`); continue; }
-        const { data } = supabase.storage.from("listing-images").getPublicUrl(path);
-        urls.push(data.publicUrl);
-      }
-      if (!cancelled) setImageUrls(urls);
-      setUploading(false);
-    })();
-    return () => { cancelled = true; };
-  }, [files]);
 
-  async function generateListing(e: React.FormEvent) {
-    e.preventDefault();
-    if (!product.trim()) {
-      toast.error("Please enter a product name.");
+    setUploading(true);
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      setUploading(false);
       return;
     }
-    setLoading(true);
-    setListing(null);
-    setError(false);
+
+    const urls: string[] = [];
+    for (const file of nextFiles) {
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `${user.id}/${crypto.randomUUID()}.${ext}`;
+      const { error } = await supabase.storage
+        .from("listing-images")
+        .upload(path, file, { upsert: false, contentType: file.type });
+      if (error) {
+        toast.error(`Upload failed: ${error.message}`);
+        continue;
+      }
+      const { data } = supabase.storage.from("listing-images").getPublicUrl(path);
+      urls.push(data.publicUrl);
+    }
+
+    setImageUrls(urls);
+    setUploading(false);
+  };
+
+const canGenerate = imageUrls.length > 0 && !uploading && !generating;
+
+
+  async function handleGenerate() {
+   if (!canGenerate) {
+  toast.error("Please upload at least one product image.");
+  return;
+}
+
+    setGenerating(true);
+    setStageIdx(0);
+    stageTimer.current = setInterval(() => {
+      setStageIdx((i) => Math.min(i + 1, STAGES.length - 1));
+    }, 1800);
+    setResult(null);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { router.push("/login"); return; }
-      const res = await fetch("/api/generate", {
+      const response = await fetch("/api/ai-listing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ product }),
+        body: JSON.stringify({ imageUrls, keyword: keyword.trim() }),
       });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error || `Generation failed (${res.status})`);
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || "AI generation failed.");
       }
-        async function fetchPriceSuggestion(query: string) {
-    setPriceLoading(true);
-    setPriceError(null);
-    setPriceSuggestion(null);
-    try {
-      const res = await fetch("/api/price-suggest", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ product: query }),
+      const data = await response.json();
+      setResult(data);
+      setForm({
+        product: data.analysis.product_name || "",
+        price: data.suggested_price_max ? String(data.suggested_price_max) : "",
+        cost: "",
+        status: "Draft",
+        condition: data.analysis.condition || "",
+        brand: data.analysis.brand || "",
+        model: data.analysis.model || "",
+        category: data.analysis.category || "",
+        color: data.analysis.color || "",
+        material: data.analysis.material || "",
+        seo_description: data.seo_description || "",
+        detailed_description: data.detailed_description || "",
+        keywords: data.suggested_keywords.join(", "),
+        ebay_title: data.market_titles.ebay || "",
+        fb_title: data.market_titles.facebook_marketplace || "",
+        vinted_title: data.market_titles.vinted || "",
+        depop_title: data.market_titles.depop || "",
+        shipping_size: data.shipping_estimate?.size || "medium",
+        shipping_weight: data.shipping_estimate?.estimated_weight_grams
+          ? String(data.shipping_estimate.estimated_weight_grams)
+          : "",
+        shipping_notes: data.shipping_estimate?.notes || "",
       });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error || `Price lookup failed (${res.status})`);
-      }
-      const data = await res.json();
-      setPriceSuggestion(data);
-    } catch (err) {
-      setPriceError(err instanceof Error ? err.message : "Couldn't load sold prices.");
+      toast.success("AI listing generated!");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "AI generation failed.";
+      if (err instanceof Error && err.name !== "AbortError") toast.error(message);
     } finally {
-      setPriceLoading(false);
+      if (stageTimer.current) {
+        clearInterval(stageTimer.current);
+        stageTimer.current = null;
+      }
+      setGenerating(false);
     }
   }
 
-      const data = await res.json();
-              setListing(data);
-      setEditTitle(data.title || "");
-      setEditDescription(data.description || "");
-      setEditPrice(data.price !== undefined ? String(data.price) : "");
-      setStep("review");
-      toast.success("Listing generated!");
-
-      // Kick off real sold-price lookup in the background
-      fetchPriceSuggestion(product.trim());
-
-
-    } catch (err) {
-      console.error(err);
-      setError(true);
-      toast.error(err instanceof Error ? err.message : "Couldn't generate a listing.");
-    } finally {
-      setLoading(false);
+  async function handleSave() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      router.push("/login");
+      return;
     }
-  }
-
-  async function saveListing() {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { router.push("/login"); return; }
-    if (!editTitle.trim()) { toast.error("Title is required."); return; }
-    setStep("saving");
+    if (!form.product.trim()) {
+      toast.error("Product name is required.");
+      return;
+    }
+    setSaving(true);
     try {
-      const { error } = await supabase
+      const { data: listing, error: listingError } = await supabase
         .from("listings")
-        .insert([{
-          user_id: user.id,
-          product: editTitle.trim(),
-          price: Number(editPrice) || 0,
-          cost: Number(editCost) || 0,
-          status: editStatus,
-          image_url: imageUrls[0] ?? null,
-        }]);
-      if (error) throw error;
+        .insert([
+          {
+            user_id: user.id,
+            product: form.product.trim(),
+            price: Number(form.price) || 0,
+            cost: Number(form.cost) || 0,
+            status: form.status,
+            image_url: imageUrls[0] ?? null,
+          },
+        ])
+        .select("id")
+        .single();
+
+      if (listingError || !listing) {
+        toast.error(listingError?.message || "Failed to save listing.");
+        setSaving(false);
+        return;
+      }
+
+      if (result) {
+  const { error: analysisError } = await supabase
+    .from("ai_listing_analyses")
+    .insert([
+      {
+        user_id: user.id,
+        image_urls: imageUrls,
+        result: {
+          ...result,
+          analysis: {
+            ...result.analysis,
+            product_name: form.product,
+            brand: form.brand || null,
+            model: form.model || null,
+            category: form.category,
+            color: form.color || null,
+            material: form.material || null,
+            condition: form.condition,
+          },
+          market_titles: {
+            ebay: form.ebay_title,
+            facebook_marketplace: form.fb_title,
+            vinted: form.vinted_title,
+            depop: form.depop_title,
+          },
+          seo_description: form.seo_description,
+          detailed_description: form.detailed_description,
+          shipping_estimate: {
+            size: form.shipping_size,
+            estimated_weight_grams: Number(form.shipping_weight) || 0,
+            dimensions_cm: result.shipping_estimate?.dimensions_cm ?? null,
+            notes: form.shipping_notes || null,
+          },
+          suggested_keywords: form.keywords
+            .split(",")
+            .map((k) => k.trim())
+            .filter(Boolean),
+        },
+        listing_id: listing.id,
+      },
+    ]);
+
+  if (analysisError) {
+    toast.error("Listing saved, but AI analysis failed to save.");
+  }
+}
+
       toast.success("Listing saved!");
       router.push("/listings");
-    } catch (err: any) {
-      toast.error(err.message || "Failed to save listing.");
-      setStep("review");
-    }
+    } catch (err) {
+  console.error(err);
+  toast.error("Failed to save listing.");
+} finally {
+  setSaving(false);
+}
+
   }
 
-  function reset() {
-    setStep("input");
-    setListing(null);
-    setProduct("");
-    setFiles([]);
-    setImageUrls([]);
-    setError(false);
-  }
-
-  // ───────────────────────────────────────────────
-  // STEP 1: Input
-  // ───────────────────────────────────────────────
-  if (step === "input") {
-    return (
-      <main className="space-y-8 animate-fade-in">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">AI Listing Generator</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Type a product name, get a title, description, and suggested price. Then add photos and save.
-          </p>
-        </div>
-
-        <form
-          onSubmit={generateListing}
-          className="max-w-xl rounded-2xl border border-border bg-card p-6 shadow-sm"
-        >
-          <label htmlFor="product" className="mb-1.5 block text-sm font-medium">
-            Product
-          </label>
-          <input
-            id="product"
-            type="text"
-            placeholder="e.g. Nintendo DS Lite, vintage camera, sneaker brand…"
-            value={product}
-            onChange={(e) => setProduct(e.target.value)}
-            className={inputCls}
-            required
-          />
-          <button
-            type="submit"
-            disabled={loading}
-            className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-6 py-3 font-medium text-primary-foreground transition hover:bg-primary/90 disabled:opacity-50"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                Generating…
-              </>
-            ) : (
-              <>
-                <Sparkles className="h-4 w-4" aria-hidden="true" />
-                Generate Listing
-                <ArrowRight className="h-4 w-4" aria-hidden="true" />
-              </>
-            )}
-          </button>
-        </form>
-
-        {loading && (
-          <div className="max-w-xl rounded-2xl border border-border bg-card p-6 shadow-sm">
-            <div className="space-y-3">
-              <div className="h-7 w-2/3 animate-pulse rounded bg-muted" />
-              <div className="h-5 w-20 animate-pulse rounded bg-muted" />
-              <div className="h-20 w-full animate-pulse rounded bg-muted" />
-            </div>
-          </div>
-        )}
-
-        {!loading && error && (
-          <div className="flex max-w-xl items-start gap-3 rounded-2xl border border-destructive/20 bg-destructive/10 p-6 text-sm text-destructive">
-            <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0" aria-hidden="true" />
-            <p>Could not generate a listing. Check the form above and try again.</p>
-          </div>
-        )}
-
-        {!loading && !error && !listing && (
-          <div className="flex max-w-xl flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-muted/40 px-6 py-16 text-center">
-            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-              <Sparkles className="h-6 w-6" aria-hidden="true" />
-            </div>
-            <p className="text-sm font-medium">No listing yet</p>
-            <p className="mt-1 max-w-xs text-sm text-muted-foreground">
-              Enter a product above and we'll generate a title, description, and suggested price for you.
-            </p>
-          </div>
-        )}
-      </main>
-    );
-  }
-
-  // ───────────────────────────────────────────────
-  // STEP 2: Review + images + save
-  // ───────────────────────────────────────────────
   return (
     <main className="space-y-8 animate-fade-in">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Review & Save</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Edit anything below, add photos, then save your listing.
-          </p>
-        </div>
+      <div className="space-y-1">
         <button
           type="button"
-          onClick={reset}
-          className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-border px-4 text-sm font-medium hover:bg-muted"
+          onClick={() => router.push("/listings")}
+          className="mb-2 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
         >
-          <ArrowLeft className="h-4 w-4" /> Start over
+          <ArrowLeft className="h-4 w-4" /> Back to listings
         </button>
+        <h1 className="text-2xl font-bold tracking-tight">AI Listing Generator</h1>
+     <p className="text-sm text-muted-foreground">
+  Upload product photos to generate a marketplace-ready listing with AI.
+</p>
+
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-2">
-        {/* LEFT: Editable listing fields */}
-        <div className="space-y-4 rounded-2xl border border-border bg-card p-6 shadow-sm">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-            Listing details
-          </h2>
+      <div className="grid gap-8 lg:grid-cols-5">
+        <section className="space-y-6 lg:col-span-3">
+          <div className="rounded-2xl border bg-card border-border p-6 shadow-sm">
+            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+  1. Optional notes
+</h2>
 
-          <label className="block space-y-1.5">
-            <span className="text-xs font-medium text-muted-foreground">Title</span>
             <input
               type="text"
-              value={editTitle}
-              onChange={(e) => setEditTitle(e.target.value)}
-              className={inputCls}
+              placeholder="Optional notes about the item"
+
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              className="w-full rounded-lg border border-input bg-background p-3 shadow-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/30"
             />
-          </label>
+          </div>
 
-          <label className="block space-y-1.5">
-            <span className="text-xs font-medium text-muted-foreground">Description</span>
-            <textarea
-              value={editDescription}
-              onChange={(e) => setEditDescription(e.target.value)}
-              className={`${inputCls} min-h-[120px] resize-y`}
-            />
-          </label>
-
-          <div className="grid grid-cols-2 gap-3">
-                        <label className="block space-y-1.5">
-              <span className="text-xs font-medium text-muted-foreground">Price ($)</span>
-              <input
-                type="number"
-                inputMode="decimal"
-                value={editPrice}
-                onChange={(e) => setEditPrice(e.target.value)}
-                className={inputCls}
-              />
-            </label>
-
-            {/* Real sold-price suggestion */}
-            <div className="rounded-lg border border-border bg-muted/30 p-3">
-              <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
-                Real sold prices
+          <div className="rounded-2xl border bg-card border-border p-6 shadow-sm">
+            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+              2. Product photos
+            </h2>
+            <ImageDropzone files={files} onFilesChange={handleFilesChange} max={10} disabled={generating} />
+            {uploading && (
+              <p className="mt-3 inline-flex items-center gap-2 text-xs text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" /> Uploading…
               </p>
+            )}
+          </div>
 
-              {priceLoading && (
-                <p className="text-sm text-muted-foreground">
-                  Checking recent eBay sales…
-                </p>
-              )}
-
-              {priceError && !priceLoading && (
-                <p className="text-sm text-muted-foreground">
-                  Couldn't load sold prices. You can still set your own price above.
-                </p>
-              )}
-
-              {priceSuggestion && !priceLoading && !priceError && (
+          <div className="rounded-2xl border bg-card border-border p-6 shadow-sm">
+            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+              3. Generate
+            </h2>
+            <button
+              type="button"
+              onClick={handleGenerate}
+              disabled={!canGenerate}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {generating ? (
                 <>
-                  {priceSuggestion.sample_size > 0 ? (
-                    <div className="space-y-2">
-                      <p className="text-sm">
-                        Based on{" "}
-                        <strong>{priceSuggestion.sample_size}</strong> recent eBay sale
-                        {priceSuggestion.sample_size === 1 ? "" : "s"} (last 30 days):
-                      </p>
-                      <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1 text-sm">
-                        <span>
-                          Suggested:{" "}
-                          <strong>
-                            {priceSuggestion.currency} {priceSuggestion.suggested_min.toFixed(2)} –{" "}
-                            {priceSuggestion.suggested_max.toFixed(2)}
-                          </strong>
-                        </span>
-                        <span className="text-muted-foreground">
-                          median {priceSuggestion.currency} {priceSuggestion.suggested_median.toFixed(2)}
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setEditPrice(String(priceSuggestion.suggested_median.toFixed(2)))
-                        }
-                        className="inline-flex h-7 items-center rounded-md bg-primary/10 px-2.5 text-xs font-medium text-primary transition hover:bg-primary/20"
-                      >
-                        Use median price
-                      </button>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">
-                      No recent eBay sales found for this product. Set your own price above.
-                    </p>
-                  )}
+                  <Loader2 className="h-4 w-4 animate-spin" /> Generating…
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4" /> Generate AI Listing
                 </>
               )}
-            </div>
+            </button>
+            <p className="mt-2 text-center text-xs text-muted-foreground">{imageUrls.length} of 10 images ready</p>
+          </div>
 
-            <label className="block space-y-1.5">
-              <span className="text-xs font-medium text-muted-foreground">Cost ($)</span>
+          {result && (
+            <div className="rounded-2xl border bg-card border-border p-6 shadow-sm animate-fade-in">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">AI Analysis</h2>
+                <span
+                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${confidenceStyles[result.analysis.confidence]}`}
+                >
+                  <ShieldCheck className="h-3 w-3" />
+                  {result.analysis.confidence} confidence ·{" "}
+                  {Math.round(result.analysis.confidence_score * 100)}%
+                </span>
+              </div>
+              <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                <Detail label="Category" value={result.analysis.category} />
+                <Detail label="Color" value={result.analysis.color} />
+                <Detail label="Material" value={result.analysis.material} />
+                <Detail label="Condition" value={result.analysis.condition} />
+                <Detail label="Brand" value={result.analysis.brand} />
+                <Detail label="Model" value={result.analysis.model} />
+              </dl>
+              {result.shipping_estimate && (
+                <div className="mt-3 rounded-lg bg-muted/50 p-3 text-sm">
+                  <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Estimated shipping
+                  </p>
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                    <span>
+                      Size:{" "}
+                      <strong className="capitalize">
+                        {result.shipping_estimate.size.replace("-", " ")}
+                      </strong>
+                    </span>
+                    {result.shipping_estimate.estimated_weight_grams > 0 && (
+                      <span>~{result.shipping_estimate.estimated_weight_grams} g</span>
+                    )}
+                    {result.shipping_estimate.dimensions_cm && (
+                      <span>
+                        {result.shipping_estimate.dimensions_cm.length}×
+                        {result.shipping_estimate.dimensions_cm.width}×
+                        {result.shipping_estimate.dimensions_cm.height} cm
+                      </span>
+                    )}
+                  </div>
+                  {result.shipping_estimate.notes && (
+                    <p className="mt-1.5 text-xs text-muted-foreground">
+                      {result.shipping_estimate.notes}
+                    </p>
+                  )}
+                </div>
+              )}
+              {result.analysis.accessories_detected.length > 0 && (
+                <div className="mt-4">
+                  <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Accessories detected
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {result.analysis.accessories_detected.map((a) => (
+                      <span
+                        key={a}
+                        className="rounded-md bg-muted px-2 py-0.5 text-xs"
+                      >
+                        {a}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div className="mt-4 flex items-center gap-2 rounded-lg bg-muted/50 p-3 text-sm">
+                <TrendingUp className="h-4 w-4 text-primary" />
+                <span>
+                  Suggested price:{" "}
+                  <strong>
+                    ${result.suggested_price_min.toFixed(2)} –{" "}
+                    ${result.suggested_price_max.toFixed(2)}
+                  </strong>{" "}
+                  {result.suggested_price_currency}
+                </span>
+              </div>
+            </div>
+          )}
+        </section>
+
+        <section className="lg:col-span-2">
+          <div className="rounded-2xl border bg-card border-border p-6 shadow-sm space-y-4">
+            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+              Listing details
+            </h2>
+
+            <Field label="Product name">
               <input
-                type="number"
-                inputMode="decimal"
-                value={editCost}
-                onChange={(e) => setEditCost(e.target.value)}
-                placeholder="What you paid"
                 className={inputCls}
+                value={form.product}
+                onChange={(e) => update("product", e.target.value)}
               />
-            </label>
-          </div>
+            </Field>
 
-          <label className="block space-y-1.5">
-            <span className="text-xs font-medium text-muted-foreground">Status</span>
-            <select
-              value={editStatus}
-              onChange={(e) => setEditStatus(e.target.value)}
-              className={inputCls}
-            >
-              <option>Draft</option>
-              <option>Active</option>
-              <option>Sold</option>
-            </select>
-          </label>
-
-          {editPrice && Number(editPrice) > 0 && editCost && Number(editCost) > 0 && (
-            <div className="rounded-lg bg-muted/50 p-3 text-sm">
-              Projected profit:{" "}
-              <strong className="text-green-600 dark:text-green-400">
-                ${(Number(editPrice) - Number(editCost)).toFixed(2)}
-              </strong>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Price ($)">
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  value={form.price}
+                  onChange={(e) => update("price", e.target.value)}
+                  className={inputCls}
+                />
+              </Field>
+              <Field label="Cost ($)">
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  value={form.cost}
+                  onChange={(e) => update("cost", e.target.value)}
+                  className={inputCls}
+                />
+              </Field>
             </div>
-          )}
-        </div>
 
-        {/* RIGHT: Image upload */}
-        <div className="space-y-4 rounded-2xl border border-border bg-card p-6 shadow-sm">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-            Product photos
-          </h2>
-          <ImageDropzone files={files} onFilesChange={setFiles} max={10} disabled={step === "saving"} />
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Status">
+                <select
+                  value={form.status}
+                  onChange={(e) => update("status", e.target.value)}
+                  className={inputCls}
+                >
+                  <option>Draft</option>
+                  <option>Active</option>
+                  <option>Sold</option>
+                </select>
+              </Field>
+              <Field label="Condition">
+                <input
+                  className={inputCls}
+                  value={form.condition}
+                  onChange={(e) => update("condition", e.target.value)}
+                />
+              </Field>
+              
+            </div>
 
-          {uploading && (
-            <p className="inline-flex items-center gap-2 text-xs text-muted-foreground">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Uploading…
-            </p>
-          )}
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Brand">
+                <input
+                  className={inputCls}
+                  value={form.brand}
+                  onChange={(e) => update("brand", e.target.value)}
+                />
+              </Field>
+              <Field label="Category">
+                <input
+                  className={inputCls}
+                  value={form.category}
+                  onChange={(e) => update("category", e.target.value)}
+                />
+              </Field>
+            </div>
 
-          <div className="rounded-lg bg-muted/30 p-3 text-xs text-muted-foreground">
-            <p className="font-medium text-foreground">Tip</p>
-            <p className="mt-1">
-              The first photo becomes the cover image shown in your listings table. Good lighting and a clean background help buyers decide faster.
-            </p>
+            <Field label="Marketplace titles" hint="eBay / FB / Vinted / Depop">
+              <input
+                className={inputCls}
+                value={form.ebay_title}
+                onChange={(e) => update("ebay_title", e.target.value)}
+                placeholder="eBay title"
+              />
+              <input
+                className={inputCls}
+                value={form.fb_title}
+                onChange={(e) => update("fb_title", e.target.value)}
+                placeholder="Facebook Marketplace title"
+              />
+              <input
+                className={inputCls}
+                value={form.vinted_title}
+                onChange={(e) => update("vinted_title", e.target.value)}
+                placeholder="Vinted title"
+              />
+              <input
+                className={inputCls}
+                value={form.depop_title}
+                onChange={(e) => update("depop_title", e.target.value)}
+                placeholder="Depop title"
+              />
+            </Field>
+
+            <Field label="SEO description">
+              <textarea
+                className={`${inputCls} min-h-[90px] resize-y`}
+                value={form.seo_description}
+                onChange={(e) => update("seo_description", e.target.value)}
+              />
+            </Field>
+
+            <Field label="Keywords" hint="comma separated">
+              <input
+                className={inputCls}
+                value={form.keywords}
+                onChange={(e) => update("keywords", e.target.value)}
+              />
+            </Field>
+
+            <Field label="Detailed description" hint="marketplace body">
+              <textarea
+                className={`${inputCls} min-h-[160px] resize-y`}
+                value={form.detailed_description}
+                onChange={(e) => update("detailed_description", e.target.value)}
+              />
+            </Field>
+
+            <Field label="Shipping estimate">
+              <div className="grid grid-cols-2 gap-3">
+                <select
+                  className={inputCls}
+                  value={form.shipping_size}
+                  onChange={(e) => update("shipping_size", e.target.value)}
+                >
+                  <option value="small">Small (satchel)</option>
+                  <option value="medium">Medium (small box)</option>
+                  <option value="large">Large (medium box)</option>
+                  <option value="extra-large">Extra-large (bulky)</option>
+                </select>
+
+                <input
+                  className={inputCls}
+                  type="number"
+                  inputMode="numeric"
+                  placeholder="Weight (g)"
+                  value={form.shipping_weight}
+                  onChange={(e) => update("shipping_weight", e.target.value)}
+                />
+              </div>
+
+              <input
+                className={inputCls}
+                placeholder="Shipping notes (optional)"
+                value={form.shipping_notes}
+                onChange={(e) => update("shipping_notes", e.target.value)}
+              />
+            </Field>
+
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={saving}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+            >
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              {saving ? "Saving…" : "Save Listing"}
+            </button>
           </div>
-        </div>
-      </div>
-
-      {/* Save bar */}
-      <div className="sticky bottom-4 z-10 flex items-center justify-between rounded-2xl border border-border bg-card p-4 shadow-lg">
-        <p className="text-sm text-muted-foreground">
-          {imageUrls.length > 0
-            ? `${imageUrls.length} photo${imageUrls.length === 1 ? "" : "s"} ready`
-            : "No photos (optional)"}
-        </p>
-        <button
-          type="button"
-          onClick={saveListing}
-          disabled={step === "saving" || uploading}
-          className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:opacity-50"
-        >
-          {step === "saving" ? (
-            <><Loader2 className="h-4 w-4 animate-spin" /> Saving…</>
-          ) : (
-            <><Save className="h-4 w-4" /> Save Listing</>
-          )}
-        </button>
+        </section>
       </div>
     </main>
+  );
+}
+
+function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+  return (
+    <label className="block space-y-1.5">
+      <span className="flex justify-between text-xs font-medium text-muted-foreground">
+        {label}
+        {hint && <span className="text-[10px] text-muted-foreground/70">{hint}</span>}
+      </span>
+      <div>{children}</div>
+    </label>
+  );
+}
+function Detail({ label, value }: { label: string; value: string | null | undefined }) {
+  return (
+    <div>
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className="font-medium">{value || "—"}</dd>
+    </div>
   );
 }

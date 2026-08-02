@@ -11,17 +11,23 @@ export function calcProfit(item: {
   sold_price?: number | string | null;
   shipping_cost?: number | string | null;
   fees?: number | string | null;
+  status?: string | null;
 }): number {
-  const price = Number(item.price) || 0;
-  const purchasePrice = Number(item.purchase_price) || 0;
-  const soldPrice = Number(item.sold_price) || price;
-  const shipping = Number(item.shipping_cost) || 0;
-  const fees = Number(item.fees) || 0;
+  const status = (item.status ?? "").toLowerCase();
+  const isSold = status === "sold" || Number(item.sold_price ?? 0) > 0;
+
+  if (!isSold) return 0;
+
+  const soldPrice = Number(item.sold_price ?? item.price ?? 0) || 0;
+  const purchasePrice = Number(item.purchase_price ?? 0) || 0;
+  const shipping = Number(item.shipping_cost ?? 0) || 0;
+  const fees = Number(item.fees ?? 0) || 0;
+
   return soldPrice - purchasePrice - shipping - fees;
 }
 
-export function calcInventoryValue(items: any[]): number {
+export function calcInventoryValue(items: Array<{ status?: string; price?: number | string | null }>): number {
   return items
-    .filter((item) => item.status !== "Sold")
+    .filter((item) => (item.status ?? "").toLowerCase() !== "sold")
     .reduce((total, item) => total + (Number(item.price) || 0), 0);
 }

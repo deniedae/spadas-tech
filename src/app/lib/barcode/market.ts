@@ -12,6 +12,6 @@ export async function getMarketPrice(barcode: string) {
   return data;
 }
 
-export async function saveMarketPrice(price: any) {
+export async function saveMarketPrice(price: Record<string, unknown>) {
   await supabase.from("product_prices").upsert(price);
 }

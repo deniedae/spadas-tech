@@ -6,21 +6,21 @@ import { supabase } from "@/app/lib/supabase";
 import { toast } from "sonner";
 import { X } from "lucide-react";
 
-type Listing = {
-  id: number;
+type ListingLike = {
+  id: number | string;
   product: string;
-  price: number;
-  cost: number;
-  purchase_price: number;
-  sold_price: number;
-  shipping_cost: number;
-  fees: number;
-  sold_at: string | null;
+  price: number | string | null;
+  cost: number | string | null;
+  purchase_price: number | string | null;
+  sold_price: number | string | null;
+  shipping_cost: number | string | null;
+  fees: number | string | null;
+  sold_at?: string | null;
   status: string;
 };
 
 type Props = {
-  listing: Listing;
+  listing: ListingLike;
   onUpdated: () => void;
 };
 
@@ -39,7 +39,7 @@ export default function EditListingDialog({ listing, onUpdated }: Props) {
 
   const [status, setStatus] = useState("");
 
-  useEffect(() => {
+  function syncFromListing() {
     setProduct(listing.product);
     setPrice(String(listing.price));
     setCost(String(listing.cost));
@@ -48,7 +48,7 @@ export default function EditListingDialog({ listing, onUpdated }: Props) {
     setShippingCost(String(listing.shipping_cost ?? 0));
     setFees(String(listing.fees ?? 0));
     setStatus(listing.status);
-  }, [listing.id]);
+  }
 
   useEffect(() => {
     if (open) document.body.style.overflow = "hidden";
@@ -64,18 +64,30 @@ export default function EditListingDialog({ listing, onUpdated }: Props) {
       return;
     }
 
+    const parsedPrice = Number(price);
+    const parsedCost = Number(cost);
+    const parsedPurchasePrice = Number(purchasePrice);
+    const parsedSoldPrice = Number(soldPrice);
+    const parsedShipping = Number(shippingCost);
+    const parsedFees = Number(fees);
+
+    if ([parsedPrice, parsedCost, parsedPurchasePrice, parsedSoldPrice, parsedShipping, parsedFees].some((value) => Number.isNaN(value))) {
+      toast.error("Please enter valid numeric values for all pricing fields.");
+      return;
+    }
+
     setSaving(true);
     try {
       const { error } = await supabase
         .from("listings")
         .update({
           product,
-          price: Number(price),
-          cost: Number(cost),
-          purchase_price: Number(purchasePrice),
-          sold_price: Number(soldPrice),
-          shipping_cost: Number(shippingCost),
-          fees: Number(fees),
+          price: parsedPrice,
+          cost: parsedCost,
+          purchase_price: parsedPurchasePrice,
+          sold_price: parsedSoldPrice,
+          shipping_cost: parsedShipping,
+          fees: parsedFees,
           status,
           sold_at:
             status === "Sold"
@@ -104,7 +116,10 @@ export default function EditListingDialog({ listing, onUpdated }: Props) {
   return (
     <>
       <button
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          syncFromListing();
+          setOpen(true);
+        }}
         className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
       >
         ✏️ Edit

@@ -20,14 +20,21 @@ export default function TopProfitableItems() {
 
   useEffect(() => {
     async function loadItems() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) return;
+
       const { data, error } = await supabase
         .from("listings")
-        .select("*");
+        .select("product, sold_price, purchase_price, shipping_cost, fees, status")
+        .eq("user_id", user.id);
 
       if (error || !data) return;
 
       const profitable = (data as Listing[])
-        .filter((item) => item.status === "Sold")
+        .filter((item) => (item.status ?? "").toLowerCase() === "sold")
         .map((item) => ({
           product: item.product,
           profit:
@@ -42,7 +49,7 @@ export default function TopProfitableItems() {
       setItems(profitable);
     }
 
-    loadItems();
+    void loadItems();
   }, []);
 
   return (

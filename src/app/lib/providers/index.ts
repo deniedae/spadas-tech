@@ -1,4 +1,4 @@
 export interface BarcodeProvider {
-  lookup(barcode: string): Promise<any | null>;
+  lookup(barcode: string): Promise<Record<string, unknown> | null>;
 }
 

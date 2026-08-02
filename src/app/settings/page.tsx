@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabase";
 import { toast } from "sonner";
@@ -29,8 +29,13 @@ export default function SettingsPage() {
   const [upgrading, setUpgrading] = useState(false);
   const [confirmLogout, setConfirmLogout] = useState(false);
   const [confirmUpgrade, setConfirmUpgrade] = useState(false);
+  const [defaultMarketplace, setDefaultMarketplace] = useState("eBay");
+  const [defaultCurrency, setDefaultCurrency] = useState("AUD");
+  const [autoAiDescriptions, setAutoAiDescriptions] = useState(true);
+  const [plan, setPlan] = useState("Free Beta");
+  const [planStatus, setPlanStatus] = useState("inactive");
 
-  async function loadUser() {
+  const loadUser = useCallback(async () => {
     setLoading(true);
     try {
       const {
@@ -48,11 +53,30 @@ export default function SettingsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [router]);
 
   useEffect(() => {
-    loadUser();
-  }, [router]);
+    const frame = requestAnimationFrame(() => {
+      void loadUser();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [loadUser]);
+
+  useEffect(() => {
+    async function loadSubscriptionStatus() {
+      try {
+        const response = await fetch("/api/stripe/status");
+        if (!response.ok) return;
+        const data = await response.json();
+        if (data?.plan) setPlan(data.plan);
+        if (data?.status) setPlanStatus(data.status);
+      } catch {
+        // silently ignore status lookup failures for the settings page
+      }
+    }
+
+    void loadSubscriptionStatus();
+  }, []);
 
   async function resetPassword() {
     if (!user?.email) return;
@@ -85,11 +109,17 @@ export default function SettingsPage() {
     try {
       const response = await fetch("/api/stripe/checkout", {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email: user?.email ?? "" }),
       });
 
-      if (!response.ok) throw new Error("Checkout session failed.");
-
       const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data?.message || "Checkout session failed.");
+      }
 
       if (data.url) window.location.href = data.url;
       else throw new Error("No checkout URL returned.");
@@ -247,8 +277,42 @@ export default function SettingsPage() {
         <p className="mt-1 text-sm text-muted-foreground">
           Customize how Spadas AI works for you.
         </p>
-        <div className="mt-5 inline-flex rounded-full bg-yellow-100 px-3 py-1 text-sm font-medium text-yellow-700">
-          Coming Soon
+        <div className="mt-6 grid gap-5 md:grid-cols-3">
+          <label className="space-y-2 text-sm">
+            <span className="text-muted-foreground">Default marketplace</span>
+            <select
+              value={defaultMarketplace}
+              onChange={(e) => setDefaultMarketplace(e.target.value)}
+              className="w-full rounded-xl border border-border bg-background p-3 text-foreground"
+            >
+              <option value="eBay">eBay</option>
+              <option value="Facebook Marketplace">Facebook Marketplace</option>
+              <option value="Vinted">Vinted</option>
+            </select>
+          </label>
+
+          <label className="space-y-2 text-sm">
+            <span className="text-muted-foreground">Default currency</span>
+            <select
+              value={defaultCurrency}
+              onChange={(e) => setDefaultCurrency(e.target.value)}
+              className="w-full rounded-xl border border-border bg-background p-3 text-foreground"
+            >
+              <option value="AUD">AUD</option>
+              <option value="USD">USD</option>
+              <option value="GBP">GBP</option>
+            </select>
+          </label>
+
+          <label className="flex items-center justify-between rounded-xl border border-border bg-background p-3 text-sm">
+            <span className="text-muted-foreground">Auto AI descriptions</span>
+            <input
+              type="checkbox"
+              checked={autoAiDescriptions}
+              onChange={(e) => setAutoAiDescriptions(e.target.checked)}
+              className="h-4 w-4"
+            />
+          </label>
         </div>
       </section>
 
@@ -292,8 +356,8 @@ export default function SettingsPage() {
             Analytics Dashboard
           </p>
           <p className="flex items-center gap-2">
-            <span className="h-1.5 w-1.5 rounded-full bg-yellow-500" aria-hidden="true" />
-            AI Listing Generator (Coming Soon)
+            <span className="h-1.5 w-1.5 rounded-full bg-green-500" aria-hidden="true" />
+            AI Listing Generator
           </p>
         </div>
       </section>
@@ -305,7 +369,10 @@ export default function SettingsPage() {
           <h2 className="text-xl font-semibold">Subscription</h2>
         </div>
         <p className="mt-1 text-sm text-muted-foreground">
-          Current Plan: <span className="font-medium text-foreground">Free Beta</span>
+          Current Plan: <span className="font-medium text-foreground">{plan}</span>
+        </p>
+        <p className="mt-2 text-xs uppercase tracking-wide text-muted-foreground">
+          Status: <span className="font-medium text-foreground">{planStatus}</span>
         </p>
 
         <button
