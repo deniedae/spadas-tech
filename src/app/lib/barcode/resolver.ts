@@ -59,12 +59,14 @@ export async function resolveBarcode(barcode: string) {
     const openBook = await lookupOpenLibrary(barcode);
 
     if (googleBook || openBook) {
-      product = {
-        ...(openBook || {}),
-        ...(googleBook || {}),
+      const mergedBookProduct: BarcodeProduct = {
+        barcode: barcode,
+        name: googleBook?.name || openBook?.name || "Unknown product",
+        brand: googleBook?.brand || openBook?.brand || "",
+        category: googleBook?.category || openBook?.category || "Books",
         image: googleBook?.image || openBook?.image || "",
         description: googleBook?.description || openBook?.description || "",
-        brand: googleBook?.brand || openBook?.brand || "",
+        suggestedPrice: googleBook?.suggestedPrice || openBook?.suggestedPrice || 0,
         source:
           googleBook && openBook
             ? "Google Books + Open Library"
@@ -72,6 +74,8 @@ export async function resolveBarcode(barcode: string) {
             ? "Google Books"
             : "Open Library",
       };
+
+      product = mergedBookProduct;
     }
   }
 
@@ -105,11 +109,15 @@ export async function resolveBarcode(barcode: string) {
   });
 
   const finalProduct: BarcodeProduct = {
-    ...normalizedProduct,
-    ...ai,
-    ...pricing,
+    barcode: normalizedProduct.barcode,
     name: normalizedProduct.name,
+    brand: ai.brand || normalizedProduct.brand,
     category: ai.category || normalizedProduct.category,
+    image: normalizedProduct.image,
+    description: normalizedProduct.description,
+    suggestedPrice: pricing.suggestedPrice,
+    confidence: pricing.confidence,
+    source: normalizedProduct.source,
   };
 
   await saveBarcode({
