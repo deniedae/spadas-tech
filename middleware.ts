@@ -9,6 +9,7 @@ const PUBLIC_ROUTES = [
   "/manifest.webmanifest",
   "/manifest.json",
   "/sw.js",
+  "/offline.html",
 ];
 
 function isPublicRoute(pathname: string) {
@@ -20,13 +21,15 @@ function isPublicRoute(pathname: string) {
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
-  // Immediate bypass for PWA manifest and service worker
+  // Immediate bypass for PWA manifest, service worker, and offline page
   if (
     pathname === "/manifest.webmanifest" ||
     pathname === "/manifest.json" ||
     pathname === "/sw.js" ||
+    pathname === "/offline.html" ||
     pathname.endsWith(".webmanifest") ||
-    pathname.endsWith(".json")
+    pathname.endsWith(".json") ||
+    pathname.endsWith(".html")
   ) {
     return NextResponse.next();
   }

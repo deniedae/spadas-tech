@@ -67,6 +67,19 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={cn("font-sans", geist.variable)}>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function() {
+                  navigator.serviceWorker.register('/sw.js');
+                });
+              }
+            `,
+          }}
+        />
+      </head>
       <body className="min-h-screen bg-gray-100 text-gray-900 antialiased">
         <LayoutClient>{children}</LayoutClient>
         <Analytics />
