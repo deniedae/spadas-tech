@@ -1,4 +1,7 @@
 import { NextResponse } from "next/server";
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
+import { checkUserUsage } from "@/app/lib/usage";
 import type { AiListingResult } from "@/types/ai-listing";
 
 const SOLD_COMPS_KEY = process.env.SOLD_COMPS_API_KEY;
@@ -52,6 +55,45 @@ function estimateFees(salePrice: number, shipping: number) {
 
 export async function POST(req: Request) {
   try {
+    const cookieStore = await cookies();
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll();
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            );
+          },
+        },
+      }
+    );
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Usage Limit Check
+    const usage = await checkUserUsage(user.id);
+    if (usage.limitReached) {
+      return NextResponse.json(
+        {
+          error:
+            "Free plan limit reached (10/10 uses). Upgrade to Pro for unlimited sourcing checks.",
+          limitReached: true,
+        },
+        { status: 403 }
+      );
+    }
+
     const { imageUrls, cost } = (await req.json()) as {
       imageUrls: string[];
       cost: number;
@@ -70,10 +112,14 @@ export async function POST(req: Request) {
       );
     }
 
-    // 1. Identify the item via your existing vision route
+    // 1. Identify the item via your existing vision route (passing cookie header for auth)
+    const cookieHeader = req.headers.get("cookie") || "";
     const aiRes = await fetch(new URL("/api/ai-listing", req.url), {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        cookie: cookieHeader,
+      },
       body: JSON.stringify({ imageUrls }),
     });
     if (!aiRes.ok) {
