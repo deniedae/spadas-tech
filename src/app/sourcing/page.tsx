@@ -6,6 +6,7 @@ import { supabase } from "@/app/lib/supabase";
 import { toast } from "sonner";
 import ImageDropzone from "@/components/image-dropzone";
 import UsageBadge from "@/components/usage-badge";
+import PricingStrategyCard from "@/components/pricing-strategy-card";
 import {
   Sparkles, Loader2, AlertCircle, CheckCircle2, XCircle,
   TrendingUp, DollarSign, Target, ArrowRight,
@@ -282,6 +283,17 @@ export default function SourcingPage() {
               </span>
             </div>
           </div>
+
+          {/* Interactive Pricing Strategy (Quick Sell vs Market vs Top Dollar) */}
+          <PricingStrategyCard
+            medianPrice={verdict.market_prices.suggested_median}
+            minPrice={verdict.market_prices.suggested_min}
+            maxPrice={verdict.market_prices.suggested_max}
+            currency={verdict.market_prices.currency}
+            onSelectPrice={(selectedPrice) => {
+              toast.success(`Selected strategy price: ${verdict.market_prices.currency} $${selectedPrice.toFixed(2)}`);
+            }}
+          />
 
           {/* Market prices */}
           <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">

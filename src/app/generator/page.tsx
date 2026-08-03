@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import ImageDropzone from "@/components/image-dropzone";
 import SnapPhotoListing from "@/components/snap-photo-listing";
 import UsageBadge from "@/components/usage-badge";
+import PricingStrategyCard from "@/components/pricing-strategy-card";
 import type { AiListingResult, Confidence, ShippingSize } from "@/types/ai-listing";
 import { ArrowLeft, Sparkles, Loader2, Save, TrendingUp, ShieldCheck } from "lucide-react";
 
@@ -441,7 +442,20 @@ const canGenerate = imageUrls.length > 0 && !uploading && !generating;
           )}
         </section>
 
-        <section className="lg:col-span-2">
+        <section className="lg:col-span-2 space-y-6">
+          {result && (
+            <PricingStrategyCard
+              medianPrice={(result.suggested_price_min + result.suggested_price_max) / 2}
+              minPrice={result.suggested_price_min}
+              maxPrice={result.suggested_price_max}
+              currency={result.suggested_price_currency}
+              onSelectPrice={(selectedPrice) => {
+                update("price", String(selectedPrice));
+                toast.success(`Updated listing price to $${selectedPrice.toFixed(2)}`);
+              }}
+            />
+          )}
+
           <div className="rounded-2xl border bg-card border-border p-6 shadow-sm space-y-4">
             <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
               Listing details
