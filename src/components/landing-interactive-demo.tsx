@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Sparkles, Upload, Loader2, ArrowRight, Check, Tag, DollarSign, Layers } from "lucide-react";
+import { Sparkles, Upload, Loader2, ArrowRight, Check, Tag, DollarSign, Layers, Shuffle, RefreshCw } from "lucide-react";
 
 interface SampleItem {
   id: string;
   name: string;
+  category: string;
   image: string;
   title: string;
   priceMin: number;
@@ -20,8 +21,23 @@ interface SampleItem {
 
 const SAMPLES: SampleItem[] = [
   {
+    id: "jordan1-chicago",
+    name: "Air Jordan 1 Chicago",
+    category: "Sneakers",
+    image: "https://images.unsplash.com/photo-1552346154-21d32810aba3?auto=format&fit=crop&w=600&q=80",
+    title: "Air Jordan 1 Retro High OG Chicago (2015) Size US 10.5",
+    priceMin: 420,
+    priceMax: 560,
+    medianPrice: 485.0,
+    ebayTitle: "Air Jordan 1 Retro High OG Chicago 2015 Size 10.5 555088-101 Authentic",
+    fbTitle: "Air Jordan 1 Chicago (2015) US 10.5 - Great Condition w/ Box",
+    depopTitle: "air jordan 1 chicago 2015 retro #jordan1 #chicago #sneakers #streetwear",
+    description: "Authentic Air Jordan 1 Retro High OG 'Chicago' (2015 release). Size US 10.5. Features high quality varsity red, white, and black leather upper with original Nike Air tongue tagging. Includes original box and extra lacing.",
+  },
+  {
     id: "nike-jacket",
     name: "Vintage Nike Jacket",
+    category: "Streetwear",
     image: "https://images.unsplash.com/photo-1548883354-7622d03aca27?auto=format&fit=crop&w=600&q=80",
     title: "Vintage 90s Nike Spellout Windbreaker Jacket Blue / White",
     priceMin: 85,
@@ -35,6 +51,7 @@ const SAMPLES: SampleItem[] = [
   {
     id: "ps5-controller",
     name: "PS5 Wireless Controller",
+    category: "Gaming",
     image: "https://images.unsplash.com/photo-1606813907291-d86efa9b94db?auto=format&fit=crop&w=600&q=80",
     title: "Sony PlayStation 5 DualSense Wireless Controller Midnight Black",
     priceMin: 55,
@@ -47,7 +64,8 @@ const SAMPLES: SampleItem[] = [
   },
   {
     id: "canon-camera",
-    name: "Canon Vintage SLR",
+    name: "Canon AE-1 Film Camera",
+    category: "Cameras",
     image: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=600&q=80",
     title: "Canon AE-1 35mm Vintage Film Camera w/ 50mm f/1.8 Lens",
     priceMin: 140,
@@ -58,14 +76,146 @@ const SAMPLES: SampleItem[] = [
     depopTitle: "canon ae1 35mm film camera vintage #film #analog #camera #canon",
     description: "Classic Canon AE-1 35mm SLR film camera with Canon FD 50mm f/1.8 prime lens. Shutter fires smoothly at all speeds, light meter tested and working, clear viewfinder with minimal dust.",
   },
+  {
+    id: "gameboy-color",
+    name: "Game Boy Color Purple",
+    category: "Gaming",
+    image: "https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=600&q=80",
+    title: "Nintendo Game Boy Color Atomic Purple Handheld Console",
+    priceMin: 90,
+    priceMax: 130,
+    medianPrice: 110.0,
+    ebayTitle: "Nintendo Game Boy Color Atomic Purple CGB-001 Handheld Console Tested OEM",
+    fbTitle: "Nintendo Game Boy Color (Atomic Purple) - Tested & Working",
+    depopTitle: "nintendo gameboy color atomic purple #gameboy #nintendo #retro #gaming",
+    description: "Original Nintendo Game Boy Color console in iconic Atomic Purple translucent shell. Fully cleaned and tested — screen, speaker audio, directional pad, and buttons function flawlessly.",
+  },
+  {
+    id: "lv-bag",
+    name: "Louis Vuitton Pochette",
+    category: "Luxury",
+    image: "https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=600&q=80",
+    title: "Louis Vuitton Monogram Pochette Accessoires Canvas Handbag",
+    priceMin: 620,
+    priceMax: 820,
+    medianPrice: 710.0,
+    ebayTitle: "Louis Vuitton Monogram Pochette Accessoires Canvas Handbag Vintage Authentic",
+    fbTitle: "Authentic Louis Vuitton Monogram Pochette Bag w/ Dustbag",
+    depopTitle: "louis vuitton pochette monogram canvas #louisvuitton #designer #luxury",
+    description: "Authentic Louis Vuitton Pochette Accessoires in classic Monogram canvas. Honey patina leather strap with minimal wear, brass hardware retains gold shine, clean interior canvas.",
+  },
+  {
+    id: "sony-headphones",
+    name: "Sony WH-1000XM4",
+    category: "Electronics",
+    image: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=600&q=80",
+    title: "Sony WH-1000XM4 Wireless Noise Canceling Headphones Black",
+    priceMin: 180,
+    priceMax: 240,
+    medianPrice: 215.0,
+    ebayTitle: "Sony WH-1000XM4 Wireless Noise Canceling Headphones Black w/ Case Cable",
+    fbTitle: "Sony WH-1000XM4 Headphones Black - Excellent Condition",
+    depopTitle: "sony wh1000xm4 wireless noise canceling headphones #sony #audio",
+    description: "Sony WH-1000XM4 industry-leading noise-canceling wireless headphones in matte black. Sound quality, active noise cancellation, and battery hold strong. Includes original hard carrying case.",
+  },
+  {
+    id: "pokemon-charizard",
+    name: "Charizard Holo Card",
+    category: "Collectibles",
+    image: "https://images.unsplash.com/photo-1613771404784-3a5686aa2be3?auto=format&fit=crop&w=600&q=80",
+    title: "Pokémon Base Set Unlimited Charizard Holo 4/102 Rare Card",
+    priceMin: 220,
+    priceMax: 380,
+    medianPrice: 295.0,
+    ebayTitle: "Pokemon Base Set Unlimited Charizard Holo 4/102 Holofoil Card LP Light Play",
+    fbTitle: "Base Set Charizard Holo 4/102 - Light Play",
+    depopTitle: "base set charizard holo pokemon card #pokemon #charizard #vintage",
+    description: "1999 Pokémon TCG Base Set Unlimited Charizard Holofoil card 4/102. Light play condition with vibrant holo pattern, crisp surface art, and clean edges. Preserved inside top-loader sleeve.",
+  },
+  {
+    id: "seiko-skx007",
+    name: "Seiko SKX007 Diver",
+    category: "Watches",
+    image: "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=600&q=80",
+    title: "Seiko SKX007K Automatic 200m Diver Watch Stainless Steel",
+    priceMin: 270,
+    priceMax: 370,
+    medianPrice: 315.0,
+    ebayTitle: "Seiko SKX007 Automatic Diver 200m 7S26 0020 Mens Watch Stainless Steel OEM",
+    fbTitle: "Seiko SKX007 Automatic Diver Watch - Great Condition",
+    depopTitle: "seiko skx007 automatic diver watch #seiko #watch #diver #automatic",
+    description: "Iconic discontinued Seiko SKX007 200m Automatic Diver's watch. 7S26 movement keeps accurate time, crisp 120-click unidirectional bezel, original Jubilee bracelet included.",
+  },
+  {
+    id: "bose-wave",
+    name: "Bose Wave System IV",
+    category: "Audio",
+    image: "https://images.unsplash.com/photo-1545454675-3531b543be5d?auto=format&fit=crop&w=600&q=80",
+    title: "Bose Wave Music System IV Platinum White w/ Remote & Power Cable",
+    priceMin: 190,
+    priceMax: 270,
+    medianPrice: 230.0,
+    ebayTitle: "Bose Wave Music System IV Platinum White CD Player FM AM Radio Remote Tested",
+    fbTitle: "Bose Wave Music System IV White - CD & Radio Tested",
+    depopTitle: "bose wave music system iv white #bose #audio #speaker #cdplayer",
+    description: "Bose Wave Music System IV in sleek Platinum White. CD player and AM/FM digital tuner tested and working perfectly with signature room-filling sound. Includes original credit card remote control.",
+  },
+  {
+    id: "switch-oled",
+    name: "Nintendo Switch OLED",
+    category: "Gaming",
+    image: "https://images.unsplash.com/photo-1578303512597-81e6cc155b3e?auto=format&fit=crop&w=600&q=80",
+    title: "Nintendo Switch OLED Model White Edition Console Set",
+    priceMin: 260,
+    priceMax: 330,
+    medianPrice: 295.0,
+    ebayTitle: "Nintendo Switch OLED Model White 64GB Console Set Complete in Box",
+    fbTitle: "Nintendo Switch OLED White - Like New in Box",
+    depopTitle: "nintendo switch oled white edition #nintendo #switch #gaming",
+    description: "Nintendo Switch OLED Model in White. Features 7-inch OLED screen, 64GB internal storage, and enhanced audio dock. Complete with original box, Joy-Cons, HDMI, and power adapter.",
+  },
+  {
+    id: "abbey-road-vinyl",
+    name: "The Beatles Abbey Road",
+    category: "Vinyl Records",
+    image: "https://images.unsplash.com/photo-1539185441755-769473a23570?auto=format&fit=crop&w=600&q=80",
+    title: "The Beatles Abbey Road Original 1969 Stereo Vinyl LP Record",
+    priceMin: 75,
+    priceMax: 120,
+    medianPrice: 95.0,
+    ebayTitle: "The Beatles Abbey Road Vinyl LP Original 1969 Pressing PCS 7088 VG+",
+    fbTitle: "The Beatles Abbey Road Original 1969 Vinyl LP Record",
+    depopTitle: "the beatles abbey road 1969 vinyl record #beatles #vinyl #records",
+    description: "Original 1969 pressing of The Beatles landmark album 'Abbey Road'. Vinyl sleeve retains rich artwork color; record gloss is high with minimal faint hairline sleeve scuffs (VG+ audio grading).",
+  },
 ];
 
 export default function LandingInteractiveDemo() {
-  const [selectedSample, setSelectedSample] = useState<SampleItem | null>(null);
+  const [selectedSample, setSelectedSample] = useState<SampleItem>(SAMPLES[0]);
   const [userImage, setUserImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState(0);
-  const [result, setResult] = useState<SampleItem | null>(null);
+  const [result, setResult] = useState<SampleItem | null>(SAMPLES[0]);
+
+  // Pick a fresh random item every time user lands on page
+  useEffect(() => {
+    const randomIdx = Math.floor(Math.random() * SAMPLES.length);
+    const initialItem = SAMPLES[randomIdx];
+    setSelectedSample(initialItem);
+    setResult(initialItem);
+  }, []);
+
+  const spinRandomItem = () => {
+    let nextIdx = Math.floor(Math.random() * SAMPLES.length);
+    // ensure it picks a different item
+    if (SAMPLES[nextIdx].id === selectedSample.id) {
+      nextIdx = (nextIdx + 1) % SAMPLES.length;
+    }
+    const nextItem = SAMPLES[nextIdx];
+    setSelectedSample(nextItem);
+    setUserImage(null);
+    runDemoAnalysis(nextItem);
+  };
 
   const handleSelectSample = (sample: SampleItem) => {
     setSelectedSample(sample);
@@ -78,12 +228,11 @@ export default function LandingInteractiveDemo() {
     if (!file) return;
     const url = URL.createObjectURL(file);
     setUserImage(url);
-    setSelectedSample(null);
 
-    // Dynamic mock for uploaded custom photo
     const customResult: SampleItem = {
       id: "custom-upload",
       name: file.name.replace(/\.[^/.]+$/, ""),
+      category: "Custom Item",
       image: url,
       title: "Authentic Reseller Item - AI Optimized Title",
       priceMin: 65,
@@ -103,42 +252,53 @@ export default function LandingInteractiveDemo() {
     setLoadingStep(1);
     setResult(null);
 
-    setTimeout(() => setLoadingStep(2), 1000);
-    setTimeout(() => setLoadingStep(3), 2000);
+    setTimeout(() => setLoadingStep(2), 900);
+    setTimeout(() => setLoadingStep(3), 1800);
 
     setTimeout(() => {
       setLoading(false);
       setResult(targetItem);
-    }, 3000);
+    }, 2600);
   };
 
   return (
     <section className="my-16 overflow-hidden rounded-3xl border border-white/15 bg-slate-900/80 p-6 md:p-10 shadow-2xl backdrop-blur-xl">
       <div className="text-center space-y-3 max-w-2xl mx-auto mb-8">
-        <div className="inline-flex items-center gap-2 rounded-full border border-blue-400/30 bg-blue-500/10 px-3 py-1 text-xs font-bold text-blue-300">
-          <Sparkles className="h-3.5 w-3.5" />
+        <div className="inline-flex items-center gap-2 rounded-full border border-blue-400/30 bg-blue-500/10 px-3.5 py-1 text-xs font-bold text-blue-300">
+          <Sparkles className="h-3.5 w-3.5 text-cyan-400" />
           Interactive Live Demo
         </div>
         <h2 className="text-3xl font-extrabold tracking-tight text-white md:text-4xl">
           Try AI Listing Instantly
         </h2>
         <p className="text-sm text-slate-300">
-          Upload a sample photo or choose an item below to test Spadas AI in real-time.
+          Upload a sample photo or choose from <strong className="text-blue-400">{SAMPLES.length}+ live templates</strong> to test Spadas AI in real-time.
         </p>
       </div>
 
-      {/* Sample Selectors */}
-      <div className="mb-8 flex flex-wrap items-center justify-center gap-3">
-        <span className="text-xs font-semibold text-slate-400">Try a sample:</span>
-        {SAMPLES.map((s) => (
+      {/* Random Item Spinner & Category Tabs */}
+      <div className="mb-6 flex flex-wrap items-center justify-center gap-3">
+        <button
+          type="button"
+          onClick={spinRandomItem}
+          className="inline-flex h-10 items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 via-cyan-500 to-teal-400 px-5 text-xs font-bold text-white shadow-md transition hover:opacity-90 active:scale-95"
+        >
+          <Shuffle className="h-4 w-4" />
+          <span>🎲 Spin Random Item ({SAMPLES.length} Available)</span>
+        </button>
+      </div>
+
+      {/* Rotating Sample Selector */}
+      <div className="mb-8 flex flex-wrap items-center justify-center gap-2 max-w-4xl mx-auto">
+        {SAMPLES.slice(0, 6).map((s) => (
           <button
             key={s.id}
             type="button"
             onClick={() => handleSelectSample(s)}
-            className={`inline-flex items-center gap-2 rounded-xl border px-3.5 py-2 text-xs font-semibold transition ${
+            className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition ${
               selectedSample?.id === s.id
-                ? "border-blue-400 bg-blue-600 text-white shadow-md"
-                : "border-white/10 bg-white/5 text-slate-200 hover:border-white/25 hover:bg-white/10"
+                ? "border-blue-400 bg-blue-600 text-white shadow-sm"
+                : "border-white/10 bg-white/5 text-slate-300 hover:border-white/25 hover:bg-white/10"
             }`}
           >
             <span>{s.name}</span>
@@ -148,21 +308,21 @@ export default function LandingInteractiveDemo() {
 
       {/* Upload Dropzone */}
       <div className="mx-auto max-w-xl mb-10">
-        <label className="group relative flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-white/20 bg-slate-950/40 p-8 text-center transition hover:border-blue-500/50 hover:bg-slate-950/60 cursor-pointer">
+        <label className="group relative flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-white/20 bg-slate-950/40 p-7 text-center transition hover:border-blue-500/50 hover:bg-slate-950/60 cursor-pointer">
           <input
             type="file"
             accept="image/*"
             onChange={handleFileUpload}
             className="hidden"
           />
-          <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-blue-500/10 text-blue-400 group-hover:scale-110 transition-transform">
-            <Upload className="h-6 w-6" />
+          <div className="mb-2 flex h-11 w-11 items-center justify-center rounded-full bg-blue-500/10 text-blue-400 group-hover:scale-110 transition-transform">
+            <Upload className="h-5 w-5" />
           </div>
           <p className="text-sm font-semibold text-white">
-            Click to upload a sample photo
+            Upload your own photo
           </p>
-          <p className="mt-1 text-xs text-slate-400">
-            JPG or PNG — see instant AI pricing & description
+          <p className="mt-0.5 text-xs text-slate-400">
+            JPG or PNG — see instant AI market comps & description
           </p>
         </label>
       </div>
@@ -186,7 +346,7 @@ export default function LandingInteractiveDemo() {
 
       {/* Generated Result Container */}
       {result && !loading && (
-        <div className="relative mx-auto max-w-3xl overflow-hidden rounded-2xl border border-white/20 bg-slate-950/80 p-6 md:p-8 shadow-2xl space-y-6">
+        <div className="relative mx-auto max-w-3xl overflow-hidden rounded-2xl border border-white/20 bg-slate-950/90 p-6 md:p-8 shadow-2xl space-y-6">
           <div className="grid gap-6 md:grid-cols-3">
             {/* Image Preview */}
             <div className="relative aspect-square overflow-hidden rounded-xl border border-white/10 bg-slate-900">
@@ -204,7 +364,7 @@ export default function LandingInteractiveDemo() {
             <div className="md:col-span-2 space-y-4 text-left">
               <div className="space-y-1">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-blue-400">
-                  Generated Title
+                  Generated Title • {result.category}
                 </span>
                 <h3 className="text-lg font-bold text-white leading-snug">
                   {result.title}
