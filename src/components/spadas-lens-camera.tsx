@@ -26,16 +26,7 @@ export default function SpadasLensCamera() {
   const [capturedLog, setCapturedLog] = useState<DetectedHit[]>([]);
   const [cameraError, setCameraError] = useState<string | null>(null);
 
-  const MOCK_DETECTABLE_ITEMS = [
-    { name: "Pokemon Yellow Version Game Boy", category: "Retro Gaming", estimatedValue: 95, estRoi: 340, verdict: "BUY" as const, confidence: 0.94 },
-    { name: "Vintage 90s Nike Spellout Windbreaker", category: "Streetwear", estimatedValue: 110, estRoi: 280, verdict: "BUY" as const, confidence: 0.91 },
-    { name: "Sony PS5 DualSense Controller", category: "Gaming", estimatedValue: 65, estRoi: 190, verdict: "BUY" as const, confidence: 0.96 },
-    { name: "North Face 700 Nuptse Puffer Jacket", category: "Outerwear", estimatedValue: 185, estRoi: 420, verdict: "BUY" as const, confidence: 0.98 },
-    { name: "Canon AE-1 35mm SLR Camera", category: "Vintage Tech", estimatedValue: 160, estRoi: 310, verdict: "BUY" as const, confidence: 0.89 },
-    { name: "Generic Fast Fashion T-Shirt", category: "Clothing", estimatedValue: 8, estRoi: 0, verdict: "PASS" as const, confidence: 0.78 },
-    { name: "Game Boy Color Atomic Purple", category: "Retro Gaming", estimatedValue: 115, estRoi: 260, verdict: "BUY" as const, confidence: 0.92 },
-    { name: "Charizard Base Set Holo Card", category: "Collectibles", estimatedValue: 290, estRoi: 650, verdict: "BUY" as const, confidence: 0.95 },
-  ];
+
 
   // Start Camera Stream
   const startCamera = async () => {
@@ -123,50 +114,36 @@ export default function SpadasLensCamera() {
       if (!res.ok) throw new Error("AI frame scan failed.");
 
       const data = await res.json();
-      const productName = data.analysis?.product_name || "Identified Product";
-      const category = data.analysis?.category || "Reseller Item";
-      const val = data.suggested_price_min || 85;
-      const estRoi = Math.floor(Math.random() * 160) + 140;
+      if (data.analysis?.product_name) {
+        const productName = data.analysis.product_name;
+        const category = data.analysis.category || "Scanned Item";
+        const val = Number(data.suggested_price_min) || 45;
+        const estRoi = Math.floor(Math.random() * 120) + 120;
 
-      const realHit: DetectedHit = {
-        id: `real-frame-${Date.now()}`,
-        name: productName,
-        category,
-        estimatedValue: val,
-        estRoi,
-        verdict: "BUY",
-        confidence: 0.96,
-        bbox: {
-          x: Math.floor(Math.random() * 30) + 20,
-          y: Math.floor(Math.random() * 30) + 20,
-          width: 45,
-          height: 45,
-        },
-      };
+        const realHit: DetectedHit = {
+          id: `real-frame-${Date.now()}`,
+          name: productName,
+          category,
+          estimatedValue: val,
+          estRoi,
+          verdict: "BUY",
+          confidence: 0.95,
+          bbox: {
+            x: Math.floor(Math.random() * 20) + 25,
+            y: Math.floor(Math.random() * 20) + 25,
+            width: 45,
+            height: 45,
+          },
+        };
 
-      setActiveHits([realHit]);
-      playChime();
-      speakCue(`Item detected: ${productName}. Est Value ${fmtMoney(val)}.`);
-      setCapturedLog((prev) => [realHit, ...prev.filter((p) => p.name !== productName)].slice(0, 10));
-    } catch (err) {
-      // If network is busy, project mock high-ROI item to maintain continuous AR scanning stream
-      const mockItem = MOCK_DETECTABLE_ITEMS[Math.floor(Math.random() * MOCK_DETECTABLE_ITEMS.length)];
-      const fallbackHit: DetectedHit = {
-        id: `hit-${Date.now()}`,
-        ...mockItem,
-        bbox: {
-          x: Math.floor(Math.random() * 40) + 20,
-          y: Math.floor(Math.random() * 40) + 20,
-          width: 40,
-          height: 40,
-        },
-      };
-      setActiveHits([fallbackHit]);
-      if (fallbackHit.verdict === "BUY") {
+        setActiveHits([realHit]);
         playChime();
-        speakCue(`Grab ${fallbackHit.name}. Value ${fmtMoney(fallbackHit.estimatedValue)}.`);
-        setCapturedLog((prev) => [fallbackHit, ...prev.filter((p) => p.name !== fallbackHit.name)].slice(0, 10));
+        speakCue(`Item identified: ${productName}. Est Value ${fmtMoney(val)}.`);
+        setCapturedLog((prev) => [realHit, ...prev.filter((p) => p.name !== productName)].slice(0, 10));
       }
+    } catch (err) {
+      console.error("Live camera Vision scan error:", err);
+      setActiveHits([]);
     } finally {
       setAnalyzingRealFrame(false);
     }
