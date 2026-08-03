@@ -30,6 +30,13 @@ export async function checkUserUsage(userId: string): Promise<UsageStatus> {
     }
   );
 
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  // Admin & Owner Account Lifetime Pro Grant
+  const isOwner = user?.email?.toLowerCase() === "deniedae@gmail.com";
+
   // 1. Check if user is an active Pro subscriber
   const { data: sub } = await supabase
     .from("user_subscriptions")
@@ -38,9 +45,21 @@ export async function checkUserUsage(userId: string): Promise<UsageStatus> {
     .maybeSingle();
 
   const status = sub?.status as string | undefined;
-  const isPro = status === "active" || status === "trialing" || status === "past_due";
+  const isPro = isOwner || status === "active" || status === "trialing" || status === "past_due";
 
   if (isPro) {
+    // Upsert subscription record if owner
+    if (isOwner && status !== "active") {
+      await supabase.from("user_subscriptions").upsert([
+        {
+          user_id: userId,
+          status: "active",
+          price_id: "pro_owner_grant",
+          current_period_end: "2099-12-31T23:59:59Z",
+        },
+      ]);
+    }
+
     return {
       isPro: true,
       usesCount: 0,
