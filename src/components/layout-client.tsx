@@ -3,9 +3,10 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { AlignJustify, X } from "lucide-react";
+import { AlignJustify, X, Sparkles } from "lucide-react";
 import FocusLock from "react-focus-lock";
 import MobileNav from "@/components/mobile-nav";
+import { supabase } from "@/app/lib/supabase";
 
 /**
  * The main client layout component that wraps the app's pages.
@@ -41,6 +42,39 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
       document.body.style.overflow = "";
     };
   }, [sidebarOpen]);
+
+  // User & Subscription state for sidebar
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [isProUser, setIsProUser] = useState(false);
+
+  useEffect(() => {
+    async function loadUserAndSub() {
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
+        if (user?.email) {
+          setUserEmail(user.email);
+          if (user.email.toLowerCase() === "deniedae@gmail.com") {
+            setIsProUser(true);
+            return;
+          }
+        }
+
+        const res = await fetch("/api/stripe/status");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.active || data.plan === "Pro") {
+            setIsProUser(true);
+          }
+        }
+      } catch {
+        // silently fallback
+      }
+    }
+    void loadUserAndSub();
+  }, []);
 
   useEffect(() => {
     if (typeof window !== "undefined" && "serviceWorker" in navigator) {
@@ -171,9 +205,18 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
 
           {/* User info section */}
           <div className="p-4 border-t border-gray-200 mt-auto">
-            <div className="rounded-xl bg-gray-50 p-3 select-none border border-gray-100">
-              <p className="text-xs font-semibold text-gray-900">👤 User</p>
-              <p className="text-[11px] text-gray-500">Free Beta Plan</p>
+            <div className="rounded-xl bg-gray-50 p-3 select-none border border-gray-100 space-y-0.5">
+              <p className="text-xs font-semibold text-gray-900 truncate">
+                👤 {userEmail || "User Account"}
+              </p>
+              {isProUser ? (
+                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 dark:text-blue-500">
+                  <Sparkles className="h-3 w-3 text-blue-600" />
+                  Spadas Pro (Paid Active)
+                </span>
+              ) : (
+                <p className="text-[11px] text-gray-500">Free Beta Plan</p>
+              )}
             </div>
           </div>
         </FocusLock>
