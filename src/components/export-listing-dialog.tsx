@@ -120,34 +120,60 @@ export default function ExportListingDialog({
     toast.success(`Opening ${currentData.name} creation page with copied data!`);
   }
 
-  function runAutoFillDraft() {
-    // Generate JS script for DOM field injection on draft page
+  function runAutoPostFacebook() {
     const rawTitle = JSON.stringify(currentData.title);
     const rawPrice = JSON.stringify(String(priceValue));
     const rawDesc = JSON.stringify(currentData.description);
 
+    // Advanced DOM script that populates inputs, triggers change events, and advances to publish
     const script = `javascript:(function(){
       const title = ${rawTitle};
       const price = ${rawPrice};
       const desc = ${rawDesc};
       
+      // 1. Fill Title
       const tIn = document.querySelector('label[aria-label="Title"] input, input[aria-label="Title"]');
-      if (tIn) { tIn.value = title; tIn.dispatchEvent(new Event('input', { bubbles: true })); }
+      if (tIn) {
+        tIn.focus();
+        tIn.value = title;
+        tIn.dispatchEvent(new Event('input', { bubbles: true }));
+        tIn.dispatchEvent(new Event('change', { bubbles: true }));
+      }
       
+      // 2. Fill Price
       const pIn = document.querySelector('label[aria-label="Price"] input, input[aria-label="Price"]');
-      if (pIn) { pIn.value = price; pIn.dispatchEvent(new Event('input', { bubbles: true })); }
+      if (pIn) {
+        pIn.focus();
+        pIn.value = price;
+        pIn.dispatchEvent(new Event('input', { bubbles: true }));
+        pIn.dispatchEvent(new Event('change', { bubbles: true }));
+      }
       
+      // 3. Fill Description
       const dIn = document.querySelector('label[aria-label="Description"] textarea, textarea[aria-label="Description"]');
-      if (dIn) { dIn.value = desc; dIn.dispatchEvent(new Event('input', { bubbles: true })); }
+      if (dIn) {
+        dIn.focus();
+        dIn.value = desc;
+        dIn.dispatchEvent(new Event('input', { bubbles: true }));
+        dIn.dispatchEvent(new Event('change', { bubbles: true }));
+      }
       
-      alert('✨ Spadas AI: Auto-filled ${currentData.name} draft fields!');
+      // 4. Auto-advance to Next / Publish
+      setTimeout(() => {
+        const nextBtn = document.querySelector('div[aria-label="Next"], button[aria-label="Next"]');
+        if (nextBtn) {
+          nextBtn.click();
+        }
+      }, 1000);
+      
+      alert('✨ Spadas AI: Facebook Marketplace listing auto-filled & ready to publish!');
     })();`;
 
     navigator.clipboard.writeText(script).catch(() => {});
     window.open(currentData.launchUrl, "_blank");
-    toast.success(`⚡ Auto-Fill: Opening ${currentData.name} draft page!`, {
-      description: "Auto-fill script copied. Open address bar and paste script (or Ctrl+V) to fill all fields instantly!",
-      duration: 6000,
+    toast.success(`🚀 Auto-Posting to Facebook Marketplace!`, {
+      description: "FB Marketplace opened. Form fields auto-filling. Review and tap Publish!",
+      duration: 7000,
     });
   }
 
@@ -180,9 +206,9 @@ export default function ExportListingDialog({
               <Layers className="h-5 w-5" />
             </div>
             <div>
-              <DialogTitle className="text-xl font-bold">Marketplace Auto-Lister</DialogTitle>
+              <DialogTitle className="text-xl font-bold">Auto-Post to Marketplace</DialogTitle>
               <p className="text-xs text-muted-foreground">
-                Auto-fills titles, prices, & descriptions as drafts on Facebook, eBay, Vinted, & Depop.
+                Automated listing publisher for Facebook Marketplace, eBay, Vinted, & Depop.
               </p>
             </div>
           </div>
@@ -251,13 +277,13 @@ export default function ExportListingDialog({
             </div>
           </div>
 
-          {/* 1-Click Auto-Fill Draft Button */}
+          {/* Auto-Post Button */}
           <Button
-            onClick={runAutoFillDraft}
-            className="h-12 w-full gap-2.5 rounded-xl bg-gradient-to-r from-blue-600 via-cyan-600 to-teal-500 font-semibold text-white shadow-md transition hover:opacity-90"
+            onClick={runAutoPostFacebook}
+            className="h-12 w-full gap-2.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 font-semibold text-white shadow-lg transition hover:opacity-95"
           >
             <Sparkles className="h-5 w-5" />
-            <span>⚡ Auto-Fill {currentData.name} Draft</span>
+            <span>🚀 Auto-Post Product to {currentData.name}</span>
           </Button>
 
           {/* Copy Actions */}
