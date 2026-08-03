@@ -65,41 +65,9 @@ export default function ListingsPage() {
 
   const totalListings = listings.length;
 
-const handleCreateListing = async (product: ScannedProduct) => {
-  try {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      toast.error("Please log in to create a listing.");
-      return;
-    }
-
-    const listingTitle = product.title || product.name || "New listing";
-    const listingPrice = Number(product.suggestedPrice ?? 0);
-
-    const { error } = await createListing({
-      userId: user.id,
-      product: listingTitle,
-      description: product.description ?? `Brand: ${product.brand ?? "Unknown"}\nCategory: ${product.category ?? "General"}`,
-      price: Number.isFinite(listingPrice) ? listingPrice : 0,
-      cost: 0,
-      image: product.image,
-      status: "Draft",
-    });
-
-    if (error) {
-      throw error;
-    }
-
-    toast.success("Barcode product added as a draft listing.");
+  const handleCreateListing = async () => {
     await loadListings();
-  } catch (error) {
-    console.error(error);
-    toast.error("Couldn't create listing from barcode scan.");
-  }
-};
+  };
 
 
   const soldListings = listings.filter((item) => item.status === "Sold").length;

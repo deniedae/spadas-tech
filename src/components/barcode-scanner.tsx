@@ -32,6 +32,7 @@ export default function BarcodeScanner({
   const [product, setProduct] = useState<Product | null>(null);
 
   const scannerRef = useRef<Html5Qrcode | null>(null);
+  const isProcessingRef = useRef(false);
 
   const stopScanner = useCallback(async () => {
     const scanner = scannerRef.current;
@@ -49,6 +50,9 @@ export default function BarcodeScanner({
   }, []);
 
   const handleBarcodeLookup = useCallback(async (decodedText: string) => {
+    if (isProcessingRef.current) return;
+    isProcessingRef.current = true;
+
     setBarcode(decodedText);
     setScanError(null);
 
@@ -74,15 +78,16 @@ export default function BarcodeScanner({
         ...listing,
       } as Product;
 
-      onCreateListing?.(merged);
       setProduct(merged);
       await stopScanner();
       setScanning(false);
     } catch (err) {
       console.error(err);
       setScanError("Could not look up that barcode.");
+    } finally {
+      isProcessingRef.current = false;
     }
-  }, [onCreateListing, stopScanner]);
+  }, [stopScanner]);
 
   useEffect(() => {
     if (!scanning) {
@@ -286,6 +291,7 @@ export default function BarcodeScanner({
               }
 
               toast.success("Listing created successfully!");
+              onCreateListing?.(product);
               setProduct(null);
               setBarcode("");
               setScanning(false);
