@@ -92,6 +92,7 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
     { href: "/dashboard", label: "🏠 Dashboard" },
     { href: "/listings", label: "📦 Listings" },
     { href: "/generator", label: "🤖 AI Generator" },
+    { href: "/velocity", label: "⚡ AI Velocity & Bundles" },
     { href: "/analytics", label: "📈 Analytics" },
     { href: "/settings", label: "⚙️ Settings" },
   ];
@@ -105,6 +106,7 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
     "/dashboard": "Dashboard",
     "/listings": "My Listings",
     "/generator": "AI Generator",
+    "/velocity": "AI Reseller Velocity Matrix",
     "/analytics": "Analytics",
     "/settings": "Settings",
   };
