@@ -16,22 +16,20 @@ export async function POST(request: Request) {
     }
 
     const imageContent = imageUrls.map((url) => ({
-      type: "input_image" as const,
-      image_url: url,
-      detail: "auto" as const,
+      type: "image_url" as const,
+      image_url: { url },
     }));
 
-    const completion = await openai.responses.create({
-      model: "gpt-5",
-      input: [
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      response_format: { type: "json_object" },
+      messages: [
         {
           role: "user",
           content: [
             {
-              type: "input_text",
+              type: "text",
               text: `You are an expert reseller across eBay, Facebook Marketplace, Vinted and Depop.
-
-You are an expert reseller across eBay, Facebook Marketplace, Vinted and Depop.
 Analyse the product in the provided image(s) and respond ONLY with valid JSON matching exactly this shape:
 {
   "analysis": {
@@ -81,7 +79,7 @@ Rules:
       ],
     });
 
-    const text = completion.output_text ?? "";
+    const text = completion.choices[0]?.message?.content ?? "";
     const result = JSON.parse(text) as AiListingResult;
 
     return NextResponse.json(result);

@@ -16,10 +16,13 @@ export async function POST(req: Request) {
       );
     }
 
-    const completion = await openai.responses.create({
-      model: "gpt-5",
-      input: `
-You are an expert eBay, Facebook Marketplace and Vinted seller.
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "user",
+          content: `You are an expert eBay, Facebook Marketplace and Vinted seller.
 
 A user is selling:
 
@@ -37,11 +40,12 @@ Rules:
 - The title must be SEO-friendly and under 80 characters.
 - The description must be professional, 2-3 short sentences, plain text, no markdown, no emoji.
 - The price must be a realistic Australian resale price in AUD, as a number (not a string).
-- Do not include any text outside the JSON object.
-`,
+- Do not include any text outside the JSON object.`,
+        },
+      ],
     });
 
-    const text = completion.output_text ?? "";
+    const text = completion.choices[0]?.message?.content ?? "";
     const listing = JSON.parse(text);
 
     return NextResponse.json(listing);
