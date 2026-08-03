@@ -28,22 +28,47 @@ export default function SpadasLensCamera() {
 
 
 
-  // Start Camera Stream
+  // Bind stream to video element whenever stream changes or component mounts
+  useEffect(() => {
+    if (videoRef.current && stream) {
+      videoRef.current.srcObject = stream;
+      videoRef.current.play().catch((err) => console.error("Video play error:", err));
+    }
+  }, [stream]);
+
+  // Start Camera Stream with robust fallbacks for all mobile phones & PCs
   const startCamera = async () => {
     try {
       setCameraError(null);
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
-        audio: false,
-      });
-      setStream(mediaStream);
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
+      let mediaStream: MediaStream | null = null;
+
+      try {
+        // Try rear environment camera first
+        mediaStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: "environment" } },
+          audio: false,
+        });
+      } catch {
+        try {
+          // Fallback to front user camera
+          mediaStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: "user" },
+            audio: false,
+          });
+        } catch {
+          // Fallback to basic video stream
+          mediaStream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: false,
+          });
+        }
       }
+
+      setStream(mediaStream);
       setScanning(true);
     } catch (err) {
       console.error("Camera access error:", err);
-      setCameraError("Camera access required for Spadas Lens AR Sourcing.");
+      setCameraError("Camera permission blocked or unavailable. Please enable camera access in browser settings.");
     }
   };
 
