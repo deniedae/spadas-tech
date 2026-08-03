@@ -128,16 +128,16 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
 
       {/* Sidebar container */}
       <aside
-        className={`fixed top-0 left-0 h-full w-64 md:w-72 lg:w-80 bg-white rounded-r-3xl shadow-2xl z-50 transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 transition-transform duration-300 ease-in-out md:static md:translate-x-0 shrink-0 flex flex-col ${
+          sidebarOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full"
         }`}
         aria-hidden={!sidebarOpen}
       >
-        <FocusLock disabled={!sidebarOpen}>
+        <FocusLock disabled={!sidebarOpen} className="flex-1 flex flex-col h-full">
           {/* Branding and close button */}
-          <div className="p-8 border-b border-gray-200 relative">
-            <h1 className="text-3xl font-bold text-blue-600 select-none">⚡ SpadasTechnology</h1>
-            <p className="mt-2 text-gray-500 select-none">AI Reseller Platform</p>
+          <div className="p-6 border-b border-gray-200 relative">
+            <h1 className="text-2xl font-bold text-blue-600 select-none">⚡ SpadasTechnology</h1>
+            <p className="mt-1 text-xs text-gray-500 select-none">AI Reseller Platform</p>
 
             {/* Close button only visible on mobile */}
             <button
@@ -151,15 +151,15 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
           </div>
 
           {/* Navigation menu */}
-          <nav aria-label="Main navigation" className="flex-1 p-4 space-y-2">
+          <nav aria-label="Main navigation" className="flex-1 p-4 space-y-1 overflow-y-auto">
             {navItems.map(({ href, label }) => (
               <Link
                 key={href}
                 href={href}
-                className={`block rounded-xl min-h-[44px] px-4 py-3 text-gray-700 transition-transform duration-200 transform focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
+                className={`block rounded-xl min-h-[44px] px-4 py-3 text-sm text-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
                   isActiveLink(href)
-                    ? "bg-blue-100 font-semibold text-blue-700 scale-105 shadow"
-                    : "hover:bg-blue-50 hover:scale-105"
+                    ? "bg-blue-50 font-semibold text-blue-700 shadow-sm"
+                    : "hover:bg-gray-100"
                 }`}
                 aria-current={isActiveLink(href) ? "page" : undefined}
                 onClick={() => setSidebarOpen(false)}
@@ -170,17 +170,17 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
           </nav>
 
           {/* User info section */}
-          <div className="p-5 border-t border-gray-200">
-            <div className="rounded-xl bg-gray-100 p-4 select-none">
-              <p className="text-sm font-semibold">👤 User</p>
-              <p className="text-xs text-gray-500">Free Plan</p>
+          <div className="p-4 border-t border-gray-200 mt-auto">
+            <div className="rounded-xl bg-gray-50 p-3 select-none border border-gray-100">
+              <p className="text-xs font-semibold text-gray-900">👤 User</p>
+              <p className="text-[11px] text-gray-500">Free Beta Plan</p>
             </div>
           </div>
         </FocusLock>
       </aside>
 
       {/* Main content container */}
-      <div className="flex-1 flex flex-col md:pl-72 lg:pl-80 min-h-screen">
+      <div className="flex-1 flex flex-col min-w-0 min-h-screen">
         {/* Header */}
         <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between md:px-8 md:py-5 shadow-sm">
           {/* Mobile hamburger */}
