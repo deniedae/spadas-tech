@@ -120,6 +120,37 @@ export default function ExportListingDialog({
     toast.success(`Opening ${currentData.name} creation page with copied data!`);
   }
 
+  function runSellRazeAutoFill() {
+    // Generate SellRaze style JS bookmarklet script for DOM field injection
+    const rawTitle = JSON.stringify(currentData.title);
+    const rawPrice = JSON.stringify(String(priceValue));
+    const rawDesc = JSON.stringify(currentData.description);
+
+    const script = `javascript:(function(){
+      const title = ${rawTitle};
+      const price = ${rawPrice};
+      const desc = ${rawDesc};
+      
+      const tIn = document.querySelector('label[aria-label="Title"] input, input[aria-label="Title"]');
+      if (tIn) { tIn.value = title; tIn.dispatchEvent(new Event('input', { bubbles: true })); }
+      
+      const pIn = document.querySelector('label[aria-label="Price"] input, input[aria-label="Price"]');
+      if (pIn) { pIn.value = price; pIn.dispatchEvent(new Event('input', { bubbles: true })); }
+      
+      const dIn = document.querySelector('label[aria-label="Description"] textarea, textarea[aria-label="Description"]');
+      if (dIn) { dIn.value = desc; dIn.dispatchEvent(new Event('input', { bubbles: true })); }
+      
+      alert('✨ Spadas AI: Auto-filled ${currentData.name} draft fields!');
+    })();`;
+
+    navigator.clipboard.writeText(script).catch(() => {});
+    window.open(currentData.launchUrl, "_blank");
+    toast.success(`🤖 SellRaze Auto-Fill: Opening ${currentData.name} draft page!`, {
+      description: "Auto-fill script copied. Open address bar and paste script (or Ctrl+V) to fill all fields instantly!",
+      duration: 6000,
+    });
+  }
+
   function downloadCSV() {
     const csvHeader = "Product,Price,Cost,Status,Description\n";
     const csvRow = `"${listing.product.replace(/"/g, '""')}",${priceValue},${costValue},"${listing.status || "Draft"}","${descriptionText.replace(/"/g, '""')}"\n`;
@@ -149,9 +180,9 @@ export default function ExportListingDialog({
               <Layers className="h-5 w-5" />
             </div>
             <div>
-              <DialogTitle className="text-xl font-bold">Cross-Listing Export Suite</DialogTitle>
+              <DialogTitle className="text-xl font-bold">SellRaze-Style Auto-Lister</DialogTitle>
               <p className="text-xs text-muted-foreground">
-                Formatted titles, descriptions, & tags for eBay, FB, Vinted, & Depop.
+                Auto-fills titles, prices, & descriptions as drafts on Facebook, eBay, Vinted, & Depop.
               </p>
             </div>
           </div>
@@ -220,13 +251,13 @@ export default function ExportListingDialog({
             </div>
           </div>
 
-          {/* 1-Click Launch Button */}
+          {/* SellRaze 1-Click Auto-Fill Draft Button */}
           <Button
-            onClick={launchPlatformListing}
-            className="h-12 w-full gap-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 font-semibold text-white shadow-md transition hover:opacity-90"
+            onClick={runSellRazeAutoFill}
+            className="h-12 w-full gap-2.5 rounded-xl bg-gradient-to-r from-blue-600 via-cyan-600 to-teal-500 font-semibold text-white shadow-md transition hover:opacity-90"
           >
             <Sparkles className="h-5 w-5" />
-            <span>🚀 Launch & Auto-Copy to {currentData.name}</span>
+            <span>🤖 Auto-Fill {currentData.name} Draft (SellRaze Mode)</span>
           </Button>
 
           {/* Copy Actions */}
