@@ -91,6 +91,7 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
   const navItems = [
     { href: "/dashboard", label: "🏠 Dashboard" },
     { href: "/lens", label: "🔮 Spadas Lens AR" },
+    { href: "/radar", label: "📡 Spadas Radar" },
     { href: "/listings", label: "📦 Listings" },
     { href: "/generator", label: "🤖 AI Generator" },
     { href: "/velocity", label: "⚡ AI Velocity & Bundles" },
@@ -106,6 +107,7 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
   const pageTitleMap: Record<string, string> = {
     "/dashboard": "Dashboard",
     "/lens": "Spadas Lens AR Sourcing",
+    "/radar": "Spadas Radar Arbitrage",
     "/listings": "My Listings",
     "/generator": "AI Generator",
     "/velocity": "AI Reseller Velocity Matrix",
