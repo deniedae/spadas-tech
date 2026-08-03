@@ -124,6 +124,15 @@ Rules:
     const text = completion.choices[0]?.message?.content ?? "";
     const result = JSON.parse(text) as AiListingResult;
 
+    // Record AI generation usage immediately so free plan ticks down correctly
+    await supabase.from("ai_listing_analyses").insert([
+      {
+        user_id: user.id,
+        image_urls: imageUrls,
+        result,
+      },
+    ]);
+
     return NextResponse.json(result);
   } catch (err) {
     console.error("[ai-listing] failed:", err);

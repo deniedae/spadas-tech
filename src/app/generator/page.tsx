@@ -154,6 +154,7 @@ const canGenerate = imageUrls.length > 0 && !uploading && !generating;
         throw new Error(err.error || "AI generation failed.");
       }
       const data = await response.json();
+      window.dispatchEvent(new Event("usage-updated"));
       setResult(data);
       setForm({
         product: data.analysis.product_name || "",

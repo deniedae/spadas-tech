@@ -138,6 +138,7 @@ export default function SourcingPage() {
         throw new Error(body.error || `Check failed (${res.status})`);
       }
       const data = (await res.json()) as SourcingVerdict;
+      window.dispatchEvent(new Event("usage-updated"));
       setVerdict(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Sourcing check failed.");

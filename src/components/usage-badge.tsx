@@ -34,6 +34,10 @@ export default function UsageBadge({
       }
     }
     void loadUsage();
+
+    const handleUpdate = () => void loadUsage();
+    window.addEventListener("usage-updated", handleUpdate);
+    return () => window.removeEventListener("usage-updated", handleUpdate);
   }, [onUsageLoaded]);
 
   async function handleUpgrade() {

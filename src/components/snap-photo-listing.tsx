@@ -68,6 +68,7 @@ export default function SnapPhotoListing({
       }
 
       const aiData = await response.json();
+      window.dispatchEvent(new Event("usage-updated"));
       const productName = aiData.analysis?.product_name || "New AI Item";
       const price = Number(aiData.suggested_price_max || aiData.suggested_price_min || 0);
 
