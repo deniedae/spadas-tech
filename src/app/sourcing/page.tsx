@@ -355,8 +355,14 @@ export default function SourcingPage() {
             </button>
             <button
               type="button"
-             onClick={() => router.push("/generator")}
-
+              onClick={() => {
+                const params = new URLSearchParams();
+                if (imageUrls[0]) params.set("image", imageUrls[0]);
+                if (verdict?.identification?.product_name)
+                  params.set("product", verdict.identification.product_name);
+                if (cost) params.set("cost", cost);
+                router.push(`/generator?${params.toString()}`);
+              }}
               className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
             >
               List this item

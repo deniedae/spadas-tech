@@ -71,6 +71,19 @@ export default function AiNewListingPage() {
   }, [router]);
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      const searchParams = new URLSearchParams(window.location.search);
+      const img = searchParams.get("image");
+      const prod = searchParams.get("product");
+      const cst = searchParams.get("cost");
+
+      if (img) setImageUrls([img]);
+      if (prod) update("product", prod);
+      if (cst) update("cost", cst);
+    }
+  }, []);
+
+  useEffect(() => {
     if (!stageTimer.current) return;
     return () => {
       clearInterval(stageTimer.current!);
