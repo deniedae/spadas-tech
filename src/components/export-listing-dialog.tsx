@@ -50,6 +50,7 @@ export default function ExportListingDialog({
       maxTitleChars: 80,
       title: getEbayTitle(),
       description: `${descriptionText}\n\nItem Condition: Pre-owned / Authentic\nShipping: Fast Auspost Satchel Dispatch\nReturns: Accepted within 30 days`,
+      launchUrl: `https://www.ebay.com.au/sl/prelist/suggest?q=${encodeURIComponent(getEbayTitle())}`,
     },
     facebook: {
       name: "Facebook Marketplace",
@@ -57,6 +58,7 @@ export default function ExportListingDialog({
       maxTitleChars: 100,
       title: listing.product,
       description: `${descriptionText}\n\n📍 Pickup Available\n💵 Cash, PayID or Bank Transfer\n❓ Feel free to message with any questions!`,
+      launchUrl: "https://www.facebook.com/marketplace/create/item",
     },
     vinted: {
       name: "Vinted",
@@ -64,6 +66,7 @@ export default function ExportListingDialog({
       maxTitleChars: 100,
       title: listing.product,
       description: `${descriptionText}\n\n✨ Clean & ready for immediate dispatch\n📦 Bundle discount available on multiple items!`,
+      launchUrl: "https://www.vinted.com.au/items/new",
     },
     depop: {
       name: "Depop",
@@ -71,6 +74,7 @@ export default function ExportListingDialog({
       maxTitleChars: 100,
       title: listing.product.toLowerCase(),
       description: `${descriptionText.toLowerCase()}\n\n#reseller #vintage #streetwear #authentic #deals`,
+      launchUrl: "https://www.depop.com/products/create/",
     },
     poshmark: {
       name: "Poshmark",
@@ -78,6 +82,7 @@ export default function ExportListingDialog({
       maxTitleChars: 80,
       title: listing.product,
       description: `${descriptionText}\n\n⭐ Top Rated Seller\n🚭 Smoke-free home\n⚡ Fast 1-Day Shipping!`,
+      launchUrl: "https://poshmark.com.au/create-listing",
     },
   };
 
@@ -104,6 +109,15 @@ export default function ExportListingDialog({
     } catch {
       toast.error("Failed to copy to clipboard.");
     }
+  }
+
+  function launchPlatformListing() {
+    copyToClipboard(
+      `TITLE:\n${currentData.title}\n\nDESCRIPTION:\n${currentData.description}\n\nPRICE: $${priceValue.toFixed(2)}`,
+      "all"
+    );
+    window.open(currentData.launchUrl, "_blank");
+    toast.success(`Opening ${currentData.name} creation page with copied data!`);
   }
 
   function downloadCSV() {
@@ -206,6 +220,15 @@ export default function ExportListingDialog({
             </div>
           </div>
 
+          {/* 1-Click Launch Button */}
+          <Button
+            onClick={launchPlatformListing}
+            className="h-12 w-full gap-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 font-semibold text-white shadow-md transition hover:opacity-90"
+          >
+            <Sparkles className="h-5 w-5" />
+            <span>🚀 Launch & Auto-Copy to {currentData.name}</span>
+          </Button>
+
           {/* Copy Actions */}
           <div className="grid grid-cols-2 gap-3">
             <Button
@@ -235,10 +258,11 @@ export default function ExportListingDialog({
                   "all"
                 )
               }
-              className="h-11 flex-1 gap-2 rounded-xl bg-primary text-xs font-semibold text-primary-foreground transition hover:bg-primary/90"
+              variant="outline"
+              className="h-11 flex-1 gap-2 rounded-xl text-xs font-semibold border-border hover:bg-muted"
             >
               {copiedAll ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-              <span>{copiedAll ? "All Copied!" : "⚡ Copy Complete Package"}</span>
+              <span>{copiedAll ? "All Copied!" : "⚡ Copy Package"}</span>
             </Button>
 
             <Button
