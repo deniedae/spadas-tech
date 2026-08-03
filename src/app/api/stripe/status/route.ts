@@ -27,6 +27,17 @@ export async function GET() {
     const status = (data?.status as string | undefined) || "inactive";
     const isActive = isOwner || status === "active" || status === "trialing" || status === "past_due";
 
+    if (isOwner && status !== "active") {
+      await supabase.from("user_subscriptions").upsert([
+        {
+          user_id: user.id,
+          status: "active",
+          price_id: "pro_owner_grant",
+          current_period_end: "2099-12-31T23:59:59Z",
+        },
+      ]);
+    }
+
     return NextResponse.json({
       active: isActive,
       plan: isActive ? "Pro" : "Free Beta",

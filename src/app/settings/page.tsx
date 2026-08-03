@@ -224,7 +224,15 @@ export default function SettingsPage() {
 
           <div>
             <p className="text-sm text-muted-foreground">Plan</p>
-            <p className="font-medium">Free Beta</p>
+            <p className="font-semibold text-foreground flex items-center gap-2">
+              {plan === "Pro" ? (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-blue-600 to-cyan-600 px-3 py-0.5 text-xs font-bold text-white shadow-sm">
+                  ✨ Spadas Pro (Unlimited)
+                </span>
+              ) : (
+                plan
+              )}
+            </p>
           </div>
         </div>
       </section>
@@ -397,14 +405,20 @@ export default function SettingsPage() {
           Status: <span className="font-medium text-foreground">{planStatus}</span>
         </p>
 
-        <button
-          onClick={() => setConfirmUpgrade(true)}
-          disabled={upgrading}
-          className="mt-5 inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 font-medium text-primary-foreground transition hover:bg-primary/90 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-        >
-          {upgrading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
-          Upgrade to Pro
-        </button>
+        {plan === "Pro" ? (
+          <div className="mt-5 inline-flex items-center gap-2 rounded-xl bg-blue-500/10 px-4 py-3 text-sm font-semibold text-blue-600 dark:text-blue-400 border border-blue-500/20">
+            ✨ Pro Plan Active — You have unlimited access to all AI features.
+          </div>
+        ) : (
+          <button
+            onClick={() => setConfirmUpgrade(true)}
+            disabled={upgrading}
+            className="mt-5 inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 font-medium text-primary-foreground transition hover:bg-primary/90 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          >
+            {upgrading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
+            Upgrade to Pro
+          </button>
+        )}
 
         {confirmUpgrade && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
