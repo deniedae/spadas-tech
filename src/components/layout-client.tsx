@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AlignJustify, X } from "lucide-react";
 import FocusLock from "react-focus-lock";
+import MobileNav from "@/components/mobile-nav";
 
 /**
  * The main client layout component that wraps the app's pages.
@@ -192,7 +193,10 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
         </header>
 
         {/* Page content */}
-        <main className="flex-1 p-4 md:p-8 overflow-auto">{children}</main>
+        <main className="flex-1 p-4 md:p-8 overflow-auto pb-24 md:pb-8">{children}</main>
+
+        {/* Sticky Mobile Bottom Navigation */}
+        <MobileNav />
       </div>
     </div>
   );
