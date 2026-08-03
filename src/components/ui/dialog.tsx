@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { cn } from "@/lib/utils";
 
 type DialogContextType = {
   open: boolean;
@@ -90,26 +91,32 @@ export function DialogHeader({
 
 export function DialogTitle({
   children,
+  className,
 }: {
   children: React.ReactNode;
+  className?: string;
 }) {
-  return <h2 className="text-xl font-bold">{children}</h2>;
+  return <h2 className={cn("text-xl font-bold", className)}>{children}</h2>;
 }
 
 export function DialogDescription({
   children,
+  className,
 }: {
   children: React.ReactNode;
+  className?: string;
 }) {
-  return <p>{children}</p>;
+  return <p className={cn("text-sm text-muted-foreground", className)}>{children}</p>;
 }
 
 export function DialogFooter({
   children,
+  className,
 }: {
   children: React.ReactNode;
+  className?: string;
 }) {
-  return <div className="mt-4">{children}</div>;
+  return <div className={cn("mt-4 flex justify-end gap-2", className)}>{children}</div>;
 }
 
 export function DialogClose({
