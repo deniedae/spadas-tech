@@ -18,6 +18,19 @@ function isPublicRoute(pathname: string) {
 }
 
 export async function middleware(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+
+  // Immediate bypass for PWA manifest and service worker
+  if (
+    pathname === "/manifest.webmanifest" ||
+    pathname === "/manifest.json" ||
+    pathname === "/sw.js" ||
+    pathname.endsWith(".webmanifest") ||
+    pathname.endsWith(".json")
+  ) {
+    return NextResponse.next();
+  }
+
   let response = NextResponse.next({
     request,
   });
@@ -54,7 +67,6 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const pathname = request.nextUrl.pathname;
   const isPublic = isPublicRoute(pathname);
 
   // Not logged in → protect private pages
