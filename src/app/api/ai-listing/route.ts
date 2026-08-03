@@ -1,11 +1,53 @@
 import OpenAI from "openai";
 import { NextResponse } from "next/server";
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
+import { checkUserUsage } from "@/app/lib/usage";
 import type { AiListingResult } from "@/types/ai-listing";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export async function POST(request: Request) {
   try {
+    const cookieStore = await cookies();
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll();
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            );
+          },
+        },
+      }
+    );
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Usage Limit Check
+    const usage = await checkUserUsage(user.id);
+    if (usage.limitReached) {
+      return NextResponse.json(
+        {
+          error:
+            "Free plan limit reached (10/10 AI generations used). Upgrade to Pro for unlimited AI listings.",
+          limitReached: true,
+        },
+        { status: 403 }
+      );
+    }
+
     const { imageUrls } = (await request.json()) as { imageUrls?: string[] };
 
     if (!imageUrls || imageUrls.length === 0) {

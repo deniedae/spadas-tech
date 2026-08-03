@@ -6,6 +6,7 @@ import { supabase } from "@/app/lib/supabase";
 import { toast } from "sonner";
 import ImageDropzone from "@/components/image-dropzone";
 import SnapPhotoListing from "@/components/snap-photo-listing";
+import UsageBadge from "@/components/usage-badge";
 import type { AiListingResult, Confidence, ShippingSize } from "@/types/ai-listing";
 import { ArrowLeft, Sparkles, Loader2, Save, TrendingUp, ShieldCheck } from "lucide-react";
 
@@ -294,7 +295,10 @@ const canGenerate = imageUrls.length > 0 && !uploading && !generating;
         >
           <ArrowLeft className="h-4 w-4" /> Back to listings
         </button>
-        <h1 className="text-2xl font-bold tracking-tight">AI Listing Generator</h1>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <h1 className="text-2xl font-bold tracking-tight">AI Listing Generator</h1>
+          <UsageBadge />
+        </div>
         <p className="text-sm text-muted-foreground">
           Snap a photo or upload product images to generate a marketplace-ready listing with AI.
         </p>

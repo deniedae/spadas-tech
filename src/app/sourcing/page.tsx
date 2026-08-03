@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabase";
 import { toast } from "sonner";
 import ImageDropzone from "@/components/image-dropzone";
+import UsageBadge from "@/components/usage-badge";
 import {
   Sparkles, Loader2, AlertCircle, CheckCircle2, XCircle,
   TrendingUp, DollarSign, Target, ArrowRight,
@@ -156,11 +157,14 @@ export default function SourcingPage() {
 
   return (
     <main className="space-y-6 animate-fade-in pb-20">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Sourcing Assistant</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Snap a photo, enter what you&apos;d pay, and get a buy/pass verdict based on real eBay sold prices.
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Sourcing Assistant</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Snap a photo, enter what you&apos;d pay, and get a buy/pass verdict based on real eBay sold prices.
+          </p>
+        </div>
+        <UsageBadge />
       </div>
 
       {!verdict && !checking && (
