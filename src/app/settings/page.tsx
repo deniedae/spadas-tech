@@ -34,6 +34,30 @@ export default function SettingsPage() {
   const [autoAiDescriptions, setAutoAiDescriptions] = useState(true);
   const [plan, setPlan] = useState("Free Beta");
   const [planStatus, setPlanStatus] = useState("inactive");
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+
+  useEffect(() => {
+    const handleBeforeInstall = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener("beforeinstallprompt", handleBeforeInstall);
+    return () => window.removeEventListener("beforeinstallprompt", handleBeforeInstall);
+  }, []);
+
+  const handleInstallApp = () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then((choice: any) => {
+        if (choice.outcome === "accepted") {
+          toast.success("Spadas AI app installed on your Android device!");
+        }
+        setDeferredPrompt(null);
+      });
+    } else {
+      toast.info("📱 Android Installation: Tap your browser menu (3 dots) & select 'Install App' or 'Add to Home Screen'!");
+    }
+  };
 
   const loadUser = useCallback(async () => {
     setLoading(true);
@@ -46,7 +70,15 @@ export default function SettingsPage() {
         router.push("/login");
         return;
       }
-      setUser({ email: user.email ?? "" });
+      const userEmail = user.email ?? "";
+      setUser({ email: userEmail });
+      
+      // Lifetime Pro lock for owner account
+      if (userEmail.toLowerCase() === "deniedae@gmail.com") {
+        setPlan("Pro");
+        setPlanStatus("active");
+      }
+
       setError(null);
     } catch {
       setError("Couldn't load your account. Please try refreshing.");
@@ -185,13 +217,13 @@ export default function SettingsPage() {
               Install the standalone Android app package directly onto your phone for fast mobile listing creation.
             </p>
           </div>
-          <a
-            href="/spadas-ai.apk"
-            download
-            className="inline-flex h-12 w-full sm:w-auto min-w-[200px] items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 px-6 font-semibold text-white shadow-md transition hover:opacity-90"
+          <button
+            type="button"
+            onClick={handleInstallApp}
+            className="inline-flex h-12 w-full sm:w-auto min-w-[200px] items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 px-6 font-semibold text-white shadow-md transition hover:opacity-90 cursor-pointer"
           >
-            📥 Download .APK App
-          </a>
+            📥 Install Android App
+          </button>
         </div>
       </section>
 
