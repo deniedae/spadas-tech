@@ -90,6 +90,7 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
   // Navigation items for sidebar
   const navItems = [
     { href: "/dashboard", label: "🏠 Dashboard" },
+    { href: "/lens", label: "🔮 Spadas Lens AR" },
     { href: "/listings", label: "📦 Listings" },
     { href: "/generator", label: "🤖 AI Generator" },
     { href: "/velocity", label: "⚡ AI Velocity & Bundles" },
@@ -104,6 +105,7 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
   // Dynamic page titles for header
   const pageTitleMap: Record<string, string> = {
     "/dashboard": "Dashboard",
+    "/lens": "Spadas Lens AR Sourcing",
     "/listings": "My Listings",
     "/generator": "AI Generator",
     "/velocity": "AI Reseller Velocity Matrix",
