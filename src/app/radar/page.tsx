@@ -195,21 +195,27 @@ export default function RadarPage() {
                   }`}
                 >
                   {/* Photo Thumbnail */}
-                  <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl bg-slate-900 mb-4">
+                  <a
+                    href={alert.sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group relative aspect-[4/3] w-full overflow-hidden rounded-xl bg-slate-900 mb-4 block"
+                  >
                     <img
                       src={alert.imageUrl}
                       alt={alert.title}
-                      className="h-full w-full object-cover"
+                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                     />
-                    <span className="absolute top-2.5 left-2.5 rounded-md bg-slate-950/80 backdrop-blur px-2.5 py-1 text-[10px] font-bold text-white uppercase border border-white/10">
+                    <span className="absolute top-2.5 left-2.5 rounded-md bg-slate-950/80 backdrop-blur px-2.5 py-1 text-[10px] font-bold text-white uppercase border border-white/10 flex items-center gap-1">
                       {alert.marketplace}
+                      <ExternalLink className="h-3 w-3 text-cyan-400" />
                     </span>
 
                     <span className="absolute top-2.5 right-2.5 flex items-center gap-1 rounded-md bg-indigo-600 px-2 py-0.5 text-[10px] font-extrabold text-white">
                       <ShieldCheck className="h-3 w-3" />
                       {alert.confidenceScore}% Match
                     </span>
-                  </div>
+                  </a>
 
                   {/* Title & Distance */}
                   <div className="space-y-2 mb-4">
@@ -221,7 +227,15 @@ export default function RadarPage() {
                       <span className="font-semibold text-foreground">{alert.category}</span>
                     </div>
 
-                    <h3 className="text-base font-bold leading-snug text-foreground">{alert.title}</h3>
+                    <a
+                      href={alert.sourceUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-base font-bold leading-snug text-foreground hover:text-indigo-600 dark:hover:text-indigo-400 flex items-start justify-between gap-2"
+                    >
+                      <span className="line-clamp-2">{alert.title}</span>
+                      <ExternalLink className="h-4 w-4 shrink-0 text-muted-foreground mt-1" />
+                    </a>
                   </div>
 
                   {/* Arbitrage Financial Breakdown */}
@@ -252,27 +266,37 @@ export default function RadarPage() {
                     </div>
                   </div>
 
-                  {/* 1-Click Copy Buy Script */}
+                  {/* Action Buttons */}
                   <div className="space-y-2">
+                    <a
+                      href={alert.sourceUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-xs font-bold text-white shadow-md transition hover:opacity-90 cursor-pointer"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                      <span>Open Listing on {alert.marketplace}</span>
+                    </a>
+
                     <button
                       type="button"
                       onClick={() => handleCopyScript(alert)}
-                      className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 text-xs font-bold text-white shadow-md transition hover:opacity-90 cursor-pointer"
+                      className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-xl border border-indigo-500/30 bg-indigo-500/10 text-xs font-bold text-indigo-600 dark:text-indigo-400 transition hover:bg-indigo-500/20 cursor-pointer"
                     >
                       {copiedId === alert.id ? (
                         <>
-                          <Check className="h-4 w-4 text-emerald-300" />
-                          <span>Buy Script Copied!</span>
+                          <Check className="h-3.5 w-3.5 text-emerald-500" />
+                          <span>Buy Script Copied to Clipboard!</span>
                         </>
                       ) : (
                         <>
-                          <Copy className="h-4 w-4" />
+                          <Copy className="h-3.5 w-3.5" />
                           <span>Copy 1-Click Buy Script</span>
                         </>
                       )}
                     </button>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 pt-1">
                       <button
                         type="button"
                         onClick={() => handleMarkPurchased(alert.id)}
@@ -291,19 +315,10 @@ export default function RadarPage() {
                         type="button"
                         onClick={() => handleDismiss(alert.id)}
                         className="inline-flex h-9 items-center justify-center rounded-xl bg-muted px-3 text-xs font-semibold text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition"
+                        title="Dismiss alert"
                       >
                         <XCircle className="h-3.5 w-3.5" />
                       </button>
-
-                      <a
-                        href={alert.sourceUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex h-9 items-center justify-center rounded-xl bg-muted px-3 text-xs font-semibold text-muted-foreground hover:bg-indigo-500/10 hover:text-indigo-500 transition"
-                        title="View original local listing"
-                      >
-                        <ExternalLink className="h-3.5 w-3.5" />
-                      </a>
                     </div>
                   </div>
                 </div>
