@@ -62,38 +62,41 @@ export default function NewListingDialog({
   });
 
   async function handleGenerateAI() {
-    if (!image) {
+    if (!image && !imagePreview) {
       toast.error("Please upload an image first.");
       return;
     }
     setAiLoading(true);
 
     try {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      if (authError || !user) throw new Error("Please log in first.");
+      let payloadUrl = imagePreview;
 
-      const filename = `${user.id}-ai-${Date.now()}-${image.name}`;
-      const { error: uploadError } = await supabase.storage.from("listing-images").upload(filename, image);
-      if (uploadError) throw uploadError;
+      if (image) {
+        payloadUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = () => reject(new Error("Failed to read image file."));
+          reader.readAsDataURL(image);
+        });
+      }
 
-      const { data } = supabase.storage.from("listing-images").getPublicUrl(filename);
-      const imageUrl = data.publicUrl;
+      if (!payloadUrl) throw new Error("No image data available.");
 
       const response = await fetch("/api/ai-listing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageUrls: [imageUrl] }),
+        body: JSON.stringify({ imageUrls: [payloadUrl] }),
       });
 
       const result = await response.json();
 
-      if (!response.ok) throw new Error(result.error || "AI failed.");
+      if (!response.ok) throw new Error(result.error || "AI generation failed.");
 
       setProduct(result.analysis?.product_name ?? product);
       setDescription(result.detailed_description ?? result.seo_description ?? "");
       if (result.suggested_price_min) setPrice(String(result.suggested_price_min));
 
-      toast.success("AI listing generated!");
+      toast.success("AI listing generated successfully!");
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "AI generation failed.";
       toast.error(message);

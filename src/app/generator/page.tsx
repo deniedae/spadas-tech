@@ -306,8 +306,6 @@ const canGenerate = imageUrls.length > 0 && !uploading && !generating;
         </p>
       </div>
 
-      <SnapPhotoListing />
-
       <div className="grid gap-8 lg:grid-cols-5">
         <section className="space-y-6 lg:col-span-3">
           <div className="rounded-2xl border bg-card border-border p-6 shadow-sm">
