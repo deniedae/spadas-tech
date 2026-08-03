@@ -266,156 +266,240 @@ async function deleteListing(id: string) {
           />
         </div>
       </div>
-{listings.length > 0 &&
-  listings.filter((item) =>
-    (item.product || "").toLowerCase().includes(search.toLowerCase())
-  ).length === 0 && (
-    <tr>
-      <td colSpan={6} className="p-0">
-        <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
-          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-muted text-muted-foreground">
-            <Search className="h-6 w-6" />
-          </div>
-          <h2 className="text-lg font-semibold">No matching listings</h2>
-          <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-            Try a different search term.
-          </p>
-        </div>
-      </td>
-    </tr>
-  )}
+      {/* Filtered listings variable */}
+      {(() => {
+        const filteredListings = listings.filter((item) =>
+          (item.product || "").toLowerCase().includes(search.toLowerCase())
+        );
 
-      {/* Table */}
-      <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="sticky top-0 border-b border-border bg-muted/50 backdrop-blur">
-              <tr>
-                <th scope="col" className="p-4 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Product</th>
-                <th scope="col" className="p-4 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Price</th>
-                <th scope="col" className="p-4 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Cost</th>
-                <th scope="col" className="p-4 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Profit</th>
-                <th scope="col" className="p-4 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Status</th>
-                <th scope="col" className="p-4 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">Actions</th>
-              </tr>
-            </thead>
+        if (listings.length > 0 && filteredListings.length === 0) {
+          return (
+            <div className="flex flex-col items-center justify-center rounded-2xl border border-border bg-card px-6 py-16 text-center shadow-sm">
+              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                <Search className="h-6 w-6" />
+              </div>
+              <h2 className="text-lg font-semibold">No matching listings</h2>
+              <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+                Try a different search term.
+              </p>
+            </div>
+          );
+        }
 
-            <tbody className="divide-y divide-border">
-              {listings
-                .filter((item) =>
-                  item.product.toLowerCase().includes(search.toLowerCase())
-                )
-                .map((item) => {
-                  const price = Number(item.price) || 0;
-                  const cost = Number(item.cost) || 0;
-                  const profit = calcProfit(item);
+        return (
+          <>
+            {/* Mobile Card List View (< sm) */}
+            <div className="space-y-4 sm:hidden">
+              {filteredListings.map((item) => {
+                const price = Number(item.price) || 0;
+                const cost = Number(item.cost) || 0;
+                const profit = calcProfit(item);
 
-                  return (
-                    <tr key={item.id} className="group transition-colors hover:bg-muted/40">
-                      <td className="p-4">
-                        <div className="flex items-center gap-3">
-                          {item.image_url ? (
-                            <img
-                              src={item.image_url}
-                              alt={item.product}
-                              loading="lazy"
-                              className="h-14 w-14 rounded-lg border border-border object-cover shadow-sm"
-                            />
-                          ) : (
-                            <div className="flex h-14 w-14 items-center justify-center rounded-lg border border-border bg-muted text-muted-foreground/50">
-                              <ImageIcon className="h-5 w-5" />
-                            </div>
-                          )}
-                          <p className="font-semibold">{item.product}</p>
+                return (
+                  <div key={item.id} className="rounded-2xl border border-border bg-card p-4 shadow-sm space-y-3">
+                    <div className="flex items-center gap-3">
+                      {item.image_url ? (
+                        <img
+                          src={item.image_url}
+                          alt={item.product}
+                          loading="lazy"
+                          className="h-16 w-16 rounded-xl border border-border object-cover flex-shrink-0"
+                        />
+                      ) : (
+                        <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-xl border border-border bg-muted text-muted-foreground/50">
+                          <ImageIcon className="h-6 w-6" />
                         </div>
-                      </td>
-
-                      <td className="p-4 tabular-nums text-muted-foreground">
-                        {fmtMoney(price)}
-                      </td>
-
-                      <td className="p-4 tabular-nums text-muted-foreground">
-                        {fmtMoney(cost)}
-                      </td>
-
-                      <td className="p-4">
-                        <span className={`inline-flex items-center rounded-md px-2 py-1 text-sm font-semibold tabular-nums ${
-                          profit >= 0
-                            ? "bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-400"
-                            : "bg-destructive/10 text-destructive"
-                        }`}>
-                          {fmtMoney(profit)}
-                        </span>
-                      </td>
-
-                      <td className="p-4">
-                        <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${
-                          item.status === "Sold"
-                            ? "bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-400"
-                            : "bg-primary/10 text-primary"
-                        }`}>
-                          {item.status}
-                        </span>
-                      </td>
-
-                      <td className="p-4">
-                        <div className="flex items-center justify-end gap-2">
-                          <EditListingDialog listing={item} onUpdated={loadListings} />
-                          <ExportListingDialog listing={item} />
-                          <AlertDialog>
-                            <AlertDialogTrigger
-                              render={
-                                <button className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive/40">
-                                  <Trash2 className="h-4 w-4" />
-                                </button>
-                              }
-                            />
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Delete Listing?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  This action cannot be undone. This will permanently delete this listing.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => deleteListing(item.id)}>
-                                  Delete
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <h3 className="font-semibold text-base truncate">{item.product}</h3>
+                        <div className="mt-1 flex flex-wrap items-center gap-2">
+                          <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                            item.status === "Sold"
+                              ? "bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-400"
+                              : "bg-primary/10 text-primary"
+                          }`}>
+                            {item.status}
+                          </span>
+                          <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold tabular-nums ${
+                            profit >= 0
+                              ? "bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-400"
+                              : "bg-destructive/10 text-destructive"
+                          }`}>
+                            Profit: {fmtMoney(profit)}
+                          </span>
                         </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-
-              {/* Empty state */}
-              {listings.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="p-0">
-                    <div className="flex flex-col items-center justify-center px-6 py-20 text-center">
-                      <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary">
-                        <PackageOpen className="h-8 w-8" />
-                      </div>
-                      <h2 className="text-lg font-semibold">
-                        Welcome to Spadas AI
-                      </h2>
-                      <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-                        You don&apos;t have any listings yet. Create your first listing or scan a barcode to get started.
-                      </p>
-                      <div className="mt-6">
-                        <NewListingDialog />
                       </div>
                     </div>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                    <div className="flex items-center justify-between border-t border-border pt-3 text-sm">
+                      <div className="text-xs">
+                        <span className="text-muted-foreground">Price: </span>
+                        <span className="font-semibold tabular-nums">{fmtMoney(price)}</span>
+                        <span className="ml-2 text-muted-foreground">Cost: </span>
+                        <span className="font-semibold tabular-nums">{fmtMoney(cost)}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <EditListingDialog listing={item} onUpdated={loadListings} />
+                        <ExportListingDialog listing={item} />
+                        <AlertDialog>
+                          <AlertDialogTrigger
+                            render={
+                              <button className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive">
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            }
+                          />
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Listing?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This action cannot be undone. This will permanently delete this listing.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => deleteListing(item.id)}>
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop Table View (>= sm) */}
+            <div className="hidden sm:block overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="sticky top-0 border-b border-border bg-muted/50 backdrop-blur">
+                    <tr>
+                      <th scope="col" className="p-4 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Product</th>
+                      <th scope="col" className="p-4 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Price</th>
+                      <th scope="col" className="p-4 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Cost</th>
+                      <th scope="col" className="p-4 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Profit</th>
+                      <th scope="col" className="p-4 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Status</th>
+                      <th scope="col" className="p-4 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">Actions</th>
+                    </tr>
+                  </thead>
+
+                  <tbody className="divide-y divide-border">
+                    {filteredListings.map((item) => {
+                      const price = Number(item.price) || 0;
+                      const cost = Number(item.cost) || 0;
+                      const profit = calcProfit(item);
+
+                      return (
+                        <tr key={item.id} className="group transition-colors hover:bg-muted/40">
+                          <td className="p-4">
+                            <div className="flex items-center gap-3">
+                              {item.image_url ? (
+                                <img
+                                  src={item.image_url}
+                                  alt={item.product}
+                                  loading="lazy"
+                                  className="h-14 w-14 rounded-lg border border-border object-cover shadow-sm"
+                                />
+                              ) : (
+                                <div className="flex h-14 w-14 items-center justify-center rounded-lg border border-border bg-muted text-muted-foreground/50">
+                                  <ImageIcon className="h-5 w-5" />
+                                </div>
+                              )}
+                              <p className="font-semibold">{item.product}</p>
+                            </div>
+                          </td>
+
+                          <td className="p-4 tabular-nums text-muted-foreground">
+                            {fmtMoney(price)}
+                          </td>
+
+                          <td className="p-4 tabular-nums text-muted-foreground">
+                            {fmtMoney(cost)}
+                          </td>
+
+                          <td className="p-4">
+                            <span className={`inline-flex items-center rounded-md px-2 py-1 text-sm font-semibold tabular-nums ${
+                              profit >= 0
+                                ? "bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-400"
+                                : "bg-destructive/10 text-destructive"
+                            }`}>
+                              {fmtMoney(profit)}
+                            </span>
+                          </td>
+
+                          <td className="p-4">
+                            <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${
+                              item.status === "Sold"
+                                ? "bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-400"
+                                : "bg-primary/10 text-primary"
+                            }`}>
+                              {item.status}
+                            </span>
+                          </td>
+
+                          <td className="p-4">
+                            <div className="flex items-center justify-end gap-2">
+                              <EditListingDialog listing={item} onUpdated={loadListings} />
+                              <ExportListingDialog listing={item} />
+                              <AlertDialog>
+                                <AlertDialogTrigger
+                                  render={
+                                    <button className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive/40">
+                                      <Trash2 className="h-4 w-4" />
+                                    </button>
+                                  }
+                                />
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Delete Listing?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      This action cannot be undone. This will permanently delete this listing.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => deleteListing(item.id)}>
+                                      Delete
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+
+                    {/* Empty state */}
+                    {listings.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="p-0">
+                          <div className="flex flex-col items-center justify-center px-6 py-20 text-center">
+                            <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary">
+                              <PackageOpen className="h-8 w-8" />
+                            </div>
+                            <h2 className="text-lg font-semibold">
+                              Welcome to Spadas AI
+                            </h2>
+                            <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+                              You don&apos;t have any listings yet. Create your first listing or scan a barcode to get started.
+                            </p>
+                            <div className="mt-6">
+                              <NewListingDialog />
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        );
+      })()}
     </main>
   );
 }
