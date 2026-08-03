@@ -1,4 +1,5 @@
 import Link from "next/link";
+import LandingInteractiveDemo from "@/components/landing-interactive-demo";
 
 const features = [
   {
@@ -84,6 +85,9 @@ export default function Home() {
             <span>Profit analytics</span>
           </div>
         </section>
+
+        {/* Unauthenticated Interactive AI Demo */}
+        <LandingInteractiveDemo />
 
         <section className="grid gap-6 pb-20 md:grid-cols-2 xl:grid-cols-4">
           {features.map((feature) => (
