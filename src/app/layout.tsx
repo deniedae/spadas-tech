@@ -43,6 +43,7 @@ export const metadata: Metadata = {
     title: "Spadas AI",
     description: "Reseller inventory management and analytics.",
   },
+  manifest: "/manifest.json",
   icons: {
     icon: "/icon.svg",
     apple: "/icon.svg",
