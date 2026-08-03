@@ -2,7 +2,14 @@ import { type NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
 // Routes that do NOT require authentication
-const PUBLIC_ROUTES = ["/login", "/signup", "/forgot"];
+const PUBLIC_ROUTES = [
+  "/login",
+  "/signup",
+  "/forgot",
+  "/manifest.webmanifest",
+  "/manifest.json",
+  "/sw.js",
+];
 
 function isPublicRoute(pathname: string) {
   return PUBLIC_ROUTES.some(
@@ -60,8 +67,8 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Already logged in → don't show auth pages
-  if (user && isPublic) {
+  // Already logged in → don't show auth pages (unless static manifest/sw)
+  if (user && isPublic && (pathname === "/login" || pathname === "/signup" || pathname === "/forgot")) {
     const url = request.nextUrl.clone();
 
     url.pathname = "/dashboard";
@@ -78,8 +85,8 @@ export const config = {
      * Skip:
      * - API routes
      * - Next.js internals
-     * - Static assets
+     * - Static assets & PWA manifest/sw
      */
-    "/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    "/((?!api|_next/static|_next/image|favicon.ico|manifest\\.webmanifest|manifest\\.json|sw\\.js|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|webmanifest|json)$).*)",
   ],
 };
