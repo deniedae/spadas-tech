@@ -173,6 +173,28 @@ export default function SettingsPage() {
         </div>
       )}
 
+      {/* Mobile App Download */}
+      <section className="rounded-2xl border border-blue-500/20 bg-gradient-to-r from-blue-500/10 via-cyan-500/5 to-background p-6 shadow-sm">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full bg-blue-500/10 px-3 py-1 text-xs font-semibold text-blue-600 dark:text-blue-400">
+              📱 Android Release (100% Free)
+            </div>
+            <h2 className="mt-2 text-xl font-bold">Download Spadas AI Mobile App</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Install the standalone Android app package directly onto your phone for fast mobile listing creation.
+            </p>
+          </div>
+          <a
+            href="/spadas-ai.apk"
+            download
+            className="inline-flex h-12 w-full sm:w-auto min-w-[200px] items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 px-6 font-semibold text-white shadow-md transition hover:opacity-90"
+          >
+            📥 Download .APK App
+          </a>
+        </div>
+      </section>
+
       {/* Account */}
       <section
         aria-busy={loading}
