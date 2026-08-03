@@ -3,6 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 
 // Routes that do NOT require authentication
 const PUBLIC_ROUTES = [
+  "/",
   "/login",
   "/signup",
   "/forgot",
@@ -13,8 +14,9 @@ const PUBLIC_ROUTES = [
 ];
 
 function isPublicRoute(pathname: string) {
+  if (pathname === "/") return true;
   return PUBLIC_ROUTES.some(
-    (route) => pathname === route || pathname.startsWith(`${route}/`)
+    (route) => route !== "/" && (pathname === route || pathname.startsWith(`${route}/`))
   );
 }
 

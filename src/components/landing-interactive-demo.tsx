@@ -248,26 +248,20 @@ export default function LandingInteractiveDemo() {
             </p>
           </div>
 
-          {/* Glassmorphic Blur Overlay + Sign Up CTA */}
-          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-slate-950/70 backdrop-blur-md p-6 text-center space-y-4">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-600/20 text-blue-400 border border-blue-500/30">
-              <Check className="h-6 w-6" />
+          {/* Inline Sign Up CTA Banner */}
+          <div className="rounded-xl border border-blue-500/30 bg-gradient-to-r from-blue-600/20 via-cyan-500/10 to-blue-600/20 p-5 text-center space-y-3">
+            <div className="flex items-center justify-center gap-2 text-blue-300 font-bold text-sm">
+              <Check className="h-4 w-4 text-emerald-400" />
+              <span>Listing ready! Want to save & auto-post this item?</span>
             </div>
-
-            <div className="space-y-1 max-w-md">
-              <h4 className="text-xl font-bold text-white">
-                Save this listing & push to 4+ marketplaces
-              </h4>
-              <p className="text-xs text-slate-300">
-                Sign up for a free account to unlock full AI description editing, barcode lookup, and one-click cross-listing.
-              </p>
-            </div>
-
+            <p className="text-xs text-slate-300 max-w-md mx-auto">
+              Create a 100% free account to save your inventory, scan barcodes, and cross-list to eBay, FB Marketplace, Vinted, & Depop in 1 tap.
+            </p>
             <Link
               href="/signup"
-              className="inline-flex h-12 items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 px-8 font-semibold text-white shadow-lg transition hover:opacity-90"
+              className="inline-flex h-11 items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 px-6 text-sm font-semibold text-white shadow-lg transition hover:opacity-90"
             >
-              <span>Sign Up Free to Save Listing</span>
+              <span>Sign Up Free to Save & Cross-List</span>
               <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
