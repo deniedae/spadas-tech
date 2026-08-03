@@ -107,9 +107,9 @@ export default function ImageDropzone({
           type="button"
           onClick={() => cameraRef.current?.click()}
           disabled={disabled}
-          className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline disabled:opacity-50"
+          className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary/10 text-sm font-semibold text-primary transition hover:bg-primary/20 disabled:opacity-50"
         >
-          <Camera className="h-4 w-4" /> Take a photo
+          <Camera className="h-4 w-4" /> 📸 Take Photo on Camera
         </button>
       )}
       <input
@@ -137,7 +137,7 @@ export default function ImageDropzone({
                 type="button"
                 onClick={() => removeAt(i)}
                 aria-label={`Remove image ${i + 1}`}
-                className="absolute right-1.5 top-1.5 inline-flex h-7 w-7 items-center justify-center rounded-lg bg-background/80 text-foreground shadow-sm backdrop-blur opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                className="absolute right-1.5 top-1.5 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-background/90 text-foreground shadow-sm backdrop-blur opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
               >
                 <X className="h-4 w-4" />
               </button>
