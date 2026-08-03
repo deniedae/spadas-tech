@@ -2,11 +2,17 @@
 
 import TopProfitableItems from "@/components/top-profitable-items";
 import RevenueChart from "@/components/revenue-chart";
+import PlatformBreakdownCard from "@/components/platform-breakdown-card";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabase";
-import { fmtMoney, calcInventoryValue, calcProfit } from "@/app/lib/listings";
-import { AlertCircle, X } from "lucide-react";
+import {
+  fmtMoney,
+  calcInventoryValue,
+  calcDetailedProfit,
+  calcItemFees,
+} from "@/app/lib/listings";
+import { AlertCircle, X, TrendingUp, DollarSign, PieChart, ShieldCheck, Tag } from "lucide-react";
 
 type DataPoint = {
   month: string;
@@ -19,11 +25,17 @@ export default function AnalyticsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [rawListings, setRawListings] = useState<any[]>([]);
+
   const [stats, setStats] = useState({
-    revenue: 0,
-    profit: 0,
+    grossRevenue: 0,
+    netProfit: 0,
+    totalCogs: 0,
+    totalFees: 0,
+    avgMarginPct: 0,
+    avgRoiPct: 0,
     inventory: 0,
-    sold: 0,
+    soldCount: 0,
   });
 
   const [chartData, setChartData] = useState<DataPoint[]>([]);
@@ -51,21 +63,32 @@ export default function AnalyticsPage() {
         if (cancelled) return;
         if (!data) return;
 
-        const soldItems = data.filter((item) => item.status === "Sold");
+        setRawListings(data);
 
-        const revenue = soldItems.reduce(
-          (sum, item) => sum + (Number(item.sold_price) || 0),
-          0
+        const soldItems = data.filter(
+          (item) => (item.status ?? "").toLowerCase() === "sold"
         );
 
-        const profit = soldItems.reduce(
-          (sum, item) => sum + calcProfit(item),
-          0
-        );
+        let grossRevenue = 0;
+        let netProfit = 0;
+        let totalCogs = 0;
+        let totalFees = 0;
+
+        soldItems.forEach((item) => {
+          const detail = calcDetailedProfit(item);
+          grossRevenue += detail.soldPrice;
+          netProfit += detail.netProfit;
+          totalCogs += detail.cogs;
+          totalFees += detail.platformFee;
+        });
+
+        const avgMarginPct =
+          grossRevenue > 0 ? Math.round((netProfit / grossRevenue) * 1000) / 10 : 0;
+        const avgRoiPct =
+          totalCogs > 0 ? Math.round((netProfit / totalCogs) * 1000) / 10 : 0;
 
         const inventory = calcInventoryValue(data);
-
-        const sold = soldItems.length;
+        const soldCount = soldItems.length;
 
         const monthlyRevenue: Record<string, number> = {};
         const monthlyProfit: Record<string, number> = {};
@@ -77,10 +100,12 @@ export default function AnalyticsPage() {
             month: "short",
           });
 
+          const detail = calcDetailedProfit(item);
+
           monthlyRevenue[month] =
-            (monthlyRevenue[month] || 0) + (Number(item.sold_price) || 0);
+            (monthlyRevenue[month] || 0) + detail.soldPrice;
           monthlyProfit[month] =
-            (monthlyProfit[month] || 0) + calcProfit(item);
+            (monthlyProfit[month] || 0) + detail.netProfit;
         });
 
         if (cancelled) return;
@@ -93,7 +118,16 @@ export default function AnalyticsPage() {
           }))
         );
 
-        setStats({ revenue, profit, inventory, sold });
+        setStats({
+          grossRevenue,
+          netProfit,
+          totalCogs,
+          totalFees,
+          avgMarginPct,
+          avgRoiPct,
+          inventory,
+          soldCount,
+        });
       } catch (err) {
         if (!cancelled) {
           setError("Couldn't load analytics. Please try refreshing.");
@@ -103,18 +137,18 @@ export default function AnalyticsPage() {
       }
     }
 
-    loadAnalytics();
+    void loadAnalytics();
     return () => {
       cancelled = true;
     };
   }, [router]);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 animate-fade-in pb-16">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Analytics</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Analytics & Financial Insights</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Track your business performance.
+          Real net profit tracking accounting for COGS, shipping, & marketplace platform fees (eBay 13.25%, Poshmark 20%, Mercari 10%, FB 5%).
         </p>
       </div>
 
@@ -136,61 +170,106 @@ export default function AnalyticsPage() {
         </div>
       )}
 
-      {/* Stat cards */}
+      {/* Main Metric Cards */}
       <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-          <p className="text-sm text-muted-foreground">Revenue</p>
+        {/* Gross Revenue */}
+        <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-2">
+          <div className="flex items-center justify-between text-muted-foreground">
+            <span className="text-xs font-semibold uppercase tracking-wider">Gross Revenue</span>
+            <DollarSign className="h-4 w-4 text-blue-500" />
+          </div>
           {loading ? (
-            <div className="mt-2 h-8 w-28 animate-pulse rounded bg-muted" />
+            <div className="h-8 w-28 animate-pulse rounded bg-muted" />
           ) : (
-            <h2 className="mt-2 text-3xl font-bold tabular-nums">
-              {fmtMoney(stats.revenue)}
+            <h2 className="text-3xl font-bold tabular-nums text-foreground">
+              {fmtMoney(stats.grossRevenue)}
             </h2>
           )}
+          <p className="text-xs text-muted-foreground">Total sales volume</p>
         </div>
 
-        <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-          <p className="text-sm text-muted-foreground">Profit</p>
+        {/* Net Profit */}
+        <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-6 shadow-sm space-y-2">
+          <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400">
+            <span className="text-xs font-semibold uppercase tracking-wider">Total Net Profit</span>
+            <TrendingUp className="h-4 w-4" />
+          </div>
           {loading ? (
-            <div className="mt-2 h-8 w-28 animate-pulse rounded bg-muted" />
+            <div className="h-8 w-28 animate-pulse rounded bg-muted" />
           ) : (
-            <h2 className="mt-2 text-3xl font-bold tabular-nums text-green-600 dark:text-green-400">
-              {fmtMoney(stats.profit)}
+            <h2 className="text-3xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
+              {fmtMoney(stats.netProfit)}
             </h2>
           )}
+          <p className="text-xs text-muted-foreground">After COGS, fees, & shipping</p>
         </div>
 
-        <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-          <p className="text-sm text-muted-foreground">Inventory Value</p>
+        {/* Average Margin % */}
+        <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-2">
+          <div className="flex items-center justify-between text-muted-foreground">
+            <span className="text-xs font-semibold uppercase tracking-wider">Avg Margin %</span>
+            <PieChart className="h-4 w-4 text-purple-500" />
+          </div>
           {loading ? (
-            <div className="mt-2 h-8 w-28 animate-pulse rounded bg-muted" />
+            <div className="h-8 w-28 animate-pulse rounded bg-muted" />
           ) : (
-            <h2 className="mt-2 text-3xl font-bold tabular-nums">
-              {fmtMoney(stats.inventory)}
+            <h2 className="text-3xl font-bold tabular-nums text-purple-600 dark:text-purple-400">
+              {stats.avgMarginPct}%
             </h2>
           )}
+          <p className="text-xs text-muted-foreground">Net profit vs total revenue</p>
         </div>
 
-        <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-          <p className="text-sm text-muted-foreground">Items Sold</p>
+        {/* ROI % Per Item */}
+        <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-2">
+          <div className="flex items-center justify-between text-muted-foreground">
+            <span className="text-xs font-semibold uppercase tracking-wider">Avg ROI %</span>
+            <Tag className="h-4 w-4 text-cyan-500" />
+          </div>
           {loading ? (
-            <div className="mt-2 h-8 w-28 animate-pulse rounded bg-muted" />
+            <div className="h-8 w-28 animate-pulse rounded bg-muted" />
           ) : (
-            <h2 className="mt-2 text-3xl font-bold tabular-nums">
-              {stats.sold}
+            <h2 className="text-3xl font-bold tabular-nums text-cyan-600 dark:text-cyan-400">
+              {stats.avgRoiPct}%
             </h2>
           )}
+          <p className="text-xs text-muted-foreground">Return on capital invested (COGS)</p>
         </div>
       </div>
 
+      {/* Secondary Metrics */}
+      <div className="grid gap-6 md:grid-cols-3">
+        <div className="rounded-2xl border border-border bg-card p-5 shadow-sm space-y-1">
+          <p className="text-xs font-medium text-muted-foreground">Total Platform Fees Paid</p>
+          <p className="text-xl font-bold tabular-nums text-red-600 dark:text-red-400">
+            −{fmtMoney(stats.totalFees)}
+          </p>
+        </div>
+
+        <div className="rounded-2xl border border-border bg-card p-5 shadow-sm space-y-1">
+          <p className="text-xs font-medium text-muted-foreground">Cost of Goods Sold (COGS)</p>
+          <p className="text-xl font-bold tabular-nums text-foreground">
+            {fmtMoney(stats.totalCogs)}
+          </p>
+        </div>
+
+        <div className="rounded-2xl border border-border bg-card p-5 shadow-sm space-y-1">
+          <p className="text-xs font-medium text-muted-foreground">Unsold Inventory Value</p>
+          <p className="text-xl font-bold tabular-nums text-foreground">
+            {fmtMoney(stats.inventory)}
+          </p>
+        </div>
+      </div>
+
+      {/* Platform Fee Breakdown */}
+      {!loading && <PlatformBreakdownCard items={rawListings} />}
+
       {/* Revenue chart */}
-      {!loading && chartData.length > 0 && (
-        <RevenueChart data={chartData} />
-      )}
+      {!loading && chartData.length > 0 && <RevenueChart data={chartData} />}
 
       {!loading && chartData.length === 0 && (
-        <div className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground shadow-sm">
-          No sold listings yet — revenue and profit charts will appear once you mark an item as sold.
+        <div className="rounded-2xl border border-border bg-card p-6 text-sm text-muted-foreground shadow-sm">
+          No sold listings yet — revenue, fee deductions, and profit charts will populate automatically once you mark an item as sold.
         </div>
       )}
 
