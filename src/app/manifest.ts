@@ -31,33 +31,6 @@ export default function manifest(): MetadataRoute.Manifest {
         type: "image/png",
         purpose: "maskable",
       },
-      {
-        src: "/icon.svg",
-        sizes: "any",
-        type: "image/svg+xml",
-      },
-    ],
-    shortcuts: [
-      {
-        name: "Dashboard",
-        url: "/dashboard",
-        description: "View inventory overview and analytics",
-      },
-      {
-        name: "AI Listing Generator",
-        url: "/generator",
-        description: "Snap a photo to generate an AI listing",
-      },
-      {
-        name: "Sourcing Assistant",
-        url: "/sourcing",
-        description: "Analyze resale ROI and flip potential",
-      },
-      {
-        name: "Inventory Listings",
-        url: "/listings",
-        description: "View and edit inventory items",
-      },
     ],
   };
 }
