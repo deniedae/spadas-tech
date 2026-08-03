@@ -120,8 +120,8 @@ export default function ExportListingDialog({
     toast.success(`Opening ${currentData.name} creation page with copied data!`);
   }
 
-  function runSellRazeAutoFill() {
-    // Generate SellRaze style JS bookmarklet script for DOM field injection
+  function runAutoFillDraft() {
+    // Generate JS script for DOM field injection on draft page
     const rawTitle = JSON.stringify(currentData.title);
     const rawPrice = JSON.stringify(String(priceValue));
     const rawDesc = JSON.stringify(currentData.description);
@@ -145,7 +145,7 @@ export default function ExportListingDialog({
 
     navigator.clipboard.writeText(script).catch(() => {});
     window.open(currentData.launchUrl, "_blank");
-    toast.success(`🤖 SellRaze Auto-Fill: Opening ${currentData.name} draft page!`, {
+    toast.success(`⚡ Auto-Fill: Opening ${currentData.name} draft page!`, {
       description: "Auto-fill script copied. Open address bar and paste script (or Ctrl+V) to fill all fields instantly!",
       duration: 6000,
     });
@@ -180,7 +180,7 @@ export default function ExportListingDialog({
               <Layers className="h-5 w-5" />
             </div>
             <div>
-              <DialogTitle className="text-xl font-bold">SellRaze-Style Auto-Lister</DialogTitle>
+              <DialogTitle className="text-xl font-bold">Marketplace Auto-Lister</DialogTitle>
               <p className="text-xs text-muted-foreground">
                 Auto-fills titles, prices, & descriptions as drafts on Facebook, eBay, Vinted, & Depop.
               </p>
@@ -251,13 +251,13 @@ export default function ExportListingDialog({
             </div>
           </div>
 
-          {/* SellRaze 1-Click Auto-Fill Draft Button */}
+          {/* 1-Click Auto-Fill Draft Button */}
           <Button
-            onClick={runSellRazeAutoFill}
+            onClick={runAutoFillDraft}
             className="h-12 w-full gap-2.5 rounded-xl bg-gradient-to-r from-blue-600 via-cyan-600 to-teal-500 font-semibold text-white shadow-md transition hover:opacity-90"
           >
             <Sparkles className="h-5 w-5" />
-            <span>🤖 Auto-Fill {currentData.name} Draft (SellRaze Mode)</span>
+            <span>⚡ Auto-Fill {currentData.name} Draft</span>
           </Button>
 
           {/* Copy Actions */}
