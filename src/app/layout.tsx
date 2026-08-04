@@ -44,8 +44,14 @@ export const metadata: Metadata = {
     description: "Reseller inventory management and analytics.",
   },
   icons: {
-    icon: "/icon.svg",
-    apple: "/icon.svg",
+    icon: "/icon-192.png",
+    apple: "/icon-192.png",
+  },
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Spadas AI",
   },
 };
 

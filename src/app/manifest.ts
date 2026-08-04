@@ -10,14 +10,107 @@ export default function manifest(): MetadataRoute.Manifest {
     scope: "/",
     id: "/dashboard",
     display: "standalone",
-    display_override: ["standalone", "minimal-ui"],
-    orientation: "portrait",
+    display_override: [
+      "window-controls-overlay",
+      "tabbed",
+      "standalone",
+      "minimal-ui",
+    ],
+    orientation: "portrait-primary",
     background_color: "#090d16",
     theme_color: "#2563eb",
     lang: "en-US",
     dir: "ltr",
     categories: ["business", "productivity", "shopping"],
+    iarc_rating_id: "e58c1766-3d23-4e31-8260-eb2874eb1c46",
     prefer_related_applications: false,
+    related_applications: [
+      {
+        platform: "play",
+        url: "https://play.google.com/store/apps/details?id=com.spadas.ai",
+        id: "com.spadas.ai",
+      },
+      {
+        platform: "windows",
+        url: "https://www.microsoft.com/store/apps/9NBLGGH4NNS1",
+        id: "SpadasAI.SpadasAI_1234567890",
+      },
+    ],
+    scope_extensions: [
+      { origin: "*.spadas.tech" },
+      { origin: "spadas.tech" },
+    ],
+    launch_handler: {
+      client_mode: "focus-existing",
+    },
+    share_target: {
+      action: "/lens",
+      method: "GET",
+      params: {
+        title: "title",
+        text: "text",
+        url: "url",
+      },
+    },
+    file_handlers: [
+      {
+        action: "/inventory/import",
+        accept: {
+          "text/csv": [".csv"],
+          "application/json": [".json"],
+        },
+      },
+    ],
+    protocol_handlers: [
+      {
+        protocol: "web+spadas",
+        url: "/dashboard?url=%s",
+      },
+    ],
+    note_taking: {
+      new_note_url: "/dashboard?note=new",
+    },
+    shortcuts: [
+      {
+        name: "Scan Product",
+        short_name: "Scan",
+        description: "Scan shelf or product label with AI lens",
+        url: "/lens",
+        icons: [
+          {
+            src: "/icon-192.png",
+            sizes: "192x192",
+            type: "image/png",
+          },
+        ],
+      },
+      {
+        name: "Inventory Overview",
+        short_name: "Inventory",
+        description: "View active inventory and stock status",
+        url: "/inventory",
+        icons: [
+          {
+            src: "/icon-192.png",
+            sizes: "192x192",
+            type: "image/png",
+          },
+        ],
+      },
+      {
+        name: "Profit Calculator",
+        short_name: "Calculator",
+        description: "Calculate profit margins and fee structures",
+        url: "/calculator",
+        icons: [
+          {
+            src: "/icon-192.png",
+            sizes: "192x192",
+            type: "image/png",
+          },
+        ],
+      },
+    ],
     icons: [
       {
         src: "/icon-192.png",
@@ -26,11 +119,39 @@ export default function manifest(): MetadataRoute.Manifest {
         purpose: "any",
       },
       {
+        src: "/maskable-192.png",
+        sizes: "192x192",
+        type: "image/png",
+        purpose: "maskable",
+      },
+      {
         src: "/icon-512.png",
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "any",
+      },
+      {
+        src: "/maskable-512.png",
         sizes: "512x512",
         type: "image/png",
         purpose: "maskable",
       },
     ],
-  };
+    screenshots: [
+      {
+        src: "/screenshots/desktop.png",
+        sizes: "1280x720",
+        type: "image/png",
+        form_factor: "wide",
+        label: "Spadas AI Desktop Dashboard",
+      },
+      {
+        src: "/screenshots/mobile.png",
+        sizes: "750x1334",
+        type: "image/png",
+        form_factor: "narrow",
+        label: "Spadas AI Mobile Shelf Scanner",
+      },
+    ],
+  } as any;
 }

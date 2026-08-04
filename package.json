@@ -6,7 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint . --ext .ts,.tsx",
+    "format": "prettier --write .",
+    "type-check": "tsc --noEmit",
+    "build:store": "node scripts/build_store_packages.js",
+    "build:android": "npx @bubblewrap/cli build",
+    "build:windows": "npx @pwabuilder/cli"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
@@ -37,8 +42,15 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "eslint": "^9",
+    "eslint": "^8.57.0",
     "eslint-config-next": "16.2.10",
+
+    "eslint-plugin-react": "^7",
+    "eslint-plugin-react-hooks": "^4",
+
+    "@typescript-eslint/parser": "^7.18.0",
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+
     "tailwindcss": "^4",
     "typescript": "^5"
   }

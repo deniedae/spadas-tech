@@ -1,0 +1,47 @@
+{
+  "packageId": "com.spadas.ai",
+  "host": "spadas-tech.vercel.app",
+  "name": "Spadas AI — Reseller Inventory & Analytics",
+  "launcherName": "Spadas AI",
+  "display": "standalone",
+  "themeColor": "#2563eb",
+  "navigationColor": "#090d16",
+  "navigationColorDark": "#090d16",
+  "navigationDividerColor": "#000000",
+  "navigationDividerColorDark": "#000000",
+  "backgroundColor": "#090d16",
+  "enableNotifications": true,
+  "startUrl": "/dashboard",
+  "iconUrl": "https://spadas-tech.vercel.app/icon-512.png",
+  "maskableIconUrl": "https://spadas-tech.vercel.app/maskable-512.png",
+  "appVersionName": "1.0.0",
+  "appVersionCode": 1,
+  "shortcuts": [
+    {
+      "name": "Scan Product",
+      "short_name": "Scan",
+      "url": "https://spadas-tech.vercel.app/lens",
+      "icon": "https://spadas-tech.vercel.app/icon-192.png"
+    },
+    {
+      "name": "Inventory Overview",
+      "short_name": "Inventory",
+      "url": "https://spadas-tech.vercel.app/inventory",
+      "icon": "https://spadas-tech.vercel.app/icon-192.png"
+    },
+    {
+      "name": "Profit Calculator",
+      "short_name": "Calculator",
+      "url": "https://spadas-tech.vercel.app/calculator",
+      "icon": "https://spadas-tech.vercel.app/icon-192.png"
+    }
+  ],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://spadas-tech.vercel.app/manifest.json",
+  "fallbackType": "customtabs",
+  "features": {
+    "locationDelegation": {
+      "enabled": true
+    }
+  }
+}

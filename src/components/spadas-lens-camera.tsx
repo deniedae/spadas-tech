@@ -225,6 +225,21 @@ export default function SpadasLensCamera() {
               </div>
             </div>
 
+            {/* Manual Scan Now button overlay - always visible */}
+            <button
+              type="button"
+              onClick={() => {
+                if (!analyzingRealFrame && stream) {
+                  void processCurrentFrame();
+                }
+              }}
+              disabled={analyzingRealFrame || !stream}
+              className={`absolute bottom-8 right-4 z-50 shadow-xl border border-white/80 rounded-xl bg-indigo-600 hover:bg-indigo-500 px-5 py-3 text-base font-bold text-white transition ${analyzingRealFrame ? 'bg-gray-600/50 text-gray-400' : ''}`}
+            >
+              <RefreshCw className="h-5 w-5 mr-1" />
+              {analyzingRealFrame ? "Scanning..." : "Scan Now"}
+            </button>
+
             {/* AR Bounding Box Overlays */}
             {activeHits.map((hit) => {
               const isBuy = hit.verdict === "BUY";
@@ -302,6 +317,25 @@ export default function SpadasLensCamera() {
               >
                 <Zap className="h-3.5 w-3.5" />
                 <span>{autoScanActive ? "Auto-Scan: ON" : "Paused"}</span>
+              </button>
+
+              {/* Manual Scan Now button */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (!analyzingRealFrame) {
+                    void processCurrentFrame();
+                  }
+                }}
+                disabled={analyzingRealFrame}
+                className={`inline-flex h-9 items-center gap-1.5 rounded-xl px-4 text-sm font-bold transition ${
+                  analyzingRealFrame
+                    ? "bg-gray-600/50 text-gray-400"
+                    : "bg-indigo-600 hover:bg-indigo-500 text-white"
+                }`}
+              >
+                <RefreshCw className="h-4 w-4" />
+                {analyzingRealFrame ? "Scanning..." : "Scan Now"}
               </button>
 
               <button

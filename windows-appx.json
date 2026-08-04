@@ -1,0 +1,19 @@
+{
+  "name": "Spadas AI — Reseller Inventory & Analytics",
+  "publisher": "CN=SpadasTechnology",
+  "publisherDisplayName": "SpadasTechnology",
+  "identityName": "SpadasAI.SpadasAI",
+  "version": "1.0.0.0",
+  "packageId": "SpadasAI.SpadasAI_1234567890",
+  "appId": "SpadasAI",
+  "url": "https://spadas-tech.vercel.app/dashboard",
+  "manifestUrl": "https://spadas-tech.vercel.app/manifest.json",
+  "backgroundColor": "#090d16",
+  "themeColor": "#2563eb",
+  "icons": {
+    "square150x150Logo": "/icon-512.png",
+    "square44x44Logo": "/icon-192.png",
+    "wide310x150Logo": "/screenshots/desktop.png",
+    "storeLogo": "/icon-512.png"
+  }
+}
