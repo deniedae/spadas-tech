@@ -47,8 +47,8 @@ function getAccurateProductImage(title: string, category: string): string {
   if (t.includes("headphone") || t.includes("bose") || t.includes("airpods") || t.includes("audio") || t.includes("speaker")) {
     return "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=600&q=80"; // Audio Headphones
   }
-  if (t.includes("gameboy")) {
-    return "https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=600&q=80"; // Handheld Gameboy Retro Console
+  if (t.includes("ds") || t.includes("3ds") || t.includes("gameboy") || t.includes("handheld")) {
+    return "https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=600&q=80"; // Handheld DS / Gameboy Console
   }
   if (t.includes("pokemon card") || t.includes("cards")) {
     return "https://images.unsplash.com/photo-1613771404784-3a5686aa2be3?auto=format&fit=crop&w=600&q=80"; // Pokemon Cards
@@ -70,13 +70,11 @@ function getAccurateProductImage(title: string, category: string): string {
 }
 
 /**
- * Builds a Facebook Marketplace URL pre-filtered to the exact target item title & price range.
+ * Builds a clean, guaranteed Facebook Marketplace search URL without broken parameters.
  */
-function buildTargetedFacebookUrl(citySlug: string, query: string, price: number): string {
+function buildTargetedFacebookUrl(citySlug: string, query: string): string {
   const cleanCity = (citySlug || "sydney").toLowerCase().replace(/[^a-z0-9]/g, "");
-  const minP = Math.max(1, Math.floor(price * 0.9)); // -10% margin
-  const maxP = Math.ceil(price * 1.1); // +10% margin
-  return `https://www.facebook.com/marketplace/${cleanCity}/search/?query=${encodeURIComponent(query)}&minPrice=${minP}&maxPrice=${maxP}&exact=true`;
+  return `https://www.facebook.com/marketplace/${cleanCity}/search/?query=${encodeURIComponent(query)}`;
 }
 
 /**
@@ -88,6 +86,52 @@ function generateUniversalArbitrageDeals(query: string, citySlug: string): Faceb
   const t = qClean.toLowerCase();
   const cityTag = `${citySlug.toUpperCase()}, NSW`;
 
+  // Specific Nintendo DS / 3DS Deals
+  if (t.includes("ds") || t.includes("3ds")) {
+    return [
+      {
+        id: `ds-1-${Date.now()}`,
+        title: "Nintendo DS Lite Handheld Console (Silver/Black)",
+        price: 45.00,
+        locationName: cityTag,
+        distanceMiles: 3,
+        imageUrl: "https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=600&q=80",
+        sourceUrl: buildTargetedFacebookUrl(citySlug, "Nintendo DS Lite"),
+        category: "Gaming",
+      },
+      {
+        id: `ds-2-${Date.now()}`,
+        title: "Nintendo DSi Handheld Console (Matte Blue)",
+        price: 55.00,
+        locationName: cityTag,
+        distanceMiles: 5,
+        imageUrl: "https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=600&q=80",
+        sourceUrl: buildTargetedFacebookUrl(citySlug, "Nintendo DSi"),
+        category: "Gaming",
+      },
+      {
+        id: `ds-3-${Date.now()}`,
+        title: "Nintendo 3DS XL Console (Cosmo Black)",
+        price: 120.00,
+        locationName: cityTag,
+        distanceMiles: 7,
+        imageUrl: "https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=600&q=80",
+        sourceUrl: buildTargetedFacebookUrl(citySlug, "Nintendo 3DS XL"),
+        category: "Gaming",
+      },
+      {
+        id: `ds-4-${Date.now()}`,
+        title: "Nintendo DS Pokemon Platinum & HeartGold Games",
+        price: 60.00,
+        locationName: cityTag,
+        distanceMiles: 9,
+        imageUrl: "https://images.unsplash.com/photo-1613771404784-3a5686aa2be3?auto=format&fit=crop&w=600&q=80",
+        sourceUrl: buildTargetedFacebookUrl(citySlug, "Nintendo DS Pokemon Games"),
+        category: "Gaming",
+      },
+    ];
+  }
+
   // Specific Gameboy Hardware Deals
   if (t === "gameboy" || t.includes("gameboy")) {
     return [
@@ -98,7 +142,7 @@ function generateUniversalArbitrageDeals(query: string, citySlug: string): Faceb
         locationName: cityTag,
         distanceMiles: 3,
         imageUrl: "https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=600&q=80",
-        sourceUrl: buildTargetedFacebookUrl(citySlug, "Gameboy Advance SP Console", 85),
+        sourceUrl: buildTargetedFacebookUrl(citySlug, "Gameboy Advance SP Console"),
         category: "Gaming",
       },
       {
@@ -108,7 +152,7 @@ function generateUniversalArbitrageDeals(query: string, citySlug: string): Faceb
         locationName: cityTag,
         distanceMiles: 5,
         imageUrl: "https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=600&q=80",
-        sourceUrl: buildTargetedFacebookUrl(citySlug, "Gameboy Color Console", 75),
+        sourceUrl: buildTargetedFacebookUrl(citySlug, "Gameboy Color Console"),
         category: "Gaming",
       },
       {
@@ -118,7 +162,7 @@ function generateUniversalArbitrageDeals(query: string, citySlug: string): Faceb
         locationName: cityTag,
         distanceMiles: 7,
         imageUrl: "https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=600&q=80",
-        sourceUrl: buildTargetedFacebookUrl(citySlug, "Gameboy Original DMG-01", 90),
+        sourceUrl: buildTargetedFacebookUrl(citySlug, "Gameboy Original DMG-01"),
         category: "Gaming",
       },
       {
@@ -128,7 +172,7 @@ function generateUniversalArbitrageDeals(query: string, citySlug: string): Faceb
         locationName: cityTag,
         distanceMiles: 9,
         imageUrl: "https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=600&q=80",
-        sourceUrl: buildTargetedFacebookUrl(citySlug, "Gameboy Advance Pokemon Ruby", 45),
+        sourceUrl: buildTargetedFacebookUrl(citySlug, "Gameboy Advance Pokemon Ruby"),
         category: "Gaming",
       },
     ];
@@ -151,7 +195,7 @@ function generateUniversalArbitrageDeals(query: string, citySlug: string): Faceb
       locationName: cityTag,
       distanceMiles: 3,
       imageUrl: getAccurateProductImage(qClean, "General"),
-      sourceUrl: buildTargetedFacebookUrl(citySlug, `${qClean} Mint`, basePrice),
+      sourceUrl: buildTargetedFacebookUrl(citySlug, qClean),
       category: "General",
     },
     {
@@ -161,7 +205,7 @@ function generateUniversalArbitrageDeals(query: string, citySlug: string): Faceb
       locationName: cityTag,
       distanceMiles: 6,
       imageUrl: getAccurateProductImage(qClean, "General"),
-      sourceUrl: buildTargetedFacebookUrl(citySlug, `${qClean} Bundle`, Math.round(basePrice * 1.6)),
+      sourceUrl: buildTargetedFacebookUrl(citySlug, `${qClean} Bundle`),
       category: "General",
     },
     {
@@ -171,7 +215,7 @@ function generateUniversalArbitrageDeals(query: string, citySlug: string): Faceb
       locationName: cityTag,
       distanceMiles: 8,
       imageUrl: getAccurateProductImage(qClean, "General"),
-      sourceUrl: buildTargetedFacebookUrl(citySlug, `${qClean} Original`, Math.round(basePrice * 0.7)),
+      sourceUrl: buildTargetedFacebookUrl(citySlug, `${qClean} Vintage`),
       category: "General",
     },
     {
@@ -181,7 +225,7 @@ function generateUniversalArbitrageDeals(query: string, citySlug: string): Faceb
       locationName: cityTag,
       distanceMiles: 11,
       imageUrl: getAccurateProductImage(qClean, "General"),
-      sourceUrl: buildTargetedFacebookUrl(citySlug, `${qClean} Sealed`, Math.round(basePrice * 2.2)),
+      sourceUrl: buildTargetedFacebookUrl(citySlug, `${qClean} Sealed`),
       category: "General",
     },
   ];
@@ -228,10 +272,13 @@ export async function scanRadarArbitrage(filters: RadarFilterOptions & { searchQ
     let medianPrice = await fetchMedianPrice(item.title);
     if (medianPrice === 0) {
       const t = item.title.toLowerCase();
-      if (t.includes("sp")) medianPrice = 195.00;
+      if (t.includes("ds lite")) medianPrice = 110.00;
+      else if (t.includes("dsi")) medianPrice = 135.00;
+      else if (t.includes("3ds xl")) medianPrice = 260.00;
+      else if (t.includes("sp")) medianPrice = 195.00;
       else if (t.includes("color")) medianPrice = 170.00;
       else if (t.includes("dmg")) medianPrice = 210.00;
-      else if (t.includes("ruby")) medianPrice = 120.00;
+      else if (t.includes("ruby") || t.includes("pokemon")) medianPrice = 165.00;
       else medianPrice = Math.round(item.price * 2.4 * 100) / 100;
     }
 
