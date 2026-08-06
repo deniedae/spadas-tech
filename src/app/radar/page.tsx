@@ -181,15 +181,29 @@ export default function RadarPage() {
               </div>
 
               <div>
-                <label className="text-[11px] font-semibold text-emerald-300 block">
-                  🔐 Facebook Logged-In Account Session Cookie (c_user / xs)
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-semibold text-emerald-300 block">
+                    🔐 Facebook Logged-In Account Session Cookie (c_user / xs)
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const code = `document.cookie.split('; ').filter(c => c.startsWith('c_user=') || c.startsWith('xs=')).join('; ')`;
+                      navigator.clipboard.writeText(code);
+                      alert("Copied Cookie Extractor script! Open facebook.com -> press F12 -> paste into Console -> press Enter -> copy & paste output here!");
+                    }}
+                    className="text-[10px] font-bold text-emerald-400 hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    <Copy className="h-3 w-3" />
+                    <span>Copy 1-Sec Cookie Helper</span>
+                  </button>
+                </div>
                 <input
                   type="password"
                   placeholder="Paste c_user=...; xs=... session cookie to pull live logged-in Facebook Marketplace items"
                   value={fbSessionCookie}
                   onChange={(e) => setFbSessionCookie(e.target.value)}
-                  className="w-full rounded-lg border border-emerald-500/40 bg-slate-950 px-3 py-1.5 text-xs font-mono text-white placeholder:text-slate-500"
+                  className="w-full rounded-lg border border-emerald-500/40 bg-slate-950 px-3 py-1.5 text-xs font-mono text-white placeholder:text-slate-500 mt-1"
                 />
                 <p className="text-[10px] text-slate-300 mt-1">
                   Connecting your Facebook Account Session Cookie allows Spadas Radar to query live Facebook Marketplace listing IDs directly!
