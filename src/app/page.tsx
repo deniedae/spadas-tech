@@ -1,5 +1,7 @@
 import Link from "next/link";
 import LandingInteractiveDemo from "@/components/landing-interactive-demo";
+import LandingCalculator from "@/components/landing-calculator";
+import LandingTestimonialsFaq from "@/components/landing-testimonials-faq";
 
 const features = [
   {
@@ -34,6 +36,9 @@ export default function Home() {
           </Link>
 
           <div className="flex items-center gap-4">
+            <Link href="/press" className="text-sm text-slate-300 transition hover:text-white hidden sm:inline-block">
+              Press Kit
+            </Link>
             <Link href="/login" className="text-sm text-slate-300 transition hover:text-white">
               Login
             </Link>
@@ -96,7 +101,10 @@ export default function Home() {
         {/* Unauthenticated Interactive AI Demo */}
         <LandingInteractiveDemo />
 
-        <section className="grid gap-6 pb-20 md:grid-cols-2 xl:grid-cols-4">
+        {/* Interactive Reseller ROI & Profit Calculator */}
+        <LandingCalculator />
+
+        <section className="grid gap-6 py-20 md:grid-cols-2 xl:grid-cols-4 border-t border-white/10">
           {features.map((feature) => (
             <article
               key={feature.title}
@@ -109,7 +117,7 @@ export default function Home() {
           ))}
         </section>
 
-        <section className="pb-20">
+        <section className="pb-16">
           <div className="rounded-3xl border border-blue-400/30 bg-blue-500/10 p-8 md:p-12">
             <div className="grid gap-10 md:grid-cols-2 md:items-center">
               <div>
@@ -119,38 +127,29 @@ export default function Home() {
                 </h2>
               </div>
 
-              <div className="space-y-5 text-slate-200">
-                <div className="rounded-2xl border border-white/10 bg-slate-950/30 p-4">
-                  <strong className="text-white">1.</strong> Create listings faster with AI-generated copy.
-                </div>
-                <div className="rounded-2xl border border-white/10 bg-slate-950/30 p-4">
-                  <strong className="text-white">2.</strong> Spot profitable opportunities with your dashboard.
-                </div>
-                <div className="rounded-2xl border border-white/10 bg-slate-950/30 p-4">
-                  <strong className="text-white">3.</strong> Keep your inventory and pricing in one place.
-                </div>
+              <div className="space-y-4 text-slate-200">
+                <p>
+                  Sourcing items, calculating fees across multiple platforms, and manually writing item descriptions consumes hours every week.
+                </p>
+                <p>
+                  Spadas AI brings research, automated title descriptions, and profit tracking into a single tool so you spend less time admining and more time sourcing high-margin deals.
+                </p>
               </div>
             </div>
           </div>
         </section>
 
-        <section className="pb-24 text-center">
-          <h2 className="text-3xl font-bold text-white md:text-4xl">Ready to launch your resale workflow?</h2>
-          <div className="mt-8 flex flex-col justify-center gap-4 sm:flex-row">
-            <Link
-              href="/signup"
-              className="rounded-2xl bg-white px-8 py-4 text-lg font-semibold text-slate-950 transition hover:bg-slate-200"
-            >
-              Create account
-            </Link>
-            <Link
-              href="/login"
-              className="rounded-2xl border border-white/20 bg-white/5 px-8 py-4 text-lg font-semibold text-white transition hover:bg-white/10"
-            >
-              Sign in
-            </Link>
+        {/* Testimonials, FAQ & Press Kit Section */}
+        <LandingTestimonialsFaq />
+
+        <footer className="border-t border-white/10 py-10 text-center text-sm text-slate-400 flex flex-col sm:flex-row justify-between items-center gap-4">
+          <div>© {new Date().getFullYear()} Spadas AI. All rights reserved.</div>
+          <div className="flex items-center gap-6">
+            <Link href="/privacy" className="hover:text-white transition">Privacy Policy</Link>
+            <Link href="/press" className="hover:text-white transition">Press Kit</Link>
+            <a href="/spadas-ai.apk" download className="hover:text-emerald-400 transition">Download APK</a>
           </div>
-        </section>
+        </footer>
       </div>
     </main>
   );
