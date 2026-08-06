@@ -27,7 +27,10 @@ export default function RadarPage() {
   const [loading, setLoading] = useState(true);
   const [alerts, setAlerts] = useState<RadarAlert[]>([]);
 
-  // Filter state
+  // Filter & Search state
+  const [searchQuery, setSearchQuery] = useState("Nintendo Switch");
+  const [fbToken, setFbToken] = useState("");
+  const [showKeyInput, setShowKeyInput] = useState(false);
   const [maxDistance, setMaxDistance] = useState(15);
   const [minProfit, setMinProfit] = useState(25);
   const [selectedCategory, setSelectedCategory] = useState("All");
@@ -43,6 +46,8 @@ export default function RadarPage() {
         maxDistanceMiles: maxDistance,
         minProfit,
         selectedCategory,
+        searchQuery,
+        fbAccessToken: fbToken,
       });
       setAlerts(data);
     } catch (err) {
@@ -98,7 +103,61 @@ export default function RadarPage() {
       <SpadasRadarCopilot />
 
       {/* Filter Controls Bar */}
-      <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-4">
+      <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-5">
+        {/* Facebook Marketplace Search Bar */}
+        <div className="space-y-2 border-b border-border pb-4">
+          <div className="flex items-center justify-between">
+            <span className="text-xs uppercase tracking-wider font-bold text-blue-500 flex items-center gap-1.5">
+              <Flame className="h-4 w-4 text-blue-500" /> Live Facebook Marketplace Scanner
+            </span>
+
+            <button
+              type="button"
+              onClick={() => setShowKeyInput(!showKeyInput)}
+              className="text-xs text-blue-400 hover:underline font-semibold"
+            >
+              {showKeyInput ? "✕ Hide Graph API Token" : "🔑 Add Facebook Developer Token"}
+            </button>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-center gap-3">
+            <input
+              type="text"
+              placeholder="Type any item to search Facebook Marketplace (e.g. Nintendo Switch, Nike, iPhone, Camera)..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && loadRadar()}
+              className="w-full rounded-xl border border-input bg-background px-4 py-2.5 text-sm font-medium placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <button
+              type="button"
+              onClick={loadRadar}
+              className="w-full sm:w-auto rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-500 shrink-0 flex items-center justify-center gap-2"
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+              Scan Facebook Deals
+            </button>
+          </div>
+
+          {showKeyInput && (
+            <div className="mt-3 rounded-xl border border-blue-500/30 bg-blue-500/10 p-3 space-y-1">
+              <label className="text-[11px] font-semibold text-blue-300 block">
+                Facebook Graph API User Access Token (Optional)
+              </label>
+              <input
+                type="password"
+                placeholder="Paste EAAB... access token here"
+                value={fbToken}
+                onChange={(e) => setFbToken(e.target.value)}
+                className="w-full rounded-lg border border-blue-500/40 bg-slate-950 px-3 py-1.5 text-xs font-mono text-white placeholder:text-slate-500"
+              />
+              <p className="text-[10px] text-slate-300">
+                Passing your personal Facebook Developer Graph API Token queries your personal app rate quota directly.
+              </p>
+            </div>
+          )}
+        </div>
+
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <SlidersHorizontal className="h-5 w-5 text-indigo-500" />
