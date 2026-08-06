@@ -36,6 +36,9 @@ export default function RadarPage() {
   const [minProfit, setMinProfit] = useState(25);
   const [selectedCategory, setSelectedCategory] = useState("All");
 
+  // Modal inspection state
+  const [selectedAlertModal, setSelectedAlertModal] = useState<RadarAlert | null>(null);
+
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const categories = ["All", "Gaming", "Streetwear", "Cameras", "Audio", "Sneakers"];
@@ -361,19 +364,23 @@ export default function RadarPage() {
 
                   {/* Action Buttons */}
                   <div className="space-y-2">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedAlertModal(alert)}
+                      className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-xs font-bold text-white shadow-md transition hover:opacity-90 cursor-pointer"
+                    >
+                      <Sparkles className="h-4 w-4" />
+                      <span>Inspect Deal & Comps</span>
+                    </button>
+
                     <a
                       href={cleanUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      onClick={(e) => {
-                        if (typeof window !== "undefined") {
-                          window.open(cleanUrl, "_blank", "noopener,noreferrer");
-                        }
-                      }}
-                      className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-xs font-bold text-white shadow-md transition hover:opacity-90 cursor-pointer"
+                      className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-muted/60 text-xs font-bold text-foreground transition hover:bg-muted cursor-pointer"
                     >
-                      <ExternalLink className="h-4 w-4" />
-                      <span>Open Listing on {alert.marketplace}</span>
+                      <ExternalLink className="h-3.5 w-3.5 text-blue-400" />
+                      <span>Open on Facebook Marketplace</span>
                     </a>
 
                     <button
@@ -384,12 +391,12 @@ export default function RadarPage() {
                       {copiedId === alert.id ? (
                         <>
                           <Check className="h-3.5 w-3.5 text-emerald-500" />
-                          <span>Buy Script Copied to Clipboard!</span>
+                          <span>Buy Script Copied!</span>
                         </>
                       ) : (
                         <>
                           <Copy className="h-3.5 w-3.5" />
-                          <span>Copy 1-Click Buy Script</span>
+                          <span>Copy Pickup Script</span>
                         </>
                       )}
                     </button>
@@ -431,6 +438,93 @@ export default function RadarPage() {
           </div>
         )}
       </div>
+
+      {/* Live Arbitrage Deal Inspection Modal */}
+      {selectedAlertModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm animate-fade-in">
+          <div className="relative w-full max-w-xl rounded-3xl border border-white/15 bg-slate-900 p-6 md:p-8 text-white shadow-2xl space-y-6">
+            <button
+              onClick={() => setSelectedAlertModal(null)}
+              className="absolute top-5 right-5 rounded-full bg-white/10 p-2 text-slate-400 hover:bg-white/20 hover:text-white transition"
+            >
+              ✕
+            </button>
+
+            <div className="flex items-center gap-2 text-xs font-bold text-blue-400 uppercase tracking-wider">
+              <Sparkles className="h-4 w-4" /> Live Arbitrage Deal Inspection
+            </div>
+
+            <div className="flex items-start gap-4">
+              <img
+                src={selectedAlertModal.imageUrl}
+                alt={selectedAlertModal.title}
+                className="h-24 w-24 rounded-2xl object-cover border border-white/10 shrink-0"
+              />
+              <div>
+                <h3 className="text-lg font-bold text-white leading-snug">{selectedAlertModal.title}</h3>
+                <p className="text-xs text-slate-400 mt-1">
+                  Category: {selectedAlertModal.category} • {selectedAlertModal.distanceMiles} miles away
+                </p>
+                <span className="mt-2 inline-block rounded-md bg-emerald-500/20 border border-emerald-500/30 px-2.5 py-0.5 text-xs font-bold text-emerald-300">
+                  +{selectedAlertModal.roiPct}% ROI Margin
+                </span>
+              </div>
+            </div>
+
+            {/* Financial Breakdown */}
+            <div className="rounded-2xl border border-white/10 bg-slate-950 p-4 space-y-2 text-xs">
+              <div className="flex justify-between text-slate-300">
+                <span>Facebook Asking Price:</span>
+                <span className="font-mono text-white font-bold">{fmtMoney(selectedAlertModal.localPrice)}</span>
+              </div>
+              <div className="flex justify-between text-slate-300">
+                <span>Est. eBay Median Sold Price:</span>
+                <span className="font-mono text-blue-400 font-bold">{fmtMoney(selectedAlertModal.estimatedMarketValue)}</span>
+              </div>
+              <div className="flex justify-between text-slate-400">
+                <span>Est. Platform Fees (13.25%):</span>
+                <span className="font-mono">-{fmtMoney(selectedAlertModal.estimatedMarketValue * 0.1325)}</span>
+              </div>
+              <div className="flex justify-between text-slate-400">
+                <span>Est. Shipping Cost:</span>
+                <span className="font-mono">-$12.00</span>
+              </div>
+              <div className="border-t border-white/10 pt-2 flex justify-between text-sm font-extrabold text-emerald-400">
+                <span>Net Profit Potential:</span>
+                <span className="font-mono text-base">+{fmtMoney(selectedAlertModal.potentialProfit)}</span>
+              </div>
+            </div>
+
+            {/* Action Links */}
+            <div className="space-y-3 pt-2">
+              <a
+                href={selectedAlertModal.sourceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3.5 text-sm font-semibold text-white transition hover:bg-blue-500"
+              >
+                <ExternalLink className="h-4 w-4" /> Open on Facebook Marketplace
+              </a>
+
+              <a
+                href={`https://www.ebay.com.au/sch/i.html?_nkw=${encodeURIComponent(selectedAlertModal.title)}&LH_Sold=1&LH_Complete=1`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 px-6 py-3 text-xs font-semibold text-amber-300 transition hover:bg-amber-500/20"
+              >
+                🔍 Verify Live Sold Comps on eBay
+              </a>
+
+              <button
+                onClick={() => handleCopyScript(selectedAlertModal)}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-6 py-3 text-xs font-semibold text-white transition hover:bg-white/10"
+              >
+                <Copy className="h-3.5 w-3.5" /> Copy Seller Pickup Script
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
