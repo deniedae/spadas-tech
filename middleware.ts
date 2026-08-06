@@ -25,18 +25,15 @@ function isPublicRoute(pathname: string) {
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
-  // Immediate bypass for PWA manifest, service worker, APK, privacy policy, and offline page
+  // Immediate bypass for all public pages, assets, and static files
   if (
-    pathname === "/privacy" ||
-    pathname === "/spadas-ai.apk" ||
-    pathname === "/manifest.webmanifest" ||
-    pathname === "/manifest.json" ||
-    pathname === "/sw.js" ||
-    pathname === "/offline.html" ||
+    isPublicRoute(pathname) ||
     pathname.endsWith(".webmanifest") ||
     pathname.endsWith(".json") ||
     pathname.endsWith(".apk") ||
-    pathname.endsWith(".html")
+    pathname.endsWith(".html") ||
+    pathname.endsWith(".png") ||
+    pathname.endsWith(".svg")
   ) {
     return NextResponse.next();
   }
@@ -71,30 +68,15 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // IMPORTANT:
-  // Don't insert logic between createServerClient() and getUser().
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const isPublic = isPublicRoute(pathname);
-
   // Not logged in → protect private pages
-  if (!user && !isPublic) {
+  if (!user) {
     const url = request.nextUrl.clone();
-
     url.pathname = "/login";
     url.searchParams.set("redirect", pathname);
-
-    return NextResponse.redirect(url);
-  }
-
-  // Already logged in → don't show auth pages (unless static manifest/sw)
-  if (user && isPublic && (pathname === "/login" || pathname === "/signup" || pathname === "/forgot")) {
-    const url = request.nextUrl.clone();
-
-    url.pathname = "/dashboard";
-
     return NextResponse.redirect(url);
   }
 
@@ -103,12 +85,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * Skip:
-     * - API routes
-     * - Next.js internals
-     * - Static assets, APK download, & PWA manifest/sw
-     */
-    "/((?!api|_next/static|_next/image|favicon.ico|manifest\\.webmanifest|manifest\\.json|sw\\.js|spadas-ai\\.apk|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|apk|webmanifest|json)$).*)",
+    "/((?!api|_next/static|_next/image|favicon.ico|privacy|manifest\\.webmanifest|manifest\\.json|sw\\.js|spadas-ai\\.apk|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|apk|webmanifest|json)$).*)",
   ],
 };
