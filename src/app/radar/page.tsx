@@ -29,6 +29,7 @@ export default function RadarPage() {
 
   // Filter & Search state
   const [searchQuery, setSearchQuery] = useState("Nintendo Switch");
+  const [citySlug, setCitySlug] = useState("sydney");
   const [fbToken, setFbToken] = useState("");
   const [showKeyInput, setShowKeyInput] = useState(false);
   const [maxDistance, setMaxDistance] = useState(15);
@@ -47,6 +48,7 @@ export default function RadarPage() {
         minProfit,
         selectedCategory,
         searchQuery,
+        citySlug,
         fbAccessToken: fbToken,
       });
       setAlerts(data);
@@ -121,9 +123,26 @@ export default function RadarPage() {
           </div>
 
           <div className="flex flex-col sm:flex-row items-center gap-3">
+            <div className="relative w-full sm:w-44 shrink-0">
+              <select
+                value={citySlug}
+                onChange={(e) => setCitySlug(e.target.value)}
+                className="w-full rounded-xl border border-input bg-background px-3 py-2.5 text-xs font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="sydney">📍 Sydney, NSW</option>
+                <option value="melbourne">📍 Melbourne, VIC</option>
+                <option value="brisbane">📍 Brisbane, QLD</option>
+                <option value="perth">📍 Perth, WA</option>
+                <option value="adelaide">📍 Adelaide, SA</option>
+                <option value="newyork">📍 New York, NY</option>
+                <option value="losangeles">📍 Los Angeles, CA</option>
+                <option value="london">📍 London, UK</option>
+              </select>
+            </div>
+
             <input
               type="text"
-              placeholder="Type any item to search Facebook Marketplace (e.g. Nintendo Switch, Nike, iPhone, Camera)..."
+              placeholder="Type any item (e.g. Nintendo Switch, Nike, iPhone, Camera)..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && loadRadar()}
