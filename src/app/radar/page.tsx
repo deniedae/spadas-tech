@@ -30,8 +30,11 @@ export default function RadarPage() {
   // Filter & Search state
   const [searchQuery, setSearchQuery] = useState("Nintendo Switch");
   const [citySlug, setCitySlug] = useState("sydney");
-  const [fbToken, setFbToken] = useState("EAAPZA8hlbTvEBSD7hCZCCiKZB5hHq3G5WmJJ4aaMCPZCVDXuOLf5Y4hZA2FlZBuovi60Quew4ZBamfW4rhvAwir60qg2Ax2SaS8xZC9MsHhALaYFMGhgBSQOroZAWAarYeTL9mBZC4WHraFJZA7OZC5rOYCE05d3XOav4YfgmeRJ4LZBsXDvkLl42ze9SRmZB0tQe3ZCtM42LyRwDmHb4POnF2RbetOx2bxM7k758QVNlQwWZBP23ZCaP2gVwoqFlw261OrPZCEXoAhk0N5jNrIHWXDfiJpogtiztjawTgswNjzWm4R2HTMAZB3jX6lLdaGaYqoWlLi9LZAF3aOWHVBZBaPpRqzx14oXAqvPJ4gZDZD");
-  const [showKeyInput, setShowKeyInput] = useState(true);
+  const [fbToken, setFbToken] = useState<string>(
+    "EAAPZA8hlbTvEBSFN0AwCknbbAzZAJKlBi5xzC83WXMBwOYTPhuY6hIIzOs1YnxifvndCZBKrIIVt9lGdHcswL6fY2hm7Rp2ARxuZAEYgNRIAvhh2lHdcC0hplm0Xmf2Au6EBT6oV0OagY5IYZC0a3g0mm5tS2CbqkIxeC6gJ1d2AiP3a0qZCN0oZAL0MXLMujW0FDPGePZDO69kyf07WY6v28OZDZD"
+  );
+  const [fbSessionCookie, setFbSessionCookie] = useState<string>("");
+  const [showKeyInput, setShowKeyInput] = useState<boolean>(true);
   const [maxDistance, setMaxDistance] = useState(15);
   const [minProfit, setMinProfit] = useState(25);
   const [selectedCategory, setSelectedCategory] = useState("All");
@@ -53,6 +56,7 @@ export default function RadarPage() {
         searchQuery,
         citySlug,
         fbAccessToken: fbToken,
+        fbSessionCookie,
       });
       setAlerts(data);
     } catch (err) {
@@ -162,20 +166,35 @@ export default function RadarPage() {
           </div>
 
           {showKeyInput && (
-            <div className="mt-3 rounded-xl border border-blue-500/30 bg-blue-500/10 p-3 space-y-1">
-              <label className="text-[11px] font-semibold text-blue-300 block">
-                Facebook Graph API User Access Token (Optional)
-              </label>
-              <input
-                type="password"
-                placeholder="Paste EAAB... access token here"
-                value={fbToken}
-                onChange={(e) => setFbToken(e.target.value)}
-                className="w-full rounded-lg border border-blue-500/40 bg-slate-950 px-3 py-1.5 text-xs font-mono text-white placeholder:text-slate-500"
-              />
-              <p className="text-[10px] text-slate-300">
-                Passing your personal Facebook Developer Graph API Token queries your personal app rate quota directly.
-              </p>
+            <div className="mt-3 rounded-xl border border-blue-500/30 bg-blue-500/10 p-3.5 space-y-3">
+              <div>
+                <label className="text-[11px] font-semibold text-blue-300 block">
+                  🔑 Facebook Graph API User Access Token
+                </label>
+                <input
+                  type="password"
+                  placeholder="Paste EAAB... access token here"
+                  value={fbToken}
+                  onChange={(e) => setFbToken(e.target.value)}
+                  className="w-full rounded-lg border border-blue-500/40 bg-slate-950 px-3 py-1.5 text-xs font-mono text-white placeholder:text-slate-500"
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-semibold text-emerald-300 block">
+                  🔐 Facebook Logged-In Account Session Cookie (c_user / xs)
+                </label>
+                <input
+                  type="password"
+                  placeholder="Paste c_user=...; xs=... session cookie to pull live logged-in Facebook Marketplace items"
+                  value={fbSessionCookie}
+                  onChange={(e) => setFbSessionCookie(e.target.value)}
+                  className="w-full rounded-lg border border-emerald-500/40 bg-slate-950 px-3 py-1.5 text-xs font-mono text-white placeholder:text-slate-500"
+                />
+                <p className="text-[10px] text-slate-300 mt-1">
+                  Connecting your Facebook Account Session Cookie allows Spadas Radar to query live Facebook Marketplace listing IDs directly!
+                </p>
+              </div>
             </div>
           )}
 
