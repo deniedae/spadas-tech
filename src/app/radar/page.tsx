@@ -21,6 +21,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
+import SpadasRadarCopilot from "@/components/spadas-radar-copilot";
 
 export default function RadarPage() {
   const [loading, setLoading] = useState(true);
@@ -86,12 +87,15 @@ export default function RadarPage() {
           AUTOMATED LOCAL ARBITRAGE FINDER
         </div>
         <h1 className="text-3xl font-extrabold tracking-tight md:text-4xl">
-          Spadas Radar — Local Marketplace Arbitrage
+          Spadas Radar — Local Marketplace Arbitrage & AI Copilot
         </h1>
-        <p className="text-sm text-indigo-100 max-w-2xl leading-relaxed">
-          Spadas Radar continuously scans Facebook Marketplace, Gumtree, and local sales within your radius, matching underpriced local deals with live eBay sold comps.
+        <p className="max-w-2xl text-sm md:text-base text-cyan-100/90 leading-relaxed">
+          AI continuously scans local listings, calculates cross-platform eBay/Poshmark/Depop/Mercari net profit spreads, and formats 1-click cross-listings.
         </p>
       </div>
+
+      {/* KILLER FEATURE: AI Arbitrage Radar & Cross-Platform Exporter Copilot */}
+      <SpadasRadarCopilot />
 
       {/* Filter Controls Bar */}
       <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-4">
