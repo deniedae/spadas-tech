@@ -178,6 +178,53 @@ export default function RadarPage() {
               </p>
             </div>
           )}
+
+          {/* 1-Tap Direct Multi-Platform Live Sourcing Bar */}
+          <div className="pt-3 border-t border-border/60 flex flex-wrap items-center gap-2">
+            <span className="text-[11px] font-extrabold uppercase text-muted-foreground tracking-wider mr-1">
+              ⚡ Live Instant Sourcing:
+            </span>
+
+            <a
+              href={`https://www.facebook.com/marketplace/${citySlug}/search/?query=${encodeURIComponent(searchQuery)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600/90 px-3 py-1.5 text-xs font-bold text-white hover:bg-blue-600 transition shadow-sm"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              <span>Facebook Marketplace ({citySlug.toUpperCase()})</span>
+            </a>
+
+            <a
+              href={`https://www.ebay.com.au/sch/i.html?_nkw=${encodeURIComponent(searchQuery)}&LH_Sold=1&LH_Complete=1`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500/15 border border-amber-500/30 px-3 py-1.5 text-xs font-bold text-amber-500 hover:bg-amber-500/25 transition shadow-sm"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              <span>eBay Live Sold Comps</span>
+            </a>
+
+            <a
+              href={`https://www.gumtree.com.au/s-search.html?keywords=${encodeURIComponent(searchQuery)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 px-3 py-1.5 text-xs font-bold text-emerald-500 hover:bg-emerald-500/25 transition shadow-sm"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              <span>Gumtree Local Deals</span>
+            </a>
+
+            <a
+              href={`https://www.depop.com/search/?q=${encodeURIComponent(searchQuery)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-rose-500/15 border border-rose-500/30 px-3 py-1.5 text-xs font-bold text-rose-500 hover:bg-rose-500/25 transition shadow-sm"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              <span>Depop Fashion</span>
+            </a>
+          </div>
         </div>
 
         <div className="flex items-center justify-between">
