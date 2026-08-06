@@ -67,6 +67,13 @@ export default function Home() {
             >
               Start free
             </Link>
+            <a
+              href="/spadas-ai.apk"
+              download="Spadas-AI.apk"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-emerald-500/40 bg-emerald-500/10 px-8 py-4 text-lg font-semibold text-emerald-300 transition hover:bg-emerald-500/20"
+            >
+              📱 Download Android APK
+            </a>
             <Link
               href="/dashboard"
               className="rounded-2xl border border-white/20 bg-white/5 px-8 py-4 text-lg font-semibold text-white transition hover:bg-white/10"
