@@ -16,16 +16,17 @@ const PUBLIC_ROUTES = [
 ];
 
 function isPublicRoute(pathname: string) {
-  if (pathname === "/") return true;
+  const cleanPath = pathname.replace(/\/$/, "") || "/";
+  if (cleanPath === "/") return true;
   return PUBLIC_ROUTES.some(
-    (route) => route !== "/" && (pathname === route || pathname.startsWith(`${route}/`))
+    (route) => route !== "/" && (cleanPath === route || cleanPath.startsWith(`${route}/`))
   );
 }
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
-  // Immediate bypass for all public pages, assets, and static files
+  // Immediate bypass for all public routes & static files BEFORE any Supabase auth checks
   if (
     isPublicRoute(pathname) ||
     pathname.endsWith(".webmanifest") ||
@@ -72,8 +73,8 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Not logged in → protect private pages
-  if (!user) {
+  // Not logged in AND not a public route → protect private pages
+  if (!user && !isPublicRoute(pathname)) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("redirect", pathname);
