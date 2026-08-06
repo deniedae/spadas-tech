@@ -465,9 +465,14 @@ export default function RadarPage() {
                 <p className="text-xs text-slate-400 mt-1">
                   Category: {selectedAlertModal.category} • {selectedAlertModal.distanceMiles} miles away
                 </p>
-                <span className="mt-2 inline-block rounded-md bg-emerald-500/20 border border-emerald-500/30 px-2.5 py-0.5 text-xs font-bold text-emerald-300">
-                  +{selectedAlertModal.roiPct}% ROI Margin
-                </span>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  <span className="rounded-md bg-emerald-500/20 border border-emerald-500/30 px-2 py-0.5 text-xs font-bold text-emerald-300">
+                    +{selectedAlertModal.roiPct}% ROI Margin
+                  </span>
+                  <span className="rounded-md bg-blue-500/20 border border-blue-500/30 px-2 py-0.5 text-xs font-semibold text-blue-300">
+                    🎯 Filtered to ${Math.floor(selectedAlertModal.localPrice * 0.9)} - ${Math.ceil(selectedAlertModal.localPrice * 1.1)} on Facebook
+                  </span>
+                </div>
               </div>
             </div>
 
