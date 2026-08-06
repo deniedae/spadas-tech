@@ -174,15 +174,27 @@ export default function SpadasLensCamera() {
     }
   }, [analyzingRealFrame, soundEnabled]);
 
-  // Continuous Real-Time Auto-Scan Loop (Every 2.8 seconds)
+  // Optimized Real-Time Auto-Scan Loop with Page Visibility & CPU Load Throttling
   useEffect(() => {
     if (!scanning || !autoScanActive) return;
 
-    const interval = setInterval(() => {
-      void processCurrentFrame();
-    }, 2800);
+    let timeoutId: NodeJS.Timeout;
 
-    return () => clearInterval(interval);
+    const scheduleNextScan = () => {
+      timeoutId = setTimeout(() => {
+        if (typeof document !== "undefined" && document.visibilityState === "visible") {
+          void processCurrentFrame().finally(() => {
+            scheduleNextScan();
+          });
+        } else {
+          scheduleNextScan();
+        }
+      }, 4500); // Debounced 4.5s interval to conserve CPU/GPU resources
+    };
+
+    scheduleNextScan();
+
+    return () => clearTimeout(timeoutId);
   }, [scanning, autoScanActive, processCurrentFrame]);
 
   useEffect(() => {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabase";
 import EditListingDialog from "@/components/edit-listing-dialog";
@@ -267,9 +268,11 @@ async function deleteListing(id: string) {
                   <div key={item.id} className="rounded-2xl border border-border bg-card p-4 shadow-sm space-y-3">
                     <div className="flex items-center gap-3">
                       {item.image_url ? (
-                        <img
+                        <Image
                           src={item.image_url}
                           alt={item.product}
+                          width={64}
+                          height={64}
                           loading="lazy"
                           className="h-16 w-16 rounded-xl border border-border object-cover flex-shrink-0"
                         />
@@ -364,9 +367,11 @@ async function deleteListing(id: string) {
                           <td className="p-4">
                             <div className="flex items-center gap-3">
                               {item.image_url ? (
-                                <img
+                                <Image
                                   src={item.image_url}
                                   alt={item.product}
+                                  width={56}
+                                  height={56}
                                   loading="lazy"
                                   className="h-14 w-14 rounded-lg border border-border object-cover shadow-sm"
                                 />

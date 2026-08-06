@@ -1,6 +1,6 @@
 "use client";
 
-import React, { ComponentType } from "react";
+import React, { memo, ComponentType } from "react";
 
 interface StatCardProps {
   label: string;
@@ -10,7 +10,7 @@ interface StatCardProps {
   loading: boolean;
 }
 
-export default function StatCard({
+function StatCard({
   label,
   value,
   valueClassName = "",
@@ -33,3 +33,5 @@ export default function StatCard({
     </div>
   );
 }
+
+export default memo(StatCard);

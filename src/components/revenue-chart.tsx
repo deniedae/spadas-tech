@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -19,51 +20,30 @@ interface RevenueChartProps {
   data: RevenuePoint[];
 }
 
-export default function RevenueChart({
-  data,
-}: RevenueChartProps) {
+function RevenueChart({ data }: RevenueChartProps) {
   return (
     <div className="rounded-xl border bg-white p-6 shadow-sm">
-      <h2 className="mb-4 text-2xl font-bold">
-        📈 Revenue Over Time
-      </h2>
+      <h2 className="mb-4 text-2xl font-bold">📈 Revenue Over Time</h2>
 
       <div className="h-80">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data}>
             <defs>
-              <linearGradient
-                id="revenueGradient"
-                x1="0"
-                y1="0"
-                x2="0"
-                y2="1"
-              >
-                <stop
-                  offset="5%"
-                  stopColor="#2563eb"
-                  stopOpacity={0.4}
-                />
-                <stop
-                  offset="95%"
-                  stopColor="#2563eb"
-                  stopOpacity={0}
-                />
+              <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#2563eb" stopOpacity={0.4} />
+                <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
               </linearGradient>
             </defs>
 
             <CartesianGrid strokeDasharray="3 3" />
-
             <XAxis dataKey="month" />
-
             <YAxis />
-
-       <Tooltip
-  formatter={(value) => [
-    `$${Number(value).toFixed(2)}`,
-    "Revenue",
-  ]}
-/>
+            <Tooltip
+              formatter={(value) => [
+                `$${Number(value).toFixed(2)}`,
+                "Revenue",
+              ]}
+            />
             <Area
               type="monotone"
               dataKey="revenue"
@@ -79,3 +59,5 @@ export default function RevenueChart({
     </div>
   );
 }
+
+export default memo(RevenueChart);

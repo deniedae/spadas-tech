@@ -1,8 +1,6 @@
 "use client";
 
-import TopProfitableItems from "@/components/top-profitable-items";
-import RevenueChart from "@/components/revenue-chart";
-import PlatformBreakdownCard from "@/components/platform-breakdown-card";
+import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabase";
@@ -13,6 +11,21 @@ import {
   calcItemFees,
 } from "@/app/lib/listings";
 import { AlertCircle, X, TrendingUp, DollarSign, PieChart, ShieldCheck, Tag } from "lucide-react";
+
+const RevenueChart = dynamic(() => import("@/components/revenue-chart"), {
+  ssr: false,
+  loading: () => <div className="h-[300px] w-full animate-pulse rounded-2xl bg-slate-900/40 border border-slate-800" />,
+});
+
+const PlatformBreakdownCard = dynamic(() => import("@/components/platform-breakdown-card"), {
+  ssr: false,
+  loading: () => <div className="h-[250px] w-full animate-pulse rounded-2xl bg-slate-900/40 border border-slate-800" />,
+});
+
+const TopProfitableItems = dynamic(() => import("@/components/top-profitable-items"), {
+  ssr: false,
+  loading: () => <div className="h-[250px] w-full animate-pulse rounded-2xl bg-slate-900/40 border border-slate-800" />,
+});
 
 type DataPoint = {
   month: string;

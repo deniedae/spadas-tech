@@ -12,6 +12,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabase";
 import Link from "next/link";
+import Image from "next/image";
 import NewListingDialog from "@/components/new-listing-dialog";
 import { fmtMoney, calcProfit, calcInventoryValue } from "@/app/lib/listings";
 
@@ -310,7 +311,7 @@ export default function Dashboard() {
                       <tr key={item.id} className="border-t border-border transition-colors hover:bg-muted/50">
                         <td className="p-4">
                           <div className="flex items-center gap-3">
-                            <img
+                            <Image
                               src={item.image_url || "/placeholder.png"}
                               alt={item.product}
                               width={48}
