@@ -268,6 +268,7 @@ export default function RadarPage() {
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {activeAlerts.map((alert) => {
               const isPurchased = alert.status === "purchased";
+              const cleanUrl = alert.sourceUrl.startsWith("http") ? alert.sourceUrl : `https://${alert.sourceUrl}`;
 
               return (
                 <div
@@ -278,10 +279,15 @@ export default function RadarPage() {
                 >
                   {/* Photo Thumbnail */}
                   <a
-                    href={alert.sourceUrl}
+                    href={cleanUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="group relative aspect-[4/3] w-full overflow-hidden rounded-xl bg-slate-900 mb-4 block"
+                    onClick={(e) => {
+                      if (typeof window !== "undefined") {
+                        window.open(cleanUrl, "_blank", "noopener,noreferrer");
+                      }
+                    }}
+                    className="group relative aspect-[4/3] w-full overflow-hidden rounded-xl bg-slate-900 mb-4 block cursor-pointer"
                   >
                     <img
                       src={alert.imageUrl}
@@ -310,10 +316,15 @@ export default function RadarPage() {
                     </div>
 
                     <a
-                      href={alert.sourceUrl}
+                      href={cleanUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-base font-bold leading-snug text-foreground hover:text-indigo-600 dark:hover:text-indigo-400 flex items-start justify-between gap-2"
+                      onClick={(e) => {
+                        if (typeof window !== "undefined") {
+                          window.open(cleanUrl, "_blank", "noopener,noreferrer");
+                        }
+                      }}
+                      className="text-base font-bold leading-snug text-foreground hover:text-indigo-600 dark:hover:text-indigo-400 flex items-start justify-between gap-2 cursor-pointer"
                     >
                       <span className="line-clamp-2">{alert.title}</span>
                       <ExternalLink className="h-4 w-4 shrink-0 text-muted-foreground mt-1" />
@@ -351,9 +362,14 @@ export default function RadarPage() {
                   {/* Action Buttons */}
                   <div className="space-y-2">
                     <a
-                      href={alert.sourceUrl}
+                      href={cleanUrl}
                       target="_blank"
                       rel="noopener noreferrer"
+                      onClick={(e) => {
+                        if (typeof window !== "undefined") {
+                          window.open(cleanUrl, "_blank", "noopener,noreferrer");
+                        }
+                      }}
                       className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-xs font-bold text-white shadow-md transition hover:opacity-90 cursor-pointer"
                     >
                       <ExternalLink className="h-4 w-4" />
