@@ -12,6 +12,23 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
+        source: "/spadas-ai.apk",
+        headers: [
+          {
+            key: "Content-Type",
+            value: "application/vnd.android.package-archive",
+          },
+          {
+            key: "Content-Disposition",
+            value: 'attachment; filename="Spadas-AI.apk"',
+          },
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
+      },
+      {
         source: "/:all*(svg|png|jpg|jpeg|webp|avif|ico|woff|woff2)",
         headers: [
           {
