@@ -20,9 +20,15 @@
 # production
 /build
 
+# scratch & extracted
+/extracted_apk/
+/scratch_xapk/
+
 # misc
 .DS_Store
 *.pem
+*.keystore
+*.jar
 
 # debug
 npm-debug.log*
