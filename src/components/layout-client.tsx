@@ -27,7 +27,7 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
   const touchStartXRef = useRef<number | null>(null);
 
   // Pages that don't show sidebar layout (public pages)
-  const publicPages = ["/", "/login", "/signup"];
+  const publicPages = ["/", "/login", "/signup", "/privacy"];
 
   useEffect(() => {
     if (sidebarOpen) {

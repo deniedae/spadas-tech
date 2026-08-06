@@ -4,12 +4,14 @@ import { createServerClient } from "@supabase/ssr";
 // Routes that do NOT require authentication
 const PUBLIC_ROUTES = [
   "/",
+  "/privacy",
   "/login",
   "/signup",
   "/forgot",
   "/manifest.webmanifest",
   "/manifest.json",
   "/sw.js",
+  "/spadas-ai.apk",
   "/offline.html",
 ];
 
@@ -23,14 +25,17 @@ function isPublicRoute(pathname: string) {
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
-  // Immediate bypass for PWA manifest, service worker, and offline page
+  // Immediate bypass for PWA manifest, service worker, APK, privacy policy, and offline page
   if (
+    pathname === "/privacy" ||
+    pathname === "/spadas-ai.apk" ||
     pathname === "/manifest.webmanifest" ||
     pathname === "/manifest.json" ||
     pathname === "/sw.js" ||
     pathname === "/offline.html" ||
     pathname.endsWith(".webmanifest") ||
     pathname.endsWith(".json") ||
+    pathname.endsWith(".apk") ||
     pathname.endsWith(".html")
   ) {
     return NextResponse.next();
@@ -102,8 +107,8 @@ export const config = {
      * Skip:
      * - API routes
      * - Next.js internals
-     * - Static assets & PWA manifest/sw
+     * - Static assets, APK download, & PWA manifest/sw
      */
-    "/((?!api|_next/static|_next/image|favicon.ico|manifest\\.webmanifest|manifest\\.json|sw\\.js|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|webmanifest|json)$).*)",
+    "/((?!api|_next/static|_next/image|favicon.ico|manifest\\.webmanifest|manifest\\.json|sw\\.js|spadas-ai\\.apk|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|apk|webmanifest|json)$).*)",
   ],
 };
