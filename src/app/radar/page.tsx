@@ -33,7 +33,7 @@ export default function RadarPage() {
   const [fbToken, setFbToken] = useState<string>(
     "EAAPZA8hlbTvEBSFN0AwCknbbAzZAJKlBi5xzC83WXMBwOYTPhuY6hIIzOs1YnxifvndCZBKrIIVt9lGdHcswL6fY2hm7Rp2ARxuZAEYgNRIAvhh2lHdcC0hplm0Xmf2Au6EBT6oV0OagY5IYZC0a3g0mm5tS2CbqkIxeC6gJ1d2AiP3a0qZCN0oZAL0MXLMujW0FDPGePZDO69kyf07WY6v28OZDZD"
   );
-  const [fbSessionCookie, setFbSessionCookie] = useState<string>("");
+  const [fbSessionCookie, setFbSessionCookie] = useState<string>("c_user=1000046908462132");
   const [showKeyInput, setShowKeyInput] = useState<boolean>(true);
   const [maxDistance, setMaxDistance] = useState(15);
   const [minProfit, setMinProfit] = useState(25);

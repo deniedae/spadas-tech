@@ -4,6 +4,7 @@ import { RadarAlert, RadarFilterOptions } from "@/types/radar";
 
 const DEFAULT_FB_ACCESS_TOKEN = "EAAPZA8hlbTvEBSFN0AwCknbbAzZAJKlBi5xzC83WXMBwOYTPhuY6hIIzOs1YnxifvndCZBKrIIVt9lGdHcswL6fY2hm7Rp2ARxuZAEYgNRIAvhh2lHdcC0hplm0Xmf2Au6EBT6oV0OagY5IYZC0a3g0mm5tS2CbqkIxeC6gJ1d2AiP3a0qZCN0oZAL0MXLMujW0FDPGePZDO69kyf07WY6v28OZDZD";
 const DEFAULT_FB_APP_TOKEN = "1084058760859377|9ds4iyCymQ-AVjKNpA8eBsbSctI";
+const DEFAULT_FB_SESSION_COOKIE = "c_user=1000046908462132";
 const SOLD_COMPS_KEY = "sc_live_f893a2e791b34c02911b";
 
 interface RealEbayItem {
@@ -94,8 +95,9 @@ async function fetchLoggedInFacebookMarketplaceDeals(
       "Accept-Language": "en-US,en;q=0.9",
     };
 
-    if (fbSessionCookie) {
-      headers["Cookie"] = fbSessionCookie;
+    const activeCookie = fbSessionCookie || DEFAULT_FB_SESSION_COOKIE;
+    if (activeCookie) {
+      headers["Cookie"] = activeCookie;
     }
 
     const res = await fetch(fbSearchUrl, { headers, next: { revalidate: 120 } });
