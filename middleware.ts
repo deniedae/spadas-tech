@@ -1,8 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
-// Routes that do NOT require authentication
-const PUBLIC_ROUTES = [
+// Public routes that MUST bypass authentication completely
+const PUBLIC_PATHS = new Set([
   "/",
   "/privacy",
   "/login",
@@ -13,32 +13,27 @@ const PUBLIC_ROUTES = [
   "/sw.js",
   "/spadas-ai.apk",
   "/offline.html",
-];
-
-function isPublicRoute(pathname: string) {
-  const cleanPath = pathname.replace(/\/$/, "") || "/";
-  if (cleanPath === "/") return true;
-  return PUBLIC_ROUTES.some(
-    (route) => route !== "/" && (cleanPath === route || cleanPath.startsWith(`${route}/`))
-  );
-}
+]);
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
+  const cleanPath = pathname.replace(/\/$/, "") || "/";
 
-  // Immediate bypass for all public routes & static files BEFORE any Supabase auth checks
+  // 1. ABSOLUTE BYPASS FOR PUBLIC ROUTES & STATIC ASSETS (Zero Supabase Auth Overhead)
   if (
-    isPublicRoute(pathname) ||
-    pathname.endsWith(".webmanifest") ||
-    pathname.endsWith(".json") ||
-    pathname.endsWith(".apk") ||
-    pathname.endsWith(".html") ||
-    pathname.endsWith(".png") ||
-    pathname.endsWith(".svg")
+    PUBLIC_PATHS.has(cleanPath) ||
+    cleanPath.startsWith("/privacy") ||
+    cleanPath.endsWith(".apk") ||
+    cleanPath.endsWith(".json") ||
+    cleanPath.endsWith(".webmanifest") ||
+    cleanPath.endsWith(".png") ||
+    cleanPath.endsWith(".svg") ||
+    cleanPath.endsWith(".html")
   ) {
     return NextResponse.next();
   }
 
+  // 2. PROTECTED ROUTES (Dashboard, Analytics, Sourcing, Generator, etc.)
   let response = NextResponse.next({
     request,
   });
@@ -51,16 +46,13 @@ export async function middleware(request: NextRequest) {
         getAll() {
           return request.cookies.getAll();
         },
-
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value }) => {
             request.cookies.set(name, value);
           });
-
           response = NextResponse.next({
             request,
           });
-
           cookiesToSet.forEach(({ name, value, options }) => {
             response.cookies.set(name, value, options);
           });
@@ -73,8 +65,8 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Not logged in AND not a public route → protect private pages
-  if (!user && !isPublicRoute(pathname)) {
+  // If user is not authenticated, redirect to /login
+  if (!user) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("redirect", pathname);
@@ -86,6 +78,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!api|_next/static|_next/image|favicon.ico|privacy|manifest\\.webmanifest|manifest\\.json|sw\\.js|spadas-ai\\.apk|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|apk|webmanifest|json)$).*)",
+    "/((?!api|_next/static|_next/image|favicon\\.ico|privacy|login|signup|spadas-ai\\.apk|manifest\\.webmanifest|manifest\\.json|sw\\.js|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|apk|webmanifest|json)$).*)",
   ],
 };
