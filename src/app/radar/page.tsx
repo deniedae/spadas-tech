@@ -332,11 +332,6 @@ export default function RadarPage() {
                     href={cleanUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    onClick={(e) => {
-                      if (typeof window !== "undefined") {
-                        window.open(cleanUrl, "_blank", "noopener,noreferrer");
-                      }
-                    }}
                     className="group relative aspect-[4/3] w-full overflow-hidden rounded-xl bg-slate-900 mb-4 block cursor-pointer"
                   >
                     <img
@@ -369,11 +364,6 @@ export default function RadarPage() {
                       href={cleanUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      onClick={(e) => {
-                        if (typeof window !== "undefined") {
-                          window.open(cleanUrl, "_blank", "noopener,noreferrer");
-                        }
-                      }}
                       className="text-base font-bold leading-snug text-foreground hover:text-indigo-600 dark:hover:text-indigo-400 flex items-start justify-between gap-2 cursor-pointer"
                     >
                       <span className="line-clamp-2">{alert.title}</span>
@@ -411,24 +401,24 @@ export default function RadarPage() {
 
                   {/* Action Buttons */}
                   <div className="space-y-2">
-                    <button
-                      type="button"
-                      onClick={() => setSelectedAlertModal(alert)}
-                      className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-xs font-bold text-white shadow-md transition hover:opacity-90 cursor-pointer"
-                    >
-                      <Sparkles className="h-4 w-4" />
-                      <span>Inspect Deal & Comps</span>
-                    </button>
-
                     <a
                       href={cleanUrl}
                       target="_blank"
                       rel="noopener noreferrer"
+                      className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-xs font-bold text-white shadow-md transition hover:opacity-90 cursor-pointer"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                      <span>Open Listing on Facebook</span>
+                    </a>
+
+                    <button
+                      type="button"
+                      onClick={() => setSelectedAlertModal(alert)}
                       className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-muted/60 text-xs font-bold text-foreground transition hover:bg-muted cursor-pointer"
                     >
-                      <ExternalLink className="h-3.5 w-3.5 text-blue-400" />
-                      <span>Open on Facebook Marketplace</span>
-                    </a>
+                      <Sparkles className="h-3.5 w-3.5 text-indigo-400" />
+                      <span>Inspect Deal & Comps</span>
+                    </button>
 
                     <button
                       type="button"
