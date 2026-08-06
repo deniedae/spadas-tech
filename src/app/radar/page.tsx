@@ -30,8 +30,8 @@ export default function RadarPage() {
   // Filter & Search state
   const [searchQuery, setSearchQuery] = useState("Nintendo Switch");
   const [citySlug, setCitySlug] = useState("sydney");
-  const [fbToken, setFbToken] = useState("");
-  const [showKeyInput, setShowKeyInput] = useState(false);
+  const [fbToken, setFbToken] = useState("EAAPZA8hlbTvEBSD7hCZCCiKZB5hHq3G5WmJJ4aaMCPZCVDXuOLf5Y4hZA2FlZBuovi60Quew4ZBamfW4rhvAwir60qg2Ax2SaS8xZC9MsHhALaYFMGhgBSQOroZAWAarYeTL9mBZC4WHraFJZA7OZC5rOYCE05d3XOav4YfgmeRJ4LZBsXDvkLl42ze9SRmZB0tQe3ZCtM42LyRwDmHb4POnF2RbetOx2bxM7k758QVNlQwWZBP23ZCaP2gVwoqFlw261OrPZCEXoAhk0N5jNrIHWXDfiJpogtiztjawTgswNjzWm4R2HTMAZB3jX6lLdaGaYqoWlLi9LZAF3aOWHVBZBaPpRqzx14oXAqvPJ4gZDZD");
+  const [showKeyInput, setShowKeyInput] = useState(true);
   const [maxDistance, setMaxDistance] = useState(15);
   const [minProfit, setMinProfit] = useState(25);
   const [selectedCategory, setSelectedCategory] = useState("All");
