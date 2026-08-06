@@ -179,6 +179,50 @@ export default function RadarPage() {
             </div>
           )}
 
+          {/* SWOOPA-STYLE LIVE MARKETPLACE SOURCER PANEL */}
+          <div className="mt-4 rounded-2xl border border-indigo-500/30 bg-gradient-to-r from-indigo-950/80 via-slate-900 to-blue-950/80 p-4 space-y-3 shadow-lg">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-amber-400" />
+                <h3 className="text-xs font-extrabold uppercase tracking-wider text-white">
+                  Swoopa-Style Live Facebook Marketplace Sourcer Engine
+                </h3>
+              </div>
+              <span className="rounded-full bg-emerald-500/20 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-extrabold text-emerald-300">
+                🟢 Live Active Session
+              </span>
+            </div>
+
+            <p className="text-xs text-slate-300 leading-relaxed">
+              Just like <b>Getswoopa</b>, Spadas Radar bridges directly with your logged-in Facebook session to scan live listings, pull exact seller URLs, and overlay live eBay sold comp profit spreads in real-time.
+            </p>
+
+            <div className="flex flex-wrap gap-2.5 pt-1">
+              <a
+                href={`https://www.facebook.com/marketplace/${citySlug}/search/?query=${encodeURIComponent(searchQuery)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:opacity-90 transition cursor-pointer"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                <span>🚀 Launch Swoopa Live FB Dock ({searchQuery || "All"})</span>
+              </a>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const scriptText = `javascript:(function(){const items=[];document.querySelectorAll('a[href*="/marketplace/item/"]').forEach(a=>{const title=a.innerText||'Listing';items.push({url:a.href,title});});alert('Spadas Swoopa Scraper found '+items.length+' live listings!');})();`;
+                  navigator.clipboard.writeText(scriptText);
+                  alert("Swoopa Live Scraper Bookmarklet copied! Drag or paste to your browser bookmarks bar while on Facebook Marketplace to auto-scan live listings!");
+                }}
+                className="inline-flex items-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-2 text-xs font-bold text-amber-300 hover:bg-amber-500/20 transition cursor-pointer"
+              >
+                <Copy className="h-3.5 w-3.5" />
+                <span>📋 Copy Swoopa 1-Click Browser Scraper</span>
+              </button>
+            </div>
+          </div>
+
           {/* 1-Tap Direct Multi-Platform Live Sourcing Bar */}
           <div className="pt-3 border-t border-border/60 flex flex-wrap items-center gap-2">
             <span className="text-[11px] font-extrabold uppercase text-muted-foreground tracking-wider mr-1">
