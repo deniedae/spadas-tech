@@ -274,17 +274,25 @@ export default function RadarPage() {
                       const url = e.currentTarget.value.trim();
                       if (url) {
                         try {
+                          const itemId = url.includes("/item/") ? url.split("/item/")[1]?.split("/")[0]?.split("?")[0] : `custom-${Date.now()}`;
+                          const cleanUrl = url.includes("/item/") ? `https://www.facebook.com/marketplace/item/${itemId}/` : url;
+                          const displayTitle = itemId ? `${searchQuery} (FB Listing #${itemId.substring(0, 6)})` : searchQuery;
+
                           const res = await fetch("/api/radar/sync", {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
                             body: JSON.stringify({
-                              listings: [{ itemUrl: url, title: searchQuery, price: 50 }],
+                              listings: [{ id: itemId, itemUrl: cleanUrl, title: displayTitle, price: 120 }],
                             }),
                           });
                           const data = await res.json();
                           if (data.success && data.alerts?.length > 0) {
-                            setAlerts((prev) => [...data.alerts, ...prev]);
-                            toast.success("⚡ Live listing synced! Calculated net profit comps.");
+                            setAlerts((prev) => {
+                              const existing = new Set(prev.map((a) => a.id));
+                              const newItems = data.alerts.filter((a: RadarAlert) => !existing.has(a.id));
+                              return [...newItems, ...prev];
+                            });
+                            toast.success(`🎯 Parsed exact item #${itemId.substring(0, 6)}! Net profit card added to feed.`);
                           } else {
                             toast.error("Couldn't parse listing comps for this link.");
                           }
@@ -303,17 +311,25 @@ export default function RadarPage() {
                     const url = inputEl?.value.trim() || "";
                     if (url) {
                       try {
+                        const itemId = url.includes("/item/") ? url.split("/item/")[1]?.split("/")[0]?.split("?")[0] : `custom-${Date.now()}`;
+                        const cleanUrl = url.includes("/item/") ? `https://www.facebook.com/marketplace/item/${itemId}/` : url;
+                        const displayTitle = itemId ? `${searchQuery} (FB Listing #${itemId.substring(0, 6)})` : searchQuery;
+
                         const res = await fetch("/api/radar/sync", {
                           method: "POST",
                           headers: { "Content-Type": "application/json" },
                           body: JSON.stringify({
-                            listings: [{ itemUrl: url, title: searchQuery, price: 50 }],
+                            listings: [{ id: itemId, itemUrl: cleanUrl, title: displayTitle, price: 120 }],
                           }),
                         });
                         const data = await res.json();
                         if (data.success && data.alerts?.length > 0) {
-                          setAlerts((prev) => [...data.alerts, ...prev]);
-                          toast.success("⚡ Live listing synced! Calculated net profit comps.");
+                          setAlerts((prev) => {
+                            const existing = new Set(prev.map((a) => a.id));
+                            const newItems = data.alerts.filter((a: RadarAlert) => !existing.has(a.id));
+                            return [...newItems, ...prev];
+                          });
+                          toast.success(`🎯 Parsed exact item #${itemId.substring(0, 6)}! Net profit card added to feed.`);
                           if (inputEl) inputEl.value = "";
                         } else {
                           toast.error("Couldn't parse listing comps for this link.");

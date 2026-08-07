@@ -145,8 +145,8 @@ export async function POST(req: Request) {
     return NextResponse.json(
       {
         success: true,
-        count: global.__spadasSyncedDeals.length,
-        alerts: global.__spadasSyncedDeals,
+        count: newAlerts.length,
+        alerts: newAlerts,
       },
       { headers: CORS_HEADERS }
     );
