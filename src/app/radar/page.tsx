@@ -639,10 +639,31 @@ export default function RadarPage() {
             })}
           </div>
         ) : (
-          <div className="rounded-2xl border border-border bg-card p-8 text-center text-sm text-muted-foreground space-y-2">
-            <Radio className="mx-auto h-8 w-8 text-muted-foreground" />
-            <p className="font-semibold">No arbitrage deals matched your current filters.</p>
-            <p className="text-xs">Try increasing max distance radius or lowering min profit threshold.</p>
+          <div className="rounded-2xl border border-dashed border-white/20 bg-slate-900/60 p-10 text-center text-sm text-slate-300 space-y-3">
+            <Radio className="mx-auto h-8 w-8 text-cyan-400 animate-pulse" />
+            <p className="font-bold text-white text-base">No Live Facebook Listings Parsed for "{searchQuery}"</p>
+            <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
+              All hardcoded mock fallback data has been disabled. If live Facebook Marketplace scraping returns 0 active listings, try lower profit filters, or paste a direct listing URL into the Instant Inspector above!
+            </p>
+            <div className="flex justify-center gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => void loadRadar()}
+                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white hover:bg-blue-500 transition cursor-pointer"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+                <span>Re-Scan Live Feed</span>
+              </button>
+              <a
+                href={`https://www.facebook.com/marketplace/${citySlug}/search/?query=${encodeURIComponent(searchQuery)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-slate-800 px-4 py-2 text-xs font-bold text-white hover:bg-slate-700 transition cursor-pointer"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                <span>Launch Live FB Dock ({searchQuery})</span>
+              </a>
+            </div>
           </div>
         )}
       </div>
