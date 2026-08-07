@@ -242,7 +242,7 @@ export default function RadarPage() {
             <div className="space-y-1.5 pt-1">
               <label className="text-[11px] font-bold text-cyan-300 block flex items-center justify-between">
                 <span>⚡ Instant Live Listing Inspector (Paste ANY Facebook Item URL)</span>
-                <span className="text-[10px] text-cyan-400 font-normal">Calculates eBay comps & net profit instantly</span>
+                <span className="text-[10px] text-cyan-400 font-normal">Syncs real listing object & calculates eBay comps</span>
               </label>
               <div className="flex flex-col sm:flex-row gap-2">
                 <input
@@ -250,35 +250,28 @@ export default function RadarPage() {
                   type="text"
                   placeholder="Paste live Facebook link (e.g. https://www.facebook.com/marketplace/item/123456789/...)"
                   className="w-full rounded-xl border border-white/10 bg-slate-950 px-3.5 py-2.5 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  onKeyDown={(e) => {
+                  onKeyDown={async (e) => {
                     if (e.key === "Enter") {
                       const url = e.currentTarget.value.trim();
                       if (url) {
-                        // Extract query or item ID
-                        let extractedName = searchQuery;
-                        if (url.includes("/item/")) {
-                          const idPart = url.split("/item/")[1]?.split("/")[0] || "";
-                          extractedName = `${searchQuery} (FB Listing #${idPart.substring(0, 6)})`;
+                        try {
+                          const res = await fetch("/api/radar/sync", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              listings: [{ itemUrl: url, title: searchQuery, price: 50 }],
+                            }),
+                          });
+                          const data = await res.json();
+                          if (data.success && data.alerts?.length > 0) {
+                            setAlerts((prev) => [...data.alerts, ...prev]);
+                            toast.success("⚡ Live listing synced! Calculated net profit comps.");
+                          } else {
+                            toast.error("Couldn't parse listing comps for this link.");
+                          }
+                        } catch {
+                          toast.error("Failed to inspect link.");
                         }
-                        const newAlert: RadarAlert = {
-                          id: `custom-fb-${Date.now()}`,
-                          title: extractedName,
-                          category: "Direct Facebook Listing",
-                          localPrice: Math.round((minProfit || 25) * 4),
-                          estimatedMarketValue: Math.round((minProfit || 25) * 7.5),
-                          potentialProfit: Math.round((minProfit || 25) * 2.8),
-                          roiPct: 185,
-                          distanceMiles: 2,
-                          sourceUrl: url,
-                          imageUrl: "https://images.unsplash.com/photo-1526738549149-8e07eca6c147?auto=format&fit=crop&w=600&q=80",
-                          marketplace: "Facebook Marketplace",
-                          confidenceScore: 100,
-                          status: "active",
-                          buyScript: `Hi! Is this item still available on Facebook Marketplace in ${citySlug.toUpperCase()}? I can pick it up today with cash.`,
-                          created_at: new Date().toISOString(),
-                        };
-                        setAlerts((prev) => [newAlert, ...prev]);
-                        toast.success("⚡ Analyzed live Facebook Marketplace listing! Net profit card added to feed.");
                         e.currentTarget.value = "";
                       }
                     }
@@ -286,44 +279,63 @@ export default function RadarPage() {
                 />
                 <button
                   type="button"
-                  onClick={() => {
+                  onClick={async () => {
                     const inputEl = document.getElementById("directUrlInput") as HTMLInputElement | null;
                     const url = inputEl?.value.trim() || "";
                     if (url) {
-                      let extractedName = searchQuery;
-                      if (url.includes("/item/")) {
-                        const idPart = url.split("/item/")[1]?.split("/")[0] || "";
-                        extractedName = `${searchQuery} (FB Listing #${idPart.substring(0, 6)})`;
+                      try {
+                        const res = await fetch("/api/radar/sync", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            listings: [{ itemUrl: url, title: searchQuery, price: 50 }],
+                          }),
+                        });
+                        const data = await res.json();
+                        if (data.success && data.alerts?.length > 0) {
+                          setAlerts((prev) => [...data.alerts, ...prev]);
+                          toast.success("⚡ Live listing synced! Calculated net profit comps.");
+                          if (inputEl) inputEl.value = "";
+                        } else {
+                          toast.error("Couldn't parse listing comps for this link.");
+                        }
+                      } catch {
+                        toast.error("Failed to inspect link.");
                       }
-                      const newAlert: RadarAlert = {
-                        id: `custom-fb-${Date.now()}`,
-                        title: extractedName,
-                        category: "Direct Facebook Listing",
-                        localPrice: 150,
-                        estimatedMarketValue: 290,
-                        potentialProfit: 110,
-                        roiPct: 190,
-                        distanceMiles: 2,
-                        sourceUrl: url,
-                        imageUrl: "https://images.unsplash.com/photo-1526738549149-8e07eca6c147?auto=format&fit=crop&w=600&q=80",
-                        marketplace: "Facebook Marketplace",
-                        confidenceScore: 100,
-                        status: "active",
-                        buyScript: `Hi! Is this item still available on Facebook Marketplace in ${citySlug.toUpperCase()}? I can pick it up today with cash.`,
-                        created_at: new Date().toISOString(),
-                      };
-                      setAlerts((prev) => [newAlert, ...prev]);
-                      toast.success("⚡ Analyzed live Facebook Marketplace listing! Net profit card added to feed.");
-                      if (inputEl) inputEl.value = "";
                     } else {
                       toast.error("Please paste a Facebook Marketplace item link first!");
                     }
                   }}
                   className="rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-2.5 text-xs font-bold text-white shadow-md hover:opacity-90 transition shrink-0 cursor-pointer"
                 >
-                  Analyze & Add Comps
+                  Inspect Live Link
                 </button>
               </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2.5 pt-2 border-t border-white/10">
+              <a
+                href={`https://www.facebook.com/marketplace/${citySlug}/search/?query=${encodeURIComponent(searchQuery)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2.5 text-xs font-bold text-white shadow-md hover:opacity-90 transition cursor-pointer"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                <span>🚀 Launch Swoopa Live FB Dock ({searchQuery || "All"})</span>
+              </a>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const bookmarkletScript = `javascript:(function(){var s=document.createElement('script');s.src='https://spadas-tech.vercel.app/spadas-swoopa-extension.js?v='+Date.now();document.body.appendChild(s);})();`;
+                  navigator.clipboard.writeText(bookmarkletScript);
+                  alert("Swoopa Live Browser Injector Script copied! Open facebook.com/marketplace -> press F12 -> paste into Console (or save as Bookmarklet) to instantly capture real listings!");
+                }}
+                className="inline-flex items-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-2.5 text-xs font-bold text-amber-300 hover:bg-amber-500/20 transition cursor-pointer"
+              >
+                <Copy className="h-3.5 w-3.5" />
+                <span>📋 Copy Swoopa 1-Click Browser Injector</span>
+              </button>
             </div>
 
             <div className="flex flex-wrap gap-2.5 pt-2 border-t border-white/10">
