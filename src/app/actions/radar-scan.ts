@@ -4,6 +4,7 @@ import { RadarAlert, RadarFilterOptions } from "@/types/radar";
 
 const DEFAULT_FB_SESSION_COOKIE = "c_user=1000046908462132";
 const SOLD_COMPS_KEY = "sc_live_f893a2e791b34c02911b";
+const FB_USER_TOKEN = process.env.FB_USER_TOKEN || "EAAPZA8hlbTvEBSEk1moys6efeToJjVkDKm2mXC32gQ3TI8fjcAWOUQHd6ydC3NXwWGOvjfTEThlMv8B9MNRoBZBqKSNdMaXbXbGryJx7cLeTEKVfahZCeKabFBZBHlCTEFg74LzMzprL0VMlnLpSjZAArVQj6f9AEItz1zCxZBTasUoiy7Rbrv0SLJDdqCs0gdhUgjf98hOOpHpEoXeQZDZD";
 
 export interface RadarScanResponse {
   deals: RadarAlert[];
