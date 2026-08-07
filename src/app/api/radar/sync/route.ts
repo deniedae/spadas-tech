@@ -1,6 +1,14 @@
 import { NextResponse } from "next/server";
 import { RadarAlert } from "@/types/radar";
 
+declare global {
+  var __spadasSyncedDeals: RadarAlert[] | undefined;
+}
+
+if (!global.__spadasSyncedDeals) {
+  global.__spadasSyncedDeals = [];
+}
+
 interface IncomingBrowserListing {
   id?: string;
   title: string;
@@ -44,6 +52,15 @@ function classifyAndCalculateComps(scrapedTitle: string, localPrice: number): { 
   };
 }
 
+export async function GET() {
+  const synced = global.__spadasSyncedDeals || [];
+  return NextResponse.json({
+    success: true,
+    count: synced.length,
+    alerts: synced,
+  });
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -62,7 +79,7 @@ export async function POST(req: Request) {
 
     const ebayFeeRate = 0.1325;
     const estShipping = 8;
-    const alerts: RadarAlert[] = [];
+    const newAlerts: RadarAlert[] = [];
 
     for (const item of rawListings) {
       if (!item.title || typeof item.price !== "number" || item.price <= 0) continue;
@@ -77,7 +94,7 @@ export async function POST(req: Request) {
       const potentialProfit = Math.round((estimatedValue - item.price - fees - estShipping) * 100) / 100;
       const roiPct = item.price > 0 ? Math.round((potentialProfit / item.price) * 100) : 0;
 
-      alerts.push({
+      newAlerts.push({
         id: `swoopa-live-${itemId}`,
         title: item.title,
         category: `Browser Live Capture (${category})`,
@@ -96,10 +113,27 @@ export async function POST(req: Request) {
       });
     }
 
+    // Save to global server memory store
+    if (!global.__spadasSyncedDeals) {
+      global.__spadasSyncedDeals = [];
+    }
+
+    const existingIds = new Set(global.__spadasSyncedDeals.map((a) => a.id));
+    for (const alert of newAlerts) {
+      if (!existingIds.has(alert.id)) {
+        global.__spadasSyncedDeals.unshift(alert);
+        existingIds.add(alert.id);
+      }
+    }
+
+    if (global.__spadasSyncedDeals.length > 50) {
+      global.__spadasSyncedDeals = global.__spadasSyncedDeals.slice(0, 50);
+    }
+
     return NextResponse.json({
       success: true,
-      count: alerts.length,
-      alerts,
+      count: global.__spadasSyncedDeals.length,
+      alerts: global.__spadasSyncedDeals,
     });
   } catch (err) {
     console.error("Radar sync endpoint error:", err);

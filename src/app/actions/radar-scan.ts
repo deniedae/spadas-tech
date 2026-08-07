@@ -230,6 +230,12 @@ export async function scanRadarArbitrage(
 
   const realAlerts: RadarAlert[] = [];
 
+  // 0. Check Extension Synced Deals from Memory Buffer
+  const syncedDeals = (global as unknown as { __spadasSyncedDeals?: RadarAlert[] }).__spadasSyncedDeals || [];
+  if (syncedDeals.length > 0) {
+    return { deals: syncedDeals };
+  }
+
   // 1. Query Direct Logged-In Facebook Marketplace Session Scraper for EXACT DIRECT ITEM URLs (/marketplace/item/123456789/)
   const liveFbDeals = await fetchLoggedInFacebookMarketplaceDeals(searchQuery, citySlug, activeCookie);
   if (liveFbDeals.length > 0) {
