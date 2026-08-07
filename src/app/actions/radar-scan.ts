@@ -5,6 +5,12 @@ import { RadarAlert, RadarFilterOptions } from "@/types/radar";
 const DEFAULT_FB_SESSION_COOKIE = "c_user=1000046908462132";
 const SOLD_COMPS_KEY = "sc_live_f893a2e791b34c02911b";
 
+export interface RadarScanResponse {
+  deals: RadarAlert[];
+  error?: string;
+  message?: string;
+}
+
 interface RealEbayItem {
   title: string;
   soldPrice: string;
@@ -24,7 +30,7 @@ interface FacebookLiveSessionListing {
 /**
  * Direct Logged-In Facebook Marketplace Live Session Scraper Engine
  * Strictly extracts genuine listing titles, prices, and fbcdn.net images directly from Facebook GraphQL stream.
- * NO default || fallbacks, NO synthetic titles, NO Unsplash stock photos!
+ * Logs cookie presence and receipt for full debugging transparency.
  */
 async function fetchLoggedInFacebookMarketplaceDeals(
   query: string,
@@ -34,17 +40,18 @@ async function fetchLoggedInFacebookMarketplaceDeals(
   const cleanCity = (citySlug || "sydney").toLowerCase().replace(/[^a-z0-9]/g, "");
   const fbSearchUrl = `https://www.facebook.com/marketplace/${cleanCity}/search/?query=${encodeURIComponent(query)}`;
 
+  const activeCookie = fbSessionCookie?.trim() || DEFAULT_FB_SESSION_COOKIE;
+
+  console.log("[RADAR_SCAN] Session Cookie Received:", Boolean(activeCookie));
+  console.log("[RADAR_SCAN] Session Cookie Length:", activeCookie.length);
+
   try {
     const headers: Record<string, string> = {
       "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
       "Accept-Language": "en-US,en;q=0.9",
       "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+      "Cookie": activeCookie,
     };
-
-    const activeCookie = fbSessionCookie || DEFAULT_FB_SESSION_COOKIE;
-    if (activeCookie) {
-      headers["Cookie"] = activeCookie;
-    }
 
     const res = await fetch(fbSearchUrl, { headers, cache: "no-store" });
     if (res.ok) {
@@ -163,38 +170,6 @@ async function fetchRealMarketData(searchQuery: string): Promise<RealEbayItem[]>
 }
 
 /**
- * Fetches REAL LIVE active items directly from eBay Live RSS Sourcing Feed
- */
-async function fetchLiveEbayRssItems(searchQuery: string): Promise<RealEbayItem[]> {
-  try {
-    const rssUrl = `https://www.ebay.com.au/sch/i.html?_nkw=${encodeURIComponent(searchQuery)}&_rss=1`;
-    const res = await fetch(rssUrl, { cache: "no-store" });
-    if (res.ok) {
-      const xml = await res.text();
-      const items: RealEbayItem[] = [];
-      const itemRegex = /<item>[\s\S]*?<title><!\[CDATA\[([\s\S]*?)\]\]><\/title>[\s\S]*?<link>([\s\S]*?)<\/link>[\s\S]*?<\/item>/gi;
-      let match;
-      while ((match = itemRegex.exec(xml)) !== null && items.length < 6) {
-        const rawTitle = match[1]?.trim();
-        const link = match[2]?.trim();
-        if (rawTitle && !rawTitle.toLowerCase().includes("sponsored")) {
-          items.push({
-            title: rawTitle,
-            soldPrice: "45",
-            soldCurrency: "AUD",
-            itemUrl: link,
-          });
-        }
-      }
-      if (items.length > 0) return items;
-    }
-  } catch (e) {
-    console.warn("eBay RSS notice:", e);
-  }
-  return [];
-}
-
-/**
  * Dynamic Item Classification Engine for eBay Comps
  * Strictly classifies the scraped listing title into Software/Video Game vs. Hardware Console
  */
@@ -233,17 +208,30 @@ function classifyAndCalculateComps(scrapedTitle: string, localPrice: number): { 
 
 export async function scanRadarArbitrage(
   filters: RadarFilterOptions & { searchQuery?: string; citySlug?: string; fbAccessToken?: string; fbSessionCookie?: string }
-): Promise<RadarAlert[]> {
+): Promise<RadarScanResponse> {
   const searchQuery = filters.searchQuery?.trim() || "Nintendo Switch";
   const citySlug = filters.citySlug || "sydney";
   const ebayFeeRate = 0.1325; // 13.25% fee
   const estShipping = 8; // $8 estimated shipping cost
   const cityTag = `${citySlug.toUpperCase()}, NSW`;
 
+  const activeCookie = filters.fbSessionCookie?.trim() || DEFAULT_FB_SESSION_COOKIE;
+
+  console.log("[RADAR_SCAN] Session Cookie Received:", Boolean(activeCookie));
+  console.log("[RADAR_SCAN] Session Cookie Length:", activeCookie ? activeCookie.length : 0);
+
+  if (!activeCookie) {
+    return {
+      error: "NO_SESSION_COOKIE",
+      message: "Facebook session cookie is missing or empty. Please enter your c_user/xs cookies.",
+      deals: [],
+    };
+  }
+
   const realAlerts: RadarAlert[] = [];
 
   // 1. Query Direct Logged-In Facebook Marketplace Session Scraper for EXACT DIRECT ITEM URLs (/marketplace/item/123456789/)
-  const liveFbDeals = await fetchLoggedInFacebookMarketplaceDeals(searchQuery, citySlug, filters.fbSessionCookie);
+  const liveFbDeals = await fetchLoggedInFacebookMarketplaceDeals(searchQuery, citySlug, activeCookie);
   if (liveFbDeals.length > 0) {
     for (const item of liveFbDeals) {
       const localPrice = item.price;
@@ -272,7 +260,7 @@ export async function scanRadarArbitrage(
     }
 
     if (realAlerts.length > 0) {
-      return realAlerts;
+      return { deals: realAlerts };
     }
   }
 
@@ -309,10 +297,10 @@ export async function scanRadarArbitrage(
     }
 
     if (realAlerts.length > 0) {
-      return realAlerts;
+      return { deals: realAlerts };
     }
   }
 
-  // 3. NO MOCK DUMMY DATA FALLBACK: Return empty array if no genuine live listings pass strict validation
-  return [];
+  // 3. NO MOCK DUMMY DATA FALLBACK: Return empty deals array if no genuine live listings pass strict validation
+  return { deals: [] };
 }

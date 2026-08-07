@@ -49,7 +49,7 @@ export default function RadarPage() {
   const loadRadar = async () => {
     setLoading(true);
     try {
-      const data = await scanRadarArbitrage({
+      const res = await scanRadarArbitrage({
         maxDistanceMiles: maxDistance,
         minProfit,
         selectedCategory,
@@ -58,7 +58,15 @@ export default function RadarPage() {
         fbAccessToken: fbToken,
         fbSessionCookie,
       });
-      setAlerts(data);
+
+      if (res && "error" in res && res.error === "NO_SESSION_COOKIE") {
+        toast.warning(res.message || "Facebook session cookie is missing. Please enter your c_user/xs cookies.");
+        setAlerts([]);
+      } else if (res && "deals" in res) {
+        setAlerts(res.deals || []);
+      } else if (Array.isArray(res)) {
+        setAlerts(res);
+      }
     } catch (err) {
       console.error("Failed to load radar arbitrage:", err);
       toast.error("Couldn't scan local arbitrage feed.");
