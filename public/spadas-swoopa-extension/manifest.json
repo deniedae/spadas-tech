@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "Spadas Swoopa — Live Facebook Marketplace Sourcer",
+  "version": "1.0.0",
+  "description": "Extracts real-time active listings directly from your logged-in Facebook Marketplace browser session and syncs them to Spadas Radar.",
+  "permissions": [
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://www.facebook.com/marketplace/*",
+    "https://spadas-tech.vercel.app/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://www.facebook.com/marketplace/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Spadas Swoopa Live Sourcer"
+  }
+}
