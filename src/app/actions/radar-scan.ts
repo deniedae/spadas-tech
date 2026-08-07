@@ -22,46 +22,9 @@ interface FacebookLiveSessionListing {
 }
 
 /**
- * Universal High-Definition Product Image Selector
- */
-function getAccurateProductImage(title: string): string {
-  const t = title.toLowerCase();
-
-  if (t.includes("just dance") || t.includes("mario") || t.includes("zelda") || t.includes("game cartridge") || t.includes("pokemon card")) {
-    return "https://images.unsplash.com/photo-1613771404784-3a5686aa2be3?auto=format&fit=crop&w=600&q=80";
-  }
-  if (t.includes("macbook") || t.includes("laptop") || t.includes("computer")) {
-    return "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=600&q=80";
-  }
-  if (t.includes("lego") || t.includes("toy") || t.includes("figure")) {
-    return "https://images.unsplash.com/photo-1585366119957-e9730b6d0f60?auto=format&fit=crop&w=600&q=80";
-  }
-  if (t.includes("watch") || t.includes("rolex") || t.includes("seiko") || t.includes("omega")) {
-    return "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=600&q=80";
-  }
-  if (t.includes("drill") || t.includes("dewalt") || t.includes("milwaukee") || t.includes("tool")) {
-    return "https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=600&q=80";
-  }
-  if (t.includes("jordan") || t.includes("yeezy") || t.includes("sneaker") || t.includes("shoe")) {
-    return "https://images.unsplash.com/photo-1552346154-21d32810aba3?auto=format&fit=crop&w=600&q=80";
-  }
-  if (t.includes("headphone") || t.includes("bose") || t.includes("airpods") || t.includes("audio")) {
-    return "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=600&q=80";
-  }
-  if (t.includes("ds") || t.includes("3ds") || t.includes("gameboy") || t.includes("handheld")) {
-    return "https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=600&q=80";
-  }
-  if (t.includes("switch") || t.includes("nintendo") || t.includes("ps5") || t.includes("playstation") || t.includes("xbox")) {
-    return "https://images.unsplash.com/photo-1578303512597-81e6cc155b3e?auto=format&fit=crop&w=600&q=80";
-  }
-
-  return "https://images.unsplash.com/photo-1526738549149-8e07eca6c147?auto=format&fit=crop&w=600&q=80";
-}
-
-/**
  * Direct Logged-In Facebook Marketplace Live Session Scraper Engine
- * Extracts exact item IDs, genuine titles, prices, and images from Facebook GraphQL HTML payload.
- * Constructs direct canonical URLs: https://www.facebook.com/marketplace/item/${listingId}/
+ * Strictly extracts genuine listing titles, prices, and fbcdn.net images directly from Facebook GraphQL stream.
+ * NO default || fallbacks, NO synthetic titles, NO Unsplash stock photos!
  */
 async function fetchLoggedInFacebookMarketplaceDeals(
   query: string,
@@ -89,7 +52,7 @@ async function fetchLoggedInFacebookMarketplaceDeals(
       const results: FacebookLiveSessionListing[] = [];
       const seenIds = new Set<string>();
 
-      // Extract real Marketplace listing IDs from Facebook's live HTML & GraphQL response object
+      // Extract real Marketplace listing IDs from Facebook's live response payload
       const idRegexes = [
         /\/marketplace\/item\/(\d{12,18})/gi,
         /"target_id":\s*"(\d{12,18})"/gi,
@@ -117,6 +80,17 @@ async function fetchLoggedInFacebookMarketplaceDeals(
         }
       }
 
+      // Extract genuine Facebook CDN image URLs (fbcdn.net) directly from Facebook GraphQL stream
+      const imageMatches: string[] = [];
+      const imageRegex = /"primary_listing_photo":\s*\{\s*"image":\s*\{\s*"uri":\s*"([^"]+)"/gi;
+      let imgMatch;
+      while ((imgMatch = imageRegex.exec(html)) !== null) {
+        const uri = imgMatch[1].replace(/\\/g, "");
+        if (uri && uri.includes("fbcdn.net") && !imageMatches.includes(uri)) {
+          imageMatches.push(uri);
+        }
+      }
+
       let index = 0;
       for (const regex of idRegexes) {
         let match;
@@ -125,19 +99,30 @@ async function fetchLoggedInFacebookMarketplaceDeals(
           if (itemId && !seenIds.has(itemId)) {
             seenIds.add(itemId);
 
-            const genuineTitle = titleMatches[index] || "";
-            const genuinePrice = priceMatches[index] || 0;
+            const title = titleMatches[index];
+            const price = priceMatches[index];
+            const imageUrl = imageMatches[index];
             index++;
 
-            if (genuineTitle && genuinePrice > 0) {
-              results.push({
-                id: itemId,
-                title: genuineTitle,
-                price: genuinePrice,
-                imageUrl: getAccurateProductImage(genuineTitle),
-                itemUrl: `https://www.facebook.com/marketplace/item/${itemId}/`,
-              });
-            }
+            // STRICT LISTING GUARDRAIL: Purge all inline fallbacks and default operators
+            const isValidListing = 
+              Boolean(title) && 
+              !title.includes("(FB Listing #") && 
+              !title.includes("Item #") && 
+              typeof price === "number" && 
+              price > 0 && 
+              Boolean(imageUrl) && 
+              imageUrl.includes("fbcdn.net");
+
+            if (!isValidListing) continue; // Skip completely if any genuine field is missing
+
+            results.push({
+              id: itemId,
+              title: title as string,
+              price: price as number,
+              imageUrl: imageUrl as string,
+              itemUrl: `https://www.facebook.com/marketplace/item/${itemId}/`,
+            });
           }
         }
       }
@@ -167,7 +152,7 @@ async function fetchRealMarketData(searchQuery: string): Promise<RealEbayItem[]>
     if (res.ok) {
       const data = (await res.json()) as { items?: RealEbayItem[] };
       if (data.items && Array.isArray(data.items) && data.items.length > 0) {
-        return data.items.filter((i) => i.title && Number(i.soldPrice) > 0);
+        return data.items.filter((i) => i.title && Number(i.soldPrice) > 0 && i.imageUrl && i.imageUrl.startsWith("http"));
       }
     }
   } catch (err) {
@@ -277,7 +262,7 @@ export async function scanRadarArbitrage(
         roiPct,
         distanceMiles: 3,
         sourceUrl: item.itemUrl, // Guaranteed format: https://www.facebook.com/marketplace/item/${itemId}/
-        imageUrl: item.imageUrl,
+        imageUrl: item.imageUrl, // Genuine fbcdn.net image URL
         marketplace: "Facebook Marketplace",
         confidenceScore: 100,
         status: "active",
@@ -291,7 +276,7 @@ export async function scanRadarArbitrage(
     }
   }
 
-  // 2. Fetch REAL LIVE Sold Data from Market Comps APIs
+  // 2. Fetch REAL LIVE Sold Data from Market Comps APIs (strictly requiring genuine image URLs)
   const realItems = await fetchRealMarketData(searchQuery);
   if (realItems.length > 0) {
     for (const item of realItems) {
@@ -302,9 +287,7 @@ export async function scanRadarArbitrage(
       const potentialProfit = Math.round((estimatedValue - localPrice - fees - estShipping) * 100) / 100;
       const roiPct = localPrice > 0 ? Math.round((potentialProfit / localPrice) * 100) : 0;
 
-      const directItemUrl = item.itemUrl && item.itemUrl.startsWith("http")
-        ? item.itemUrl
-        : `https://www.facebook.com/marketplace/${citySlug.toLowerCase()}/search/?query=${encodeURIComponent(item.title)}`;
+      if (!item.imageUrl || !item.imageUrl.startsWith("http")) continue;
 
       realAlerts.push({
         id: `real-item-${Math.random().toString(36).substring(7)}`,
@@ -315,8 +298,8 @@ export async function scanRadarArbitrage(
         potentialProfit,
         roiPct,
         distanceMiles: Math.floor(Math.random() * 8) + 2,
-        sourceUrl: directItemUrl,
-        imageUrl: item.imageUrl && item.imageUrl.startsWith("http") ? item.imageUrl : getAccurateProductImage(item.title),
+        sourceUrl: item.itemUrl || `https://www.facebook.com/marketplace/${citySlug.toLowerCase()}/search/?query=${encodeURIComponent(item.title)}`,
+        imageUrl: item.imageUrl,
         marketplace: "Facebook Marketplace",
         confidenceScore: 95,
         status: "active",
@@ -330,40 +313,6 @@ export async function scanRadarArbitrage(
     }
   }
 
-  // 3. Fetch REAL LIVE active items directly from eBay Live RSS Feed
-  const liveRssItems = await fetchLiveEbayRssItems(searchQuery);
-  if (liveRssItems.length > 0) {
-    for (const item of liveRssItems) {
-      const localPrice = 25.00;
-      const { estimatedValue, category } = classifyAndCalculateComps(item.title, localPrice);
-      const fees = Math.round(estimatedValue * ebayFeeRate * 100) / 100;
-      const potentialProfit = Math.round((estimatedValue - localPrice - fees - estShipping) * 100) / 100;
-      const roiPct = Math.round((potentialProfit / localPrice) * 100);
-
-      realAlerts.push({
-        id: `rss-item-${Math.random().toString(36).substring(7)}`,
-        title: item.title,
-        category: `Live Direct Item (${category})`,
-        localPrice,
-        estimatedMarketValue: estimatedValue,
-        potentialProfit,
-        roiPct,
-        distanceMiles: Math.floor(Math.random() * 6) + 3,
-        sourceUrl: item.itemUrl || `https://www.facebook.com/marketplace/${citySlug.toLowerCase()}/search/?query=${encodeURIComponent(item.title)}`,
-        imageUrl: getAccurateProductImage(item.title),
-        marketplace: "Facebook Marketplace",
-        confidenceScore: 94,
-        status: "active",
-        buyScript: `Hi! Is your "${item.title}" still available for $${localPrice} on Facebook Marketplace in ${cityTag}? I can pick it up today with cash.`,
-        created_at: new Date().toISOString(),
-      });
-    }
-
-    if (realAlerts.length > 0) {
-      return realAlerts;
-    }
-  }
-
-  // 4. NO MOCK DUMMY DATA FALLBACK: Return empty array if no live items found
+  // 3. NO MOCK DUMMY DATA FALLBACK: Return empty array if no genuine live listings pass strict validation
   return [];
 }
