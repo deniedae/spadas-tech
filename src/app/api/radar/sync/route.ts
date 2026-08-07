@@ -36,6 +36,16 @@ function classifyAndCalculateComps(scrapedTitle: string, localPrice: number): { 
   const isSoftware = softwareKeywords.some((kw) => t.includes(kw));
 
   if (isSoftware) {
+    if (t.includes("card") || t.includes("pokemon") || t.includes("tcg") || t.includes("lot")) {
+      let cardComp = 45.00;
+      if (t.includes("300") || t.includes("500") || t.includes("japanese")) cardComp = 75.00;
+      if (t.includes("1000") || t.includes("collection")) cardComp = 140.00;
+      return {
+        estimatedValue: cardComp,
+        category: "Trading Cards / Collectibles",
+      };
+    }
+
     const estimatedValue = Math.max(localPrice + 15, Math.round(localPrice * 1.35));
     return {
       estimatedValue: Math.min(65.00, Math.max(35.00, estimatedValue)),
