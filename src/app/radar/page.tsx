@@ -267,19 +267,21 @@ export default function RadarPage() {
                 <input
                   id="directUrlInput"
                   type="text"
-                  placeholder="Paste live Facebook link (e.g. https://www.facebook.com/marketplace/item/123456789/...)"
+                  placeholder="Paste Facebook link (e.g. https://www.facebook.com/marketplace/item/123456789/...)"
                   className="w-full rounded-xl border border-white/10 bg-slate-950 px-3.5 py-2.5 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   onKeyDown={async (e) => {
                     if (e.key === "Enter") {
                       const url = e.currentTarget.value.trim();
+                      const titleInputEl = document.getElementById("directTitleInput") as HTMLInputElement | null;
                       const priceInputEl = document.getElementById("directPriceInput") as HTMLInputElement | null;
+                      const customTitle = titleInputEl?.value.trim();
                       const itemPrice = priceInputEl?.value ? parseFloat(priceInputEl.value) : 50;
 
                       if (url) {
                         try {
                           const itemId = url.includes("/item/") ? url.split("/item/")[1]?.split("/")[0]?.split("?")[0] : `custom-${Date.now()}`;
                           const cleanUrl = url.includes("/item/") ? `https://www.facebook.com/marketplace/item/${itemId}/` : url;
-                          const displayTitle = `FB Marketplace Item #${itemId.substring(0, 8)}`;
+                          const displayTitle = customTitle || (itemId ? `FB Marketplace Item #${itemId.substring(0, 8)}` : searchQuery);
 
                           const res = await fetch("/api/radar/sync", {
                             method: "POST",
@@ -295,7 +297,7 @@ export default function RadarPage() {
                               const newItems = data.alerts.filter((a: RadarAlert) => !existing.has(a.id));
                               return [...newItems, ...prev];
                             });
-                            toast.success(`🎯 Parsed exact item #${itemId.substring(0, 8)} for $${itemPrice}! Net profit card added.`);
+                            toast.success(`🎯 Parsed "${displayTitle}" for $${itemPrice}! Net profit card added.`);
                           } else {
                             toast.error("Couldn't parse listing comps for this link.");
                           }
@@ -309,25 +311,34 @@ export default function RadarPage() {
                 />
 
                 <input
+                  id="directTitleInput"
+                  type="text"
+                  placeholder="Item Name (Optional)"
+                  className="w-full sm:w-44 rounded-xl border border-white/10 bg-slate-950 px-3.5 py-2.5 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 shrink-0"
+                />
+
+                <input
                   id="directPriceInput"
                   type="number"
                   placeholder="Price ($50)"
-                  className="w-full sm:w-32 rounded-xl border border-white/10 bg-slate-950 px-3.5 py-2.5 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 shrink-0"
+                  className="w-full sm:w-28 rounded-xl border border-white/10 bg-slate-950 px-3.5 py-2.5 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 shrink-0"
                 />
 
                 <button
                   type="button"
                   onClick={async () => {
                     const inputEl = document.getElementById("directUrlInput") as HTMLInputElement | null;
+                    const titleInputEl = document.getElementById("directTitleInput") as HTMLInputElement | null;
                     const priceInputEl = document.getElementById("directPriceInput") as HTMLInputElement | null;
                     const url = inputEl?.value.trim() || "";
+                    const customTitle = titleInputEl?.value.trim();
                     const itemPrice = priceInputEl?.value ? parseFloat(priceInputEl.value) : 50;
 
                     if (url) {
                       try {
                         const itemId = url.includes("/item/") ? url.split("/item/")[1]?.split("/")[0]?.split("?")[0] : `custom-${Date.now()}`;
                         const cleanUrl = url.includes("/item/") ? `https://www.facebook.com/marketplace/item/${itemId}/` : url;
-                        const displayTitle = `FB Marketplace Item #${itemId.substring(0, 8)}`;
+                        const displayTitle = customTitle || (itemId ? `FB Marketplace Item #${itemId.substring(0, 8)}` : searchQuery);
 
                         const res = await fetch("/api/radar/sync", {
                           method: "POST",
@@ -343,8 +354,9 @@ export default function RadarPage() {
                             const newItems = data.alerts.filter((a: RadarAlert) => !existing.has(a.id));
                             return [...newItems, ...prev];
                           });
-                          toast.success(`🎯 Parsed exact item #${itemId.substring(0, 8)} for $${itemPrice}! Net profit card added.`);
+                          toast.success(`🎯 Parsed "${displayTitle}" for $${itemPrice}! Net profit card added.`);
                           if (inputEl) inputEl.value = "";
+                          if (titleInputEl) titleInputEl.value = "";
                         } else {
                           toast.error("Couldn't parse listing comps for this link.");
                         }
