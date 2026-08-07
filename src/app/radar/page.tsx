@@ -324,9 +324,9 @@ export default function RadarPage() {
                 <span>🚀 Launch Swoopa Live FB Dock ({searchQuery || "All"})</span>
               </a>
 
-              {/* Draggable Bookmarklet Link (No Console Pasting Needed) */}
+              {/* Draggable Bookmarklet Link (100% Standalone Inline Script) */}
               <a
-                href="javascript:(function(){var s=document.createElement('script');s.src='https://spadas-tech.vercel.app/spadas-swoopa-extension.js?v='+Date.now();document.body.appendChild(s);})();"
+                href="javascript:(function(){var items=[];var seen=new Set();document.querySelectorAll('a[href*=%22/marketplace/item/%22]').forEach(function(a){var href=a.href;if(!href||!href.includes('/marketplace/item/'))return;var id=href.split('/marketplace/item/')[1].split('/')[0].split('?')[0];if(!id||seen.has(id))return;seen.add(id);var card=a.closest('div[role=%22article%22]')||a.parentElement;var txt=card?card.innerText:a.innerText;var lines=txt.split('\n').map(function(l){return l.trim();}).filter(Boolean);var price=0;var pLine=lines.find(function(l){return l.includes('$')||l.includes('A$');});if(pLine){var m=pLine.replace(/[^0-9.]/g,'');if(m)price=parseFloat(m);}var title=lines.find(function(l){return!l.includes('$')&&l.length%3E3&&!l.toLowerCase().includes('miles');})||'Marketplace Deal';if(title&&price%3E0){items.push({id:id,title:title,price:price,itemUrl:'https://www.facebook.com/marketplace/item/'+id+'/'});}});if(items.length%3E0){fetch('https://spadas-tech.vercel.app/api/radar/sync',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({listings:items})}).then(function(r){return r.json();}).then(function(d){alert('🎉 Spadas Swoopa captured '+items.length+' live listings directly from Facebook Marketplace!\n\nTop Item: '+items[0].title+' ($'+items[0].price+')\n\nSynced to Spadas Radar!');}).catch(function(e){alert('🎉 Spadas Swoopa captured '+items.length+' live listings!');});}else{alert('⚡ Spadas Swoopa active! Scroll down on Facebook Marketplace to load listings and click again.');}})();"
                 draggable={true}
                 onClick={(e) => {
                   e.preventDefault();
@@ -342,10 +342,10 @@ export default function RadarPage() {
               <button
                 type="button"
                 onClick={() => {
-                  const bookmarkletScript = `javascript:(function(){var s=document.createElement('script');s.src='https://spadas-tech.vercel.app/spadas-swoopa-extension.js?v='+Date.now();document.body.appendChild(s);})();`;
+                  const bookmarkletScript = `javascript:(function(){var items=[];var seen=new Set();document.querySelectorAll('a[href*="/marketplace/item/"]').forEach(function(a){var href=a.href;if(!href||!href.includes('/marketplace/item/'))return;var id=href.split('/marketplace/item/')[1].split('/')[0].split('?')[0];if(!id||seen.has(id))return;seen.add(id);var card=a.closest('div[role="article"]')||a.parentElement;var txt=card?card.innerText:a.innerText;var lines=txt.split('\\n').map(function(l){return l.trim();}).filter(Boolean);var price=0;var pLine=lines.find(function(l){return l.includes('$')||l.includes('A$');});if(pLine){var m=pLine.replace(/[^0-9.]/g,'');if(m)price=parseFloat(m);}var title=lines.find(function(l){return !l.includes('$')&&l.length>3&&!l.toLowerCase().includes('miles');})||'Marketplace Deal';if(title&&price>0){items.push({id:id,title:title,price:price,itemUrl:'https://www.facebook.com/marketplace/item/'+id+'/'});}});if(items.length>0){fetch('https://spadas-tech.vercel.app/api/radar/sync',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({listings:items})}).then(function(r){return r.json();}).then(function(d){alert('🎉 Spadas Swoopa captured '+items.length+' live listings directly from Facebook Marketplace!\\n\\nTop Item: '+items[0].title+' ($'+items[0].price+')\\n\\nSynced to Spadas Radar!');}).catch(function(e){alert('🎉 Spadas Swoopa captured '+items.length+' live listings!');});}else{alert('⚡ Spadas Swoopa active! Scroll down on Facebook Marketplace to load listings and click again.');}})();`;
                   navigator.clipboard.writeText(bookmarkletScript);
                   alert(
-                    "📋 Swoopa Script Copied!\n\n" +
+                    "📋 Standalone Swoopa Script Copied!\n\n" +
                     "💡 CHROME SECURITY NOTE:\n" +
                     "If Chrome Console shows 'Warning: Don't paste code', type:\n\n" +
                     "   allow pasting\n\n" +
@@ -356,7 +356,7 @@ export default function RadarPage() {
                 className="inline-flex items-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-2.5 text-xs font-bold text-amber-300 hover:bg-amber-500/20 transition cursor-pointer"
               >
                 <Copy className="h-3.5 w-3.5" />
-                <span>📋 Copy Console Script</span>
+                <span>📋 Copy Standalone Console Script</span>
               </button>
             </div>
           </div>
