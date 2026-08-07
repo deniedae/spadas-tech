@@ -159,11 +159,48 @@ async function fetchRealMarketData(searchQuery: string): Promise<RealEbayItem[]>
     if (res.ok) {
       const data = (await res.json()) as { items?: RealEbayItem[] };
       if (data.items && Array.isArray(data.items) && data.items.length > 0) {
-        return data.items.filter((i) => i.title && Number(i.soldPrice) > 0 && i.imageUrl && i.imageUrl.startsWith("http"));
+        const filtered = data.items.filter((i) => i.title && Number(i.soldPrice) > 0 && i.imageUrl && i.imageUrl.startsWith("http"));
+        if (filtered.length > 0) return filtered;
       }
     }
   } catch (err) {
     console.warn("Live sold-comps API notice:", err);
+  }
+
+  // Backup eBay Australia Sold Comps Scraper Feed
+  try {
+    const ebayUrl = `https://www.ebay.com.au/sch/i.html?_nkw=${keywordEnc}&_sacat=0&LH_Sold=1&LH_Complete=1&_sop=12`;
+    const res = await fetch(ebayUrl, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      },
+      next: { revalidate: 300 },
+    });
+    if (res.ok) {
+      const html = await res.text();
+      const items: RealEbayItem[] = [];
+      const titleMatches = [...html.matchAll(/class="s-item__title"[^>]*><span[^>]*>([^<]+)<\/span>/gi)].map((m) => m[1]);
+      const priceMatches = [...html.matchAll(/class="s-item__price"[^>]*><span[^>]*>\$([0-9.,]+)<\/span>/gi)].map((m) => parseFloat(m[1].replace(/,/g, "")));
+      const imgMatches = [...html.matchAll(/src="(https:\/\/i\.ebayimg\.com\/images\/g\/[^"]+)"/gi)].map((m) => m[1]);
+
+      for (let i = 0; i < titleMatches.length && items.length < 6; i++) {
+        const title = titleMatches[i];
+        const price = priceMatches[i];
+        const imageUrl = imgMatches[i];
+        if (title && !title.includes("Shop on eBay") && price > 0 && imageUrl) {
+          items.push({
+            title,
+            soldPrice: price.toString(),
+            soldCurrency: "AUD",
+            imageUrl,
+            itemUrl: `https://www.facebook.com/marketplace/sydney/search/?query=${encodeURIComponent(title)}`,
+          });
+        }
+      }
+      if (items.length > 0) return items;
+    }
+  } catch (err) {
+    console.warn("eBay Sold Comps scraper notice:", err);
   }
 
   return [];

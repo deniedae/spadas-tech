@@ -77,6 +77,25 @@ export default function RadarPage() {
 
   useEffect(() => {
     void loadRadar();
+
+    const pollSync = async () => {
+      try {
+        const res = await fetch("/api/radar/sync");
+        const data = await res.json();
+        if (data.success && data.alerts && data.alerts.length > 0) {
+          setAlerts((prev) => {
+            const existingIds = new Set(prev.map((a) => a.id));
+            const newDeals = data.alerts.filter((a: RadarAlert) => !existingIds.has(a.id));
+            return newDeals.length > 0 ? [...newDeals, ...prev] : prev;
+          });
+        }
+      } catch (err) {
+        // silent
+      }
+    };
+
+    const interval = setInterval(pollSync, 2500);
+    return () => clearInterval(interval);
   }, [maxDistance, minProfit, selectedCategory]);
 
   const handleCopyScript = (alert: RadarAlert) => {
