@@ -9,6 +9,12 @@ if (!global.__spadasSyncedDeals) {
   global.__spadasSyncedDeals = [];
 }
 
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+};
+
 interface IncomingBrowserListing {
   id?: string;
   title: string;
@@ -52,13 +58,20 @@ function classifyAndCalculateComps(scrapedTitle: string, localPrice: number): { 
   };
 }
 
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 200, headers: CORS_HEADERS });
+}
+
 export async function GET() {
   const synced = global.__spadasSyncedDeals || [];
-  return NextResponse.json({
-    success: true,
-    count: synced.length,
-    alerts: synced,
-  });
+  return NextResponse.json(
+    {
+      success: true,
+      count: synced.length,
+      alerts: synced,
+    },
+    { headers: CORS_HEADERS }
+  );
 }
 
 export async function POST(req: Request) {
@@ -73,7 +86,7 @@ export async function POST(req: Request) {
     if (rawListings.length === 0) {
       return NextResponse.json(
         { success: false, error: "NO_LISTINGS_PROVIDED", message: "No valid listings passed in payload.", alerts: [] },
-        { status: 400 }
+        { status: 400, headers: CORS_HEADERS }
       );
     }
 
@@ -113,7 +126,6 @@ export async function POST(req: Request) {
       });
     }
 
-    // Save to global server memory store
     if (!global.__spadasSyncedDeals) {
       global.__spadasSyncedDeals = [];
     }
@@ -130,16 +142,19 @@ export async function POST(req: Request) {
       global.__spadasSyncedDeals = global.__spadasSyncedDeals.slice(0, 50);
     }
 
-    return NextResponse.json({
-      success: true,
-      count: global.__spadasSyncedDeals.length,
-      alerts: global.__spadasSyncedDeals,
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        count: global.__spadasSyncedDeals.length,
+        alerts: global.__spadasSyncedDeals,
+      },
+      { headers: CORS_HEADERS }
+    );
   } catch (err) {
     console.error("Radar sync endpoint error:", err);
     return NextResponse.json(
       { success: false, error: "INTERNAL_ERROR", message: "Failed to process live browser sync payload." },
-      { status: 500 }
+      { status: 500, headers: CORS_HEADERS }
     );
   }
 }

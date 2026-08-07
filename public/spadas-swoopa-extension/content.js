@@ -57,18 +57,27 @@ function parseAndSyncMarketplaceListings() {
   });
 
   if (listings.length > 0) {
-    console.log(`⚡ [SPADAS_SWOOPA] Syncing ${listings.length} live listings to Spadas Radar...`, listings);
+    console.log(`⚡ [SPADAS_SWOOPA] Sending ${listings.length} live listings to Background Service Worker...`, listings);
 
-    fetch("https://spadas-tech.vercel.app/api/radar/sync", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ listings }),
-    })
-      .then((r) => r.json())
-      .then((data) => {
-        console.log("✅ [SPADAS_SWOOPA] Sync complete!", data);
+    if (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.sendMessage) {
+      chrome.runtime.sendMessage({ type: "SYNC_LISTINGS", listings }, (response) => {
+        if (chrome.runtime.lastError) {
+          console.warn("Spadas Swoopa BG Message Notice:", chrome.runtime.lastError);
+        } else {
+          console.log("✅ [SPADAS_SWOOPA] Background Worker Sync Result:", response);
+        }
+      });
+    } else {
+      // Fallback direct fetch with CORS headers
+      fetch("https://spadas-tech.vercel.app/api/radar/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ listings }),
       })
-      .catch((err) => console.warn("Spadas Swoopa Extension Sync Notice:", err));
+        .then((r) => r.json())
+        .then((data) => console.log("✅ [SPADAS_SWOOPA] Direct Sync Result:", data))
+        .catch((err) => console.warn("Spadas Swoopa Direct Sync Notice:", err));
+    }
   }
 }
 
