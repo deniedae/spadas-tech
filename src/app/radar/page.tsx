@@ -573,7 +573,13 @@ export default function RadarPage() {
                       className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-xs font-bold text-white shadow-md transition hover:opacity-90 cursor-pointer"
                     >
                       <ExternalLink className="h-4 w-4" />
-                      <span>Open Listing on Facebook</span>
+                      <span>
+                        {cleanUrl.includes("/marketplace/item/")
+                          ? "🎯 Open Exact Direct Listing Page"
+                          : cleanUrl.includes("ebay.com")
+                          ? "🟨 Open Direct Live Item Page"
+                          : "🚀 Open Live Search Feed on Facebook"}
+                      </span>
                     </a>
 
                     <button

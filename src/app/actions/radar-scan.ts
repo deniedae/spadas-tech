@@ -244,7 +244,7 @@ export async function scanRadarArbitrage(
     }
   }
 
-  // 2. Fetch REAL LIVE Sold Data from Market Comps APIs
+  // 2. Fetch REAL LIVE Sold Data from Market Comps APIs (Using Direct Item URLs)
   const realItems = await fetchRealMarketData(searchQuery);
 
   if (realItems.length > 0) {
@@ -257,19 +257,19 @@ export async function scanRadarArbitrage(
 
       const confidenceScore = Math.floor(Math.random() * 7) + 93;
       const buyScript = `Hi! Is this "${item.title}" still available for $${localPrice} on Facebook Marketplace in ${cityTag}? I can pick it up today with cash.`;
-      const cleanFbUrl = buildTargetedFacebookUrl(citySlug, item.title);
+      const directItemUrl = item.itemUrl && item.itemUrl.startsWith("http") ? item.itemUrl : buildTargetedFacebookUrl(citySlug, item.title);
       const img = item.imageUrl && item.imageUrl.startsWith("http") ? item.imageUrl : getAccurateProductImage(item.title);
 
       realAlerts.push({
         id: `real-item-${Math.random().toString(36).substring(7)}`,
         title: item.title,
-        category: "Verified Live Market Deal",
+        category: "Verified Live Item",
         localPrice,
         estimatedMarketValue: Math.round(soldPrice * 100) / 100,
         potentialProfit,
         roiPct,
         distanceMiles: Math.floor(Math.random() * 8) + 2,
-        sourceUrl: cleanFbUrl,
+        sourceUrl: directItemUrl,
         imageUrl: img,
         marketplace: "Facebook Marketplace",
         confidenceScore,
@@ -284,7 +284,7 @@ export async function scanRadarArbitrage(
     }
   }
 
-  // 3. Fetch REAL LIVE active items directly from eBay Live RSS Sourcing Feed
+  // 3. Fetch REAL LIVE active items directly from eBay Live RSS Feed (Exact Direct Item URLs)
   const liveRssItems = await fetchLiveEbayRssItems(searchQuery);
   if (liveRssItems.length > 0) {
     for (const item of liveRssItems) {
@@ -305,13 +305,13 @@ export async function scanRadarArbitrage(
       realAlerts.push({
         id: `rss-item-${Math.random().toString(36).substring(7)}`,
         title: item.title,
-        category: "Live Sourced Product",
+        category: "Live Direct Item Page",
         localPrice,
         estimatedMarketValue: estComp,
         potentialProfit,
         roiPct,
         distanceMiles: Math.floor(Math.random() * 6) + 3,
-        sourceUrl: buildTargetedFacebookUrl(citySlug, item.title),
+        sourceUrl: item.itemUrl || buildTargetedFacebookUrl(citySlug, item.title),
         imageUrl: getAccurateProductImage(item.title),
         marketplace: "Facebook Marketplace",
         confidenceScore: 97,
@@ -326,7 +326,7 @@ export async function scanRadarArbitrage(
     }
   }
 
-  // 4. Guaranteed High-Yield Fallback Deals
+  // 4. Fallback Sourcing Targets
   const cleanTerm = searchQuery.toLowerCase();
   let baseCompPrice = 280.00;
 
@@ -352,7 +352,7 @@ export async function scanRadarArbitrage(
     realAlerts.push({
       id: `fb-fallback-${i}-${Date.now()}`,
       title: item.title,
-      category: "Facebook Marketplace",
+      category: "Marketplace Search Target",
       localPrice: item.price,
       estimatedMarketValue: item.estVal,
       potentialProfit,
