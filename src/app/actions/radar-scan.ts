@@ -2,8 +2,6 @@
 
 import { RadarAlert, RadarFilterOptions } from "@/types/radar";
 
-const DEFAULT_FB_ACCESS_TOKEN = "EAAPZA8hlbTvEBSFN0AwCknbbAzZAJKlBi5xzC83WXMBwOYTPhuY6hIIzOs1YnxifvndCZBKrIIVt9lGdHcswL6fY2hm7Rp2ARxuZAEYgNRIAvhh2lHdcC0hplm0Xmf2Au6EBT6oV0OagY5IYZC0a3g0mm5tS2CbqkIxeC6gJ1d2AiP3a0qZCN0oZAL0MXLMujW0FDPGePZDO69kyf07WY6v28OZDZD";
-const DEFAULT_FB_APP_TOKEN = "1084058760859377|9ds4iyCymQ-AVjKNpA8eBsbSctI";
 const DEFAULT_FB_SESSION_COOKIE = "c_user=1000046908462132";
 const SOLD_COMPS_KEY = "sc_live_f893a2e791b34c02911b";
 
@@ -62,8 +60,8 @@ function getAccurateProductImage(title: string): string {
 
 /**
  * Direct Logged-In Facebook Marketplace Live Session Scraper Engine
- * Strictly parses genuine listing titles, prices, and images from Facebook GraphQL HTML stream.
- * NO title injection or artificial query prepending!
+ * Extracts exact item IDs, genuine titles, prices, and images from Facebook GraphQL HTML payload.
+ * Constructs direct canonical URLs: https://www.facebook.com/marketplace/item/${listingId}/
  */
 async function fetchLoggedInFacebookMarketplaceDeals(
   query: string,
@@ -91,7 +89,7 @@ async function fetchLoggedInFacebookMarketplaceDeals(
       const results: FacebookLiveSessionListing[] = [];
       const seenIds = new Set<string>();
 
-      // Extract real Marketplace listing IDs from Facebook's live HTML & GraphQL payload
+      // Extract real Marketplace listing IDs from Facebook's live HTML & GraphQL response object
       const idRegexes = [
         /\/marketplace\/item\/(\d{12,18})/gi,
         /"target_id":\s*"(\d{12,18})"/gi,
@@ -127,7 +125,6 @@ async function fetchLoggedInFacebookMarketplaceDeals(
           if (itemId && !seenIds.has(itemId)) {
             seenIds.add(itemId);
 
-            // Use genuine title extracted from Facebook payload (no query injection)
             const genuineTitle = titleMatches[index] || "";
             const genuinePrice = priceMatches[index] || 0;
             index++;
@@ -219,7 +216,6 @@ async function fetchLiveEbayRssItems(searchQuery: string): Promise<RealEbayItem[
 function classifyAndCalculateComps(scrapedTitle: string, localPrice: number): { estimatedValue: number; category: string } {
   const t = scrapedTitle.toLowerCase();
 
-  // 1. Check if the listing is Software / Video Game / Accessory
   const softwareKeywords = [
     "just dance", "mario", "zelda", "pokemon", "cartridge", "disc", "game",
     "case", "cover", "fifa", "nba", "gta", "smash bros", "call of duty", "accessory"
@@ -228,7 +224,6 @@ function classifyAndCalculateComps(scrapedTitle: string, localPrice: number): { 
   const isSoftware = softwareKeywords.some((kw) => t.includes(kw));
 
   if (isSoftware) {
-    // Video Game software comps range between $35.00 and $65.00
     const estimatedValue = Math.max(localPrice + 15, Math.round(localPrice * 1.35));
     return {
       estimatedValue: Math.min(65.00, Math.max(35.00, estimatedValue)),
@@ -236,7 +231,6 @@ function classifyAndCalculateComps(scrapedTitle: string, localPrice: number): { 
     };
   }
 
-  // 2. Check Hardware Consoles & Devices
   if (t.includes("oled")) return { estimatedValue: 380.00, category: "Hardware Console" };
   if (t.includes("switch lite")) return { estimatedValue: 180.00, category: "Hardware Console" };
   if (t.includes("switch")) return { estimatedValue: 280.00, category: "Hardware Console" };
@@ -275,14 +269,14 @@ export async function scanRadarArbitrage(
 
       realAlerts.push({
         id: `fb-session-${item.id}`,
-        title: item.title, // Genuine scraped title from Facebook payload
+        title: item.title,
         category: `Direct FB Listing (${category})`,
         localPrice,
         estimatedMarketValue: estimatedValue,
         potentialProfit,
         roiPct,
         distanceMiles: 3,
-        sourceUrl: item.itemUrl,
+        sourceUrl: item.itemUrl, // Guaranteed format: https://www.facebook.com/marketplace/item/${itemId}/
         imageUrl: item.imageUrl,
         marketplace: "Facebook Marketplace",
         confidenceScore: 100,
@@ -370,6 +364,6 @@ export async function scanRadarArbitrage(
     }
   }
 
-  // 4. NO MOCK DUMMY DATA FALLBACK: If live scraping and live market feeds return 0 listings, return [] so UI shows clean empty state!
+  // 4. NO MOCK DUMMY DATA FALLBACK: Return empty array if no live items found
   return [];
 }
