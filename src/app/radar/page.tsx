@@ -261,7 +261,7 @@ export default function RadarPage() {
             <div className="space-y-1.5 pt-1">
               <label className="text-[11px] font-bold text-cyan-300 block flex items-center justify-between">
                 <span>⚡ Instant Live Listing Inspector (Paste ANY Facebook Item URL)</span>
-                <span className="text-[10px] text-cyan-400 font-normal">Syncs real listing object & calculates eBay comps</span>
+                <span className="text-[10px] text-cyan-400 font-normal">Syncs real item URL & calculates exact eBay comps</span>
               </label>
               <div className="flex flex-col sm:flex-row gap-2">
                 <input
@@ -272,6 +272,9 @@ export default function RadarPage() {
                   onKeyDown={async (e) => {
                     if (e.key === "Enter") {
                       const url = e.currentTarget.value.trim();
+                      const priceInputEl = document.getElementById("directPriceInput") as HTMLInputElement | null;
+                      const itemPrice = priceInputEl?.value ? parseFloat(priceInputEl.value) : 50;
+
                       if (url) {
                         try {
                           const itemId = url.includes("/item/") ? url.split("/item/")[1]?.split("/")[0]?.split("?")[0] : `custom-${Date.now()}`;
@@ -282,7 +285,7 @@ export default function RadarPage() {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
                             body: JSON.stringify({
-                              listings: [{ id: itemId, itemUrl: cleanUrl, title: displayTitle, price: 120 }],
+                              listings: [{ id: itemId, itemUrl: cleanUrl, title: displayTitle, price: itemPrice }],
                             }),
                           });
                           const data = await res.json();
@@ -292,7 +295,7 @@ export default function RadarPage() {
                               const newItems = data.alerts.filter((a: RadarAlert) => !existing.has(a.id));
                               return [...newItems, ...prev];
                             });
-                            toast.success(`🎯 Parsed exact item #${itemId.substring(0, 8)}! Net profit card added to feed.`);
+                            toast.success(`🎯 Parsed exact item #${itemId.substring(0, 8)} for $${itemPrice}! Net profit card added.`);
                           } else {
                             toast.error("Couldn't parse listing comps for this link.");
                           }
@@ -304,11 +307,22 @@ export default function RadarPage() {
                     }
                   }}
                 />
+
+                <input
+                  id="directPriceInput"
+                  type="number"
+                  placeholder="Price ($50)"
+                  className="w-full sm:w-32 rounded-xl border border-white/10 bg-slate-950 px-3.5 py-2.5 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 shrink-0"
+                />
+
                 <button
                   type="button"
                   onClick={async () => {
                     const inputEl = document.getElementById("directUrlInput") as HTMLInputElement | null;
+                    const priceInputEl = document.getElementById("directPriceInput") as HTMLInputElement | null;
                     const url = inputEl?.value.trim() || "";
+                    const itemPrice = priceInputEl?.value ? parseFloat(priceInputEl.value) : 50;
+
                     if (url) {
                       try {
                         const itemId = url.includes("/item/") ? url.split("/item/")[1]?.split("/")[0]?.split("?")[0] : `custom-${Date.now()}`;
@@ -319,7 +333,7 @@ export default function RadarPage() {
                           method: "POST",
                           headers: { "Content-Type": "application/json" },
                           body: JSON.stringify({
-                            listings: [{ id: itemId, itemUrl: cleanUrl, title: displayTitle, price: 120 }],
+                            listings: [{ id: itemId, itemUrl: cleanUrl, title: displayTitle, price: itemPrice }],
                           }),
                         });
                         const data = await res.json();
@@ -329,7 +343,7 @@ export default function RadarPage() {
                             const newItems = data.alerts.filter((a: RadarAlert) => !existing.has(a.id));
                             return [...newItems, ...prev];
                           });
-                          toast.success(`🎯 Parsed exact item #${itemId.substring(0, 8)}! Net profit card added to feed.`);
+                          toast.success(`🎯 Parsed exact item #${itemId.substring(0, 8)} for $${itemPrice}! Net profit card added.`);
                           if (inputEl) inputEl.value = "";
                         } else {
                           toast.error("Couldn't parse listing comps for this link.");
