@@ -276,7 +276,7 @@ export default function RadarPage() {
                         try {
                           const itemId = url.includes("/item/") ? url.split("/item/")[1]?.split("/")[0]?.split("?")[0] : `custom-${Date.now()}`;
                           const cleanUrl = url.includes("/item/") ? `https://www.facebook.com/marketplace/item/${itemId}/` : url;
-                          const displayTitle = itemId ? `${searchQuery} (FB Listing #${itemId.substring(0, 6)})` : searchQuery;
+                          const displayTitle = `FB Marketplace Item #${itemId.substring(0, 8)}`;
 
                           const res = await fetch("/api/radar/sync", {
                             method: "POST",
@@ -292,7 +292,7 @@ export default function RadarPage() {
                               const newItems = data.alerts.filter((a: RadarAlert) => !existing.has(a.id));
                               return [...newItems, ...prev];
                             });
-                            toast.success(`🎯 Parsed exact item #${itemId.substring(0, 6)}! Net profit card added to feed.`);
+                            toast.success(`🎯 Parsed exact item #${itemId.substring(0, 8)}! Net profit card added to feed.`);
                           } else {
                             toast.error("Couldn't parse listing comps for this link.");
                           }
@@ -313,7 +313,7 @@ export default function RadarPage() {
                       try {
                         const itemId = url.includes("/item/") ? url.split("/item/")[1]?.split("/")[0]?.split("?")[0] : `custom-${Date.now()}`;
                         const cleanUrl = url.includes("/item/") ? `https://www.facebook.com/marketplace/item/${itemId}/` : url;
-                        const displayTitle = itemId ? `${searchQuery} (FB Listing #${itemId.substring(0, 6)})` : searchQuery;
+                        const displayTitle = `FB Marketplace Item #${itemId.substring(0, 8)}`;
 
                         const res = await fetch("/api/radar/sync", {
                           method: "POST",
@@ -329,7 +329,7 @@ export default function RadarPage() {
                             const newItems = data.alerts.filter((a: RadarAlert) => !existing.has(a.id));
                             return [...newItems, ...prev];
                           });
-                          toast.success(`🎯 Parsed exact item #${itemId.substring(0, 6)}! Net profit card added to feed.`);
+                          toast.success(`🎯 Parsed exact item #${itemId.substring(0, 8)}! Net profit card added to feed.`);
                           if (inputEl) inputEl.value = "";
                         } else {
                           toast.error("Couldn't parse listing comps for this link.");
