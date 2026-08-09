@@ -36,6 +36,9 @@ export default function Home() {
           </Link>
 
           <div className="flex items-center gap-4">
+            <Link href="/creators" className="text-sm text-slate-300 transition hover:text-white hidden sm:inline-block">
+              Creator Program
+            </Link>
             <Link href="/press" className="text-sm text-slate-300 transition hover:text-white hidden sm:inline-block">
               Press Kit
             </Link>

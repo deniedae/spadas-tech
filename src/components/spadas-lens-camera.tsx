@@ -292,7 +292,7 @@ export default function SpadasLensCamera() {
       const res = await fetch("/api/ai-listing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageUrls: [frameDataUrl] }),
+        body: JSON.stringify({ imageUrls: [frameDataUrl], isArScan: true }),
       });
 
       if (res.status === 429) {

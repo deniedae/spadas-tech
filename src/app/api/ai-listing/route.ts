@@ -35,20 +35,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Usage Limit Check
-    const usage = await checkUserUsage(user.id);
-    if (usage.limitReached) {
-      return NextResponse.json(
-        {
-          error:
-            "Free plan limit reached (10/10 AI generations used). Upgrade to Pro for unlimited AI listings.",
-          limitReached: true,
-        },
-        { status: 403 }
-      );
-    }
-
-    const { imageUrls } = (await request.json()) as { imageUrls?: string[] };
+    const body = await request.json().catch(() => ({}));
+    const { imageUrls, isArScan } = body as { imageUrls?: string[]; isArScan?: boolean };
 
     if (!imageUrls || imageUrls.length === 0) {
       return NextResponse.json(
@@ -57,13 +45,28 @@ export async function POST(request: Request) {
       );
     }
 
+    // Usage Limit Check (Bypassed for real-time live AR continuous video stream)
+    if (!isArScan) {
+      const usage = await checkUserUsage(user.id);
+      if (usage.limitReached) {
+        return NextResponse.json(
+          {
+            error:
+              "Free plan limit reached (10/10 AI generations used). Upgrade to Pro for unlimited AI listings.",
+            limitReached: true,
+          },
+          { status: 403 }
+        );
+      }
+    }
+
     const imageContent = imageUrls.map((url) => ({
       type: "image_url" as const,
-      image_url: { url, detail: "high" as const },
+      image_url: { url, detail: "low" as const },
     }));
 
     let completion;
-    const targetModels = ["gpt-4.5-preview", "gpt-4o-2024-11-20", "gpt-4o"];
+    const targetModels = ["gpt-4o-mini", "gpt-4o", "gpt-4o-2024-11-20"];
 
     for (const modelName of targetModels) {
       try {
@@ -204,14 +207,16 @@ Rules:
       result.suggested_price_max = lockedMid + 3;
     }
 
-    // Record AI generation usage immediately so free plan ticks down correctly
-    await supabase.from("ai_listing_analyses").insert([
-      {
-        user_id: user.id,
-        image_urls: imageUrls,
-        result,
-      },
-    ]);
+    // Record AI generation usage for listing generations (skipping temporary live AR video frames)
+    if (!isArScan) {
+      await supabase.from("ai_listing_analyses").insert([
+        {
+          user_id: user.id,
+          image_urls: imageUrls,
+          result,
+        },
+      ]);
+    }
 
     return NextResponse.json(result);
   } catch (err) {
