@@ -66,7 +66,16 @@ export async function POST(request: Request) {
     }));
 
     let completion;
-    const targetModels = ["gpt-4o-mini", "gpt-4o", "gpt-4o-2024-11-20"];
+    const targetModels = [
+      "gpt-5-mini",
+      "gpt-5.4-mini",
+      "gpt-5",
+      "gpt-5.6-sol",
+      "chat-latest",
+      "gpt-4o-mini",
+      "gpt-4.1-mini",
+      "gpt-4o",
+    ];
 
     for (const modelName of targetModels) {
       try {
