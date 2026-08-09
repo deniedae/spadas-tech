@@ -1,21 +1,90 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { Camera, Volume2, VolumeX, Sparkles, CheckCircle2, RefreshCw, Zap, ShieldAlert } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Camera, Volume2, VolumeX, Sparkles, CheckCircle2, RefreshCw, Zap, ShieldAlert, Clock, ArrowRight } from "lucide-react";
+import { toast } from "sonner";
 import { fmtMoney } from "@/app/lib/listings";
+import { createListing } from "@/app/lib/createlisting";
+import { supabase } from "@/app/lib/supabase";
 
 interface DetectedHit {
   id: string;
   name: string;
   category: string;
+  condition: string;
   estimatedValue: number;
+  estCost: number;
+  estimatedProfit: number;
   estRoi: number;
   verdict: "BUY" | "CAUTION" | "PASS";
   confidence: number;
   bbox: { x: number; y: number; width: number; height: number }; // percentage coords
+  timestamp: number;
+}
+
+// Stop-words list for debouncer filtering
+const STOP_WORDS = new Set([
+  "with", "in", "the", "and", "a", "an", "of", "for", "to", "on", "at", "by",
+  "mens", "womens", "original", "box", "item", "used", "new", "style", "type",
+  "authentic", "vintage", "retro", "brand", "edition", "set", "pack", "lot"
+]);
+
+// Keyword Similarity Checker with Stop-Word Filtering
+function getKeywordSimilarity(str1: string, str2: string): number {
+  const normalize = (s: string) =>
+    s
+      .toLowerCase()
+      .replace(/'s\b/g, "")
+      .replace(/[^a-z0-9\s]/g, "")
+      .split(/\s+/)
+      .filter((w) => w.length >= 2 && !STOP_WORDS.has(w));
+
+  const words1 = normalize(str1);
+  const words2 = normalize(str2);
+
+  if (words1.length === 0 || words2.length === 0) {
+    const raw1 = str1.toLowerCase().replace(/[^a-z0-9\s]/g, "").split(/\s+/).filter((w) => w.length >= 2);
+    const raw2 = str2.toLowerCase().replace(/[^a-z0-9\s]/g, "").split(/\s+/).filter((w) => w.length >= 2);
+    if (raw1.length === 0 || raw2.length === 0) return 0;
+    const s1 = new Set(raw1);
+    const s2 = new Set(raw2);
+    let common = 0;
+    s1.forEach((w) => { if (s2.has(w)) common++; });
+    return common / Math.max(s1.size, s2.size);
+  }
+
+  const set1 = new Set(words1);
+  const set2 = new Set(words2);
+
+  let common = 0;
+  set1.forEach((w) => {
+    if (set2.has(w)) common++;
+  });
+
+  const minSize = Math.min(set1.size, set2.size);
+  const maxSize = Math.max(set1.size, set2.size);
+  const dice = (2 * common) / (set1.size + set2.size);
+  const minOverlap = common / minSize;
+  const maxOverlap = common / maxSize;
+
+  return Math.max(dice, minOverlap, maxOverlap);
+}
+
+// Strict Vacuum Cleaner Filter
+function isVacuumCleaner(name: string, category: string): boolean {
+  const text = `${name} ${category}`.toLowerCase();
+  return /\b(vacuum|cleaner|hoover|roomba|dyson\s*v\d+|bissel|eureka|dustbuster|shop-vac|sweeper)\b/i.test(text);
+}
+
+// Strict Hardware & Electronics Filter
+function isHardwareOrElectronics(name: string, category: string): boolean {
+  const text = `${name} ${category}`.toLowerCase();
+  return /\b(hardware|electronics|console|playstation|xbox|nintendo|gpu|graphics card|cpu|motherboard|laptop|computer|phone|tablet|headset|audio|amplifier|receiver|camera|gadget|appliance|power tool|drill|saw|monitor|display)\b/i.test(text);
 }
 
 export default function SpadasLensCamera() {
+  const router = useRouter();
   const videoRef = useRef<HTMLVideoElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [scanning, setScanning] = useState(false);
@@ -24,11 +93,67 @@ export default function SpadasLensCamera() {
   const [analyzingRealFrame, setAnalyzingRealFrame] = useState(false);
   const [activeHits, setActiveHits] = useState<DetectedHit[]>([]);
   const [capturedLog, setCapturedLog] = useState<DetectedHit[]>([]);
+  const [selectedHitIds, setSelectedHitIds] = useState<string[]>([]);
+  const [exporting, setExporting] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
 
+  // Track last chimed item for anti-spam loop prevention
+  const lastChimedRef = useRef<{ name: string; time: number } | null>(null);
 
+  // Selectable Hit Cards Helpers
+  const toggleSelectHit = (id: string) => {
+    setSelectedHitIds((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+    );
+  };
 
-  // Bind stream to video element whenever stream changes or component mounts
+  const selectAllHits = () => {
+    if (selectedHitIds.length === capturedLog.length) {
+      setSelectedHitIds([]);
+    } else {
+      setSelectedHitIds(capturedLog.map((h) => h.id));
+    }
+  };
+
+  // Export Selected Hits to AI Listing Generator / Drafts
+  const exportSelectedHits = async () => {
+    const selectedHits = capturedLog.filter((h) => selectedHitIds.includes(h.id));
+    if (selectedHits.length === 0) return;
+
+    setExporting(true);
+    try {
+      if (typeof window !== "undefined") {
+        localStorage.setItem("spadas_lens_exported_drafts", JSON.stringify(selectedHits));
+      }
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (user) {
+        for (const hit of selectedHits) {
+          await createListing({
+            userId: user.id,
+            product: hit.name,
+            price: hit.estimatedValue,
+            cost: hit.estCost,
+            status: "Draft",
+            description: `Identified via Spadas Lens AR Scanner. Category: ${hit.category}. Condition: ${hit.condition}. Est. Net Profit: A$${hit.estimatedProfit.toFixed(2)}`,
+          });
+        }
+      }
+
+      toast.success(`Successfully exported ${selectedHits.length} hit(s) to Drafts!`);
+      router.push(`/generator?fromLens=true&exportedCount=${selectedHits.length}`);
+    } catch (err) {
+      console.error("Export to drafts error:", err);
+      toast.error("Failed to export drafts.");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  // Bind stream to video element whenever stream changes
   useEffect(() => {
     if (videoRef.current && stream) {
       videoRef.current.srcObject = stream;
@@ -36,14 +161,13 @@ export default function SpadasLensCamera() {
     }
   }, [stream]);
 
-  // Start Camera Stream with 1080p / 4K Ultra-HD resolution constraints for mobile devices
+  // Start Camera Stream with smooth 60fps raw video feed
   const startCamera = async () => {
     try {
       setCameraError(null);
       let mediaStream: MediaStream | null = null;
 
       try {
-        // Try rear 1080p environment camera first
         mediaStream = await navigator.mediaDevices.getUserMedia({
           video: {
             facingMode: { ideal: "environment" },
@@ -55,17 +179,16 @@ export default function SpadasLensCamera() {
         });
       } catch {
         try {
-          // Fallback to front user camera at 1080p
           mediaStream = await navigator.mediaDevices.getUserMedia({
             video: {
               facingMode: "user",
               width: { ideal: 1920 },
               height: { ideal: 1080 },
+              frameRate: { ideal: 60 },
             },
             audio: false,
           });
         } catch {
-          // Fallback to basic video stream
           mediaStream = await navigator.mediaDevices.getUserMedia({
             video: true,
             audio: false,
@@ -91,7 +214,7 @@ export default function SpadasLensCamera() {
     setActiveHits([]);
   };
 
-  // Speak Audio Cue
+  // Speak Voice Cue
   const speakCue = (text: string) => {
     if (!soundEnabled || typeof window === "undefined" || !("speechSynthesis" in window)) return;
     window.speechSynthesis.cancel();
@@ -100,41 +223,55 @@ export default function SpadasLensCamera() {
     window.speechSynthesis.speak(utterance);
   };
 
-  // Play AR Chime Sound
-  const playChime = () => {
+  // Lightweight AudioContext Chime for High-Signal ($20+ Profit) Hits
+  const playHighProfitChime = () => {
     if (!soundEnabled || typeof window === "undefined") return;
     try {
-      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const osc = ctx.createOscillator();
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const osc1 = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
       const gain = ctx.createGain();
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(880, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.15);
-      gain.gain.setValueAtTime(0.15, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
-      osc.connect(gain);
+
+      const now = ctx.currentTime;
+      osc1.type = "sine";
+      osc2.type = "sine";
+
+      osc1.frequency.setValueAtTime(587.33, now);
+      osc1.frequency.exponentialRampToValueAtTime(880, now + 0.12);
+
+      osc2.frequency.setValueAtTime(880, now + 0.08);
+      osc2.frequency.exponentialRampToValueAtTime(1174.66, now + 0.22);
+
+      gain.gain.setValueAtTime(0.2, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+
+      osc1.connect(gain);
+      osc2.connect(gain);
       gain.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.2);
-    } catch {}
+
+      osc1.start(now);
+      osc2.start(now + 0.04);
+      osc1.stop(now + 0.28);
+      osc2.stop(now + 0.28);
+    } catch (e) {
+      console.error("AudioContext chime error:", e);
+    }
   };
 
-  // Continuous real-time video frame scanner
+  // Frame scanner with Center-Weighted Vision, debouncing, and exclusion filters
   const processCurrentFrame = useCallback(async () => {
     if (!videoRef.current || analyzingRealFrame) return;
     setAnalyzingRealFrame(true);
 
     try {
       const video = videoRef.current;
-      if (video.readyState < 2) {
-        setAnalyzingRealFrame(false);
-        return;
-      }
+      if (video.readyState < 2) return;
 
       const fullWidth = video.videoWidth || 640;
       const fullHeight = video.videoHeight || 480;
 
-      // Calculate Target Crop Box Region (centered 65% width x 75% height)
       const cropW = Math.round(fullWidth * 0.65);
       const cropH = Math.round(fullHeight * 0.75);
       const cropX = Math.round((fullWidth - cropW) / 2);
@@ -148,10 +285,8 @@ export default function SpadasLensCamera() {
 
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = "high";
-
-      // Draw cropped target box region for 100% item isolation & 4K crisp precision
       ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, canvas.width, canvas.height);
-      const frameDataUrl = canvas.toDataURL("image/jpeg", 0.90);
+      const frameDataUrl = canvas.toDataURL("image/jpeg", 0.85);
 
       const res = await fetch("/api/ai-listing", {
         method: "POST",
@@ -162,38 +297,118 @@ export default function SpadasLensCamera() {
       if (!res.ok) throw new Error("AI frame scan failed.");
 
       const data = await res.json();
-      if (data.analysis?.product_name) {
-        const productName = data.analysis.product_name;
-        const category = data.analysis.category || "Scanned Item";
 
-        // Calculate deterministic, stable median market pricing
-        const minP = Number(data.suggested_price_min) || 20;
-        const maxP = Number(data.suggested_price_max) || minP;
-        const val = Math.round(((minP + maxP) / 2) * 100) / 100;
+      // 1. CENTER-WEIGHTED VISION: Drop frame if no clear centered subject is detected
+      if (!data.analysis?.product_name || data.analysis.product_name === "NO_CENTER_ITEM") {
+        setActiveHits([]);
+        return;
+      }
 
-        const estCost = Math.max(2, Math.round(val * 0.35));
-        const estRoi = Math.round(((val - estCost) / estCost) * 100);
+      const productName = data.analysis.product_name;
+      const category = data.analysis.category || "Scanned Item";
 
-        const realHit: DetectedHit = {
-          id: `real-frame-${Date.now()}`,
-          name: productName,
-          category,
-          estimatedValue: val,
-          estRoi,
-          verdict: "BUY",
-          confidence: 0.98,
-          bbox: {
-            x: 20,
-            y: 15,
-            width: 60,
-            height: 70,
-          },
-        };
+      // 2. STRICT EXCLUSION: Ignore vacuum cleaners
+      if (isVacuumCleaner(productName, category)) {
+        setActiveHits([]);
+        return;
+      }
 
-        setActiveHits([realHit]);
-        playChime();
-        speakCue(`Item identified: ${productName}. Est Value ${fmtMoney(val)}.`);
-        setCapturedLog((prev) => [realHit, ...prev.filter((p) => p.name !== productName)].slice(0, 10));
+      // 3. STRICT CONDITION DEFAULT: Hardware/electronics assume untested/parts-only
+      let rawMin = Number(data.suggested_price_min) || 20;
+      let rawMax = Number(data.suggested_price_max) || rawMin;
+      let baseVal = Math.round(((rawMin + rawMax) / 2) * 100) / 100;
+      let itemCondition = data.analysis.condition || "Used";
+
+      if (isHardwareOrElectronics(productName, category)) {
+        itemCondition = "Untested / Faulty / Parts-Only";
+        baseVal = Math.round(baseVal * 0.45 * 100) / 100;
+      }
+
+      let estCost = Math.max(2, Math.round(baseVal * 0.35));
+      let estimatedProfit = Math.max(0, Math.round((baseVal - estCost) * 100) / 100);
+      let estRoi = estCost > 0 ? Math.round((estimatedProfit / estCost) * 100) : 0;
+      const now = Date.now();
+
+      // Extract primary brand word (e.g. "EFM", "Sony", "JBL", "Nike")
+      const getBrandWord = (s: string) => s.trim().split(/\s+/)[0]?.toLowerCase() || "";
+      const primaryBrand = getBrandWord(productName);
+
+      // Check if item matches a recently scanned item within 15s (>= 55% similarity OR exact brand match)
+      const cachedMatch = capturedLog.find((item) => {
+        const isWithin15s = now - (item.timestamp || 0) <= 15000;
+        const similarity = getKeywordSimilarity(item.name, productName);
+        const itemBrand = getBrandWord(item.name);
+        const isSameBrand = primaryBrand && itemBrand && primaryBrand.length >= 2 && primaryBrand === itemBrand;
+        return isWithin15s && (similarity >= 0.55 || isSameBrand);
+      });
+
+      // Price Caching & Lock-in: Inherit locked-in price, title, and stats if debounced match exists
+      if (cachedMatch) {
+        baseVal = cachedMatch.estimatedValue;
+        estCost = cachedMatch.estCost;
+        estimatedProfit = cachedMatch.estimatedProfit;
+        estRoi = cachedMatch.estRoi;
+      }
+
+      const realHit: DetectedHit = {
+        id: cachedMatch ? cachedMatch.id : `real-frame-${now}`,
+        name: cachedMatch ? cachedMatch.name : productName,
+        category,
+        condition: itemCondition,
+        estimatedValue: baseVal,
+        estCost,
+        estimatedProfit,
+        estRoi,
+        verdict: estimatedProfit > 15 ? "BUY" : "CAUTION",
+        confidence: 0.98,
+        bbox: {
+          x: 20,
+          y: 15,
+          width: 60,
+          height: 70,
+        },
+        timestamp: now,
+      };
+
+      setActiveHits([realHit]);
+
+      // 4. DEBOUNCING: Update timestamp on existing hit or add new hit (55% threshold / brand lock, 15s window)
+      setCapturedLog((prev) => {
+        const existingIdx = prev.findIndex((item) => {
+          const isWithin15s = now - (item.timestamp || 0) <= 15000;
+          const similarity = getKeywordSimilarity(item.name, productName);
+          const itemBrand = getBrandWord(item.name);
+          const isSameBrand = primaryBrand && itemBrand && primaryBrand.length >= 2 && primaryBrand === itemBrand;
+          return isWithin15s && (similarity >= 0.55 || isSameBrand);
+        });
+
+        if (existingIdx !== -1) {
+          const updated = [...prev];
+          updated[existingIdx] = {
+            ...updated[existingIdx],
+            timestamp: now,
+            estimatedValue: baseVal,
+            estCost,
+            estimatedProfit,
+            estRoi,
+          };
+          return updated;
+        } else {
+          return [realHit, ...prev].slice(0, 10);
+        }
+      });
+
+      // 5. HIGH-SIGNAL AUDIO CUE ($20+ Net Profit Threshold & Anti-Spam Looping)
+      if (estimatedProfit > 20) {
+        const lastChimed = lastChimedRef.current;
+        const isSameProduct = lastChimed && getKeywordSimilarity(lastChimed.name, productName) >= 0.55;
+        const isCooldownActive = lastChimed && (now - lastChimed.time < 15000);
+
+        if (!isSameProduct || !isCooldownActive) {
+          playHighProfitChime();
+          speakCue(`High profit hit: ${productName}. Profit ${fmtMoney(estimatedProfit)}.`);
+          lastChimedRef.current = { name: productName, time: now };
+        }
       }
     } catch (err) {
       console.error("Live camera Vision scan error:", err);
@@ -203,28 +418,32 @@ export default function SpadasLensCamera() {
     }
   }, [analyzingRealFrame, soundEnabled]);
 
-  // Optimized Real-Time Auto-Scan Loop with Page Visibility & CPU Load Throttling
+  // Throttled Continuous AR Scanner Loop (2 to 3 FPS maximum rate, 380ms interval)
   useEffect(() => {
     if (!scanning || !autoScanActive) return;
 
     let timeoutId: NodeJS.Timeout;
 
-    const scheduleNextScan = () => {
+    const scheduleThrottledScan = () => {
       timeoutId = setTimeout(() => {
         if (typeof document !== "undefined" && document.visibilityState === "visible") {
-          void processCurrentFrame().finally(() => {
-            scheduleNextScan();
-          });
+          if (!analyzingRealFrame) {
+            void processCurrentFrame().finally(() => {
+              scheduleThrottledScan();
+            });
+          } else {
+            scheduleThrottledScan();
+          }
         } else {
-          scheduleNextScan();
+          scheduleThrottledScan();
         }
-      }, 4500); // Debounced 4.5s interval to conserve CPU/GPU resources
+      }, 380);
     };
 
-    scheduleNextScan();
+    scheduleThrottledScan();
 
     return () => clearTimeout(timeoutId);
-  }, [scanning, autoScanActive, processCurrentFrame]);
+  }, [scanning, autoScanActive, processCurrentFrame, analyzingRealFrame]);
 
   useEffect(() => {
     return () => {
@@ -233,7 +452,7 @@ export default function SpadasLensCamera() {
   }, []);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-20">
       {/* Video Viewport Container */}
       <div className="relative aspect-[4/3] sm:aspect-[16/9] overflow-hidden rounded-3xl border-2 border-cyan-500/40 bg-slate-950 shadow-2xl">
         {cameraError ? (
@@ -250,6 +469,7 @@ export default function SpadasLensCamera() {
           </div>
         ) : stream ? (
           <>
+            {/* Raw Camera Video Stream running smooth at 60fps */}
             <video
               ref={videoRef}
               autoPlay
@@ -258,59 +478,46 @@ export default function SpadasLensCamera() {
               className="h-full w-full object-cover"
             />
 
-            {/* Target Framing Box Overlay */}
+            {/* Target Framing Reticle */}
             <div className="absolute inset-0 z-15 pointer-events-none flex items-center justify-center">
-              <div className="relative w-[65%] h-[75%] max-w-[340px] max-h-[460px] rounded-2xl border-2 border-cyan-400/80 shadow-[0_0_30px_rgba(34,211,238,0.3)] flex flex-col justify-between p-3">
-                {/* Corner reticles */}
-                <div className="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-cyan-400 rounded-tl-lg" />
-                <div className="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-cyan-400 rounded-tr-lg" />
-                <div className="absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 border-cyan-400 rounded-bl-lg" />
-                <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 border-cyan-400 rounded-br-lg" />
+              <div className="relative w-[65%] h-[75%] max-w-[340px] max-h-[460px] rounded-2xl border border-cyan-400/50 flex flex-col justify-between p-3">
+                <div className="absolute -top-1 -left-1 w-5 h-5 border-t-2 border-l-2 border-cyan-400 rounded-tl" />
+                <div className="absolute -top-1 -right-1 w-5 h-5 border-t-2 border-r-2 border-cyan-400 rounded-tr" />
+                <div className="absolute -bottom-1 -left-1 w-5 h-5 border-b-2 border-l-2 border-cyan-400 rounded-bl" />
+                <div className="absolute -bottom-1 -right-1 w-5 h-5 border-b-2 border-r-2 border-cyan-400 rounded-br" />
 
-                <div className="w-full text-center">
-                  <span className="inline-block rounded-full bg-slate-950/80 backdrop-blur-md px-3 py-1 text-[11px] font-bold text-cyan-300 border border-cyan-400/40 shadow-lg">
-                    🎯 CENTER ITEM INSIDE BOX & PRESS SCAN NOW
-                  </span>
-                </div>
+                {/* Conditional Rendering: Hide helper text when hit evaluation is active */}
+                {activeHits.length === 0 && (
+                  <div className="w-full text-center mt-2">
+                    <span className="inline-block rounded-full bg-slate-950/85 backdrop-blur-md px-3 py-1 text-[11px] font-bold text-cyan-300 border border-cyan-400/40 shadow-lg">
+                      🎯 CENTER ITEM INSIDE BOX & PRESS SCAN NOW
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
 
-
-
-            {/* AR Bounding Box Overlays */}
-            {activeHits.map((hit) => {
-              const isBuy = hit.verdict === "BUY";
-              const borderColor = isBuy ? "border-emerald-400 bg-emerald-500/15" : "border-red-500/50 bg-red-500/10";
-              const badgeBg = isBuy ? "bg-emerald-500 text-slate-950" : "bg-red-500 text-white";
-
-              return (
-                <div
-                  key={hit.id}
-                  style={{
-                    left: `${hit.bbox.x}%`,
-                    top: `${hit.bbox.y}%`,
-                    width: `${hit.bbox.width}%`,
-                    height: `${hit.bbox.height}%`,
-                  }}
-                  className={`absolute z-20 transition-all duration-300 rounded-2xl border-2 shadow-2xl flex flex-col justify-between p-3 animate-pulse ${borderColor}`}
-                >
-                  <div className="flex items-center justify-between gap-1">
-                    <span className={`rounded-md px-2 py-0.5 text-[10px] font-black uppercase tracking-wider ${badgeBg}`}>
-                      {isBuy ? `🟩 HIGH ROI HIT (+${hit.estRoi}%)` : `hk PASS / LOW MARGIN`}
-                    </span>
-                  </div>
-
-                  <div className="rounded-xl bg-slate-950/85 backdrop-blur-md p-2.5 text-white border border-white/15 space-y-0.5">
-                    <p className="text-xs font-bold truncate">{hit.name}</p>
-                    {isBuy && (
-                      <p className="text-[11px] font-extrabold text-emerald-400">
-                        Est. Value: {fmtMoney(hit.estimatedValue)} AUD
-                      </p>
-                    )}
-                  </div>
+            {/* Ruthlessly Clean AR Bounding Box Overlays */}
+            {activeHits.map((hit) => (
+              <div
+                key={hit.id}
+                style={{
+                  left: `${hit.bbox.x}%`,
+                  top: `${hit.bbox.y}%`,
+                  width: `${hit.bbox.width}%`,
+                  height: `${hit.bbox.height}%`,
+                }}
+                className="absolute z-20 pointer-events-none transition-all duration-200 border-2 border-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.7)]"
+              >
+                {/* Minimal High-Contrast Text Overlay Header */}
+                <div className="absolute top-2 left-2 flex items-center gap-2 bg-slate-950/95 text-white border border-emerald-400/80 rounded-md px-2.5 py-1 text-xs font-bold shadow-2xl whitespace-nowrap z-30">
+                  <span className="text-slate-100 font-extrabold truncate max-w-[180px]">{hit.name}</span>
+                  <span className="bg-emerald-400 text-slate-950 px-1.5 py-0.5 rounded text-[11px] font-black tracking-tight">
+                    +${hit.estimatedProfit.toFixed(2)} Profit
+                  </span>
                 </div>
-              );
-            })}
+              </div>
+            ))}
           </>
         ) : (
           /* Placeholder View before starting */
@@ -321,7 +528,7 @@ export default function SpadasLensCamera() {
             <div className="space-y-1 max-w-sm">
               <h3 className="text-xl font-bold">Start Spadas Lens Live Stream</h3>
               <p className="text-xs text-slate-300">
-                Pan your camera across clothing racks or store shelves. Spadas Lens automatically scans frames in real time, projecting AR bounding boxes and voice audio cues as you move.
+                Pan your camera across clothing racks or store shelves. Spadas Lens continuous scanner runs center-weighted frame processing throttled at 2-3 FPS.
               </p>
             </div>
             <button
@@ -339,7 +546,7 @@ export default function SpadasLensCamera() {
           <div className="absolute bottom-4 left-4 right-4 z-30 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-slate-950/85 backdrop-blur-md p-3 border border-white/20">
             <div className="flex items-center gap-2 text-xs font-bold text-cyan-300">
               <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span>{analyzingRealFrame ? "Scanning Live Frame..." : "Continuous Auto-Scan ON"}</span>
+              <span>{analyzingRealFrame ? "Analyzing Center Subject..." : "Continuous AR Scanner (Throttled)"}</span>
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
@@ -356,7 +563,6 @@ export default function SpadasLensCamera() {
                 <span>{autoScanActive ? "Auto-Scan: ON" : "Paused"}</span>
               </button>
 
-              {/* Manual Scan Now button */}
               <button
                 type="button"
                 onClick={() => {
@@ -381,7 +587,7 @@ export default function SpadasLensCamera() {
                 className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-3 text-xs font-semibold text-white hover:bg-white/20"
               >
                 {soundEnabled ? <Volume2 className="h-4 w-4 text-cyan-400" /> : <VolumeX className="h-4 w-4 text-slate-400" />}
-                <span>{soundEnabled ? "Voice Cues ON" : "Muted"}</span>
+                <span>{soundEnabled ? "Audio Cues ON" : "Muted"}</span>
               </button>
 
               <button
@@ -396,35 +602,87 @@ export default function SpadasLensCamera() {
         )}
       </div>
 
-      {/* Captured High-ROI Hits Log */}
+      {/* Selectable Real-Time Hits Feed */}
       {capturedLog.length > 0 && (
-        <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-4">
+        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-base font-bold flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-              Real-Time Scanned High-ROI Hits ({capturedLog.length})
+            <h3 className="text-sm font-bold flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+              Real-Time Scanned Hits ({capturedLog.length})
             </h3>
-            <span className="text-xs text-muted-foreground">Captured in Real Time</span>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={selectAllHits}
+                className="text-[11px] font-semibold text-cyan-400 hover:underline cursor-pointer"
+              >
+                {selectedHitIds.length === capturedLog.length ? "Deselect All" : "Select All"}
+              </button>
+              <span className="text-[11px] text-muted-foreground">Tap cards to select</span>
+            </div>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {capturedLog.map((item) => (
-              <div key={item.id} className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-emerald-500 text-slate-950 uppercase">
-                    +{item.estRoi}% ROI
-                  </span>
-                  <span className="text-xs text-muted-foreground">{item.category}</span>
+          <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+            {capturedLog.map((item) => {
+              const isSelected = selectedHitIds.includes(item.id);
+              return (
+                <div
+                  key={item.id}
+                  onClick={() => toggleSelectHit(item.id)}
+                  className={`relative cursor-pointer transition-all rounded-lg border p-2.5 px-3 space-y-1 ${
+                    isSelected
+                      ? "border-emerald-400 bg-emerald-500/15 shadow-[0_0_12px_rgba(52,211,153,0.35)] ring-1 ring-emerald-400"
+                      : "border-emerald-500/30 bg-emerald-500/5 hover:border-emerald-400/50"
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-1">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleSelectHit(item.id)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="h-3.5 w-3.5 rounded border-slate-700 bg-slate-900 text-emerald-500 focus:ring-emerald-400 cursor-pointer"
+                      />
+                      <span className="text-[11px] font-black px-1.5 py-0.2 rounded bg-emerald-500 text-slate-950 uppercase tracking-tight">
+                        +${item.estimatedProfit.toFixed(2)} Profit
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-muted-foreground font-medium flex items-center gap-1">
+                      <Clock className="h-3 w-3 text-muted-foreground/70" />
+                      Updated
+                    </span>
+                  </div>
+                  <h4 className="text-xs font-bold text-foreground truncate leading-snug">{item.name}</h4>
+                  <div className="flex items-center justify-between text-[11px] pt-0.5">
+                    <span className="text-muted-foreground text-[10px]">{item.condition}</span>
+                    <span className="font-extrabold text-emerald-600 dark:text-emerald-400">{fmtMoney(item.estimatedValue)}</span>
+                  </div>
                 </div>
-                <h4 className="text-sm font-bold text-foreground leading-snug">{item.name}</h4>
-                <p className="text-base font-extrabold text-emerald-600 dark:text-emerald-400">
-                  Est. Market Value: {fmtMoney(item.estimatedValue)}
-                </p>
-              </div>
-            ))}
+              );
+            })}
           </div>
+        </div>
+      )}
+
+      {/* Sticky Bottom Export FAB */}
+      {selectedHitIds.length > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-fade-in">
+          <button
+            type="button"
+            onClick={exportSelectedHits}
+            disabled={exporting}
+            className="inline-flex items-center gap-2.5 rounded-full bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 px-7 py-3 text-sm font-extrabold text-slate-950 shadow-[0_0_30px_rgba(16,185,129,0.6)] hover:scale-105 active:scale-95 transition cursor-pointer"
+          >
+            <Sparkles className="h-4.5 w-4.5" />
+            <span>{exporting ? "Exporting..." : `Export ${selectedHitIds.length} Hit${selectedHitIds.length > 1 ? "s" : ""} to Drafts`}</span>
+            <ArrowRight className="h-4.5 w-4.5" />
+          </button>
         </div>
       )}
     </div>
   );
 }
+
+
+

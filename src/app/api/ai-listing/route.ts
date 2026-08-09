@@ -80,6 +80,25 @@ export async function POST(request: Request) {
                   text: `You are the world's leading AI Reselling & Valuation Expert across eBay, TCGPlayer, PriceCharting, Google Books, TMDB, Facebook Marketplace, and Depop.
 Analyse the product in the provided image(s) with 100% precision.
 
+CRITICAL CENTER-SUBJECT ISOLATION MANDATE:
+- Focus ONLY and strictly on the single primary object located DEAD-CENTER in the cropped frame focal zone.
+- Explicitly IGNORE all background clutter, secondary items, coffee cups, random desk objects, shelf neighbors, hands, or peripheral items in the frame edges.
+- IF NO CLEAR, CENTERED PRIMARY SUBJECT IS PRESENT in the frame, or if the subject is ambiguous/unclear, you MUST return an empty detection with "product_name": null to save processing power.
+
+STRICT MANDATORY OCR & IDENTIFICATION LOCK:
+1. Mandatory Brand OCR Lock:
+   - If visible text, logo, or brand marking (e.g., "EFM", "Sony", "Bose", "JBL", "Nike", "Apple", "Nintendo", "Logitech") is detected on the item, package, or label, you MUST lock onto that exact brand name.
+   - You are STRICTLY FORBIDDEN from guessing or swapping to a different brand name (e.g., guessing "Ultimate Ears" or "Amazon Echo" when "EFM" text/logo is present).
+
+2. Physical Type Validation:
+   - You MUST verify the physical object form factor before outputting a product name. If the object is a speaker, it CANNOT be outputted as a "Wireless Charging Pad".
+   - If the exact model number/variant cannot be read from the OCR text, default to:
+     "[Detected Brand] [General Object Type]" (e.g., "EFM Portable Bluetooth Speaker")
+   - DO NOT invent, hallucinate, or guess specific third-party model names (e.g. "UE Boom 2") if they do not match the detected OCR text.
+
+3. Single-Object Primary Target:
+   - Only evaluate the main item in central focus. Discard secondary or ambiguous matches that do not match the primary OCR text read in the center frame.
+
 CATEGORY-SPECIFIC MARKET VALUATION RULES:
 1. TRADING CARDS (Pokémon, Yu-Gi-Oh, Magic: The Gathering, Sports Cards, One Piece, Dragon Ball):
    - DEEP CARD IDENTIFICATION MANDATE: DO NOT return vague titles like "Pokemon Card Eevee". You MUST inspect card corners, set symbols, card numbers, rarity symbols, and copyright text to return the exact spec format:
@@ -102,11 +121,12 @@ CATEGORY-SPECIFIC MARKET VALUATION RULES:
 
 5. ELECTRONICS, TOYS & GENERAL THRIFT FIND:
    - Identify Brand, Model Number, Condition, Completeness.
+   - MANDATE FOR ELECTRONICS & HARDWARE: When looking up comps or evaluating hardware, devices, or electronics, DO NOT assume they are brand new. Default condition and valuation parameters to assume items are untested, faulty, or parts-only.
 
 Respond ONLY with valid JSON matching exactly this shape:
 {
   "analysis": {
-    "product_name": string,
+    "product_name": string | null,
     "brand": string | null,
     "model": string | null,
     "category": string,
