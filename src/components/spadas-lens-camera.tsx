@@ -91,6 +91,7 @@ export default function SpadasLensCamera() {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [autoScanActive, setAutoScanActive] = useState(true);
   const [analyzingRealFrame, setAnalyzingRealFrame] = useState(false);
+  const [rateLimited, setRateLimited] = useState(false);
   const [activeHits, setActiveHits] = useState<DetectedHit[]>([]);
   const [capturedLog, setCapturedLog] = useState<DetectedHit[]>([]);
   const [selectedHitIds, setSelectedHitIds] = useState<string[]>([]);
@@ -260,14 +261,14 @@ export default function SpadasLensCamera() {
     }
   };
 
-  // Frame scanner with Center-Weighted Vision, debouncing, and exclusion filters
+  // Frame scanner with Fail-Safe Async Lock Release & 1500ms Rate Limit Protection
   const processCurrentFrame = useCallback(async () => {
     if (!videoRef.current || analyzingRealFrame) return;
     setAnalyzingRealFrame(true);
 
     try {
       const video = videoRef.current;
-      if (video.readyState < 2) return;
+      if (!video || video.readyState < 2) return;
 
       const fullWidth = video.videoWidth || 640;
       const fullHeight = video.videoHeight || 480;
@@ -294,8 +295,16 @@ export default function SpadasLensCamera() {
         body: JSON.stringify({ imageUrls: [frameDataUrl] }),
       });
 
-      if (!res.ok) throw new Error("AI frame scan failed.");
+      if (res.status === 429) {
+        setRateLimited(true);
+        toast.error("API Rate Limit (429) - Retrying in 1.5s...", { id: "ar-rate-limit-toast" });
+        setActiveHits([]);
+        return;
+      }
 
+      if (!res.ok) throw new Error(`AI frame scan failed (${res.status}).`);
+
+      setRateLimited(false);
       const data = await res.json();
 
       // 1. CENTER-WEIGHTED VISION: Drop frame if no clear centered subject is detected
@@ -410,15 +419,20 @@ export default function SpadasLensCamera() {
           lastChimedRef.current = { name: productName, time: now };
         }
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Live camera Vision scan error:", err);
       setActiveHits([]);
+      if (err?.message?.includes("429")) {
+        setRateLimited(true);
+        toast.error("API Rate Limit (429) - Retrying in 1.5s...", { id: "ar-rate-limit-toast" });
+      }
     } finally {
+      // GUARANTEED UNLOCK: Always release state lock regardless of API error or early exit
       setAnalyzingRealFrame(false);
     }
   }, [analyzingRealFrame, soundEnabled]);
 
-  // Throttled Continuous AR Scanner Loop (2 to 3 FPS maximum rate, 380ms interval)
+  // Throttled Continuous AR Scanner Loop (1.5 seconds delay between frames)
   useEffect(() => {
     if (!scanning || !autoScanActive) return;
 
@@ -437,7 +451,7 @@ export default function SpadasLensCamera() {
         } else {
           scheduleThrottledScan();
         }
-      }, 380);
+      }, 1500); // 1.5s interval to prevent OpenAI 429 Rate Limits & reduce battery drain
     };
 
     scheduleThrottledScan();
@@ -544,9 +558,15 @@ export default function SpadasLensCamera() {
         {/* Camera Controls Bar */}
         {stream && (
           <div className="absolute bottom-4 left-4 right-4 z-30 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-slate-950/85 backdrop-blur-md p-3 border border-white/20">
-            <div className="flex items-center gap-2 text-xs font-bold text-cyan-300">
-              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span>{analyzingRealFrame ? "Analyzing Center Subject..." : "Continuous AR Scanner (Throttled)"}</span>
+            <div className="flex items-center gap-2 text-xs font-bold">
+              <span className={`h-2 w-2 rounded-full animate-pulse ${rateLimited ? "bg-amber-400" : "bg-emerald-400"}`} />
+              <span className={rateLimited ? "text-amber-300" : "text-cyan-300"}>
+                {rateLimited
+                  ? "API Rate Limit - Retrying in 1.5s..."
+                  : analyzingRealFrame
+                  ? "Analyzing Center Subject..."
+                  : "Continuous AR Scanner (1.5s)"}
+              </span>
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
