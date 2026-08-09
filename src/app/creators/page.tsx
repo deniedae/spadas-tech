@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import CreatorApplicationForm from "@/components/creator-application-form";
+import ARVideoAdPlayer from "@/components/ar-video-ad-player";
 import {
   ArrowLeft,
   Camera,
@@ -164,15 +165,8 @@ export default function CreatorsPage() {
               </div>
             </div>
 
-            <div className="relative rounded-2xl overflow-hidden border border-slate-700/60 shadow-2xl bg-slate-950 flex items-center justify-center p-4">
-              <div className="relative w-full max-w-[280px] aspect-[9/16] rounded-xl overflow-hidden shadow-2xl border border-blue-500/20">
-                <Image
-                  src="/ar-ad-mockup.jpg"
-                  alt="Spadas Lens AR Scanner Ad Mockup"
-                  fill
-                  className="object-cover"
-                />
-              </div>
+            <div className="flex items-center justify-center p-2">
+              <ARVideoAdPlayer />
             </div>
           </div>
         </div>
