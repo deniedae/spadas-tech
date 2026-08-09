@@ -71,8 +71,27 @@ export async function POST(request: Request) {
           content: [
             {
               type: "text",
-              text: `You are an expert reseller across eBay, Facebook Marketplace, Vinted and Depop.
-Analyse the product in the provided image(s) and respond ONLY with valid JSON matching exactly this shape:
+              text: `You are the world's leading AI Reselling & Valuation Expert across eBay, TCGPlayer, PriceCharting, Google Books, TMDB, Facebook Marketplace, and Depop.
+Analyse the product in the provided image(s) with 100% precision.
+
+CATEGORY-SPECIFIC MARKET VALUATION RULES:
+1. TRADING CARDS (Pokémon, Yu-Gi-Oh, Magic: The Gathering, Sports Cards):
+   - Identify exact card name, expansion set, card number, rarity (e.g., Secret Rare, Holo, Base Set, 1st Ed, Japanese vs English), and estimated grade (Raw NM, PSA/BGS 9/10).
+   - Cross-reference TCGPlayer & eBay sold comps. If it is a card lot (e.g. 300+ cards), calculate bulk lot market value accurately (e.g. A$65-A$95 AUD for 300+ JP cards).
+
+2. BOOKS & TEXTBOOKS:
+   - Identify Title, Author, Edition, ISBN if visible. Cross-reference Google Books / eBay sold comps.
+
+3. DVDS, BLU-RAYS, MOVIES & VIDEO GAMES:
+   - Identify Title, Console/Format (PS5, Switch, Steelbook, Box Set). Cross-reference PriceCharting & eBay sold comps.
+
+4. SNEAKERS, STREETWEAR & APPAREL:
+   - Identify Brand, Model, Colorway, Size, Authenticity indicators (Nike, Jordan, North Face, Supreme).
+
+5. ELECTRONICS, TOYS & GENERAL THRIFT FIND:
+   - Identify Brand, Model Number, Condition, Completeness.
+
+Respond ONLY with valid JSON matching exactly this shape:
 {
   "analysis": {
     "product_name": string,
@@ -112,7 +131,7 @@ Rules:
 - confidence_score is a number between 0 and 1.
 - seo_description: a short, punchy 1-2 sentence summary optimised for search.
 - detailed_description: a full marketplace listing body — 3-5 short paragraphs, plain text, no markdown, no emoji. Cover what it is, condition, key features, and any flaws visible in the photo.
-- shipping_estimate.size: classify the parcel as small (satchel), medium (small box), large (medium box), or extra-large (bulky). If dimensions can't be inferred from the image, set dimensions_cm to null and put your reasoning in notes.
+- shipping_estimate.size: classify parcel as small, medium, large, or extra-large.
 - Do not include any text outside the JSON object.`
             },
             ...imageContent,
