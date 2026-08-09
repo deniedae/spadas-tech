@@ -62,17 +62,22 @@ export async function POST(request: Request) {
       image_url: { url, detail: "high" as const },
     }));
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
-      temperature: 0.0,
-      response_format: { type: "json_object" },
-      messages: [
-        {
-          role: "user",
-          content: [
+    let completion;
+    const targetModels = ["gpt-4.5-preview", "gpt-4o-2024-11-20", "gpt-4o"];
+
+    for (const modelName of targetModels) {
+      try {
+        completion = await openai.chat.completions.create({
+          model: modelName,
+          temperature: 0.0,
+          response_format: { type: "json_object" },
+          messages: [
             {
-              type: "text",
-              text: `You are the world's leading AI Reselling & Valuation Expert across eBay, TCGPlayer, PriceCharting, Google Books, TMDB, Facebook Marketplace, and Depop.
+              role: "user",
+              content: [
+                {
+                  type: "text",
+                  text: `You are the world's leading AI Reselling & Valuation Expert across eBay, TCGPlayer, PriceCharting, Google Books, TMDB, Facebook Marketplace, and Depop.
 Analyse the product in the provided image(s) with 100% precision.
 
 CATEGORY-SPECIFIC MARKET VALUATION RULES:
@@ -146,6 +151,15 @@ Rules:
         },
       ],
     });
+        if (completion?.choices?.[0]?.message?.content) break;
+      } catch (err) {
+        console.warn(`[ai-listing] Model ${modelName} fallback check:`, err);
+      }
+    }
+
+    if (!completion?.choices?.[0]?.message?.content) {
+      throw new Error("No model response received.");
+    }
 
     const text = completion.choices[0]?.message?.content ?? "";
     const result = JSON.parse(text) as AiListingResult;
