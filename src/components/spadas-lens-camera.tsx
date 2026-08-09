@@ -122,13 +122,24 @@ export default function SpadasLensCamera() {
         return;
       }
 
+      const fullWidth = video.videoWidth || 640;
+      const fullHeight = video.videoHeight || 480;
+
+      // Calculate Target Crop Box Region (centered 65% width x 75% height)
+      const cropW = Math.round(fullWidth * 0.65);
+      const cropH = Math.round(fullHeight * 0.75);
+      const cropX = Math.round((fullWidth - cropW) / 2);
+      const cropY = Math.round((fullHeight - cropH) / 2);
+
       const canvas = document.createElement("canvas");
-      canvas.width = Math.min(640, video.videoWidth || 640);
-      canvas.height = Math.min(480, video.videoHeight || 480);
+      canvas.width = Math.min(640, cropW);
+      canvas.height = Math.min(640, cropH);
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const frameDataUrl = canvas.toDataURL("image/jpeg", 0.75);
+
+      // Draw cropped target box region for 100% item isolation & precision
+      ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, canvas.width, canvas.height);
+      const frameDataUrl = canvas.toDataURL("image/jpeg", 0.85);
 
       const res = await fetch("/api/ai-listing", {
         method: "POST",
@@ -229,11 +240,20 @@ export default function SpadasLensCamera() {
               className="h-full w-full object-cover"
             />
 
-            {/* Radar Scanning HUD overlay */}
-            <div className="absolute inset-0 z-10 pointer-events-none border-[3px] border-cyan-500/30 rounded-3xl">
-              <div className="absolute top-4 left-4 flex items-center gap-2 rounded-full bg-slate-950/80 backdrop-blur-md px-3.5 py-1 text-xs font-bold text-cyan-300 border border-cyan-500/30">
-                <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-ping" />
-                <span>REAL-TIME AR AUTO-SCANNER ACTIVE</span>
+            {/* Target Framing Box Overlay */}
+            <div className="absolute inset-0 z-15 pointer-events-none flex items-center justify-center">
+              <div className="relative w-[65%] h-[75%] max-w-[340px] max-h-[460px] rounded-2xl border-2 border-cyan-400/80 shadow-[0_0_30px_rgba(34,211,238,0.3)] flex flex-col justify-between p-3">
+                {/* Corner reticles */}
+                <div className="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-cyan-400 rounded-tl-lg" />
+                <div className="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-cyan-400 rounded-tr-lg" />
+                <div className="absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 border-cyan-400 rounded-bl-lg" />
+                <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 border-cyan-400 rounded-br-lg" />
+
+                <div className="w-full text-center">
+                  <span className="inline-block rounded-full bg-slate-950/80 backdrop-blur-md px-3 py-1 text-[11px] font-bold text-cyan-300 border border-cyan-400/40 shadow-lg">
+                    🎯 CENTER ITEM INSIDE BOX & PRESS SCAN NOW
+                  </span>
+                </div>
               </div>
             </div>
 

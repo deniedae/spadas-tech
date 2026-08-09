@@ -75,9 +75,15 @@ export async function POST(request: Request) {
 Analyse the product in the provided image(s) with 100% precision.
 
 CATEGORY-SPECIFIC MARKET VALUATION RULES:
-1. TRADING CARDS (Pokémon, Yu-Gi-Oh, Magic: The Gathering, Sports Cards):
-   - Identify exact card name, expansion set, card number, rarity (e.g., Secret Rare, Holo, Base Set, 1st Ed, Japanese vs English), and estimated grade (Raw NM, PSA/BGS 9/10).
-   - Cross-reference TCGPlayer & eBay sold comps. If it is a card lot (e.g. 300+ cards), calculate bulk lot market value accurately (e.g. A$65-A$95 AUD for 300+ JP cards).
+1. TRADING CARDS (Pokémon, Yu-Gi-Oh, Magic: The Gathering, Sports Cards, One Piece, Dragon Ball):
+   - DEEP CARD IDENTIFICATION MANDATE: DO NOT return vague titles like "Pokemon Card Eevee". You MUST inspect card corners, set symbols, card numbers, rarity symbols, and copyright text to return the exact spec format:
+     "[Card Name] - [Set Name] #[Card Number]/[Total Cards] ([Rarity/Variant]) ([Language])"
+     Examples:
+     - "Eevee - Evolving Skies #125/203 (Reverse Holo Rare) (English)"
+     - "Eevee - Shiny Treasure ex #152/190 (Art Rare / AR) (Japanese)"
+     - "Eevee - Jungle #51/64 (1st Edition Common) (English)"
+     - "Charizard VMAX - Darkness Ablaze #020/189 (Secret Rare) (English)"
+   - Cross-reference TCGPlayer & eBay sold comps for THAT EXACT CARD SPEC. If it is a card lot (e.g. 300+ cards), calculate bulk lot market value accurately (e.g. A$65-A$95 AUD for 300+ JP cards).
 
 2. BOOKS & TEXTBOOKS:
    - Identify Title, Author, Edition, ISBN if visible. Cross-reference Google Books / eBay sold comps.
