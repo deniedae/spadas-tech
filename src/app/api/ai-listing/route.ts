@@ -59,7 +59,7 @@ export async function POST(request: Request) {
 
     const imageContent = imageUrls.map((url) => ({
       type: "image_url" as const,
-      image_url: { url },
+      image_url: { url, detail: "high" as const },
     }));
 
     const completion = await openai.chat.completions.create({
