@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import CreatorApplicationForm from "@/components/creator-application-form";
 import {
   ArrowLeft,
   Camera,
@@ -255,75 +256,7 @@ export default function CreatorsPage() {
             </p>
           </div>
 
-          <form className="space-y-5" onSubmit={(e) => e.preventDefault()}>
-            <div className="grid sm:grid-cols-2 gap-5">
-              <div>
-                <label className="block text-xs font-medium text-slate-300 mb-2">Creator / Business Name</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Thrift King Flipping"
-                  className="w-full rounded-xl bg-slate-950 border border-slate-800 px-4 py-3 text-sm text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-300 mb-2">Primary Email</label>
-                <input
-                  type="email"
-                  placeholder="you@creator.com"
-                  className="w-full rounded-xl bg-slate-950 border border-slate-800 px-4 py-3 text-sm text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none"
-                />
-              </div>
-            </div>
-
-            <div className="grid sm:grid-cols-2 gap-5">
-              <div>
-                <label className="block text-xs font-medium text-slate-300 mb-2">Primary Channel Link (YouTube / TikTok / IG)</label>
-                <input
-                  type="url"
-                  placeholder="https://youtube.com/@channel"
-                  className="w-full rounded-xl bg-slate-950 border border-slate-800 px-4 py-3 text-sm text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-300 mb-2">Estimated Subscriber / Follower Count</label>
-                <select className="w-full rounded-xl bg-slate-950 border border-slate-800 px-4 py-3 text-sm text-white focus:border-blue-500 focus:outline-none">
-                  <option value="1-5k">1,000 - 5,000 followers</option>
-                  <option value="5-25k">5,000 - 25,000 followers</option>
-                  <option value="25-100k">25,000 - 100,000 followers</option>
-                  <option value="100k+">100,000+ followers</option>
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-slate-300 mb-2">Sponsorship Preference</label>
-              <div className="grid sm:grid-cols-3 gap-3">
-                <label className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-950 p-3 text-xs text-slate-300 cursor-pointer hover:border-slate-700">
-                  <input type="radio" name="pref" defaultChecked className="text-blue-600" />
-                  <span>25% Lifetime Affiliate</span>
-                </label>
-                <label className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-950 p-3 text-xs text-slate-300 cursor-pointer hover:border-slate-700">
-                  <input type="radio" name="pref" className="text-blue-600" />
-                  <span>Flat Fee per Video</span>
-                </label>
-                <label className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-950 p-3 text-xs text-slate-300 cursor-pointer hover:border-slate-700">
-                  <input type="radio" name="pref" className="text-blue-600" />
-                  <span>Hybrid (Flat + % Commission)</span>
-                </label>
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              className="w-full rounded-xl bg-blue-600 py-3.5 text-sm font-bold text-white transition hover:bg-blue-500 shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2"
-            >
-              <Send className="h-4 w-4" /> Submit Sponsorship Application
-            </button>
-
-            <p className="text-center text-[11px] text-slate-500 flex items-center justify-center gap-1">
-              <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" /> Approved creators receive instant access to custom promo codes & asset kits.
-            </p>
-          </form>
+          <CreatorApplicationForm />
         </div>
 
         <div className="border-t border-slate-800 pt-8 text-center text-xs text-slate-500">
