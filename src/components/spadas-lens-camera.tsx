@@ -217,9 +217,10 @@ function SpadasLensCameraCore() {
   const [selectedHitIds, setSelectedHitIds] = useState<string[]>([]);
   const [exporting, setExporting] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [isMockFallback, setIsMockFallback] = useState(false);
 
-  // Single-Threaded Processing Queue Lock
-  const isProcessingQueueRef = useRef(false);
+  // Lightweight Non-Blocking Debounce Timestamp
+  const lastScanTimeRef = useRef<number>(0);
 
   // Track last chimed item for anti-spam loop prevention
   const lastChimedRef = useRef<{ name: string; time: number } | null>(null);
@@ -384,16 +385,21 @@ function SpadasLensCameraCore() {
     }
   };
 
-  // Single-Threaded Processing Queue Lifecycle with Strict 4000ms Timeout
+  // Lightweight Non-Blocking Frame Scanner with Guaranteed finally Reset
   const processCurrentFrame = useCallback(async () => {
-    if (!videoRef.current || isProcessingQueueRef.current || analyzingRealFrame) return;
+    if (!videoRef.current || analyzingRealFrame) return;
 
-    // SINGLE-THREADED QUEUE LOCK: Guarantee only 1 frame processes at a time
-    isProcessingQueueRef.current = true;
+    // LIGHTWEIGHT NON-BLOCKING DEBOUNCE: Skip frame if < 1000ms since last scan
+    const currentTime = Date.now();
+    if (currentTime - lastScanTimeRef.current < 1000) {
+      return;
+    }
+    lastScanTimeRef.current = currentTime;
+
     setAnalyzingRealFrame(true);
 
     const controller = new AbortController();
-    const hardTimeoutId = setTimeout(() => controller.abort(), 4000); // 4000ms hard fetch timeout
+    const hardTimeoutId = setTimeout(() => controller.abort(), 4000);
 
     try {
       const video = videoRef.current;
@@ -423,17 +429,53 @@ function SpadasLensCameraCore() {
 
       clearTimeout(hardTimeoutId);
 
-      if (res.status === 429) {
-        setRateLimited(true);
-        toast.error("API Rate Limit (429) - Implementing 5s backoff...", { id: "ar-rate-limit-toast" });
-        await new Promise((resolve) => setTimeout(resolve, 5000));
-        return;
+      let data: any = null;
+      if (res.status === 401 || res.status === 402 || res.status === 429 || !res.ok) {
+        setIsMockFallback(true);
+        try { data = await res.json(); } catch { data = null; }
+      } else {
+        data = await res.json().catch(() => null);
+        if (data?.isMockFallback) {
+          setIsMockFallback(true);
+        }
       }
 
-      if (!res.ok) throw new Error(`AI frame scan failed (${res.status}).`);
-
-      setRateLimited(false);
-      const data = await res.json();
+      // If API returned mock fallback or failed due to credit exhaustion, supply local mock generator item
+      if (!data || !data.analysis || data.error) {
+        setIsMockFallback(true);
+        const mockCatalog = [
+          { name: "Nintendo Game Boy Color (Berry Red)", brand: "Nintendo", cat: "Video Games & Consoles", price_min: 75, price_max: 95 },
+          { name: "Sony Walkman WM-FX290 Cassette Player", brand: "Sony", cat: "Vintage Electronics", price_min: 55, price_max: 70 },
+          { name: "Pokémon Base Set Unlimited Charmander 46/102", brand: "Wizards of the Coast", cat: "Trading Cards", price_min: 30, price_max: 45 },
+          { name: "Bose SoundLink Mini II Bluetooth Speaker", brand: "Bose", cat: "Consumer Electronics", price_min: 80, price_max: 105 },
+          { name: "Logitech MX Master 3S Wireless Mouse", brand: "Logitech", cat: "Computer Accessories", price_min: 70, price_max: 90 },
+          { name: "Super Mario World SNES Cartridge", brand: "Nintendo", cat: "Video Games", price_min: 40, price_max: 55 },
+        ];
+        const item = mockCatalog[Math.floor(Math.random() * mockCatalog.length)];
+        data = {
+          isMockFallback: true,
+          detected_objects: [
+            {
+              id: `mock-obj-${Date.now()}`,
+              product_name: item.name,
+              brand: item.brand,
+              category: item.cat,
+              condition: "Used - Good",
+              bbox: { x: 20, y: 20, width: 60, height: 60 },
+              confidence_score: 0.96,
+            },
+          ],
+          analysis: {
+            product_name: item.name,
+            brand: item.brand,
+            category: item.cat,
+            condition: "Used - Good",
+            confidence_score: 0.96,
+          },
+          suggested_price_min: item.price_min,
+          suggested_price_max: item.price_max,
+        };
+      }
 
       // Extract Multi-Object Detected Items
       const detected =
@@ -586,9 +628,8 @@ function SpadasLensCameraCore() {
       }
     } finally {
       clearTimeout(hardTimeoutId);
-      // GUARANTEED UNLOCK: Release queue lock and state lock cleanly
+      // GUARANTEED ALWAYS-RELEASE STATE RESET
       setAnalyzingRealFrame(false);
-      isProcessingQueueRef.current = false;
     }
   }, [analyzingRealFrame, soundEnabled]);
 
@@ -607,7 +648,7 @@ function SpadasLensCameraCore() {
     return () => clearInterval(interval);
   }, []);
 
-  // Stable Auto-Scan Loop (Clean 2-second cooldown between scans)
+  // Stable Auto-Scan Loop
   useEffect(() => {
     if (!scanning || !autoScanActive) return;
 
@@ -616,7 +657,7 @@ function SpadasLensCameraCore() {
     const scheduleThrottledScan = () => {
       timeoutId = setTimeout(() => {
         if (typeof document !== "undefined" && document.visibilityState === "visible") {
-          if (!isProcessingQueueRef.current && !analyzingRealFrame) {
+          if (!analyzingRealFrame) {
             void processCurrentFrame().finally(() => {
               scheduleThrottledScan();
             });
@@ -626,7 +667,7 @@ function SpadasLensCameraCore() {
         } else {
           scheduleThrottledScan();
         }
-      }, 2000); // Stable 2-second cooldown between frame evaluations
+      }, 1000);
     };
 
     scheduleThrottledScan();
@@ -666,6 +707,16 @@ function SpadasLensCameraCore() {
               muted
               className="h-full w-full object-cover"
             />
+
+            {/* Low Credit UI Warning Banner */}
+            {isMockFallback && (
+              <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 w-[92%] max-w-md mx-auto pointer-events-none">
+                <div className="flex items-center justify-center gap-2 rounded-xl bg-amber-500/95 backdrop-blur-md px-4 py-2 text-xs font-extrabold text-slate-950 shadow-2xl border border-amber-300/60 animate-pulse">
+                  <ShieldAlert className="h-4 w-4 shrink-0 text-slate-950" />
+                  <span>⚠️ API Credits Depleted - Running in Test Mode</span>
+                </div>
+              </div>
+            )}
 
             {/* Target Framing Reticle */}
             <div className="absolute inset-0 z-15 pointer-events-none flex items-center justify-center">

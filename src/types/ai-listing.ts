@@ -46,6 +46,16 @@ export interface AiListingResult {
   suggested_price_min: number;
   suggested_price_max: number;
   suggested_price_currency: "USD" | "AUD" | "GBP" | "EUR";
+  isMockFallback?: boolean;
+  detected_objects?: Array<{
+    id: string;
+    product_name: string | null;
+    brand: string | null;
+    category: string;
+    condition: string;
+    bbox: { x: number; y: number; width: number; height: number };
+    confidence_score: number;
+  }>;
 }
 
 /** Row in the ai_listing_analyses table. */

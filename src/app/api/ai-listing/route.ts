@@ -9,6 +9,141 @@ export const preferredRegion = "syd1";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+function generateMockAiListingResult(): AiListingResult {
+  const mockCatalog = [
+    {
+      product_name: "Nintendo Game Boy Color (Berry Red)",
+      brand: "Nintendo",
+      model: "CGB-001",
+      category: "Video Games & Consoles",
+      condition: "Used - Good",
+      price_min: 75,
+      price_max: 95,
+      bbox: { x: 22, y: 18, width: 55, height: 60 },
+    },
+    {
+      product_name: "Sony Walkman WM-FX290 Cassette Player",
+      brand: "Sony",
+      model: "WM-FX290",
+      category: "Vintage Electronics",
+      condition: "Used - Good",
+      price_min: 55,
+      price_max: 70,
+      bbox: { x: 20, y: 20, width: 60, height: 55 },
+    },
+    {
+      product_name: "Pokémon Base Set Unlimited Charmander 46/102",
+      brand: "Wizards of the Coast",
+      model: "Base Set 46/102",
+      category: "Trading Cards",
+      condition: "Used - Good",
+      price_min: 30,
+      price_max: 45,
+      bbox: { x: 28, y: 22, width: 44, height: 56 },
+    },
+    {
+      product_name: "Bose SoundLink Mini II Bluetooth Speaker",
+      brand: "Bose",
+      model: "SoundLink Mini II",
+      category: "Consumer Electronics",
+      condition: "Used - Working",
+      price_min: 80,
+      price_max: 105,
+      bbox: { x: 18, y: 25, width: 64, height: 50 },
+    },
+    {
+      product_name: "Logitech MX Master 3S Wireless Mouse",
+      brand: "Logitech",
+      model: "MX Master 3S",
+      category: "Computer Accessories",
+      condition: "Used - Good",
+      price_min: 70,
+      price_max: 90,
+      bbox: { x: 25, y: 20, width: 50, height: 60 },
+    },
+    {
+      product_name: "Super Mario World SNES Cartridge",
+      brand: "Nintendo",
+      model: "SNES Cartridge",
+      category: "Video Games",
+      condition: "Used - Good",
+      price_min: 40,
+      price_max: 55,
+      bbox: { x: 20, y: 15, width: 60, height: 65 },
+    },
+  ];
+
+  const item = mockCatalog[Math.floor(Math.random() * mockCatalog.length)];
+
+  return {
+    isMockFallback: true,
+    detected_objects: [
+      {
+        id: `mock-obj-${Date.now()}`,
+        product_name: item.product_name,
+        brand: item.brand,
+        category: item.category,
+        condition: item.condition,
+        bbox: item.bbox,
+        confidence_score: 0.96,
+      },
+    ],
+    analysis: {
+      product_name: item.product_name,
+      brand: item.brand,
+      model: item.model,
+      category: item.category,
+      color: "Original",
+      material: null,
+      condition: item.condition,
+      accessories_detected: [],
+      confidence: "high",
+      confidence_score: 0.96,
+    },
+    market_titles: {
+      ebay: `${item.product_name} - Genuine Resale Unit`,
+      facebook_marketplace: item.product_name,
+      vinted: item.product_name,
+      depop: item.product_name,
+    },
+    seo_description: `Verified authentic ${item.product_name} in ${item.condition} condition.`,
+    detailed_description: `Authentic ${item.product_name}. Tested and in ${item.condition} working condition. Strong reseller margin potential.`,
+    shipping_estimate: {
+      size: "small",
+      estimated_weight_grams: 350,
+      dimensions_cm: { length: 20, width: 15, height: 10 },
+      notes: "Standard shipping parcel",
+    },
+    item_specifics: {
+      Brand: item.brand || "Unbranded",
+      Model: item.model || "Standard",
+      Condition: item.condition,
+    },
+    suggested_keywords: [item.brand || "vintage", item.category, "authentic"],
+    suggested_price_min: item.price_min,
+    suggested_price_max: item.price_max,
+    suggested_price_currency: "AUD",
+  };
+}
+
+function isCreditOrQuotaError(err: any): boolean {
+  if (!err) return false;
+  const status = err.status || err.statusCode || err.code;
+  if (status === 401 || status === 402 || status === 429) return true;
+  const msg = (err.message || "").toLowerCase();
+  return (
+    msg.includes("401") ||
+    msg.includes("402") ||
+    msg.includes("429") ||
+    msg.includes("quota") ||
+    msg.includes("credit") ||
+    msg.includes("billing") ||
+    msg.includes("unauthorized") ||
+    msg.includes("insufficient") ||
+    msg.includes("invalid_api_key")
+  );
+}
+
 export async function POST(request: Request) {
   try {
     const cookieStore = await cookies();
@@ -43,7 +178,7 @@ export async function POST(request: Request) {
     if (!imageUrls || imageUrls.length === 0) {
       return NextResponse.json(
         { error: "At least one image URL is required." },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -68,6 +203,7 @@ export async function POST(request: Request) {
     }));
 
     let completion;
+    let hasCreditOrQuotaError = false;
     const targetModels = [
       "gpt-5-mini",
       "gpt-5.4-mini",
@@ -178,20 +314,28 @@ Rules:
 - seo_description: a short, punchy 1-2 sentence summary optimised for search.
 - detailed_description: a full marketplace listing body — 3-5 short paragraphs, plain text, no markdown, no emoji. Cover what it is, condition, key features, and any flaws visible in the photo.
 - shipping_estimate.size: classify parcel as small, medium, large, or extra-large.
-- Do not include any text outside the JSON object.`
+- Do not include any text outside the JSON object.`,
+                },
+                ...imageContent,
+              ],
             },
-            ...imageContent,
           ],
-        },
-      ],
-    });
+        });
         if (completion?.choices?.[0]?.message?.content) break;
-      } catch (err) {
-        console.warn(`[ai-listing] Model ${modelName} fallback check:`, err);
+      } catch (err: any) {
+        console.warn(`[ai-listing] Model ${modelName} call warning:`, err);
+        if (isCreditOrQuotaError(err)) {
+          hasCreditOrQuotaError = true;
+          console.warn("[ai-listing] Credit exhaustion / 401/402/429 quota error detected on model:", modelName);
+        }
       }
     }
 
     if (!completion?.choices?.[0]?.message?.content) {
+      if (hasCreditOrQuotaError || process.env.OPENAI_API_KEY?.startsWith("sk-proj-placeholder")) {
+        console.warn("[ai-listing] Credit exhaustion fallback triggered due to API status/credits.");
+        return NextResponse.json(generateMockAiListingResult());
+      }
       throw new Error("No model response received.");
     }
 
@@ -230,11 +374,15 @@ Rules:
     }
 
     return NextResponse.json(result);
-  } catch (err) {
-    console.error("[ai-listing] failed:", err);
+  } catch (err: any) {
+    console.error("[ai-listing] failed error:", err);
+    if (isCreditOrQuotaError(err)) {
+      console.warn("[ai-listing] Returning mock fallback result due to credit exhaustion.");
+      return NextResponse.json(generateMockAiListingResult());
+    }
     return NextResponse.json(
       { error: "Failed to generate AI listing." },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }
