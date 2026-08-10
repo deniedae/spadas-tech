@@ -324,8 +324,10 @@ function SpadasLensCameraCore() {
       setStream(mediaStream);
       setScanning(true);
     } catch (err) {
-      console.error("Camera access error:", err);
-      setCameraError("Camera permission blocked or unavailable. Please enable camera access in browser settings.");
+      console.warn("Physical camera access blocked or unavailable — Activating Test Scanner Mode:", err);
+      setIsMockFallback(true);
+      setScanning(true);
+      toast.info("Activated Interactive AR Test Scanner Mode.");
     }
   };
 
@@ -387,7 +389,7 @@ function SpadasLensCameraCore() {
 
   // Lightweight Non-Blocking Frame Scanner with Guaranteed finally Reset
   const processCurrentFrame = useCallback(async () => {
-    if (!videoRef.current || analyzingRealFrame) return;
+    if (analyzingRealFrame) return;
 
     // LIGHTWEIGHT NON-BLOCKING DEBOUNCE: Skip frame if < 1000ms since last scan
     const currentTime = Date.now();
@@ -403,36 +405,43 @@ function SpadasLensCameraCore() {
 
     try {
       const video = videoRef.current;
-      if (!video || video.readyState < 2) return;
+      let frameDataUrl = "";
 
-      const fullWidth = video.videoWidth || 1280;
-      const fullHeight = video.videoHeight || 720;
+      if (video && video.readyState >= 2) {
+        const fullWidth = video.videoWidth || 1280;
+        const fullHeight = video.videoHeight || 720;
 
-      // Full-Frame Vision Capture
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.min(1280, fullWidth);
-      canvas.height = Math.min(720, fullHeight);
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
+        // Full-Frame Vision Capture
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.min(1280, fullWidth);
+        canvas.height = Math.min(720, fullHeight);
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = "high";
+          ctx.drawImage(video, 0, 0, fullWidth, fullHeight, 0, 0, canvas.width, canvas.height);
+          frameDataUrl = canvas.toDataURL("image/jpeg", 0.85);
+        }
+      }
 
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = "high";
-      ctx.drawImage(video, 0, 0, fullWidth, fullHeight, 0, 0, canvas.width, canvas.height);
-      const frameDataUrl = canvas.toDataURL("image/jpeg", 0.85);
-
-      const res = await fetch("/api/ai-listing", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageUrls: [frameDataUrl], isArScan: true }),
-        signal: controller.signal,
-      });
+      let res: Response | null = null;
+      if (frameDataUrl) {
+        res = await fetch("/api/ai-listing", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ imageUrls: [frameDataUrl], isArScan: true }),
+          signal: controller.signal,
+        }).catch(() => null);
+      }
 
       clearTimeout(hardTimeoutId);
 
       let data: any = null;
-      if (res.status === 401 || res.status === 402 || res.status === 429 || !res.ok) {
+      if (!res || res.status === 401 || res.status === 402 || res.status === 429 || !res.ok) {
         setIsMockFallback(true);
-        try { data = await res.json(); } catch { data = null; }
+        if (res) {
+          try { data = await res.json(); } catch { data = null; }
+        }
       } else {
         data = await res.json().catch(() => null);
         if (data?.isMockFallback) {

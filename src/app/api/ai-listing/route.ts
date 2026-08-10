@@ -164,14 +164,6 @@ export async function POST(request: Request) {
       }
     );
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const body = await request.json().catch(() => ({}));
     const { imageUrls, isArScan } = body as { imageUrls?: string[]; isArScan?: boolean };
 
@@ -182,8 +174,21 @@ export async function POST(request: Request) {
       );
     }
 
-    // Usage Limit Check (Bypassed for real-time live AR continuous video stream)
-    if (!isArScan) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    // If user is unauthenticated, allow AR scanner / guest demo mode via mock fallback
+    if (!user) {
+      if (isArScan) {
+        // Proceed with scan or mock fallback if OpenAI key is missing
+      } else {
+        return NextResponse.json(generateMockAiListingResult());
+      }
+    }
+
+    // Usage Limit Check (Bypassed for real-time live AR continuous video stream or unauthenticated guests)
+    if (!isArScan && user) {
       const usage = await checkUserUsage(user.id);
       if (usage.limitReached) {
         return NextResponse.json(
@@ -363,7 +368,7 @@ Rules:
     }
 
     // Record AI generation usage for listing generations (skipping temporary live AR video frames)
-    if (!isArScan) {
+    if (!isArScan && user) {
       await supabase.from("ai_listing_analyses").insert([
         {
           user_id: user.id,

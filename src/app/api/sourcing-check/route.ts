@@ -169,21 +169,19 @@ export async function POST(req: Request) {
       data: { user },
     } = await supabase.auth.getUser();
 
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Usage Limit Check
-    const usage = await checkUserUsage(user.id);
-    if (usage.limitReached) {
-      return NextResponse.json(
-        {
-          error:
-            "Free plan limit reached (10/10 uses). Upgrade to Pro for unlimited sourcing checks.",
-          limitReached: true,
-        },
-        { status: 403 }
-      );
+    // Usage Limit Check if logged in
+    if (user) {
+      const usage = await checkUserUsage(user.id);
+      if (usage.limitReached) {
+        return NextResponse.json(
+          {
+            error:
+              "Free plan limit reached (10/10 uses). Upgrade to Pro for unlimited sourcing checks.",
+            limitReached: true,
+          },
+          { status: 403 }
+        );
+      }
     }
 
     const { imageUrls, cost } = (await req.json()) as {
