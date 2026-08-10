@@ -77,45 +77,39 @@ function isVacuumCleaner(name: string, category: string): boolean {
   return /\b(vacuum|cleaner|hoover|roomba|dyson\s*v\d+|bissel|eureka|dustbuster|shop-vac|sweeper|floor cleaner)\b/i.test(text);
 }
 
-// Broad Keyword Blocklist & Mandatory Specificity Check
-const GENERIC_BLOCKLIST = new Set([
-  "computer keyboard",
+// Broad Vague Generic Term Blocklist (Rejects titles lacking brand/model specificity)
+const VAGUE_GENERIC_TERMS = new Set([
   "keyboard",
-  "trading cards",
+  "computer keyboard",
   "trading card",
+  "trading cards",
+  "card",
   "game controller",
+  "controller",
+  "coffee maker",
   "spray bottle",
+  "bottle",
   "mouse",
   "computer mouse",
   "headphones",
   "speaker",
-  "bottle",
   "cable",
   "charger",
   "phone case",
-  "book",
-  "apparel",
-  "shirt",
-  "shoes",
-  "scanned item",
-  "electronics",
-  "video game",
-  "board game",
-  "toy",
-  "clothing"
+  "scanned item"
 ]);
 
-// Strict Vague / Partial Read Detector (Nullify Vague & Generic Reads)
+// Strict Vague / Partial Read Detector (Nullify Vague & Non-Specific Reads)
 function isVagueOrPartialRead(productName?: string | null, brand?: string | null): boolean {
   if (!productName || productName.trim() === "" || productName === "NO_CENTER_ITEM") return true;
   const lower = productName.toLowerCase().trim();
 
-  // Reject exact generic blocklist entries
-  if (GENERIC_BLOCKLIST.has(lower)) return true;
+  // Reject exact vague generic terms lacking specificity
+  if (VAGUE_GENERIC_TERMS.has(lower)) return true;
 
-  // Reject titles <= 2 words if no brand is present
+  // Reject generic titles <= 2 words if no specific brand or model is attached
   const words = lower.split(/\s+/);
-  if (words.length <= 2 && !brand) return true;
+  if (words.length <= 2 && (!brand || brand.trim() === "" || brand.toLowerCase() === "generic")) return true;
 
   const vaguePhrases = [
     "unclear",
