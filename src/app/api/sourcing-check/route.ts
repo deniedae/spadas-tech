@@ -80,6 +80,12 @@ async function fetchPrimaryComps(keyword: string): Promise<Array<{ title?: strin
     });
     clearTimeout(timeoutId);
 
+    if (res.status === 429) {
+      console.warn("[sourcing-check] Primary scraper returned 429 (Too Many Requests). Implementing 5s backoff...");
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+      throw new Error(`Primary scraper HTTP 429 Rate Limit`);
+    }
+
     if (!res.ok) throw new Error(`Primary scraper HTTP ${res.status}`);
 
     const data = await res.json();

@@ -368,7 +368,8 @@ export default function SpadasLensCamera() {
 
       if (res.status === 429) {
         setRateLimited(true);
-        toast.error("API Rate Limit (429) - Retrying in 1.5s...", { id: "ar-rate-limit-toast" });
+        toast.error("API Rate Limit (429) - Implementing 5s backoff...", { id: "ar-rate-limit-toast" });
+        await new Promise((resolve) => setTimeout(resolve, 5000));
         return;
       }
 
@@ -403,7 +404,7 @@ export default function SpadasLensCamera() {
         const pName = item.product_name;
         const cat = item.category || "Scanned Item";
 
-        // Hard-Kill Exclusions (Strict Generic Title Rejection)
+        // Hard-Kill Exclusions (Strict Vacuum Cleaner & Generic Title Rejection)
         if (!pName || isVagueOrPartialRead(pName, item.brand) || isVacuumCleaner(pName, cat)) {
           continue;
         }
@@ -426,11 +427,13 @@ export default function SpadasLensCamera() {
         return;
       }
 
-      // PHASE 1: Instantly render neutral/cyan bounding boxes without blocking for pricing
+      // PHASE 1 & THROTTLING: Cap activeScans to a maximum of 3 concurrent items
       setActiveScans((prev) => {
+        if (prev.length >= 3) return prev;
         const existingIds = new Set(prev.map((s) => s.id));
         const newScans = validPendingItems.filter((s) => !existingIds.has(s.id));
-        return [...newScans, ...prev].slice(0, 8);
+        const availableSlots = Math.max(0, 3 - prev.length);
+        return [...newScans.slice(0, availableSlots), ...prev];
       });
 
       // PHASE 2: Asynchronous Parallel Batch Pricing (Non-Blocking Promise.allSettled)
@@ -519,7 +522,8 @@ export default function SpadasLensCamera() {
       console.error("Live camera Vision scan error:", err);
       if (err?.message?.includes("429")) {
         setRateLimited(true);
-        toast.error("API Rate Limit (429) - Retrying in 1.5s...", { id: "ar-rate-limit-toast" });
+        toast.error("API Rate Limit (429) - Implementing 5s backoff...", { id: "ar-rate-limit-toast" });
+        await new Promise((resolve) => setTimeout(resolve, 5000));
       }
     } finally {
       // GUARANTEED UNLOCK: Release scanner lock immediately
@@ -527,7 +531,16 @@ export default function SpadasLensCamera() {
     }
   }, [analyzingRealFrame, soundEnabled]);
 
-  // Throttled Continuous AR Scanner Loop (1.5 seconds delay between frames)
+  // Clear Stale State: If an item leaves camera viewport for > 2 seconds (2000ms), clear it from memory
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = Date.now();
+      setActiveScans((prev) => prev.filter((item) => now - item.timestamp <= 2000));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Throttled Continuous AR Scanner Loop (1000ms frame delay / debounce)
   useEffect(() => {
     if (!scanning || !autoScanActive) return;
 
@@ -546,7 +559,7 @@ export default function SpadasLensCamera() {
         } else {
           scheduleThrottledScan();
         }
-      }, 1500); // 1.5s interval to prevent OpenAI 429 Rate Limits & reduce battery drain
+      }, 1000); // 1000ms frame delay debounce
     };
 
     scheduleThrottledScan();
