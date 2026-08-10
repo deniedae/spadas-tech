@@ -494,9 +494,9 @@ export default function SpadasLensCamera() {
   }, []);
 
   return (
-    <div className="space-y-6 pb-20">
+    <div className="w-full max-w-full overflow-x-hidden box-border space-y-6 pb-20 mx-auto">
       {/* Video Viewport Container */}
-      <div className="relative aspect-[4/3] sm:aspect-[16/9] overflow-hidden rounded-3xl border-2 border-cyan-500/40 bg-slate-950 shadow-2xl">
+      <div className="relative aspect-[4/3] sm:aspect-[16/9] w-full max-w-full box-border overflow-hidden rounded-3xl border-2 border-cyan-500/40 bg-slate-950 shadow-2xl">
         {cameraError ? (
           <div className="flex h-full flex-col items-center justify-center p-6 text-center space-y-3 text-slate-300">
             <ShieldAlert className="h-12 w-12 text-amber-400" />
@@ -652,11 +652,11 @@ export default function SpadasLensCamera() {
 
       {/* Selectable Real-Time Hits Feed */}
       {capturedLog.length > 0 && (
-        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm space-y-3">
-          <div className="flex items-center justify-between">
+        <div className="w-full max-w-full overflow-x-hidden box-border rounded-2xl border border-border bg-card p-3 sm:p-4 shadow-sm space-y-3 mx-auto">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className="text-sm font-bold flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-              Real-Time Scanned Hits ({capturedLog.length})
+              <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+              <span>Real-Time Scanned Hits ({capturedLog.length})</span>
             </h3>
             <div className="flex items-center gap-3">
               <button
@@ -670,41 +670,41 @@ export default function SpadasLensCamera() {
             </div>
           </div>
 
-          <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3 w-full box-border">
             {capturedLog.map((item) => {
               const isSelected = selectedHitIds.includes(item.id);
               return (
                 <div
                   key={item.id}
                   onClick={() => toggleSelectHit(item.id)}
-                  className={`relative cursor-pointer transition-all rounded-lg border p-2.5 px-3 space-y-1 ${
+                  className={`relative w-full min-w-0 box-border overflow-hidden cursor-pointer transition-all rounded-lg border p-2.5 px-3 space-y-1 ${
                     isSelected
                       ? "border-emerald-400 bg-emerald-500/15 shadow-[0_0_12px_rgba(52,211,153,0.35)] ring-1 ring-emerald-400"
                       : "border-emerald-500/30 bg-emerald-500/5 hover:border-emerald-400/50"
                   }`}
                 >
-                  <div className="flex items-center justify-between gap-1">
-                    <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-between gap-1 w-full min-w-0">
+                    <div className="flex items-center gap-1.5 min-w-0 truncate">
                       <input
                         type="checkbox"
                         checked={isSelected}
                         onChange={() => toggleSelectHit(item.id)}
                         onClick={(e) => e.stopPropagation()}
-                        className="h-3.5 w-3.5 rounded border-slate-700 bg-slate-900 text-emerald-500 focus:ring-emerald-400 cursor-pointer"
+                        className="h-3.5 w-3.5 rounded border-slate-700 bg-slate-900 text-emerald-500 focus:ring-emerald-400 cursor-pointer shrink-0"
                       />
-                      <span className="text-[11px] font-black px-1.5 py-0.2 rounded bg-emerald-500 text-slate-950 uppercase tracking-tight">
+                      <span className="text-[11px] font-black px-1.5 py-0.2 rounded bg-emerald-500 text-slate-950 uppercase tracking-tight shrink-0">
                         +${item.estimatedProfit.toFixed(2)} Profit
                       </span>
                     </div>
-                    <span className="text-[10px] text-muted-foreground font-medium flex items-center gap-1">
+                    <span className="text-[10px] text-muted-foreground font-medium flex items-center gap-1 shrink-0">
                       <Clock className="h-3 w-3 text-muted-foreground/70" />
                       Updated
                     </span>
                   </div>
-                  <h4 className="text-xs font-bold text-foreground truncate leading-snug">{item.name}</h4>
-                  <div className="flex items-center justify-between text-[11px] pt-0.5">
-                    <span className="text-muted-foreground text-[10px]">{item.condition}</span>
-                    <span className="font-extrabold text-emerald-600 dark:text-emerald-400">{fmtMoney(item.estimatedValue)}</span>
+                  <h4 className="text-xs font-bold text-foreground truncate leading-snug w-full min-w-0">{item.name}</h4>
+                  <div className="flex items-center justify-between text-[11px] pt-0.5 w-full min-w-0">
+                    <span className="text-muted-foreground text-[10px] truncate max-w-[65%]">{item.condition}</span>
+                    <span className="font-extrabold text-emerald-600 dark:text-emerald-400 shrink-0">{fmtMoney(item.estimatedValue)}</span>
                   </div>
                 </div>
               );
@@ -715,16 +715,16 @@ export default function SpadasLensCamera() {
 
       {/* Sticky Bottom Export FAB */}
       {selectedHitIds.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-fade-in">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-fade-in max-w-[92vw] box-border">
           <button
             type="button"
             onClick={exportSelectedHits}
             disabled={exporting}
-            className="inline-flex items-center gap-2.5 rounded-full bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 px-7 py-3 text-sm font-extrabold text-slate-950 shadow-[0_0_30px_rgba(16,185,129,0.6)] hover:scale-105 active:scale-95 transition cursor-pointer"
+            className="inline-flex items-center gap-2.5 rounded-full bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 px-6 sm:px-7 py-3 text-xs sm:text-sm font-extrabold text-slate-950 shadow-[0_0_30px_rgba(16,185,129,0.6)] hover:scale-105 active:scale-95 transition cursor-pointer whitespace-nowrap max-w-full"
           >
-            <Sparkles className="h-4.5 w-4.5" />
-            <span>{exporting ? "Exporting..." : `Export ${selectedHitIds.length} Hit${selectedHitIds.length > 1 ? "s" : ""} to Drafts`}</span>
-            <ArrowRight className="h-4.5 w-4.5" />
+            <Sparkles className="h-4 w-4 shrink-0" />
+            <span className="truncate">{exporting ? "Exporting..." : `Export ${selectedHitIds.length} Hit${selectedHitIds.length > 1 ? "s" : ""} to Drafts`}</span>
+            <ArrowRight className="h-4 w-4 shrink-0" />
           </button>
         </div>
       )}

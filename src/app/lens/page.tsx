@@ -12,7 +12,7 @@ export default function LensPage() {
   ];
 
   return (
-    <div className="space-y-8 animate-fade-in pb-16">
+    <div className="w-full max-w-full overflow-x-hidden box-border space-y-8 animate-fade-in pb-16">
       {/* Header */}
       <div className="rounded-3xl border border-cyan-500/20 bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-800 p-6 md:p-10 text-white shadow-xl space-y-3">
         <div className="inline-flex items-center gap-2 rounded-full bg-white/10 backdrop-blur-md px-3.5 py-1 text-xs font-bold text-cyan-200 border border-white/20">
