@@ -13,6 +13,8 @@ import {
   Gem,
   Loader2,
   X,
+  Sliders,
+  Volume2,
 } from "lucide-react";
 
 interface UserMeta {
@@ -35,6 +37,37 @@ export default function SettingsPage() {
   const [plan, setPlan] = useState("Free Beta");
   const [planStatus, setPlanStatus] = useState("inactive");
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [minProfit, setMinProfit] = useState(20);
+  const [minRoi, setMinRoi] = useState(0);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("spadas_lens_chime_thresholds");
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (typeof parsed.minProfit === "number") setMinProfit(parsed.minProfit);
+          if (typeof parsed.minRoi === "number") setMinRoi(parsed.minRoi);
+        } catch {
+          // fallback
+        }
+      }
+    }
+  }, []);
+
+  const handleUpdateMinProfit = (val: number) => {
+    setMinProfit(val);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("spadas_lens_chime_thresholds", JSON.stringify({ minProfit: val, minRoi }));
+    }
+  };
+
+  const handleUpdateMinRoi = (val: number) => {
+    setMinRoi(val);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("spadas_lens_chime_thresholds", JSON.stringify({ minProfit, minRoi: val }));
+    }
+  };
 
   useEffect(() => {
     const handleBeforeInstall = (e: Event) => {
@@ -391,6 +424,73 @@ export default function SettingsPage() {
               className="h-4 w-4"
             />
           </label>
+        </div>
+      </section>
+
+      {/* Spadas Lens AR Preferences */}
+      <section className="rounded-2xl border border-cyan-500/20 bg-gradient-to-r from-cyan-500/5 via-blue-500/5 to-card p-6 shadow-sm transition hover:shadow-md space-y-6">
+        <div className="flex items-center gap-2">
+          <Sliders size={20} className="text-cyan-500" aria-hidden="true" />
+          <h2 className="text-xl font-semibold">Spadas Lens AR Chime Thresholds</h2>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Configure when the hands-free audio chime triggers during live AR camera scanning.
+        </p>
+
+        <div className="grid gap-6 md:grid-cols-2">
+          <div className="space-y-3 rounded-xl border border-border bg-background p-4">
+            <div className="flex items-center justify-between text-sm font-semibold">
+              <span className="flex items-center gap-2 text-foreground">
+                <Volume2 className="h-4 w-4 text-emerald-500" />
+                Minimum Net Profit Threshold
+              </span>
+              <span className="text-emerald-500 font-extrabold text-base">${minProfit} AUD</span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Audio chime triggers only when scanned item estimated profit is greater than or equal to this amount.
+            </p>
+            <input
+              type="range"
+              min="5"
+              max="100"
+              step="5"
+              value={minProfit}
+              onChange={(e) => handleUpdateMinProfit(Number(e.target.value))}
+              className="w-full accent-emerald-500 h-2 bg-muted rounded-lg cursor-pointer"
+            />
+            <div className="flex justify-between text-[10px] text-muted-foreground font-mono">
+              <span>$5 AUD</span>
+              <span>$50 AUD</span>
+              <span>$100 AUD</span>
+            </div>
+          </div>
+
+          <div className="space-y-3 rounded-xl border border-border bg-background p-4">
+            <div className="flex items-center justify-between text-sm font-semibold">
+              <span className="flex items-center gap-2 text-foreground">
+                <Sliders className="h-4 w-4 text-cyan-500" />
+                Minimum ROI % Threshold
+              </span>
+              <span className="text-cyan-500 font-extrabold text-base">{minRoi}%</span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Audio chime triggers only when estimated return on investment (ROI) meets or exceeds this percentage.
+            </p>
+            <input
+              type="range"
+              min="0"
+              max="300"
+              step="25"
+              value={minRoi}
+              onChange={(e) => handleUpdateMinRoi(Number(e.target.value))}
+              className="w-full accent-cyan-500 h-2 bg-muted rounded-lg cursor-pointer"
+            />
+            <div className="flex justify-between text-[10px] text-muted-foreground font-mono">
+              <span>0% (All Profitable)</span>
+              <span>100%</span>
+              <span>300%</span>
+            </div>
+          </div>
         </div>
       </section>
 

@@ -1,6 +1,6 @@
 import React, { Component, ReactNode, useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Camera, Volume2, VolumeX, Sparkles, CheckCircle2, RefreshCw, Zap, ShieldAlert, Clock, ArrowRight } from "lucide-react";
+import { Camera, Volume2, VolumeX, Sparkles, CheckCircle2, RefreshCw, Zap, ShieldAlert, Clock, ArrowRight, Sliders } from "lucide-react";
 import { toast } from "sonner";
 import { fmtMoney } from "@/app/lib/listings";
 import { createListing } from "@/app/lib/createlisting";
@@ -218,6 +218,34 @@ function SpadasLensCameraCore() {
   const [exporting, setExporting] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [isMockFallback, setIsMockFallback] = useState(false);
+  const [minProfitThreshold, setMinProfitThreshold] = useState<number>(20);
+  const [minRoiThreshold, setMinRoiThreshold] = useState<number>(0);
+
+  // Load custom profit chime thresholds from localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("spadas_lens_chime_thresholds");
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (typeof parsed.minProfit === "number") setMinProfitThreshold(parsed.minProfit);
+          if (typeof parsed.minRoi === "number") setMinRoiThreshold(parsed.minRoi);
+        } catch {
+          // fallback defaults
+        }
+      }
+    }
+  }, []);
+
+  const updateProfitThreshold = (val: number) => {
+    setMinProfitThreshold(val);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(
+        "spadas_lens_chime_thresholds",
+        JSON.stringify({ minProfit: val, minRoi: minRoiThreshold })
+      );
+    }
+  };
 
   // Lightweight Non-Blocking Debounce Timestamp
   const lastScanTimeRef = useRef<number>(0);
@@ -579,8 +607,8 @@ function SpadasLensCameraCore() {
             )
           );
 
-          // Audio Chime & Cue ($20+ Net Profit)
-          if (estimatedProfit > 20) {
+          // Custom Profit & ROI Threshold Audio Chime & Cue
+          if (estimatedProfit >= minProfitThreshold && estRoi >= minRoiThreshold) {
             const lastChimed = lastChimedRef.current;
             const isSameProduct = lastChimed && getKeywordSimilarity(lastChimed.name, obj.productName) >= 0.55;
             const isCooldownActive = lastChimed && (now - lastChimed.time < 15000);
@@ -863,6 +891,47 @@ function SpadasLensCameraCore() {
             >
               Stop
             </button>
+          </div>
+
+          {/* Custom Profit Threshold Slider & Presets Bar */}
+          <div className="w-full pt-2.5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-800/80">
+            <div className="flex items-center gap-2 text-xs">
+              <Sliders className="h-4 w-4 text-emerald-400 shrink-0" />
+              <span className="font-bold text-slate-200">Chime Min Profit:</span>
+              <span className="font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded text-xs">
+                ${minProfitThreshold} AUD
+              </span>
+            </div>
+
+            <div className="flex items-center gap-3 flex-1 max-w-xs">
+              <input
+                type="range"
+                min="5"
+                max="100"
+                step="5"
+                value={minProfitThreshold}
+                onChange={(e) => updateProfitThreshold(Number(e.target.value))}
+                className="w-full accent-emerald-400 h-1.5 bg-slate-800 rounded-lg cursor-pointer"
+              />
+            </div>
+
+            <div className="flex items-center gap-1">
+              <span className="text-[10px] text-slate-400 font-bold mr-1">Presets:</span>
+              {[10, 20, 30, 50].map((preset) => (
+                <button
+                  key={preset}
+                  type="button"
+                  onClick={() => updateProfitThreshold(preset)}
+                  className={`px-2 py-1 rounded text-[11px] font-black transition ${
+                    minProfitThreshold === preset
+                      ? "bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20"
+                      : "bg-slate-900 border border-slate-800 text-slate-300 hover:bg-slate-800"
+                  }`}
+                >
+                  ${preset}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       )}
