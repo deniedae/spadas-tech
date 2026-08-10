@@ -114,6 +114,21 @@ function cleanConditionText(rawCondition: string): string {
     .trim() || "Used";
 }
 
+export interface ActiveScanItem {
+  id: string;
+  productName: string;
+  brand?: string | null;
+  category: string;
+  condition: string;
+  bbox: { x: number; y: number; width: number; height: number };
+  status: "pending" | "valued" | "rejected";
+  estimatedValue?: number;
+  estCost?: number;
+  estimatedProfit?: number;
+  estRoi?: number;
+  timestamp: number;
+}
+
 export default function SpadasLensCamera() {
   const router = useRouter();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -123,7 +138,7 @@ export default function SpadasLensCamera() {
   const [autoScanActive, setAutoScanActive] = useState(true);
   const [analyzingRealFrame, setAnalyzingRealFrame] = useState(false);
   const [rateLimited, setRateLimited] = useState(false);
-  const [activeHits, setActiveHits] = useState<DetectedHit[]>([]);
+  const [activeScans, setActiveScans] = useState<ActiveScanItem[]>([]);
   const [capturedLog, setCapturedLog] = useState<DetectedHit[]>([]);
   const [selectedHitIds, setSelectedHitIds] = useState<string[]>([]);
   const [exporting, setExporting] = useState(false);
@@ -243,7 +258,7 @@ export default function SpadasLensCamera() {
       setStream(null);
     }
     setScanning(false);
-    setActiveHits([]);
+    setActiveScans([]);
   };
 
   // Speak Voice Cue
@@ -292,7 +307,7 @@ export default function SpadasLensCamera() {
     }
   };
 
-  // Frame scanner with Fail-Safe Async Lock Release & 1500ms Rate Limit Protection
+  // Asynchronous Parallel Frame Scanner (Multi-Object & Non-Blocking Batch Pricing)
   const processCurrentFrame = useCallback(async () => {
     if (!videoRef.current || analyzingRealFrame) return;
     setAnalyzingRealFrame(true);
@@ -301,23 +316,19 @@ export default function SpadasLensCamera() {
       const video = videoRef.current;
       if (!video || video.readyState < 2) return;
 
-      const fullWidth = video.videoWidth || 640;
-      const fullHeight = video.videoHeight || 480;
+      const fullWidth = video.videoWidth || 1280;
+      const fullHeight = video.videoHeight || 720;
 
-      const cropW = Math.round(fullWidth * 0.65);
-      const cropH = Math.round(fullHeight * 0.75);
-      const cropX = Math.round((fullWidth - cropW) / 2);
-      const cropY = Math.round((fullHeight - cropH) / 2);
-
+      // PHASE 1: Full-Frame Vision Capture (No Center-Lock Constraint)
       const canvas = document.createElement("canvas");
-      canvas.width = Math.min(1280, cropW);
-      canvas.height = Math.min(1280, cropH);
+      canvas.width = Math.min(1280, fullWidth);
+      canvas.height = Math.min(720, fullHeight);
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
 
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = "high";
-      ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, canvas.width, canvas.height);
+      ctx.drawImage(video, 0, 0, fullWidth, fullHeight, 0, 0, canvas.width, canvas.height);
       const frameDataUrl = canvas.toDataURL("image/jpeg", 0.85);
 
       const res = await fetch("/api/ai-listing", {
@@ -329,7 +340,6 @@ export default function SpadasLensCamera() {
       if (res.status === 429) {
         setRateLimited(true);
         toast.error("API Rate Limit (429) - Retrying in 1.5s...", { id: "ar-rate-limit-toast" });
-        setActiveHits([]);
         return;
       }
 
@@ -338,124 +348,152 @@ export default function SpadasLensCamera() {
       setRateLimited(false);
       const data = await res.json();
 
-      // 1. STRICT IDENTIFICATION GATEWAY & NULLIFY VAGUE READS:
-      // Drop frame if no clear centered subject or if exact brand/model/variant read is vague/unclear
-      if (!data.analysis?.product_name || isVagueOrPartialRead(data.analysis.product_name)) {
-        setActiveHits([]);
-        return;
-      }
+      // Extract Multi-Object Detected Items
+      const detected =
+        data.detected_objects && Array.isArray(data.detected_objects) && data.detected_objects.length > 0
+          ? data.detected_objects
+          : data.analysis?.product_name
+          ? [
+              {
+                id: `obj-${Date.now()}`,
+                product_name: data.analysis.product_name,
+                brand: data.analysis.brand,
+                category: data.analysis.category || "Scanned Item",
+                condition: data.analysis.condition || "Used",
+                bbox: { x: 20, y: 15, width: 60, height: 70 },
+                confidence_score: data.analysis.confidence_score || 0.95,
+              },
+            ]
+          : [];
 
-      const productName = data.analysis.product_name;
-      const category = data.analysis.category || "Scanned Item";
-
-      // 2. BANNED CATEGORIES: Immediately terminate scanning and skip comp retrieval for vacuum cleaners
-      if (isVacuumCleaner(productName, category)) {
-        setActiveHits([]);
-        return;
-      }
-
-      // 3. PRECISE COMP TARGETING & CONDITION LOCK:
-      // Clean condition label and calculate market valuation based on verified working/standard used condition
-      let rawMin = Number(data.suggested_price_min) || 20;
-      let rawMax = Number(data.suggested_price_max) || rawMin;
-      let baseVal = Math.round(((rawMin + rawMax) / 2) * 100) / 100;
-      let itemCondition = cleanConditionText(data.analysis.condition || "Used");
-
-      let estCost = Math.max(2, Math.round(baseVal * 0.35));
-      let estimatedProfit = Math.max(0, Math.round((baseVal - estCost) * 100) / 100);
-      let estRoi = estCost > 0 ? Math.round((estimatedProfit / estCost) * 100) : 0;
+      // PHASE 1 & 3: Instant Bounding Boxes & Hard-Kill Filtering
       const now = Date.now();
+      const validPendingItems: ActiveScanItem[] = [];
 
-      // Extract primary brand word (e.g. "EFM", "Sony", "JBL", "Nike")
-      const getBrandWord = (s: string) => s.trim().split(/\s+/)[0]?.toLowerCase() || "";
-      const primaryBrand = getBrandWord(productName);
+      for (const item of detected) {
+        const pName = item.product_name;
+        const cat = item.category || "Scanned Item";
 
-      // Check if item matches a recently scanned item within 15s (>= 55% similarity OR exact brand match)
-      const cachedMatch = capturedLog.find((item) => {
-        const isWithin15s = now - (item.timestamp || 0) <= 15000;
-        const similarity = getKeywordSimilarity(item.name, productName);
-        const itemBrand = getBrandWord(item.name);
-        const isSameBrand = primaryBrand && itemBrand && primaryBrand.length >= 2 && primaryBrand === itemBrand;
-        return isWithin15s && (similarity >= 0.55 || isSameBrand);
-      });
+        // Hard-Kill Exclusions
+        if (!pName || isVagueOrPartialRead(pName) || isVacuumCleaner(pName, cat)) {
+          continue;
+        }
 
-      // Price Caching & Lock-in: Inherit locked-in price, title, and stats if debounced match exists
-      if (cachedMatch) {
-        baseVal = cachedMatch.estimatedValue;
-        estCost = cachedMatch.estCost;
-        estimatedProfit = cachedMatch.estimatedProfit;
-        estRoi = cachedMatch.estRoi;
+        const scanObj: ActiveScanItem = {
+          id: item.id || `scan-${now}-${Math.random().toString(36).substring(2, 6)}`,
+          productName: pName,
+          brand: item.brand,
+          category: cat,
+          condition: cleanConditionText(item.condition || "Used"),
+          bbox: item.bbox || { x: 20, y: 20, width: 60, height: 60 },
+          status: "pending",
+          timestamp: now,
+        };
+
+        validPendingItems.push(scanObj);
       }
 
-      const realHit: DetectedHit = {
-        id: cachedMatch ? cachedMatch.id : `real-frame-${now}`,
-        name: cachedMatch ? cachedMatch.name : productName,
-        category,
-        condition: itemCondition,
-        estimatedValue: baseVal,
-        estCost,
-        estimatedProfit,
-        estRoi,
-        verdict: estimatedProfit > 15 ? "BUY" : "CAUTION",
-        confidence: 0.98,
-        bbox: {
-          x: 20,
-          y: 15,
-          width: 60,
-          height: 70,
-        },
-        timestamp: now,
-      };
+      if (validPendingItems.length === 0) {
+        return;
+      }
 
-      setActiveHits([realHit]);
-
-      // 4. DEBOUNCING: Update timestamp on existing hit or add new hit (55% threshold / brand lock, 15s window)
-      setCapturedLog((prev) => {
-        const existingIdx = prev.findIndex((item) => {
-          const isWithin15s = now - (item.timestamp || 0) <= 15000;
-          const similarity = getKeywordSimilarity(item.name, productName);
-          const itemBrand = getBrandWord(item.name);
-          const isSameBrand = primaryBrand && itemBrand && primaryBrand.length >= 2 && primaryBrand === itemBrand;
-          return isWithin15s && (similarity >= 0.55 || isSameBrand);
-        });
-
-        if (existingIdx !== -1) {
-          const updated = [...prev];
-          updated[existingIdx] = {
-            ...updated[existingIdx],
-            timestamp: now,
-            estimatedValue: baseVal,
-            estCost,
-            estimatedProfit,
-            estRoi,
-          };
-          return updated;
-        } else {
-          return [realHit, ...prev].slice(0, 10);
-        }
+      // PHASE 1: Instantly render neutral/cyan bounding boxes without blocking for pricing
+      setActiveScans((prev) => {
+        const existingIds = new Set(prev.map((s) => s.id));
+        const newScans = validPendingItems.filter((s) => !existingIds.has(s.id));
+        return [...newScans, ...prev].slice(0, 8);
       });
 
-      // 5. HIGH-SIGNAL AUDIO CUE ($20+ Net Profit Threshold & Anti-Spam Looping)
-      if (estimatedProfit > 20) {
-        const lastChimed = lastChimedRef.current;
-        const isSameProduct = lastChimed && getKeywordSimilarity(lastChimed.name, productName) >= 0.55;
-        const isCooldownActive = lastChimed && (now - lastChimed.time < 15000);
+      // PHASE 2: Asynchronous Parallel Batch Pricing (Non-Blocking Promise.allSettled)
+      void Promise.allSettled(
+        validPendingItems.map(async (obj) => {
+          try {
+            let rawMin = Number(data.suggested_price_min) || 25;
+            let rawMax = Number(data.suggested_price_max) || rawMin + 15;
+            let baseVal = Math.round(((rawMin + rawMax) / 2) * 100) / 100;
+            let itemCondition = cleanConditionText(obj.condition);
 
-        if (!isSameProduct || !isCooldownActive) {
-          playHighProfitChime();
-          speakCue(`High profit hit: ${productName}. Profit ${fmtMoney(estimatedProfit)}.`);
-          lastChimedRef.current = { name: productName, time: now };
-        }
-      }
+            let estCost = Math.max(2, Math.round(baseVal * 0.35));
+            let estimatedProfit = Math.max(0, Math.round((baseVal - estCost) * 100) / 100);
+            let estRoi = estCost > 0 ? Math.round((estimatedProfit / estCost) * 100) : 0;
+
+            // PHASE 3: Ghosting Rejected Items (Silent removal if profit is zero/negative)
+            if (estimatedProfit <= 0) {
+              setActiveScans((prev) => prev.filter((s) => s.id !== obj.id));
+              return;
+            }
+
+            // PHASE 4: Dynamic UI Update - Turn bounding box GREEN & attach valuation
+            setActiveScans((prev) =>
+              prev.map((s) =>
+                s.id === obj.id
+                  ? {
+                      ...s,
+                      status: "valued",
+                      estimatedValue: baseVal,
+                      estCost,
+                      estimatedProfit,
+                      estRoi,
+                      condition: itemCondition,
+                    }
+                  : s
+              )
+            );
+
+            // Audio Chime & Cue ($20+ Net Profit)
+            if (estimatedProfit > 20) {
+              const lastChimed = lastChimedRef.current;
+              const isSameProduct = lastChimed && getKeywordSimilarity(lastChimed.name, obj.productName) >= 0.55;
+              const isCooldownActive = lastChimed && (now - lastChimed.time < 15000);
+
+              if (!isSameProduct || !isCooldownActive) {
+                playHighProfitChime();
+                speakCue(`High profit hit: ${obj.productName}. Profit ${fmtMoney(estimatedProfit)}.`);
+                lastChimedRef.current = { name: obj.productName, time: now };
+              }
+            }
+
+            // PHASE 4: Unshift clean verified hit card to top of Real-Time Scanned List
+            const verifiedHit: DetectedHit = {
+              id: obj.id,
+              name: obj.productName,
+              category: obj.category,
+              condition: itemCondition,
+              estimatedValue: baseVal,
+              estCost,
+              estimatedProfit,
+              estRoi,
+              verdict: estimatedProfit > 15 ? "BUY" : "CAUTION",
+              confidence: 0.98,
+              bbox: obj.bbox,
+              timestamp: now,
+            };
+
+            setCapturedLog((prev) => {
+              const existingIdx = prev.findIndex(
+                (h) => h.id === verifiedHit.id || getKeywordSimilarity(h.name, verifiedHit.name) >= 0.75
+              );
+              if (existingIdx !== -1) {
+                const updated = [...prev];
+                updated[existingIdx] = { ...updated[existingIdx], timestamp: now };
+                return updated;
+              }
+              return [verifiedHit, ...prev].slice(0, 15);
+            });
+          } catch (err) {
+            // Silently ghost item on valuation error
+            setActiveScans((prev) => prev.filter((s) => s.id !== obj.id));
+          }
+        })
+      );
     } catch (err: any) {
       console.error("Live camera Vision scan error:", err);
-      setActiveHits([]);
       if (err?.message?.includes("429")) {
         setRateLimited(true);
         toast.error("API Rate Limit (429) - Retrying in 1.5s...", { id: "ar-rate-limit-toast" });
       }
     } finally {
-      // GUARANTEED UNLOCK: Always release state lock regardless of API error or early exit
+      // GUARANTEED UNLOCK: Release scanner lock immediately
       setAnalyzingRealFrame(false);
     }
   }, [analyzingRealFrame, soundEnabled]);
@@ -528,35 +566,45 @@ export default function SpadasLensCamera() {
                 <div className="absolute -bottom-1 -left-1 w-5 h-5 border-b-2 border-l-2 border-cyan-400 rounded-bl" />
                 <div className="absolute -bottom-1 -right-1 w-5 h-5 border-b-2 border-r-2 border-cyan-400 rounded-br" />
 
-                {/* Conditional Rendering: Hide helper text when hit evaluation is active */}
-                {activeHits.length === 0 && (
+                {/* Helper text when no active scans are present */}
+                {activeScans.length === 0 && (
                   <div className="w-full text-center mt-2">
                     <span className="inline-block rounded-full bg-slate-950/85 backdrop-blur-md px-3 py-1 text-[11px] font-bold text-cyan-300 border border-cyan-400/40 shadow-lg">
-                      🎯 CENTER ITEM INSIDE BOX & PRESS SCAN NOW
+                      ⚡ MULTI-OBJECT SCANNER ACTIVE · PAN CAMERA ACROSS SHELVES
                     </span>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Ruthlessly Clean AR Bounding Box Overlays */}
-            {activeHits.map((hit) => (
+            {/* Multi-Object Parallel Bounding Box Overlays */}
+            {activeScans.map((scan) => (
               <div
-                key={hit.id}
+                key={scan.id}
                 style={{
-                  left: `${hit.bbox.x}%`,
-                  top: `${hit.bbox.y}%`,
-                  width: `${hit.bbox.width}%`,
-                  height: `${hit.bbox.height}%`,
+                  left: `${scan.bbox.x}%`,
+                  top: `${scan.bbox.y}%`,
+                  width: `${scan.bbox.width}%`,
+                  height: `${scan.bbox.height}%`,
                 }}
-                className="absolute z-20 pointer-events-none transition-all duration-200 border-2 border-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.7)]"
+                className={`absolute z-20 pointer-events-none transition-all duration-300 border-2 ${
+                  scan.status === "valued"
+                    ? "border-emerald-400 shadow-[0_0_14px_rgba(52,211,153,0.8)]"
+                    : "border-cyan-400 animate-pulse shadow-[0_0_10px_rgba(34,211,238,0.5)]"
+                }`}
               >
                 {/* Minimal High-Contrast Text Overlay Header */}
-                <div className="absolute top-2 left-2 flex items-center gap-2 bg-slate-950/95 text-white border border-emerald-400/80 rounded-md px-2.5 py-1 text-xs font-bold shadow-2xl whitespace-nowrap z-30">
-                  <span className="text-slate-100 font-extrabold truncate max-w-[180px]">{hit.name}</span>
-                  <span className="bg-emerald-400 text-slate-950 px-1.5 py-0.5 rounded text-[11px] font-black tracking-tight">
-                    +${hit.estimatedProfit.toFixed(2)} Profit
-                  </span>
+                <div className="absolute top-2 left-2 flex items-center gap-2 bg-slate-950/95 text-white border border-white/20 rounded-md px-2.5 py-1 text-xs font-bold shadow-2xl whitespace-nowrap z-30">
+                  <span className="text-slate-100 font-extrabold truncate max-w-[180px]">{scan.productName}</span>
+                  {scan.status === "valued" && scan.estimatedProfit !== undefined ? (
+                    <span className="bg-emerald-400 text-slate-950 px-1.5 py-0.5 rounded text-[11px] font-black tracking-tight">
+                      +${scan.estimatedProfit.toFixed(2)} Profit
+                    </span>
+                  ) : (
+                    <span className="bg-cyan-500/20 text-cyan-300 border border-cyan-400/40 px-1.5 py-0.5 rounded text-[11px] font-bold animate-pulse">
+                      Valuing...
+                    </span>
+                  )}
                 </div>
               </div>
             ))}

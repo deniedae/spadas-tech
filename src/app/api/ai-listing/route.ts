@@ -92,63 +92,49 @@ export async function POST(request: Request) {
                   text: `You are the world's leading AI Reselling & Valuation Expert across eBay, TCGPlayer, PriceCharting, Google Books, TMDB, Facebook Marketplace, and Depop.
 Analyse the product in the provided image(s) with 100% precision.
 
-CRITICAL CENTER-SUBJECT ISOLATION MANDATE:
-- Focus ONLY and strictly on the single primary object located DEAD-CENTER in the cropped frame focal zone.
-- Explicitly IGNORE all background clutter, secondary items, coffee cups, random desk objects, shelf neighbors, hands, or peripheral items in the frame edges.
-- IF NO CLEAR, CENTERED PRIMARY SUBJECT IS PRESENT in the frame, or if the subject is ambiguous/unclear, you MUST return an empty detection with "product_name": null to save processing power.
+MULTI-OBJECT PARALLEL AR DETECTION MANDATE:
+- Inspect the ENTIRE image frame for up to 4 distinct resellable products simultaneously. Do NOT restrict evaluation to a single center focal box.
+- For EACH identified product, return an object in the "detected_objects" array with:
+  - "id": unique string (e.g., "obj-1", "obj-2")
+  - "product_name": exact brand, model, set, or variant (or null if unreadable/vague)
+  - "brand": string or null
+  - "category": string
+  - "condition": clean condition string (e.g. "Used - Working", "New")
+  - "bbox": bounding box percentage coordinates { "x": number, "y": number, "width": number, "height": number } (values from 0 to 100)
+  - "confidence_score": number (0 to 1)
 
 STRICT IDENTIFICATION GATEWAY (NO PARTIAL OR VAGUE MATCHES):
 1. Strict Brand/Model/Variant Identification Gateway:
-   - DO NOT push or return an item if the exact brand, model, set, or variant cannot be positively identified from the image or text.
-   - Nullify Vague Reads: If the internal analysis returns states such as "exact card details unclear", "exact set/variant not fully readable", "unknown model", "unidentified item", or "generic read", you MUST instantly return "product_name": null.
-   - DO NOT output generic titles (e.g., "Pokemon Card", "Black Headphones", "Vintage Shoe") or estimate speculative profit margins for vague or incomplete reads.
+   - DO NOT return an item if the exact brand, model, set, or variant cannot be positively identified from the image or text.
+   - Nullify Vague Reads: If details are vague or unclear (e.g. "exact card details unclear", "exact set/variant not fully readable", "unknown model", "unidentified item"), set "product_name": null.
 
 2. Banned Category Prohibition:
-   - Vacuum Cleaners of any type (e.g. Hoover, Dyson V-series, Roomba, Bissell, Eureka, Shop-Vac, Sweeper, floor cleaners) are STRICTLY BANNED. Immediately return "product_name": null for any vacuum cleaner.
+   - Vacuum Cleaners of any type (e.g. Hoover, Dyson V-series, Roomba, Bissell, Eureka, Shop-Vac, Sweeper, floor cleaners) are STRICTLY BANNED. Instantly set "product_name": null.
 
 3. Precise Comp & Clean Output Formatting:
-   - When evaluating comps for a single item, exclude bulk lots ("lot", "mixed", "loose cards", "job lot").
-   - Exclude "Untested", "Faulty", "Parts-Only", or "As-Is" conditions from comp valuations by default; evaluate based on verified working/standard used condition.
-   - Clean Subtitles & Condition: DO NOT include internal AI reasoning (e.g., "Assume ungraded and sold as-is" or "Hardware assume untested") in the condition or description fields. Return clean, professional condition labels (e.g., "Used - Excellent", "Used - Working", "New").
+   - Exclude bulk lots ("lot", "mixed", "loose cards", "job lot").
+   - Exclude "Untested", "Faulty", "Parts-Only", "As-Is" conditions from comp valuations by default.
+   - Clean Subtitles & Condition: DO NOT include internal AI reasoning in condition or subtitle fields. Return clean, professional condition labels.
 
 STRICT MANDATORY OCR & IDENTIFICATION LOCK:
 1. Mandatory Brand OCR Lock:
-   - If visible text, logo, or brand marking (e.g., "EFM", "Sony", "Bose", "JBL", "Nike", "Apple", "Nintendo", "Logitech") is detected on the item, package, or label, you MUST lock onto that exact brand name.
-   - You are STRICTLY FORBIDDEN from guessing or swapping to a different brand name (e.g., guessing "Ultimate Ears" or "Amazon Echo" when "EFM" text/logo is present).
-
+   - If visible text, logo, or brand marking (e.g., "EFM", "Sony", "Bose", "JBL", "Nike", "Apple", "Nintendo", "Logitech") is detected on the item, package, or label, lock onto that exact brand name.
 2. Physical Type Validation:
-   - You MUST verify the physical object form factor before outputting a product name. If the object is a speaker, it CANNOT be outputted as a "Wireless Charging Pad".
-   - If the exact model number/variant cannot be read from the OCR text and cannot be identified with 100% precision, return "product_name": null rather than inventing a third-party model.
-
-3. Single-Object Primary Target:
-   - Only evaluate the main item in central focus. Discard secondary or ambiguous matches that do not match the primary OCR text read in the center frame.
-
-CATEGORY-SPECIFIC MARKET VALUATION RULES:
-1. TRADING CARDS (Pokémon, Yu-Gi-Oh, Magic: The Gathering, Sports Cards, One Piece, Dragon Ball):
-   - DEEP CARD IDENTIFICATION MANDATE: DO NOT return vague titles like "Pokemon Card Eevee". You MUST inspect card corners, set symbols, card numbers, rarity symbols, and copyright text to return the exact spec format:
-     "[Card Name] - [Set Name] #[Card Number]/[Total Cards] ([Rarity/Variant]) ([Language])"
-     Examples:
-     - "Eevee - Evolving Skies #125/203 (Reverse Holo Rare) (English)"
-     - "Eevee - Shiny Treasure ex #152/190 (Art Rare / AR) (Japanese)"
-     - "Eevee - Jungle #51/64 (1st Edition Common) (English)"
-     - "Charizard VMAX - Darkness Ablaze #020/189 (Secret Rare) (English)"
-   - Cross-reference TCGPlayer & eBay sold comps for THAT EXACT CARD SPEC. If it is a card lot (e.g. 300+ cards), calculate bulk lot market value accurately (e.g. A$65-A$95 AUD for 300+ JP cards).
-
-2. BOOKS & TEXTBOOKS:
-   - Identify Title, Author, Edition, ISBN if visible. Cross-reference Google Books / eBay sold comps.
-
-3. DVDS, BLU-RAYS, MOVIES & VIDEO GAMES:
-   - Identify Title, Console/Format (PS5, Switch, Steelbook, Box Set). Cross-reference PriceCharting & eBay sold comps.
-
-4. SNEAKERS, STREETWEAR & APPAREL:
-   - Identify Brand, Model, Colorway, Size, Authenticity indicators (Nike, Jordan, North Face, Supreme).
-
-5. ELECTRONICS, TOYS & GENERAL THRIFT FIND:
-   - Identify Brand, Model Number, Condition, Completeness.
-   - MANDATE FOR ELECTRONICS & HARDWARE: When looking up comps or evaluating hardware, devices, or electronics, DO NOT assume they are brand new. Default condition and valuation parameters to assume items are untested, faulty, or parts-only.
+   - Verify physical form factor before outputting product name (e.g., speaker cannot be classified as charging pad).
 
 Respond ONLY with valid JSON matching exactly this shape:
 {
+  "detected_objects": [
+    {
+      "id": "string",
+      "product_name": "string | null",
+      "brand": "string | null",
+      "category": "string",
+      "condition": "string",
+      "bbox": { "x": 10, "y": 15, "width": 40, "height": 50 },
+      "confidence_score": 0.95
+    }
+  ],
   "analysis": {
     "product_name": string | null,
     "brand": string | null,
