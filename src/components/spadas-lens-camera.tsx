@@ -1,12 +1,57 @@
-"use client";
-
-import { useEffect, useRef, useState, useCallback } from "react";
+import React, { Component, ReactNode, useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Camera, Volume2, VolumeX, Sparkles, CheckCircle2, RefreshCw, Zap, ShieldAlert, Clock, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { fmtMoney } from "@/app/lib/listings";
 import { createListing } from "@/app/lib/createlisting";
 import { supabase } from "@/app/lib/supabase";
+
+// Catch-All React Error Boundary for Live Camera & Hit List Stability
+interface ErrorBoundaryProps {
+  children: ReactNode;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+}
+
+class CameraErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(): ErrorBoundaryState {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error("[CameraErrorBoundary] Caught unhandled camera UI error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="w-full box-border rounded-3xl border border-amber-500/40 bg-slate-950 p-6 text-center text-slate-200 shadow-2xl my-4 space-y-3">
+          <ShieldAlert className="mx-auto h-12 w-12 text-amber-400" />
+          <h4 className="font-bold text-lg text-slate-100">Scanner Recovered From Temporary Exception</h4>
+          <p className="text-xs text-slate-400 max-w-md mx-auto">
+            The AR camera feed caught an invalid frame payload or API error and reset safely without breaking the main app.
+          </p>
+          <button
+            type="button"
+            onClick={() => this.setState({ hasError: false })}
+            className="inline-flex h-10 items-center gap-2 rounded-xl bg-cyan-600 px-5 text-xs font-bold text-white hover:bg-cyan-500 shadow-lg"
+          >
+            <RefreshCw className="h-4 w-4" /> Restart Camera Feed
+          </button>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
 
 interface DetectedHit {
   id: string;
@@ -158,7 +203,7 @@ export interface ActiveScanItem {
   timestamp: number;
 }
 
-export default function SpadasLensCamera() {
+function SpadasLensCameraCore() {
   const router = useRouter();
   const videoRef = useRef<HTMLVideoElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -172,6 +217,9 @@ export default function SpadasLensCamera() {
   const [selectedHitIds, setSelectedHitIds] = useState<string[]>([]);
   const [exporting, setExporting] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
+
+  // Single-Threaded Processing Queue Lock
+  const isProcessingQueueRef = useRef(false);
 
   // Track last chimed item for anti-spam loop prevention
   const lastChimedRef = useRef<{ name: string; time: number } | null>(null);
@@ -336,10 +384,16 @@ export default function SpadasLensCamera() {
     }
   };
 
-  // Asynchronous Parallel Frame Scanner (Multi-Object & Non-Blocking Batch Pricing)
+  // Single-Threaded Processing Queue Lifecycle with Strict 4000ms Timeout
   const processCurrentFrame = useCallback(async () => {
-    if (!videoRef.current || analyzingRealFrame) return;
+    if (!videoRef.current || isProcessingQueueRef.current || analyzingRealFrame) return;
+
+    // SINGLE-THREADED QUEUE LOCK: Guarantee only 1 frame processes at a time
+    isProcessingQueueRef.current = true;
     setAnalyzingRealFrame(true);
+
+    const controller = new AbortController();
+    const hardTimeoutId = setTimeout(() => controller.abort(), 4000); // 4000ms hard fetch timeout
 
     try {
       const video = videoRef.current;
@@ -348,7 +402,7 @@ export default function SpadasLensCamera() {
       const fullWidth = video.videoWidth || 1280;
       const fullHeight = video.videoHeight || 720;
 
-      // PHASE 1: Full-Frame Vision Capture (No Center-Lock Constraint)
+      // Full-Frame Vision Capture
       const canvas = document.createElement("canvas");
       canvas.width = Math.min(1280, fullWidth);
       canvas.height = Math.min(720, fullHeight);
@@ -364,7 +418,10 @@ export default function SpadasLensCamera() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ imageUrls: [frameDataUrl], isArScan: true }),
+        signal: controller.signal,
       });
+
+      clearTimeout(hardTimeoutId);
 
       if (res.status === 429) {
         setRateLimited(true);
@@ -396,7 +453,7 @@ export default function SpadasLensCamera() {
             ]
           : [];
 
-      // PHASE 1 & 3: Instant Bounding Boxes & Hard-Kill Filtering
+      // Instant Bounding Boxes & Hard-Kill Filtering
       const now = Date.now();
       const validPendingItems: ActiveScanItem[] = [];
 
@@ -427,7 +484,7 @@ export default function SpadasLensCamera() {
         return;
       }
 
-      // PHASE 1 & THROTTLING: Cap activeScans to a maximum of 3 concurrent items
+      // Cap activeScans to a maximum of 3 concurrent items
       setActiveScans((prev) => {
         if (prev.length >= 3) return prev;
         const existingIds = new Set(prev.map((s) => s.id));
@@ -436,111 +493,121 @@ export default function SpadasLensCamera() {
         return [...newScans.slice(0, availableSlots), ...prev];
       });
 
-      // PHASE 2: Asynchronous Parallel Batch Pricing (Non-Blocking Promise.allSettled)
-      void Promise.allSettled(
-        validPendingItems.map(async (obj) => {
-          try {
-            let rawMin = Number(data.suggested_price_min) || 25;
-            let rawMax = Number(data.suggested_price_max) || rawMin + 15;
-            let baseVal = Math.round(((rawMin + rawMax) / 2) * 100) / 100;
-            let itemCondition = cleanConditionText(obj.condition);
+      // Sequential Single-Item Pricing Resolution
+      for (const obj of validPendingItems) {
+        try {
+          let rawMin = Number(data.suggested_price_min) || 25;
+          let rawMax = Number(data.suggested_price_max) || rawMin + 15;
+          let baseVal = Math.round(((rawMin + rawMax) / 2) * 100) / 100;
+          let itemCondition = cleanConditionText(obj.condition);
 
-            let estCost = Math.max(2, Math.round(baseVal * 0.35));
-            let estimatedProfit = Math.max(0, Math.round((baseVal - estCost) * 100) / 100);
-            let estRoi = estCost > 0 ? Math.round((estimatedProfit / estCost) * 100) : 0;
+          let estCost = Math.max(2, Math.round(baseVal * 0.35));
+          let estimatedProfit = Math.max(0, Math.round((baseVal - estCost) * 100) / 100);
+          let estRoi = estCost > 0 ? Math.round((estimatedProfit / estCost) * 100) : 0;
 
-            // PHASE 3: Ghosting Rejected Items (Silent removal if profit is zero/negative)
-            if (estimatedProfit <= 0) {
-              setActiveScans((prev) => prev.filter((s) => s.id !== obj.id));
-              return;
-            }
-
-            // PHASE 4: Dynamic UI Update - Turn bounding box GREEN & attach valuation
-            setActiveScans((prev) =>
-              prev.map((s) =>
-                s.id === obj.id
-                  ? {
-                      ...s,
-                      status: "valued",
-                      estimatedValue: baseVal,
-                      estCost,
-                      estimatedProfit,
-                      estRoi,
-                      condition: itemCondition,
-                    }
-                  : s
-              )
-            );
-
-            // Audio Chime & Cue ($20+ Net Profit)
-            if (estimatedProfit > 20) {
-              const lastChimed = lastChimedRef.current;
-              const isSameProduct = lastChimed && getKeywordSimilarity(lastChimed.name, obj.productName) >= 0.55;
-              const isCooldownActive = lastChimed && (now - lastChimed.time < 15000);
-
-              if (!isSameProduct || !isCooldownActive) {
-                playHighProfitChime();
-                speakCue(`High profit hit: ${obj.productName}. Profit ${fmtMoney(estimatedProfit)}.`);
-                lastChimedRef.current = { name: obj.productName, time: now };
-              }
-            }
-
-            // PHASE 4: Unshift clean verified hit card to top of Real-Time Scanned List
-            const verifiedHit: DetectedHit = {
-              id: obj.id,
-              name: obj.productName,
-              category: obj.category,
-              condition: itemCondition,
-              estimatedValue: baseVal,
-              estCost,
-              estimatedProfit,
-              estRoi,
-              verdict: estimatedProfit > 15 ? "BUY" : "CAUTION",
-              confidence: 0.98,
-              bbox: obj.bbox,
-              timestamp: now,
-            };
-
-            setCapturedLog((prev) => {
-              const existingIdx = prev.findIndex(
-                (h) => h.id === verifiedHit.id || getKeywordSimilarity(h.name, verifiedHit.name) >= 0.75
-              );
-              if (existingIdx !== -1) {
-                const updated = [...prev];
-                updated[existingIdx] = { ...updated[existingIdx], timestamp: now };
-                return updated;
-              }
-              return [verifiedHit, ...prev].slice(0, 15);
-            });
-          } catch (err) {
-            // Silently ghost item on valuation error
+          // Silent Ghosting for zero/negative profit items
+          if (estimatedProfit <= 0) {
             setActiveScans((prev) => prev.filter((s) => s.id !== obj.id));
+            continue;
           }
-        })
-      );
+
+          // Dynamic UI Update: Turn bounding box GREEN & attach valuation
+          setActiveScans((prev) =>
+            prev.map((s) =>
+              s.id === obj.id
+                ? {
+                    ...s,
+                    status: "valued",
+                    estimatedValue: baseVal,
+                    estCost,
+                    estimatedProfit,
+                    estRoi,
+                    condition: itemCondition,
+                  }
+                : s
+            )
+          );
+
+          // Audio Chime & Cue ($20+ Net Profit)
+          if (estimatedProfit > 20) {
+            const lastChimed = lastChimedRef.current;
+            const isSameProduct = lastChimed && getKeywordSimilarity(lastChimed.name, obj.productName) >= 0.55;
+            const isCooldownActive = lastChimed && (now - lastChimed.time < 15000);
+
+            if (!isSameProduct || !isCooldownActive) {
+              playHighProfitChime();
+              speakCue(`High profit hit: ${obj.productName}. Profit ${fmtMoney(estimatedProfit)}.`);
+              lastChimedRef.current = { name: obj.productName, time: now };
+            }
+          }
+
+          // Unshift clean verified hit card to top of Real-Time Scanned List
+          const verifiedHit: DetectedHit = {
+            id: obj.id,
+            name: obj.productName,
+            category: obj.category,
+            condition: itemCondition,
+            estimatedValue: baseVal,
+            estCost,
+            estimatedProfit,
+            estRoi,
+            verdict: estimatedProfit > 15 ? "BUY" : "CAUTION",
+            confidence: 0.98,
+            bbox: obj.bbox,
+            timestamp: now,
+          };
+
+          setCapturedLog((prev) => {
+            const existingIdx = prev.findIndex(
+              (h) => h.id === verifiedHit.id || getKeywordSimilarity(h.name, verifiedHit.name) >= 0.75
+            );
+            if (existingIdx !== -1) {
+              const updated = [...prev];
+              updated[existingIdx] = { ...updated[existingIdx], timestamp: now };
+              return updated;
+            }
+            return [verifiedHit, ...prev].slice(0, 15);
+          });
+        } catch (err) {
+          setActiveScans((prev) => prev.filter((s) => s.id !== obj.id));
+        }
+      }
     } catch (err: any) {
-      console.error("Live camera Vision scan error:", err);
+      clearTimeout(hardTimeoutId);
+      if (err?.name === "AbortError") {
+        console.warn("[Spadas Lens] AI Vision fetch request aborted due to 4000ms hard timeout.");
+      } else {
+        console.error("Live camera Vision scan error:", err);
+      }
       if (err?.message?.includes("429")) {
         setRateLimited(true);
         toast.error("API Rate Limit (429) - Implementing 5s backoff...", { id: "ar-rate-limit-toast" });
         await new Promise((resolve) => setTimeout(resolve, 5000));
       }
     } finally {
-      // GUARANTEED UNLOCK: Release scanner lock immediately
+      clearTimeout(hardTimeoutId);
+      // GUARANTEED UNLOCK: Release queue lock and state lock cleanly
       setAnalyzingRealFrame(false);
+      isProcessingQueueRef.current = false;
     }
   }, [analyzingRealFrame, soundEnabled]);
 
-  // Clear Stale State: If an item leaves camera viewport for > 2 seconds (2000ms), clear it from memory
+  // RESET FRONTEND STATE MACHINE: Drop items in "pending" status > 3s or stale > 3s to prevent ghost boxes
   useEffect(() => {
     const interval = setInterval(() => {
       const now = Date.now();
-      setActiveScans((prev) => prev.filter((item) => now - item.timestamp <= 2000));
+      setActiveScans((prev) =>
+        prev.filter((item) => {
+          const isStuckPending = item.status === "pending" && now - item.timestamp > 3000;
+          const isStale = now - item.timestamp > 3000;
+          return !isStuckPending && !isStale;
+        })
+      );
     }, 1000);
     return () => clearInterval(interval);
   }, []);
 
-  // Throttled Continuous AR Scanner Loop (1000ms frame delay / debounce)
+  // Stable Auto-Scan Loop (Clean 2-second cooldown between scans)
   useEffect(() => {
     if (!scanning || !autoScanActive) return;
 
@@ -549,7 +616,7 @@ export default function SpadasLensCamera() {
     const scheduleThrottledScan = () => {
       timeoutId = setTimeout(() => {
         if (typeof document !== "undefined" && document.visibilityState === "visible") {
-          if (!analyzingRealFrame) {
+          if (!isProcessingQueueRef.current && !analyzingRealFrame) {
             void processCurrentFrame().finally(() => {
               scheduleThrottledScan();
             });
@@ -559,7 +626,7 @@ export default function SpadasLensCamera() {
         } else {
           scheduleThrottledScan();
         }
-      }, 1000); // 1000ms frame delay debounce
+      }, 2000); // Stable 2-second cooldown between frame evaluations
     };
 
     scheduleThrottledScan();
@@ -819,6 +886,14 @@ export default function SpadasLensCamera() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function SpadasLensCamera() {
+  return (
+    <CameraErrorBoundary>
+      <SpadasLensCameraCore />
+    </CameraErrorBoundary>
   );
 }
 
