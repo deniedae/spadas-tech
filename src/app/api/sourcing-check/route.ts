@@ -4,7 +4,10 @@ import { cookies } from "next/headers";
 import { checkUserUsage } from "@/app/lib/usage";
 import type { AiListingResult } from "@/types/ai-listing";
 
+export const preferredRegion = "syd1";
+
 const SOLD_COMPS_KEY = process.env.SOLD_COMPS_API_KEY;
+const SERPAPI_KEY = "837f35e9709091f977c567789f8368b8263b49c1620ed4d47b7aa3825cd0591f";
 
 export interface SourcingVerdict {
   identification: {
@@ -51,6 +54,89 @@ function estimateFees(salePrice: number, shipping: number) {
   const marketplaceFee = Math.round(salePrice * 0.1325 * 100) / 100;
   const paymentFee = Math.round((salePrice + shipping) * 0.027 * 100) / 100;
   return { marketplace_fee: marketplaceFee, payment_fee: paymentFee };
+}
+
+// 1. Primary Scraper with 2500ms Circuit Breaker Timeout
+async function fetchPrimaryComps(keyword: string): Promise<Array<{ title?: string; condition?: string; soldPrice: number; soldCurrency: string }>> {
+  const host = "api" + "." + "sold-comps" + "." + "com";
+  const path = "/v1/scrape";
+  const scEndpoint =
+    "https://" + host + path +
+    "?keyword=" + encodeURIComponent(keyword) +
+    "&ebaySite=ebay.com.au" +
+    "&page=1" +
+    "&count=240" +
+    "&daysToScrape=30" +
+    "&sortOrder=endedRecently";
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 2500);
+
+  try {
+    const res = await fetch(scEndpoint, {
+      headers: { Authorization: "Bearer " + SOLD_COMPS_KEY },
+      signal: controller.signal,
+      next: { revalidate: 3600 },
+    });
+    clearTimeout(timeoutId);
+
+    if (!res.ok) throw new Error(`Primary scraper HTTP ${res.status}`);
+
+    const data = await res.json();
+    return (data.items ?? []).map((i: any) => ({
+      title: i.title || "",
+      condition: i.condition || "",
+      soldPrice: Number(i.soldPrice) || 0,
+      soldCurrency: i.soldCurrency || "AUD",
+    }));
+  } catch (err) {
+    clearTimeout(timeoutId);
+    throw err;
+  }
+}
+
+// 2. SerpApi Backup Scraper Fallback (Currency Lock: AUD)
+async function fetchBackupComps(productName: string): Promise<Array<{ title?: string; condition?: string; soldPrice: number; soldCurrency: string }>> {
+  const serpUrl = `https://serpapi.com/search.json?engine=ebay&ebay_domain=ebay.com.au&_nkw=${encodeURIComponent(productName)}&LH_Sold=1&LH_Complete=1&api_key=${SERPAPI_KEY}`;
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 3500);
+
+  try {
+    const res = await fetch(serpUrl, {
+      signal: controller.signal,
+      next: { revalidate: 3600 },
+    });
+    clearTimeout(timeoutId);
+
+    if (!res.ok) throw new Error(`SerpApi HTTP ${res.status}`);
+
+    const data = await res.json();
+    const results = data.organic_results || data.sold_results || data.items || [];
+
+    return results.map((item: any) => {
+      let priceNum = 0;
+      if (item.price?.extracted) {
+        priceNum = Number(item.price.extracted);
+      } else if (item.price?.raw) {
+        const match = String(item.price.raw).replace(/[^0-9.]/g, "");
+        priceNum = Number(match) || 0;
+      } else if (typeof item.price === "number") {
+        priceNum = item.price;
+      }
+
+      return {
+        title: item.title || "",
+        condition: item.condition || "Used",
+        soldPrice: priceNum,
+        soldCurrency: "AUD",
+      };
+    });
+  } catch (err) {
+    clearTimeout(timeoutId);
+    console.error("[sourcing-check] SerpApi backup failed:", err);
+    return [];
+  }
 }
 
 export async function POST(req: Request) {
@@ -132,24 +218,18 @@ export async function POST(req: Request) {
     }
     const ai = (await aiRes.json()) as AiListingResult;
 
-    // 2. Fetch real sold prices — URL inlined as one plain string
-       const keyword = encodeURIComponent(ai.analysis.product_name);
-    const host = "api" + "." + "sold-comps" + "." + "com";
-    const path = "/v1/scrape";
-    const scEndpoint =
-      "https://" + host + path +
-      "?keyword=" + keyword +
-      "&ebaySite=ebay.com.au" +
-      "&page=1" +
-      "&count=240" +
-      "&daysToScrape=30" +
-      "&sortOrder=endedRecently";
+    // 2. Fetch real sold prices with 2.5s Circuit Breaker timeout -> SerpApi fallback
+    let rawComps: Array<{ title?: string; condition?: string; soldPrice: number; soldCurrency: string }> = [];
 
-
-    const scRes = await fetch(scEndpoint, {
-      headers: { Authorization: "Bearer " + SOLD_COMPS_KEY },
-      next: { revalidate: 3600 },
-    });
+    try {
+      rawComps = await fetchPrimaryComps(ai.analysis.product_name);
+      if (rawComps.length === 0) {
+        throw new Error("Primary scraper returned 0 items");
+      }
+    } catch (err) {
+      console.warn("[sourcing-check] Primary scraper failed/timed out (2.5s Circuit Breaker), calling SerpApi backup...", err);
+      rawComps = await fetchBackupComps(ai.analysis.product_name);
+    }
 
     let marketPrices = {
       suggested_median: 0,
@@ -159,46 +239,37 @@ export async function POST(req: Request) {
       currency: "AUD",
     };
 
-    if (scRes.ok) {
-      const scData = (await scRes.json()) as {
-        totalItems: number;
-        items: Array<{ title?: string; condition?: string; soldPrice: string; soldCurrency: string }>;
+    // Single-Item Parity & Condition Lock filters
+    const LOT_KEYWORDS_REGEX = /\b(lot|mixed|loose cards|bundle|job lot|collection|set of)\b/i;
+    const BAD_CONDITION_REGEX = /\b(untested|faulty|parts-only|for parts|as-is|as is|broken|damaged|junk|unverified)\b/i;
+
+    const filteredItems = rawComps.filter((item) => {
+      const itemTitle = (item.title || "").toLowerCase();
+      const itemCond = (item.condition || "").toLowerCase();
+
+      // Single-Item Parity: Exclude bulk lots/bundles for single items
+      if (LOT_KEYWORDS_REGEX.test(itemTitle)) return false;
+
+      // Condition Lock: Exclude faulty/untested/parts-only/as-is/unverified comps
+      if (BAD_CONDITION_REGEX.test(itemTitle) || BAD_CONDITION_REGEX.test(itemCond)) return false;
+
+      return true;
+    });
+
+    const itemsToUse = filteredItems.length > 0 ? filteredItems : [];
+    const prices = itemsToUse
+      .map((i) => Number(i.soldPrice))
+      .filter((n) => !Number.isNaN(n) && n > 0);
+
+    if (prices.length > 0) {
+      const med = median(prices);
+      marketPrices = {
+        suggested_median: Math.round(med * 100) / 100,
+        suggested_min: Math.round(med * 0.8 * 100) / 100,
+        suggested_max: Math.round(med * 1.2 * 100) / 100,
+        sample_size: prices.length,
+        currency: "AUD",
       };
-
-      // Single-Item Parity & Condition Lock filters
-      const LOT_KEYWORDS_REGEX = /\b(lot|mixed|loose cards|bundle|job lot|collection|set of)\b/i;
-      const BAD_CONDITION_REGEX = /\b(untested|faulty|parts-only|for parts|as-is|as is|broken|damaged|junk)\b/i;
-
-      const filteredItems = (scData.items ?? []).filter((item) => {
-        const itemTitle = (item.title || "").toLowerCase();
-        const itemCond = (item.condition || "").toLowerCase();
-
-        // Single-Item Parity: Exclude bulk lots/bundles for single items
-        if (LOT_KEYWORDS_REGEX.test(itemTitle)) return false;
-
-        // Condition Lock: Exclude faulty/untested/parts-only/as-is comps
-        if (BAD_CONDITION_REGEX.test(itemTitle) || BAD_CONDITION_REGEX.test(itemCond)) return false;
-
-        return true;
-      });
-
-      const itemsToUse = filteredItems.length > 0 ? filteredItems : (scData.items ?? []);
-      const prices = itemsToUse
-        .map((i) => Number(i.soldPrice))
-        .filter((n) => !Number.isNaN(n) && n > 0);
-
-      if (prices.length > 0) {
-        const med = median(prices);
-        marketPrices = {
-          suggested_median: Math.round(med * 100) / 100,
-          suggested_min: Math.round(med * 0.8 * 100) / 100,
-          suggested_max: Math.round(med * 1.2 * 100) / 100,
-          sample_size: prices.length,
-          currency: itemsToUse[0]?.soldCurrency || "AUD",
-        };
-      }
-    } else {
-      console.error("[sourcing-check] SoldComps failed:", scRes.status);
     }
 
     // 3. Calculate fees + profit

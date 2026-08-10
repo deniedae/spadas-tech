@@ -5,6 +5,8 @@ import { cookies } from "next/headers";
 import { checkUserUsage } from "@/app/lib/usage";
 import type { AiListingResult } from "@/types/ai-listing";
 
+export const preferredRegion = "syd1";
+
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export async function POST(request: Request) {
