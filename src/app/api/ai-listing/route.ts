@@ -103,6 +103,11 @@ MULTI-OBJECT PARALLEL AR DETECTION MANDATE:
   - "bbox": bounding box percentage coordinates { "x": number, "y": number, "width": number, "height": number } (values from 0 to 100)
   - "confidence_score": number (0 to 1)
 
+STRICT GENERIC TITLE REJECTION & SPECIFICITY MANDATE:
+- DO NOT return generic titles or broad category names like "Computer Keyboard", "Keyboard", "Trading Cards", "Game Controller", "Spray Bottle", "Mouse", "Speaker", "Headphones", "Bottle", "Cable", "Charger", "Phone Case", "Book", "Apparel", "Shirt", "Shoes", or "Video Game".
+- MANDATORY SPECIFICITY: Every detected item MUST contain a verified Brand + specific Model/Set (e.g., "Logitech MX Keys Keyboard" or "Yu-Gi-Oh! MRD-015").
+- If the exact brand and model/set cannot be positively read or identified with 100% precision, you MUST set "product_name": null.
+
 STRICT IDENTIFICATION GATEWAY (NO PARTIAL OR VAGUE MATCHES):
 1. Strict Brand/Model/Variant Identification Gateway:
    - DO NOT return an item if the exact brand, model, set, or variant cannot be positively identified from the image or text.

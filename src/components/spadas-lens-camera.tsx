@@ -77,10 +77,45 @@ function isVacuumCleaner(name: string, category: string): boolean {
   return /\b(vacuum|cleaner|hoover|roomba|dyson\s*v\d+|bissel|eureka|dustbuster|shop-vac|sweeper|floor cleaner)\b/i.test(text);
 }
 
-// Strict Vague / Partial Read Detector (Nullify Vague Reads)
-function isVagueOrPartialRead(productName?: string | null): boolean {
+// Broad Keyword Blocklist & Mandatory Specificity Check
+const GENERIC_BLOCKLIST = new Set([
+  "computer keyboard",
+  "keyboard",
+  "trading cards",
+  "trading card",
+  "game controller",
+  "spray bottle",
+  "mouse",
+  "computer mouse",
+  "headphones",
+  "speaker",
+  "bottle",
+  "cable",
+  "charger",
+  "phone case",
+  "book",
+  "apparel",
+  "shirt",
+  "shoes",
+  "scanned item",
+  "electronics",
+  "video game",
+  "board game",
+  "toy",
+  "clothing"
+]);
+
+// Strict Vague / Partial Read Detector (Nullify Vague & Generic Reads)
+function isVagueOrPartialRead(productName?: string | null, brand?: string | null): boolean {
   if (!productName || productName.trim() === "" || productName === "NO_CENTER_ITEM") return true;
-  const lower = productName.toLowerCase();
+  const lower = productName.toLowerCase().trim();
+
+  // Reject exact generic blocklist entries
+  if (GENERIC_BLOCKLIST.has(lower)) return true;
+
+  // Reject titles <= 2 words if no brand is present
+  const words = lower.split(/\s+/);
+  if (words.length <= 2 && !brand) return true;
 
   const vaguePhrases = [
     "unclear",
@@ -374,8 +409,8 @@ export default function SpadasLensCamera() {
         const pName = item.product_name;
         const cat = item.category || "Scanned Item";
 
-        // Hard-Kill Exclusions
-        if (!pName || isVagueOrPartialRead(pName) || isVacuumCleaner(pName, cat)) {
+        // Hard-Kill Exclusions (Strict Generic Title Rejection)
+        if (!pName || isVagueOrPartialRead(pName, item.brand) || isVacuumCleaner(pName, cat)) {
           continue;
         }
 
@@ -630,73 +665,73 @@ export default function SpadasLensCamera() {
             </button>
           </div>
         )}
-
-        {/* Camera Controls Bar */}
-        {stream && (
-          <div className="absolute bottom-4 left-4 right-4 z-30 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-slate-950/85 backdrop-blur-md p-3 border border-white/20">
-            <div className="flex items-center gap-2 text-xs font-bold">
-              <span className={`h-2 w-2 rounded-full animate-pulse ${rateLimited ? "bg-amber-400" : "bg-emerald-400"}`} />
-              <span className={rateLimited ? "text-amber-300" : "text-cyan-300"}>
-                {rateLimited
-                  ? "API Rate Limit - Retrying in 1.5s..."
-                  : analyzingRealFrame
-                  ? "Analyzing Center Subject..."
-                  : "Continuous AR Scanner (1.5s)"}
-              </span>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setAutoScanActive(!autoScanActive)}
-                className={`inline-flex h-9 items-center gap-1.5 rounded-xl px-3 text-xs font-bold transition ${
-                  autoScanActive
-                    ? "bg-emerald-500 text-slate-950"
-                    : "bg-white/10 text-white border border-white/20"
-                }`}
-              >
-                <Zap className="h-3.5 w-3.5" />
-                <span>{autoScanActive ? "Auto-Scan: ON" : "Paused"}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  if (!analyzingRealFrame) {
-                    void processCurrentFrame();
-                  }
-                }}
-                disabled={analyzingRealFrame}
-                className={`inline-flex h-9 items-center gap-1.5 rounded-xl px-4 text-sm font-bold transition ${
-                  analyzingRealFrame
-                    ? "bg-gray-600/50 text-gray-400"
-                    : "bg-indigo-600 hover:bg-indigo-500 text-white"
-                }`}
-              >
-                <RefreshCw className="h-4 w-4" />
-                {analyzingRealFrame ? "Scanning..." : "Scan Now"}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setSoundEnabled(!soundEnabled)}
-                className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-3 text-xs font-semibold text-white hover:bg-white/20"
-              >
-                {soundEnabled ? <Volume2 className="h-4 w-4 text-cyan-400" /> : <VolumeX className="h-4 w-4 text-slate-400" />}
-                <span>{soundEnabled ? "Audio Cues ON" : "Muted"}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={stopCamera}
-                className="inline-flex h-9 items-center rounded-xl bg-red-600 px-3.5 text-xs font-bold text-white hover:bg-red-500 cursor-pointer"
-              >
-                Stop
-              </button>
-            </div>
-          </div>
-        )}
       </div>
+
+      {/* Camera Controls Bar (Pinned Outside Camera Viewport Container) */}
+      {stream && (
+        <div className="w-full box-border flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-slate-950/90 backdrop-blur-md p-3.5 border border-slate-800 shadow-xl">
+          <div className="flex items-center gap-2 text-xs font-bold">
+            <span className={`h-2 w-2 rounded-full animate-pulse ${rateLimited ? "bg-amber-400" : "bg-emerald-400"}`} />
+            <span className={rateLimited ? "text-amber-300" : "text-cyan-300"}>
+              {rateLimited
+                ? "API Rate Limit - Retrying in 1.5s..."
+                : analyzingRealFrame
+                ? "Scanning Live Frame..."
+                : "Continuous AR Scanner (1.5s)"}
+            </span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setAutoScanActive(!autoScanActive)}
+              className={`inline-flex h-9 items-center gap-1.5 rounded-xl px-3 text-xs font-bold transition ${
+                autoScanActive
+                  ? "bg-emerald-500 text-slate-950"
+                  : "bg-white/10 text-white border border-white/20"
+              }`}
+            >
+              <Zap className="h-3.5 w-3.5" />
+              <span>{autoScanActive ? "Auto-Scan: ON" : "Paused"}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                if (!analyzingRealFrame) {
+                  void processCurrentFrame();
+                }
+              }}
+              disabled={analyzingRealFrame}
+              className={`inline-flex h-9 items-center gap-1.5 rounded-xl px-4 text-sm font-bold transition ${
+                analyzingRealFrame
+                  ? "bg-gray-600/50 text-gray-400"
+                  : "bg-indigo-600 hover:bg-indigo-500 text-white"
+              }`}
+            >
+              <RefreshCw className="h-4 w-4" />
+              {analyzingRealFrame ? "Scanning..." : "Scan Now"}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSoundEnabled(!soundEnabled)}
+              className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-3 text-xs font-semibold text-white hover:bg-white/20"
+            >
+              {soundEnabled ? <Volume2 className="h-4 w-4 text-cyan-400" /> : <VolumeX className="h-4 w-4 text-slate-400" />}
+              <span>{soundEnabled ? "Audio Cues ON" : "Muted"}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={stopCamera}
+              className="inline-flex h-9 items-center rounded-xl bg-red-600 px-3.5 text-xs font-bold text-white hover:bg-red-500 cursor-pointer"
+            >
+              Stop
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Selectable Real-Time Hits Feed */}
       {capturedLog.length > 0 && (
