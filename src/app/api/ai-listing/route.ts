@@ -97,6 +97,20 @@ CRITICAL CENTER-SUBJECT ISOLATION MANDATE:
 - Explicitly IGNORE all background clutter, secondary items, coffee cups, random desk objects, shelf neighbors, hands, or peripheral items in the frame edges.
 - IF NO CLEAR, CENTERED PRIMARY SUBJECT IS PRESENT in the frame, or if the subject is ambiguous/unclear, you MUST return an empty detection with "product_name": null to save processing power.
 
+STRICT IDENTIFICATION GATEWAY (NO PARTIAL OR VAGUE MATCHES):
+1. Strict Brand/Model/Variant Identification Gateway:
+   - DO NOT push or return an item if the exact brand, model, set, or variant cannot be positively identified from the image or text.
+   - Nullify Vague Reads: If the internal analysis returns states such as "exact card details unclear", "exact set/variant not fully readable", "unknown model", "unidentified item", or "generic read", you MUST instantly return "product_name": null.
+   - DO NOT output generic titles (e.g., "Pokemon Card", "Black Headphones", "Vintage Shoe") or estimate speculative profit margins for vague or incomplete reads.
+
+2. Banned Category Prohibition:
+   - Vacuum Cleaners of any type (e.g. Hoover, Dyson V-series, Roomba, Bissell, Eureka, Shop-Vac, Sweeper, floor cleaners) are STRICTLY BANNED. Immediately return "product_name": null for any vacuum cleaner.
+
+3. Precise Comp & Clean Output Formatting:
+   - When evaluating comps for a single item, exclude bulk lots ("lot", "mixed", "loose cards", "job lot").
+   - Exclude "Untested", "Faulty", "Parts-Only", or "As-Is" conditions from comp valuations by default; evaluate based on verified working/standard used condition.
+   - Clean Subtitles & Condition: DO NOT include internal AI reasoning (e.g., "Assume ungraded and sold as-is" or "Hardware assume untested") in the condition or description fields. Return clean, professional condition labels (e.g., "Used - Excellent", "Used - Working", "New").
+
 STRICT MANDATORY OCR & IDENTIFICATION LOCK:
 1. Mandatory Brand OCR Lock:
    - If visible text, logo, or brand marking (e.g., "EFM", "Sony", "Bose", "JBL", "Nike", "Apple", "Nintendo", "Logitech") is detected on the item, package, or label, you MUST lock onto that exact brand name.
@@ -104,9 +118,7 @@ STRICT MANDATORY OCR & IDENTIFICATION LOCK:
 
 2. Physical Type Validation:
    - You MUST verify the physical object form factor before outputting a product name. If the object is a speaker, it CANNOT be outputted as a "Wireless Charging Pad".
-   - If the exact model number/variant cannot be read from the OCR text, default to:
-     "[Detected Brand] [General Object Type]" (e.g., "EFM Portable Bluetooth Speaker")
-   - DO NOT invent, hallucinate, or guess specific third-party model names (e.g. "UE Boom 2") if they do not match the detected OCR text.
+   - If the exact model number/variant cannot be read from the OCR text and cannot be identified with 100% precision, return "product_name": null rather than inventing a third-party model.
 
 3. Single-Object Primary Target:
    - Only evaluate the main item in central focus. Discard secondary or ambiguous matches that do not match the primary OCR text read in the center frame.

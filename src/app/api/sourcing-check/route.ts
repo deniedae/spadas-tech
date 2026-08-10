@@ -162,11 +162,31 @@ export async function POST(req: Request) {
     if (scRes.ok) {
       const scData = (await scRes.json()) as {
         totalItems: number;
-        items: Array<{ soldPrice: string; soldCurrency: string }>;
+        items: Array<{ title?: string; condition?: string; soldPrice: string; soldCurrency: string }>;
       };
-      const prices = (scData.items ?? [])
+
+      // Single-Item Parity & Condition Lock filters
+      const LOT_KEYWORDS_REGEX = /\b(lot|mixed|loose cards|bundle|job lot|collection|set of)\b/i;
+      const BAD_CONDITION_REGEX = /\b(untested|faulty|parts-only|for parts|as-is|as is|broken|damaged|junk)\b/i;
+
+      const filteredItems = (scData.items ?? []).filter((item) => {
+        const itemTitle = (item.title || "").toLowerCase();
+        const itemCond = (item.condition || "").toLowerCase();
+
+        // Single-Item Parity: Exclude bulk lots/bundles for single items
+        if (LOT_KEYWORDS_REGEX.test(itemTitle)) return false;
+
+        // Condition Lock: Exclude faulty/untested/parts-only/as-is comps
+        if (BAD_CONDITION_REGEX.test(itemTitle) || BAD_CONDITION_REGEX.test(itemCond)) return false;
+
+        return true;
+      });
+
+      const itemsToUse = filteredItems.length > 0 ? filteredItems : (scData.items ?? []);
+      const prices = itemsToUse
         .map((i) => Number(i.soldPrice))
         .filter((n) => !Number.isNaN(n) && n > 0);
+
       if (prices.length > 0) {
         const med = median(prices);
         marketPrices = {
@@ -174,7 +194,7 @@ export async function POST(req: Request) {
           suggested_min: Math.round(med * 0.8 * 100) / 100,
           suggested_max: Math.round(med * 1.2 * 100) / 100,
           sample_size: prices.length,
-          currency: scData.items[0]?.soldCurrency || "AUD",
+          currency: itemsToUse[0]?.soldCurrency || "AUD",
         };
       }
     } else {

@@ -71,16 +71,47 @@ function getKeywordSimilarity(str1: string, str2: string): number {
   return Math.max(dice, minOverlap, maxOverlap);
 }
 
-// Strict Vacuum Cleaner Filter
+// Strict Vacuum Cleaner Filter (Banned Category)
 function isVacuumCleaner(name: string, category: string): boolean {
   const text = `${name} ${category}`.toLowerCase();
-  return /\b(vacuum|cleaner|hoover|roomba|dyson\s*v\d+|bissel|eureka|dustbuster|shop-vac|sweeper)\b/i.test(text);
+  return /\b(vacuum|cleaner|hoover|roomba|dyson\s*v\d+|bissel|eureka|dustbuster|shop-vac|sweeper|floor cleaner)\b/i.test(text);
 }
 
-// Strict Hardware & Electronics Filter
-function isHardwareOrElectronics(name: string, category: string): boolean {
-  const text = `${name} ${category}`.toLowerCase();
-  return /\b(hardware|electronics|console|playstation|xbox|nintendo|gpu|graphics card|cpu|motherboard|laptop|computer|phone|tablet|headset|audio|amplifier|receiver|camera|gadget|appliance|power tool|drill|saw|monitor|display)\b/i.test(text);
+// Strict Vague / Partial Read Detector (Nullify Vague Reads)
+function isVagueOrPartialRead(productName?: string | null): boolean {
+  if (!productName || productName.trim() === "" || productName === "NO_CENTER_ITEM") return true;
+  const lower = productName.toLowerCase();
+
+  const vaguePhrases = [
+    "unclear",
+    "not fully readable",
+    "exact card details unclear",
+    "exact set/variant not",
+    "unknown model",
+    "unknown brand",
+    "unidentified",
+    "generic read",
+    "various items",
+    "assorted",
+    "cannot be determined",
+    "could not be identified"
+  ];
+
+  return vaguePhrases.some((phrase) => lower.includes(phrase));
+}
+
+// Clean Condition Subtitle Helper (Strips internal AI reasoning notes)
+function cleanConditionText(rawCondition: string): string {
+  if (!rawCondition) return "Used";
+  return rawCondition
+    .replace(/\(.*?\)/g, "")
+    .replace(/assume.*$/i, "")
+    .replace(/untested.*$/i, "Used")
+    .replace(/faulty.*$/i, "Used")
+    .replace(/parts-only.*$/i, "Used")
+    .replace(/sold as-is.*$/i, "Used")
+    .replace(/ungraded.*$/i, "Used")
+    .trim() || "Used";
 }
 
 export default function SpadasLensCamera() {
@@ -307,8 +338,9 @@ export default function SpadasLensCamera() {
       setRateLimited(false);
       const data = await res.json();
 
-      // 1. CENTER-WEIGHTED VISION: Drop frame if no clear centered subject is detected
-      if (!data.analysis?.product_name || data.analysis.product_name === "NO_CENTER_ITEM") {
+      // 1. STRICT IDENTIFICATION GATEWAY & NULLIFY VAGUE READS:
+      // Drop frame if no clear centered subject or if exact brand/model/variant read is vague/unclear
+      if (!data.analysis?.product_name || isVagueOrPartialRead(data.analysis.product_name)) {
         setActiveHits([]);
         return;
       }
@@ -316,22 +348,18 @@ export default function SpadasLensCamera() {
       const productName = data.analysis.product_name;
       const category = data.analysis.category || "Scanned Item";
 
-      // 2. STRICT EXCLUSION: Ignore vacuum cleaners
+      // 2. BANNED CATEGORIES: Immediately terminate scanning and skip comp retrieval for vacuum cleaners
       if (isVacuumCleaner(productName, category)) {
         setActiveHits([]);
         return;
       }
 
-      // 3. STRICT CONDITION DEFAULT: Hardware/electronics assume untested/parts-only
+      // 3. PRECISE COMP TARGETING & CONDITION LOCK:
+      // Clean condition label and calculate market valuation based on verified working/standard used condition
       let rawMin = Number(data.suggested_price_min) || 20;
       let rawMax = Number(data.suggested_price_max) || rawMin;
       let baseVal = Math.round(((rawMin + rawMax) / 2) * 100) / 100;
-      let itemCondition = data.analysis.condition || "Used";
-
-      if (isHardwareOrElectronics(productName, category)) {
-        itemCondition = "Untested / Faulty / Parts-Only";
-        baseVal = Math.round(baseVal * 0.45 * 100) / 100;
-      }
+      let itemCondition = cleanConditionText(data.analysis.condition || "Used");
 
       let estCost = Math.max(2, Math.round(baseVal * 0.35));
       let estimatedProfit = Math.max(0, Math.round((baseVal - estCost) * 100) / 100);
