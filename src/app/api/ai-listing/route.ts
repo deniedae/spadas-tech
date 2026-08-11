@@ -361,15 +361,22 @@ Rules:
       result.suggested_price_max = lockedMid + 3;
     }
 
-    // Record AI generation usage for listing generations (skipping temporary live AR video frames)
+    // Record AI generation usage for listing generations safely without failing on Base64 image strings
     if (!isArScan && user) {
-      await supabase.from("ai_listing_analyses").insert([
-        {
-          user_id: user.id,
-          image_urls: imageUrls,
-          result,
-        },
-      ]);
+      try {
+        const sanitizedUrls = imageUrls.map((u) =>
+          u.startsWith("data:") ? `data:image/jpeg;base64,...(${u.length} bytes)` : u
+        );
+        await supabase.from("ai_listing_analyses").insert([
+          {
+            user_id: user.id,
+            image_urls: sanitizedUrls,
+            result,
+          },
+        ]);
+      } catch (dbErr) {
+        console.warn("[ai-listing] Supabase DB record insert warning:", dbErr);
+      }
     }
 
     return NextResponse.json(result);

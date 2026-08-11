@@ -248,6 +248,9 @@ export default function AiNewListingPage() {
     }
     setSaving(true);
     try {
+      const firstImg = imageUrls[0] ?? null;
+      const dbImgUrl = firstImg && firstImg.startsWith("data:") ? null : firstImg;
+
       const { data: listing, error: listingError } = await supabase
         .from("listings")
         .insert([
@@ -257,7 +260,7 @@ export default function AiNewListingPage() {
             price: Number(form.price) || 0,
             cost: Number(form.cost) || 0,
             status: form.status,
-            image_url: imageUrls[0] ?? null,
+            image_url: dbImgUrl,
           },
         ])
         .select("id")
@@ -270,12 +273,15 @@ export default function AiNewListingPage() {
       }
 
       if (result) {
-  const { error: analysisError } = await supabase
-    .from("ai_listing_analyses")
-    .insert([
-      {
-        user_id: user.id,
-        image_urls: imageUrls,
+        const sanitizedUrls = imageUrls.map((u) =>
+          u.startsWith("data:") ? `data:image/jpeg;base64,...(${u.length} bytes)` : u
+        );
+        const { error: analysisError } = await supabase
+          .from("ai_listing_analyses")
+          .insert([
+            {
+              user_id: user.id,
+              image_urls: sanitizedUrls,
         result: {
           ...result,
           analysis: {
