@@ -704,9 +704,9 @@ function SpadasLensCameraCore() {
             }
           }
 
-          // Unshift clean verified hit card to top of Real-Time Scanned List
+          // Add EVERY scanned item directly to top of Real-Time Scanned List
           const verifiedHit: DetectedHit = {
-            id: obj.id,
+            id: `hit-${now}-${Math.random().toString(36).substring(2, 8)}`,
             name: obj.productName,
             category: obj.category,
             condition: itemCondition,
@@ -723,17 +723,7 @@ function SpadasLensCameraCore() {
             timestamp: now,
           };
 
-          setCapturedLog((prev) => {
-            const existingIdx = prev.findIndex(
-              (h) => h.id === verifiedHit.id || getKeywordSimilarity(h.name, verifiedHit.name) >= 0.75
-            );
-            if (existingIdx !== -1) {
-              const updated = [...prev];
-              updated[existingIdx] = { ...updated[existingIdx], timestamp: now };
-              return updated;
-            }
-            return [verifiedHit, ...prev].slice(0, 15);
-          });
+          setCapturedLog((prev) => [verifiedHit, ...prev]);
         } catch (err) {
           setActiveScans((prev) => prev.filter((s) => s.id !== obj.id));
         }
