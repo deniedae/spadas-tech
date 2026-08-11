@@ -60,7 +60,17 @@ export const ShippingEstimateSchema = z.object({
   notes: z.string().nullable(),
 });
 
+export const InventoryConditionEnum = z.enum([
+  "untested",
+  "faulty_for_parts",
+  "used_working",
+  "refurbished",
+]);
+
 export const AiListingResultSchema = z.object({
+  inventory_condition: InventoryConditionEnum.default("used_working"),
+  defect_notes: z.array(z.string()).default([]),
+  as_is_disclaimer: z.string().default(""),
   detected_objects: z.array(DetectedObjectSchema).optional(),
   analysis: ProductAnalysisSchema,
   market_titles: MarketTitlesSchema,

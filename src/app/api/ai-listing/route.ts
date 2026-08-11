@@ -79,6 +79,9 @@ function generateMockAiListingResult(): AiListingResult {
 
   return {
     isMockFallback: true,
+    inventory_condition: "used_working",
+    defect_notes: ["Minor surface wear consistent with thrifted pre-owned inventory"],
+    as_is_disclaimer: "Item tested and functional. Sold as described with minor cosmetic wear.",
     detected_objects: [
       {
         id: `mock-obj-${Date.now()}`,
@@ -229,6 +232,24 @@ export async function POST(request: Request) {
                   text: `You are the world's leading AI Reselling & Valuation Expert across eBay, TCGPlayer, PriceCharting, Google Books, TMDB, Facebook Marketplace, and Depop.
 Analyse the product in the provided image(s) with 100% precision.
 
+FAULTY & UNTESTED INVENTORY EVALUATION MANDATE:
+1. Conservative Condition Estimates:
+   - Always default to conservative condition estimates unless factory-sealed.
+   - Set inventory_condition to "untested" if power status, cabling, or operational functionality cannot be verified from the photo.
+   - Set inventory_condition to "faulty_for_parts" if visible cracks, broken ports, corrosion, heavy scuffs, or missing essential components (e.g. missing battery door, missing power cable) are detected.
+   - Set inventory_condition to "used_working" if in clean, complete pre-owned condition without physical damage.
+   - Set inventory_condition to "refurbished" if reconditioned packaging or label is present.
+
+2. Defect Notes & As-Is Disclaimer Generation:
+   - Populate defect_notes with specific visual defects or unverified functionality statements (e.g. ["Missing AC power adapter", "Untested power state at thrift auction", "Scratches on housing"]).
+   - Provide a clean, non-aggressive marketplace as_is_disclaimer (e.g. "Item is sold as-is, untested for parts or restoration. Please inspect photos for exact cosmetic condition.").
+
+3. For-Parts / Untested Comp Valuations:
+   - When inventory_condition is "untested" or "faulty_for_parts", suggested_price_min and suggested_price_max MUST reflect realistic "For Parts / As-Is / Untested" sold comp valuations (typically 40% to 60% lower than fully working units) so resellers do not overpay.
+
+4. Banned Category Prohibition:
+   - Vacuum Cleaners and floor care appliances of any type remain STRICTLY BANNED. Instantly set product_name: null.
+
 UNIVERSAL VISION GATEWAY MANDATE:
 - Evaluate ALL items in the frame, including groceries, consumables, pantry items, coffee/tea, household goods, tools, media, electronics, clothing, and low-cost items.
 - DO NOT reject or ghost items based on category. Groceries, food, consumables, tools, media, and household goods MUST BE EVALUATED and priced.
@@ -247,12 +268,7 @@ STRICT IDENTIFICATION GATEWAY (NO PARTIAL OR VAGUE MATCHES):
    - DO NOT return an item if the exact brand, model, set, or variant cannot be positively identified from the image or text.
    - Nullify Vague Reads: If details are vague or unclear (e.g. "exact card details unclear", "exact set/variant not fully readable", "unknown model", "unidentified item"), set "product_name": null.
 
-2. Banned Category Prohibition:
-   - Vacuum Cleaners of any type (e.g. Hoover, Dyson V-series, Roomba, Bissell, Eureka, Shop-Vac, Sweeper, floor cleaners) are STRICTLY BANNED. Instantly set "product_name": null.
-
-3. Precise Comp & Clean Output Formatting:
-   - Exclude bulk lots ("lot", "mixed", "loose cards", "job lot").
-   - Exclude "Untested", "Faulty", "Parts-Only", "As-Is" conditions from comp valuations by default.
+2. Precise Comp & Clean Output Formatting:
    - Clean Subtitles & Condition: DO NOT include internal AI reasoning in condition or subtitle fields. Return clean, professional condition labels.
 
 STRICT MANDATORY OCR & IDENTIFICATION LOCK:

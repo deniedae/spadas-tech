@@ -58,6 +58,9 @@ interface DetectedHit {
   name: string;
   category: string;
   condition: string;
+  inventoryCondition?: "untested" | "faulty_for_parts" | "used_working" | "refurbished";
+  defectNotes?: string[];
+  asIsDisclaimer?: string;
   estimatedValue: number;
   estCost: number;
   estimatedProfit: number;
@@ -194,6 +197,9 @@ export interface ActiveScanItem {
   brand?: string | null;
   category: string;
   condition: string;
+  inventoryCondition?: "untested" | "faulty_for_parts" | "used_working" | "refurbished";
+  defectNotes?: string[];
+  asIsDisclaimer?: string;
   bbox: { x: number; y: number; width: number; height: number };
   status: "pending" | "valued" | "rejected";
   estimatedValue?: number;
@@ -561,6 +567,9 @@ function SpadasLensCameraCore() {
           brand: item.brand,
           category: cat,
           condition: cleanConditionText(item.condition || "Used"),
+          inventoryCondition: data.inventory_condition || "used_working",
+          defectNotes: data.defect_notes || [],
+          asIsDisclaimer: data.as_is_disclaimer || "",
           bbox: item.bbox || { x: 20, y: 20, width: 60, height: 60 },
           status: "pending",
           timestamp: now,
@@ -585,12 +594,21 @@ function SpadasLensCameraCore() {
       // Sequential Single-Item Pricing Resolution
       for (const obj of validPendingItems) {
         try {
-          let rawMin = Number(data.suggested_price_min) || 25;
-          let rawMax = Number(data.suggested_price_max) || rawMin + 15;
-          let baseVal = Math.round(((rawMin + rawMax) / 2) * 100) / 100;
+          const invCond = obj.inventoryCondition || "used_working";
+          const isUntestedOrFaulty = invCond === "untested" || invCond === "faulty_for_parts";
+
+          let rawMin = Number(data.suggested_price_min) || (isUntestedOrFaulty ? 15 : 25);
+          let rawMax = Number(data.suggested_price_max) || rawMin + (isUntestedOrFaulty ? 10 : 15);
+
+          // For untested or faulty items, base valuation dynamically anchors to lower-bound parts comp
+          let baseVal = isUntestedOrFaulty
+            ? Math.round(rawMin * 100) / 100
+            : Math.round(((rawMin + rawMax) / 2) * 100) / 100;
+
           let itemCondition = cleanConditionText(obj.condition);
 
-          let estCost = Math.max(2, Math.round(baseVal * 0.35));
+          // Conservative acquisition cost calculation (for parts/untested, cost factor is 0.25 to prevent overpaying)
+          let estCost = Math.max(2, Math.round(baseVal * (isUntestedOrFaulty ? 0.25 : 0.35)));
           let estimatedProfit = Math.max(0, Math.round((baseVal - estCost) * 100) / 100);
           let estRoi = estCost > 0 ? Math.round((estimatedProfit / estCost) * 100) : 0;
 
@@ -612,6 +630,9 @@ function SpadasLensCameraCore() {
                     estimatedProfit,
                     estRoi,
                     condition: itemCondition,
+                    inventoryCondition: invCond,
+                    defectNotes: obj.defectNotes,
+                    asIsDisclaimer: obj.asIsDisclaimer,
                   }
                 : s
             )
@@ -636,6 +657,9 @@ function SpadasLensCameraCore() {
             name: obj.productName,
             category: obj.category,
             condition: itemCondition,
+            inventoryCondition: invCond,
+            defectNotes: obj.defectNotes,
+            asIsDisclaimer: obj.asIsDisclaimer,
             estimatedValue: baseVal,
             estCost,
             estimatedProfit,
@@ -803,6 +827,21 @@ function SpadasLensCameraCore() {
                 {/* Minimal High-Contrast Text Overlay Header */}
                 <div className="absolute top-2 left-2 flex items-center gap-2 bg-slate-950/95 text-white border border-white/20 rounded-md px-2.5 py-1 text-xs font-bold shadow-2xl whitespace-nowrap z-30">
                   <span className="text-slate-100 font-extrabold truncate max-w-[180px]">{scan.productName}</span>
+
+                  {scan.inventoryCondition === "untested" || scan.inventoryCondition === "faulty_for_parts" ? (
+                    <span className="bg-amber-500/25 text-amber-300 border border-amber-500/40 px-1.5 py-0.5 rounded text-[10px] font-black">
+                      🟠 UNTESTED / FOR PARTS
+                    </span>
+                  ) : scan.inventoryCondition === "refurbished" ? (
+                    <span className="bg-blue-500/25 text-blue-300 border border-blue-500/40 px-1.5 py-0.5 rounded text-[10px] font-black">
+                      🔹 REFURBISHED
+                    </span>
+                  ) : (
+                    <span className="bg-emerald-500/25 text-emerald-300 border border-emerald-500/40 px-1.5 py-0.5 rounded text-[10px] font-black">
+                      🟢 WORKING
+                    </span>
+                  )}
+
                   {scan.status === "valued" && scan.estimatedProfit !== undefined ? (
                     <span className="bg-emerald-400 text-slate-950 px-1.5 py-0.5 rounded text-[11px] font-black tracking-tight">
                       +${scan.estimatedProfit.toFixed(2)} Profit
@@ -1105,6 +1144,18 @@ function SpadasLensCameraCore() {
                     <span className="text-muted-foreground text-[10px] truncate max-w-[65%]">{item.condition}</span>
                     <span className="font-extrabold text-emerald-600 dark:text-emerald-400 shrink-0">{fmtMoney(item.estimatedValue)}</span>
                   </div>
+                  {item.inventoryCondition === "untested" || item.inventoryCondition === "faulty_for_parts" ? (
+                    <div className="pt-1 space-y-1">
+                      <span className="inline-block rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1.5 py-0.5 text-[9px] font-black">
+                        🟠 UNTESTED / FOR PARTS
+                      </span>
+                      {item.defectNotes && item.defectNotes.length > 0 && (
+                        <p className="text-[10px] text-amber-400/90 font-medium truncate">
+                          ⚠️ {item.defectNotes.join(" · ")}
+                        </p>
+                      )}
+                    </div>
+                  ) : null}
                 </div>
               );
             })}

@@ -34,8 +34,13 @@ export interface ShippingEstimate {
   notes: string | null;
 }
 
+export type InventoryCondition = "untested" | "faulty_for_parts" | "used_working" | "refurbished";
+
 /** Full AI-generated listing payload. */
 export interface AiListingResult {
+  inventory_condition?: InventoryCondition;
+  defect_notes?: string[];
+  as_is_disclaimer?: string;
   analysis: ProductAnalysis;
   market_titles: MarketTitles;
   seo_description: string;
