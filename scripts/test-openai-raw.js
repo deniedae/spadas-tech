@@ -19,34 +19,29 @@ if (fs.existsSync(envPath)) {
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const vckKey = process.env.VERCEL_AI_KEY || process.env.LING_API_KEY;
 
-async function runVisionTest() {
-  console.log("\n--- Vision Completion Test ---");
-  try {
-    const visionRes = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "text", text: "Identify this item in 5 words" },
-            {
-              type: "image_url",
-              image_url: {
-                url: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
-                detail: "low"
-              }
-            }
-          ]
-        }
-      ],
-      max_tokens: 15,
-    });
-    console.log("🎉 VISION SUCCESS! Response:", visionRes.choices[0].message.content);
-  } catch (err) {
-    console.error("❌ VISION FAILED:", err);
+async function testEndpoints() {
+  const endpoints = [
+    "https://openrouter.ai/api/v1",
+    "https://api.vck.vercel.app/v1",
+    "https://gateway.ai.cloudflare.com/v1",
+  ];
+
+  for (const url of endpoints) {
+    console.log(`\n--- Testing URL: ${url} ---`);
+    try {
+      const client = new OpenAI({ apiKey: vckKey, baseURL: url });
+      const res = await client.chat.completions.create({
+        model: "openai/gpt-4o-mini",
+        messages: [{ role: "user", content: "Hi" }],
+        max_tokens: 5,
+      });
+      console.log(`🎉 SUCCESS at ${url}:`, res.choices[0].message.content);
+    } catch (err) {
+      console.error(`❌ FAILED at ${url}:`, err.message);
+    }
   }
 }
 
-runVisionTest();
+testEndpoints();

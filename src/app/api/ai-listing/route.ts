@@ -7,12 +7,10 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { checkUserUsage } from "@/app/lib/usage";
 import { AiListingResultSchema } from "@/app/lib/schemas/ai-listing-schema";
-import { AR_SCAN_MODEL_FALLBACKS, LISTING_MODEL_FALLBACKS } from "@/app/lib/config/ai-models";
+import { AR_SCAN_MODEL_FALLBACKS, LISTING_MODEL_FALLBACKS, getPrimaryAiApiKey } from "@/app/lib/config/ai-models";
 import type { AiListingResult } from "@/types/ai-listing";
 
 export const preferredRegion = "syd1";
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 function generateMockAiListingResult(): AiListingResult {
   const mockCatalog = [
@@ -235,6 +233,7 @@ export async function POST(request: Request) {
       image_url: { url, detail: "low" as const },
     }));
 
+    const openai = new OpenAI({ apiKey: getPrimaryAiApiKey() });
     let completion;
     let hasCreditOrQuotaError = false;
     const targetModels = isArScan ? AR_SCAN_MODEL_FALLBACKS : LISTING_MODEL_FALLBACKS;
