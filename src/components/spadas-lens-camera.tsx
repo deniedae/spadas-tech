@@ -1,6 +1,6 @@
 import React, { Component, ReactNode, useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Camera, Volume2, VolumeX, Sparkles, CheckCircle2, RefreshCw, Zap, ShieldAlert, Clock, ArrowRight, Sliders, Bug, Terminal, ChevronDown, ChevronUp } from "lucide-react";
+import { Camera, Volume2, VolumeX, Sparkles, CheckCircle2, RefreshCw, Zap, ShieldAlert, Clock, ArrowRight, Sliders, Bug, Terminal, ChevronDown, ChevronUp, Sun, Search } from "lucide-react";
 import { toast } from "sonner";
 import { fmtMoney } from "@/app/lib/listings";
 import { createListing } from "@/app/lib/createlisting";
@@ -229,6 +229,64 @@ function SpadasLensCameraCore() {
   const [showDebugDrawer, setShowDebugDrawer] = useState<boolean>(false);
   const [lastRawApiResponse, setLastRawApiResponse] = useState<any>(null);
   const [latestApiError, setLatestApiError] = useState<string | null>(null);
+
+  // WebRTC Hardware Controls State (Torch & Optical Zoom)
+  const [torchEnabled, setTorchEnabled] = useState<boolean>(false);
+  const [zoomLevel, setZoomLevel] = useState<number>(1);
+  const [torchSupported, setTorchSupported] = useState<boolean>(false);
+  const [zoomSupported, setZoomSupported] = useState<boolean>(false);
+  const [maxZoom, setMaxZoom] = useState<number>(3);
+
+  // WebRTC Hardware Capability Check (Torch & Optical Zoom)
+  useEffect(() => {
+    if (!stream) {
+      setTorchSupported(false);
+      setZoomSupported(false);
+      setTorchEnabled(false);
+      setZoomLevel(1);
+      return;
+    }
+    const track = stream.getVideoTracks()[0];
+    if (track && typeof track.getCapabilities === "function") {
+      try {
+        const capabilities: any = track.getCapabilities();
+        if ("torch" in capabilities) {
+          setTorchSupported(true);
+        }
+        if ("zoom" in capabilities) {
+          setZoomSupported(true);
+          if (capabilities.zoom?.max) {
+            setMaxZoom(Math.min(5, capabilities.zoom.max));
+          }
+        }
+      } catch (err) {
+        console.warn("[WebRTC] Capabilities check error:", err);
+      }
+    }
+  }, [stream]);
+
+  // Dynamically Apply Hardware Constraints (Torch & Zoom)
+  useEffect(() => {
+    if (!stream) return;
+    const track = stream.getVideoTracks()[0];
+    if (!track) return;
+
+    const advancedConstraints: any = [];
+    if (torchSupported) {
+      advancedConstraints.push({ torch: torchEnabled });
+    }
+    if (zoomSupported) {
+      advancedConstraints.push({ zoom: zoomLevel });
+    }
+
+    if (advancedConstraints.length > 0) {
+      track
+        .applyConstraints({ advanced: advancedConstraints })
+        .catch((err) => {
+          console.warn("[WebRTC] applyConstraints error:", err);
+        });
+    }
+  }, [stream, torchEnabled, zoomLevel, torchSupported, zoomSupported]);
 
   // Load custom profit chime thresholds from localStorage
   useEffect(() => {
@@ -954,6 +1012,40 @@ function SpadasLensCameraCore() {
               {soundEnabled ? <Volume2 className="h-4 w-4 text-cyan-400" /> : <VolumeX className="h-4 w-4 text-slate-400" />}
               <span>{soundEnabled ? "Audio Cues ON" : "Muted"}</span>
             </button>
+
+            {/* Hardware Flashlight / Torch Control */}
+            <button
+              type="button"
+              onClick={() => setTorchEnabled(!torchEnabled)}
+              title={torchSupported ? "Toggle Hardware Flashlight" : "Flashlight not supported on this camera/browser"}
+              className={`inline-flex h-9 items-center gap-1.5 rounded-xl border px-3 text-xs font-bold transition cursor-pointer ${
+                torchEnabled
+                  ? "bg-amber-400 text-slate-950 border-amber-300 shadow-md shadow-amber-400/30"
+                  : "bg-white/10 text-white border-white/20 hover:bg-white/20"
+              }`}
+            >
+              <Sun className={`h-4 w-4 ${torchEnabled ? "text-slate-950 animate-pulse" : "text-amber-400"}`} />
+              <span>{torchEnabled ? "Flash ON" : "Torch"}</span>
+            </button>
+
+            {/* Hardware Optical Zoom Controls */}
+            <div className="flex items-center gap-1 bg-white/10 border border-white/20 rounded-xl p-1">
+              <Search className="h-3.5 w-3.5 text-cyan-400 ml-1 shrink-0" />
+              {[1, 2, 3].map((z) => (
+                <button
+                  key={z}
+                  type="button"
+                  onClick={() => setZoomLevel(z)}
+                  className={`px-2 py-0.5 rounded-lg text-xs font-black transition cursor-pointer ${
+                    zoomLevel === z
+                      ? "bg-cyan-400 text-slate-950 shadow-sm"
+                      : "text-slate-300 hover:text-white hover:bg-white/10"
+                  }`}
+                >
+                  {z}x
+                </button>
+              ))}
+            </div>
 
             <button
               type="button"
