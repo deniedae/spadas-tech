@@ -93,6 +93,49 @@ export default function AiNewListingPage() {
     };
   }, []);
 
+  const compressImageFile = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          const maxDim = 1024;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > maxDim) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            }
+          } else {
+            if (height > maxDim) {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = "high";
+            ctx.drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL("image/jpeg", 0.8));
+          } else {
+            resolve(e.target?.result as string);
+          }
+        };
+        img.onerror = () => reject(new Error("Failed to load image"));
+        img.src = e.target?.result as string;
+      };
+      reader.onerror = (err) => reject(err);
+      reader.readAsDataURL(file);
+    });
+  };
+
   const handleFilesChange = async (nextFiles: File[]) => {
     setFiles(nextFiles);
 
@@ -106,18 +149,13 @@ export default function AiNewListingPage() {
 
     for (const file of nextFiles) {
       try {
-        const base64Url = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = (err) => reject(err);
-          reader.readAsDataURL(file);
-        });
-        if (base64Url) {
-          urls.push(base64Url);
+        const compressedBase64 = await compressImageFile(file);
+        if (compressedBase64) {
+          urls.push(compressedBase64);
         }
       } catch (err) {
-        console.error("Failed to read image file:", err);
-        toast.error("Failed to read image file.");
+        console.error("Failed to compress image file:", err);
+        toast.error("Failed to process image file.");
       }
     }
 
@@ -125,14 +163,13 @@ export default function AiNewListingPage() {
     setUploading(false);
   };
 
-const canGenerate = imageUrls.length > 0 && !uploading && !generating;
-
+  const canGenerate = imageUrls.length > 0 && !uploading && !generating;
 
   async function handleGenerate() {
-   if (!canGenerate) {
-  toast.error("Please upload at least one product image.");
-  return;
-}
+    if (!canGenerate) {
+      toast.error("Please upload at least one product image.");
+      return;
+    }
 
     setGenerating(true);
     setStageIdx(0);
@@ -147,8 +184,15 @@ const canGenerate = imageUrls.length > 0 && !uploading && !generating;
         body: JSON.stringify({ imageUrls, keyword: keyword.trim() }),
       });
       if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error || "AI generation failed.");
+        let errMessage = "AI generation failed.";
+        try {
+          const err = await response.json();
+          errMessage = err.error || errMessage;
+        } catch {
+          const textText = await response.text().catch(() => "");
+          errMessage = textText || `Server error (${response.status})`;
+        }
+        throw new Error(errMessage);
       }
       const data = await response.json();
       window.dispatchEvent(new Event("usage-updated"));
