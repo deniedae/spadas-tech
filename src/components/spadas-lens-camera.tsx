@@ -540,13 +540,15 @@ function SpadasLensCameraCore() {
         }
       }
 
-      // Handle 429 RPM Rate Limits silently without triggering false-positive credit exhaustion warnings!
+      // Handle 429 RPM Rate Limits cleanly without triggering false-positive credit exhaustion warnings!
       if (res?.status === 429 || data?.isRateLimited) {
-        const rateErr = data?.rawError || data?.error || "OpenAI RPM rate limit hit (429)";
+        const retrySecs = data?.retryAfter || 5;
+        const rateErr = data?.rawError || data?.error || "OpenAI rate limit reached. Pausing 5s.";
         setLatestApiError(rateErr);
         setRateLimited(true);
-        toast.info("Scanning too fast... pausing 2.5s for rate limit");
-        setTimeout(() => setRateLimited(false), 2500);
+        setIsMockFallback(false);
+        toast.info(`⏳ OpenAI Rate Limit - Pausing scan for ${retrySecs}s...`);
+        setTimeout(() => setRateLimited(false), retrySecs * 1000);
         return;
       }
 

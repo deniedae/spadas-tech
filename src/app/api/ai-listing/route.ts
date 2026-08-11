@@ -5,6 +5,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { checkUserUsage } from "@/app/lib/usage";
 import { AiListingResultSchema } from "@/app/lib/schemas/ai-listing-schema";
+import { AR_SCAN_MODEL_FALLBACKS, LISTING_MODEL_FALLBACKS } from "@/app/lib/config/ai-models";
 import type { AiListingResult } from "@/types/ai-listing";
 
 export const preferredRegion = "syd1";
@@ -234,12 +235,11 @@ export async function POST(request: Request) {
 
     let completion;
     let hasCreditOrQuotaError = false;
-    // Streamlined target models: gpt-4o-mini for sub-second AR live frame scanning; gpt-4o -> gpt-4o-mini for full AI listings
-    const targetModels = isArScan ? ["gpt-4o-mini"] : ["gpt-4o", "gpt-4o-mini"];
+    const targetModels = isArScan ? AR_SCAN_MODEL_FALLBACKS : LISTING_MODEL_FALLBACKS;
 
     for (const modelName of targetModels) {
       try {
-        completion = await openai.chat.completions.create({
+        const reqParams: any = {
           model: modelName,
           temperature: 0.0,
           response_format: zodResponseFormat(AiListingResultSchema, "ai_listing_analysis"),
@@ -309,7 +309,13 @@ Rules:
               ],
             },
           ],
-        });
+        };
+
+        if (modelName.startsWith("gpt-5")) {
+          reqParams.reasoning = { effort: isArScan ? "none" : "low" };
+        }
+
+        completion = await openai.chat.completions.create(reqParams);
         if (completion?.choices?.[0]?.message?.content) break;
       } catch (err: any) {
         console.warn(`[ai-listing] Model ${modelName} call warning:`, err);
@@ -318,8 +324,9 @@ Rules:
           return NextResponse.json(
             {
               isRateLimited: true,
+              retryAfter: 5,
               rawError: err?.message || "OpenAI RPM rate limit exceeded.",
-              error: "OpenAI RPM rate limit hit. Pausing 2.5s.",
+              error: "OpenAI rate limit reached. Pausing scan for 5s.",
             },
             { status: 429 }
           );
@@ -380,8 +387,9 @@ Rules:
       return NextResponse.json(
         {
           isRateLimited: true,
+          retryAfter: 5,
           rawError: err?.message || "OpenAI RPM rate limit exceeded.",
-          error: "OpenAI RPM rate limit hit. Pausing 2.5s.",
+          error: "OpenAI rate limit reached. Pausing scan for 5s.",
         },
         { status: 429 }
       );
