@@ -552,9 +552,9 @@ function SpadasLensCameraCore() {
         return;
       }
 
-      if (!res || res.status === 401 || res.status === 402 || !res.ok) {
+      if (res && (res.status === 401 || res.status === 402)) {
         setIsMockFallback(true);
-        setLatestApiError(data?.rawError || data?.error || `HTTP ${res?.status || 500} Unauthorized / Insufficient Quota`);
+        setLatestApiError(data?.rawError || data?.error || `HTTP ${res.status} Unauthorized / Insufficient Quota`);
         if (typeof window !== "undefined") {
           window.dispatchEvent(new Event("spadas_ai_credit_exhausted"));
         }
@@ -564,7 +564,7 @@ function SpadasLensCameraCore() {
         if (typeof window !== "undefined") {
           window.dispatchEvent(new Event("spadas_ai_credit_exhausted"));
         }
-      } else {
+      } else if (res && res.ok && data) {
         setIsMockFallback(false);
         setLatestApiError(null);
         if (typeof window !== "undefined") {
@@ -573,41 +573,9 @@ function SpadasLensCameraCore() {
         }
       }
 
-      // If API returned mock fallback or failed due to credit exhaustion, supply local mock generator item
+      // If frame returned no analysis or errors, skip frame silently without forcing mock mode
       if (!data || !data.analysis || data.error) {
-        setIsMockFallback(true);
-        const mockCatalog = [
-          { name: "Nintendo Game Boy Color (Berry Red)", brand: "Nintendo", cat: "Video Games & Consoles", price_min: 75, price_max: 95 },
-          { name: "Sony Walkman WM-FX290 Cassette Player", brand: "Sony", cat: "Vintage Electronics", price_min: 55, price_max: 70 },
-          { name: "Pokémon Base Set Unlimited Charmander 46/102", brand: "Wizards of the Coast", cat: "Trading Cards", price_min: 30, price_max: 45 },
-          { name: "Bose SoundLink Mini II Bluetooth Speaker", brand: "Bose", cat: "Consumer Electronics", price_min: 80, price_max: 105 },
-          { name: "Logitech MX Master 3S Wireless Mouse", brand: "Logitech", cat: "Computer Accessories", price_min: 70, price_max: 90 },
-          { name: "Super Mario World SNES Cartridge", brand: "Nintendo", cat: "Video Games", price_min: 40, price_max: 55 },
-        ];
-        const item = mockCatalog[Math.floor(Math.random() * mockCatalog.length)];
-        data = {
-          isMockFallback: true,
-          detected_objects: [
-            {
-              id: `mock-obj-${Date.now()}`,
-              product_name: item.name,
-              brand: item.brand,
-              category: item.cat,
-              condition: "Used - Good",
-              bbox: { x: 20, y: 20, width: 60, height: 60 },
-              confidence_score: 0.96,
-            },
-          ],
-          analysis: {
-            product_name: item.name,
-            brand: item.brand,
-            category: item.cat,
-            condition: "Used - Good",
-            confidence_score: 0.96,
-          },
-          suggested_price_min: item.price_min,
-          suggested_price_max: item.price_max,
-        };
+        return;
       }
 
       setLastRawApiResponse(data);

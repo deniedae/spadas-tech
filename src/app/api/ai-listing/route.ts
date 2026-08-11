@@ -204,15 +204,6 @@ export async function POST(request: Request) {
       data: { user },
     } = await supabase.auth.getUser();
 
-    // If user is unauthenticated, allow AR scanner / guest demo mode via mock fallback
-    if (!user) {
-      if (isArScan) {
-        // Proceed with scan or mock fallback if OpenAI key is missing
-      } else {
-        return NextResponse.json(generateMockAiListingResult());
-      }
-    }
-
     // Usage Limit Check (Bypassed for real-time live AR continuous video stream or unauthenticated guests)
     if (!isArScan && user) {
       const usage = await checkUserUsage(user.id);
