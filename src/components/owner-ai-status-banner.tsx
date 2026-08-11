@@ -119,7 +119,7 @@ export default function OwnerAiStatusBanner() {
           </button>
 
           <a
-            href="https://platform.openai.com/account/billing/overview"
+            href="https://platform.openai.com/settings/organization/billing/overview"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1 rounded-lg bg-gradient-to-r from-rose-600 to-amber-600 px-3 py-1 text-[11px] font-black text-white hover:opacity-90 transition shadow-md shadow-rose-600/20"

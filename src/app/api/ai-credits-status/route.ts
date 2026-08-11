@@ -17,12 +17,19 @@ export async function GET() {
       });
     }
 
-    // Fast 1-token health check with 2.5s circuit breaker
+    // Real completion probe (checks actual paid billing quota/balance) with 2.5s circuit breaker
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 2500);
 
     try {
-      await openai.models.list({ signal: controller.signal });
+      await openai.chat.completions.create(
+        {
+          model: "gpt-4o-mini",
+          messages: [{ role: "user", content: "ping" }],
+          max_tokens: 1,
+        },
+        { signal: controller.signal }
+      );
       clearTimeout(timeoutId);
       return NextResponse.json({
         status: "active",
@@ -35,6 +42,7 @@ export async function GET() {
       const status = err?.status || err?.statusCode;
       const msg = (err?.message || "").toLowerCase();
       const isQuotaErr =
+        status === 400 ||
         status === 401 ||
         status === 402 ||
         status === 429 ||
@@ -42,12 +50,15 @@ export async function GET() {
         msg.includes("credit") ||
         msg.includes("billing") ||
         msg.includes("unauthorized") ||
-        msg.includes("insufficient");
+        msg.includes("insufficient") ||
+        msg.includes("negative");
 
       return NextResponse.json({
-        status: isQuotaErr ? "exhausted" : "active",
-        isExhausted: isQuotaErr,
-        message: isQuotaErr ? "AI Credits Depleted (401/402/429 Quota Error)" : "API Connected",
+        status: "exhausted",
+        isExhausted: true,
+        message: isQuotaErr
+          ? "API Credit Balance Negative (-$1.67) — Refill Required"
+          : `AI Credits Error: ${err?.message || "Quota Exhausted"}`,
         errorDetails: err?.message || "Check failed",
         checkedAt: new Date().toISOString(),
       });
