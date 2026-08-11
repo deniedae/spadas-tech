@@ -645,16 +645,7 @@ function SpadasLensCameraCore() {
         return;
       }
 
-      // Cap activeScans to a maximum of 3 concurrent items
-      setActiveScans((prev) => {
-        if (prev.length >= 3) return prev;
-        const existingIds = new Set(prev.map((s) => s.id));
-        const newScans = validPendingItems.filter((s) => !existingIds.has(s.id));
-        const availableSlots = Math.max(0, 3 - prev.length);
-        return [...newScans.slice(0, availableSlots), ...prev];
-      });
-
-      // Sequential Single-Item Pricing Resolution
+      // Process and render all verified scan items on HUD overlay
       for (const obj of validPendingItems) {
         try {
           const invCond = obj.inventoryCondition || "used_working";
@@ -663,43 +654,33 @@ function SpadasLensCameraCore() {
           let rawMin = Number(data.suggested_price_min) || (isUntestedOrFaulty ? 15 : 25);
           let rawMax = Number(data.suggested_price_max) || rawMin + (isUntestedOrFaulty ? 10 : 15);
 
-          // For untested or faulty items, base valuation dynamically anchors to lower-bound parts comp
           let baseVal = isUntestedOrFaulty
             ? Math.round(rawMin * 100) / 100
             : Math.round(((rawMin + rawMax) / 2) * 100) / 100;
 
           let itemCondition = cleanConditionText(obj.condition);
-
-          // Conservative acquisition cost calculation (for parts/untested, cost factor is 0.25 to prevent overpaying)
           let estCost = Math.max(2, Math.round(baseVal * (isUntestedOrFaulty ? 0.25 : 0.35)));
           let estimatedProfit = Math.max(0, Math.round((baseVal - estCost) * 100) / 100);
           let estRoi = estCost > 0 ? Math.round((estimatedProfit / estCost) * 100) : 0;
 
-          // Silent Ghosting for zero/negative profit items
-          if (estimatedProfit <= 0) {
-            setActiveScans((prev) => prev.filter((s) => s.id !== obj.id));
-            continue;
-          }
+          const valuedItem: ActiveScanItem = {
+            ...obj,
+            status: "valued",
+            estimatedValue: baseVal,
+            estCost,
+            estimatedProfit,
+            estRoi,
+            condition: itemCondition,
+            inventoryCondition: invCond,
+            defectNotes: obj.defectNotes,
+            asIsDisclaimer: obj.asIsDisclaimer,
+          };
 
-          // Dynamic UI Update: Turn bounding box GREEN & attach valuation
-          setActiveScans((prev) =>
-            prev.map((s) =>
-              s.id === obj.id
-                ? {
-                    ...s,
-                    status: "valued",
-                    estimatedValue: baseVal,
-                    estCost,
-                    estimatedProfit,
-                    estRoi,
-                    condition: itemCondition,
-                    inventoryCondition: invCond,
-                    defectNotes: obj.defectNotes,
-                    asIsDisclaimer: obj.asIsDisclaimer,
-                  }
-                : s
-            )
-          );
+          // Dynamically update activeScans array with latest scanned valuation card
+          setActiveScans((prev) => {
+            const filtered = prev.filter((s) => getKeywordSimilarity(s.productName, obj.productName) < 0.6);
+            return [valuedItem, ...filtered].slice(0, 4);
+          });
 
           // Custom Profit & ROI Threshold Audio Chime & Cue
           if (estimatedProfit >= minProfitThreshold && estRoi >= minRoiThreshold) {
