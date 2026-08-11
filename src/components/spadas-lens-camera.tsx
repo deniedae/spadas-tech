@@ -122,7 +122,7 @@ function getKeywordSimilarity(str1: string, str2: string): number {
 // Strict Vacuum Cleaner Filter (Banned Category)
 function isVacuumCleaner(name: string, category: string): boolean {
   const text = `${name} ${category}`.toLowerCase();
-  return /\b(vacuum|cleaner|hoover|roomba|dyson\s*v\d+|bissel|eureka|dustbuster|shop-vac|sweeper|floor cleaner)\b/i.test(text);
+  return /\b(vacuum|vacuum cleaner|hoover|roomba|dyson\s*v\d+|shop-vac|carpet cleaner)\b/i.test(text);
 }
 
 // Broad Vague Generic Term Blocklist (Rejects titles lacking brand/model specificity)
@@ -147,29 +147,17 @@ const VAGUE_GENERIC_TERMS = new Set([
   "scanned item"
 ]);
 
-// Strict Vague / Partial Read Detector (Nullify Vague & Non-Specific Reads)
+// Strict Vague / Partial Read Detector (Only reject explicit failure strings)
 function isVagueOrPartialRead(productName?: string | null, brand?: string | null): boolean {
   if (!productName || productName.trim() === "" || productName === "NO_CENTER_ITEM") return true;
   const lower = productName.toLowerCase().trim();
-
-  // Reject exact vague generic terms lacking specificity
-  if (VAGUE_GENERIC_TERMS.has(lower)) return true;
-
-  // Reject generic titles <= 2 words if no specific brand or model is attached
-  const words = lower.split(/\s+/);
-  if (words.length <= 2 && (!brand || brand.trim() === "" || brand.toLowerCase() === "generic")) return true;
 
   const vaguePhrases = [
     "unclear",
     "not fully readable",
     "exact card details unclear",
-    "exact set/variant not",
     "unknown model",
-    "unknown brand",
-    "unidentified",
-    "generic read",
-    "various items",
-    "assorted",
+    "unidentified item",
     "cannot be determined",
     "could not be identified"
   ];
