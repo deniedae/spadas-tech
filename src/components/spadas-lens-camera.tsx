@@ -1,6 +1,25 @@
 import React, { Component, ReactNode, useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Camera, Volume2, VolumeX, Sparkles, CheckCircle2, RefreshCw, Zap, ShieldAlert, Clock, ArrowRight, Sliders, Bug, Terminal, ChevronDown, ChevronUp, Sun, Search } from "lucide-react";
+import {
+  Camera,
+  Volume2,
+  VolumeX,
+  Sparkles,
+  CheckCircle2,
+  RefreshCw,
+  Zap,
+  ShieldAlert,
+  Clock,
+  ArrowRight,
+  Sliders,
+  Bug,
+  Terminal,
+  ChevronDown,
+  ChevronUp,
+  Sun,
+  Search,
+  Trash2,
+} from "lucide-react";
 import { toast } from "sonner";
 import { fmtMoney } from "@/app/lib/listings";
 import { createListing } from "@/app/lib/createlisting";
@@ -124,28 +143,6 @@ function isVacuumCleaner(name: string, category: string): boolean {
   const text = `${name} ${category}`.toLowerCase();
   return /\b(vacuum|vacuum cleaner|hoover|roomba|dyson\s*v\d+|shop-vac|carpet cleaner)\b/i.test(text);
 }
-
-// Broad Vague Generic Term Blocklist (Rejects titles lacking brand/model specificity)
-const VAGUE_GENERIC_TERMS = new Set([
-  "keyboard",
-  "computer keyboard",
-  "trading card",
-  "trading cards",
-  "card",
-  "game controller",
-  "controller",
-  "coffee maker",
-  "spray bottle",
-  "bottle",
-  "mouse",
-  "computer mouse",
-  "headphones",
-  "speaker",
-  "cable",
-  "charger",
-  "phone case",
-  "scanned item"
-]);
 
 // Strict Vague / Partial Read Detector (Only reject explicit failure strings)
 function isVagueOrPartialRead(productName?: string | null, brand?: string | null): boolean {
@@ -321,6 +318,12 @@ function SpadasLensCameraCore() {
     } else {
       setSelectedHitIds(capturedLog.map((h) => h.id));
     }
+  };
+
+  const clearAllHits = () => {
+    setCapturedLog([]);
+    setSelectedHitIds([]);
+    toast.info("Cleared Real-Time Scanned Hits list.");
   };
 
   // Export Selected Hits to AI Listing Generator / Drafts
@@ -628,7 +631,7 @@ function SpadasLensCameraCore() {
         const pName = item.product_name;
         const cat = item.category || "Scanned Item";
 
-        // Hard-Kill Exclusions (Strict Vacuum Cleaner & Generic Title Rejection)
+        // Hard-Kill Exclusions (Strict Vacuum Cleaner Rejection)
         if (!pName || isVagueOrPartialRead(pName, item.brand) || isVacuumCleaner(pName, cat)) {
           continue;
         }
@@ -731,7 +734,7 @@ function SpadasLensCameraCore() {
     } catch (err: any) {
       clearTimeout(hardTimeoutId);
       if (err?.name === "AbortError") {
-        console.warn("[Spadas Lens] AI Vision fetch request aborted due to 4000ms hard timeout.");
+        console.warn("[Spadas Lens] AI Vision fetch request aborted due to 12000ms hard timeout.");
       } else {
         console.error("Live camera Vision scan error:", err);
       }
@@ -787,9 +790,9 @@ function SpadasLensCameraCore() {
   }, []);
 
   return (
-    <div className="w-full max-w-full overflow-x-hidden box-border space-y-6 pb-20 mx-auto">
+    <div className="w-full max-w-full overflow-x-hidden box-border space-y-6 pb-24 mx-auto animate-fade-in">
       {/* Video Viewport Container */}
-      <div className="relative aspect-[4/3] sm:aspect-[16/9] w-full max-w-full box-border overflow-hidden rounded-3xl border-2 border-cyan-500/40 bg-slate-950 shadow-2xl">
+      <div className="relative aspect-[4/3] sm:aspect-[16/9] w-full max-w-full box-border overflow-hidden rounded-3xl border border-cyan-500/30 bg-slate-950 shadow-[0_0_50px_rgba(6,182,212,0.15)] backdrop-blur-xl">
         {cameraError ? (
           <div className="flex h-full flex-col items-center justify-center p-6 text-center space-y-3 text-slate-300">
             <ShieldAlert className="h-12 w-12 text-amber-400" />
@@ -797,7 +800,7 @@ function SpadasLensCameraCore() {
             <button
               type="button"
               onClick={startCamera}
-              className="inline-flex h-10 items-center gap-2 rounded-xl bg-cyan-600 px-5 text-xs font-bold text-white shadow-md hover:bg-cyan-500"
+              className="inline-flex h-10 items-center gap-2 rounded-xl bg-cyan-600 px-5 text-xs font-bold text-white shadow-md hover:bg-cyan-500 transition"
             >
               <RefreshCw className="h-4 w-4" /> Retry Camera Access
             </button>
@@ -823,19 +826,20 @@ function SpadasLensCameraCore() {
               </div>
             )}
 
-            {/* Target Framing Reticle */}
+            {/* Target Framing Reticle with Modern Glassmorphic Corner Brackets */}
             <div className="absolute inset-0 z-15 pointer-events-none flex items-center justify-center">
-              <div className="relative w-[65%] h-[75%] max-w-[340px] max-h-[460px] rounded-2xl border border-cyan-400/50 flex flex-col justify-between p-3">
-                <div className="absolute -top-1 -left-1 w-5 h-5 border-t-2 border-l-2 border-cyan-400 rounded-tl" />
-                <div className="absolute -top-1 -right-1 w-5 h-5 border-t-2 border-r-2 border-cyan-400 rounded-tr" />
-                <div className="absolute -bottom-1 -left-1 w-5 h-5 border-b-2 border-l-2 border-cyan-400 rounded-bl" />
-                <div className="absolute -bottom-1 -right-1 w-5 h-5 border-b-2 border-r-2 border-cyan-400 rounded-br" />
+              <div className="relative w-[65%] h-[75%] max-w-[340px] max-h-[460px] rounded-2xl border border-cyan-400/40 flex flex-col justify-between p-3 bg-cyan-500/5 backdrop-blur-[1px]">
+                <div className="absolute -top-1 -left-1 w-5 h-5 border-t-2 border-l-2 border-cyan-400 rounded-tl shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
+                <div className="absolute -top-1 -right-1 w-5 h-5 border-t-2 border-r-2 border-cyan-400 rounded-tr shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
+                <div className="absolute -bottom-1 -left-1 w-5 h-5 border-b-2 border-l-2 border-cyan-400 rounded-bl shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
+                <div className="absolute -bottom-1 -right-1 w-5 h-5 border-b-2 border-r-2 border-cyan-400 rounded-br shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
 
                 {/* Helper text when no active scans are present */}
                 {activeScans.length === 0 && (
                   <div className="w-full text-center mt-2">
-                    <span className="inline-block rounded-full bg-slate-950/85 backdrop-blur-md px-3 py-1 text-[11px] font-bold text-cyan-300 border border-cyan-400/40 shadow-lg">
-                      ⚡ MULTI-OBJECT SCANNER ACTIVE · PAN CAMERA ACROSS SHELVES
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-950/85 backdrop-blur-md px-3.5 py-1.5 text-[11px] font-extrabold text-cyan-300 border border-cyan-400/40 shadow-xl">
+                      <span className="h-2 w-2 rounded-full bg-cyan-400 animate-ping" />
+                      SPADAS LENS AR • PAN CAMERA ACROSS ITEMS
                     </span>
                   </div>
                 )}
@@ -852,14 +856,14 @@ function SpadasLensCameraCore() {
                   width: `${scan.bbox.width}%`,
                   height: `${scan.bbox.height}%`,
                 }}
-                className={`absolute z-20 pointer-events-none transition-all duration-300 border-2 ${
+                className={`absolute z-20 pointer-events-none transition-all duration-300 border-2 rounded-xl ${
                   scan.status === "valued"
-                    ? "border-emerald-400 shadow-[0_0_14px_rgba(52,211,153,0.8)]"
-                    : "border-cyan-400 animate-pulse shadow-[0_0_10px_rgba(34,211,238,0.5)]"
+                    ? "border-emerald-400 shadow-[0_0_18px_rgba(52,211,153,0.85)]"
+                    : "border-cyan-400 animate-pulse shadow-[0_0_12px_rgba(34,211,238,0.6)]"
                 }`}
               >
                 {/* Minimal High-Contrast Text Overlay Header */}
-                <div className="absolute top-2 left-2 flex items-center gap-2 bg-slate-950/95 text-white border border-white/20 rounded-md px-2.5 py-1 text-xs font-bold shadow-2xl whitespace-nowrap z-30">
+                <div className="absolute top-2 left-2 flex items-center gap-2 bg-slate-950/95 text-white border border-cyan-500/40 rounded-lg px-3 py-1.5 text-xs font-bold shadow-2xl backdrop-blur-md whitespace-nowrap z-30">
                   <span className="text-slate-100 font-extrabold truncate max-w-[180px]">{scan.productName}</span>
 
                   {scan.inventoryCondition === "untested" || scan.inventoryCondition === "faulty_for_parts" ? (
@@ -877,7 +881,7 @@ function SpadasLensCameraCore() {
                   )}
 
                   {scan.status === "valued" && scan.estimatedProfit !== undefined ? (
-                    <span className="bg-emerald-400 text-slate-950 px-1.5 py-0.5 rounded text-[11px] font-black tracking-tight">
+                    <span className="bg-emerald-400 text-slate-950 px-2 py-0.5 rounded text-[11px] font-black tracking-tight shadow-md">
                       +${scan.estimatedProfit.toFixed(2)} Profit
                     </span>
                   ) : (
@@ -892,13 +896,13 @@ function SpadasLensCameraCore() {
         ) : (
           /* Placeholder View before starting */
           <div className="flex h-full flex-col items-center justify-center p-6 text-center space-y-4 text-white">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-cyan-500/20 border border-cyan-400/40 text-cyan-300">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-cyan-500/20 border border-cyan-400/40 text-cyan-300 shadow-[0_0_30px_rgba(34,211,238,0.3)]">
               <Camera className="h-8 w-8 text-cyan-400" />
             </div>
             <div className="space-y-1 max-w-sm">
               <h3 className="text-xl font-bold">Start Spadas Lens Live Stream</h3>
-              <p className="text-xs text-slate-300">
-                Pan your camera across clothing racks or store shelves. Spadas Lens continuous scanner runs center-weighted frame processing throttled at 2-3 FPS.
+              <p className="text-xs text-slate-300 leading-relaxed">
+                Pan your camera across thrift store shelves or clothing racks. Spadas Lens AR identifies items in real-time and calculates AUD resale profit.
               </p>
             </div>
             <button
@@ -914,9 +918,9 @@ function SpadasLensCameraCore() {
 
       {/* Camera Controls Bar (Pinned Outside Camera Viewport Container) */}
       {stream && (
-        <div className="w-full box-border flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-slate-950/90 backdrop-blur-md p-3.5 border border-slate-800 shadow-xl">
+        <div className="w-full box-border flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-slate-950/90 backdrop-blur-md p-4 border border-slate-800 shadow-2xl">
           <div className="flex items-center gap-2 text-xs font-bold">
-            <span className={`h-2 w-2 rounded-full animate-pulse ${rateLimited ? "bg-amber-400" : "bg-emerald-400"}`} />
+            <span className={`h-2.5 w-2.5 rounded-full animate-pulse ${rateLimited ? "bg-amber-400" : "bg-emerald-400"}`} />
             <span className={rateLimited ? "text-amber-300" : "text-cyan-300"}>
               {rateLimited
                 ? "API Rate Limit - Retrying in 1.5s..."
@@ -930,10 +934,10 @@ function SpadasLensCameraCore() {
             <button
               type="button"
               onClick={() => setAutoScanActive(!autoScanActive)}
-              className={`inline-flex h-9 items-center gap-1.5 rounded-xl px-3 text-xs font-bold transition ${
+              className={`inline-flex h-9 items-center gap-1.5 rounded-xl px-3.5 text-xs font-bold transition cursor-pointer ${
                 autoScanActive
-                  ? "bg-emerald-500 text-slate-950"
-                  : "bg-white/10 text-white border border-white/20"
+                  ? "bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20"
+                  : "bg-white/10 text-white border border-white/20 hover:bg-white/20"
               }`}
             >
               <Zap className="h-3.5 w-3.5" />
@@ -948,10 +952,10 @@ function SpadasLensCameraCore() {
                 }
               }}
               disabled={analyzingRealFrame}
-              className={`inline-flex h-9 items-center gap-1.5 rounded-xl px-4 text-sm font-bold transition ${
+              className={`inline-flex h-9 items-center gap-1.5 rounded-xl px-4 text-sm font-bold transition cursor-pointer ${
                 analyzingRealFrame
                   ? "bg-gray-600/50 text-gray-400"
-                  : "bg-indigo-600 hover:bg-indigo-500 text-white"
+                  : "bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/30"
               }`}
             >
               <RefreshCw className="h-4 w-4" />
@@ -961,7 +965,7 @@ function SpadasLensCameraCore() {
             <button
               type="button"
               onClick={() => setSoundEnabled(!soundEnabled)}
-              className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-3 text-xs font-semibold text-white hover:bg-white/20"
+              className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-3.5 text-xs font-semibold text-white hover:bg-white/20 cursor-pointer"
             >
               {soundEnabled ? <Volume2 className="h-4 w-4 text-cyan-400" /> : <VolumeX className="h-4 w-4 text-slate-400" />}
               <span>{soundEnabled ? "Audio Cues ON" : "Muted"}</span>
@@ -1004,7 +1008,7 @@ function SpadasLensCameraCore() {
             <button
               type="button"
               onClick={() => setShowDebugDrawer(!showDebugDrawer)}
-              className={`inline-flex h-9 items-center gap-1.5 rounded-xl border px-3 text-xs font-bold transition ${
+              className={`inline-flex h-9 items-center gap-1.5 rounded-xl border px-3 text-xs font-bold transition cursor-pointer ${
                 showDebugDrawer
                   ? "bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-sm shadow-amber-500/20"
                   : "bg-white/10 text-white border-white/20 hover:bg-white/20"
@@ -1018,14 +1022,14 @@ function SpadasLensCameraCore() {
             <button
               type="button"
               onClick={stopCamera}
-              className="inline-flex h-9 items-center rounded-xl bg-red-600 px-3.5 text-xs font-bold text-white hover:bg-red-500 cursor-pointer"
+              className="inline-flex h-9 items-center rounded-xl bg-red-600 px-3.5 text-xs font-bold text-white hover:bg-red-500 cursor-pointer transition"
             >
               Stop
             </button>
           </div>
 
           {/* Custom Profit Threshold Slider & Presets Bar */}
-          <div className="w-full pt-2.5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-800/80">
+          <div className="w-full pt-3 flex flex-wrap items-center justify-between gap-3 border-t border-slate-800/80">
             <div className="flex items-center gap-2 text-xs">
               <Sliders className="h-4 w-4 text-emerald-400 shrink-0" />
               <span className="font-bold text-slate-200">Chime Min Profit:</span>
@@ -1053,7 +1057,7 @@ function SpadasLensCameraCore() {
                   key={preset}
                   type="button"
                   onClick={() => updateProfitThreshold(preset)}
-                  className={`px-2 py-1 rounded text-[11px] font-black transition ${
+                  className={`px-2 py-1 rounded text-[11px] font-black transition cursor-pointer ${
                     minProfitThreshold === preset
                       ? "bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20"
                       : "bg-slate-900 border border-slate-800 text-slate-300 hover:bg-slate-800"
@@ -1168,37 +1172,45 @@ function SpadasLensCameraCore() {
         </div>
       )}
 
-      {/* Selectable Real-Time Hits Feed */}
+      {/* Selectable Real-Time Scanned Hits Feed */}
       {capturedLog.length > 0 && (
-        <div className="w-full max-w-full overflow-x-hidden box-border rounded-2xl border border-border bg-card p-3 sm:p-4 shadow-sm space-y-3 mx-auto">
-          <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="w-full max-w-full overflow-x-hidden box-border rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-lg space-y-4 mx-auto">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
             <h3 className="text-sm font-bold flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
               <span>Real-Time Scanned Hits ({capturedLog.length})</span>
             </h3>
+
             <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={selectAllHits}
-                className="text-[11px] font-semibold text-cyan-400 hover:underline cursor-pointer"
+                className="text-[11px] font-semibold text-cyan-500 hover:text-cyan-400 hover:underline cursor-pointer"
               >
                 {selectedHitIds.length === capturedLog.length ? "Deselect All" : "Select All"}
               </button>
-              <span className="text-[11px] text-muted-foreground">Tap cards to select</span>
+
+              <button
+                type="button"
+                onClick={clearAllHits}
+                className="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-500 hover:text-rose-400 hover:underline cursor-pointer"
+              >
+                <Trash2 className="h-3 w-3" /> Clear List
+              </button>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3 w-full box-border">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 w-full box-border">
             {capturedLog.map((item) => {
               const isSelected = selectedHitIds.includes(item.id);
               return (
                 <div
                   key={item.id}
                   onClick={() => toggleSelectHit(item.id)}
-                  className={`relative w-full min-w-0 box-border overflow-hidden cursor-pointer transition-all rounded-lg border p-2.5 px-3 space-y-1 ${
+                  className={`relative w-full min-w-0 box-border overflow-hidden cursor-pointer transition-all rounded-xl border p-3 space-y-1.5 shadow-sm ${
                     isSelected
-                      ? "border-emerald-400 bg-emerald-500/15 shadow-[0_0_12px_rgba(52,211,153,0.35)] ring-1 ring-emerald-400"
-                      : "border-emerald-500/30 bg-emerald-500/5 hover:border-emerald-400/50"
+                      ? "border-emerald-500 bg-emerald-500/10 shadow-[0_0_16px_rgba(16,185,129,0.25)] ring-1 ring-emerald-500"
+                      : "border-border bg-card hover:border-cyan-500/40 hover:bg-accent/40"
                   }`}
                 >
                   <div className="flex items-center justify-between gap-1 w-full min-w-0">
@@ -1208,22 +1220,25 @@ function SpadasLensCameraCore() {
                         checked={isSelected}
                         onChange={() => toggleSelectHit(item.id)}
                         onClick={(e) => e.stopPropagation()}
-                        className="h-3.5 w-3.5 rounded border-slate-700 bg-slate-900 text-emerald-500 focus:ring-emerald-400 cursor-pointer shrink-0"
+                        className="h-4 w-4 rounded border-slate-700 bg-slate-900 text-emerald-500 focus:ring-emerald-400 cursor-pointer shrink-0"
                       />
-                      <span className="text-[11px] font-black px-1.5 py-0.2 rounded bg-emerald-500 text-slate-950 uppercase tracking-tight shrink-0">
+                      <span className="text-[11px] font-black px-2 py-0.5 rounded bg-emerald-500 text-slate-950 uppercase tracking-tight shrink-0 shadow-sm">
                         +${item.estimatedProfit.toFixed(2)} Profit
                       </span>
                     </div>
-                    <span className="text-[10px] text-muted-foreground font-medium flex items-center gap-1 shrink-0">
-                      <Clock className="h-3 w-3 text-muted-foreground/70" />
-                      Updated
+
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 shrink-0">
+                      {item.verdict}
                     </span>
                   </div>
-                  <h4 className="text-xs font-bold text-foreground truncate leading-snug w-full min-w-0">{item.name}</h4>
-                  <div className="flex items-center justify-between text-[11px] pt-0.5 w-full min-w-0">
-                    <span className="text-muted-foreground text-[10px] truncate max-w-[65%]">{item.condition}</span>
+
+                  <h4 className="text-xs font-bold text-foreground truncate leading-snug w-full min-w-0 pt-0.5">{item.name}</h4>
+
+                  <div className="flex items-center justify-between text-[11px] pt-1 border-t border-border/60 w-full min-w-0">
+                    <span className="text-muted-foreground text-[10px] truncate max-w-[60%]">{item.condition}</span>
                     <span className="font-extrabold text-emerald-600 dark:text-emerald-400 shrink-0">{fmtMoney(item.estimatedValue)}</span>
                   </div>
+
                   {item.inventoryCondition === "untested" || item.inventoryCondition === "faulty_for_parts" ? (
                     <div className="pt-1 space-y-1">
                       <span className="inline-block rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1.5 py-0.5 text-[9px] font-black">
@@ -1250,9 +1265,9 @@ function SpadasLensCameraCore() {
             type="button"
             onClick={exportSelectedHits}
             disabled={exporting}
-            className="inline-flex items-center gap-2.5 rounded-full bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 px-6 sm:px-7 py-3 text-xs sm:text-sm font-extrabold text-slate-950 shadow-[0_0_30px_rgba(16,185,129,0.6)] hover:scale-105 active:scale-95 transition cursor-pointer whitespace-nowrap max-w-full"
+            className="inline-flex items-center gap-2.5 rounded-full bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 px-6 sm:px-8 py-3.5 text-xs sm:text-sm font-extrabold text-slate-950 shadow-[0_0_35px_rgba(16,185,129,0.7)] hover:scale-105 active:scale-95 transition cursor-pointer whitespace-nowrap max-w-full"
           >
-            <Sparkles className="h-4 w-4 shrink-0" />
+            <Sparkles className="h-4 w-4 shrink-0 animate-spin" />
             <span className="truncate">{exporting ? "Exporting..." : `Export ${selectedHitIds.length} Hit${selectedHitIds.length > 1 ? "s" : ""} to Drafts`}</span>
             <ArrowRight className="h-4 w-4 shrink-0" />
           </button>
@@ -1269,6 +1284,3 @@ export default function SpadasLensCamera() {
     </CameraErrorBoundary>
   );
 }
-
-
-
