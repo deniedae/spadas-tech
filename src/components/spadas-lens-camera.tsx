@@ -767,14 +767,14 @@ function SpadasLensCameraCore() {
     }
   }, [analyzingRealFrame, soundEnabled]);
 
-  // RESET FRONTEND STATE MACHINE: Drop items in "pending" status > 3s or stale > 3s to prevent ghost boxes
+  // RESET FRONTEND STATE MACHINE: Keep scanned items visible for 12 seconds
   useEffect(() => {
     const interval = setInterval(() => {
       const now = Date.now();
       setActiveScans((prev) =>
         prev.filter((item) => {
-          const isStuckPending = item.status === "pending" && now - item.timestamp > 3000;
-          const isStale = now - item.timestamp > 3000;
+          const isStuckPending = item.status === "pending" && now - item.timestamp > 6000;
+          const isStale = now - item.timestamp > 12000;
           return !isStuckPending && !isStale;
         })
       );
@@ -782,32 +782,23 @@ function SpadasLensCameraCore() {
     return () => clearInterval(interval);
   }, []);
 
-  // Stable Auto-Scan Loop
+  const processFrameRef = useRef(processCurrentFrame);
+  useEffect(() => {
+    processFrameRef.current = processCurrentFrame;
+  }, [processCurrentFrame]);
+
+  // Stable Rock-Solid Auto-Scan Loop
   useEffect(() => {
     if (!scanning || !autoScanActive) return;
 
-    let timeoutId: NodeJS.Timeout;
+    const interval = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState === "visible") {
+        void processFrameRef.current();
+      }
+    }, 1500);
 
-    const scheduleThrottledScan = () => {
-      timeoutId = setTimeout(() => {
-        if (typeof document !== "undefined" && document.visibilityState === "visible") {
-          if (!analyzingRealFrame) {
-            void processCurrentFrame().finally(() => {
-              scheduleThrottledScan();
-            });
-          } else {
-            scheduleThrottledScan();
-          }
-        } else {
-          scheduleThrottledScan();
-        }
-      }, 1000);
-    };
-
-    scheduleThrottledScan();
-
-    return () => clearTimeout(timeoutId);
-  }, [scanning, autoScanActive, processCurrentFrame, analyzingRealFrame]);
+    return () => clearInterval(interval);
+  }, [scanning, autoScanActive]);
 
   useEffect(() => {
     return () => {
