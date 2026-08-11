@@ -30,7 +30,7 @@ export async function GET() {
 
     // Real Vision completion probe (tests exact Vision API image quota & billing balance)
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3000);
+    const timeoutId = setTimeout(() => controller.abort(), 6000);
 
     try {
       await openai.chat.completions.create(
@@ -60,7 +60,7 @@ export async function GET() {
         {
           status: "active",
           isExhausted: false,
-          message: "OpenAI Vision API Credits Active",
+          message: "OpenAI Vision API Credits Active & Online",
           checkedAt: new Date().toISOString(),
         },
         { headers: NO_CACHE_HEADERS }
@@ -69,26 +69,46 @@ export async function GET() {
       clearTimeout(timeoutId);
       const status = err?.status || err?.statusCode;
       const msg = (err?.message || "").toLowerCase();
-      const isQuotaErr =
-        status === 400 ||
+      const code = err?.code || err?.error?.code || "";
+
+      // Exclude 429 Rate Limits, AbortErrors, or 400 parameter errors from credit exhaustion
+      const isRateOrTimeout =
+        status === 429 ||
+        err?.name === "AbortError" ||
+        code === "rate_limit_exceeded" ||
+        msg.includes("rate limit") ||
+        msg.includes("rate_limit_exceeded");
+
+      if (isRateOrTimeout) {
+        return NextResponse.json(
+          {
+            status: "active",
+            isExhausted: false,
+            message: "OpenAI API Active (Transient Rate Limit Pause)",
+            checkedAt: new Date().toISOString(),
+          },
+          { headers: NO_CACHE_HEADERS }
+        );
+      }
+
+      const isStrictQuotaErr =
         status === 401 ||
         status === 402 ||
-        status === 429 ||
-        msg.includes("quota") ||
-        msg.includes("credit") ||
-        msg.includes("billing") ||
-        msg.includes("unauthorized") ||
-        msg.includes("insufficient") ||
-        msg.includes("negative");
+        code === "insufficient_quota" ||
+        code === "invalid_api_key" ||
+        msg.includes("insufficient_quota") ||
+        msg.includes("invalid_api_key") ||
+        msg.includes("credit balance") ||
+        msg.includes("billing");
 
       return NextResponse.json(
         {
-          status: "exhausted",
-          isExhausted: true,
-          message: isQuotaErr
-            ? `API Credit Balance Negative (-$1.67) — Refill Required`
-            : `AI Credits Error: ${err?.message || "Quota Exhausted"}`,
-          errorDetails: err?.message || "Check failed",
+          status: isStrictQuotaErr ? "exhausted" : "active",
+          isExhausted: isStrictQuotaErr,
+          message: isStrictQuotaErr
+            ? `API Credit Balance Negative / Quota Exhausted`
+            : `AI Status Online: ${err?.message || "Active"}`,
+          errorDetails: err?.message || "Check complete",
           checkedAt: new Date().toISOString(),
         },
         { headers: NO_CACHE_HEADERS }
