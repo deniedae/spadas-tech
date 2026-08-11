@@ -467,6 +467,9 @@ function SpadasLensCameraCore() {
       let data: any = null;
       if (!res || res.status === 401 || res.status === 402 || res.status === 429 || !res.ok) {
         setIsMockFallback(true);
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new Event("spadas_ai_credit_exhausted"));
+        }
         if (res) {
           try { data = await res.json(); } catch { data = null; }
         }
@@ -474,6 +477,9 @@ function SpadasLensCameraCore() {
         data = await res.json().catch(() => null);
         if (data?.isMockFallback) {
           setIsMockFallback(true);
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(new Event("spadas_ai_credit_exhausted"));
+          }
         }
       }
 

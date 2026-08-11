@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { AlignJustify, X, Sparkles } from "lucide-react";
 import FocusLock from "react-focus-lock";
 import MobileNav from "@/components/mobile-nav";
+import OwnerAiStatusBanner from "@/components/owner-ai-status-banner";
 import { supabase } from "@/app/lib/supabase";
 
 /**
@@ -230,6 +231,9 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
 
       {/* Main content container */}
       <div className="flex-1 flex flex-col min-w-0 min-h-screen">
+        {/* Owner Account AI Credits Health Banner (Only visible for deniedae@gmail.com) */}
+        <OwnerAiStatusBanner />
+
         {/* Header */}
         <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between md:px-8 md:py-5 shadow-sm">
           {/* Mobile hamburger */}
