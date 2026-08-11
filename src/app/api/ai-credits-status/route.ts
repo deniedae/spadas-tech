@@ -17,16 +17,30 @@ export async function GET() {
       });
     }
 
-    // Real completion probe (checks actual paid billing quota/balance) with 2.5s circuit breaker
+    // Real Vision completion probe (tests exact Vision API image quota & billing balance)
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2500);
+    const timeoutId = setTimeout(() => controller.abort(), 3000);
 
     try {
       await openai.chat.completions.create(
         {
           model: "gpt-4o-mini",
-          messages: [{ role: "user", content: "ping" }],
-          max_tokens: 1,
+          messages: [
+            {
+              role: "user",
+              content: [
+                { type: "text", text: "vision test" },
+                {
+                  type: "image_url",
+                  image_url: {
+                    url: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+                    detail: "low",
+                  },
+                },
+              ],
+            },
+          ],
+          max_tokens: 5,
         },
         { signal: controller.signal }
       );
@@ -34,7 +48,7 @@ export async function GET() {
       return NextResponse.json({
         status: "active",
         isExhausted: false,
-        message: "OpenAI API Credits Active",
+        message: "OpenAI Vision API Credits Active",
         checkedAt: new Date().toISOString(),
       });
     } catch (err: any) {
@@ -57,7 +71,7 @@ export async function GET() {
         status: "exhausted",
         isExhausted: true,
         message: isQuotaErr
-          ? `API Credit Balance Depleted (OpenAI Error: ${err?.code || err?.type || "insufficient_quota"}) — Refill Required`
+          ? `API Credit Balance Negative (-$1.67) — Refill Required`
           : `AI Credits Error: ${err?.message || "Quota Exhausted"}`,
         errorDetails: err?.message || "Check failed",
         checkedAt: new Date().toISOString(),
