@@ -17,44 +17,72 @@ export default function SnapPhotoListing({
   const [statusText, setStatusText] = useState("");
 
   const compressPhoto = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       const reader = new FileReader();
       reader.onload = (e) => {
+        const rawDataUrl = (e.target?.result as string) || "";
+        if (!rawDataUrl) {
+          resolve("");
+          return;
+        }
+
         const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement("canvas");
-          const maxDim = 1024;
-          let width = img.width;
-          let height = img.height;
+        let done = false;
 
-          if (width > height) {
-            if (width > maxDim) {
-              height = Math.round((height * maxDim) / width);
-              width = maxDim;
-            }
-          } else {
-            if (height > maxDim) {
-              width = Math.round((width * maxDim) / height);
-              height = maxDim;
-            }
-          }
-
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext("2d");
-          if (ctx) {
-            ctx.imageSmoothingEnabled = true;
-            ctx.imageSmoothingQuality = "high";
-            ctx.drawImage(img, 0, 0, width, height);
-            resolve(canvas.toDataURL("image/jpeg", 0.8));
-          } else {
-            resolve(e.target?.result as string);
+        const finish = (url: string) => {
+          if (!done) {
+            done = true;
+            resolve(url);
           }
         };
-        img.onerror = () => reject(new Error("Failed to load image"));
-        img.src = e.target?.result as string;
+
+        const timer = setTimeout(() => finish(rawDataUrl), 2000);
+
+        img.onload = () => {
+          clearTimeout(timer);
+          try {
+            const canvas = document.createElement("canvas");
+            const maxDim = 1024;
+            let width = img.width || 640;
+            let height = img.height || 480;
+
+            if (width > height) {
+              if (width > maxDim) {
+                height = Math.round((height * maxDim) / width);
+                width = maxDim;
+              }
+            } else {
+              if (height > maxDim) {
+                width = Math.round((width * maxDim) / height);
+                height = maxDim;
+              }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext("2d");
+            if (ctx) {
+              ctx.imageSmoothingEnabled = true;
+              ctx.imageSmoothingQuality = "high";
+              ctx.drawImage(img, 0, 0, width, height);
+              finish(canvas.toDataURL("image/jpeg", 0.8));
+            } else {
+              finish(rawDataUrl);
+            }
+          } catch {
+            finish(rawDataUrl);
+          }
+        };
+
+        img.onerror = () => {
+          clearTimeout(timer);
+          finish(rawDataUrl);
+        };
+
+        img.src = rawDataUrl;
       };
-      reader.onerror = (err) => reject(err);
+
+      reader.onerror = () => resolve("");
       reader.readAsDataURL(file);
     });
   };
@@ -80,6 +108,9 @@ export default function SnapPhotoListing({
 
       // 1. Compress image to lightweight Base64 JPEG URL
       const base64Url = await compressPhoto(file);
+      if (!base64Url) {
+        throw new Error("Could not read photo data.");
+      }
 
       // 2. Run AI Analysis via /api/ai-listing
       setStatusText("Analyzing image with AI…");
