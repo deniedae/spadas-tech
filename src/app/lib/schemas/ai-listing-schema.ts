@@ -17,12 +17,20 @@ export const BoundingBoxSchema = z.object({
   height: z.number(),
 });
 
+export const InventoryConditionEnum = z.enum([
+  "untested",
+  "faulty_for_parts",
+  "used_working",
+  "refurbished",
+]);
+
 export const DetectedObjectSchema = z.object({
   id: z.string(),
   product_name: z.string().nullable(),
   brand: z.string().nullable(),
   category: z.string(),
   condition: z.string(),
+  inventory_condition: InventoryConditionEnum,
   bbox: BoundingBoxSchema,
   confidence_score: z.number(),
 });
@@ -35,6 +43,9 @@ export const ProductAnalysisSchema = z.object({
   color: z.string().nullable(),
   material: z.string().nullable(),
   condition: z.string(),
+  inventory_condition: InventoryConditionEnum,
+  defect_notes: z.array(z.string()),
+  as_is_disclaimer: z.string().nullable(),
   accessories_detected: z.array(z.string()),
   confidence: z.enum(["high", "medium", "low"]),
   confidence_score: z.number(),
@@ -60,28 +71,26 @@ export const ShippingEstimateSchema = z.object({
   notes: z.string().nullable(),
 });
 
-export const InventoryConditionEnum = z.enum([
-  "untested",
-  "faulty_for_parts",
-  "used_working",
-  "refurbished",
-]);
+export const ItemSpecificSchema = z.object({
+  name: z.string(),
+  value: z.string(),
+});
 
 export const AiListingResultSchema = z.object({
-  inventory_condition: InventoryConditionEnum.default("used_working"),
-  defect_notes: z.array(z.string()).default([]),
-  as_is_disclaimer: z.string().default(""),
-  detected_objects: z.array(DetectedObjectSchema).optional(),
+  inventory_condition: InventoryConditionEnum,
+  defect_notes: z.array(z.string()),
+  as_is_disclaimer: z.string().nullable(),
+  detected_objects: z.array(DetectedObjectSchema).nullable(),
   analysis: ProductAnalysisSchema,
   market_titles: MarketTitlesSchema,
   seo_description: z.string(),
   detailed_description: z.string(),
-  shipping_estimate: ShippingEstimateSchema,
-  item_specifics: z.record(z.string(), z.string()),
+  shipping_estimate: ShippingEstimateSchema.nullable(),
+  item_specifics: z.array(ItemSpecificSchema),
   suggested_keywords: z.array(z.string()),
   suggested_price_min: z.number(),
   suggested_price_max: z.number(),
-  suggested_price_currency: z.enum(["USD", "AUD", "GBP", "EUR"]),
+  suggested_price_currency: z.string(),
 });
 
 export type GenerateListingSchemaType = z.infer<typeof GenerateListingSchema>;
