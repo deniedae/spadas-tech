@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
       .single();
 
     let accessToken = tokenRow?.access_token;
-    let refreshToken = tokenRow?.refresh_token;
+    let refreshToken = tokenRow?.refresh_token || process.env.EBAY_USER_REFRESH_TOKEN;
 
     if (!accessToken && !refreshToken) {
       // Demo Mode / Unlinked Fallback for Testing
