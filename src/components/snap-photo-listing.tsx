@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Camera, Loader2, Sparkles, CheckCircle2 } from "lucide-react";
+import { Camera, Loader2, Sparkles } from "lucide-react";
 import { supabase } from "@/app/lib/supabase";
 import { toast } from "sonner";
 
@@ -16,13 +16,56 @@ export default function SnapPhotoListing({
   const [processing, setProcessing] = useState(false);
   const [statusText, setStatusText] = useState("");
 
+  const compressPhoto = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          const maxDim = 1024;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > maxDim) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            }
+          } else {
+            if (height > maxDim) {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = "high";
+            ctx.drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL("image/jpeg", 0.8));
+          } else {
+            resolve(e.target?.result as string);
+          }
+        };
+        img.onerror = () => reject(new Error("Failed to load image"));
+        img.src = e.target?.result as string;
+      };
+      reader.onerror = (err) => reject(err);
+      reader.readAsDataURL(file);
+    });
+  };
+
   async function handlePhotoCapture(e: React.ChangeEvent<HTMLInputElement>) {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
     const file = files[0];
     setProcessing(true);
-    setStatusText("Uploading photo…");
+    setStatusText("Processing photo with AI…");
 
     try {
       const {
@@ -35,23 +78,8 @@ export default function SnapPhotoListing({
         return;
       }
 
-      // 1. Upload to Supabase Storage
-      const ext = file.name.split(".").pop() || "jpg";
-      const path = `${user.id}/${crypto.randomUUID()}.${ext}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("listing-images")
-        .upload(path, file, { upsert: false, contentType: file.type });
-
-      if (uploadError) {
-        throw new Error(`Upload failed: ${uploadError.message}`);
-      }
-
-      const { data: urlData } = supabase.storage
-        .from("listing-images")
-        .getPublicUrl(path);
-
-      const publicUrl = urlData.publicUrl;
+      // 1. Compress image to lightweight Base64 JPEG URL
+      const base64Url = await compressPhoto(file);
 
       // 2. Run AI Analysis via /api/ai-listing
       setStatusText("Analyzing image with AI…");
@@ -59,12 +87,19 @@ export default function SnapPhotoListing({
       const response = await fetch("/api/ai-listing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageUrls: [publicUrl] }),
+        body: JSON.stringify({ imageUrls: [base64Url] }),
       });
 
       if (!response.ok) {
-        const err = await response.json().catch(() => ({}));
-        throw new Error(err.error || "AI analysis failed.");
+        let errMessage = "AI analysis failed.";
+        try {
+          const err = await response.json();
+          errMessage = err.error || errMessage;
+        } catch {
+          const text = await response.text().catch(() => "");
+          errMessage = text || `Server error (${response.status})`;
+        }
+        throw new Error(errMessage);
       }
 
       const aiData = await response.json();
@@ -82,7 +117,7 @@ export default function SnapPhotoListing({
           price,
           cost: 0,
           status: "Draft",
-          image_url: publicUrl,
+          image_url: null,
         },
       ]);
 
