@@ -57,7 +57,7 @@ export async function GET() {
         status: "exhausted",
         isExhausted: true,
         message: isQuotaErr
-          ? "API Credit Balance Negative (-$1.67) — Refill Required"
+          ? `API Credit Balance Depleted (OpenAI Error: ${err?.code || err?.type || "insufficient_quota"}) — Refill Required`
           : `AI Credits Error: ${err?.message || "Quota Exhausted"}`,
         errorDetails: err?.message || "Check failed",
         checkedAt: new Date().toISOString(),
