@@ -19,29 +19,21 @@ if (fs.existsSync(envPath)) {
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
-const vckKey = process.env.VERCEL_AI_KEY || process.env.LING_API_KEY;
+const openAiKey = process.env.OPENAI_API_KEY;
+console.log("Testing OPENAI_API_KEY:", openAiKey ? `${openAiKey.slice(0, 15)}...` : "MISSING");
 
-async function testEndpoints() {
-  const endpoints = [
-    "https://openrouter.ai/api/v1",
-    "https://api.vck.vercel.app/v1",
-    "https://gateway.ai.cloudflare.com/v1",
-  ];
-
-  for (const url of endpoints) {
-    console.log(`\n--- Testing URL: ${url} ---`);
-    try {
-      const client = new OpenAI({ apiKey: vckKey, baseURL: url });
-      const res = await client.chat.completions.create({
-        model: "openai/gpt-4o-mini",
-        messages: [{ role: "user", content: "Hi" }],
-        max_tokens: 5,
-      });
-      console.log(`🎉 SUCCESS at ${url}:`, res.choices[0].message.content);
-    } catch (err) {
-      console.error(`❌ FAILED at ${url}:`, err.message);
-    }
+async function probeOpenAiKey() {
+  try {
+    const client = new OpenAI({ apiKey: openAiKey });
+    const res = await client.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [{ role: "user", content: "Hi" }],
+      max_tokens: 5,
+    });
+    console.log("🎉 OPENAI_API_KEY WORKS 100%! Response:", res.choices[0].message.content);
+  } catch (err) {
+    console.error("❌ OPENAI_API_KEY FAILED:", err.message);
   }
 }
 
-testEndpoints();
+probeOpenAiKey();
