@@ -39,6 +39,20 @@ export default function SettingsPage() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [minProfit, setMinProfit] = useState(20);
   const [minRoi, setMinRoi] = useState(0);
+  const [ebayConnected, setEbayConnected] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get("ebayConnected") === "true") {
+        toast.success("Successfully connected your eBay seller account!");
+        setEbayConnected(true);
+      }
+      if (urlParams.get("ebayError")) {
+        toast.error(`eBay Connection Error: ${urlParams.get("ebayError")}`);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -110,6 +124,17 @@ export default function SettingsPage() {
       if (userEmail.toLowerCase() === "deniedae@gmail.com") {
         setPlan("Pro");
         setPlanStatus("active");
+      }
+
+      const { data: tokenData } = await supabase
+        .from("user_marketplace_tokens")
+        .select("is_connected")
+        .eq("user_id", user.id)
+        .eq("platform", "ebay")
+        .single();
+
+      if (tokenData?.is_connected) {
+        setEbayConnected(true);
       }
 
       setError(null);
@@ -272,6 +297,37 @@ export default function SettingsPage() {
             >
               📱 Install App (PWA)
             </button>
+          </div>
+        </div>
+      </section>
+
+      {/* Marketplace OAuth Integrations */}
+      <section className="rounded-2xl border border-blue-500/30 bg-gradient-to-br from-blue-500/10 via-indigo-500/5 to-background p-6 shadow-sm">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="inline-flex items-center gap-2 rounded-full bg-blue-500/10 px-3 py-1 text-xs font-semibold text-blue-600 dark:text-blue-400">
+              🛒 Direct 1-Click Publishing
+            </div>
+            <h2 className="text-xl font-bold">eBay Seller Hub OAuth Integration</h2>
+            <p className="text-sm text-muted-foreground">
+              Connect your official eBay Seller account to publish AI listings directly into live/draft eBay inventory.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {ebayConnected ? (
+              <div className="flex items-center gap-2 rounded-xl bg-emerald-500/15 border border-emerald-500/30 px-4 py-2 text-xs font-bold text-emerald-400">
+                <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span>Connected to eBay</span>
+              </div>
+            ) : (
+              <a
+                href="/api/auth/ebay/connect"
+                className="inline-flex h-11 items-center gap-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 px-5 text-sm font-bold text-white shadow-md transition cursor-pointer"
+              >
+                🔵 Connect eBay Account
+              </a>
+            )}
           </div>
         </div>
       </section>

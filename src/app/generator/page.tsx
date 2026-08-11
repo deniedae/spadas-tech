@@ -39,7 +39,44 @@ export default function AiNewListingPage() {
   const [stageIdx, setStageIdx] = useState(0);
   const [result, setResult] = useState<AiListingResult | null>(null);
   const [saving, setSaving] = useState(false);
+  const [publishingEbay, setPublishingEbay] = useState(false);
   const stageTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  async function handlePublishEbay() {
+    if (!form.product.trim()) {
+      toast.error("Product name is required.");
+      return;
+    }
+    setPublishingEbay(true);
+    try {
+      const res = await fetch("/api/marketplaces/ebay/publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          product: form.product.trim(),
+          description: form.seo_description || form.detailed_description,
+          price: Number(form.price) || 25,
+          condition: form.condition,
+          brand: form.brand,
+          imageUrls,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        throw new Error(data.error || "Failed to publish to eBay.");
+      }
+
+      toast.success(data.message || "Successfully published to eBay!");
+      if (data.listingUrl) {
+        window.open(data.listingUrl, "_blank");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to publish to eBay.");
+    } finally {
+      setPublishingEbay(false);
+    }
+  }
 
   const [form, setForm] = useState({
     product: "",
@@ -655,15 +692,26 @@ export default function AiNewListingPage() {
               />
             </Field>
 
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={saving}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
-            >
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              {saving ? "Saving…" : "Save Listing"}
-            </button>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={saving || publishingEbay}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50 cursor-pointer"
+              >
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                {saving ? "Saving…" : "Save Listing"}
+              </button>
+
+              <button
+                type="button"
+                onClick={handlePublishEbay}
+                disabled={saving || publishingEbay}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-3 text-sm font-bold text-white shadow-md transition hover:opacity-90 disabled:opacity-50 cursor-pointer"
+              >
+                {publishingEbay ? <Loader2 className="h-4 w-4 animate-spin" /> : <span>🔵 1-Click Publish to eBay</span>}
+              </button>
+            </div>
           </div>
         </section>
       </div>
