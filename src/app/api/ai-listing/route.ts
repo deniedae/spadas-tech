@@ -1,8 +1,10 @@
 import OpenAI from "openai";
+import { zodResponseFormat } from "openai/helpers/zod";
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { checkUserUsage } from "@/app/lib/usage";
+import { AiListingResultSchema } from "@/app/lib/schemas/ai-listing-schema";
 import type { AiListingResult } from "@/types/ai-listing";
 
 export const preferredRegion = "syd1";
@@ -209,23 +211,15 @@ export async function POST(request: Request) {
 
     let completion;
     let hasCreditOrQuotaError = false;
-    const targetModels = [
-      "gpt-5-mini",
-      "gpt-5.4-mini",
-      "gpt-5",
-      "gpt-5.6-sol",
-      "chat-latest",
-      "gpt-4o-mini",
-      "gpt-4.1-mini",
-      "gpt-4o",
-    ];
+    // Streamlined target models: gpt-4o-mini for sub-second AR live frame scanning; gpt-4o -> gpt-4o-mini for full AI listings
+    const targetModels = isArScan ? ["gpt-4o-mini"] : ["gpt-4o", "gpt-4o-mini"];
 
     for (const modelName of targetModels) {
       try {
         completion = await openai.chat.completions.create({
           model: modelName,
           temperature: 0.0,
-          response_format: { type: "json_object" },
+          response_format: zodResponseFormat(AiListingResultSchema, "ai_listing_analysis"),
           messages: [
             {
               role: "user",
@@ -267,59 +261,13 @@ STRICT MANDATORY OCR & IDENTIFICATION LOCK:
 2. Physical Type Validation:
    - Verify physical form factor before outputting product name (e.g., speaker cannot be classified as charging pad).
 
-Respond ONLY with valid JSON matching exactly this shape:
-{
-  "detected_objects": [
-    {
-      "id": "string",
-      "product_name": "string | null",
-      "brand": "string | null",
-      "category": "string",
-      "condition": "string",
-      "bbox": { "x": 10, "y": 15, "width": 40, "height": 50 },
-      "confidence_score": 0.95
-    }
-  ],
-  "analysis": {
-    "product_name": string | null,
-    "brand": string | null,
-    "model": string | null,
-    "category": string,
-    "color": string | null,
-    "material": string | null,
-    "condition": string,
-    "accessories_detected": string[],
-    "confidence": "high" | "medium" | "low",
-    "confidence_score": number
-  },
-  "market_titles": {
-    "ebay": string,
-    "facebook_marketplace": string,
-    "vinted": string,
-    "depop": string
-  },
-  "seo_description": string,
-  "detailed_description": string,
-  "shipping_estimate": {
-    "size": "small" | "medium" | "large" | "extra-large",
-    "estimated_weight_grams": number,
-    "dimensions_cm": { "length": number, "width": number, "height": number } | null,
-    "notes": string | null
-  },
-  "item_specifics": { "key": "value" },
-  "suggested_keywords": string[],
-  "suggested_price_min": number,
-  "suggested_price_max": number,
-  "suggested_price_currency": "AUD"
-}
 Rules:
 - Use realistic Australian resale prices in AUD.
 - Titles must be SEO-friendly and within 80 characters.
 - confidence_score is a number between 0 and 1.
 - seo_description: a short, punchy 1-2 sentence summary optimised for search.
 - detailed_description: a full marketplace listing body — 3-5 short paragraphs, plain text, no markdown, no emoji. Cover what it is, condition, key features, and any flaws visible in the photo.
-- shipping_estimate.size: classify parcel as small, medium, large, or extra-large.
-- Do not include any text outside the JSON object.`,
+- shipping_estimate.size: classify parcel as small, medium, large, or extra-large.`,
                 },
                 ...imageContent,
               ],
@@ -336,7 +284,8 @@ Rules:
       }
     }
 
-    if (!completion?.choices?.[0]?.message?.content) {
+    const content = completion?.choices?.[0]?.message?.content;
+    if (!content) {
       if (hasCreditOrQuotaError || process.env.OPENAI_API_KEY?.startsWith("sk-proj-placeholder")) {
         console.warn("[ai-listing] Credit exhaustion fallback triggered due to API status/credits.");
         return NextResponse.json(generateMockAiListingResult());
@@ -344,8 +293,7 @@ Rules:
       throw new Error("No model response received.");
     }
 
-    const text = completion.choices[0]?.message?.content ?? "";
-    const result = JSON.parse(text) as AiListingResult;
+    const result = JSON.parse(content) as AiListingResult;
 
     // Enforce 100% Rock-Solid Price Lock Consistency across identical product names
     if (result.analysis?.product_name && typeof result.suggested_price_min === "number") {

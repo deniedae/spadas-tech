@@ -1,5 +1,7 @@
 import OpenAI from "openai";
+import { zodResponseFormat } from "openai/helpers/zod";
 import { NextResponse } from "next/server";
+import { GenerateListingSchema } from "@/app/lib/schemas/ai-listing-schema";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -18,7 +20,7 @@ export async function POST(req: Request) {
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
-      response_format: { type: "json_object" },
+      response_format: zodResponseFormat(GenerateListingSchema, "generate_listing"),
       messages: [
         {
           role: "user",
@@ -28,26 +30,20 @@ A user is selling:
 
 ${product}
 
-Respond ONLY with valid JSON in exactly this shape:
-
-{
-  "title": "",
-  "description": "",
-  "price": 0
-}
-
 Rules:
 - The title must be SEO-friendly and under 80 characters.
 - The description must be professional, 2-3 short sentences, plain text, no markdown, no emoji.
-- The price must be a realistic Australian resale price in AUD, as a number (not a string).
-- Do not include any text outside the JSON object.`,
+- The price must be a realistic Australian resale price in AUD, as a number.`,
         },
       ],
     });
 
-    const text = completion.choices[0]?.message?.content ?? "";
-    const listing = JSON.parse(text);
+    const content = completion.choices[0]?.message?.content;
+    if (!content) {
+      throw new Error("Failed to parse listing from response.");
+    }
 
+    const listing = JSON.parse(content);
     return NextResponse.json(listing);
   } catch (err) {
     console.error("[generate] failed:", err);
