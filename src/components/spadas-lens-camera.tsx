@@ -1,6 +1,6 @@
 import React, { Component, ReactNode, useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Camera, Volume2, VolumeX, Sparkles, CheckCircle2, RefreshCw, Zap, ShieldAlert, Clock, ArrowRight, Sliders } from "lucide-react";
+import { Camera, Volume2, VolumeX, Sparkles, CheckCircle2, RefreshCw, Zap, ShieldAlert, Clock, ArrowRight, Sliders, Bug, Terminal, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 import { fmtMoney } from "@/app/lib/listings";
 import { createListing } from "@/app/lib/createlisting";
@@ -220,6 +220,8 @@ function SpadasLensCameraCore() {
   const [isMockFallback, setIsMockFallback] = useState(false);
   const [minProfitThreshold, setMinProfitThreshold] = useState<number>(20);
   const [minRoiThreshold, setMinRoiThreshold] = useState<number>(0);
+  const [showDebugDrawer, setShowDebugDrawer] = useState<boolean>(false);
+  const [lastRawApiResponse, setLastRawApiResponse] = useState<any>(null);
 
   // Load custom profit chime thresholds from localStorage
   useEffect(() => {
@@ -519,6 +521,8 @@ function SpadasLensCameraCore() {
           suggested_price_max: item.price_max,
         };
       }
+
+      setLastRawApiResponse(data);
 
       // Extract Multi-Object Detected Items
       const detected =
@@ -892,6 +896,20 @@ function SpadasLensCameraCore() {
 
             <button
               type="button"
+              onClick={() => setShowDebugDrawer(!showDebugDrawer)}
+              className={`inline-flex h-9 items-center gap-1.5 rounded-xl border px-3 text-xs font-bold transition ${
+                showDebugDrawer
+                  ? "bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-sm shadow-amber-500/20"
+                  : "bg-white/10 text-white border-white/20 hover:bg-white/20"
+              }`}
+            >
+              <Bug className="h-3.5 w-3.5 text-amber-400" />
+              <span>{showDebugDrawer ? "Hide Debug" : "🐞 Debug Drawer"}</span>
+              {showDebugDrawer ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+            </button>
+
+            <button
+              type="button"
               onClick={stopCamera}
               className="inline-flex h-9 items-center rounded-xl bg-red-600 px-3.5 text-xs font-bold text-white hover:bg-red-500 cursor-pointer"
             >
@@ -939,6 +957,95 @@ function SpadasLensCameraCore() {
               ))}
             </div>
           </div>
+
+          {/* Diagnostics & Debug Drawer Panel */}
+          {showDebugDrawer && (
+            <div className="w-full rounded-2xl bg-slate-950/95 border border-amber-500/30 p-4 shadow-2xl space-y-3 backdrop-blur-md">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                <div className="flex items-center gap-2">
+                  <Terminal className="h-4 w-4 text-amber-400 shrink-0" />
+                  <h4 className="text-xs font-extrabold text-amber-300 uppercase tracking-wider">
+                    Live AR Scan Diagnostics & Debugger
+                  </h4>
+                </div>
+                <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full border ${
+                  isMockFallback
+                    ? "bg-amber-500/20 text-amber-300 border-amber-500/30"
+                    : "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
+                }`}>
+                  {isMockFallback ? "⚠️ MOCK FALLBACK MODE" : "🟢 LIVE OPENAI VISION"}
+                </span>
+              </div>
+
+              {lastRawApiResponse ? (
+                <div className="space-y-3">
+                  {/* Diagnostic Metrics Grid */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                    <div className="bg-slate-900 border border-slate-800 rounded-xl p-2.5 space-y-1">
+                      <span className="text-[10px] text-slate-400 font-semibold block">Detected Item</span>
+                      <span className="font-bold text-white truncate block">
+                        {lastRawApiResponse.analysis?.product_name ||
+                          lastRawApiResponse.detected_objects?.[0]?.product_name ||
+                          "Unidentified Item"}
+                      </span>
+                    </div>
+
+                    <div className="bg-slate-900 border border-slate-800 rounded-xl p-2.5 space-y-1">
+                      <span className="text-[10px] text-slate-400 font-semibold block">Raw Market Comp</span>
+                      <span className="font-extrabold text-cyan-300 block">
+                        ${lastRawApiResponse.suggested_price_min || 0} - ${lastRawApiResponse.suggested_price_max || 0} {lastRawApiResponse.suggested_price_currency || "AUD"}
+                      </span>
+                    </div>
+
+                    <div className="bg-slate-900 border border-slate-800 rounded-xl p-2.5 space-y-1">
+                      <span className="text-[10px] text-slate-400 font-semibold block">Calculated Net Profit</span>
+                      <span className="font-extrabold text-emerald-400 block">
+                        +${Math.max(
+                          0,
+                          Math.round(
+                            (((Number(lastRawApiResponse.suggested_price_min) || 25) +
+                              (Number(lastRawApiResponse.suggested_price_max) || 40)) /
+                              2 -
+                              Math.max(
+                                2,
+                                Math.round(
+                                  (((Number(lastRawApiResponse.suggested_price_min) || 25) +
+                                    (Number(lastRawApiResponse.suggested_price_max) || 40)) /
+                                    2) *
+                                    0.35
+                                )
+                              )) *
+                              100
+                          ) / 100
+                        )} AUD
+                      </span>
+                    </div>
+
+                    <div className="bg-slate-900 border border-slate-800 rounded-xl p-2.5 space-y-1">
+                      <span className="text-[10px] text-slate-400 font-semibold block">Scan Engine Data Source</span>
+                      <span className="font-bold text-amber-300 block">
+                        {lastRawApiResponse.isMockFallback ? "Simulated Catalog" : "OpenAI GPT-4o Vision"}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Expandable Raw JSON Response Payload */}
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wide">
+                      Raw API Payload (/api/ai-listing):
+                    </span>
+                    <pre className="text-[10px] text-emerald-400 bg-slate-900 border border-slate-800 rounded-xl p-3 font-mono overflow-x-auto max-h-40 selection:bg-emerald-500/30">
+                      {JSON.stringify(lastRawApiResponse, null, 2)}
+                    </pre>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-4 text-slate-400 text-xs font-semibold">
+                  No frame scan payload recorded yet. Tap "Scan Now" or enable "Auto-Scan" to capture live diagnostic data.
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
