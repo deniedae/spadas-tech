@@ -102,27 +102,23 @@ export default function AiNewListingPage() {
     }
 
     setUploading(true);
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
-      setUploading(false);
-      return;
-    }
-
     const urls: string[] = [];
+
     for (const file of nextFiles) {
-      const ext = file.name.split(".").pop() || "jpg";
-      const path = `${user.id}/${crypto.randomUUID()}.${ext}`;
-      const { error } = await supabase.storage
-        .from("listing-images")
-        .upload(path, file, { upsert: false, contentType: file.type });
-      if (error) {
-        toast.error(`Upload failed: ${error.message}`);
-        continue;
+      try {
+        const base64Url = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = (err) => reject(err);
+          reader.readAsDataURL(file);
+        });
+        if (base64Url) {
+          urls.push(base64Url);
+        }
+      } catch (err) {
+        console.error("Failed to read image file:", err);
+        toast.error("Failed to read image file.");
       }
-      const { data } = supabase.storage.from("listing-images").getPublicUrl(path);
-      urls.push(data.publicUrl);
     }
 
     setImageUrls(urls);
