@@ -14,7 +14,7 @@ export default function OwnerAiStatusBanner() {
   const checkAiCredits = useCallback(async () => {
     setRefreshing(true);
     try {
-      const res = await fetch("/api/ai-credits-status");
+      const res = await fetch(`/api/ai-credits-status?t=${Date.now()}`, { cache: "no-store" });
       if (!res.ok) throw new Error("Check failed");
       const data = await res.json();
       if (data.isExhausted) {
