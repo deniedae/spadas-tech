@@ -228,6 +228,7 @@ function SpadasLensCameraCore() {
   const [minRoiThreshold, setMinRoiThreshold] = useState<number>(0);
   const [showDebugDrawer, setShowDebugDrawer] = useState<boolean>(false);
   const [lastRawApiResponse, setLastRawApiResponse] = useState<any>(null);
+  const [latestApiError, setLatestApiError] = useState<string | null>(null);
 
   // Load custom profit chime thresholds from localStorage
   useEffect(() => {
@@ -483,20 +484,32 @@ function SpadasLensCameraCore() {
 
       // Handle 429 RPM Rate Limits silently without triggering false-positive credit exhaustion warnings!
       if (res?.status === 429 || data?.isRateLimited) {
+        const rateErr = data?.rawError || data?.error || "OpenAI RPM rate limit hit (429)";
+        setLatestApiError(rateErr);
         setRateLimited(true);
+        toast.info("Scanning too fast... pausing 2.5s for rate limit");
         setTimeout(() => setRateLimited(false), 2500);
         return;
       }
 
       if (!res || res.status === 401 || res.status === 402 || !res.ok) {
         setIsMockFallback(true);
+        setLatestApiError(data?.rawError || data?.error || `HTTP ${res?.status || 500} Unauthorized / Insufficient Quota`);
         if (typeof window !== "undefined") {
           window.dispatchEvent(new Event("spadas_ai_credit_exhausted"));
         }
       } else if (data?.isMockFallback) {
         setIsMockFallback(true);
+        setLatestApiError("Running in Mock Fallback Mode");
         if (typeof window !== "undefined") {
           window.dispatchEvent(new Event("spadas_ai_credit_exhausted"));
+        }
+      } else {
+        setIsMockFallback(false);
+        setLatestApiError(null);
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("spadas_ai_credit_exhausted");
+          sessionStorage.removeItem("spadas_ai_credit_exhausted");
         }
       }
 
@@ -1076,6 +1089,18 @@ function SpadasLensCameraCore() {
                       </span>
                     </div>
                   </div>
+
+                  {/* Expose Raw API Error if any */}
+                  {latestApiError && (
+                    <div className="bg-red-950/60 border border-red-500/40 rounded-xl p-2.5 space-y-0.5">
+                      <span className="text-[10px] font-bold text-red-300 uppercase tracking-wider block">
+                        Latest API Error:
+                      </span>
+                      <span className="text-xs font-mono text-red-200 block break-words">
+                        {latestApiError}
+                      </span>
+                    </div>
+                  )}
 
                   {/* Expandable Raw JSON Response Payload */}
                   <div className="space-y-1">

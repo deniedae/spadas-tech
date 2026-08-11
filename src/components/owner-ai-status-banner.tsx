@@ -23,6 +23,10 @@ export default function OwnerAiStatusBanner() {
       } else {
         setStatus("active");
         setStatusMessage(data.message || "AI Credits Active & Online");
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("spadas_ai_credit_exhausted");
+          sessionStorage.removeItem("spadas_ai_credit_exhausted");
+        }
       }
     } catch {
       // Fallback check

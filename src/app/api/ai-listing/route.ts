@@ -316,7 +316,11 @@ Rules:
         if (isRateLimitError(err)) {
           console.warn("[ai-listing] OpenAI RPM rate limit hit on model:", modelName);
           return NextResponse.json(
-            { isRateLimited: true, error: "OpenAI RPM rate limit hit. Pausing 2.5s." },
+            {
+              isRateLimited: true,
+              rawError: err?.message || "OpenAI RPM rate limit exceeded.",
+              error: "OpenAI RPM rate limit hit. Pausing 2.5s.",
+            },
             { status: 429 }
           );
         }
@@ -374,7 +378,11 @@ Rules:
     console.error("[ai-listing] failed error:", err);
     if (isRateLimitError(err)) {
       return NextResponse.json(
-        { isRateLimited: true, error: "OpenAI RPM rate limit hit. Pausing 2.5s." },
+        {
+          isRateLimited: true,
+          rawError: err?.message || "OpenAI RPM rate limit exceeded.",
+          error: "OpenAI RPM rate limit hit. Pausing 2.5s.",
+        },
         { status: 429 }
       );
     }
