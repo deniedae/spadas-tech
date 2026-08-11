@@ -470,9 +470,15 @@ function SpadasLensCameraCore() {
     }
   };
 
+  const autoScanActiveRef = useRef(autoScanActive);
+  useEffect(() => {
+    autoScanActiveRef.current = autoScanActive;
+  }, [autoScanActive]);
+
   // Lightweight Non-Blocking Frame Scanner with Guaranteed finally Reset
   const processCurrentFrame = useCallback(async (forceManual = false) => {
     if (analyzingRealFrame) return;
+    if (!forceManual && !autoScanActiveRef.current) return;
 
     // LIGHTWEIGHT NON-BLOCKING DEBOUNCE: Skip frame if < 2000ms unless manually clicked
     const currentTime = Date.now();
