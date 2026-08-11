@@ -490,26 +490,29 @@ function SpadasLensCameraCore() {
     setAnalyzingRealFrame(true);
 
     const controller = new AbortController();
-    const hardTimeoutId = setTimeout(() => controller.abort(), 4000);
+    const hardTimeoutId = setTimeout(() => controller.abort(), 12000);
 
     try {
       const video = videoRef.current;
       let frameDataUrl = "";
 
-      if (video && video.readyState >= 2) {
-        const fullWidth = video.videoWidth || 1280;
-        const fullHeight = video.videoHeight || 720;
+      if (video && (video.readyState >= 1 || video.currentTime > 0)) {
+        const fullWidth = video.videoWidth || video.clientWidth || 1280;
+        const fullHeight = video.videoHeight || video.clientHeight || 720;
 
-        // Full-Frame Vision Capture
-        const canvas = document.createElement("canvas");
-        canvas.width = Math.min(1280, fullWidth);
-        canvas.height = Math.min(720, fullHeight);
-        const ctx = canvas.getContext("2d");
-        if (ctx) {
-          ctx.imageSmoothingEnabled = true;
-          ctx.imageSmoothingQuality = "high";
-          ctx.drawImage(video, 0, 0, fullWidth, fullHeight, 0, 0, canvas.width, canvas.height);
-          frameDataUrl = canvas.toDataURL("image/jpeg", 0.85);
+        if (fullWidth > 0 && fullHeight > 0) {
+          const canvas = document.createElement("canvas");
+          const targetW = Math.min(1024, fullWidth);
+          const targetH = Math.round((fullHeight * targetW) / fullWidth);
+          canvas.width = targetW;
+          canvas.height = targetH;
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = "high";
+            ctx.drawImage(video, 0, 0, fullWidth, fullHeight, 0, 0, targetW, targetH);
+            frameDataUrl = canvas.toDataURL("image/jpeg", 0.8);
+          }
         }
       }
 
