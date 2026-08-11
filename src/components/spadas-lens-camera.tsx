@@ -427,9 +427,9 @@ function SpadasLensCameraCore() {
   const processCurrentFrame = useCallback(async () => {
     if (analyzingRealFrame) return;
 
-    // LIGHTWEIGHT NON-BLOCKING DEBOUNCE: Skip frame if < 1000ms since last scan
+    // LIGHTWEIGHT NON-BLOCKING DEBOUNCE: Skip frame if < 2500ms since last scan to stay within RPM limits
     const currentTime = Date.now();
-    if (currentTime - lastScanTimeRef.current < 1000) {
+    if (currentTime - lastScanTimeRef.current < 2500) {
       return;
     }
     lastScanTimeRef.current = currentTime;
@@ -473,21 +473,30 @@ function SpadasLensCameraCore() {
       clearTimeout(hardTimeoutId);
 
       let data: any = null;
-      if (!res || res.status === 401 || res.status === 402 || res.status === 429 || !res.ok) {
+      if (res) {
+        try {
+          data = await res.json();
+        } catch {
+          data = null;
+        }
+      }
+
+      // Handle 429 RPM Rate Limits silently without triggering false-positive credit exhaustion warnings!
+      if (res?.status === 429 || data?.isRateLimited) {
+        setRateLimited(true);
+        setTimeout(() => setRateLimited(false), 2500);
+        return;
+      }
+
+      if (!res || res.status === 401 || res.status === 402 || !res.ok) {
         setIsMockFallback(true);
         if (typeof window !== "undefined") {
           window.dispatchEvent(new Event("spadas_ai_credit_exhausted"));
         }
-        if (res) {
-          try { data = await res.json(); } catch { data = null; }
-        }
-      } else {
-        data = await res.json().catch(() => null);
-        if (data?.isMockFallback) {
-          setIsMockFallback(true);
-          if (typeof window !== "undefined") {
-            window.dispatchEvent(new Event("spadas_ai_credit_exhausted"));
-          }
+      } else if (data?.isMockFallback) {
+        setIsMockFallback(true);
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new Event("spadas_ai_credit_exhausted"));
         }
       }
 

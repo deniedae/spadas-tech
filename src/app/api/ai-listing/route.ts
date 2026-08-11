@@ -131,20 +131,40 @@ function generateMockAiListingResult(): AiListingResult {
   };
 }
 
+function isRateLimitError(err: any): boolean {
+  if (!err) return false;
+  const code = err.code || err.error?.code || "";
+  const type = err.type || err.error?.type || "";
+  const msg = (err.message || "").toLowerCase();
+
+  return (
+    code === "rate_limit_exceeded" ||
+    type === "rate_limit_exceeded" ||
+    msg.includes("rate_limit_exceeded") ||
+    msg.includes("rate limit") ||
+    msg.includes("requests per minute") ||
+    msg.includes("rpm limit")
+  );
+}
+
 function isCreditOrQuotaError(err: any): boolean {
   if (!err) return false;
-  const status = err.status || err.statusCode || err.code;
-  if (status === 401 || status === 402 || status === 429) return true;
+  if (isRateLimitError(err)) return false; // Exclude RPM rate limits from quota exhaustion!
+
+  const status = err.status || err.statusCode;
+  const code = err.code || err.error?.code || "";
   const msg = (err.message || "").toLowerCase();
+
   return (
-    msg.includes("401") ||
-    msg.includes("402") ||
-    msg.includes("429") ||
+    status === 401 ||
+    status === 402 ||
+    code === "insufficient_quota" ||
+    code === "invalid_api_key" ||
+    msg.includes("insufficient_quota") ||
     msg.includes("quota") ||
-    msg.includes("credit") ||
+    msg.includes("credit balance") ||
     msg.includes("billing") ||
     msg.includes("unauthorized") ||
-    msg.includes("insufficient") ||
     msg.includes("invalid_api_key")
   );
 }
@@ -293,9 +313,16 @@ Rules:
         if (completion?.choices?.[0]?.message?.content) break;
       } catch (err: any) {
         console.warn(`[ai-listing] Model ${modelName} call warning:`, err);
+        if (isRateLimitError(err)) {
+          console.warn("[ai-listing] OpenAI RPM rate limit hit on model:", modelName);
+          return NextResponse.json(
+            { isRateLimited: true, error: "OpenAI RPM rate limit hit. Pausing 2.5s." },
+            { status: 429 }
+          );
+        }
         if (isCreditOrQuotaError(err)) {
           hasCreditOrQuotaError = true;
-          console.warn("[ai-listing] Credit exhaustion / 401/402/429 quota error detected on model:", modelName);
+          console.warn("[ai-listing] Credit exhaustion / 401/402 quota error detected on model:", modelName);
         }
       }
     }
@@ -345,6 +372,12 @@ Rules:
     return NextResponse.json(result);
   } catch (err: any) {
     console.error("[ai-listing] failed error:", err);
+    if (isRateLimitError(err)) {
+      return NextResponse.json(
+        { isRateLimited: true, error: "OpenAI RPM rate limit hit. Pausing 2.5s." },
+        { status: 429 }
+      );
+    }
     if (isCreditOrQuotaError(err)) {
       console.warn("[ai-listing] Returning mock fallback result due to credit exhaustion.");
       return NextResponse.json(generateMockAiListingResult());
