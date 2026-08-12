@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Package, Sparkles, BarChart3, Settings, Crosshair } from "lucide-react";
+import { Home, Package, Sparkles, BarChart3, Settings, Crosshair, Camera } from "lucide-react";
 
 export function AppSidebar() {
   const pathname = usePathname();
@@ -42,6 +42,22 @@ export function AppSidebar() {
         >
           <Package size={18} aria-hidden="true" className={isActive("/listings") ? "text-primary" : "text-muted-foreground"} />
           Listings
+        </Link>
+
+        <Link
+          href="/lens"
+          aria-current={isActive("/lens") ? "page" : undefined}
+          className={`flex items-center justify-between rounded-lg p-3 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+            isActive("/lens")
+              ? "bg-cyan-500/15 text-cyan-400 font-semibold border border-cyan-500/30"
+              : "text-sidebar-foreground hover:bg-sidebar-accent"
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            <Camera size={18} aria-hidden="true" className={isActive("/lens") ? "text-cyan-400" : "text-muted-foreground"} />
+            <span>Spadas Lens AR</span>
+          </div>
+          <span className="flex h-2 w-2 rounded-full bg-cyan-400 animate-ping" />
         </Link>
 
         <Link

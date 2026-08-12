@@ -5,23 +5,23 @@ import LandingTestimonialsFaq from "@/components/landing-testimonials-faq";
 
 const features = [
   {
+    icon: "📷",
+    title: "Spadas Lens AR Vision",
+    description: "Continuous 60FPS AR camera scanner with real-time profit overlays, audio chimes, and voice cues.",
+  },
+  {
     icon: "🤖",
-    title: "AI listing generation",
+    title: "AI Listing Generation",
     description: "Write polished marketplace descriptions and pricing-aware listings in seconds.",
   },
   {
     icon: "📦",
-    title: "Inventory control",
+    title: "Inventory Control",
     description: "Track stock, costs, statuses, and resale performance from a single workspace.",
   },
   {
-    icon: "📷",
-    title: "Barcode scanning",
-    description: "Quickly pull product details and create a listing from a single scan.",
-  },
-  {
     icon: "📈",
-    title: "Profit visibility",
+    title: "Profit Visibility",
     description: "Monitor revenue, sold items, and inventory value without spreadsheet work.",
   },
 ];
@@ -69,6 +69,12 @@ export default function Home() {
           </p>
 
           <div className="mt-10 flex flex-col justify-center gap-4 sm:flex-row">
+            <Link
+              href="/lens"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 px-8 py-4 text-lg font-bold text-white shadow-xl shadow-cyan-500/25 transition hover:scale-105"
+            >
+              📷 Launch Spadas Lens AR
+            </Link>
             <Link
               href="/signup"
               className="rounded-2xl bg-blue-600 px-8 py-4 text-lg font-semibold text-white transition hover:bg-blue-500"

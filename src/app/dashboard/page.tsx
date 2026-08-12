@@ -195,14 +195,26 @@ export default function Dashboard() {
         </div>
 
         {/* Quick Actions */}
-          <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-6">
+        <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-6">
+          <Link
+            href="/lens"
+            className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-cyan-600 via-blue-600 to-indigo-700 p-6 text-white shadow-lg shadow-cyan-500/20 transition hover:scale-[1.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          >
+            <div className="flex items-center justify-between">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/20 backdrop-blur-md px-3 py-1 text-[11px] font-extrabold text-white border border-white/30">
+                <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" /> LIVE 60FPS AR
+              </span>
+            </div>
+            <h2 className="mt-4 text-2xl font-bold">📷 Spadas Lens AR</h2>
+            <p className="mt-2 text-xs text-cyan-100">Continuous camera scanner with profit overlays & audio chimes.</p>
+          </Link>
 
           <Link
             href="/generator"
-            className="bg-primary text-primary-foreground rounded-2xl p-8 shadow-sm transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-safe:hover:scale-[1.02]"
+            className="bg-primary text-primary-foreground rounded-2xl p-6 shadow-sm transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-safe:hover:scale-[1.02]"
           >
             <h2 className="text-2xl font-bold">🤖 Generate Listing</h2>
-            <p className="mt-3 text-primary-foreground/80">Create AI listings in seconds.</p>
+            <p className="mt-2 text-xs text-primary-foreground/80">Create AI listings in seconds.</p>
           </Link>
           <Link
             href="/sourcing"

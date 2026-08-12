@@ -12,6 +12,7 @@ import {
   Sparkles,
   Home,
   Crosshair,
+  Camera,
 } from "lucide-react";
 
 interface Command {
@@ -31,6 +32,14 @@ export default function CommandPalette() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const commands: Command[] = [
+    {
+      id: "lens",
+      label: "Spadas Lens AR",
+      hint: "Camera Vision",
+      icon: Camera,
+      group: "Navigation",
+      action: () => router.push("/lens"),
+    },
     {
       id: "dashboard",
       label: "Dashboard",
