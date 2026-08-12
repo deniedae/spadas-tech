@@ -219,6 +219,8 @@ function SpadasLensCameraCore() {
   const [showDebugDrawer, setShowDebugDrawer] = useState<boolean>(false);
   const [lastRawApiResponse, setLastRawApiResponse] = useState<any>(null);
   const [latestApiError, setLatestApiError] = useState<string | null>(null);
+  const [cameraMoving, setCameraMoving] = useState<boolean>(false);
+  const prevFramePixelsRef = useRef<Uint8ClampedArray | null>(null);
 
   // AR Grail Detector Engine State ($100+ Profit / 300%+ ROI Hits)
   const [activeGrailAlert, setActiveGrailAlert] = useState<{
@@ -665,6 +667,42 @@ function SpadasLensCameraCore() {
     }
     lastScanTimeRef.current = currentTime;
 
+    const video = videoRef.current;
+
+    // CAMERA MOTION VARIANCE CHECK: Skip auto-scan if phone is actively panning/moving
+    if (!forceManual && video && (video.readyState >= 1 || video.currentTime > 0)) {
+      try {
+        const motionCanvas = document.createElement("canvas");
+        motionCanvas.width = 80;
+        motionCanvas.height = 60;
+        const mCtx = motionCanvas.getContext("2d");
+        if (mCtx) {
+          mCtx.drawImage(video, 0, 0, 80, 60);
+          const currentPixels = mCtx.getImageData(0, 0, 80, 60).data;
+          const prevPixels = prevFramePixelsRef.current;
+          prevFramePixelsRef.current = currentPixels;
+
+          if (prevPixels && prevPixels.length === currentPixels.length) {
+            let diffCount = 0;
+            const totalSamples = currentPixels.length / 16;
+            for (let i = 0; i < currentPixels.length; i += 16) {
+              if (Math.abs(currentPixels[i] - prevPixels[i]) > 35) {
+                diffCount++;
+              }
+            }
+            const diffRatio = diffCount / totalSamples;
+            if (diffRatio > 0.18) {
+              setCameraMoving(true);
+              return;
+            }
+          }
+        }
+      } catch {
+        // ignore motion check errors
+      }
+    }
+
+    setCameraMoving(false);
     setAnalyzingRealFrame(true);
 
     const controller = new AbortController();
@@ -1126,10 +1164,12 @@ function SpadasLensCameraCore() {
       {stream && (
         <div className="w-full box-border flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-slate-950/90 backdrop-blur-md p-4 border border-slate-800 shadow-2xl">
           <div className="flex items-center gap-2 text-xs font-bold">
-            <span className={`h-2.5 w-2.5 rounded-full animate-pulse ${rateLimited ? "bg-amber-400" : "bg-emerald-400"}`} />
-            <span className={rateLimited ? "text-amber-300" : "text-cyan-300"}>
-              {rateLimited
-                ? "API Rate Limit - Retrying in 1.5s..."
+            <span className={`h-2.5 w-2.5 rounded-full animate-pulse ${cameraMoving ? "bg-amber-400" : rateLimited ? "bg-amber-400" : "bg-emerald-400"}`} />
+            <span className={cameraMoving ? "text-amber-300" : rateLimited ? "text-amber-300" : "text-cyan-300"}>
+              {cameraMoving
+                ? "📱 Hold camera steady over item..."
+                : rateLimited
+                ? "API Rate Limit - Retrying..."
                 : analyzingRealFrame
                 ? "Scanning Live Frame..."
                 : "Continuous AR Scanner (1.5s)"}
