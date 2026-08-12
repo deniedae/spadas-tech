@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import SpadasRadarCopilot from "@/components/spadas-radar-copilot";
+import WazeResellerHeatmap from "@/components/waze-reseller-heatmap";
 
 export default function RadarPage() {
   const [loading, setLoading] = useState(true);
@@ -134,6 +135,9 @@ export default function RadarPage() {
           AI continuously scans local listings, calculates cross-platform eBay/Poshmark/Depop/Mercari net profit spreads, and formats 1-click cross-listings.
         </p>
       </div>
+
+      {/* KILLER FEATURE: Live Spatial Heat Mapping (The Waze for Resellers) */}
+      <WazeResellerHeatmap />
 
       {/* KILLER FEATURE: AI Arbitrage Radar & Cross-Platform Exporter Copilot */}
       <SpadasRadarCopilot />
