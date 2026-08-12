@@ -15,6 +15,7 @@ import Link from "next/link";
 import Image from "next/image";
 import NewListingDialog from "@/components/new-listing-dialog";
 import { fmtMoney, calcProfit, calcInventoryValue } from "@/app/lib/listings";
+import PullToRefresh from "@/components/pull-to-refresh";
 
 // --- Types (was: any[]) ---------------------------------------------------
 interface Listing {
@@ -143,22 +144,23 @@ export default function Dashboard() {
   }, [router]);
 
   return (
-    <>
-      {/* Hero — brand gradient, stays raw by design */}
-      <div className="mb-8 rounded-2xl bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 p-8 text-white shadow-xl">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">Welcome back 👋</h1>
-            <p className="mt-2 max-w-xl text-blue-100">
-              Manage your inventory, generate AI listings, and track your profits from one dashboard.
-            </p>
-          </div>
-          <div className="hidden rounded-2xl bg-white/10 p-6 backdrop-blur md:block">
-            <div className="text-sm text-blue-100">Version</div>
-            <div className="text-2xl font-bold">Beta v0.9</div>
+    <PullToRefresh onRefresh={async () => { window.location.reload(); }}>
+      <div className="w-full max-w-full overflow-x-hidden min-w-0 box-border">
+        {/* Hero — brand gradient, stays raw by design */}
+        <div className="mb-8 rounded-2xl bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 p-8 text-white shadow-xl">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold">Welcome back 👋</h1>
+              <p className="mt-2 max-w-xl text-blue-100">
+                Manage your inventory, generate AI listings, and track your profits from one dashboard.
+              </p>
+            </div>
+            <div className="hidden rounded-2xl bg-white/10 p-6 backdrop-blur md:block">
+              <div className="text-sm text-blue-100">Version</div>
+              <div className="text-2xl font-bold">Beta v0.9</div>
+            </div>
           </div>
         </div>
-      </div>
 
       <div className="space-y-8">
         {/* Error banner */}
@@ -359,6 +361,7 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
-    </>
-  );
+    </div>
+  </PullToRefresh>
+);
 }
