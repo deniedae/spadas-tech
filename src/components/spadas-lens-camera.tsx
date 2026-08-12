@@ -21,6 +21,7 @@ import {
   Trash2,
   Mic,
   MicOff,
+  Trophy,
 } from "lucide-react";
 import { toast } from "sonner";
 import { fmtMoney } from "@/app/lib/listings";
@@ -91,6 +92,7 @@ interface DetectedHit {
   confidence: number;
   bbox: { x: number; y: number; width: number; height: number }; // percentage coords
   timestamp: number;
+  isGrail?: boolean;
 }
 
 // Stop-words list for debouncer filtering
@@ -217,6 +219,45 @@ function SpadasLensCameraCore() {
   const [showDebugDrawer, setShowDebugDrawer] = useState<boolean>(false);
   const [lastRawApiResponse, setLastRawApiResponse] = useState<any>(null);
   const [latestApiError, setLatestApiError] = useState<string | null>(null);
+
+  // AR Grail Detector Engine State ($100+ Profit / 300%+ ROI Hits)
+  const [activeGrailAlert, setActiveGrailAlert] = useState<{
+    name: string;
+    profit: number;
+    roi: number;
+  } | null>(null);
+  const [grailMode, setGrailMode] = useState<boolean>(true);
+
+  // Victory Fanfare Audio Synthesis for Grail Hits
+  const playGrailVictoryFanfare = () => {
+    if (!soundEnabled || typeof window === "undefined") return;
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6 Victory Fanfare
+
+      notes.forEach((freq, idx) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        const startTime = ctx.currentTime + idx * 0.08;
+        const duration = 0.28;
+
+        osc.type = "triangle";
+        osc.frequency.setValueAtTime(freq, startTime);
+        gain.gain.setValueAtTime(0.35, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start(startTime);
+        osc.stop(startTime + duration);
+      });
+    } catch (e) {
+      console.error("Grail fanfare audio error:", e);
+    }
+  };
 
   // Hands-Free Voice Assistant State
   const [voiceListening, setVoiceListening] = useState<boolean>(false);
@@ -781,8 +822,23 @@ function SpadasLensCameraCore() {
             return [valuedItem, ...filtered].slice(0, 4);
           });
 
-          // Custom Profit & ROI Threshold Audio Chime & Cue
-          if (estimatedProfit >= minProfitThreshold && estRoi >= minRoiThreshold) {
+          const isGrailHit = estimatedProfit >= 80 || estRoi >= 250;
+
+          // Grail Alert Triggering Engine ($80+ Profit or 250%+ ROI)
+          if (isGrailHit && grailMode) {
+            playGrailVictoryFanfare();
+            speakCue(`Grail item detected! ${obj.productName}. Est Net Profit ${fmtMoney(estimatedProfit)}.`);
+            setActiveGrailAlert({
+              name: obj.productName,
+              profit: estimatedProfit,
+              roi: estRoi,
+            });
+
+            // Auto-dismiss Grail Alert banner after 4.5 seconds
+            setTimeout(() => {
+              setActiveGrailAlert(null);
+            }, 4500);
+          } else if (estimatedProfit >= minProfitThreshold && estRoi >= minRoiThreshold) {
             const lastChimed = lastChimedRef.current;
             const isSameProduct = lastChimed && getKeywordSimilarity(lastChimed.name, obj.productName) >= 0.55;
             const isCooldownActive = lastChimed && (now - lastChimed.time < 15000);
@@ -811,6 +867,7 @@ function SpadasLensCameraCore() {
             confidence: 0.98,
             bbox: obj.bbox,
             timestamp: now,
+            isGrail: isGrailHit,
           };
 
           setCapturedLog((prev) => [verifiedHit, ...prev]);
@@ -902,6 +959,27 @@ function SpadasLensCameraCore() {
               muted
               className="h-full w-full object-cover"
             />
+
+            {/* Holographic AR Grail Alert Overlay */}
+            {activeGrailAlert && (
+              <div className="absolute inset-0 z-40 flex items-center justify-center p-4 pointer-events-none bg-gradient-to-t from-amber-950/90 via-red-950/80 to-slate-950/90 backdrop-blur-sm animate-pulse border-4 border-amber-400/80 shadow-[0_0_100px_rgba(245,158,11,0.8)]">
+                <div className="text-center space-y-3 p-6 rounded-3xl bg-slate-950/90 border-2 border-amber-400 shadow-2xl max-w-sm w-full mx-auto pointer-events-auto">
+                  <div className="inline-flex items-center gap-2 rounded-full bg-amber-400 px-4 py-1.5 text-xs font-black text-slate-950 shadow-lg animate-bounce">
+                    <Trophy className="h-4 w-4 text-slate-950" />
+                    🚨 GRAIL FIND DETECTED!
+                  </div>
+                  <h3 className="text-xl sm:text-2xl font-black text-white line-clamp-2 leading-tight">
+                    {activeGrailAlert.name}
+                  </h3>
+                  <div className="inline-block rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-400 px-6 py-2 text-2xl font-black text-slate-950 shadow-xl">
+                    +${activeGrailAlert.profit.toFixed(2)} AUD PROFIT
+                  </div>
+                  <p className="text-xs font-extrabold text-amber-300">
+                    High Demand Flip • {activeGrailAlert.roi.toFixed(0)}% Estimated ROI
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Low Credit UI Warning Banner */}
             {isMockFallback && (
@@ -1029,6 +1107,23 @@ function SpadasLensCameraCore() {
             >
               <Zap className="h-3.5 w-3.5" />
               <span>{autoScanActive ? "Auto-Scan: ON" : "Paused"}</span>
+            </button>
+
+            {/* AR Grail Detector Mode Toggle (Viral TikTok Mode) */}
+            <button
+              type="button"
+              onClick={() => {
+                setGrailMode(!grailMode);
+                toast.success(!grailMode ? "🚨 AR Grail Detector Active ($80+ Fanfare)!" : "Grail Detector muted.");
+              }}
+              className={`inline-flex h-9 items-center gap-1.5 rounded-xl border px-3 text-xs font-bold transition cursor-pointer ${
+                grailMode
+                  ? "bg-amber-400 text-slate-950 border-amber-300 shadow-md shadow-amber-400/30 font-black animate-pulse"
+                  : "bg-white/10 text-white border-white/20 hover:bg-white/20"
+              }`}
+            >
+              <Trophy className="h-3.5 w-3.5 text-slate-950" />
+              <span>{grailMode ? "🚨 Grail Mode ON" : "Grail Off"}</span>
             </button>
 
             <button
@@ -1336,6 +1431,12 @@ function SpadasLensCameraCore() {
                       {item.verdict}
                     </span>
                   </div>
+
+                  {item.isGrail && (
+                    <div className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 px-2 py-0.5 text-[9px] font-black text-slate-950 shadow-md">
+                      <Trophy className="h-3 w-3 text-slate-950" /> 👑 GRAIL FIND
+                    </div>
+                  )}
 
                   <h4 className="text-xs font-bold text-foreground truncate leading-snug w-full min-w-0 pt-0.5">{item.name}</h4>
 
