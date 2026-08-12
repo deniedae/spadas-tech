@@ -22,6 +22,7 @@ import {
   Mic,
   MicOff,
   Trophy,
+  WifiOff,
 } from "lucide-react";
 import { toast } from "sonner";
 import { fmtMoney } from "@/app/lib/listings";
@@ -228,6 +229,24 @@ function SpadasLensCameraCore() {
   const [latestApiError, setLatestApiError] = useState<string | null>(null);
   const [cameraMoving, setCameraMoving] = useState<boolean>(false);
   const prevFramePixelsRef = useRef<Uint8ClampedArray | null>(null);
+
+  // Native Offline Dead-Zone Signal Watcher
+  const [isOffline, setIsOffline] = useState<boolean>(
+    typeof navigator !== "undefined" ? !navigator.onLine : false
+  );
+
+  useEffect(() => {
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
 
   // AR Grail Detector Engine State ($100+ Profit / 300%+ ROI Hits)
   const [activeGrailAlert, setActiveGrailAlert] = useState<{
@@ -1089,15 +1108,22 @@ function SpadasLensCameraCore() {
               </div>
             )}
 
-            {/* Low Credit UI Warning Banner */}
-            {isMockFallback && (
+            {/* Offline Dead-Zone Signal Warning Banner */}
+            {isOffline ? (
+              <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 w-[92%] max-w-md mx-auto pointer-events-none">
+                <div className="flex items-center justify-center gap-2 rounded-xl bg-amber-500/95 backdrop-blur-md px-4 py-2 text-xs font-extrabold text-slate-950 shadow-2xl border border-amber-300/60 animate-pulse">
+                  <WifiOff className="h-4 w-4 shrink-0 text-slate-950" />
+                  <span>📶 Offline Dead-Zone Active — Camera Scanner Ready</span>
+                </div>
+              </div>
+            ) : isMockFallback ? (
               <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 w-[92%] max-w-md mx-auto pointer-events-none">
                 <div className="flex items-center justify-center gap-2 rounded-xl bg-amber-500/95 backdrop-blur-md px-4 py-2 text-xs font-extrabold text-slate-950 shadow-2xl border border-amber-300/60 animate-pulse">
                   <ShieldAlert className="h-4 w-4 shrink-0 text-slate-950" />
                   <span>⚠️ API Credits Depleted - Running in Test Mode</span>
                 </div>
               </div>
-            )}
+            ) : null}
 
             {/* Target Framing Reticle with Modern Glassmorphic Corner Brackets */}
             <div className="absolute inset-0 z-15 pointer-events-none flex items-center justify-center">
