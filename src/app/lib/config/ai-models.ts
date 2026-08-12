@@ -11,19 +11,27 @@ export const LISTING_MODEL_FALLBACKS = ["gpt-4o", "gpt-4o-mini"];
  */
 export function getPrimaryAiApiKey(): string {
   return (
+    process.env.OPENAI_API_KEY ||
     process.env.AI_GATEWAY_API_KEY ||
     process.env.VERCEL_AI_KEY ||
-    process.env.OPENAI_API_KEY ||
     ""
   );
 }
 
 /**
- * Factory function to instantiate OpenAI client with Vercel AI Gateway support
+ * Factory function to instantiate OpenAI client with direct OpenAI key priority
+ * and seamless Vercel AI Gateway fallback
  */
 export function createOpenAiClient(): OpenAI {
-  const gatewayKey = process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_AI_KEY;
   const openAiKey = process.env.OPENAI_API_KEY;
+  const gatewayKey = process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_AI_KEY;
+
+  // Prioritize direct OpenAI Key (sk-proj-...) to bypass Vercel AI Gateway 403 credit card requirement
+  if (openAiKey && openAiKey.startsWith("sk-proj-") && !openAiKey.includes("placeholder")) {
+    return new OpenAI({
+      apiKey: openAiKey,
+    });
+  }
 
   if (gatewayKey && gatewayKey.startsWith("vck_")) {
     return new OpenAI({
