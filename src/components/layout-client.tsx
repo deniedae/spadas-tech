@@ -234,12 +234,14 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
         {/* Owner Account AI Credits Health Banner (Only visible for deniedae@gmail.com) */}
         <OwnerAiStatusBanner />
 
-        {/* Header */}
-        <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between md:px-8 md:py-5 shadow-sm">
+        {/* Header (Hidden on mobile for /lens to provide native full-screen camera viewport) */}
+        <header className={`bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between md:px-8 md:py-5 shadow-sm ${
+          pathname === "/lens" ? "hidden md:flex" : "flex"
+        }`}>
           {/* Mobile hamburger */}
           <button
             ref={hamburgerButtonRef}
-            className="md:hidden p-2 rounded-md text-gray-700 hover:bg-gray-200 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary transition-colors"
+            className="md:hidden p-2 rounded-md text-gray-700 hover:bg-gray-200 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary transition-colors cursor-pointer"
             aria-label="Open sidebar"
             aria-expanded={sidebarOpen}
             onClick={() => setSidebarOpen(true)}
