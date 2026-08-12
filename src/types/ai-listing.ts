@@ -43,6 +43,17 @@ export interface SalesVelocityEstimate {
   sell_through_rate: string;
 }
 
+export interface FutureGrailPrediction {
+  is_future_grail: boolean;
+  trend_source: string | null;
+  viral_score: number;
+  current_price: number;
+  projected_peak_price: number;
+  projected_roi_gain: string;
+  holding_recommendation: string;
+  value_curve: number[];
+}
+
 /** Full AI-generated listing payload. */
 export interface AiListingResult {
   inventory_condition?: InventoryCondition;
@@ -60,6 +71,7 @@ export interface AiListingResult {
   suggested_price_median?: number;
   suggested_price_currency: "USD" | "AUD" | "GBP" | "EUR";
   sales_velocity?: SalesVelocityEstimate;
+  future_grail?: FutureGrailPrediction;
   isMockFallback?: boolean;
   detected_objects?: Array<{
     id: string;

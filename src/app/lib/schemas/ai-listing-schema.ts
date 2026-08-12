@@ -83,6 +83,17 @@ export const SalesVelocitySchema = z.object({
   sell_through_rate: z.string(),
 });
 
+export const FutureGrailSchema = z.object({
+  is_future_grail: z.boolean(),
+  trend_source: z.string().nullable(),
+  viral_score: z.number(),
+  current_price: z.number(),
+  projected_peak_price: z.number(),
+  projected_roi_gain: z.string(),
+  holding_recommendation: z.string(),
+  value_curve: z.array(z.number()),
+});
+
 export const AiListingResultSchema = z.object({
   inventory_condition: InventoryConditionEnum,
   defect_notes: z.array(z.string()),
@@ -99,6 +110,7 @@ export const AiListingResultSchema = z.object({
   suggested_price_max: z.number(),
   suggested_price_currency: z.string(),
   sales_velocity: SalesVelocitySchema.nullable().optional(),
+  future_grail: FutureGrailSchema.nullable().optional(),
 });
 
 export type GenerateListingSchemaType = z.infer<typeof GenerateListingSchema>;

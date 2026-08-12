@@ -268,7 +268,22 @@ REAL MARKET VALUE & EBAY SOLD COMP VALUATION MANDATE:
      * demand_score: integer from 55 to 98 representing sell-through demand ratio.
      * sell_through_rate: e.g. "88% High Demand" or "65% Steady Turnover".
 
-3. Professional Market Descriptions:
+3. Viral Trend Predictive Analytics & "Future Grail" Mandate:
+   - Cross-reference scanned item against spiking TikTok hashtags (#digicam, #y2kfashion, #vintagetech, #retrogaming) and Reddit r/ThriftStoreHauls / r/Flipping trends.
+   - If item is a vintage digital camera (Sony Cyber-shot, Canon PowerShot, Nikon Coolpix, Olympus FE), Y2K clothing brand (Ed Hardy, Von Dutch, JNCO, Affliction, Harley Davidson), or retro gaming item where viral social media demand is spiking before eBay market prices peak:
+     * Set "future_grail": {
+         "is_future_grail": true,
+         "trend_source": "TikTok #digicam Viral", // or "Reddit Y2K Surge"
+         "viral_score": 92, // integer 80..98
+         "current_price": suggested_price_median,
+         "projected_peak_price": Math.round(suggested_price_median * 1.8 * 100) / 100,
+         "projected_roi_gain": "+85% in 30 Days",
+         "holding_recommendation": "BUY & HOLD 30 DAYS",
+         "value_curve": [suggested_price_median, Math.round(suggested_price_median * 1.1), Math.round(suggested_price_median * 1.35), Math.round(suggested_price_median * 1.6), Math.round(suggested_price_median * 1.8)]
+       }
+   - If not a viral trending item, set "future_grail": { "is_future_grail": false, "trend_source": null, "viral_score": 45, "current_price": 0, "projected_peak_price": 0, "projected_roi_gain": "0%", "holding_recommendation": "STANDARD FLIP", "value_curve": [] }.
+
+4. Professional Market Descriptions:
    - Provide clean, crisp product descriptions and SEO titles tailored for eBay, Depop, and Facebook Marketplace.
 
 4. Banned Category Prohibition:

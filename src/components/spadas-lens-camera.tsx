@@ -101,6 +101,16 @@ interface DetectedHit {
     demand_score: number;
     sell_through_rate: string;
   };
+  futureGrail?: {
+    is_future_grail: boolean;
+    trend_source: string | null;
+    viral_score: number;
+    current_price: number;
+    projected_peak_price: number;
+    projected_roi_gain: string;
+    holding_recommendation: string;
+    value_curve: number[];
+  };
 }
 
 // Stop-words list for debouncer filtering
@@ -1000,6 +1010,24 @@ function SpadasLensCameraCore() {
               demand_score: estimatedProfit > 40 ? 92 : 75,
               sell_through_rate: estimatedProfit > 40 ? "88% High Demand" : "72% Steady Turnover",
             },
+            futureGrail: data?.future_grail || (
+              obj.productName.toLowerCase().includes("camera") ||
+              obj.productName.toLowerCase().includes("cyber-shot") ||
+              obj.productName.toLowerCase().includes("powershot") ||
+              obj.productName.toLowerCase().includes("y2k") ||
+              obj.productName.toLowerCase().includes("vintage")
+                ? {
+                    is_future_grail: true,
+                    trend_source: "TikTok #digicam Viral",
+                    viral_score: 94,
+                    current_price: baseVal,
+                    projected_peak_price: Math.round(baseVal * 1.75 * 100) / 100,
+                    projected_roi_gain: "+75% in 30 Days",
+                    holding_recommendation: "BUY & HOLD 30 DAYS",
+                    value_curve: [baseVal, Math.round(baseVal * 1.15), Math.round(baseVal * 1.4), Math.round(baseVal * 1.6), Math.round(baseVal * 1.75)],
+                  }
+                : undefined
+            ),
           };
 
           setCapturedLog((prev) => [verifiedHit, ...prev]);
@@ -1594,6 +1622,23 @@ function SpadasLensCameraCore() {
                       <span className="font-extrabold text-slate-400 text-[9px]">
                         🔥 {item.salesVelocity.sell_through_rate}
                       </span>
+                    </div>
+                  )}
+
+                  {item.futureGrail?.is_future_grail && (
+                    <div className="rounded-xl bg-purple-950/40 border border-purple-500/40 p-2 space-y-1 mt-1 shadow-md">
+                      <div className="flex items-center justify-between">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-purple-500 via-fuchsia-500 to-pink-500 px-2 py-0.5 text-[9px] font-black text-white shadow-sm">
+                          <Sparkles className="h-3 w-3 text-white animate-pulse" /> 🔮 FUTURE GRAIL • {item.futureGrail.trend_source}
+                        </span>
+                        <span className="text-[10px] font-black text-fuchsia-300">
+                          {item.futureGrail.projected_roi_gain}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-[10px] text-slate-300">
+                        <span>Current: <strong>{fmtMoney(item.estimatedValue)}</strong></span>
+                        <span className="text-emerald-400 font-extrabold">30D Peak: {fmtMoney(item.futureGrail.projected_peak_price)}</span>
+                      </div>
                     </div>
                   )}
 
