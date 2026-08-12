@@ -507,46 +507,78 @@ function SpadasLensCameraCore() {
     }
   };
 
-  // Bind stream to video element whenever stream changes
+  // Callback Ref for instant mobile video element stream binding on mount
+  const setVideoRef = useCallback((node: HTMLVideoElement | null) => {
+    videoRef.current = node;
+    if (node && streamRef.current) {
+      node.srcObject = streamRef.current;
+      node.play().catch(() => {});
+    }
+  }, []);
+
+  const streamRef = useRef<MediaStream | null>(null);
+
+  // Bind stream to video element whenever stream changes with playback watchdog
   useEffect(() => {
+    streamRef.current = stream;
     if (videoRef.current && stream) {
-      videoRef.current.srcObject = stream;
-      videoRef.current.play().catch((err) => console.error("Video play error:", err));
+      const video = videoRef.current;
+      video.srcObject = stream;
+      
+      const playPromise = video.play();
+      if (playPromise !== undefined) {
+        playPromise.catch((err) => {
+          console.warn("[Mobile WebRTC Play Warning]:", err);
+        });
+      }
+
+      // Retry playback watchdog for mobile power-saving or slow metadata attachment
+      const watchdog = setTimeout(() => {
+        if (video && (video.paused || video.readyState < 2)) {
+          video.play().catch(() => {});
+        }
+      }, 500);
+
+      return () => clearTimeout(watchdog);
     }
   }, [stream]);
 
-  // Start Camera Stream with smooth 60fps raw video feed
+  // Start Camera Stream with mobile-optimized progressive WebRTC constraints
   const startCamera = async () => {
     try {
       setCameraError(null);
       let mediaStream: MediaStream | null = null;
 
+      // Primary Mobile Back Camera (Environment Lens)
       try {
         mediaStream = await navigator.mediaDevices.getUserMedia({
           video: {
             facingMode: { ideal: "environment" },
-            width: { ideal: 1920, max: 3840 },
-            height: { ideal: 1080, max: 2160 },
-            frameRate: { ideal: 60, min: 30 },
+            width: { ideal: 1280, max: 1920 },
+            height: { ideal: 720, max: 1080 },
           },
           audio: false,
         });
       } catch {
+        // Fallback 1: Flexible Environment Mode
         try {
           mediaStream = await navigator.mediaDevices.getUserMedia({
-            video: {
-              facingMode: "user",
-              width: { ideal: 1920 },
-              height: { ideal: 1080 },
-              frameRate: { ideal: 60 },
-            },
+            video: { facingMode: "environment" },
             audio: false,
           });
         } catch {
-          mediaStream = await navigator.mediaDevices.getUserMedia({
-            video: true,
-            audio: false,
-          });
+          // Fallback 2: Front Camera / Any Video Source
+          try {
+            mediaStream = await navigator.mediaDevices.getUserMedia({
+              video: { facingMode: "user" },
+              audio: false,
+            });
+          } catch {
+            mediaStream = await navigator.mediaDevices.getUserMedia({
+              video: true,
+              audio: false,
+            });
+          }
         }
       }
 
@@ -968,7 +1000,7 @@ function SpadasLensCameraCore() {
           <>
             {/* Raw Camera Video Stream running smooth at 60fps */}
             <video
-              ref={videoRef}
+              ref={setVideoRef}
               autoPlay
               playsInline
               muted
