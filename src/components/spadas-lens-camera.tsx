@@ -952,6 +952,25 @@ function SpadasLensCameraCore() {
             asIsDisclaimer: obj.asIsDisclaimer,
           };
 
+          // Stream Spatial AI Camera Telemetry Vector to Global Shelf Mesh Network
+          if (typeof fetch !== "undefined") {
+            try {
+              void fetch("/api/radar/sync", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  spatialTelemetry: {
+                    productName: obj.productName,
+                    category: obj.category,
+                    estimatedProfit,
+                    bbox: obj.bbox,
+                    timestamp: now,
+                  },
+                }),
+              }).catch(() => {});
+            } catch {}
+          }
+
           // Dynamically update activeScans array with latest scanned valuation card
           setActiveScans((prev) => {
             const filtered = prev.filter((s) => getKeywordSimilarity(s.productName, obj.productName) < 0.6);

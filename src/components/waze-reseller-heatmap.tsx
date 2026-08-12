@@ -121,6 +121,9 @@ export default function WazeResellerHeatmap() {
     }
   };
 
+  const [spatialMeshMode, setSpatialMeshMode] = useState<boolean>(true);
+  const [telemetryNodesCount, setTelemetryNodesCount] = useState<number>(412);
+
   return (
     <div className="rounded-3xl border border-cyan-500/30 bg-slate-950 p-6 md:p-8 space-y-6 shadow-2xl overflow-hidden box-border max-w-full">
       {/* Header Title */}
@@ -128,25 +131,44 @@ export default function WazeResellerHeatmap() {
         <div>
           <div className="inline-flex items-center gap-2 rounded-full bg-cyan-500/15 border border-cyan-400/40 px-3.5 py-1 text-xs font-black text-cyan-300">
             <Radio className="h-3.5 w-3.5 text-cyan-400 animate-pulse" />
-            LIVE SPATIAL HEAT MAPPING • THE WAZE FOR RESELLERS
+            LIVE SPATIAL AI HEAT MAPPING • THE WAZE FOR RESELLERS
           </div>
           <h2 className="text-2xl sm:text-3xl font-black text-white mt-2 flex items-center gap-2">
-            <span>Thrift Store GPS Yield Radar</span>
+            <span>Thrift Store Spatial AI Yield Mesh</span>
             <Flame className="h-6 w-6 text-amber-400" />
           </h2>
           <p className="text-xs text-slate-400 mt-1 max-w-xl">
-            Real-time GPS heatmap tracking high-yield op shops, flea markets, and live crowdsourced reseller reports nearby.
+            Silently mapping global shelf inventory density in real-time as live Spadas AR camera sensors capture 3D environmental telemetry.
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() => toast.info("GPS Location Synced: " + userLocation)}
-          className="inline-flex items-center gap-2 rounded-xl bg-slate-900 border border-slate-800 px-4 py-2.5 text-xs font-bold text-slate-300 hover:text-white transition cursor-pointer shrink-0"
-        >
-          <Navigation className="h-4 w-4 text-cyan-400" />
-          <span>Near {userLocation}</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              const nextState = !spatialMeshMode;
+              setSpatialMeshMode(nextState);
+              toast.success(nextState ? "🌐 Spatial AI 3D Mesh Mode Active — Live Camera Sensor Telemetry Stream!" : "Switched to standard GPS map");
+            }}
+            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-black transition cursor-pointer shrink-0 border ${
+              spatialMeshMode
+                ? "bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 text-white border-fuchsia-400 shadow-[0_0_24px_rgba(217,70,239,0.5)]"
+                : "bg-slate-900 border-slate-800 text-cyan-300 hover:text-white"
+            }`}
+          >
+            <Sparkles className="h-4 w-4 text-fuchsia-300 animate-pulse" />
+            <span>{spatialMeshMode ? "🌐 Spatial AI 3D Mesh ON" : "🌐 Enable Spatial AI Mesh"}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => toast.info("GPS Location Synced: " + userLocation)}
+            className="inline-flex items-center gap-2 rounded-xl bg-slate-900 border border-slate-800 px-4 py-2.5 text-xs font-bold text-slate-300 hover:text-white transition cursor-pointer shrink-0"
+          >
+            <Navigation className="h-4 w-4 text-cyan-400" />
+            <span>{userLocation}</span>
+          </button>
+        </div>
       </div>
 
       {/* Main Grid: Interactive Map + Store Inspector Panel */}
@@ -162,6 +184,25 @@ export default function WazeResellerHeatmap() {
             <line x1="20%" y1="80%" x2="80%" y2="20%" strokeDasharray="6 6" />
             <circle cx="50%" cy="50%" r="35%" fill="none" stroke="#0284c7" strokeWidth="1" strokeDasharray="4 4" />
           </svg>
+
+          {/* Spatial AI 3D Environmental Point-Cloud Mesh Layer */}
+          {spatialMeshMode && (
+            <div className="absolute inset-0 pointer-events-none z-10 flex flex-col justify-between p-3">
+              <div className="flex items-center justify-between">
+                <span className="inline-flex items-center gap-1.5 rounded-lg bg-fuchsia-950/90 border border-fuchsia-500/50 px-2.5 py-1 text-[10px] font-black text-fuchsia-300 backdrop-blur-md shadow-lg animate-pulse">
+                  <Sparkles className="h-3 w-3 text-fuchsia-400" />
+                  <span>🌐 SPATIAL AI MESH ACTIVE • {telemetryNodesCount} TELEMETRY SENSORS STREAMING</span>
+                </span>
+                <span className="rounded-lg bg-slate-950/80 px-2 py-0.5 text-[9px] font-mono text-cyan-400 border border-cyan-500/30">
+                  LAT 33.8688° S | LON 151.2093° E
+                </span>
+              </div>
+
+              {/* Point Cloud Density Nodes */}
+              <div className="absolute top-1/3 left-1/4 h-24 w-24 rounded-full bg-fuchsia-500/15 border border-fuchsia-400/30 blur-sm animate-ping" />
+              <div className="absolute top-1/2 left-2/3 h-32 w-32 rounded-full bg-cyan-500/15 border border-cyan-400/30 blur-sm animate-ping" />
+            </div>
+          )}
 
           {/* Interactive Heatmap Store Pins */}
           {stores.map((store) => {
