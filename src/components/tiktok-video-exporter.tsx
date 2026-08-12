@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useRef, useState } from "react";
-import { Download, Copy, Check, Video, Sparkles, Trophy } from "lucide-react";
+import { Download, Copy, Check, Video, Sparkles, Trophy, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { fmtMoney } from "@/app/lib/listings";
 
@@ -180,7 +180,8 @@ Try 10 free scans: Link in bio 🚀
     ctx.fillText("Spadas AI Reseller Scanner • TikTok & Reels Export", 540, 1780);
   };
 
-  const handleOpen = () => {
+  const handleOpen = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     setOpen(true);
     setTimeout(() => {
       renderCanvas();
@@ -195,49 +196,61 @@ Try 10 free scans: Link in bio 🚀
         <button
           type="button"
           onClick={handleOpen}
-          className="inline-flex items-center gap-1 text-[11px] font-extrabold text-amber-400 hover:text-amber-300 hover:underline cursor-pointer"
+          className="inline-flex items-center gap-1 rounded-lg bg-amber-400/10 border border-amber-400/30 px-2 py-0.5 text-[10px] font-black text-amber-400 hover:bg-amber-400 hover:text-slate-950 transition cursor-pointer shrink-0"
           title="Export TikTok Story Video Card"
         >
-          <Video className="h-3.5 w-3.5 text-amber-400" />
+          <Video className="h-3 w-3 shrink-0" />
           <span>TikTok Clip</span>
         </button>
       )}
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-4 animate-fade-in">
-          <div className="relative w-full max-w-lg rounded-3xl bg-slate-900 border border-slate-800 p-6 shadow-2xl space-y-5 overflow-y-auto max-h-[90vh]">
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90 backdrop-blur-md p-4 animate-fade-in"
+        >
+          <div className="relative w-full max-w-lg rounded-3xl bg-slate-900 border border-slate-800 p-5 sm:p-6 shadow-2xl space-y-4 overflow-y-auto max-h-[92vh]">
+            {/* Header Navigation with Prominent Back Button */}
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <div className="flex items-center gap-2">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-400/20 text-amber-400 border border-amber-400/30">
-                  <Video className="h-5 w-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-black text-white flex items-center gap-1.5">
-                    <span>TikTok & Reels Video Exporter</span>
-                    <Sparkles className="h-4 w-4 text-amber-400" />
-                  </h3>
-                  <p className="text-xs text-slate-400">9:16 Vertical Story Card for TikTok, Shorts & Reels</p>
-                </div>
-              </div>
-
               <button
                 type="button"
-                onClick={() => setOpen(false)}
-                className="rounded-full bg-slate-800 p-2 text-slate-400 hover:text-white transition cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOpen(false);
+                }}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-slate-800 border border-slate-700 px-3.5 py-1.5 text-xs font-bold text-slate-200 hover:bg-slate-700 hover:text-white transition cursor-pointer"
               >
-                ✕
+                <ArrowLeft className="h-4 w-4" />
+                <span>Back to Scanner</span>
               </button>
+
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-black text-amber-400 flex items-center gap-1">
+                  <span>9:16 TikTok Card</span>
+                  <Sparkles className="h-3.5 w-3.5" />
+                </span>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setOpen(false);
+                  }}
+                  className="rounded-full bg-slate-800 p-1.5 text-slate-400 hover:text-white transition cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
 
             {/* Canvas Preview Container */}
-            <div className="flex flex-col items-center justify-center space-y-3">
-              <div className="relative aspect-[9/16] w-full max-w-[280px] overflow-hidden rounded-2xl border-2 border-amber-400/50 shadow-2xl bg-slate-950">
+            <div className="flex flex-col items-center justify-center space-y-2">
+              <div className="relative aspect-[9/16] w-full max-w-[260px] sm:max-w-[280px] overflow-hidden rounded-2xl border-2 border-amber-400/50 shadow-2xl bg-slate-950">
                 <canvas ref={canvasRef} className="h-full w-full object-contain" />
               </div>
             </div>
 
             {/* Action Buttons */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
               <button
                 type="button"
                 onClick={handleDownloadCard}
@@ -253,6 +266,20 @@ Try 10 free scans: Link in bio 🚀
               >
                 {copied ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4 text-slate-300" />}
                 <span>{copied ? "Caption Copied!" : "Copy TikTok Caption"}</span>
+              </button>
+            </div>
+
+            {/* Bottom Footer Close Bar */}
+            <div className="pt-2 border-t border-slate-800/80 text-center">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOpen(false);
+                }}
+                className="w-full py-2 text-xs font-bold text-slate-400 hover:text-white transition cursor-pointer"
+              >
+                ← Return to Live Lens Scanner
               </button>
             </div>
           </div>

@@ -1570,8 +1570,8 @@ function SpadasLensCameraCore() {
 
                   <div className="flex items-center justify-between text-[11px] pt-1 border-t border-border/60 w-full min-w-0">
                     <span className="text-muted-foreground text-[10px] truncate max-w-[60%]">{item.condition}</span>
-                    <div className="flex items-center gap-2">
-                      <span className="font-extrabold text-emerald-600 dark:text-emerald-400 shrink-0">{fmtMoney(item.estimatedValue)}</span>
+                    <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                      <span className="font-extrabold text-emerald-600 dark:text-emerald-400 shrink-0 mr-1">{fmtMoney(item.estimatedValue)}</span>
                       <TiktokVideoExporter
                         productTitle={item.name}
                         profit={item.estimatedProfit}
