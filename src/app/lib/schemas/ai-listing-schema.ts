@@ -76,6 +76,13 @@ export const ItemSpecificSchema = z.object({
   value: z.string(),
 });
 
+export const SalesVelocitySchema = z.object({
+  sell_speed: z.enum(["FAST_FLIP", "MODERATE", "SLOW_BURNER"]),
+  est_days_to_sell: z.string(),
+  demand_score: z.number(),
+  sell_through_rate: z.string(),
+});
+
 export const AiListingResultSchema = z.object({
   inventory_condition: InventoryConditionEnum,
   defect_notes: z.array(z.string()),
@@ -91,6 +98,7 @@ export const AiListingResultSchema = z.object({
   suggested_price_min: z.number(),
   suggested_price_max: z.number(),
   suggested_price_currency: z.string(),
+  sales_velocity: SalesVelocitySchema.nullable().optional(),
 });
 
 export type GenerateListingSchemaType = z.infer<typeof GenerateListingSchema>;

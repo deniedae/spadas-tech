@@ -261,7 +261,14 @@ REAL MARKET VALUE & EBAY SOLD COMP VALUATION MANDATE:
    - Always default condition to clean, professional pre-owned categories ("used_working" or "Used - Good") unless factory-sealed.
    - Never output "untested" or "faulty" penalties. Resellers need real, clean pre-owned market comp prices.
 
-2. Professional Market Descriptions:
+2. Sales Velocity & Flip Speed Prediction:
+   - Always populate "sales_velocity" object:
+     * sell_speed: "FAST_FLIP" (for video games, streetwear, TCG cards, Apple/Sony/Bose electronics), "MODERATE" (standard electronics, books, homewares), or "SLOW_BURNER" (rare vintage/niche items).
+     * est_days_to_sell: "1-3 Days" for FAST_FLIP, "7-14 Days" for MODERATE, "30-90 Days" for SLOW_BURNER.
+     * demand_score: integer from 55 to 98 representing sell-through demand ratio.
+     * sell_through_rate: e.g. "88% High Demand" or "65% Steady Turnover".
+
+3. Professional Market Descriptions:
    - Provide clean, crisp product descriptions and SEO titles tailored for eBay, Depop, and Facebook Marketplace.
 
 4. Banned Category Prohibition:

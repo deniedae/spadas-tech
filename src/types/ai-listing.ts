@@ -36,6 +36,13 @@ export interface ShippingEstimate {
 
 export type InventoryCondition = "untested" | "faulty_for_parts" | "used_working" | "refurbished";
 
+export interface SalesVelocityEstimate {
+  sell_speed: "FAST_FLIP" | "MODERATE" | "SLOW_BURNER";
+  est_days_to_sell: string;
+  demand_score: number;
+  sell_through_rate: string;
+}
+
 /** Full AI-generated listing payload. */
 export interface AiListingResult {
   inventory_condition?: InventoryCondition;
@@ -52,6 +59,7 @@ export interface AiListingResult {
   suggested_price_max: number;
   suggested_price_median?: number;
   suggested_price_currency: "USD" | "AUD" | "GBP" | "EUR";
+  sales_velocity?: SalesVelocityEstimate;
   isMockFallback?: boolean;
   detected_objects?: Array<{
     id: string;
