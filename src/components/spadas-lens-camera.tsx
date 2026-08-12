@@ -235,6 +235,27 @@ function SpadasLensCameraCore() {
     typeof navigator !== "undefined" ? !navigator.onLine : false
   );
 
+  // Persistent Local Storage Caching for Offline Thrift Store Sourcing
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("spadas_cached_lens_hits");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setCapturedLog(parsed);
+        }
+      }
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    if (capturedLog.length > 0) {
+      try {
+        localStorage.setItem("spadas_cached_lens_hits", JSON.stringify(capturedLog.slice(0, 50)));
+      } catch {}
+    }
+  }, [capturedLog]);
+
   useEffect(() => {
     const handleOnline = () => setIsOffline(false);
     const handleOffline = () => setIsOffline(true);
