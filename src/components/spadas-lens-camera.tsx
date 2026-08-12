@@ -1109,22 +1109,6 @@ function SpadasLensCameraCore() {
                   <p className="text-xs font-extrabold text-amber-300">
                     High Demand Flip • {activeGrailAlert.roi.toFixed(0)}% Estimated ROI
                   </p>
-                  <div className="pt-2">
-                    <TiktokVideoExporter
-                      productTitle={activeGrailAlert.name}
-                      profit={activeGrailAlert.profit}
-                      estPrice={activeGrailAlert.profit * 1.4}
-                      condition="Pre-Owned Good"
-                      triggerButton={
-                        <button
-                          type="button"
-                          className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-amber-400 px-4 text-xs font-black text-slate-950 shadow-md hover:bg-amber-300 transition cursor-pointer"
-                        >
-                          🎵 Export TikTok Story Clip
-                        </button>
-                      }
-                    />
-                  </div>
                 </div>
               </div>
             )}
