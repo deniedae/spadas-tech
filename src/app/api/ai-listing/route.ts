@@ -346,24 +346,48 @@ Rules:
 
     const result = JSON.parse(content) as AiListingResult;
 
-    // Enforce 100% Rock-Solid Price Lock Consistency across identical product names
-    if (result.analysis?.product_name && typeof result.suggested_price_min === "number") {
-      const pName = result.analysis.product_name.toLowerCase().trim();
-      let hash = 0;
-      for (let i = 0; i < pName.length; i++) {
-        hash = (hash << 5) - hash + pName.charCodeAt(i);
-        hash |= 0;
-      }
-      const pHash = Math.abs(hash);
-      const minP = result.suggested_price_min || 18;
-      const maxP = result.suggested_price_max || minP + 10;
-      const midP = Math.round((minP + maxP) / 2);
+    // Fetch REAL-TIME eBay Australia Sold Comps for the identified item
+    if (result.analysis?.product_name && process.env.SOLD_COMPS_API_KEY) {
+      try {
+        const pName = result.analysis.product_name.trim();
+        const url = new URL("https://api.sold-comps.com/v1/scrape");
+        url.searchParams.set("keyword", pName);
+        url.searchParams.set("ebaySite", "ebay.com.au");
+        url.searchParams.set("page", "1");
+        url.searchParams.set("count", "60");
+        url.searchParams.set("daysToScrape", "30");
+        url.searchParams.set("sortOrder", "endedRecently");
 
-      // Lock price to a fixed, deterministic value for this exact product specification
-      const priceOffset = (pHash % 5) - 2; // -2 to +2 AUD adjustment
-      const lockedMid = Math.max(5, midP + priceOffset);
-      result.suggested_price_min = Math.max(5, lockedMid - 3);
-      result.suggested_price_max = lockedMid + 3;
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 3500);
+
+        const compRes = await fetch(url.toString(), {
+          headers: { Authorization: `Bearer ${process.env.SOLD_COMPS_API_KEY}` },
+          signal: controller.signal,
+        }).catch(() => null);
+
+        clearTimeout(timer);
+
+        if (compRes && compRes.ok) {
+          const compData = await compRes.json().catch(() => null);
+          const items = compData?.items ?? [];
+          const prices = items
+            .map((i: any) => Number(i.soldPrice))
+            .filter((n: number) => !Number.isNaN(n) && n > 0);
+
+          if (prices.length > 0) {
+            prices.sort((a: number, b: number) => a - b);
+            const midIdx = Math.floor(prices.length / 2);
+            const medianPrice = prices.length % 2 === 0 ? (prices[midIdx - 1] + prices[midIdx]) / 2 : prices[midIdx];
+            
+            result.suggested_price_min = Math.round(prices[0] * 100) / 100;
+            result.suggested_price_max = Math.round(prices[prices.length - 1] * 100) / 100;
+            result.suggested_price_median = Math.round(medianPrice * 100) / 100;
+          }
+        }
+      } catch (compErr) {
+        console.warn("[ai-listing] Live eBay comps lookup warning:", compErr);
+      }
     }
 
     // Record AI generation usage for listing generations safely without failing on Base64 image strings

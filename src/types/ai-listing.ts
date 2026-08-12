@@ -50,6 +50,7 @@ export interface AiListingResult {
   suggested_keywords: string[];
   suggested_price_min: number;
   suggested_price_max: number;
+  suggested_price_median?: number;
   suggested_price_currency: "USD" | "AUD" | "GBP" | "EUR";
   isMockFallback?: boolean;
   detected_objects?: Array<{
