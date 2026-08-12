@@ -952,19 +952,19 @@ function SpadasLensCameraCore() {
             asIsDisclaimer: obj.asIsDisclaimer,
           };
 
-          // Stream Spatial AI Camera Telemetry Vector to Global Shelf Mesh Network
+          // Stream Background SLAM Anonymized Telemetry to Global Inventory Heatmap Backend
           if (typeof fetch !== "undefined") {
             try {
-              void fetch("/api/radar/sync", {
+              void fetch("/api/radar/spatial-slam", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                  spatialTelemetry: {
-                    productName: obj.productName,
-                    category: obj.category,
-                    estimatedProfit,
+                  deviceId: `slam-device-${Math.floor(Math.random() * 1000)}`,
+                  storeName: "Salvos Stores Schofields",
+                  scannedItem: {
+                    name: obj.productName,
+                    profit: estimatedProfit,
                     bbox: obj.bbox,
-                    timestamp: now,
                   },
                 }),
               }).catch(() => {});

@@ -22,6 +22,20 @@ interface StoreHeatPoint {
 
 const INITIAL_STORES: StoreHeatPoint[] = [
   {
+    id: "store-schofields-salvos",
+    name: "Salvos Stores Schofields",
+    category: "Fresh Rollout • Thrift & Media",
+    yieldScore: 99,
+    address: "Railway Terrace, Schofields NSW",
+    distMiles: 0.8,
+    recentScannedItem: "Nintendo Switch & Digicam Bundle",
+    recentProfit: 195,
+    recentReport: "🚨 FRESH STOCK ROLLOUT! 3+ unique resellers scanned high-profit items in past 30 mins!",
+    reportTime: "4m ago",
+    status: "HOT",
+    coordinates: { x: 45, y: 28 },
+  },
+  {
     id: "store-1",
     name: "Salvos Stores Newtown",
     category: "Thrift & Vintage Clothing",
