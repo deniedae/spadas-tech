@@ -19,6 +19,8 @@ import {
   Sun,
   Search,
   Trash2,
+  Mic,
+  MicOff,
 } from "lucide-react";
 import { toast } from "sonner";
 import { fmtMoney } from "@/app/lib/listings";
@@ -215,6 +217,90 @@ function SpadasLensCameraCore() {
   const [showDebugDrawer, setShowDebugDrawer] = useState<boolean>(false);
   const [lastRawApiResponse, setLastRawApiResponse] = useState<any>(null);
   const [latestApiError, setLatestApiError] = useState<string | null>(null);
+
+  // Hands-Free Voice Assistant State
+  const [voiceListening, setVoiceListening] = useState<boolean>(false);
+  const [voiceSupported, setVoiceSupported] = useState<boolean>(false);
+  const recognitionRef = useRef<any>(null);
+  const voiceListeningRef = useRef<boolean>(false);
+
+  useEffect(() => {
+    voiceListeningRef.current = voiceListening;
+  }, [voiceListening]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        setVoiceSupported(true);
+      }
+    }
+  }, []);
+
+  const toggleVoiceAssistant = () => {
+    if (!voiceSupported) {
+      toast.error("Voice commands not supported on this browser.");
+      return;
+    }
+
+    if (voiceListening) {
+      if (recognitionRef.current) {
+        try { recognitionRef.current.stop(); } catch {}
+      }
+      setVoiceListening(false);
+      toast.info("Voice Assistant paused.");
+      return;
+    }
+
+    try {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = false;
+      recognition.lang = "en-US";
+
+      recognition.onresult = (event: any) => {
+        const lastResult = event.results[event.results.length - 1];
+        if (lastResult && lastResult[0]) {
+          const transcript = lastResult[0].transcript.toLowerCase().trim();
+          console.log("[Voice Command Detected]:", transcript);
+
+          if (transcript.includes("scan") || transcript.includes("capture")) {
+            toast.success("🎙️ Voice Command: 'Scan' -> Processing frame!");
+            processCurrentFrame();
+          } else if (transcript.includes("clear")) {
+            toast.success("🎙️ Voice Command: 'Clear' -> Cleared hits list!");
+            setCapturedLog([]);
+            setSelectedHitIds([]);
+          } else if (transcript.includes("export") || transcript.includes("save")) {
+            toast.success("🎙️ Voice Command: 'Export' -> Exporting hits!");
+            exportSelectedHits();
+          } else if (transcript.includes("flash") || transcript.includes("torch") || transcript.includes("light")) {
+            setTorchEnabled((prev) => !prev);
+            toast.success("🎙️ Voice Command: 'Flash' -> Toggled torch!");
+          }
+        }
+      };
+
+      recognition.onerror = (event: any) => {
+        console.warn("[Voice Command Error]:", event.error);
+      };
+
+      recognition.onend = () => {
+        if (voiceListeningRef.current && recognitionRef.current) {
+          try { recognition.start(); } catch {}
+        }
+      };
+
+      recognition.start();
+      recognitionRef.current = recognition;
+      setVoiceListening(true);
+      toast.success("🎙️ Voice Commands Active! Say 'Scan', 'Clear', 'Export', or 'Flash'!");
+    } catch (err) {
+      console.error("[Voice Assistant Error]:", err);
+      toast.error("Could not start Voice Assistant.");
+    }
+  };
 
   // WebRTC Hardware Controls State (Torch & Optical Zoom)
   const [torchEnabled, setTorchEnabled] = useState<boolean>(false);
@@ -970,6 +1056,24 @@ function SpadasLensCameraCore() {
             >
               {soundEnabled ? <Volume2 className="h-4 w-4 text-cyan-400" /> : <VolumeX className="h-4 w-4 text-slate-400" />}
               <span>{soundEnabled ? "Audio Cues ON" : "Muted"}</span>
+            </button>
+
+            {/* Hands-Free Voice Commands Assistant */}
+            <button
+              type="button"
+              onClick={toggleVoiceAssistant}
+              className={`inline-flex h-9 items-center gap-1.5 rounded-xl border px-3 text-xs font-bold transition cursor-pointer ${
+                voiceListening
+                  ? "bg-emerald-500/25 text-emerald-300 border-emerald-500/50 shadow-md shadow-emerald-500/20"
+                  : "bg-white/10 text-white border-white/20 hover:bg-white/20"
+              }`}
+            >
+              {voiceListening ? (
+                <Mic className="h-4 w-4 text-emerald-400 animate-pulse" />
+              ) : (
+                <MicOff className="h-4 w-4 text-slate-400" />
+              )}
+              <span>{voiceListening ? "Voice Active" : "Voice Control"}</span>
             </button>
 
             {/* Hardware Flashlight / Torch Control */}
