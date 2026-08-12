@@ -9,7 +9,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { checkUserUsage } from "@/app/lib/usage";
 import { AiListingResultSchema } from "@/app/lib/schemas/ai-listing-schema";
-import { AR_SCAN_MODEL_FALLBACKS, LISTING_MODEL_FALLBACKS, getPrimaryAiApiKey } from "@/app/lib/config/ai-models";
+import { AR_SCAN_MODEL_FALLBACKS, LISTING_MODEL_FALLBACKS, getPrimaryAiApiKey, createOpenAiClient } from "@/app/lib/config/ai-models";
 import type { AiListingResult } from "@/types/ai-listing";
 
 export const preferredRegion = "syd1";
@@ -226,7 +226,7 @@ export async function POST(request: Request) {
       image_url: { url, detail: "high" as const },
     }));
 
-    const openai = new OpenAI({ apiKey: getPrimaryAiApiKey() });
+    const openai = createOpenAiClient();
     let completion;
     let hasCreditOrQuotaError = false;
     const targetModels = isArScan ? AR_SCAN_MODEL_FALLBACKS : LISTING_MODEL_FALLBACKS;

@@ -4,7 +4,7 @@ if (process.env.NODE_ENV === "development") {
 
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
-import { getPrimaryAiApiKey } from "@/app/lib/config/ai-models";
+import { getPrimaryAiApiKey, createOpenAiClient } from "@/app/lib/config/ai-models";
 
 export const preferredRegion = "syd1";
 export const dynamic = "force-dynamic";
@@ -31,7 +31,7 @@ export async function GET() {
       );
     }
 
-    const openai = new OpenAI({ apiKey });
+    const openai = createOpenAiClient();
 
     // Real Vision completion probe (tests exact Vision API image quota & billing balance)
     const controller = new AbortController();

@@ -6,13 +6,11 @@ import OpenAI from "openai";
 import { zodResponseFormat } from "openai/helpers/zod";
 import { NextResponse } from "next/server";
 import { GenerateListingSchema } from "@/app/lib/schemas/ai-listing-schema";
-import { LISTING_MODEL_FALLBACKS, getPrimaryAiApiKey } from "@/app/lib/config/ai-models";
+import { LISTING_MODEL_FALLBACKS, createOpenAiClient } from "@/app/lib/config/ai-models";
 
 export async function POST(req: Request) {
   try {
-    const openai = new OpenAI({
-      apiKey: getPrimaryAiApiKey(),
-    });
+    const openai = createOpenAiClient();
     const { product } = await req.json();
 
     if (!product || typeof product !== "string" || !product.trim()) {

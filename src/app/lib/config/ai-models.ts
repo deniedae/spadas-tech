@@ -1,5 +1,4 @@
-// Centralized OpenAI Model Target & API Key Provider Configuration
-// Defines verified OpenAI production model families for vision scanning and listing generation
+import OpenAI from "openai";
 
 export const AR_SCAN_MODEL = "gpt-4o-mini";
 export const LISTING_MODEL = "gpt-4o";
@@ -8,7 +7,7 @@ export const AR_SCAN_MODEL_FALLBACKS = ["gpt-4o-mini", "gpt-4o"];
 export const LISTING_MODEL_FALLBACKS = ["gpt-4o", "gpt-4o-mini"];
 
 /**
- * Returns active verified AI API key (AI Gateway, Vercel AI, or OpenAI)
+ * Returns active verified AI API key
  */
 export function getPrimaryAiApiKey(): string {
   return (
@@ -17,4 +16,23 @@ export function getPrimaryAiApiKey(): string {
     process.env.OPENAI_API_KEY ||
     ""
   );
+}
+
+/**
+ * Factory function to instantiate OpenAI client with Vercel AI Gateway support
+ */
+export function createOpenAiClient(): OpenAI {
+  const gatewayKey = process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_AI_KEY;
+  const openAiKey = process.env.OPENAI_API_KEY;
+
+  if (gatewayKey && gatewayKey.startsWith("vck_")) {
+    return new OpenAI({
+      apiKey: gatewayKey,
+      baseURL: "https://ai-gateway.vercel.sh/v1",
+    });
+  }
+
+  return new OpenAI({
+    apiKey: openAiKey || "sk-proj-placeholder",
+  });
 }
