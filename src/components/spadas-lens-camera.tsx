@@ -22,6 +22,7 @@ import {
   Mic,
   MicOff,
   Trophy,
+  Gift,
   WifiOff,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -1138,6 +1139,24 @@ function SpadasLensCameraCore() {
               muted
               className="h-full w-full object-cover"
             />
+
+            {/* Floating AR Real $50 Cash Bounty Crate Drop Badge */}
+            <div className="absolute top-4 right-4 z-30 pointer-events-auto">
+              <button
+                type="button"
+                onClick={() => {
+                  toast.success("🎁 AR $50 CASH BOUNTY UNLOCKED at Salvos Schofields! Scan & list 3 items today to claim $50 AUD Cash!");
+                  if (typeof window !== "undefined" && "vibrate" in navigator) {
+                    try { navigator.vibrate([15, 30, 15]); } catch {}
+                  }
+                }}
+                className="group inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 p-2.5 sm:px-4 sm:py-2 text-xs font-black text-slate-950 shadow-[0_0_24px_rgba(245,158,11,0.8)] border border-amber-200 animate-bounce cursor-pointer active:scale-95 transition"
+              >
+                <Gift className="h-4 w-4 text-slate-950 animate-spin" />
+                <span className="hidden sm:inline">🎁 AR $50 CASH BOUNTY CRATE NEARBY!</span>
+                <span className="sm:hidden font-black">🎁 $50 CASH</span>
+              </button>
+            </div>
 
             {/* Holographic AR Grail Alert Overlay */}
             {activeGrailAlert && (
