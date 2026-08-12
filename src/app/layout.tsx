@@ -4,6 +4,7 @@ import { Geist } from "next/font/google";
 import { cn } from "@/lib/utils";
 import LayoutClient from "@/components/layout-client";
 import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Toaster } from "@/components/ui/sonner";
 
 const geist = Geist({
@@ -89,6 +90,7 @@ export default function RootLayout({
       <body className="min-h-screen bg-gray-100 text-gray-900 antialiased">
         <LayoutClient>{children}</LayoutClient>
         <Analytics />
+        <SpeedInsights />
         <Toaster position="bottom-right" richColors closeButton />
       </body>
     </html>
