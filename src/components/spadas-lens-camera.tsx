@@ -28,6 +28,7 @@ import { fmtMoney } from "@/app/lib/listings";
 import { createListing } from "@/app/lib/createlisting";
 import { supabase } from "@/app/lib/supabase";
 import ShareDealDialog from "@/components/share-deal-dialog";
+import TiktokVideoExporter from "@/components/tiktok-video-exporter";
 
 // Catch-All React Error Boundary for Live Camera & Hit List Stability
 interface ErrorBoundaryProps {
@@ -1068,6 +1069,22 @@ function SpadasLensCameraCore() {
                   <p className="text-xs font-extrabold text-amber-300">
                     High Demand Flip • {activeGrailAlert.roi.toFixed(0)}% Estimated ROI
                   </p>
+                  <div className="pt-2">
+                    <TiktokVideoExporter
+                      productTitle={activeGrailAlert.name}
+                      profit={activeGrailAlert.profit}
+                      estPrice={activeGrailAlert.profit * 1.4}
+                      condition="Pre-Owned Good"
+                      triggerButton={
+                        <button
+                          type="button"
+                          className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-amber-400 px-4 text-xs font-black text-slate-950 shadow-md hover:bg-amber-300 transition cursor-pointer"
+                        >
+                          🎵 Export TikTok Story Clip
+                        </button>
+                      }
+                    />
+                  </div>
                 </div>
               </div>
             )}
@@ -1555,6 +1572,14 @@ function SpadasLensCameraCore() {
                     <span className="text-muted-foreground text-[10px] truncate max-w-[60%]">{item.condition}</span>
                     <div className="flex items-center gap-2">
                       <span className="font-extrabold text-emerald-600 dark:text-emerald-400 shrink-0">{fmtMoney(item.estimatedValue)}</span>
+                      <TiktokVideoExporter
+                        productTitle={item.name}
+                        profit={item.estimatedProfit}
+                        estPrice={item.estimatedValue}
+                        condition={item.condition}
+                        sellSpeed={item.salesVelocity?.sell_speed}
+                        estDays={item.salesVelocity?.est_days_to_sell}
+                      />
                       <ShareDealDialog
                         productTitle={item.name}
                         profit={item.estimatedProfit}
