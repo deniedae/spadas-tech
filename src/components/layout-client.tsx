@@ -117,7 +117,13 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
    * Touch gesture handlers for swipe to open/close sidebar on mobile.
    */
   function handleTouchStart(e: React.TouchEvent) {
-    touchStartXRef.current = e.touches[0].clientX;
+    // Only track edge swipe if starting from left edge (< 25px) or if sidebar is open
+    const startX = e.touches[0].clientX;
+    if (startX < 25 || sidebarOpen) {
+      touchStartXRef.current = startX;
+    } else {
+      touchStartXRef.current = null;
+    }
   }
 
   function handleTouchMove(e: React.TouchEvent) {
@@ -127,7 +133,7 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
     const diffX = currentX - touchStartXRef.current;
 
     // Swipe right from left edge to open sidebar
-    if (!sidebarOpen && touchStartXRef.current < 50 && diffX > 100) {
+    if (!sidebarOpen && touchStartXRef.current < 25 && diffX > 100) {
       setSidebarOpen(true);
       touchStartXRef.current = null;
     }
