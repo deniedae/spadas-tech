@@ -642,7 +642,7 @@ function SpadasLensCameraCore() {
             ctx.imageSmoothingEnabled = true;
             ctx.imageSmoothingQuality = "high";
             ctx.drawImage(video, 0, 0, fullWidth, fullHeight, 0, 0, targetW, targetH);
-            frameDataUrl = canvas.toDataURL("image/jpeg", 0.8);
+            frameDataUrl = canvas.toDataURL("image/jpeg", 0.92);
           }
         }
       }

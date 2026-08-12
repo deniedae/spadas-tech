@@ -223,7 +223,7 @@ export async function POST(request: Request) {
 
     const imageContent = imageUrls.map((url) => ({
       type: "image_url" as const,
-      image_url: { url, detail: "low" as const },
+      image_url: { url, detail: "high" as const },
     }));
 
     const openai = new OpenAI({ apiKey: getPrimaryAiApiKey() });
