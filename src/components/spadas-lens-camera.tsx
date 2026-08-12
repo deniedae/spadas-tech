@@ -24,6 +24,7 @@ import { toast } from "sonner";
 import { fmtMoney } from "@/app/lib/listings";
 import { createListing } from "@/app/lib/createlisting";
 import { supabase } from "@/app/lib/supabase";
+import ShareDealDialog from "@/components/share-deal-dialog";
 
 // Catch-All React Error Boundary for Live Camera & Hit List Stability
 interface ErrorBoundaryProps {
@@ -1236,7 +1237,15 @@ function SpadasLensCameraCore() {
 
                   <div className="flex items-center justify-between text-[11px] pt-1 border-t border-border/60 w-full min-w-0">
                     <span className="text-muted-foreground text-[10px] truncate max-w-[60%]">{item.condition}</span>
-                    <span className="font-extrabold text-emerald-600 dark:text-emerald-400 shrink-0">{fmtMoney(item.estimatedValue)}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-extrabold text-emerald-600 dark:text-emerald-400 shrink-0">{fmtMoney(item.estimatedValue)}</span>
+                      <ShareDealDialog
+                        productTitle={item.name}
+                        profit={item.estimatedProfit}
+                        estPrice={item.estimatedValue}
+                        condition={item.condition}
+                      />
+                    </div>
                   </div>
 
                   {item.inventoryCondition === "untested" || item.inventoryCondition === "faulty_for_parts" ? (
