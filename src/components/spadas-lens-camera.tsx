@@ -835,18 +835,12 @@ function SpadasLensCameraCore() {
       // Process and render all verified scan items on HUD overlay
       for (const obj of validPendingItems) {
         try {
-          const invCond = obj.inventoryCondition || "used_working";
-          const isUntestedOrFaulty = invCond === "untested" || invCond === "faulty_for_parts";
-
-          let rawMin = Number(data.suggested_price_min) || (isUntestedOrFaulty ? 15 : 25);
-          let rawMax = Number(data.suggested_price_max) || rawMin + (isUntestedOrFaulty ? 10 : 15);
-
-          let baseVal = isUntestedOrFaulty
-            ? Math.round(rawMin * 100) / 100
-            : Math.round(((rawMin + rawMax) / 2) * 100) / 100;
+          let rawMin = Number(data.suggested_price_min) || 25;
+          let rawMax = Number(data.suggested_price_max) || rawMin + 20;
+          let baseVal = Number(data.suggested_price_median) || Math.round(((rawMin + rawMax) / 2) * 100) / 100;
 
           let itemCondition = cleanConditionText(obj.condition);
-          let estCost = Math.max(2, Math.round(baseVal * (isUntestedOrFaulty ? 0.25 : 0.35)));
+          let estCost = Math.max(2, Math.round(baseVal * 0.35));
           let estimatedProfit = Math.max(0, Math.round((baseVal - estCost) * 100) / 100);
           let estRoi = estCost > 0 ? Math.round((estimatedProfit / estCost) * 100) : 0;
 
@@ -858,7 +852,7 @@ function SpadasLensCameraCore() {
             estimatedProfit,
             estRoi,
             condition: itemCondition,
-            inventoryCondition: invCond,
+            inventoryCondition: "used_working",
             defectNotes: obj.defectNotes,
             asIsDisclaimer: obj.asIsDisclaimer,
           };
@@ -903,7 +897,7 @@ function SpadasLensCameraCore() {
             name: obj.productName,
             category: obj.category,
             condition: itemCondition,
-            inventoryCondition: invCond,
+            inventoryCondition: "used_working",
             defectNotes: obj.defectNotes,
             asIsDisclaimer: obj.asIsDisclaimer,
             estimatedValue: baseVal,
@@ -1500,18 +1494,14 @@ function SpadasLensCameraCore() {
                     </div>
                   </div>
 
-                  {item.inventoryCondition === "untested" || item.inventoryCondition === "faulty_for_parts" ? (
-                    <div className="pt-1 space-y-1">
-                      <span className="inline-block rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1.5 py-0.5 text-[9px] font-black">
-                        🟠 UNTESTED / FOR PARTS
-                      </span>
-                      {item.defectNotes && item.defectNotes.length > 0 && (
-                        <p className="text-[10px] text-amber-400/90 font-medium truncate">
-                          ⚠️ {item.defectNotes.join(" · ")}
-                        </p>
-                      )}
-                    </div>
-                  ) : null}
+                  <div className="flex items-center justify-between text-[10px] pt-1 border-t border-border/40 text-slate-400">
+                    <span className="font-semibold text-cyan-400">
+                      📊 eBay Sold Comp: {fmtMoney(item.estimatedValue * 0.85)} – {fmtMoney(item.estimatedValue * 1.15)}
+                    </span>
+                    <span className="font-bold text-emerald-400">
+                      Est. Resale: {fmtMoney(item.estimatedValue)}
+                    </span>
+                  </div>
                 </div>
               );
             })}

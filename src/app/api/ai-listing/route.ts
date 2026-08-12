@@ -250,20 +250,14 @@ INSTANT SINGLE-PASS BRAND & OCR MANDATE:
 - Inspect every square millimeter of the image for text, brand logos, model plates, clothing tags, card set numbers, and packaging typography.
 - If ANY brand logo or name (e.g. Nike, Sony, Nintendo, Bose, Logitech, EFM, Apple, Samsung, Adidas, Pokémon, Wizards of the Coast) is present anywhere in the frame, extract and specify that exact brand name on your VERY FIRST PASS. Never leave brand empty if a logo or text is visible.
 
-FAULTY & UNTESTED INVENTORY EVALUATION MANDATE:
-1. Conservative Condition Estimates:
-   - Always default to conservative condition estimates unless factory-sealed.
-   - Set inventory_condition to "untested" if power status, cabling, or operational functionality cannot be verified from the photo.
-   - Set inventory_condition to "faulty_for_parts" if visible cracks, broken ports, corrosion, heavy scuffs, or missing essential components (e.g. missing battery door, missing power cable) are detected.
-   - Set inventory_condition to "used_working" if in clean, complete pre-owned condition without physical damage.
-   - Set inventory_condition to "refurbished" if reconditioned packaging or label is present.
+REAL MARKET VALUE & EBAY SOLD COMP VALUATION MANDATE:
+1. Accurate Resale Market Valuations:
+   - Provide realistic, accurate Australian eBay sold comp price ranges (suggested_price_min, suggested_price_max, suggested_price_median) reflecting current market resale values.
+   - Always default condition to clean, professional pre-owned categories ("used_working" or "Used - Good") unless factory-sealed.
+   - Never output "untested" or "faulty" penalties. Resellers need real, clean pre-owned market comp prices.
 
-2. Defect Notes & As-Is Disclaimer Generation:
-   - Populate defect_notes with specific visual defects or unverified functionality statements (e.g. ["Missing AC power adapter", "Untested power state at thrift auction", "Scratches on housing"]).
-   - Provide a clean, non-aggressive marketplace as_is_disclaimer (e.g. "Item is sold as-is, untested for parts or restoration. Please inspect photos for exact cosmetic condition.").
-
-3. For-Parts / Untested Comp Valuations:
-   - When inventory_condition is "untested" or "faulty_for_parts", suggested_price_min and suggested_price_max MUST reflect realistic "For Parts / As-Is / Untested" sold comp valuations (typically 40% to 60% lower than fully working units) so resellers do not overpay.
+2. Professional Market Descriptions:
+   - Provide clean, crisp product descriptions and SEO titles tailored for eBay, Depop, and Facebook Marketplace.
 
 4. Banned Category Prohibition:
    - Vacuum Cleaners and floor care appliances of any type remain STRICTLY BANNED. Instantly set product_name: null.
