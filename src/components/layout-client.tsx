@@ -88,15 +88,13 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
     return <>{children}</>;
   }
 
-  // Navigation items for sidebar
+  // Streamlined Navigation items for sidebar (Less is More approach)
   const navItems = [
-    { href: "/dashboard", label: "🏠 Dashboard" },
     { href: "/lens", label: "🔮 Spadas Lens AR" },
+    { href: "/dashboard", label: "🏠 Dashboard" },
+    { href: "/listings", label: "📦 My Listings" },
     { href: "/radar", label: "📡 Spadas Radar" },
-    { href: "/listings", label: "📦 Listings" },
     { href: "/generator", label: "🤖 AI Generator" },
-    { href: "/velocity", label: "⚡ AI Velocity & Bundles" },
-    { href: "/analytics", label: "📈 Analytics" },
     { href: "/settings", label: "⚙️ Settings" },
   ];
 
@@ -106,13 +104,11 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
 
   // Dynamic page titles for header
   const pageTitleMap: Record<string, string> = {
-    "/dashboard": "Dashboard",
     "/lens": "Spadas Lens AR Sourcing",
-    "/radar": "Spadas Radar Arbitrage",
+    "/dashboard": "Dashboard",
     "/listings": "My Listings",
+    "/radar": "Spadas Radar Arbitrage",
     "/generator": "AI Generator",
-    "/velocity": "AI Reseller Velocity Matrix",
-    "/analytics": "Analytics",
     "/settings": "Settings",
   };
   const pageTitle = pageTitleMap[pathname] || "SpadasTechnology";
