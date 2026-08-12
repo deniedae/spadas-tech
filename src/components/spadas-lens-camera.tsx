@@ -378,28 +378,43 @@ function SpadasLensCameraCore() {
     }
   }, [stream]);
 
-  // Dynamically Apply Hardware Constraints (Torch & Zoom)
+  // Direct WebRTC Hardware Torch Toggle Handler
+  const toggleTorch = async () => {
+    const nextState = !torchEnabled;
+    setTorchEnabled(nextState);
+
+    if (stream) {
+      const track = stream.getVideoTracks()[0];
+      if (track && typeof track.applyConstraints === "function") {
+        try {
+          await track.applyConstraints({
+            advanced: [{ torch: nextState } as any],
+          });
+          toast.success(nextState ? "🔦 Flashlight ON" : "Flashlight OFF");
+        } catch (err) {
+          console.warn("[WebRTC Torch Error]:", err);
+          toast.info("Torch / Flashlight not supported on this camera lens.");
+        }
+      } else {
+        toast.info("Torch control not supported on this device browser.");
+      }
+    }
+  };
+
+  // Dynamically Apply Hardware Zoom Constraints
   useEffect(() => {
     if (!stream) return;
     const track = stream.getVideoTracks()[0];
-    if (!track) return;
+    if (!track || typeof track.applyConstraints !== "function") return;
 
-    const advancedConstraints: any = [];
-    if (torchSupported) {
-      advancedConstraints.push({ torch: torchEnabled });
-    }
     if (zoomSupported) {
-      advancedConstraints.push({ zoom: zoomLevel });
-    }
-
-    if (advancedConstraints.length > 0) {
       track
-        .applyConstraints({ advanced: advancedConstraints })
+        .applyConstraints({ advanced: [{ zoom: zoomLevel } as any] })
         .catch((err) => {
-          console.warn("[WebRTC] applyConstraints error:", err);
+          console.warn("[WebRTC] zoom applyConstraints error:", err);
         });
     }
-  }, [stream, torchEnabled, zoomLevel, torchSupported, zoomSupported]);
+  }, [stream, zoomLevel, zoomSupported]);
 
   // Load custom profit chime thresholds from localStorage
   useEffect(() => {
@@ -1174,7 +1189,7 @@ function SpadasLensCameraCore() {
             {/* Hardware Flashlight / Torch Control */}
             <button
               type="button"
-              onClick={() => setTorchEnabled(!torchEnabled)}
+              onClick={toggleTorch}
               title={torchSupported ? "Toggle Hardware Flashlight" : "Flashlight not supported on this camera/browser"}
               className={`inline-flex h-9 items-center gap-1.5 rounded-xl border px-3 text-xs font-bold transition cursor-pointer ${
                 torchEnabled
