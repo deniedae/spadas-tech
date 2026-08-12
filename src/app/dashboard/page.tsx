@@ -16,6 +16,7 @@ import Image from "next/image";
 import NewListingDialog from "@/components/new-listing-dialog";
 import { fmtMoney, calcProfit, calcInventoryValue } from "@/app/lib/listings";
 import PullToRefresh from "@/components/pull-to-refresh";
+import ResellerRpgMode from "@/components/reseller-rpg-mode";
 
 // --- Types (was: any[]) ---------------------------------------------------
 interface Listing {
@@ -160,6 +161,11 @@ export default function Dashboard() {
               <div className="text-2xl font-bold">Beta v0.9</div>
             </div>
           </div>
+        </div>
+
+        {/* KILLER FEATURE: The "Pokémon GO" of Hustling (IRL RPG Mode) */}
+        <div className="mb-8">
+          <ResellerRpgMode />
         </div>
 
       <div className="space-y-8">
