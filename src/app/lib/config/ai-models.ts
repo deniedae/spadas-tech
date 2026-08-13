@@ -26,14 +26,13 @@ export function createOpenAiClient(): OpenAI {
   const openAiKey = process.env.OPENAI_API_KEY;
   const gatewayKey = process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_AI_KEY;
 
-  // Prioritize direct OpenAI Key (sk-...) to bypass Vercel AI Gateway 403 credit requirement
-  if (openAiKey && openAiKey.startsWith("sk-") && !openAiKey.includes("placeholder")) {
+  if (openAiKey && openAiKey.length > 10 && !openAiKey.includes("placeholder")) {
     return new OpenAI({
       apiKey: openAiKey,
     });
   }
 
-  if (gatewayKey && gatewayKey.startsWith("vck_")) {
+  if (gatewayKey && gatewayKey.length > 10) {
     return new OpenAI({
       apiKey: gatewayKey,
       baseURL: "https://ai-gateway.vercel.sh/v1",
@@ -41,6 +40,6 @@ export function createOpenAiClient(): OpenAI {
   }
 
   return new OpenAI({
-    apiKey: openAiKey || "sk-proj-placeholder",
+    apiKey: openAiKey || "sk-placeholder-key",
   });
 }

@@ -816,29 +816,10 @@ function SpadasLensCameraCore() {
         }
       }
 
-      // If no live camera frame was captured or in desktop mode and user clicked Scan Now, simulate scan target
-      if (!frameDataUrl && (isMockFallback || forceManual)) {
-        const mockItems = [
-          { name: "Nintendo Game Boy Color (Berry Red)", brand: "Nintendo", cat: "Video Games & Consoles", price_min: 75, price_max: 95 },
-          { name: "Sony Walkman WM-FX290 Cassette Player", brand: "Sony", cat: "Vintage Electronics", price_min: 55, price_max: 70 },
-          { name: "Pokémon Base Set Unlimited Charmander 46/102", brand: "Wizards of the Coast", cat: "Trading Cards", price_min: 30, price_max: 45 },
-          { name: "Bose SoundLink Mini II Bluetooth Speaker", brand: "Bose", cat: "Consumer Electronics", price_min: 80, price_max: 105 },
-          { name: "Logitech MX Master 3S Wireless Mouse", brand: "Logitech", cat: "Computer Accessories", price_min: 70, price_max: 90 },
-        ];
-        const randomItem = mockItems[Math.floor(Math.random() * mockItems.length)];
-        data = {
-          analysis: {
-            product_name: randomItem.name,
-            brand: randomItem.brand,
-            category: randomItem.cat,
-            condition: "Used - Good",
-            inventory_condition: "used_working",
-            confidence: "high",
-            confidence_score: 0.96,
-          },
-          suggested_price_min: randomItem.price_min,
-          suggested_price_max: randomItem.price_max,
-        };
+      // ONLY trigger simulated test scan if physical camera stream is disconnected or unpermitted
+      if (!frameDataUrl && !video && isMockFallback) {
+        toast.info("No physical camera detected. Plug in camera for live AI scanning.");
+        return;
       }
 
       // Handle 429 RPM Rate Limits cleanly without triggering false-positive credit exhaustion warnings!
