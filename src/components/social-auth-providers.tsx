@@ -52,34 +52,53 @@ export default function SocialAuthProviders({
 
   const handleMagicLinkLogin = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    const cleanEmail = emailInput.trim();
-    if (!cleanEmail) {
-      toast.error("Please enter your email address first!");
+    const cleanInput = emailInput.trim();
+    if (!cleanInput) {
+      toast.error("Please enter your email or username!");
       return;
     }
 
     setLoadingProvider("email");
     try {
+      // Check if user already has an active session
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        toast.success("Welcome back! Loading your dashboard...");
+        if (typeof window !== "undefined") {
+          window.location.href = redirectTo;
+        }
+        return;
+      }
+
+      // Format clean email or username
+      const targetEmail = cleanInput.includes("@") ? cleanInput : `${cleanInput}@gmail.com`;
       const origin = typeof window !== "undefined" ? window.location.origin : "";
+
+      // Attempt OTP magic link or redirect to Login with pre-filled credentials
       const { error } = await supabase.auth.signInWithOtp({
-        email: cleanEmail,
+        email: targetEmail,
         options: {
           emailRedirectTo: `${origin}${redirectTo}`,
         },
       });
 
       if (error) {
-        toast.info(`Pre-filling ${cleanEmail} for quick registration...`);
+        toast.info(`Redirecting to login for ${cleanInput}...`);
         if (typeof window !== "undefined") {
-          window.location.href = `/signup?email=${encodeURIComponent(cleanEmail)}`;
+          window.location.href = `/login?email=${encodeURIComponent(targetEmail)}`;
         }
       } else {
         setMagicLinkSent(true);
-        toast.success(`✨ 1-Click Login Link sent to ${cleanEmail}! Check your inbox.`);
+        toast.success(`✨ Login link sent to ${targetEmail}! Check your inbox or redirecting to dashboard...`);
+        setTimeout(() => {
+          if (typeof window !== "undefined") {
+            window.location.href = `/login?email=${encodeURIComponent(targetEmail)}`;
+          }
+        }, 1500);
       }
     } catch {
       if (typeof window !== "undefined") {
-        window.location.href = `/signup?email=${encodeURIComponent(cleanEmail)}`;
+        window.location.href = `/login?email=${encodeURIComponent(cleanInput)}`;
       }
     } finally {
       setLoadingProvider(null);
@@ -141,8 +160,8 @@ export default function SocialAuthProviders({
       <form onSubmit={handleMagicLinkLogin} className="space-y-2 pt-1">
         <div className="flex gap-2">
           <input
-            type="email"
-            placeholder="or enter your email address..."
+            type="text"
+            placeholder="or enter your email or username..."
             value={emailInput}
             onChange={(e) => setEmailInput(e.target.value)}
             required
