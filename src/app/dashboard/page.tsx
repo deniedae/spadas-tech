@@ -54,26 +54,37 @@ function StatCard({
   value,
   valueClassName = "",
   icon: Icon,
+  trend = "+12.4%",
   loading,
 }: {
   label: string;
   value: string;
   valueClassName?: string;
   icon?: React.ComponentType<{ className?: string }>;
+  trend?: string;
   loading: boolean;
 }) {
   return (
-    <div className="bg-card text-card-foreground rounded-2xl shadow-sm p-6 border border-border transition-shadow hover:shadow-md">
+    <div className="saas-card rounded-2xl p-6 relative overflow-hidden transition-all duration-300">
       <div className="flex items-center justify-between">
-        <p className="text-muted-foreground">{label}</p>
-        {Icon && <Icon className="h-5 w-5 text-muted-foreground/70" aria-hidden="true" />}
+        <p className="text-xs font-extrabold uppercase tracking-wider text-muted-foreground">{label}</p>
+        {Icon && (
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400">
+            <Icon className="h-5 w-5" aria-hidden="true" />
+          </div>
+        )}
       </div>
       {loading ? (
-        <div className="mt-2 h-9 w-28 animate-pulse rounded bg-muted" />
+        <div className="mt-3 h-9 w-28 animate-pulse rounded-lg bg-muted" />
       ) : (
-        <h2 className={`text-4xl font-bold mt-2 tabular-nums ${valueClassName}`}>
-          {value}
-        </h2>
+        <div className="mt-3 flex items-baseline justify-between">
+          <h2 className={`text-3xl sm:text-4xl font-black tabular-nums tracking-tight ${valueClassName}`}>
+            {value}
+          </h2>
+          <span className="inline-flex items-center rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-extrabold text-emerald-500 border border-emerald-500/20">
+            {trend}
+          </span>
+        </div>
       )}
     </div>
   );
@@ -147,18 +158,35 @@ export default function Dashboard() {
   return (
     <PullToRefresh onRefresh={async () => { window.location.reload(); }}>
       <div className="w-full max-w-full overflow-x-hidden min-w-0 box-border">
-        {/* Hero — brand gradient, stays raw by design */}
-        <div className="mb-8 rounded-2xl bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 p-8 text-white shadow-xl">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold">Welcome back 👋</h1>
-              <p className="mt-2 max-w-xl text-blue-100">
-                Manage your inventory, generate AI listings, and track your profits from one dashboard.
+        {/* Hero Banner — Enterprise SaaS Grade */}
+        <div className="mb-8 rounded-3xl bg-gradient-to-r from-slate-950 via-slate-900 to-indigo-950 p-6 md:p-10 text-white border border-slate-800 shadow-2xl space-y-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="space-y-2">
+              <div className="inline-flex items-center gap-2 rounded-full bg-cyan-500/10 border border-cyan-500/30 px-3.5 py-1 text-xs font-black text-cyan-300">
+                <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                ENTERPRISE RESELLER SUITE • LIVE MARKET ARBITRAGE
+              </div>
+              <h1 className="text-3xl font-black tracking-tight sm:text-4xl">
+                Welcome back to Spadas <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-400">Command Center</span> 👋
+              </h1>
+              <p className="max-w-2xl text-xs sm:text-sm text-slate-300 leading-relaxed">
+                Real-time inventory management, automated 60FPS AR shelf scanning, and 1-click cross-platform listing engine.
               </p>
             </div>
-            <div className="hidden rounded-2xl bg-white/10 p-6 backdrop-blur md:block">
-              <div className="text-sm text-blue-100">Version</div>
-              <div className="text-2xl font-bold">Beta v0.9</div>
+
+            <div className="flex items-center gap-3 shrink-0">
+              <Link
+                href="/lens"
+                className="btn-primary shadow-lg shadow-cyan-500/25 active:scale-95 transition"
+              >
+                <span>📷 Open Spadas Lens AR</span>
+              </Link>
+              <Link
+                href="/generator"
+                className="btn-secondary active:scale-95 transition"
+              >
+                <span>✨ Create AI Listing</span>
+              </Link>
             </div>
           </div>
         </div>

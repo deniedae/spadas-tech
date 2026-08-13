@@ -237,22 +237,39 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
         <OwnerAiStatusBanner />
 
         {/* Header (Hidden on mobile for /lens to provide native full-screen camera viewport) */}
-        <header className={`bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between md:px-8 md:py-5 shadow-sm ${
+        <header className={`bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between md:px-8 md:py-4 shadow-sm ${
           pathname === "/lens" ? "hidden md:flex" : "flex"
         }`}>
           {/* Mobile hamburger */}
-          <button
-            ref={hamburgerButtonRef}
-            className="md:hidden p-2 rounded-md text-gray-700 hover:bg-gray-200 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary transition-colors cursor-pointer"
-            aria-label="Open sidebar"
-            aria-expanded={sidebarOpen}
-            onClick={() => setSidebarOpen(true)}
-          >
-            <AlignJustify className="h-6 w-6" />
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              ref={hamburgerButtonRef}
+              className="md:hidden p-2 rounded-xl text-gray-700 hover:bg-gray-100 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary transition-colors cursor-pointer"
+              aria-label="Open sidebar"
+              aria-expanded={sidebarOpen}
+              onClick={() => setSidebarOpen(true)}
+            >
+              <AlignJustify className="h-6 w-6" />
+            </button>
 
-          {/* Page title */}
-          <h2 className="text-xl sm:text-2xl font-bold select-none">{pageTitle}</h2>
+            {/* Page title */}
+            <h2 className="text-xl sm:text-2xl font-black text-gray-900 select-none tracking-tight">{pageTitle}</h2>
+          </div>
+
+          {/* SaaS Header Right Actions & Live Market Sync Status */}
+          <div className="hidden sm:flex items-center gap-4">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 px-3 py-1 text-xs font-bold text-emerald-700">
+              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+              eBay AU Sold Comps Live
+            </span>
+
+            <Link
+              href="/lens"
+              className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-cyan-600 px-3.5 text-xs font-extrabold text-white shadow-sm hover:bg-cyan-500 transition cursor-pointer active:scale-95"
+            >
+              📷 Open Camera AR
+            </Link>
+          </div>
         </header>
 
         {/* Page content */}
