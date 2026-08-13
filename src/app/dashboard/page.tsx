@@ -163,10 +163,8 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* KILLER FEATURE: The "Pokémon GO" of Hustling (IRL RPG Mode) */}
-        <div className="mb-8">
-          <ResellerRpgMode />
-        </div>
+        {/* KILLER FEATURE: The "Pokémon GO" of Hustling (IRL RPG Mode) - Hidden for now */}
+        {/* <div className="mb-8"><ResellerRpgMode /></div> */}
 
       <div className="space-y-8">
         {/* Error banner */}
