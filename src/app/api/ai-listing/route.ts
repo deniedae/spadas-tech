@@ -311,7 +311,7 @@ export async function POST(request: Request) {
 
     const imageContent = imageUrls.map((url) => ({
       type: "image_url" as const,
-      image_url: { url, detail: "high" as const },
+      image_url: { url, detail: isArScan ? ("low" as const) : ("high" as const) },
     }));
 
     const openai = createOpenAiClient();

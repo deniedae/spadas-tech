@@ -720,16 +720,16 @@ function SpadasLensCameraCore() {
     if (analyzingRealFrame) return;
     if (!forceManual && !autoScanActiveRef.current) return;
 
-    // LIGHTWEIGHT NON-BLOCKING DEBOUNCE: Skip frame if < 2000ms unless manually clicked
+    // HIGH-SPEED AR SCANNER DEBOUNCE: 1000ms interval for fast 60FPS AR feel
     const currentTime = Date.now();
-    if (!forceManual && currentTime - lastScanTimeRef.current < 2000) {
+    if (!forceManual && currentTime - lastScanTimeRef.current < 1000) {
       return;
     }
     lastScanTimeRef.current = currentTime;
 
     const video = videoRef.current;
 
-    // CAMERA MOTION VARIANCE CHECK: Skip auto-scan if phone is actively panning/moving
+    // CAMERA MOTION STABILITY LOCK: "Relax for a second" check (pause frame capture while phone is moving rapidly)
     if (!forceManual && video && video.srcObject) {
       try {
         const motionCanvas = document.createElement("canvas");
@@ -746,12 +746,13 @@ function SpadasLensCameraCore() {
             let diffCount = 0;
             const totalSamples = currentPixels.length / 16;
             for (let i = 0; i < currentPixels.length; i += 16) {
-              if (Math.abs(currentPixels[i] - prevPixels[i]) > 35) {
+              if (Math.abs(currentPixels[i] - prevPixels[i]) > 30) {
                 diffCount++;
               }
             }
             const diffRatio = diffCount / totalSamples;
-            if (diffRatio > 0.22) {
+            // Relax threshold so holding steady over shelf triggers instant scan
+            if (diffRatio > 0.28) {
               setCameraMoving(true);
               return;
             }
