@@ -738,41 +738,6 @@ function SpadasLensCameraCore() {
     }
     lastScanTimeRef.current = currentTime;
 
-    const video = videoRef.current;
-
-    // CAMERA MOTION STABILITY LOCK (Lenient threshold so panning over shelf triggers instant scan)
-    if (!forceManual && video && video.srcObject) {
-      try {
-        const motionCanvas = document.createElement("canvas");
-        motionCanvas.width = 64;
-        motionCanvas.height = 48;
-        const mCtx = motionCanvas.getContext("2d");
-        if (mCtx) {
-          mCtx.drawImage(video, 0, 0, 64, 48);
-          const currentPixels = mCtx.getImageData(0, 0, 64, 48).data;
-          const prevPixels = prevFramePixelsRef.current;
-          prevFramePixelsRef.current = currentPixels;
-
-          if (prevPixels && prevPixels.length === currentPixels.length) {
-            let diffCount = 0;
-            const totalSamples = currentPixels.length / 16;
-            for (let i = 0; i < currentPixels.length; i += 16) {
-              if (Math.abs(currentPixels[i] - prevPixels[i]) > 35) {
-                diffCount++;
-              }
-            }
-            const diffRatio = diffCount / totalSamples;
-            if (diffRatio > 0.35) {
-              setCameraMoving(true);
-              return;
-            }
-          }
-        }
-      } catch {
-        // ignore motion check errors
-      }
-    }
-
     setCameraMoving(false);
     setAnalyzingRealFrame(true);
     if (forceManual) {
