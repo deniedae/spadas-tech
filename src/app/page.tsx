@@ -70,34 +70,26 @@ export default function Home() {
             Turn product research, listing creation, and resale planning into one repeatable workflow.
           </p>
 
-          {/* SaaS Grade 1-Click Social Auth Card */}
-          <div className="mx-auto mt-10 max-w-md rounded-3xl border border-slate-800 bg-slate-900/90 p-6 md:p-8 shadow-2xl backdrop-blur-xl space-y-4">
-            <div className="text-center space-y-1">
-              <span className="text-xs font-black uppercase tracking-wider text-cyan-400">⚡ Instant 1-Tap SaaS Access</span>
-              <h3 className="text-lg font-black text-white">Create Your Account in 5 Seconds</h3>
-            </div>
-
-            <SocialAuthProviders redirectTo="/dashboard" />
-
-            <div className="relative my-4 flex items-center justify-center">
-              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-800" /></div>
-              <span className="relative bg-slate-900 px-3 text-[11px] font-extrabold uppercase text-slate-500">Or Continue With</span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <Link
-                href="/lens"
-                className="inline-flex h-11 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-4 text-xs font-extrabold text-white shadow-md hover:opacity-90 transition active:scale-95"
-              >
-                📷 Lens AR
-              </Link>
-              <Link
-                href="/signup"
-                className="inline-flex h-11 items-center justify-center gap-1.5 rounded-xl bg-slate-800 border border-slate-700 px-4 text-xs font-extrabold text-white hover:bg-slate-700 transition active:scale-95"
-              >
-                ✉️ Email Sign Up
-              </Link>
-            </div>
+          {/* Hero Action Buttons */}
+          <div className="mt-10 flex flex-col justify-center items-center gap-4 sm:flex-row max-w-2xl mx-auto">
+            <Link
+              href="/lens"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 px-8 py-4 text-base font-bold text-white shadow-xl shadow-cyan-500/20 hover:scale-105 transition active:scale-95"
+            >
+              📷 Launch Spadas Lens AR
+            </Link>
+            <Link
+              href="/signup"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-8 py-4 text-base font-bold text-white hover:bg-blue-500 transition active:scale-95 shadow-lg"
+            >
+              🚀 Get Started Free
+            </Link>
+            <Link
+              href="/login"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-700 bg-slate-900 px-8 py-4 text-base font-bold text-white hover:bg-slate-800 transition active:scale-95"
+            >
+              🔑 Log In
+            </Link>
           </div>
 
           <div className="mt-12 flex flex-wrap items-center justify-center gap-6 text-sm text-slate-300">

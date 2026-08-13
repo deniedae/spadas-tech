@@ -3,17 +3,13 @@
 import React, { useState } from "react";
 import { supabase } from "@/app/lib/supabase";
 import { toast } from "sonner";
-import { Loader2, Mail } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 export default function SocialAuthProviders({
   redirectTo = "/dashboard",
-  layout = "full",
 }: {
   redirectTo?: string;
-  layout?: "full" | "compact";
 }) {
-  const [emailInput, setEmailInput] = useState("");
-  const [magicLinkSent, setMagicLinkSent] = useState(false);
   const [loadingProvider, setLoadingProvider] = useState<string | null>(null);
 
   const handleOAuthLogin = async (provider: "google" | "facebook" | "github") => {
@@ -44,61 +40,6 @@ export default function SocialAuthProviders({
       toast.info("Redirecting to email registration...");
       if (typeof window !== "undefined") {
         window.location.href = "/signup";
-      }
-    } finally {
-      setLoadingProvider(null);
-    }
-  };
-
-  const handleMagicLinkLogin = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    const cleanInput = emailInput.trim();
-    if (!cleanInput) {
-      toast.error("Please enter your email or username!");
-      return;
-    }
-
-    setLoadingProvider("email");
-    try {
-      // Check if user already has an active session
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        toast.success("Welcome back! Loading your dashboard...");
-        if (typeof window !== "undefined") {
-          window.location.href = redirectTo;
-        }
-        return;
-      }
-
-      // Format clean email or username
-      const targetEmail = cleanInput.includes("@") ? cleanInput : `${cleanInput}@gmail.com`;
-      const origin = typeof window !== "undefined" ? window.location.origin : "";
-
-      // Attempt OTP magic link or redirect to Login with pre-filled credentials
-      const { error } = await supabase.auth.signInWithOtp({
-        email: targetEmail,
-        options: {
-          emailRedirectTo: `${origin}${redirectTo}`,
-        },
-      });
-
-      if (error) {
-        toast.info(`Redirecting to login for ${cleanInput}...`);
-        if (typeof window !== "undefined") {
-          window.location.href = `/login?email=${encodeURIComponent(targetEmail)}`;
-        }
-      } else {
-        setMagicLinkSent(true);
-        toast.success(`✨ Login link sent to ${targetEmail}! Check your inbox or redirecting to dashboard...`);
-        setTimeout(() => {
-          if (typeof window !== "undefined") {
-            window.location.href = `/login?email=${encodeURIComponent(targetEmail)}`;
-          }
-        }, 1500);
-      }
-    } catch {
-      if (typeof window !== "undefined") {
-        window.location.href = `/login?email=${encodeURIComponent(cleanInput)}`;
       }
     } finally {
       setLoadingProvider(null);
@@ -155,40 +96,6 @@ export default function SocialAuthProviders({
         )}
         <span>Continue with Facebook</span>
       </button>
-
-      {/* 1-Tap Passwordless Magic Link Email Form */}
-      <form onSubmit={handleMagicLinkLogin} className="space-y-2 pt-1">
-        <div className="flex gap-2">
-          <input
-            type="text"
-            placeholder="or enter your email or username..."
-            value={emailInput}
-            onChange={(e) => setEmailInput(e.target.value)}
-            required
-            className="w-full rounded-xl border border-slate-800 bg-slate-950 px-3.5 py-2.5 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-          />
-          <button
-            type="button"
-            onClick={() => void handleMagicLinkLogin()}
-            disabled={loadingProvider !== null}
-            className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-cyan-600 px-4 text-xs font-bold text-white shadow-md hover:bg-cyan-500 transition shrink-0 disabled:opacity-50 cursor-pointer active:scale-95"
-          >
-            {loadingProvider === "email" ? (
-              <Loader2 className="h-4 w-4 animate-spin text-white" />
-            ) : (
-              <>
-                <Mail className="h-3.5 w-3.5" />
-                <span>1-Tap Login</span>
-              </>
-            )}
-          </button>
-        </div>
-        {magicLinkSent && (
-          <p className="text-[11px] font-bold text-emerald-400 text-center animate-fade-in">
-            ✨ Login link sent to {emailInput}! Check your inbox.
-          </p>
-        )}
-      </form>
     </div>
   );
 }
