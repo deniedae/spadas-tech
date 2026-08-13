@@ -50,28 +50,37 @@ export default function SocialAuthProviders({
     }
   };
 
-  const handleMagicLinkLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!emailInput.trim()) return;
+  const handleMagicLinkLogin = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const cleanEmail = emailInput.trim();
+    if (!cleanEmail) {
+      toast.error("Please enter your email address first!");
+      return;
+    }
 
     setLoadingProvider("email");
     try {
       const origin = typeof window !== "undefined" ? window.location.origin : "";
       const { error } = await supabase.auth.signInWithOtp({
-        email: emailInput.trim(),
+        email: cleanEmail,
         options: {
           emailRedirectTo: `${origin}${redirectTo}`,
         },
       });
 
       if (error) {
-        toast.error(error.message);
+        toast.info(`Pre-filling ${cleanEmail} for quick registration...`);
+        if (typeof window !== "undefined") {
+          window.location.href = `/signup?email=${encodeURIComponent(cleanEmail)}`;
+        }
       } else {
         setMagicLinkSent(true);
-        toast.success(`✨ 1-Click Login Link sent to ${emailInput}! Check your inbox.`);
+        toast.success(`✨ 1-Click Login Link sent to ${cleanEmail}! Check your inbox.`);
       }
     } catch {
-      toast.error("Failed to send login email.");
+      if (typeof window !== "undefined") {
+        window.location.href = `/signup?email=${encodeURIComponent(cleanEmail)}`;
+      }
     } finally {
       setLoadingProvider(null);
     }
@@ -140,8 +149,9 @@ export default function SocialAuthProviders({
             className="w-full rounded-xl border border-slate-800 bg-slate-950 px-3.5 py-2.5 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
           />
           <button
-            type="submit"
-            disabled={loadingProvider !== null || !emailInput.trim()}
+            type="button"
+            onClick={() => void handleMagicLinkLogin()}
+            disabled={loadingProvider !== null}
             className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-cyan-600 px-4 text-xs font-bold text-white shadow-md hover:bg-cyan-500 transition shrink-0 disabled:opacity-50 cursor-pointer active:scale-95"
           >
             {loadingProvider === "email" ? (
