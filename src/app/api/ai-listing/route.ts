@@ -10,6 +10,7 @@ import { cookies } from "next/headers";
 import { checkUserUsage } from "@/app/lib/usage";
 import { AiListingResultSchema } from "@/app/lib/schemas/ai-listing-schema";
 import { AR_SCAN_MODEL_FALLBACKS, LISTING_MODEL_FALLBACKS, getPrimaryAiApiKey, createOpenAiClient } from "@/app/lib/config/ai-models";
+import { callClaudeVision } from "@/app/lib/config/claude-vision";
 import type { AiListingResult } from "@/types/ai-listing";
 
 export const preferredRegion = "syd1";
@@ -368,15 +369,28 @@ Rules:
     }
 
     const content = completion?.choices?.[0]?.message?.content;
-    if (!content) {
-      if (hasCreditOrQuotaError || process.env.OPENAI_API_KEY?.startsWith("sk-proj-placeholder")) {
-        console.warn("[ai-listing] Credit exhaustion fallback triggered due to API status/credits.");
-        return NextResponse.json(generateMockAiListingResult());
+    let result: AiListingResult | null = null;
+
+    if (content) {
+      try {
+        result = JSON.parse(content) as AiListingResult;
+      } catch {
+        result = null;
       }
-      throw new Error("No model response received.");
     }
 
-    const result = JSON.parse(content) as AiListingResult;
+    // Secondary AI Provider Fallback: Anthropic Claude 3.5 Sonnet Vision Engine
+    if (!result && imageUrls.length > 0) {
+      const claudeResult = await callClaudeVision(imageUrls[0]);
+      if (claudeResult) {
+        console.log("⚡ Successfully analyzed image using Anthropic Claude 3.5 Sonnet Vision!");
+        result = claudeResult;
+      }
+    }
+
+    if (!result) {
+      return NextResponse.json(generateMockAiListingResult());
+    }
 
     // Fetch REAL-TIME eBay Australia Sold Comps for the identified item
     if (result.analysis?.product_name && process.env.SOLD_COMPS_API_KEY) {
