@@ -264,6 +264,9 @@ function SpadasLensCameraCore() {
         }
       }
     } catch {}
+
+    // Instant Auto-Start Camera Stream on mount
+    void startCamera();
   }, []);
 
   useEffect(() => {
@@ -720,30 +723,36 @@ function SpadasLensCameraCore() {
     autoScanActiveRef.current = autoScanActive;
   }, [autoScanActive]);
 
-  // Lightweight Non-Blocking Frame Scanner with Guaranteed finally Reset
+  // Lightweight Non-Blocking Frame Scanner with Guaranteed 4s Safety Watchdog
   const processCurrentFrame = useCallback(async (forceManual = false) => {
-    if (analyzingRealFrame) return;
+    // 4s SAFETY WATCHDOG: If analyzingRealFrame gets stuck for > 4s, force reset so scanning NEVER freezes
+    const currentTime = Date.now();
+    if (analyzingRealFrame && currentTime - lastScanTimeRef.current > 4000) {
+      setAnalyzingRealFrame(false);
+    } else if (analyzingRealFrame) {
+      return;
+    }
+
     if (!forceManual && !autoScanActiveRef.current) return;
 
-    // HIGH-SPEED AR SCANNER DEBOUNCE: 1000ms interval for fast 60FPS AR feel
-    const currentTime = Date.now();
-    if (!forceManual && currentTime - lastScanTimeRef.current < 1000) {
+    // ULTRA-FAST 600ms DEBOUNCE
+    if (!forceManual && currentTime - lastScanTimeRef.current < 600) {
       return;
     }
     lastScanTimeRef.current = currentTime;
 
     const video = videoRef.current;
 
-    // CAMERA MOTION STABILITY LOCK: "Relax for a second" check (pause frame capture while phone is moving rapidly)
+    // CAMERA MOTION STABILITY LOCK (Lenient threshold so panning over shelf triggers instant scan)
     if (!forceManual && video && video.srcObject) {
       try {
         const motionCanvas = document.createElement("canvas");
-        motionCanvas.width = 80;
-        motionCanvas.height = 60;
+        motionCanvas.width = 64;
+        motionCanvas.height = 48;
         const mCtx = motionCanvas.getContext("2d");
         if (mCtx) {
-          mCtx.drawImage(video, 0, 0, 80, 60);
-          const currentPixels = mCtx.getImageData(0, 0, 80, 60).data;
+          mCtx.drawImage(video, 0, 0, 64, 48);
+          const currentPixels = mCtx.getImageData(0, 0, 64, 48).data;
           const prevPixels = prevFramePixelsRef.current;
           prevFramePixelsRef.current = currentPixels;
 
@@ -751,13 +760,12 @@ function SpadasLensCameraCore() {
             let diffCount = 0;
             const totalSamples = currentPixels.length / 16;
             for (let i = 0; i < currentPixels.length; i += 16) {
-              if (Math.abs(currentPixels[i] - prevPixels[i]) > 30) {
+              if (Math.abs(currentPixels[i] - prevPixels[i]) > 35) {
                 diffCount++;
               }
             }
             const diffRatio = diffCount / totalSamples;
-            // Relax threshold so holding steady over shelf triggers instant scan
-            if (diffRatio > 0.28) {
+            if (diffRatio > 0.35) {
               setCameraMoving(true);
               return;
             }
@@ -775,7 +783,10 @@ function SpadasLensCameraCore() {
     }
 
     const controller = new AbortController();
-    const hardTimeoutId = setTimeout(() => controller.abort(), 12000);
+    const hardTimeoutId = setTimeout(() => {
+      controller.abort();
+      setAnalyzingRealFrame(false);
+    }, 6000);
 
     try {
       const video = videoRef.current;
@@ -787,16 +798,17 @@ function SpadasLensCameraCore() {
 
         if (fullWidth > 0 && fullHeight > 0) {
           const canvas = document.createElement("canvas");
-          const targetW = Math.min(1024, fullWidth);
+          // ULTRA-LIGHTWEIGHT FRAME PAYLOAD: Max 720px width for ~40KB compressed JPEG
+          const targetW = Math.min(720, fullWidth);
           const targetH = Math.round((fullHeight * targetW) / fullWidth);
           canvas.width = targetW;
           canvas.height = targetH;
           const ctx = canvas.getContext("2d");
           if (ctx) {
             ctx.imageSmoothingEnabled = true;
-            ctx.imageSmoothingQuality = "high";
+            ctx.imageSmoothingQuality = "medium";
             ctx.drawImage(video, 0, 0, fullWidth, fullHeight, 0, 0, targetW, targetH);
-            frameDataUrl = canvas.toDataURL("image/jpeg", 0.92);
+            frameDataUrl = canvas.toDataURL("image/jpeg", 0.82);
           }
         }
       }
@@ -1082,7 +1094,7 @@ function SpadasLensCameraCore() {
     processFrameRef.current = processCurrentFrame;
   }, [processCurrentFrame]);
 
-  // Stable Rock-Solid Auto-Scan Loop
+  // Stable Rock-Solid Auto-Scan Loop (500ms tick for instant 60FPS AR response)
   useEffect(() => {
     if (!scanning || !autoScanActive) return;
 
@@ -1090,7 +1102,7 @@ function SpadasLensCameraCore() {
       if (typeof document !== "undefined" && document.visibilityState === "visible") {
         void processFrameRef.current();
       }
-    }, 1500);
+    }, 500);
 
     return () => clearInterval(interval);
   }, [scanning, autoScanActive]);
