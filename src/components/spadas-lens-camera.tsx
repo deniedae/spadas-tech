@@ -264,9 +264,6 @@ function SpadasLensCameraCore() {
         }
       }
     } catch {}
-
-    // Instant Auto-Start Camera Stream on mount
-    void startCamera();
   }, []);
 
   useEffect(() => {
@@ -798,17 +795,17 @@ function SpadasLensCameraCore() {
 
         if (fullWidth > 0 && fullHeight > 0) {
           const canvas = document.createElement("canvas");
-          // ULTRA-LIGHTWEIGHT FRAME PAYLOAD: Max 720px width for ~40KB compressed JPEG
-          const targetW = Math.min(720, fullWidth);
+          // HIGH-PRECISION OCR FRAME PAYLOAD: Max 1024px width for sharp text reading by OpenAI Vision
+          const targetW = Math.min(1024, fullWidth);
           const targetH = Math.round((fullHeight * targetW) / fullWidth);
           canvas.width = targetW;
           canvas.height = targetH;
           const ctx = canvas.getContext("2d");
           if (ctx) {
             ctx.imageSmoothingEnabled = true;
-            ctx.imageSmoothingQuality = "medium";
+            ctx.imageSmoothingQuality = "high";
             ctx.drawImage(video, 0, 0, fullWidth, fullHeight, 0, 0, targetW, targetH);
-            frameDataUrl = canvas.toDataURL("image/jpeg", 0.82);
+            frameDataUrl = canvas.toDataURL("image/jpeg", 0.90);
           }
         }
       }
