@@ -175,14 +175,19 @@ function isVagueOrPartialRead(productName?: string | null, brand?: string | null
   const lower = productName.toLowerCase().trim();
 
   const vaguePhrases = [
+    "scanned item",
+    "scanned reseller item",
+    "unknown item",
+    "unidentified item",
     "unclear",
     "not fully readable",
     "exact card details unclear",
     "unknown model",
-    "unidentified item",
     "cannot be determined",
     "could not be identified"
   ];
+
+  if (lower === "item" || lower === "scanned item" || lower === "object") return true;
 
   return vaguePhrases.some((phrase) => lower.includes(phrase));
 }
@@ -856,42 +861,24 @@ function SpadasLensCameraCore() {
         }
       }
 
-      // If data is empty, construct a safe fallback object so AR camera scan never fails
-      if (!data) {
-        data = {
-          analysis: {
-            product_name: "Sony Cyber-shot DSC-W80",
-            brand: "Sony",
-            category: "Digital Cameras",
-            condition: "Used - Good",
-            confidence_score: 0.95,
-          },
-          suggested_price_min: 75,
-          suggested_price_max: 110,
-        };
-      } else if (!data.analysis) {
-        data.analysis = {
-          product_name: data.item_title || data.product_name || "Scanned Reseller Item",
-          brand: data.brand || "Authentic",
-          category: data.category || "General Resale",
-          condition: "Used - Good",
-          confidence_score: 0.95,
-        };
+      // Do NOT create fake items if OpenAI is still processing or returned no valid item analysis
+      if (!data || !data.analysis || !data.analysis.product_name) {
+        return;
       }
 
       setLastRawApiResponse(data);
 
-      // Extract Multi-Object Detected Items
+      // Extract Multi-Object Detected Items from REAL OpenAI Vision response
       const detected =
         data.detected_objects && Array.isArray(data.detected_objects) && data.detected_objects.length > 0
           ? data.detected_objects
           : [
               {
                 id: `obj-${Date.now()}`,
-                product_name: data.analysis.product_name || "Scanned Item",
+                product_name: data.analysis.product_name,
                 brand: data.analysis.brand,
-                category: data.analysis.category || "Scanned Item",
-                condition: data.analysis.condition || "Used",
+                category: data.analysis.category || "General Resale",
+                condition: data.analysis.condition || "Used - Good",
                 bbox: { x: 20, y: 15, width: 60, height: 70 },
                 confidence_score: data.analysis.confidence_score || 0.95,
               },
