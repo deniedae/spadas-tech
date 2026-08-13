@@ -31,6 +31,7 @@ import { createListing } from "@/app/lib/createlisting";
 import { supabase } from "@/app/lib/supabase";
 import ShareDealDialog from "@/components/share-deal-dialog";
 import TiktokVideoExporter from "@/components/tiktok-video-exporter";
+import SubscriptionPaywallModal from "@/components/subscription-paywall-modal";
 
 // Catch-All React Error Boundary for Live Camera & Hit List Stability
 interface ErrorBoundaryProps {
@@ -239,6 +240,7 @@ function SpadasLensCameraCore() {
   const [lastRawApiResponse, setLastRawApiResponse] = useState<any>(null);
   const [latestApiError, setLatestApiError] = useState<string | null>(null);
   const [cameraMoving, setCameraMoving] = useState<boolean>(false);
+  const [isPaywallOpen, setIsPaywallOpen] = useState<boolean>(false);
   const prevFramePixelsRef = useRef<Uint8ClampedArray | null>(null);
 
   // Native Offline Dead-Zone Signal Watcher
@@ -1317,6 +1319,16 @@ function SpadasLensCameraCore() {
               <span>{grailMode ? "🚨 Grail Mode ON" : "Grail Off"}</span>
             </button>
 
+            {/* Pro Subscription Paywall Badge */}
+            <button
+              type="button"
+              onClick={() => setIsPaywallOpen(true)}
+              className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-cyan-500 px-3.5 text-xs font-black text-slate-950 shadow-lg shadow-amber-500/20 hover:scale-105 transition active:scale-95 cursor-pointer"
+            >
+              <Sparkles className="h-3.5 w-3.5 text-slate-950 animate-pulse" />
+              <span>👑 Upgrade Pro</span>
+            </button>
+
             <button
               type="button"
               onClick={() => {
@@ -1717,6 +1729,13 @@ function SpadasLensCameraCore() {
           </button>
         </div>
       )}
+
+      {/* Subscription Paywall Tier Modal */}
+      <SubscriptionPaywallModal
+        isOpen={isPaywallOpen}
+        onClose={() => setIsPaywallOpen(false)}
+        currentScans={capturedLog.length}
+      />
     </div>
   );
 }

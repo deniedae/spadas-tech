@@ -17,6 +17,7 @@ import NewListingDialog from "@/components/new-listing-dialog";
 import { fmtMoney, calcProfit, calcInventoryValue } from "@/app/lib/listings";
 import PullToRefresh from "@/components/pull-to-refresh";
 import ResellerRpgMode from "@/components/reseller-rpg-mode";
+import SubscriptionPaywallModal from "@/components/subscription-paywall-modal";
 
 // --- Types (was: any[]) ---------------------------------------------------
 interface Listing {
@@ -96,6 +97,7 @@ export default function Dashboard() {
   const [recentListings, setRecentListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isPaywallOpen, setIsPaywallOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -174,7 +176,14 @@ export default function Dashboard() {
               </p>
             </div>
 
-            <div className="flex items-center gap-3 shrink-0">
+            <div className="flex flex-wrap items-center gap-3 shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsPaywallOpen(true)}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 px-5 text-xs font-black text-slate-950 shadow-lg shadow-amber-500/20 hover:scale-105 active:scale-95 transition cursor-pointer"
+              >
+                <span>👑 Upgrade to Pro ($29)</span>
+              </button>
               <Link
                 href="/lens"
                 className="btn-primary shadow-lg shadow-cyan-500/25 active:scale-95 transition"
@@ -393,6 +402,13 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+      
+      {/* Subscription Paywall Modal */}
+      <SubscriptionPaywallModal
+        isOpen={isPaywallOpen}
+        onClose={() => setIsPaywallOpen(false)}
+        currentScans={15}
+      />
     </div>
   </PullToRefresh>
 );
