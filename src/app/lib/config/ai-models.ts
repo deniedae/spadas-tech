@@ -26,8 +26,8 @@ export function createOpenAiClient(): OpenAI {
   const openAiKey = process.env.OPENAI_API_KEY;
   const gatewayKey = process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_AI_KEY;
 
-  // Prioritize direct OpenAI Key (sk-proj-...) to bypass Vercel AI Gateway 403 credit card requirement
-  if (openAiKey && openAiKey.startsWith("sk-proj-") && !openAiKey.includes("placeholder")) {
+  // Prioritize direct OpenAI Key (sk-...) to bypass Vercel AI Gateway 403 credit requirement
+  if (openAiKey && openAiKey.startsWith("sk-") && !openAiKey.includes("placeholder")) {
     return new OpenAI({
       apiKey: openAiKey,
     });

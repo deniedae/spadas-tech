@@ -330,30 +330,40 @@ Rules:
           ],
         };
 
-        if (modelName.startsWith("gpt-5")) {
-          reqParams.reasoning = { effort: isArScan ? "none" : "low" };
-        }
+        try {
+          completion = await openai.chat.completions.create(reqParams);
+          if (completion?.choices?.[0]?.message?.content) break;
+        } catch (err1: any) {
+          console.warn(`[ai-listing] Primary zodResponseFormat call on ${modelName} failed, retrying with json_object format...`, err1?.message);
 
-        completion = await openai.chat.completions.create(reqParams);
-        if (completion?.choices?.[0]?.message?.content) break;
-      } catch (err: any) {
-        console.warn(`[ai-listing] Model ${modelName} call warning:`, err);
-        if (isRateLimitError(err)) {
-          console.warn("[ai-listing] OpenAI RPM rate limit hit on model:", modelName);
-          return NextResponse.json(
-            {
-              isRateLimited: true,
-              retryAfter: 5,
-              rawError: err?.message || "OpenAI RPM rate limit exceeded.",
-              error: "OpenAI rate limit reached. Pausing scan for 5s.",
-            },
-            { status: 429 }
-          );
+          if (isRateLimitError(err1)) {
+            return NextResponse.json(
+              {
+                isRateLimited: true,
+                retryAfter: 5,
+                rawError: err1?.message || "OpenAI RPM rate limit exceeded.",
+                error: "OpenAI rate limit reached. Pausing scan for 5s.",
+              },
+              { status: 429 }
+            );
+          }
+
+          if (isCreditOrQuotaError(err1)) {
+            hasCreditOrQuotaError = true;
+          }
+
+          // Fallback retry with json_object format
+          try {
+            delete reqParams.response_format;
+            reqParams.response_format = { type: "json_object" };
+            completion = await openai.chat.completions.create(reqParams);
+            if (completion?.choices?.[0]?.message?.content) break;
+          } catch (err2: any) {
+            console.warn(`[ai-listing] json_object fallback call on ${modelName} failed:`, err2?.message);
+          }
         }
-        if (isCreditOrQuotaError(err)) {
-          hasCreditOrQuotaError = true;
-          console.warn("[ai-listing] Credit exhaustion / 401/402 quota error detected on model:", modelName);
-        }
+      } catch (outerErr: any) {
+        console.warn(`[ai-listing] Model loop error on ${modelName}:`, outerErr?.message);
       }
     }
 
