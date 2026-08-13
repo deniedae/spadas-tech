@@ -18,6 +18,17 @@ export async function POST(request: Request) {
 
     const body = await request.json().catch(() => ({}));
     const email = typeof body?.email === "string" ? body.email.trim() : "";
+    const planId = typeof body?.planId === "string" ? body.planId : "starter";
+
+    // Determine target price ID based on selected plan tier
+    let targetPriceId = priceId;
+    if (planId === "starter" && process.env.STRIPE_STARTER_PRICE_ID) {
+      targetPriceId = process.env.STRIPE_STARTER_PRICE_ID;
+    } else if (planId === "pro" && process.env.STRIPE_PRO_PRICE_ID) {
+      targetPriceId = process.env.STRIPE_PRO_PRICE_ID;
+    } else if (planId === "enterprise" && process.env.STRIPE_ENTERPRISE_PRICE_ID) {
+      targetPriceId = process.env.STRIPE_ENTERPRISE_PRICE_ID;
+    }
 
     const stripe = new Stripe(secretKey);
 
@@ -26,7 +37,7 @@ export async function POST(request: Request) {
       customer_email: email || undefined,
       line_items: [
         {
-          price: priceId,
+          price: targetPriceId,
           quantity: 1,
         },
       ],
@@ -35,7 +46,8 @@ export async function POST(request: Request) {
       allow_promotion_codes: true,
       metadata: {
         app: "spadas-ai",
-        price_id: priceId,
+        plan_id: planId,
+        price_id: targetPriceId,
         user_email: email,
       },
     });
