@@ -828,45 +828,43 @@ function SpadasLensCameraCore() {
         return;
       }
 
-      // Handle 429 RPM Rate Limits cleanly without triggering false-positive credit exhaustion warnings!
+      // Handle 429 RPM Rate Limits cleanly
       if (res?.status === 429 || data?.isRateLimited) {
         const retrySecs = data?.retryAfter || 5;
         const rateErr = data?.rawError || data?.error || "OpenAI rate limit reached. Pausing 5s.";
         setLatestApiError(rateErr);
         setRateLimited(true);
-        setIsMockFallback(false);
-        toast.info(`⏳ OpenAI Rate Limit - Pausing scan for ${retrySecs}s...`);
+        toast.info(`⏳ OpenAI Rate Limit — Retrying scan in ${retrySecs}s...`);
         setTimeout(() => setRateLimited(false), retrySecs * 1000);
         return;
       }
 
       if (res && (res.status === 401 || res.status === 402)) {
-        setIsMockFallback(true);
-        setLatestApiError(data?.rawError || data?.error || `HTTP ${res.status} Unauthorized / Insufficient Quota`);
-        if (typeof window !== "undefined") {
-          window.dispatchEvent(new Event("spadas_ai_credit_exhausted"));
-        }
-      } else if (data?.isMockFallback) {
-        setIsMockFallback(true);
-        setLatestApiError("Running in Mock Fallback Mode");
-        if (typeof window !== "undefined") {
-          window.dispatchEvent(new Event("spadas_ai_credit_exhausted"));
-        }
-      } else if (res && res.ok && data) {
-        setIsMockFallback(false);
-        setLatestApiError(null);
-        if (typeof window !== "undefined") {
-          localStorage.removeItem("spadas_ai_credit_exhausted");
-          sessionStorage.removeItem("spadas_ai_credit_exhausted");
-        }
-      }
-
-      // Do NOT create fake items if OpenAI is still processing or returned no valid item analysis
-      if (!data || !data.analysis || !data.analysis.product_name) {
+        const quotaErr = data?.rawError || data?.error || `HTTP ${res.status} OpenAI Quota / API Key Error`;
+        setLatestApiError(quotaErr);
+        toast.error(`⚠️ OpenAI Key Error: ${data?.error || "Check OpenAI billing & quota in Vercel."}`);
         return;
       }
 
+      if (data?.error) {
+        setLatestApiError(data.error);
+        console.warn("[Camera Scanner] AI Listing Route Warning:", data.error);
+      }
+
       setLastRawApiResponse(data);
+
+      // Extract Product Name safely from all possible OpenAI / Claude schema fields
+      const pName =
+        data?.analysis?.product_name ||
+        data?.detected_objects?.[0]?.product_name ||
+        data?.product_name ||
+        data?.item_title ||
+        null;
+
+      // Skip frame silently if image is blurry or contains no identifiable item
+      if (!pName || pName === "NO_CENTER_ITEM") {
+        return;
+      }
 
       // Extract Multi-Object Detected Items from REAL OpenAI Vision response
       const detected =
