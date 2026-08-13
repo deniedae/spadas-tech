@@ -171,21 +171,21 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
 
       {/* Sidebar container */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 transition-transform duration-300 ease-in-out md:static md:translate-x-0 shrink-0 flex flex-col ${
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-slate-950 border-r border-slate-800 text-white transition-transform duration-300 ease-in-out md:static md:translate-x-0 shrink-0 flex flex-col ${
           sidebarOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full"
         }`}
         aria-hidden={!sidebarOpen}
       >
         <FocusLock disabled={!sidebarOpen} className="flex-1 flex flex-col h-full">
           {/* Branding and close button */}
-          <div className="p-6 border-b border-gray-200 relative">
-            <h1 className="text-2xl font-bold text-blue-600 select-none">⚡ SpadasTechnology</h1>
-            <p className="mt-1 text-xs text-gray-500 select-none">AI Reseller Platform</p>
+          <div className="p-6 border-b border-slate-800 relative">
+            <h1 className="text-2xl font-black bg-gradient-to-r from-cyan-400 via-blue-400 to-indigo-400 bg-clip-text text-transparent select-none tracking-tight">⚡ Spadas AI</h1>
+            <p className="mt-1 text-xs text-slate-400 select-none font-semibold">Billion-Dollar Reseller SaaS</p>
 
             {/* Close button only visible on mobile */}
             <button
               type="button"
-              className="absolute top-4 right-4 md:hidden p-2 rounded-md text-gray-700 hover:text-gray-900 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+              className="absolute top-4 right-4 md:hidden p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-900 focus:outline-none transition-colors"
               aria-label="Close sidebar"
               onClick={() => setSidebarOpen(false)}
             >
@@ -194,15 +194,15 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
           </div>
 
           {/* Navigation menu */}
-          <nav aria-label="Main navigation" className="flex-1 p-4 space-y-1 overflow-y-auto">
+          <nav aria-label="Main navigation" className="flex-1 p-4 space-y-1.5 overflow-y-auto">
             {navItems.map(({ href, label }) => (
               <Link
                 key={href}
                 href={href}
-                className={`block rounded-xl min-h-[44px] px-4 py-3 text-sm text-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
+                className={`block rounded-xl min-h-[44px] px-4 py-3 text-xs font-bold transition-all focus:outline-none ${
                   isActiveLink(href)
-                    ? "bg-blue-50 font-semibold text-blue-700 shadow-sm"
-                    : "hover:bg-gray-100"
+                    ? "bg-gradient-to-r from-cyan-500/20 to-blue-600/20 border border-cyan-400/30 text-cyan-300 font-black shadow-md"
+                    : "text-slate-400 hover:bg-slate-900 hover:text-white"
                 }`}
                 aria-current={isActiveLink(href) ? "page" : undefined}
                 onClick={() => setSidebarOpen(false)}
@@ -213,18 +213,18 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
           </nav>
 
           {/* User info section */}
-          <div className="p-4 border-t border-gray-200 mt-auto">
-            <div className="rounded-xl bg-gray-50 p-3 select-none border border-gray-100 space-y-0.5">
-              <p className="text-xs font-semibold text-gray-900 truncate">
-                👤 {userEmail || "User Account"}
+          <div className="p-4 border-t border-slate-800 mt-auto">
+            <div className="rounded-2xl bg-slate-900 p-3.5 select-none border border-slate-800 space-y-1">
+              <p className="text-xs font-black text-white truncate">
+                👤 {userEmail || "Reseller Pro User"}
               </p>
               {isProUser ? (
-                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 dark:text-blue-500">
-                  <Sparkles className="h-3 w-3 text-blue-600" />
-                  Spadas Pro (Paid Active)
+                <span className="inline-flex items-center gap-1 text-[11px] font-black text-cyan-400">
+                  <Sparkles className="h-3 w-3 text-amber-400 animate-pulse" />
+                  Spadas Pro Enterprise
                 </span>
               ) : (
-                <p className="text-[11px] text-gray-500">Free Beta Plan</p>
+                <p className="text-[11px] text-slate-400 font-semibold">Standard Reseller Account</p>
               )}
             </div>
           </div>
@@ -232,19 +232,19 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
       </aside>
 
       {/* Main content container */}
-      <div className="flex-1 flex flex-col min-w-0 min-h-screen">
+      <div className="flex-1 flex flex-col min-w-0 min-h-screen bg-slate-950 text-white">
         {/* Owner Account AI Credits Health Banner (Only visible for deniedae@gmail.com) */}
         <OwnerAiStatusBanner />
 
         {/* Header (Hidden on mobile for /lens to provide native full-screen camera viewport) */}
-        <header className={`bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between md:px-8 md:py-4 shadow-sm ${
+        <header className={`bg-slate-950/90 backdrop-blur-xl border-b border-slate-800 px-4 py-3 flex items-center justify-between md:px-8 md:py-4 shadow-xl ${
           pathname === "/lens" ? "hidden md:flex" : "flex"
         }`}>
           {/* Mobile hamburger */}
           <div className="flex items-center gap-3">
             <button
               ref={hamburgerButtonRef}
-              className="md:hidden p-2 rounded-xl text-gray-700 hover:bg-gray-100 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary transition-colors cursor-pointer"
+              className="md:hidden p-2 rounded-xl text-slate-300 hover:bg-slate-900 hover:text-white focus:outline-none transition-colors cursor-pointer"
               aria-label="Open sidebar"
               aria-expanded={sidebarOpen}
               onClick={() => setSidebarOpen(true)}
@@ -253,7 +253,7 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
             </button>
 
             {/* Page title */}
-            <h2 className="text-xl sm:text-2xl font-black text-gray-900 select-none tracking-tight">{pageTitle}</h2>
+            <h2 className="text-xl sm:text-2xl font-black text-white select-none tracking-tight">{pageTitle}</h2>
           </div>
 
           {/* SaaS Header Right Actions & Live Market Sync Status */}
