@@ -730,7 +730,7 @@ function SpadasLensCameraCore() {
     const video = videoRef.current;
 
     // CAMERA MOTION VARIANCE CHECK: Skip auto-scan if phone is actively panning/moving
-    if (!forceManual && video && (video.readyState >= 1 || video.currentTime > 0)) {
+    if (!forceManual && video && video.srcObject) {
       try {
         const motionCanvas = document.createElement("canvas");
         motionCanvas.width = 80;
@@ -751,7 +751,7 @@ function SpadasLensCameraCore() {
               }
             }
             const diffRatio = diffCount / totalSamples;
-            if (diffRatio > 0.18) {
+            if (diffRatio > 0.22) {
               setCameraMoving(true);
               return;
             }
@@ -764,6 +764,9 @@ function SpadasLensCameraCore() {
 
     setCameraMoving(false);
     setAnalyzingRealFrame(true);
+    if (forceManual) {
+      toast.info("📷 Lens AR Analyzing item in viewport...", { duration: 1500 });
+    }
 
     const controller = new AbortController();
     const hardTimeoutId = setTimeout(() => controller.abort(), 12000);
@@ -772,7 +775,7 @@ function SpadasLensCameraCore() {
       const video = videoRef.current;
       let frameDataUrl = "";
 
-      if (video && (video.readyState >= 1 || video.currentTime > 0)) {
+      if (video && (video.srcObject || video.readyState >= 1 || video.currentTime > 0 || video.videoWidth > 0)) {
         const fullWidth = video.videoWidth || video.clientWidth || 1280;
         const fullHeight = video.videoHeight || video.clientHeight || 720;
 
