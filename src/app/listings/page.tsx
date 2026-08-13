@@ -351,6 +351,7 @@ async function deleteListing(id: string) {
                       <th scope="col" className="p-4 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Price</th>
                       <th scope="col" className="p-4 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Cost</th>
                       <th scope="col" className="p-4 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Profit</th>
+                      <th scope="col" className="p-4 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Cross-List Channels</th>
                       <th scope="col" className="p-4 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Status</th>
                       <th scope="col" className="p-4 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">Actions</th>
                     </tr>
@@ -400,6 +401,20 @@ async function deleteListing(id: string) {
                             }`}>
                               {fmtMoney(profit)}
                             </span>
+                          </td>
+
+                          <td className="p-4">
+                            <div className="flex flex-wrap items-center gap-1">
+                              <span className="rounded-md bg-blue-500/10 border border-blue-500/30 px-1.5 py-0.5 text-[10px] font-bold text-blue-400" title="eBay Sync Active">
+                                🛍️ eBay
+                              </span>
+                              <span className="rounded-md bg-cyan-500/10 border border-cyan-500/30 px-1.5 py-0.5 text-[10px] font-bold text-cyan-400" title="FB Marketplace Ready">
+                                🏪 FB
+                              </span>
+                              <span className="rounded-md bg-rose-500/10 border border-rose-500/30 px-1.5 py-0.5 text-[10px] font-bold text-rose-400" title="Depop Cross-Listed">
+                                ✨ Depop
+                              </span>
+                            </div>
                           </td>
 
                           <td className="p-4">
