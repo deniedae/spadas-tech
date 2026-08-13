@@ -32,6 +32,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import DashboardCards from "@/components/dashboard-cards";
+import AiOfferNegotiator from "@/components/ai-offer-negotiator";
+
 export default function ListingsPage() {
  type ScannedProduct = {
   barcode?: string;
@@ -220,6 +222,9 @@ async function deleteListing(id: string) {
         totalProfit={totalProfit}
         inventoryValue={inventoryValue}
       />
+
+      {/* EVOLUTIONARY FEATURE: AI Automated Offer Negotiator & Auto-Counter Copilot */}
+      <AiOfferNegotiator />
 
       {/* Barcode scanner + Search */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
