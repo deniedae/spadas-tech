@@ -2,6 +2,7 @@ import Link from "next/link";
 import LandingInteractiveDemo from "@/components/landing-interactive-demo";
 import LandingCalculator from "@/components/landing-calculator";
 import LandingTestimonialsFaq from "@/components/landing-testimonials-faq";
+import SocialAuthProviders from "@/components/social-auth-providers";
 
 const features = [
   {
@@ -68,32 +69,34 @@ export default function Home() {
             Turn product research, listing creation, and resale planning into one repeatable workflow.
           </p>
 
-          <div className="mt-10 flex flex-col justify-center gap-4 sm:flex-row">
-            <Link
-              href="/lens"
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 px-8 py-4 text-lg font-bold text-white shadow-xl shadow-cyan-500/25 transition hover:scale-105"
-            >
-              📷 Launch Spadas Lens AR
-            </Link>
-            <Link
-              href="/signup"
-              className="rounded-2xl bg-blue-600 px-8 py-4 text-lg font-semibold text-white transition hover:bg-blue-500"
-            >
-              Start free
-            </Link>
-            <a
-              href="/spadas-ai.apk"
-              download="Spadas-AI.apk"
-              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-emerald-500/40 bg-emerald-500/10 px-8 py-4 text-lg font-semibold text-emerald-300 transition hover:bg-emerald-500/20"
-            >
-              📱 Download Android APK
-            </a>
-            <Link
-              href="/dashboard"
-              className="rounded-2xl border border-white/20 bg-white/5 px-8 py-4 text-lg font-semibold text-white transition hover:bg-white/10"
-            >
-              View dashboard
-            </Link>
+          {/* SaaS Grade 1-Click Social Auth Card */}
+          <div className="mx-auto mt-10 max-w-md rounded-3xl border border-slate-800 bg-slate-900/90 p-6 md:p-8 shadow-2xl backdrop-blur-xl space-y-4">
+            <div className="text-center space-y-1">
+              <span className="text-xs font-black uppercase tracking-wider text-cyan-400">⚡ Instant 1-Tap SaaS Access</span>
+              <h3 className="text-lg font-black text-white">Create Your Account in 5 Seconds</h3>
+            </div>
+
+            <SocialAuthProviders redirectTo="/dashboard" />
+
+            <div className="relative my-4 flex items-center justify-center">
+              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-800" /></div>
+              <span className="relative bg-slate-900 px-3 text-[11px] font-extrabold uppercase text-slate-500">Or Continue With</span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <Link
+                href="/lens"
+                className="inline-flex h-11 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-4 text-xs font-extrabold text-white shadow-md hover:opacity-90 transition active:scale-95"
+              >
+                📷 Lens AR
+              </Link>
+              <Link
+                href="/signup"
+                className="inline-flex h-11 items-center justify-center gap-1.5 rounded-xl bg-slate-800 border border-slate-700 px-4 text-xs font-extrabold text-white hover:bg-slate-700 transition active:scale-95"
+              >
+                ✉️ Email Sign Up
+              </Link>
+            </div>
           </div>
 
           <div className="mt-12 flex flex-wrap items-center justify-center gap-6 text-sm text-slate-300">

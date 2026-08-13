@@ -6,6 +6,7 @@ import { supabase } from "@/app/lib/supabase";
 import { toast } from "sonner";
 import Link from "next/link";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
+import SocialAuthProviders from "@/components/social-auth-providers";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -134,9 +135,18 @@ export default function SignupPage() {
         className="w-full max-w-md rounded-xl bg-card p-8 shadow-lg border border-border"
         noValidate
       >
-        <h1 className="mb-6 text-center text-3xl font-bold text-card-foreground">
-          Create Account
+        <h1 className="mb-6 text-center text-3xl font-black text-card-foreground">
+          Create Spadas AI Account
         </h1>
+
+        <div className="mb-6">
+          <SocialAuthProviders redirectTo="/dashboard" />
+        </div>
+
+        <div className="relative my-6 flex items-center justify-center">
+          <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border" /></div>
+          <span className="relative bg-card px-3 text-xs font-bold uppercase text-muted-foreground">Or Email & Password</span>
+        </div>
 
         <div ref={liveRegionRef} aria-live="polite" className="sr-only" />
 
