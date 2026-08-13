@@ -732,8 +732,8 @@ function SpadasLensCameraCore() {
 
     if (!forceManual && !autoScanActiveRef.current) return;
 
-    // ULTRA-FAST 600ms DEBOUNCE
-    if (!forceManual && currentTime - lastScanTimeRef.current < 600) {
+    // 2000ms DEBOUNCE TO PROTECT OPENAI RPM RATE LIMITS
+    if (!forceManual && currentTime - lastScanTimeRef.current < 2000) {
       return;
     }
     lastScanTimeRef.current = currentTime;
@@ -1091,7 +1091,7 @@ function SpadasLensCameraCore() {
     processFrameRef.current = processCurrentFrame;
   }, [processCurrentFrame]);
 
-  // Stable Rock-Solid Auto-Scan Loop (500ms tick for instant 60FPS AR response)
+  // Paced Auto-Scan Loop (3000ms interval to protect OpenAI RPM rate limits)
   useEffect(() => {
     if (!scanning || !autoScanActive) return;
 
@@ -1099,7 +1099,7 @@ function SpadasLensCameraCore() {
       if (typeof document !== "undefined" && document.visibilityState === "visible") {
         void processFrameRef.current();
       }
-    }, 500);
+    }, 3000);
 
     return () => clearInterval(interval);
   }, [scanning, autoScanActive]);
