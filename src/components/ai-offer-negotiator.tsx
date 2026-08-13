@@ -22,6 +22,9 @@ export default function AiOfferNegotiator({
   currentAskingPrice?: number;
   itemCost?: number;
 }) {
+  const [title, setTitle] = useState<string>(productTitle);
+  const [askingPrice, setAskingPrice] = useState<number>(currentAskingPrice);
+  const [cost, setCost] = useState<number>(itemCost);
   const [buyerOffer, setBuyerOffer] = useState<number>(45);
   const [buyerMessage, setBuyerMessage] = useState<string>("Will u take $45 cash today?");
   const [analyzing, setAnalyzing] = useState<boolean>(false);
@@ -33,31 +36,31 @@ export default function AiOfferNegotiator({
     setTactics(null);
 
     setTimeout(() => {
-      const minFloorPrice = Math.max(itemCost + 25, Math.round(currentAskingPrice * 0.7));
-      const highMarginCounter = Math.round(currentAskingPrice * 0.88);
-      const fastClosingCounter = Math.round(currentAskingPrice * 0.78);
+      const minFloorPrice = Math.max(cost + 20, Math.round(askingPrice * 0.7));
+      const highMarginCounter = Math.round(askingPrice * 0.88);
+      const fastClosingCounter = Math.round(askingPrice * 0.78);
 
       const generated: NegotiatorTactic[] = [
         {
           type: "HIGH_MARGIN",
           title: "🚀 High-Margin Counter-Offer",
           counterPrice: highMarginCounter,
-          expectedProfit: highMarginCounter - itemCost,
-          aiMessageScript: `Hi! Thanks for your interest in the ${productTitle}. $${buyerOffer} is a bit too low given recent eBay sold comps. I can do $${highMarginCounter} AUD with fast dispatch today if that works for you!`,
+          expectedProfit: highMarginCounter - cost,
+          aiMessageScript: `Hi! Thanks for your interest in the ${title}. $${buyerOffer} is a bit too low given recent eBay sold comps. I can do $${highMarginCounter} AUD with fast dispatch today if that works for you!`,
         },
         {
           type: "FAST_CLOSING",
           title: "⚡ Fast-Closing Cash Deal",
           counterPrice: fastClosingCounter,
-          expectedProfit: fastClosingCounter - itemCost,
+          expectedProfit: fastClosingCounter - cost,
           aiMessageScript: `Hey! I appreciate the offer. $${buyerOffer} is low, but I'd be willing to meet you at $${fastClosingCounter} AUD for immediate pickup / PayID today. Let me know!`,
         },
         {
           type: "POLITE_SHIELD",
           title: "🛡️ Firm Market-Value Shield",
-          counterPrice: currentAskingPrice,
-          expectedProfit: currentAskingPrice - itemCost,
-          aiMessageScript: `Hi there, thanks for reaching out! $${buyerOffer} is below my minimum threshold for this ${productTitle}. Market comps are currently selling for $${currentAskingPrice}+ AUD, so price is firm for now. Thanks!`,
+          counterPrice: askingPrice,
+          expectedProfit: askingPrice - cost,
+          aiMessageScript: `Hi there, thanks for reaching out! $${buyerOffer} is below my minimum threshold for this ${title}. Market comps are currently selling for $${askingPrice}+ AUD, so price is firm for now. Thanks!`,
         },
       ];
 
@@ -100,20 +103,31 @@ export default function AiOfferNegotiator({
 
         <div className="rounded-2xl bg-slate-900 border border-slate-800 p-3.5 text-right shrink-0">
           <span className="text-[10px] font-bold text-slate-400 uppercase block">Asking Price / Cost</span>
-          <span className="text-base font-black text-cyan-400">{fmtMoney(currentAskingPrice)}</span>
-          <span className="text-xs text-slate-400 block font-semibold">Cost: {fmtMoney(itemCost)}</span>
+          <span className="text-base font-black text-cyan-400">{fmtMoney(askingPrice)}</span>
+          <span className="text-xs text-slate-400 block font-semibold">Cost: {fmtMoney(cost)}</span>
         </div>
       </div>
 
       {/* Offer Input Form */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
         <div>
           <label className="text-xs font-bold text-slate-300 block mb-1.5">Item Title</label>
           <input
             type="text"
-            value={productTitle}
-            disabled
-            className="w-full rounded-xl border border-slate-800 bg-slate-900 px-3.5 py-2.5 text-xs text-slate-300 font-semibold"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="e.g. Sony Cyber-shot, Nike Dunk..."
+            className="w-full rounded-xl border border-slate-800 bg-slate-900 px-3.5 py-2.5 text-xs text-white font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+
+        <div>
+          <label className="text-xs font-bold text-slate-300 block mb-1.5">Your Asking Price ($ AUD)</label>
+          <input
+            type="number"
+            value={askingPrice}
+            onChange={(e) => setAskingPrice(Number(e.target.value))}
+            className="w-full rounded-xl border border-slate-800 bg-slate-900 px-3.5 py-2.5 text-xs text-cyan-400 font-black focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
 
@@ -128,12 +142,12 @@ export default function AiOfferNegotiator({
         </div>
 
         <div>
-          <label className="text-xs font-bold text-slate-300 block mb-1.5">Buyer Message (Optional)</label>
+          <label className="text-xs font-bold text-slate-300 block mb-1.5">Your Item Cost ($ AUD)</label>
           <input
-            type="text"
-            value={buyerMessage}
-            onChange={(e) => setBuyerMessage(e.target.value)}
-            className="w-full rounded-xl border border-slate-800 bg-slate-900 px-3.5 py-2.5 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            type="number"
+            value={cost}
+            onChange={(e) => setCost(Number(e.target.value))}
+            className="w-full rounded-xl border border-slate-800 bg-slate-900 px-3.5 py-2.5 text-xs text-amber-400 font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
       </div>
