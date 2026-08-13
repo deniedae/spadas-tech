@@ -3,6 +3,7 @@ import LandingInteractiveDemo from "@/components/landing-interactive-demo";
 import LandingCalculator from "@/components/landing-calculator";
 import LandingTestimonialsFaq from "@/components/landing-testimonials-faq";
 import SocialAuthProviders from "@/components/social-auth-providers";
+import LandingProductTabs from "@/components/landing-product-tabs";
 
 const features = [
   {
@@ -109,6 +110,9 @@ export default function Home() {
             <span>Profit analytics</span>
           </div>
         </section>
+
+        {/* Mobile SaaS Product Interactive Mode Switcher */}
+        <LandingProductTabs />
 
         {/* Unauthenticated Interactive AI Demo */}
         <LandingInteractiveDemo />
