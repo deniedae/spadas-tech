@@ -308,10 +308,14 @@ export async function POST(request: Request) {
       }
     }
 
-    const imageContent = imageUrls.map((url) => ({
-      type: "image_url" as const,
-      image_url: { url, detail: isArScan ? ("auto" as const) : ("high" as const) },
-    }));
+    const imageContent = imageUrls.map((url) => {
+      // Clean base64 strings (remove whitespace/newlines) to prevent OpenAI 400 "unsupported image" errors
+      const cleanUrl = url.trim().replace(/[\r\n]/g, "");
+      return {
+        type: "image_url" as const,
+        image_url: { url: cleanUrl, detail: isArScan ? ("auto" as const) : ("high" as const) },
+      };
+    });
 
     const openai = createOpenAiClient();
     let completion;
