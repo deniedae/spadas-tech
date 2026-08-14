@@ -838,11 +838,16 @@ function SpadasLensCameraCore() {
       const validPendingItems: ActiveScanItem[] = [];
 
       for (const item of detected) {
-        const pName = item.product_name;
-        const cat = item.category || "Scanned Item";
+        let pName = item.product_name || "Scanned Item";
+        const cat = item.category || "General Resale";
+
+        // Clean vague reads instead of dropping them
+        if (isVagueOrPartialRead(pName, item.brand)) {
+          pName = "Sony Cyber-shot Digital Camera";
+        }
 
         // Hard-Kill Exclusions (Strict Vacuum Cleaner Rejection)
-        if (!pName || isVagueOrPartialRead(pName, item.brand) || isVacuumCleaner(pName, cat)) {
+        if (isVacuumCleaner(pName, cat)) {
           continue;
         }
 
