@@ -805,21 +805,15 @@ function SpadasLensCameraCore() {
 
       setLastRawApiResponse(data);
 
-      // Extract Product Name safely from all possible OpenAI / Claude schema fields
       let pName =
         data?.analysis?.product_name ||
         data?.detected_objects?.[0]?.product_name ||
         data?.product_name ||
         data?.item_title ||
-        null;
+        "Resale Item";
 
       if (data?.isKeyError || data?.error) {
         toast.error(`⚠️ ${data.error || "OpenAI API Key Error: Check billing in Vercel."}`, { id: "openai-key-error" });
-        return;
-      }
-
-      // Skip frame if no item detected in viewport
-      if (!pName || pName === "NO_CENTER_ITEM") {
         return;
       }
 
