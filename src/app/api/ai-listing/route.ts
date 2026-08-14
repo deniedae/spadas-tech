@@ -11,6 +11,7 @@ import { checkUserUsage } from "@/app/lib/usage";
 import { AiListingResultSchema } from "@/app/lib/schemas/ai-listing-schema";
 import { AR_SCAN_MODEL_FALLBACKS, LISTING_MODEL_FALLBACKS, getPrimaryAiApiKey, createOpenAiClient } from "@/app/lib/config/ai-models";
 import { callClaudeVision } from "@/app/lib/config/claude-vision";
+import { callGeminiVision } from "@/app/lib/config/gemini-vision";
 import { fetchEbayAustraliaSoldComps } from "@/app/lib/ebay-australia-comps";
 import type { AiListingResult } from "@/types/ai-listing";
 
@@ -464,6 +465,15 @@ Rules:
         result = JSON.parse(content) as AiListingResult;
       } catch {
         result = null;
+      }
+    }
+
+    // High-Speed Multimodal AI Provider: Google Gemini 1.5/2.0 Flash Vision Engine
+    if (!result && imageUrls.length > 0) {
+      const geminiResult = await callGeminiVision(imageUrls[0]);
+      if (geminiResult) {
+        console.log("⚡ Successfully analyzed image using Google Gemini Flash Vision!");
+        result = geminiResult;
       }
     }
 
