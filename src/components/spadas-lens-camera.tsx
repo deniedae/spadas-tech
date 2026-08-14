@@ -738,6 +738,11 @@ function SpadasLensCameraCore() {
     }
     lastScanTimeRef.current = currentTime;
 
+    // If camera stream is not active yet when user taps Scan Now, auto-start camera stream first!
+    if (!stream && forceManual) {
+      await startCamera();
+    }
+
     setCameraMoving(false);
     setAnalyzingRealFrame(true);
     if (forceManual) {
@@ -760,7 +765,6 @@ function SpadasLensCameraCore() {
 
         if (fullWidth > 0 && fullHeight > 0) {
           const canvas = document.createElement("canvas");
-          // HIGH-PRECISION OCR FRAME PAYLOAD: Max 1024px width for sharp text reading by OpenAI Vision
           const targetW = Math.min(1024, fullWidth);
           const targetH = Math.round((fullHeight * targetW) / fullWidth);
           canvas.width = targetW;
@@ -776,14 +780,13 @@ function SpadasLensCameraCore() {
       }
 
       let res: Response | null = null;
-      if (frameDataUrl) {
-        res = await fetch("/api/ai-listing", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ imageUrls: [frameDataUrl], isArScan: true }),
-          signal: controller.signal,
-        }).catch(() => null);
-      }
+      // Always execute AI Listing fetch request (send empty array fallback if camera image capture is pending)
+      res = await fetch("/api/ai-listing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageUrls: frameDataUrl ? [frameDataUrl] : [], isArScan: true }),
+        signal: controller.signal,
+      }).catch(() => null);
 
       clearTimeout(hardTimeoutId);
 
