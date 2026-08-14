@@ -424,15 +424,8 @@ Rules:
           console.warn(`[ai-listing] Primary zodResponseFormat call on ${modelName} failed, retrying with json_object format...`, err1?.message);
 
           if (isRateLimitError(err1)) {
-            return NextResponse.json(
-              {
-                isRateLimited: true,
-                retryAfter: 5,
-                rawError: err1?.message || "OpenAI RPM rate limit exceeded.",
-                error: "OpenAI rate limit reached. Pausing scan for 5s.",
-              },
-              { status: 429 }
-            );
+            console.warn(`[ai-listing] Rate limit hit on model ${modelName} — trying secondary models / providers...`);
+            continue;
           }
 
           if (isCreditOrQuotaError(err1)) {
