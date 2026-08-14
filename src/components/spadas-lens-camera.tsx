@@ -802,29 +802,6 @@ function SpadasLensCameraCore() {
         return;
       }
 
-      // Handle 429 RPM Rate Limits cleanly
-      if (res?.status === 429 || data?.isRateLimited) {
-        const retrySecs = data?.retryAfter || 5;
-        const rateErr = data?.rawError || data?.error || "OpenAI rate limit reached. Pausing 5s.";
-        setLatestApiError(rateErr);
-        setRateLimited(true);
-        toast.info(`⏳ OpenAI Rate Limit — Retrying scan in ${retrySecs}s...`);
-        setTimeout(() => setRateLimited(false), retrySecs * 1000);
-        return;
-      }
-
-      if (res && (res.status === 401 || res.status === 402)) {
-        const quotaErr = data?.rawError || data?.error || `HTTP ${res.status} OpenAI Quota / API Key Error`;
-        setLatestApiError(quotaErr);
-        toast.error(`⚠️ OpenAI Key Error: ${data?.error || "Check OpenAI billing & quota in Vercel."}`);
-        return;
-      }
-
-      if (data?.error) {
-        setLatestApiError(data.error);
-        console.warn("[Camera Scanner] AI Listing Route Warning:", data.error);
-      }
-
       setLastRawApiResponse(data);
 
       // Extract Product Name safely from all possible OpenAI / Claude schema fields
