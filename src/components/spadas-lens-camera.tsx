@@ -717,9 +717,11 @@ function SpadasLensCameraCore() {
 
   // Lightweight Non-Blocking Frame Scanner with Guaranteed 4s Safety Watchdog
   const processCurrentFrame = useCallback(async (forceManual = false) => {
-    // 4s SAFETY WATCHDOG: If analyzingRealFrame gets stuck for > 4s, force reset so scanning NEVER freezes
+    // 4s SAFETY WATCHDOG: If analyzingRealFrame gets stuck for > 4s or if forceManual is triggered, force reset lock
     const currentTime = Date.now();
-    if (analyzingRealFrame && currentTime - lastScanTimeRef.current > 4000) {
+    if (forceManual) {
+      setAnalyzingRealFrame(false);
+    } else if (analyzingRealFrame && currentTime - lastScanTimeRef.current > 4000) {
       setAnalyzingRealFrame(false);
     } else if (analyzingRealFrame) {
       return;
@@ -727,8 +729,8 @@ function SpadasLensCameraCore() {
 
     if (!forceManual && !autoScanActiveRef.current) return;
 
-    // 2000ms DEBOUNCE TO PROTECT OPENAI RPM RATE LIMITS
-    if (!forceManual && currentTime - lastScanTimeRef.current < 2000) {
+    // 1500ms DEBOUNCE TO PROTECT OPENAI RPM RATE LIMITS FOR AUTO-SCAN
+    if (!forceManual && currentTime - lastScanTimeRef.current < 1500) {
       return;
     }
     lastScanTimeRef.current = currentTime;
@@ -1062,8 +1064,11 @@ function SpadasLensCameraCore() {
 
   return (
     <div className="w-full max-w-full overflow-x-hidden box-border space-y-6 pb-24 mx-auto animate-fade-in">
-      {/* Video Viewport Container */}
-      <div className="relative aspect-[4/3] sm:aspect-[16/9] w-full max-w-full box-border overflow-hidden rounded-3xl border border-cyan-500/30 bg-slate-950 shadow-[0_0_50px_rgba(6,182,212,0.15)] backdrop-blur-xl">
+      {/* Video Viewport Container (Tap Anywhere to Scan Item Immediately) */}
+      <div
+        onClick={() => void processCurrentFrame(true)}
+        className="relative aspect-[4/3] sm:aspect-[16/9] w-full max-w-full box-border overflow-hidden rounded-3xl border border-cyan-500/30 bg-slate-950 shadow-[0_0_50px_rgba(6,182,212,0.15)] backdrop-blur-xl cursor-pointer"
+      >
         {cameraError ? (
           <div className="flex h-full flex-col items-center justify-center p-6 text-center space-y-3 text-slate-300">
             <ShieldAlert className="h-12 w-12 text-amber-400" />
