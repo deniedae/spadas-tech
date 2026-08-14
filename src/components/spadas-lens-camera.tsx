@@ -1007,14 +1007,9 @@ function SpadasLensCameraCore() {
     } catch (err: any) {
       clearTimeout(hardTimeoutId);
       if (err?.name === "AbortError") {
-        console.warn("[Spadas Lens] AI Vision fetch request aborted due to 12000ms hard timeout.");
+        console.warn("[Spadas Lens] AI Vision fetch request aborted due to hard timeout.");
       } else {
-        console.error("Live camera Vision scan error:", err);
-      }
-      if (err?.message?.includes("429")) {
-        setRateLimited(true);
-        toast.error("API Rate Limit (429) - Implementing 5s backoff...", { id: "ar-rate-limit-toast" });
-        await new Promise((resolve) => setTimeout(resolve, 5000));
+        console.warn("Live camera Vision scan warning:", err?.message);
       }
     } finally {
       clearTimeout(hardTimeoutId);

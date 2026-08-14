@@ -429,7 +429,7 @@ Rules:
           console.warn(`[ai-listing] Primary zodResponseFormat call on ${modelName} failed, retrying with json_object format...`, err1?.message);
 
           if (isRateLimitError(err1)) {
-            console.warn(`[ai-listing] Rate limit hit on model ${modelName} — trying secondary models / providers...`);
+            console.warn(`[ai-listing] Model ${modelName} rate limited — failing over to secondary vision provider...`);
             continue;
           }
 
