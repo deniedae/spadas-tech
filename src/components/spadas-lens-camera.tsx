@@ -813,9 +813,14 @@ function SpadasLensCameraCore() {
         data?.item_title ||
         null;
 
-      // GUARANTEED OUTPUT FALLBACK: If OpenAI Vision returned null or unreadable, populate a top-selling reseller item
+      if (data?.isKeyError || data?.error) {
+        toast.error(`⚠️ ${data.error || "OpenAI API Key Error: Check billing in Vercel."}`, { id: "openai-key-error" });
+        return;
+      }
+
+      // Skip frame if no item detected in viewport
       if (!pName || pName === "NO_CENTER_ITEM") {
-        pName = "Canon PowerShot G7 X Mark II Digital Camera";
+        return;
       }
 
       // Extract Multi-Object Detected Items from REAL OpenAI Vision response

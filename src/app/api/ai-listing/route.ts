@@ -484,7 +484,13 @@ Rules:
     }
 
     if (!result) {
-      return NextResponse.json(generateMockAiListingResult());
+      console.warn("[ai-listing] No AI vision model succeeded — returning diagnostic key error.");
+      return NextResponse.json({
+        error: "OpenAI Key Error: Please verify OPENAI_API_KEY billing & quota in Vercel.",
+        isKeyError: true,
+        detected_objects: [],
+        analysis: { product_name: null }
+      }, { status: 200 });
     }
 
     // Fetch REAL-TIME eBay Australia 30-Day Sold Comps for the identified item

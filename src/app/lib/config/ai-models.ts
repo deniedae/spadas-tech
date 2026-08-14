@@ -12,6 +12,9 @@ export const LISTING_MODEL_FALLBACKS = ["gpt-4o", "gpt-4o-mini"];
 export function getPrimaryAiApiKey(): string {
   return (
     process.env.OPENAI_API_KEY ||
+    process.env.OPENAI_KEY ||
+    process.env.NEXT_PUBLIC_OPENAI_API_KEY ||
+    process.env.VERCEL_OPENAI_KEY ||
     process.env.AI_GATEWAY_API_KEY ||
     process.env.VERCEL_AI_KEY ||
     ""
@@ -23,7 +26,7 @@ export function getPrimaryAiApiKey(): string {
  * and seamless Vercel AI Gateway fallback
  */
 export function createOpenAiClient(): OpenAI {
-  const openAiKey = process.env.OPENAI_API_KEY;
+  const openAiKey = getPrimaryAiApiKey();
   const gatewayKey = process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_AI_KEY;
 
   if (openAiKey && openAiKey.length > 10 && !openAiKey.includes("placeholder")) {
