@@ -577,15 +577,6 @@ function SpadasLensCameraCore() {
     }
   };
 
-  // Callback Ref for instant mobile video element stream binding on mount
-  const setVideoRef = useCallback((node: HTMLVideoElement | null) => {
-    videoRef.current = node;
-    if (node && streamRef.current) {
-      node.srcObject = streamRef.current;
-      node.play().catch(() => {});
-    }
-  }, []);
-
   const streamRef = useRef<MediaStream | null>(null);
 
   // Bind stream to video element whenever stream changes with playback watchdog
@@ -1072,7 +1063,7 @@ function SpadasLensCameraCore() {
           <>
             {/* Raw Camera Video Stream running smooth at 60fps */}
             <video
-              ref={setVideoRef}
+              ref={videoRef}
               autoPlay
               playsInline
               muted
