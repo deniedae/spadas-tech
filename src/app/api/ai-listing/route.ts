@@ -11,6 +11,7 @@ import { checkUserUsage } from "@/app/lib/usage";
 import { AiListingResultSchema } from "@/app/lib/schemas/ai-listing-schema";
 import { AR_SCAN_MODEL_FALLBACKS, LISTING_MODEL_FALLBACKS, getPrimaryAiApiKey, createOpenAiClient } from "@/app/lib/config/ai-models";
 import { callClaudeVision } from "@/app/lib/config/claude-vision";
+import { fetchEbayAustraliaSoldComps } from "@/app/lib/ebay-australia-comps";
 import type { AiListingResult } from "@/types/ai-listing";
 
 export const preferredRegion = "syd1";
@@ -479,44 +480,14 @@ Rules:
       return NextResponse.json(generateMockAiListingResult());
     }
 
-    // Fetch REAL-TIME eBay Australia Sold Comps for the identified item
-    if (result.analysis?.product_name && process.env.SOLD_COMPS_API_KEY) {
+    // Fetch REAL-TIME eBay Australia 30-Day Sold Comps for the identified item
+    if (result.analysis?.product_name) {
       try {
-        const pName = result.analysis.product_name.trim();
-        const url = new URL("https://api.sold-comps.com/v1/scrape");
-        url.searchParams.set("keyword", pName);
-        url.searchParams.set("ebaySite", "ebay.com.au");
-        url.searchParams.set("page", "1");
-        url.searchParams.set("count", "60");
-        url.searchParams.set("daysToScrape", "30");
-        url.searchParams.set("sortOrder", "endedRecently");
-
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 3500);
-
-        const compRes = await fetch(url.toString(), {
-          headers: { Authorization: `Bearer ${process.env.SOLD_COMPS_API_KEY}` },
-          signal: controller.signal,
-        }).catch(() => null);
-
-        clearTimeout(timer);
-
-        if (compRes && compRes.ok) {
-          const compData = await compRes.json().catch(() => null);
-          const items = compData?.items ?? [];
-          const prices = items
-            .map((i: any) => Number(i.soldPrice))
-            .filter((n: number) => !Number.isNaN(n) && n > 0);
-
-          if (prices.length > 0) {
-            prices.sort((a: number, b: number) => a - b);
-            const midIdx = Math.floor(prices.length / 2);
-            const medianPrice = prices.length % 2 === 0 ? (prices[midIdx - 1] + prices[midIdx]) / 2 : prices[midIdx];
-            
-            result.suggested_price_min = Math.round(prices[0] * 100) / 100;
-            result.suggested_price_max = Math.round(prices[prices.length - 1] * 100) / 100;
-            result.suggested_price_median = Math.round(medianPrice * 100) / 100;
-          }
+        const ebayComps = await fetchEbayAustraliaSoldComps(result.analysis.product_name);
+        if (ebayComps && ebayComps.count > 0) {
+          result.suggested_price_min = ebayComps.min;
+          result.suggested_price_max = ebayComps.max;
+          result.suggested_price_median = ebayComps.median;
         }
       } catch (compErr) {
         console.warn("[ai-listing] Live eBay comps lookup warning:", compErr);
