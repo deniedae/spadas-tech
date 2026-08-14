@@ -801,7 +801,12 @@ function SpadasLensCameraCore() {
         data?.detected_objects?.[0]?.product_name ||
         data?.product_name ||
         data?.item_title ||
-        "Resale Item";
+        null;
+
+      // Skip frame if camera is aimed at empty floor, plain wall, or featureless surface
+      if (!pName || pName === "NO_CENTER_ITEM" || pName === "null" || pName === "Resale Item") {
+        return;
+      }
 
       // Extract Multi-Object Detected Items from REAL OpenAI Vision response
       const detected =
@@ -824,12 +829,11 @@ function SpadasLensCameraCore() {
       const validPendingItems: ActiveScanItem[] = [];
 
       for (const item of detected) {
-        let pName = item.product_name || "Scanned Item";
+        let pName = item.product_name;
         const cat = item.category || "General Resale";
 
-        // Clean vague reads instead of dropping them
-        if (isVagueOrPartialRead(pName, item.brand)) {
-          pName = "Sony Cyber-shot Digital Camera";
+        if (!pName || pName === "NO_CENTER_ITEM" || isVagueOrPartialRead(pName, item.brand)) {
+          continue;
         }
 
         // Hard-Kill Exclusions (Strict Vacuum Cleaner Rejection)

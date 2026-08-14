@@ -337,11 +337,11 @@ export async function POST(request: Request) {
                   text: `You are the world's leading AI Reselling & Valuation Expert across eBay, TCGPlayer, PriceCharting, Google Books, TMDB, Facebook Marketplace, and Depop.
 Analyse the product in the provided image(s) with 100% precision.
 
-STRICT PHYSICAL ITEM IDENTIFICATION MANDATE:
-- Identify the primary physical product visible in the camera viewport (e.g. Vintage Camera, Sneaker, Denim Jacket, Trading Card, Electronics, Book, Homeware, Toy, Tool).
-- Extract readable text, brand logos, model plates, tags, and packaging text.
-- If exact model string is partially obscured, output the most accurate brand and product line (e.g. "Canon PowerShot Digital Camera", "Nike Dunk Sneakers", "Sony Cyber-shot Camera", "Carhartt Jacket", "Nintendo Switch Console").
-- ALWAYS identify the item in the image. Never output null for a physical item in frame.
+STRICT PHYSICAL ITEM VISION MANDATE:
+- Inspect the camera viewport for an actual physical product (e.g. clothing, shoes, camera, video game console, trading card, book, tool, electronic device, homeware, toy, or packaged item).
+- Extract ALL visible text, brand logos, model plates, tag labels, and packaging text with 100% accuracy.
+- NO PRODUCT IN FRAME (Empty floor, plain wall, dark blur, featureless surface): If the camera is aimed at an empty floor, plain carpet, blank wall, or dark blur with NO resale item present, set "product_name": "NO_CENTER_ITEM" and "detected_objects": [].
+- REAL PRODUCT IN FRAME: Output the specific, precise product title with Brand + Line + Model (e.g., "Sony Cyber-shot DSC-W80 Digital Camera", "Nike Dunk Low Panda Sneakers", "Carhartt WIP Detroit Jacket", "Nintendo Switch OLED Console", "AirPods Max Space Grey"). Never output "Resale Item" or generic place-holders for real items.
 
 INSTANT SINGLE-PASS BRAND & OCR MANDATE:
 - Inspect every square millimeter of the image for text, brand logos, model plates, clothing tags, card set numbers, and packaging typography.
