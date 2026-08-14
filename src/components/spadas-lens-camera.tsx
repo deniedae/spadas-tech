@@ -981,6 +981,7 @@ function SpadasLensCameraCore() {
           };
 
           setCapturedLog((prev) => [verifiedHit, ...prev]);
+          toast.success(`🎯 Item Identified: ${obj.productName} (+$${estimatedProfit.toFixed(2)} AUD Net Profit)`, { id: `hit-toast-${obj.productName}` });
         } catch (err) {
           setActiveScans((prev) => prev.filter((s) => s.id !== obj.id));
         }
@@ -1497,14 +1498,18 @@ function SpadasLensCameraCore() {
         </div>
       )}
 
-      {/* Selectable Real-Time Scanned Hits Feed */}
-      {capturedLog.length > 0 && (
-        <div className="w-full max-w-full overflow-x-hidden box-border rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-lg space-y-4 mx-auto">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
-            <h3 className="text-sm font-bold flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
-              <span>Real-Time Scanned Hits ({capturedLog.length})</span>
-            </h3>
+      {/* Always-Visible Real-Time Scanned Hits Feed */}
+      <div className="w-full max-w-full overflow-x-hidden box-border rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-lg space-y-4 mx-auto">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
+          <h3 className="text-sm font-bold flex items-center gap-2">
+            <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+            <span>Real-Time Scanned Hits ({capturedLog.length})</span>
+            {capturedLog.length === 0 && (
+              <span className="text-[11px] font-semibold text-muted-foreground animate-pulse ml-2">
+                (Aim camera at an item or tap "Scan Now")
+              </span>
+            )}
+          </h3>
 
             <div className="flex items-center gap-3">
               <button
@@ -1634,7 +1639,6 @@ function SpadasLensCameraCore() {
             })}
           </div>
         </div>
-      )}
 
       {/* Sticky Bottom Export FAB */}
       {selectedHitIds.length > 0 && (
