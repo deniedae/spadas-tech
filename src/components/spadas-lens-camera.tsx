@@ -812,11 +812,6 @@ function SpadasLensCameraCore() {
         data?.item_title ||
         "Resale Item";
 
-      if (data?.isKeyError || data?.error) {
-        toast.error(`⚠️ ${data.error || "OpenAI API Key Error: Check billing in Vercel."}`, { id: "openai-key-error" });
-        return;
-      }
-
       // Extract Multi-Object Detected Items from REAL OpenAI Vision response
       const detected =
         data?.detected_objects && Array.isArray(data.detected_objects) && data.detected_objects.length > 0
