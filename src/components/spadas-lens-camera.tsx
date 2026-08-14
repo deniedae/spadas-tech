@@ -829,12 +829,24 @@ function SpadasLensCameraCore() {
       const validPendingItems: ActiveScanItem[] = [];
 
       for (const item of detected) {
-        let pName = item.product_name;
+        let pName = (item.product_name || "").trim();
         const cat = item.category || "General Resale";
 
-        if (!pName || pName === "NO_CENTER_ITEM" || isVagueOrPartialRead(pName, item.brand)) {
+        if (!pName || pName === "NO_CENTER_ITEM" || pName === "null") {
           continue;
         }
+
+        // Clean out internal AI notes from title instead of dropping the scan hit
+        pName = pName
+          .replace(/\(.*?unclear.*?\)/gi, "")
+          .replace(/\(.*?unknown.*?\)/gi, "")
+          .replace(/exact card details unclear/gi, "")
+          .replace(/not fully readable/gi, "")
+          .replace(/cannot be determined/gi, "")
+          .replace(/could not be identified/gi, "")
+          .trim();
+
+        if (!pName) pName = "Resale Item";
 
         // Hard-Kill Exclusions (Strict Vacuum Cleaner Rejection)
         if (isVacuumCleaner(pName, cat)) {
