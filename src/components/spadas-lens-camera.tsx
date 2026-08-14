@@ -228,7 +228,7 @@ function SpadasLensCameraCore() {
   const router = useRouter();
   const videoRef = useRef<HTMLVideoElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
-  const [scanning, setScanning] = useState(false);
+  const [scanning, setScanning] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [autoScanActive, setAutoScanActive] = useState(true);
   const [analyzingRealFrame, setAnalyzingRealFrame] = useState(false);
@@ -594,22 +594,23 @@ function SpadasLensCameraCore() {
     if (videoRef.current && stream) {
       const video = videoRef.current;
       video.srcObject = stream;
-      
-      const playPromise = video.play();
-      if (playPromise !== undefined) {
-        playPromise.catch((err) => {
-          console.warn("[Mobile WebRTC Play Warning]:", err);
-        });
-      }
+      video.play().catch(() => {});
 
-      // Retry playback watchdog for mobile power-saving or slow metadata attachment
+      // Trigger immediate initial scan tick 800ms after video attaches
+      const initScanTimer = setTimeout(() => {
+        void processFrameRef.current(true);
+      }, 800);
+
       const watchdog = setTimeout(() => {
         if (video && (video.paused || video.readyState < 2)) {
           video.play().catch(() => {});
         }
       }, 500);
 
-      return () => clearTimeout(watchdog);
+      return () => {
+        clearTimeout(initScanTimer);
+        clearTimeout(watchdog);
+      };
     }
   }, [stream]);
 
@@ -1274,19 +1275,13 @@ function SpadasLensCameraCore() {
             <button
               type="button"
               onClick={() => {
-                if (!analyzingRealFrame) {
-                  void processCurrentFrame(true);
-                }
+                setAnalyzingRealFrame(false);
+                void processCurrentFrame(true);
               }}
-              disabled={analyzingRealFrame}
-              className={`inline-flex h-9 items-center gap-1.5 rounded-xl px-4 text-sm font-bold transition cursor-pointer ${
-                analyzingRealFrame
-                  ? "bg-gray-600/50 text-gray-400"
-                  : "bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/30"
-              }`}
+              className="inline-flex h-9 items-center gap-1.5 rounded-xl px-4 text-sm font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/30 transition cursor-pointer active:scale-95"
             >
-              <RefreshCw className="h-4 w-4" />
-              {analyzingRealFrame ? "Scanning..." : "Scan Now"}
+              <RefreshCw className={`h-4 w-4 ${analyzingRealFrame ? "animate-spin" : ""}`} />
+              <span>{analyzingRealFrame ? "Scanning..." : "Scan Now"}</span>
             </button>
 
             <button
