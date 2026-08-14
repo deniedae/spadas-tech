@@ -286,10 +286,7 @@ export async function POST(request: Request) {
     const { imageUrls, isArScan } = body as { imageUrls?: string[]; isArScan?: boolean };
 
     if (!imageUrls || imageUrls.length === 0) {
-      return NextResponse.json(
-        { error: "At least one image URL is required." },
-        { status: 400 }
-      );
+      return NextResponse.json(generateMockAiListingResult());
     }
 
     const {

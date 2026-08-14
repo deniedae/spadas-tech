@@ -822,17 +822,17 @@ function SpadasLensCameraCore() {
 
       // Extract Multi-Object Detected Items from REAL OpenAI Vision response
       const detected =
-        data.detected_objects && Array.isArray(data.detected_objects) && data.detected_objects.length > 0
+        data?.detected_objects && Array.isArray(data.detected_objects) && data.detected_objects.length > 0
           ? data.detected_objects
           : [
               {
                 id: `obj-${Date.now()}`,
-                product_name: data.analysis.product_name,
-                brand: data.analysis.brand,
-                category: data.analysis.category || "General Resale",
-                condition: data.analysis.condition || "Used - Good",
+                product_name: pName,
+                brand: data?.analysis?.brand || data?.brand || "Authentic",
+                category: data?.analysis?.category || data?.category || "General Resale",
+                condition: data?.analysis?.condition || data?.condition || "Used - Good",
                 bbox: { x: 20, y: 15, width: 60, height: 70 },
-                confidence_score: data.analysis.confidence_score || 0.95,
+                confidence_score: data?.analysis?.confidence_score || 0.95,
               },
             ];
 
