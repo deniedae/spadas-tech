@@ -239,7 +239,7 @@ function SpadasLensCameraCore() {
   const [exporting, setExporting] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [isMockFallback, setIsMockFallback] = useState(false);
-  const [minProfitThreshold, setMinProfitThreshold] = useState<number>(20);
+  const [minProfitThreshold, setMinProfitThreshold] = useState<number>(5);
   const [minRoiThreshold, setMinRoiThreshold] = useState<number>(0);
   const [showDebugDrawer, setShowDebugDrawer] = useState<boolean>(false);
   const [lastRawApiResponse, setLastRawApiResponse] = useState<any>(null);
@@ -806,7 +806,7 @@ function SpadasLensCameraCore() {
         null;
 
       // Skip frame if camera is aimed at empty floor, plain wall, or featureless surface
-      if (!pName || pName === "NO_CENTER_ITEM" || pName === "null" || pName === "Resale Item") {
+      if (!pName || pName === "NO_CENTER_ITEM" || pName === "null") {
         return;
       }
 
