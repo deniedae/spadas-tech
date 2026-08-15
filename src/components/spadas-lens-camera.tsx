@@ -253,6 +253,16 @@ function SpadasLensCameraCore() {
     typeof navigator !== "undefined" ? !navigator.onLine : false
   );
 
+  // Dynamic Mobile DevTools Console Overlay (?debug=true)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!new URLSearchParams(window.location.search).has('debug')) return;
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/eruda';
+    s.onload = () => (window as any).eruda?.init();
+    document.body.appendChild(s);
+  }, []);
+
   // Persistent Local Storage Caching for Offline Thrift Store Sourcing
   useEffect(() => {
     try {
