@@ -793,13 +793,18 @@ function SpadasLensCameraCore() {
       }
 
       let res: Response | null = null;
+      console.log('[Spadas Lens]', cycleId, 'Starting fetch for frame with analyzingRealFrame:', analyzingRealFrame);
       res = await fetch("/api/ai-listing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ imageUrls: frameDataUrl ? [frameDataUrl] : [], isArScan: true }),
         signal: controller.signal,
       }).catch((e) => {
-        console.log('[Spadas Lens]', cycleId, 'fetch threw:', String(e));
+        if (e?.name === 'AbortError') {
+          console.error('[Spadas Lens]', cycleId, 'Fetch aborted:', e);
+        } else {
+          console.error('[Spadas Lens]', cycleId, 'Fetch error:', e);
+        }
         return null;
       });
 
@@ -809,6 +814,7 @@ function SpadasLensCameraCore() {
       let raw = "";
       if (res) {
         raw = await res.text();
+        console.log('[Spadas Lens]', cycleId, 'Fetch completed with status:', res.status, 'and length:', raw.length);
         console.log('[Spadas Lens]', cycleId, 'http', res.status, res.headers.get('content-type'), 'len', raw.length);
         try {
           data = JSON.parse(raw);
