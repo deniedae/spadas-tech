@@ -715,42 +715,30 @@ function SpadasLensCameraCore() {
     autoScanActiveRef.current = autoScanActive;
   }, [autoScanActive]);
 
-  // Lightweight Non-Blocking Frame Scanner with Guaranteed 4s Safety Watchdog
+  // Frame Scanner with In-Flight Lock & Max 512px Frame Downscaling
   const processCurrentFrame = useCallback(async (forceManual = false) => {
-    // 4s SAFETY WATCHDOG: If analyzingRealFrame gets stuck for > 4s or if forceManual is triggered, force reset lock
+    // RESTORE IN-FLIGHT LOCK: Refuse to start a new scan while one is pending
+    if (analyzingRealFrame) {
+      return;
+    }
+
     const currentTime = Date.now();
-    if (forceManual) {
-      setAnalyzingRealFrame(false);
-    } else if (analyzingRealFrame && currentTime - lastScanTimeRef.current > 4000) {
-      setAnalyzingRealFrame(false);
-    } else if (analyzingRealFrame) {
-      return;
-    }
-
-    if (!forceManual && !autoScanActiveRef.current) return;
-
-    // Fast 1500ms Auto-Scan Loop
-    if (!forceManual && currentTime - lastScanTimeRef.current < 600) {
-      return;
-    }
     lastScanTimeRef.current = currentTime;
 
-    // If camera stream is not active yet when user taps Scan Now, auto-start camera stream first!
+    // If camera stream is not active yet when user taps Scan Now, auto-start camera stream first
     if (!stream && forceManual) {
       await startCamera();
     }
 
     setCameraMoving(false);
     setAnalyzingRealFrame(true);
-    if (forceManual) {
-      toast.info("📷 Lens AR Analyzing item in viewport...", { duration: 1500 });
-    }
+    toast.info("📷 Analyzing item in viewport...", { duration: 1500 });
 
     const controller = new AbortController();
     const hardTimeoutId = setTimeout(() => {
       controller.abort();
       setAnalyzingRealFrame(false);
-    }, 6000);
+    }, 8000);
 
     try {
       const video = videoRef.current;
@@ -761,23 +749,33 @@ function SpadasLensCameraCore() {
         const fullHeight = video.videoHeight || video.clientHeight || 720;
 
         if (fullWidth > 0 && fullHeight > 0) {
+          // DOWNSCALE FRAME BEFORE ENCODING: Max 512px on the long edge, JPEG quality 0.6
+          const maxDim = 512;
+          let targetW = fullWidth;
+          let targetH = fullHeight;
+
+          if (fullWidth >= fullHeight) {
+            targetW = Math.min(maxDim, fullWidth);
+            targetH = Math.round((fullHeight * targetW) / fullWidth);
+          } else {
+            targetH = Math.min(maxDim, fullHeight);
+            targetW = Math.round((fullWidth * targetH) / fullHeight);
+          }
+
           const canvas = document.createElement("canvas");
-          const targetW = Math.min(1024, fullWidth);
-          const targetH = Math.round((fullHeight * targetW) / fullWidth);
           canvas.width = targetW;
           canvas.height = targetH;
           const ctx = canvas.getContext("2d");
           if (ctx) {
             ctx.imageSmoothingEnabled = true;
-            ctx.imageSmoothingQuality = "high";
+            ctx.imageSmoothingQuality = "medium";
             ctx.drawImage(video, 0, 0, fullWidth, fullHeight, 0, 0, targetW, targetH);
-            frameDataUrl = canvas.toDataURL("image/jpeg", 0.90);
+            frameDataUrl = canvas.toDataURL("image/jpeg", 0.6);
           }
         }
       }
 
       let res: Response | null = null;
-      // Always execute AI Listing fetch request (send empty array fallback if camera image capture is pending)
       res = await fetch("/api/ai-listing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -797,6 +795,12 @@ function SpadasLensCameraCore() {
       }
 
       setLastRawApiResponse(data);
+
+      // SURFACE HTTP 429 RATE LIMIT ERROR TO UI DIRECTLY (NO RETRY, NO FAILOVER)
+      if (res?.status === 429 || data?.isRateLimited) {
+        toast.error(`⚠️ OpenAI Rate Limit (429): ${data?.error || "Rate limit reached"}`);
+        return;
+      }
 
       let pName =
         data?.analysis?.product_name ||
@@ -1038,18 +1042,7 @@ function SpadasLensCameraCore() {
     processFrameRef.current = processCurrentFrame;
   }, [processCurrentFrame]);
 
-  // Fast 1500ms Auto-Scan Loop
-  useEffect(() => {
-    if (!scanning || !autoScanActive) return;
-
-    const interval = setInterval(() => {
-      if (typeof document !== "undefined" && document.visibilityState === "visible") {
-        void processFrameRef.current();
-      }
-    }, 1500);
-
-    return () => clearInterval(interval);
-  }, [scanning, autoScanActive]);
+  // Auto-scan interval loop removed per user specification — scanning occurs strictly on explicit button press / tap
 
   useEffect(() => {
     return () => {

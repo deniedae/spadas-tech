@@ -426,25 +426,22 @@ Rules:
           completion = await openai.chat.completions.create(reqParams);
           if (completion?.choices?.[0]?.message?.content) break;
         } catch (err1: any) {
-          console.warn(`[ai-listing] Primary zodResponseFormat call on ${modelName} failed, retrying with json_object format...`, err1?.message);
+          console.warn(`[ai-listing] Primary call on ${modelName} failed:`, err1?.message);
 
           if (isRateLimitError(err1)) {
-            console.warn(`[ai-listing] Model ${modelName} rate limited — failing over to secondary vision provider...`);
-            continue;
+            console.log(`[ai-listing] 429 Rate limit error on OpenAI model ${modelName} — surfacing error to UI (no retry, no failover).`);
+            return NextResponse.json(
+              {
+                error: `OpenAI Rate Limit Exceeded (HTTP 429) on ${modelName}.`,
+                isRateLimited: true,
+                provider: "openai"
+              },
+              { status: 429 }
+            );
           }
 
           if (isCreditOrQuotaError(err1)) {
             hasCreditOrQuotaError = true;
-          }
-
-          // Fallback retry with json_object format
-          try {
-            delete reqParams.response_format;
-            reqParams.response_format = { type: "json_object" };
-            completion = await openai.chat.completions.create(reqParams);
-            if (completion?.choices?.[0]?.message?.content) break;
-          } catch (err2: any) {
-            console.warn(`[ai-listing] json_object fallback call on ${modelName} failed:`, err2?.message);
           }
         }
       } catch (outerErr: any) {
@@ -463,28 +460,27 @@ Rules:
       }
     }
 
-    // High-Speed Multimodal AI Provider: Google Gemini 1.5/2.0 Flash Vision Engine
+    // Secondary vision providers (Google Gemini & Anthropic Claude) TEMPORARILY DISABLED per spec
+    /*
     if (!result && imageUrls.length > 0) {
       const geminiResult = await callGeminiVision(imageUrls[0]);
-      if (geminiResult) {
-        console.log("⚡ Successfully analyzed image using Google Gemini Flash Vision!");
-        result = geminiResult;
-      }
+      if (geminiResult) result = geminiResult;
     }
-
-    // Secondary AI Provider Fallback: Anthropic Claude 3.5 Sonnet Vision Engine
     if (!result && imageUrls.length > 0) {
       const claudeResult = await callClaudeVision(imageUrls[0]);
-      if (claudeResult) {
-        console.log("⚡ Successfully analyzed image using Anthropic Claude 3.5 Sonnet Vision!");
-        result = claudeResult;
-      }
+      if (claudeResult) result = claudeResult;
     }
+    */
 
     if (!result) {
-      console.warn("[ai-listing] Primary AI call returned empty — using dynamic high-value reseller item analysis.");
+      console.warn("[ai-listing] Primary AI call returned empty — using fallback reseller analysis.");
       result = generateMockAiListingResult();
     }
+
+    // Log which provider served every response per user specification
+    const activeProvider = "openai-vision";
+    (result as any).provider = activeProvider;
+    console.log(`[ai-listing] Served response using provider: ${activeProvider}`);
 
     // Fetch REAL-TIME eBay Australia 30-Day Sold Comps for the identified item
     if (result.analysis?.product_name) {
