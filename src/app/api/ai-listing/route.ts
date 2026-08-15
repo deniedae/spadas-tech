@@ -262,7 +262,16 @@ function isCreditOrQuotaError(err: any): boolean {
   );
 }
 
+interface UserRateLimitRecord {
+  minuteWindow: number[];
+  dayWindow: number[];
+  inFlight: boolean;
+}
+
+const userRateLimitMap = new Map<string, UserRateLimitRecord>();
+
 export async function POST(request: Request) {
+  let userId: string | null = null;
   try {
     const cookieStore = await cookies();
     const supabase = createServerClient(
@@ -296,6 +305,57 @@ export async function POST(request: Request) {
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    userId = user.id;
+
+    const now = Date.now();
+    const userLimiter = userRateLimitMap.get(user.id) || { minuteWindow: [], dayWindow: [], inFlight: false };
+
+    userLimiter.minuteWindow = userLimiter.minuteWindow.filter((t) => now - t < 60000);
+    userLimiter.dayWindow = userLimiter.dayWindow.filter((t) => now - t < 86400000);
+
+    if (userLimiter.inFlight) {
+      return NextResponse.json(
+        {
+          error: "rate_limit",
+          scope: "user",
+          message: "A scan is already in-flight for your account. Please wait.",
+          retryAfterSeconds: 5,
+        },
+        { status: 429 }
+      );
+    }
+
+    if (userLimiter.minuteWindow.length >= 10) {
+      const oldestInMin = userLimiter.minuteWindow[0];
+      const retryAfterSeconds = Math.max(1, Math.ceil((60000 - (now - oldestInMin)) / 1000));
+      return NextResponse.json(
+        {
+          error: "rate_limit",
+          scope: "user",
+          message: `You've reached your scan limit (10 scans/min). Please wait ${retryAfterSeconds}s.`,
+          retryAfterSeconds,
+        },
+        { status: 429 }
+      );
+    }
+
+    if (userLimiter.dayWindow.length >= 100) {
+      return NextResponse.json(
+        {
+          error: "rate_limit",
+          scope: "user",
+          message: "Daily scan limit reached (100 scans/day). Please try again tomorrow.",
+          retryAfterSeconds: 3600,
+        },
+        { status: 429 }
+      );
+    }
+
+    userLimiter.inFlight = true;
+    userLimiter.minuteWindow.push(now);
+    userLimiter.dayWindow.push(now);
+    userRateLimitMap.set(user.id, userLimiter);
 
     // Usage Limit Check (Bypassed for real-time live AR continuous video stream)
     if (!isArScan) {
@@ -523,5 +583,13 @@ Rules:
     console.warn("[ai-listing] OpenAI call encountered error — auto-healing with high-value reseller catalog analysis:", err?.message);
     // GUARANTEED 200 OK AUTO-HEAL: Always return structured reseller item analysis so camera scanner NEVER fails or shows error banners!
     return NextResponse.json(generateMockAiListingResult());
+  } finally {
+    if (userId) {
+      const currentLimiter = userRateLimitMap.get(userId);
+      if (currentLimiter) {
+        currentLimiter.inFlight = false;
+        userRateLimitMap.set(userId, currentLimiter);
+      }
+    }
   }
 }
