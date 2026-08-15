@@ -730,6 +730,7 @@ function SpadasLensCameraCore() {
     // RESTORE IN-FLIGHT LOCK: Refuse to start a new scan while one is pending
     if (analyzingRealFrame) {
       console.log('[Spadas Lens] blocked re-entry');
+      console.log('[Spadas Lens] guard fellthrough');
       return;
     }
 
@@ -792,7 +793,10 @@ function SpadasLensCameraCore() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ imageUrls: frameDataUrl ? [frameDataUrl] : [], isArScan: true }),
         signal: controller.signal,
-      }).catch(() => null);
+      }).catch((e) => {
+        console.log('[Spadas Lens] fetch threw:', String(e));
+        return null;
+      });
 
       clearTimeout(hardTimeoutId);
 
@@ -804,6 +808,7 @@ function SpadasLensCameraCore() {
         try {
           data = JSON.parse(raw);
         } catch (e: any) {
+          console.log('[Spadas Lens] fetch threw:', String(e));
           console.error('[Spadas Lens] parse failed:', e.message, raw.slice(0, 300));
           data = null;
         }
@@ -1037,6 +1042,7 @@ function SpadasLensCameraCore() {
         }
       }
     } catch (err: any) {
+      console.log('[Spadas Lens] fetch threw:', String(err));
       clearTimeout(hardTimeoutId);
       if (err?.name === "AbortError") {
         console.warn("[Spadas Lens] AI Vision fetch request aborted due to hard timeout.");
