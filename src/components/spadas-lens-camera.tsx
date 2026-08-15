@@ -787,9 +787,17 @@ function SpadasLensCameraCore() {
 
       let data: any = null;
       if (res) {
+        const status = res.status;
+        const ct = res.headers.get("content-type");
+        const raw = await res.text();
         try {
-          data = await res.json();
-        } catch {
+          data = JSON.parse(raw);
+        } catch (err) {
+          console.error("[Spadas Lens] JSON parse failed", {
+            status,
+            contentType: ct,
+            raw: raw.slice(0, 2000),
+          });
           data = null;
         }
       }
@@ -801,6 +809,16 @@ function SpadasLensCameraCore() {
         toast.error(`⚠️ OpenAI Rate Limit (429): ${data?.error || "Rate limit reached"}`);
         return;
       }
+
+      console.log("[Spadas Lens] response keys:", Object.keys(data || {}));
+
+      let matchSource = "none";
+      if (data?.analysis?.product_name) matchSource = "analysis.product_name";
+      else if (data?.detected_objects?.[0]?.product_name) matchSource = "detected_objects[0].product_name";
+      else if (data?.product_name) matchSource = "product_name";
+      else if (data?.item_title) matchSource = "item_title";
+
+      console.log("[Spadas Lens] product_name matched:", matchSource);
 
       let pName =
         data?.analysis?.product_name ||
@@ -1005,6 +1023,7 @@ function SpadasLensCameraCore() {
           setCapturedLog((prev) => [verifiedHit, ...prev]);
           toast.success(`🎯 Item Identified: ${obj.productName} (+$${estimatedProfit.toFixed(2)} AUD Net Profit)`, { id: `hit-toast-${obj.productName}` });
         } catch (err) {
+          console.error("[Spadas Lens] Item valuation formatting error:", err);
           setActiveScans((prev) => prev.filter((s) => s.id !== obj.id));
         }
       }
