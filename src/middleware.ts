@@ -59,5 +59,6 @@ export const config = {
     "/settings/:path*",
     "/listings/:path*",
     "/sourcing/:path*",
+    "/history/:path*",
   ],
 };

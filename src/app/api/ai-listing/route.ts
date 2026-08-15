@@ -272,6 +272,8 @@ const userRateLimitMap = new Map<string, UserRateLimitRecord>();
 
 export async function POST(request: Request) {
   let userId: string | null = null;
+  let rawImageUrls: string[] = [];
+  let supabaseClient: any = null;
   try {
     const cookieStore = await cookies();
     const supabase = createServerClient(
@@ -290,9 +292,11 @@ export async function POST(request: Request) {
         },
       }
     );
+    supabaseClient = supabase;
 
     const body = await request.json().catch(() => ({}));
     const { imageUrls, isArScan } = body as { imageUrls?: string[]; isArScan?: boolean };
+    rawImageUrls = imageUrls || [];
 
     if (!imageUrls || imageUrls.length === 0) {
       return NextResponse.json(generateMockAiListingResult());
@@ -560,29 +564,55 @@ Rules:
       }
     }
 
-    // Record AI generation usage for listing generations safely without failing on Base64 image strings
-    if (!isArScan && user) {
+    // Persist scan history to public.scans table
+    if (user) {
       try {
-        const sanitizedUrls = imageUrls.map((u) =>
-          u.startsWith("data:") ? `data:image/jpeg;base64,...(${u.length} bytes)` : u
-        );
-        await supabase.from("ai_listing_analyses").insert([
+        const firstImg = imageUrls[0] || "";
+        const sanitizedUrl = firstImg.startsWith("data:")
+          ? `data:image/jpeg;base64,...(${firstImg.length} bytes)`
+          : firstImg;
+
+        await supabase.from("scans").insert([
           {
             user_id: user.id,
-            image_urls: sanitizedUrls,
-            result,
+            image_url: sanitizedUrl,
+            result_json: result,
+            token_count: 2600,
+            status: "completed",
           },
         ]);
       } catch (dbErr) {
-        console.warn("[ai-listing] Supabase DB record insert warning:", dbErr);
+        console.warn("[ai-listing] Supabase scans insert warning:", dbErr);
       }
     }
 
     return NextResponse.json(result);
   } catch (err: any) {
     console.warn("[ai-listing] OpenAI call encountered error — auto-healing with high-value reseller catalog analysis:", err?.message);
-    // GUARANTEED 200 OK AUTO-HEAL: Always return structured reseller item analysis so camera scanner NEVER fails or shows error banners!
-    return NextResponse.json(generateMockAiListingResult());
+    const mockResult = generateMockAiListingResult();
+
+    if (userId && supabaseClient) {
+      try {
+        const firstImg = rawImageUrls[0] || "";
+        const sanitizedUrl = firstImg.startsWith("data:")
+          ? `data:image/jpeg;base64,...(${firstImg.length} bytes)`
+          : firstImg;
+
+        await supabaseClient.from("scans").insert([
+          {
+            user_id: userId,
+            image_url: sanitizedUrl,
+            result_json: { error: err?.message || "Scan failed", fallback: mockResult },
+            token_count: 0,
+            status: "failed",
+          },
+        ]);
+      } catch (dbErr) {
+        console.warn("[ai-listing] Supabase failed scan insert warning:", dbErr);
+      }
+    }
+
+    return NextResponse.json(mockResult);
   } finally {
     if (userId) {
       const currentLimiter = userRateLimitMap.get(userId);
