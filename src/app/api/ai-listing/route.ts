@@ -293,8 +293,12 @@ export async function POST(request: Request) {
       data: { user },
     } = await supabase.auth.getUser();
 
-    // Usage Limit Check (Bypassed for real-time live AR continuous video stream or unauthenticated guests)
-    if (!isArScan && user) {
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Usage Limit Check (Bypassed for real-time live AR continuous video stream)
+    if (!isArScan) {
       const usage = await checkUserUsage(user.id);
       if (usage.limitReached) {
         return NextResponse.json(
@@ -480,7 +484,7 @@ Rules:
     // Log which provider served every response per user specification
     const activeProvider = "openai-vision";
     (result as any).provider = activeProvider;
-    console.log(`[ai-listing] Served response using provider: ${activeProvider}`);
+    console.log(`[ai-listing] Served response using provider: ${activeProvider} | userId: ${user.id}`);
 
     // Fetch REAL-TIME eBay Australia 30-Day Sold Comps for the identified item
     if (result.analysis?.product_name) {
