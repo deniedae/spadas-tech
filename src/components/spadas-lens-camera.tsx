@@ -846,8 +846,13 @@ function SpadasLensCameraCore() {
 
       console.log('[Spadas Lens]', cycleId, 'resolved:', pName, '| len', raw.length);
 
+      if (pName === 'NO_CENTER_ITEM') {
+        console.log('[Spadas Lens]', cycleId, 'no center item — holding previous result');
+        return;
+      }
+
       // Skip frame if camera is aimed at empty floor, plain wall, or featureless surface
-      if (!pName || pName === "NO_CENTER_ITEM" || pName === "null") {
+      if (!pName || pName === "null") {
         return;
       }
 
