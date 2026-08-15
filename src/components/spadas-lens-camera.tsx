@@ -729,6 +729,7 @@ function SpadasLensCameraCore() {
   const processCurrentFrame = useCallback(async (forceManual = false) => {
     // RESTORE IN-FLIGHT LOCK: Refuse to start a new scan while one is pending
     if (analyzingRealFrame) {
+      console.log('[Spadas Lens] blocked re-entry');
       return;
     }
 
@@ -796,8 +797,9 @@ function SpadasLensCameraCore() {
       clearTimeout(hardTimeoutId);
 
       let data: any = null;
+      let raw = "";
       if (res) {
-        const raw = await res.text();
+        raw = await res.text();
         console.log('[Spadas Lens] http', res.status, res.headers.get('content-type'), 'len', raw.length);
         try {
           data = JSON.parse(raw);
@@ -831,6 +833,8 @@ function SpadasLensCameraCore() {
         data?.product_name ||
         data?.item_title ||
         null;
+
+      console.log('[Spadas Lens] resolved:', pName, '| len', raw.length);
 
       // Skip frame if camera is aimed at empty floor, plain wall, or featureless surface
       if (!pName || pName === "NO_CENTER_ITEM" || pName === "null") {
