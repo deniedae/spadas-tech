@@ -224,6 +224,8 @@ export interface ActiveScanItem {
   timestamp: number;
 }
 
+let cycleSeq = 0;
+
 function SpadasLensCameraCore() {
   const router = useRouter();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -727,12 +729,15 @@ function SpadasLensCameraCore() {
 
   // Frame Scanner with In-Flight Lock & Max 512px Frame Downscaling
   const processCurrentFrame = useCallback(async (forceManual = false) => {
+    const cycleId = ++cycleSeq;
+    console.log('[Spadas Lens]', cycleId, 'enter');
+
     // RESTORE IN-FLIGHT LOCK: Refuse to start a new scan while one is pending
     if (analyzingRealFrame) {
-      console.log('[Spadas Lens] blocked re-entry');
-      console.log('[Spadas Lens] guard fellthrough');
+      console.log('[Spadas Lens]', cycleId, 'blocked re-entry');
       return;
     }
+    console.log('[Spadas Lens]', cycleId, 'guard fellthrough');
 
     const currentTime = Date.now();
     lastScanTimeRef.current = currentTime;
@@ -794,7 +799,7 @@ function SpadasLensCameraCore() {
         body: JSON.stringify({ imageUrls: frameDataUrl ? [frameDataUrl] : [], isArScan: true }),
         signal: controller.signal,
       }).catch((e) => {
-        console.log('[Spadas Lens] fetch threw:', String(e));
+        console.log('[Spadas Lens]', cycleId, 'fetch threw:', String(e));
         return null;
       });
 
@@ -804,12 +809,12 @@ function SpadasLensCameraCore() {
       let raw = "";
       if (res) {
         raw = await res.text();
-        console.log('[Spadas Lens] http', res.status, res.headers.get('content-type'), 'len', raw.length);
+        console.log('[Spadas Lens]', cycleId, 'http', res.status, res.headers.get('content-type'), 'len', raw.length);
         try {
           data = JSON.parse(raw);
         } catch (e: any) {
-          console.log('[Spadas Lens] fetch threw:', String(e));
-          console.error('[Spadas Lens] parse failed:', e.message, raw.slice(0, 300));
+          console.log('[Spadas Lens]', cycleId, 'fetch threw:', String(e));
+          console.error('[Spadas Lens]', cycleId, 'parse failed:', e.message, raw.slice(0, 300));
           data = null;
         }
       }
@@ -822,7 +827,7 @@ function SpadasLensCameraCore() {
         return;
       }
 
-      console.log("[Spadas Lens] response keys:", Object.keys(data || {}));
+      console.log("[Spadas Lens]", cycleId, "response keys:", Object.keys(data || {}));
 
       let matchSource = "none";
       if (data?.analysis?.product_name) matchSource = "analysis.product_name";
@@ -830,7 +835,7 @@ function SpadasLensCameraCore() {
       else if (data?.product_name) matchSource = "product_name";
       else if (data?.item_title) matchSource = "item_title";
 
-      console.log("[Spadas Lens] product_name matched:", matchSource);
+      console.log("[Spadas Lens]", cycleId, "product_name matched:", matchSource);
 
       let pName =
         data?.analysis?.product_name ||
@@ -839,7 +844,7 @@ function SpadasLensCameraCore() {
         data?.item_title ||
         null;
 
-      console.log('[Spadas Lens] resolved:', pName, '| len', raw.length);
+      console.log('[Spadas Lens]', cycleId, 'resolved:', pName, '| len', raw.length);
 
       // Skip frame if camera is aimed at empty floor, plain wall, or featureless surface
       if (!pName || pName === "NO_CENTER_ITEM" || pName === "null") {
