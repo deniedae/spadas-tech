@@ -797,17 +797,12 @@ function SpadasLensCameraCore() {
 
       let data: any = null;
       if (res) {
-        const status = res.status;
-        const ct = res.headers.get("content-type");
         const raw = await res.text();
+        console.log('[Spadas Lens] http', res.status, res.headers.get('content-type'), 'len', raw.length);
         try {
           data = JSON.parse(raw);
-        } catch (err) {
-          console.error("[Spadas Lens] JSON parse failed", {
-            status,
-            contentType: ct,
-            raw: raw.slice(0, 2000),
-          });
+        } catch (e: any) {
+          console.error('[Spadas Lens] parse failed:', e.message, raw.slice(0, 300));
           data = null;
         }
       }
