@@ -25,6 +25,7 @@ import {
   Gift,
   WifiOff,
   LogIn,
+  ShoppingBag,
 } from "lucide-react";
 import { toast } from "sonner";
 import { fmtMoney } from "@/app/lib/listings";
@@ -33,6 +34,7 @@ import { supabase } from "@/app/lib/supabase";
 import ShareDealDialog from "@/components/share-deal-dialog";
 import TiktokVideoExporter from "@/components/tiktok-video-exporter";
 import SubscriptionPaywallModal from "@/components/subscription-paywall-modal";
+import EbayListingModal from "@/components/ebay-listing-modal";
 
 // Catch-All React Error Boundary for Live Camera & Hit List Stability
 interface ErrorBoundaryProps {
@@ -253,6 +255,7 @@ function SpadasLensCameraCore() {
   }>({ type: null });
   const [cameraMoving, setCameraMoving] = useState<boolean>(false);
   const [isPaywallOpen, setIsPaywallOpen] = useState<boolean>(false);
+  const [activeEbayItem, setActiveEbayItem] = useState<any | null>(null);
   const prevFramePixelsRef = useRef<Uint8ClampedArray | null>(null);
 
   // Native Offline Dead-Zone Signal Watcher
@@ -1757,8 +1760,16 @@ function SpadasLensCameraCore() {
 
                   <div className="flex items-center justify-between text-[11px] pt-1 border-t border-border/60 w-full min-w-0">
                     <span className="text-muted-foreground text-[10px] truncate max-w-[60%]">{item.condition}</span>
-                    <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center gap-1.5 flex-wrap" onClick={(e) => e.stopPropagation()}>
                       <span className="font-extrabold text-emerald-600 dark:text-emerald-400 shrink-0 mr-1">{fmtMoney(item.estimatedValue)}</span>
+                      <button
+                        type="button"
+                        onClick={() => setActiveEbayItem(item)}
+                        className="inline-flex items-center gap-1 px-2 py-1 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 rounded-md text-[10px] font-extrabold transition cursor-pointer"
+                        title="List item on eBay"
+                      >
+                        <ShoppingBag className="w-3 h-3" /> List
+                      </button>
                       <TiktokVideoExporter
                         productTitle={item.name}
                         profit={item.estimatedProfit}
@@ -1824,6 +1835,19 @@ function SpadasLensCameraCore() {
         onClose={() => setIsPaywallOpen(false)}
         currentScans={capturedLog.length}
       />
+
+      {/* Ebay Listing Automation Modal */}
+      {activeEbayItem && (
+        <EbayListingModal
+          isOpen={!!activeEbayItem}
+          onClose={() => setActiveEbayItem(null)}
+          title={activeEbayItem.productName || activeEbayItem.name || "Scanned Item"}
+          brand={activeEbayItem.brand || "Authentic"}
+          price={activeEbayItem.estimatedValue || 25}
+          condition={activeEbayItem.condition || "Used - Good"}
+          description={`Authentic ${activeEbayItem.brand || ""} ${activeEbayItem.productName || activeEbayItem.name || "Scanned Item"}. Clean pre-owned condition, tested & fully functional. Fast dispatch from Australia.`}
+        />
+      )}
     </div>
   );
 }

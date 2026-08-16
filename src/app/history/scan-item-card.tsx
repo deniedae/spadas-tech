@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Camera, AlertTriangle, CheckCircle2, Clock } from "lucide-react";
+import { Camera, AlertTriangle, CheckCircle2, Clock, ShoppingBag } from "lucide-react";
 import { DeleteScanButton } from "./delete-button";
+import EbayListingModal from "@/components/ebay-listing-modal";
 
 interface ScanRecord {
   id: string;
@@ -23,6 +24,7 @@ export function ScanItemCard({
 }) {
   const [deleted, setDeleted] = useState(false);
   const [rating, setRating] = useState<"up" | "down" | null>(null);
+  const [isEbayModalOpen, setIsEbayModalOpen] = useState(false);
 
   if (deleted) return null;
 
@@ -59,88 +61,114 @@ export function ScanItemCard({
   });
 
   return (
-    <div
-      className={`p-4 rounded-xl border flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all ${
-        isFailed
-          ? "bg-rose-950/20 border-rose-900/50"
-          : "bg-slate-900/60 border-slate-800 hover:border-slate-700"
-      }`}
-    >
-      <div className="flex items-start gap-4">
-        <div
-          className={`w-12 h-12 rounded-lg flex items-center justify-center font-bold shrink-0 ${
-            isFailed ? "bg-rose-900/40 text-rose-400" : "bg-emerald-950 text-emerald-400"
-          }`}
-        >
-          {isFailed ? <AlertTriangle className="w-6 h-6" /> : <Camera className="w-6 h-6" />}
-        </div>
-
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="font-semibold text-slate-100 text-base">{title}</h3>
-            <span
-              className={`px-2 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wider flex items-center gap-1 ${
-                isFailed
-                  ? "bg-rose-500/20 text-rose-400 border border-rose-500/30"
-                  : "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
-              }`}
-            >
-              {isFailed ? (
-                <>
-                  <AlertTriangle className="w-3 h-3" />
-                  <span>FAILED</span>
-                </>
-              ) : (
-                <>
-                  <CheckCircle2 className="w-3 h-3" />
-                  <span>COMPLETED</span>
-                </>
-              )}
-            </span>
+    <>
+      <div
+        className={`p-4 rounded-xl border flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all ${
+          isFailed
+            ? "bg-rose-950/20 border-rose-900/50"
+            : "bg-slate-900/60 border-slate-800 hover:border-slate-700"
+        }`}
+      >
+        <div className="flex items-start gap-4">
+          <div
+            className={`w-12 h-12 rounded-lg flex items-center justify-center font-bold shrink-0 ${
+              isFailed ? "bg-rose-900/40 text-rose-400" : "bg-emerald-950 text-emerald-400"
+            }`}
+          >
+            {isFailed ? <AlertTriangle className="w-6 h-6" /> : <Camera className="w-6 h-6" />}
           </div>
 
-          <div className="flex items-center gap-3 text-xs text-slate-400 flex-wrap">
-            <span>Brand: {brand}</span>
-            <span>•</span>
-            <span>Category: {category}</span>
-            <span>•</span>
-            <span className="flex items-center gap-1">
-              <Clock className="w-3 h-3 text-slate-500" />
-              {formattedDate}
-            </span>
-          </div>
-        </div>
-      </div>
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="font-semibold text-slate-100 text-base">{title}</h3>
+              <span
+                className={`px-2 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wider flex items-center gap-1 ${
+                  isFailed
+                    ? "bg-rose-500/20 text-rose-400 border border-rose-500/30"
+                    : "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                }`}
+              >
+                {isFailed ? (
+                  <>
+                    <AlertTriangle className="w-3 h-3" />
+                    <span>FAILED</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-3 h-3" />
+                    <span>COMPLETED</span>
+                  </>
+                )}
+              </span>
+            </div>
 
-      <div className="flex items-center justify-between md:justify-end gap-4 pt-2 md:pt-0 border-t md:border-t-0 border-slate-800">
-        {!isFailed && minPrice > 0 && (
-          <div className="text-right">
-            <div className="text-xs text-slate-400 uppercase tracking-wider font-semibold">Resale Value</div>
-            <div className="text-emerald-400 font-bold text-lg">
-              ${minPrice} - ${maxPrice} AUD
+            <div className="flex items-center gap-3 text-xs text-slate-400 flex-wrap">
+              <span>Brand: {brand}</span>
+              <span>•</span>
+              <span>Category: {category}</span>
+              <span>•</span>
+              <span className="flex items-center gap-1">
+                <Clock className="w-3 h-3 text-slate-500" />
+                {formattedDate}
+              </span>
             </div>
           </div>
-        )}
-        <div className="flex items-center gap-1.5 bg-slate-950/40 p-1 rounded-lg border border-slate-800/60">
-          <button
-            type="button"
-            onClick={() => submitRating("up")}
-            className={`text-base transition cursor-pointer px-1 hover:scale-110 ${rating === "up" ? "opacity-100 scale-110" : "opacity-40 hover:opacity-80"}`}
-            title="Rate accurate identification"
-          >
-            👍
-          </button>
-          <button
-            type="button"
-            onClick={() => submitRating("down")}
-            className={`text-base transition cursor-pointer px-1 hover:scale-110 ${rating === "down" ? "opacity-100 scale-110" : "opacity-40 hover:opacity-80"}`}
-            title="Rate misidentification"
-          >
-            👎
-          </button>
         </div>
-        <DeleteScanButton scanId={scan.id} onDeleted={handleDeleted} />
+
+        <div className="flex items-center justify-between md:justify-end gap-3 pt-2 md:pt-0 border-t md:border-t-0 border-slate-800 flex-wrap">
+          {!isFailed && minPrice > 0 && (
+            <div className="text-right">
+              <div className="text-xs text-slate-400 uppercase tracking-wider font-semibold">Resale Value</div>
+              <div className="text-emerald-400 font-bold text-lg">
+                ${minPrice} - ${maxPrice} AUD
+              </div>
+            </div>
+          )}
+
+          {!isFailed && (
+            <button
+              type="button"
+              onClick={() => setIsEbayModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 rounded-lg text-xs font-bold transition cursor-pointer"
+            >
+              <ShoppingBag className="w-3.5 h-3.5" />
+              <span>List on eBay</span>
+            </button>
+          )}
+
+          <div className="flex items-center gap-1 bg-slate-950/40 p-1 rounded-lg border border-slate-800/60">
+            <button
+              type="button"
+              onClick={() => submitRating("up")}
+              className={`text-base transition cursor-pointer px-1 hover:scale-110 ${rating === "up" ? "opacity-100 scale-110" : "opacity-40 hover:opacity-80"}`}
+              title="Rate accurate identification"
+            >
+              👍
+            </button>
+            <button
+              type="button"
+              onClick={() => submitRating("down")}
+              className={`text-base transition cursor-pointer px-1 hover:scale-110 ${rating === "down" ? "opacity-100 scale-110" : "opacity-40 hover:opacity-80"}`}
+              title="Rate misidentification"
+            >
+              👎
+            </button>
+          </div>
+
+          <DeleteScanButton scanId={scan.id} onDeleted={handleDeleted} />
+        </div>
       </div>
-    </div>
+
+      <EbayListingModal
+        isOpen={isEbayModalOpen}
+        onClose={() => setIsEbayModalOpen(false)}
+        title={title}
+        brand={brand}
+        price={maxPrice || minPrice || 25}
+        condition={res?.analysis?.condition || "Used - Good"}
+        description={res?.seo_description || res?.detailed_description || ""}
+        imageUrls={scan.image_url ? [scan.image_url] : []}
+      />
+    </>
   );
 }
