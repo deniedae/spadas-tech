@@ -564,8 +564,15 @@ Rules:
       }
     }
 
-    // Persist scan history to public.scans table
-    if (user) {
+    // Persist scan history to public.scans table (skip empty sentinel scans)
+    const isSentinelScan =
+      !result ||
+      (result as any).category === "NO_CENTER_ITEM" ||
+      result.analysis?.category === "NO_CENTER_ITEM" ||
+      result.analysis?.product_name === "NO_CENTER_ITEM" ||
+      (result as any).product_name === "NO_CENTER_ITEM";
+
+    if (user && !isSentinelScan) {
       try {
         const firstImg = imageUrls[0] || "";
         const sanitizedUrl = firstImg.startsWith("data:")
