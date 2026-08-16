@@ -26,6 +26,7 @@ import {
   WifiOff,
   LogIn,
   ShoppingBag,
+  HelpCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { fmtMoney } from "@/app/lib/listings";
@@ -35,6 +36,7 @@ import ShareDealDialog from "@/components/share-deal-dialog";
 import TiktokVideoExporter from "@/components/tiktok-video-exporter";
 import SubscriptionPaywallModal from "@/components/subscription-paywall-modal";
 import EbayListingModal from "@/components/ebay-listing-modal";
+import CameraOnboardingOverlay from "@/components/camera-onboarding-overlay";
 
 // Catch-All React Error Boundary for Live Camera & Hit List Stability
 interface ErrorBoundaryProps {
@@ -255,6 +257,7 @@ function SpadasLensCameraCore() {
   }>({ type: null });
   const [cameraMoving, setCameraMoving] = useState<boolean>(false);
   const [isPaywallOpen, setIsPaywallOpen] = useState<boolean>(false);
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(false);
   const [activeEbayItem, setActiveEbayItem] = useState<any | null>(null);
   const prevFramePixelsRef = useRef<Uint8ClampedArray | null>(null);
 
@@ -1500,6 +1503,16 @@ function SpadasLensCameraCore() {
 
             <button
               type="button"
+              onClick={() => setIsOnboardingOpen(true)}
+              className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-3 text-xs font-bold text-white hover:bg-white/20 cursor-pointer transition"
+              title="Open AR Camera Framing Guide"
+            >
+              <HelpCircle className="h-3.5 w-3.5 text-cyan-400" />
+              <span>Guide</span>
+            </button>
+
+            <button
+              type="button"
               onClick={stopCamera}
               className="inline-flex h-9 items-center rounded-xl bg-red-600 px-3.5 text-xs font-bold text-white hover:bg-red-500 cursor-pointer transition"
             >
@@ -1848,6 +1861,12 @@ function SpadasLensCameraCore() {
           description={`Authentic ${activeEbayItem.brand || ""} ${activeEbayItem.productName || activeEbayItem.name || "Scanned Item"}. Clean pre-owned condition, tested & fully functional. Fast dispatch from Australia.`}
         />
       )}
+
+      {/* Camera Framing Onboarding Guide */}
+      <CameraOnboardingOverlay
+        forceOpen={isOnboardingOpen}
+        onDismiss={() => setIsOnboardingOpen(false)}
+      />
     </div>
   );
 }
