@@ -86,7 +86,8 @@ export function ClearAllHistoryButton() {
 
       if (res.ok && data.success) {
         toast.success("All scan history cleared");
-        router.refresh();
+        await new Promise((resolve) => setTimeout(resolve, 400));
+        window.location.href = "/history";
       } else {
         toast.error(`Failed to clear history: ${data.error || "Server error"}`);
       }
