@@ -42,12 +42,21 @@ const SCOPES = [
 export function getEbayAuthUrl(state: string): string {
   const clientId = (process.env.EBAY_CLIENT_ID || "").trim();
   const ruName = (process.env.EBAY_RU_NAME || "").trim();
-  const env = (process.env.EBAY_ENVIRONMENT || "sandbox").trim().toLowerCase();
+  let env = (process.env.EBAY_ENVIRONMENT || "").trim().toLowerCase();
 
   if (!clientId || !ruName || clientId.startsWith("DEMO_") || ruName.startsWith("DEMO_")) {
     throw new Error(
       "eBay Client ID or RuName is missing or set to DEMO_ placeholders. Set EBAY_CLIENT_ID and EBAY_RU_NAME in environment variables."
     );
+  }
+
+  // Auto-detect environment if not explicitly set
+  if (!env) {
+    if (clientId.includes("-PRD-") || ruName.includes("-PRD-")) {
+      env = "production";
+    } else {
+      env = "sandbox";
+    }
   }
 
   const host = env === "production" ? "auth.ebay.com" : "auth.sandbox.ebay.com";
