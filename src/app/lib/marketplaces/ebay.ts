@@ -40,9 +40,17 @@ const SCOPES = [
  * Generate official eBay OAuth 2.0 Authorization URL
  */
 export function getEbayAuthUrl(state: string): string {
-  const clientId = process.env.EBAY_CLIENT_ID || "DEMO_EBAY_CLIENT_ID";
-  const ruName = process.env.EBAY_RU_NAME || "DEMO_EBAY_RU_NAME";
+  const clientId = process.env.EBAY_CLIENT_ID;
+  const ruName = process.env.EBAY_RU_NAME;
+  const env = process.env.EBAY_ENVIRONMENT || "sandbox";
 
+  if (!clientId || !ruName || clientId.startsWith("DEMO_") || ruName.startsWith("DEMO_")) {
+    throw new Error(
+      "eBay Client ID or RuName is not properly configured in environment variables. Please add EBAY_CLIENT_ID and EBAY_RU_NAME from developer.ebay.com."
+    );
+  }
+
+  const host = env === "production" ? "auth.ebay.com" : "auth.sandbox.ebay.com";
   const scopesStr = [
     "https://api.ebay.com/oauth/api_scope",
     "https://api.ebay.com/oauth/api_scope/sell.inventory",
@@ -55,9 +63,10 @@ export function getEbayAuthUrl(state: string): string {
     redirect_uri: ruName,
     scope: scopesStr,
     state: state,
+    prompt: "login",
   });
 
-  return `https://${EBAY_AUTH_HOST}/oauth2/authorize?${params.toString()}`;
+  return `https://${host}/oauth2/authorize?${params.toString()}`;
 }
 
 /**
