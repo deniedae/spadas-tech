@@ -2,7 +2,8 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Camera, ChevronLeft, ChevronRight, AlertTriangle, CheckCircle2, Clock } from "lucide-react";
+import { Camera, ChevronLeft, ChevronRight, AlertTriangle, CheckCircle2, Clock, Filter } from "lucide-react";
+import { DeleteScanButton, ClearAllHistoryButton } from "./delete-button";
 
 interface ScanRecord {
   id: string;
@@ -19,10 +20,11 @@ export const dynamic = "force-dynamic";
 export default async function HistoryPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; status?: string }>;
 }) {
   const resolvedParams = await searchParams;
   const page = Math.max(1, parseInt(resolvedParams.page || "1", 10));
+  const activeStatus = resolvedParams.status || "all";
   const pageSize = 25;
   const fromIndex = (page - 1) * pageSize;
   const toIndex = fromIndex + pageSize - 1;
@@ -53,14 +55,19 @@ export default async function HistoryPage({
     redirect("/login?redirect=/history");
   }
 
-  console.log('[History Feed] Fetching scans for user ID:', user.id, 'page:', page, 'range:', fromIndex, 'to', toIndex);
+  console.log('[History Feed] Fetching scans for user ID:', user.id, 'page:', page, 'status:', activeStatus, 'range:', fromIndex, 'to', toIndex);
 
-  const { data: scansData, count, error } = await supabase
+  let query = supabase
     .from("scans")
     .select("*", { count: "exact" })
     .eq("user_id", user.id)
-    .order("created_at", { ascending: false })
-    .range(fromIndex, toIndex);
+    .order("created_at", { ascending: false });
+
+  if (activeStatus === "completed" || activeStatus === "failed") {
+    query = query.eq("status", activeStatus);
+  }
+
+  const { data: scansData, count, error } = await query.range(fromIndex, toIndex);
 
   if (error) {
     console.error('[History Feed] Supabase query error:', error);
@@ -87,13 +94,54 @@ export default async function HistoryPage({
               Showing page {page} of {totalPages} ({totalCount} total scans recorded)
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
+            {totalCount > 0 && <ClearAllHistoryButton />}
             <Link
               href="/lens"
               className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold rounded-lg text-sm transition-colors flex items-center gap-2 shadow-lg shadow-emerald-500/20"
             >
               <Camera className="w-4 h-4" />
               <span>Launch AR Scanner</span>
+            </Link>
+          </div>
+        </div>
+
+        {/* Status Filter Tabs */}
+        <div className="flex items-center justify-between gap-4 flex-wrap bg-slate-900/40 p-1.5 rounded-xl border border-slate-800/80">
+          <div className="flex items-center gap-1">
+            <span className="text-xs text-slate-400 font-semibold px-3 flex items-center gap-1.5">
+              <Filter className="w-3.5 h-3.5 text-slate-500" />
+              <span>Filter Status:</span>
+            </span>
+            <Link
+              href="/history?status=all"
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                activeStatus === "all"
+                  ? "bg-slate-800 text-slate-100 border border-slate-700 shadow"
+                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-900"
+              }`}
+            >
+              All Scans
+            </Link>
+            <Link
+              href="/history?status=completed"
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                activeStatus === "completed"
+                  ? "bg-emerald-950/80 text-emerald-300 border border-emerald-800/80 shadow"
+                  : "text-slate-400 hover:text-emerald-400 hover:bg-slate-900"
+              }`}
+            >
+              Completed Only
+            </Link>
+            <Link
+              href="/history?status=failed"
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                activeStatus === "failed"
+                  ? "bg-rose-950/80 text-rose-300 border border-rose-800/80 shadow"
+                  : "text-slate-400 hover:text-rose-400 hover:bg-slate-900"
+              }`}
+            >
+              Failed Only
             </Link>
           </div>
         </div>
@@ -115,9 +163,11 @@ export default async function HistoryPage({
         {scans.length === 0 ? (
           <div className="text-center py-16 bg-slate-900/50 border border-slate-800 rounded-xl space-y-3">
             <Camera className="w-12 h-12 text-slate-600 mx-auto" />
-            <h3 className="text-lg font-semibold text-slate-300">No scan history recorded yet</h3>
+            <h3 className="text-lg font-semibold text-slate-300">No scan records found</h3>
             <p className="text-slate-500 text-sm max-w-md mx-auto">
-              Scans executed in Spadas Lens will automatically persist to your account history feed.
+              {activeStatus === "all"
+                ? "Scans executed in Spadas Lens will automatically persist to your account history feed."
+                : `No scan records match status filter: '${activeStatus}'.`}
             </p>
             <Link
               href="/lens"
@@ -202,7 +252,7 @@ export default async function HistoryPage({
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between md:justify-end gap-6 pt-2 md:pt-0 border-t md:border-t-0 border-slate-800">
+                  <div className="flex items-center justify-between md:justify-end gap-4 pt-2 md:pt-0 border-t md:border-t-0 border-slate-800">
                     {!isFailed && minPrice > 0 && (
                       <div className="text-right">
                         <div className="text-xs text-slate-400 uppercase tracking-wider font-semibold">Resale Value</div>
@@ -211,9 +261,10 @@ export default async function HistoryPage({
                         </div>
                       </div>
                     )}
-                    <div className="text-xs text-slate-500 font-mono">
+                    <div className="text-xs text-slate-500 font-mono hidden sm:block">
                       Tokens: {scan.token_count}
                     </div>
+                    <DeleteScanButton scanId={scan.id} />
                   </div>
                 </div>
               );
@@ -225,7 +276,7 @@ export default async function HistoryPage({
         {totalPages > 1 && (
           <div className="flex items-center justify-between border-t border-slate-800 pt-6">
             <Link
-              href={`/history?page=${Math.max(1, page - 1)}`}
+              href={`/history?page=${Math.max(1, page - 1)}&status=${activeStatus}`}
               className={`px-4 py-2 rounded-lg text-sm font-medium border border-slate-800 transition-colors flex items-center gap-2 ${
                 page <= 1
                   ? "pointer-events-none opacity-40 text-slate-600 bg-slate-900"
@@ -241,7 +292,7 @@ export default async function HistoryPage({
             </span>
 
             <Link
-              href={`/history?page=${Math.min(totalPages, page + 1)}`}
+              href={`/history?page=${Math.min(totalPages, page + 1)}&status=${activeStatus}`}
               className={`px-4 py-2 rounded-lg text-sm font-medium border border-slate-800 transition-colors flex items-center gap-2 ${
                 page >= totalPages
                   ? "pointer-events-none opacity-40 text-slate-600 bg-slate-900"
