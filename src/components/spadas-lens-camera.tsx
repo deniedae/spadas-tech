@@ -24,6 +24,7 @@ import {
   Trophy,
   Gift,
   WifiOff,
+  LogIn,
 } from "lucide-react";
 import { toast } from "sonner";
 import { fmtMoney } from "@/app/lib/listings";
@@ -246,6 +247,10 @@ function SpadasLensCameraCore() {
   const [showDebugDrawer, setShowDebugDrawer] = useState<boolean>(false);
   const [lastRawApiResponse, setLastRawApiResponse] = useState<any>(null);
   const [latestApiError, setLatestApiError] = useState<string | null>(null);
+  const [scanErrorState, setScanErrorState] = useState<{
+    type: "rate_limit_user" | "rate_limit_upstream" | "unauthorized" | "no_match" | "generic" | null;
+    retryAfter?: number;
+  }>({ type: null });
   const [cameraMoving, setCameraMoving] = useState<boolean>(false);
   const [isPaywallOpen, setIsPaywallOpen] = useState<boolean>(false);
   const prevFramePixelsRef = useRef<Uint8ClampedArray | null>(null);
@@ -738,6 +743,7 @@ function SpadasLensCameraCore() {
       return;
     }
     console.log('[Spadas Lens]', cycleId, 'guard fellthrough');
+    setScanErrorState({ type: null });
 
     const currentTime = Date.now();
     lastScanTimeRef.current = currentTime;
@@ -827,11 +833,39 @@ function SpadasLensCameraCore() {
 
       setLastRawApiResponse(data);
 
-      // SURFACE HTTP 429 RATE LIMIT ERROR TO UI DIRECTLY (NO RETRY, NO FAILOVER)
-      if (res?.status === 429 || data?.isRateLimited) {
-        toast.error(`⚠️ OpenAI Rate Limit (429): ${data?.error || "Rate limit reached"}`);
+      // ── Phase 4: Non-Alarming HTTP Error State Handling ──────────────────────
+      if (res?.status === 401) {
+        setScanErrorState({ type: "unauthorized" });
+        setLatestApiError("401 Unauthorized — session expired");
         return;
       }
+
+      if (res?.status === 429) {
+        const scope = data?.scope || "user";
+        const retryAfter = Number(data?.retryAfter) || 0;
+        if (scope === "upstream") {
+          setScanErrorState({ type: "rate_limit_upstream" });
+          toast.warning("Busy right now. Try again in a few seconds.", { id: "rate-upstream" });
+        } else {
+          setScanErrorState({ type: "rate_limit_user", retryAfter });
+          toast.warning(
+            retryAfter > 0
+              ? `You've hit your scan limit. Try again in ${retryAfter}s.`
+              : "You've hit your scan limit. Try again shortly.",
+            { id: "rate-user" }
+          );
+        }
+        setLatestApiError(`429 Rate Limited (scope: ${scope})`);
+        return;
+      }
+
+      if (!res?.ok && res?.status !== undefined) {
+        setScanErrorState({ type: "generic" });
+        setLatestApiError(`HTTP ${res.status}: ${data?.error || "Unexpected server error"}`);
+        console.error("[Spadas Lens] Scan error. Raw payload logged:", data);
+        return;
+      }
+      // ── End Phase 4 HTTP Error Handling ──────────────────────────────────────
 
       console.log("[Spadas Lens]", cycleId, "response keys:", Object.keys(data || {}));
 
@@ -852,15 +886,19 @@ function SpadasLensCameraCore() {
 
       console.log('[Spadas Lens]', cycleId, 'resolved:', pName, '| len', raw.length);
 
-      if (pName === 'NO_CENTER_ITEM') {
-        console.log('[Spadas Lens]', cycleId, 'no center item — holding previous result');
+      // No confident match detection
+      if (
+        !pName ||
+        pName === "null" ||
+        pName === "NO_CENTER_ITEM" ||
+        isVagueOrPartialRead(pName)
+      ) {
+        setScanErrorState({ type: "no_match" });
         return;
       }
 
-      // Skip frame if camera is aimed at empty floor, plain wall, or featureless surface
-      if (!pName || pName === "null") {
-        return;
-      }
+      // Clear any previous error on successful identification
+      setScanErrorState({ type: null });
 
       // Extract Multi-Object Detected Items from REAL OpenAI Vision response
       const detected =
@@ -1169,6 +1207,59 @@ function SpadasLensCameraCore() {
                 </div>
               </div>
             ) : null}
+
+            {/* Phase 4: Non-Alarming Scan Error State Banner */}
+            {scanErrorState.type && !isOffline && (
+              <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 w-[92%] max-w-md mx-auto pointer-events-none">
+                {scanErrorState.type === "rate_limit_user" && (
+                  <div className="flex items-center gap-2 rounded-xl bg-amber-500/95 backdrop-blur-md px-4 py-2.5 text-xs font-extrabold text-slate-950 shadow-2xl border border-amber-300/60">
+                    <Clock className="h-4 w-4 shrink-0" />
+                    <span>
+                      {scanErrorState.retryAfter && scanErrorState.retryAfter > 0
+                        ? `You've hit your scan limit. Try again in ${scanErrorState.retryAfter}s.`
+                        : "You've hit your scan limit. Try again shortly."}
+                    </span>
+                  </div>
+                )}
+
+                {scanErrorState.type === "rate_limit_upstream" && (
+                  <div className="flex items-center gap-2 rounded-xl bg-yellow-400/95 backdrop-blur-md px-4 py-2.5 text-xs font-extrabold text-slate-950 shadow-2xl border border-yellow-300/60">
+                    <RefreshCw className="h-4 w-4 shrink-0 animate-spin" />
+                    <span>Busy right now. Try again in a few seconds.</span>
+                  </div>
+                )}
+
+                {scanErrorState.type === "unauthorized" && (
+                  <div className="flex items-center justify-between gap-3 rounded-xl bg-slate-800/95 backdrop-blur-md px-4 py-2.5 text-xs font-extrabold text-slate-200 shadow-2xl border border-slate-600/60 pointer-events-auto w-full">
+                    <div className="flex items-center gap-2">
+                      <ShieldAlert className="h-4 w-4 shrink-0 text-amber-400" />
+                      <span>Session expired. Please sign in to continue.</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => router.push("/login")}
+                      className="inline-flex items-center gap-1 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black px-3 py-1 rounded-lg text-[11px] transition shrink-0"
+                    >
+                      <LogIn className="h-3 w-3" /> Sign In
+                    </button>
+                  </div>
+                )}
+
+                {scanErrorState.type === "no_match" && (
+                  <div className="flex items-center gap-2 rounded-xl bg-slate-800/90 backdrop-blur-md px-4 py-2.5 text-xs font-semibold text-slate-300 shadow-xl border border-slate-700/60">
+                    <Camera className="h-4 w-4 shrink-0 text-cyan-400" />
+                    <span>Couldn't identify this item. Try better lighting or a closer shot.</span>
+                  </div>
+                )}
+
+                {scanErrorState.type === "generic" && (
+                  <div className="flex items-center gap-2 rounded-xl bg-red-950/95 backdrop-blur-md px-4 py-2.5 text-xs font-extrabold text-red-200 shadow-2xl border border-red-500/50">
+                    <ShieldAlert className="h-4 w-4 shrink-0 text-red-400" />
+                    <span>Scan error. Raw payload logged on server.</span>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Target Framing Reticle with Modern Glassmorphic Corner Brackets */}
             <div className="absolute inset-0 z-15 pointer-events-none flex items-center justify-center">
