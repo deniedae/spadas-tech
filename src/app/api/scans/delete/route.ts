@@ -31,6 +31,7 @@ export async function POST(request: Request) {
     }
 
     const { scanId, clearAll } = await request.json().catch(() => ({}));
+    console.log('[Scans Delete] Processing deletion request:', { scanId, clearAll, userId: user.id });
 
     if (clearAll) {
       const { error } = await supabase
@@ -39,8 +40,10 @@ export async function POST(request: Request) {
         .eq("user_id", user.id);
 
       if (error) {
+        console.error('[Scans Delete] Clear all failed:', error);
         return NextResponse.json({ error: error.message }, { status: 500 });
       }
+      console.log('[Scans Delete] Successfully cleared all history for user:', user.id);
       return NextResponse.json({ success: true, message: "All scan history cleared" });
     }
 
@@ -55,8 +58,10 @@ export async function POST(request: Request) {
       .eq("user_id", user.id);
 
     if (error) {
+      console.error('[Scans Delete] Single record delete failed:', error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
+    console.log('[Scans Delete] Successfully deleted scanId:', scanId, 'for user:', user.id);
 
     return NextResponse.json({ success: true, scanId });
   } catch (err: any) {
