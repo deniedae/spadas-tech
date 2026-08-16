@@ -40,33 +40,24 @@ const SCOPES = [
  * Generate official eBay OAuth 2.0 Authorization URL
  */
 export function getEbayAuthUrl(state: string): string {
-  const clientId = process.env.EBAY_CLIENT_ID;
-  const ruName = process.env.EBAY_RU_NAME;
-  const env = process.env.EBAY_ENVIRONMENT || "sandbox";
+  const clientId = (process.env.EBAY_CLIENT_ID || "").trim();
+  const ruName = (process.env.EBAY_RU_NAME || "").trim();
+  const env = (process.env.EBAY_ENVIRONMENT || "sandbox").trim().toLowerCase();
 
   if (!clientId || !ruName || clientId.startsWith("DEMO_") || ruName.startsWith("DEMO_")) {
     throw new Error(
-      "eBay Client ID or RuName is not properly configured in environment variables. Please add EBAY_CLIENT_ID and EBAY_RU_NAME from developer.ebay.com."
+      "eBay Client ID or RuName is missing or set to DEMO_ placeholders. Set EBAY_CLIENT_ID and EBAY_RU_NAME in environment variables."
     );
   }
 
   const host = env === "production" ? "auth.ebay.com" : "auth.sandbox.ebay.com";
-  const scopesStr = [
+  const scopes = [
     "https://api.ebay.com/oauth/api_scope",
     "https://api.ebay.com/oauth/api_scope/sell.inventory",
     "https://api.ebay.com/oauth/api_scope/sell.fulfillment",
-  ].join(" ");
+  ].join("%20");
 
-  const params = new URLSearchParams({
-    client_id: clientId,
-    response_type: "code",
-    redirect_uri: ruName,
-    scope: scopesStr,
-    state: state,
-    prompt: "login",
-  });
-
-  return `https://${host}/oauth2/authorize?${params.toString()}`;
+  return `https://${host}/oauth2/authorize?client_id=${encodeURIComponent(clientId)}&response_type=code&redirect_uri=${encodeURIComponent(ruName)}&scope=${scopes}&state=${encodeURIComponent(state)}&prompt=login`;
 }
 
 /**
