@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Camera, ChevronLeft, ChevronRight, AlertTriangle, Filter } from "lucide-react";
+import { Camera, ChevronLeft, ChevronRight, AlertTriangle, Filter, Scale, CheckSquare, Square } from "lucide-react";
 import { ClearAllHistoryButton } from "./delete-button";
 import { ScanItemCard } from "./scan-item-card";
+import ItemComparisonModal, { ComparisonItem } from "@/components/item-comparison-modal";
+import EbayListingModal from "@/components/ebay-listing-modal";
 
 interface ScanRecord {
   id: string;
@@ -34,6 +36,43 @@ export function HistoryFeedView({
   error,
 }: HistoryFeedViewProps) {
   const [items, setItems] = useState<ScanRecord[]>(initialScans);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isCompareOpen, setIsCompareOpen] = useState(false);
+  const [activeEbayItem, setActiveEbayItem] = useState<ComparisonItem | null>(null);
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+    );
+  };
+
+  const selectedComparisonItems: ComparisonItem[] = items
+    .filter((s) => selectedIds.includes(s.id))
+    .map((s) => {
+      const res = s.result_json || {};
+      const name =
+        res.analysis?.product_name ||
+        res.detected_objects?.[0]?.product_name ||
+        res.product_name ||
+        "Scanned Item";
+      const brand = res.analysis?.brand || res.brand || "Generic";
+      const condition = res.analysis?.condition || "Used - Good";
+      const estimatedValue = res.suggested_price_max || res.suggested_price_min || 25;
+      const estimatedProfit = res.estimated_profit || Math.round(estimatedValue * 0.7 * 100) / 100;
+
+      return {
+        id: s.id,
+        name,
+        brand,
+        category: res.analysis?.category,
+        condition,
+        estimatedValue,
+        estimatedProfit,
+        salesVelocity: res.sales_velocity,
+        futureGrail: res.future_grail,
+        imageUrl: s.image_url,
+      };
+    });
 
   return (
     <div className="space-y-6">
@@ -63,9 +102,9 @@ export function HistoryFeedView({
         </div>
       </div>
 
-      {/* Status Filter Tabs */}
+      {/* Status Filter Tabs & Selection Bar */}
       <div className="flex items-center justify-between gap-4 flex-wrap bg-slate-900/40 p-1.5 rounded-xl border border-slate-800/80">
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 flex-wrap">
           <span className="text-xs text-slate-400 font-semibold px-3 flex items-center gap-1.5">
             <Filter className="w-3.5 h-3.5 text-slate-500" />
             <span>Filter Status:</span>
@@ -101,6 +140,21 @@ export function HistoryFeedView({
             Failed Only
           </Link>
         </div>
+
+        {selectedIds.length > 0 && (
+          <div className="flex items-center gap-2 pr-2">
+            <span className="text-xs font-mono text-cyan-400 font-bold">
+              {selectedIds.length} Selected
+            </span>
+            <button
+              type="button"
+              onClick={() => setSelectedIds([])}
+              className="text-xs text-slate-400 hover:text-slate-200 underline cursor-pointer"
+            >
+              Deselect All
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Error Banner */}
@@ -135,14 +189,75 @@ export function HistoryFeedView({
         </div>
       ) : (
         <div className="space-y-3">
-          {items.map((scan) => (
-            <ScanItemCard
-              key={scan.id}
-              scan={scan}
-              onDeleted={() => setItems((prev) => prev.filter((s) => s.id !== scan.id))}
-            />
-          ))}
+          {items.map((scan) => {
+            const isSelected = selectedIds.includes(scan.id);
+            return (
+              <div key={scan.id} className="relative flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => toggleSelect(scan.id)}
+                  className="p-1 text-slate-500 hover:text-emerald-400 transition cursor-pointer shrink-0"
+                  title={isSelected ? "Deselect item" : "Select item for comparison"}
+                >
+                  {isSelected ? (
+                    <CheckSquare className="w-5 h-5 text-emerald-400" />
+                  ) : (
+                    <Square className="w-5 h-5 text-slate-700 hover:text-slate-500" />
+                  )}
+                </button>
+
+                <div className="grow min-w-0">
+                  <ScanItemCard
+                    scan={scan}
+                    onDeleted={() => {
+                      setItems((prev) => prev.filter((s) => s.id !== scan.id));
+                      setSelectedIds((prev) => prev.filter((i) => i !== scan.id));
+                    }}
+                  />
+                </div>
+              </div>
+            );
+          })}
         </div>
+      )}
+
+      {/* Sticky Bottom Comparison Floating Toolbar */}
+      {selectedIds.length > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 animate-fade-in max-w-[92vw]">
+          <button
+            type="button"
+            onClick={() => setIsCompareOpen(true)}
+            className="inline-flex items-center gap-2.5 rounded-full bg-gradient-to-r from-cyan-500 via-teal-500 to-emerald-500 px-6 py-3 text-xs sm:text-sm font-extrabold text-slate-950 shadow-[0_0_30px_rgba(6,182,212,0.6)] hover:scale-105 active:scale-95 transition cursor-pointer whitespace-nowrap"
+          >
+            <Scale className="w-4 h-4 text-slate-950" />
+            <span>Compare Selected ({selectedIds.length} Items)</span>
+          </button>
+        </div>
+      )}
+
+      {/* Side-by-Side Comparison Modal */}
+      <ItemComparisonModal
+        isOpen={isCompareOpen}
+        onClose={() => setIsCompareOpen(false)}
+        items={selectedComparisonItems}
+        onListEbay={(compItem) => {
+          setIsCompareOpen(false);
+          setActiveEbayItem(compItem);
+        }}
+      />
+
+      {/* Ebay Listing Automation Modal */}
+      {activeEbayItem && (
+        <EbayListingModal
+          isOpen={!!activeEbayItem}
+          onClose={() => setActiveEbayItem(null)}
+          title={activeEbayItem.name}
+          brand={activeEbayItem.brand}
+          price={activeEbayItem.estimatedValue}
+          condition={activeEbayItem.condition}
+          description={`Authentic ${activeEbayItem.brand || ""} ${activeEbayItem.name}. Clean pre-owned condition, tested & working.`}
+          imageUrls={activeEbayItem.imageUrl ? [activeEbayItem.imageUrl] : []}
+        />
       )}
 
       {/* Pagination */}
