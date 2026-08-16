@@ -98,6 +98,19 @@ export default async function HistoryPage({
           </div>
         </div>
 
+        {/* Database Error Banner Fallback */}
+        {error && (
+          <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-300 text-sm flex items-center gap-3">
+            <AlertTriangle className="w-5 h-5 shrink-0 text-amber-400" />
+            <div>
+              <div className="font-semibold text-amber-200">Database Scan History Table Status</div>
+              <div className="text-xs text-amber-400/80 mt-0.5">
+                {error.message || "Unable to retrieve scan history records."}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Scan List */}
         {scans.length === 0 ? (
           <div className="text-center py-16 bg-slate-900/50 border border-slate-800 rounded-xl space-y-3">
