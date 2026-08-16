@@ -179,22 +179,20 @@ function isVagueOrPartialRead(productName?: string | null, brand?: string | null
   if (!productName || productName.trim() === "" || productName === "NO_CENTER_ITEM") return true;
   const lower = productName.toLowerCase().trim();
 
-  const vaguePhrases = [
+  // Only reject explicit non-descriptive failure placeholders
+  const explicitFailures = [
     "scanned item",
     "scanned reseller item",
     "unknown item",
     "unidentified item",
-    "unclear",
-    "not fully readable",
-    "exact card details unclear",
-    "unknown model",
+    "could not be identified",
     "cannot be determined",
-    "could not be identified"
+    "exact card details unclear",
   ];
 
   if (lower === "item" || lower === "scanned item" || lower === "object") return true;
 
-  return vaguePhrases.some((phrase) => lower.includes(phrase));
+  return explicitFailures.some((phrase) => lower === phrase || lower.startsWith(phrase));
 }
 
 // Clean Condition Subtitle Helper (Strips internal AI reasoning notes)
