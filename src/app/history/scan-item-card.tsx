@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Camera, AlertTriangle, CheckCircle2, Clock, ShoppingBag } from "lucide-react";
+import { Camera, AlertTriangle, CheckCircle2, Clock, ShoppingBag, Share2 } from "lucide-react";
 import { DeleteScanButton } from "./delete-button";
 import EbayListingModal from "@/components/ebay-listing-modal";
+import CrossListModal from "@/components/cross-list-modal";
 
 interface ScanRecord {
   id: string;
@@ -25,6 +26,7 @@ export function ScanItemCard({
   const [deleted, setDeleted] = useState(false);
   const [rating, setRating] = useState<"up" | "down" | null>(null);
   const [isEbayModalOpen, setIsEbayModalOpen] = useState(false);
+  const [isCrossListOpen, setIsCrossListOpen] = useState(false);
 
   if (deleted) return null;
 
@@ -126,14 +128,25 @@ export function ScanItemCard({
           )}
 
           {!isFailed && (
-            <button
-              type="button"
-              onClick={() => setIsEbayModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 rounded-lg text-xs font-bold transition cursor-pointer"
-            >
-              <ShoppingBag className="w-3.5 h-3.5" />
-              <span>List on eBay</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setIsEbayModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 rounded-lg text-xs font-bold transition cursor-pointer"
+              >
+                <ShoppingBag className="w-3.5 h-3.5" />
+                <span>List on eBay</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsCrossListOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 rounded-lg text-xs font-bold transition cursor-pointer"
+                title="Generate Depop & FB Marketplace Copy"
+              >
+                <Share2 className="w-3.5 h-3.5" />
+                <span>Cross-List</span>
+              </button>
+            </div>
           )}
 
           <div className="flex items-center gap-1 bg-slate-950/40 p-1 rounded-lg border border-slate-800/60">
@@ -168,6 +181,17 @@ export function ScanItemCard({
         condition={res?.analysis?.condition || "Used - Good"}
         description={res?.seo_description || res?.detailed_description || ""}
         imageUrls={scan.image_url ? [scan.image_url] : []}
+      />
+
+      <CrossListModal
+        isOpen={isCrossListOpen}
+        onClose={() => setIsCrossListOpen(false)}
+        productName={title}
+        brand={brand}
+        price={maxPrice || minPrice || 25}
+        condition={res?.analysis?.condition || "Used - Good"}
+        category={category}
+        description={res?.seo_description || res?.detailed_description || ""}
       />
     </>
   );
