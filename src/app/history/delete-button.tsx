@@ -64,7 +64,11 @@ export function DeleteScanButton({
   );
 }
 
-export function ClearAllHistoryButton() {
+export function ClearAllHistoryButton({
+  onClearedAll,
+}: {
+  onClearedAll?: () => void;
+}) {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
@@ -86,8 +90,8 @@ export function ClearAllHistoryButton() {
 
       if (res.ok && data.success) {
         toast.success("All scan history cleared");
-        await new Promise((resolve) => setTimeout(resolve, 400));
-        window.location.href = "/history";
+        onClearedAll?.();
+        router.refresh();
       } else {
         toast.error(`Failed to clear history: ${data.error || "Server error"}`);
       }

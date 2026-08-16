@@ -14,10 +14,21 @@ interface ScanRecord {
   status: "completed" | "failed";
 }
 
-export function ScanItemCard({ scan }: { scan: ScanRecord }) {
+export function ScanItemCard({
+  scan,
+  onDeleted,
+}: {
+  scan: ScanRecord;
+  onDeleted?: () => void;
+}) {
   const [deleted, setDeleted] = useState(false);
 
   if (deleted) return null;
+
+  const handleDeleted = () => {
+    setDeleted(true);
+    if (onDeleted) onDeleted();
+  };
 
   const res = scan.result_json || {};
   const title =
@@ -103,7 +114,7 @@ export function ScanItemCard({ scan }: { scan: ScanRecord }) {
         <div className="text-xs text-slate-500 font-mono hidden sm:block">
           Tokens: {scan.token_count}
         </div>
-        <DeleteScanButton scanId={scan.id} onDeleted={() => setDeleted(true)} />
+        <DeleteScanButton scanId={scan.id} onDeleted={handleDeleted} />
       </div>
     </div>
   );
