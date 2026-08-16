@@ -1780,9 +1780,21 @@ function SpadasLensCameraCore() {
                     <span className="font-semibold text-cyan-400">
                       📊 eBay Sold Comp: {fmtMoney(item.estimatedValue * 0.85)} – {fmtMoney(item.estimatedValue * 1.15)}
                     </span>
-                    <span className="font-bold text-emerald-400">
-                      Est. Resale: {fmtMoney(item.estimatedValue)}
-                    </span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void fetch("/api/scans/report", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ scanId: item.id, itemName: item.name }),
+                        }).catch(() => {});
+                        toast.info("Thanks — misidentification flagged for review.", { id: `report-${item.id}` });
+                      }}
+                      className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 hover:text-amber-400 transition cursor-pointer"
+                    >
+                      <ShieldAlert className="h-3 w-3" /> Report
+                    </button>
                   </div>
                 </div>
               );

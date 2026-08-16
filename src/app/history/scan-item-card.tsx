@@ -22,8 +22,18 @@ export function ScanItemCard({
   onDeleted?: () => void;
 }) {
   const [deleted, setDeleted] = useState(false);
+  const [rating, setRating] = useState<"up" | "down" | null>(null);
 
   if (deleted) return null;
+
+  const submitRating = async (value: "up" | "down") => {
+    setRating(value);
+    await fetch("/api/scans/rate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ scanId: scan.id, rating: value }),
+    }).catch(() => {});
+  };
 
   const handleDeleted = () => {
     setDeleted(true);
@@ -111,8 +121,23 @@ export function ScanItemCard({
             </div>
           </div>
         )}
-        <div className="text-xs text-slate-500 font-mono hidden sm:block">
-          Tokens: {scan.token_count}
+        <div className="flex items-center gap-1.5 bg-slate-950/40 p-1 rounded-lg border border-slate-800/60">
+          <button
+            type="button"
+            onClick={() => submitRating("up")}
+            className={`text-base transition cursor-pointer px-1 hover:scale-110 ${rating === "up" ? "opacity-100 scale-110" : "opacity-40 hover:opacity-80"}`}
+            title="Rate accurate identification"
+          >
+            👍
+          </button>
+          <button
+            type="button"
+            onClick={() => submitRating("down")}
+            className={`text-base transition cursor-pointer px-1 hover:scale-110 ${rating === "down" ? "opacity-100 scale-110" : "opacity-40 hover:opacity-80"}`}
+            title="Rate misidentification"
+          >
+            👎
+          </button>
         </div>
         <DeleteScanButton scanId={scan.id} onDeleted={handleDeleted} />
       </div>
