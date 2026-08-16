@@ -572,6 +572,13 @@ Rules:
           ? `data:image/jpeg;base64,...(${firstImg.length} bytes)`
           : firstImg;
 
+        console.log('[Spadas Lens] Inserting scan record:', {
+          userId: user.id,
+          imageUrl: sanitizedUrl,
+          tokenCount: 2600,
+          status: "completed"
+        });
+
         await supabase.from("scans").insert([
           {
             user_id: user.id,
@@ -582,7 +589,7 @@ Rules:
           },
         ]);
       } catch (dbErr) {
-        console.warn("[ai-listing] Supabase scans insert warning:", dbErr);
+        console.error('[Spadas Lens] Error inserting scan record:', dbErr);
       }
     }
 
@@ -598,6 +605,13 @@ Rules:
           ? `data:image/jpeg;base64,...(${firstImg.length} bytes)`
           : firstImg;
 
+        console.log('[Spadas Lens] Inserting scan record:', {
+          userId,
+          imageUrl: sanitizedUrl,
+          tokenCount: 0,
+          status: "failed"
+        });
+
         await supabaseClient.from("scans").insert([
           {
             user_id: userId,
@@ -608,7 +622,7 @@ Rules:
           },
         ]);
       } catch (dbErr) {
-        console.warn("[ai-listing] Supabase failed scan insert warning:", dbErr);
+        console.error('[Spadas Lens] Error inserting scan record:', dbErr);
       }
     }
 
