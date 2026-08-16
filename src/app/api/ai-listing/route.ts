@@ -408,7 +408,7 @@ Analyse the product in the provided image(s) with 100% precision.
 STRICT PHYSICAL ITEM VISION MANDATE:
 - Inspect the camera viewport for an actual physical product (e.g. clothing, shoes, camera, video game console, trading card, book, tool, electronic device, homeware, toy, or packaged item).
 - Extract ALL visible text, brand logos, model plates, tag labels, and packaging text with 100% accuracy.
-- NO PRODUCT IN FRAME (Empty floor, plain wall, dark blur, featureless surface): If the camera is aimed at an empty floor, plain carpet, blank wall, or dark blur with NO resale item present, set "product_name": "NO_CENTER_ITEM" and "detected_objects": [].
+- NO PRODUCT IN FRAME (Empty floor, plain wall, dark blur, featureless surface): Only return "product_name": "NO_CENTER_ITEM" if the frame is entirely empty, showing no physical item whatsoever. If ANY product, item, or object is visible — even partially — attempt identification and provide your best guess.
 - REAL PRODUCT IN FRAME: Output the specific, precise product title with Brand + Line + Model (e.g., "Sony Cyber-shot DSC-W80 Digital Camera", "Nike Dunk Low Panda Sneakers", "Carhartt WIP Detroit Jacket", "Nintendo Switch OLED Console", "AirPods Max Space Grey"). Never output "Resale Item" or generic place-holders for real items.
 
 INSTANT SINGLE-PASS BRAND & OCR MANDATE:
