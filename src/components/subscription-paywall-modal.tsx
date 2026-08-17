@@ -20,54 +20,22 @@ export interface PlanTier {
 const PLANS: PlanTier[] = [
   {
     id: "starter",
-    name: "Starter Reseller",
-    badge: "BEST VALUE",
+    name: "Spadas Pro Reseller",
+    badge: "UNLIMITED ACCESS",
     price: "$10 AUD",
     period: "per month",
     popular: true,
-    description: "60FPS AR camera scanner + live Australia eBay sold comps.",
+    description: "Unlimited 60FPS AR camera scanning, live eBay sold comps, and 1-click cross-listing.",
     features: [
-      "⚡ 60FPS AR Camera Lens Shelf Scanner",
-      "📊 Live Australia eBay 30-Day Sold Comps",
-      "📦 Unlimited Inventory & Profit Tracking",
-      "🔊 Motion-Lock Audio Chimes & Voice Cues",
-    ],
-    ctaText: "Get Starter ($10 AUD/mo)",
-    color: "border-cyan-400 bg-gradient-to-b from-slate-900 via-slate-900 to-cyan-950/40 shadow-[0_0_30px_rgba(6,182,212,0.25)]",
-  },
-  {
-    id: "pro",
-    name: "Pro Reseller",
-    badge: "FULL POWER",
-    price: "$29 AUD",
-    period: "per month",
-    description: "Unlimited AR scanning + 1-click cross-listing across all marketplaces.",
-    features: [
-      "Everything in Starter Reseller +",
+      "⚡ Unlimited 60FPS AR Camera Lens Scanner",
+      "📊 Live Australia & Global eBay 30-Day Sold Comps",
       "🛍️ 1-Click Multi-Platform Cross-Lister (eBay, FB, Depop)",
-      "🤖 AI Automated Offer Negotiator & Counter Copilot",
-      "🔮 Future Grail 30-Day Social Value Projection Curves",
-      "⚡ Priority Fast AI Vision Processing",
+      "🔮 Future Grail 30-Day Social Trend & Price Surge Alerts",
+      "📦 Unlimited History Feed & Thrifting Haul Calculator",
+      "🔊 Motion-Lock Audio Chimes & Voice Commands",
     ],
-    ctaText: "Upgrade to Pro ($29 AUD)",
-    color: "border-indigo-500/40 bg-gradient-to-b from-slate-900 via-slate-900 to-indigo-950/30",
-  },
-  {
-    id: "enterprise",
-    name: "Enterprise Hustler",
-    badge: "MAX PROFIT",
-    price: "$79 AUD",
-    period: "per month",
-    description: "Full spatial GPS radar, stock rollout alerts, and VIP support.",
-    features: [
-      "Everything in Pro Reseller +",
-      "🗺️ Spadas Radar Live Spatial GPS Heatmaps",
-      "📡 Background SLAM Anonymized Store Mesh",
-      "🚨 Fresh Stock Rollout Alerts (Salvos & Vinnies)",
-      "👑 Dedicated VIP Support & Strategy",
-    ],
-    ctaText: "Upgrade to Enterprise ($79 AUD)",
-    color: "border-amber-400/40 bg-gradient-to-b from-slate-900 via-slate-900 to-amber-950/30",
+    ctaText: "Get Spadas Pro ($10 AUD/mo)",
+    color: "border-cyan-400 bg-gradient-to-b from-slate-900 via-slate-900 to-cyan-950/40 shadow-[0_0_40px_rgba(6,182,212,0.3)]",
   },
 ];
 
@@ -125,7 +93,7 @@ export default function SubscriptionPaywallModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xl animate-fade-in">
-      <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-3xl border border-slate-800 bg-slate-950 p-6 md:p-10 shadow-2xl text-white space-y-8">
+      <div className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-3xl border border-slate-800 bg-slate-950 p-6 md:p-8 shadow-2xl text-white space-y-6">
         {/* Close button */}
         <button
           type="button"
@@ -136,21 +104,21 @@ export default function SubscriptionPaywallModal({
         </button>
 
         {/* Header Title */}
-        <div className="text-center space-y-3 max-w-xl mx-auto pt-2">
+        <div className="text-center space-y-2.5 max-w-md mx-auto pt-2">
           <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/40 bg-cyan-500/10 px-4 py-1 text-xs font-black text-cyan-300">
             <Crown className="h-4 w-4 text-amber-400 animate-pulse" />
-            SPADAS PRO SUBSCRIPTION TIERS
+            SPADAS PRO SUBSCRIPTION
           </div>
-          <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
+          <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
             Unlock Unlimited Reseller Profit
           </h2>
-          <p className="text-xs sm:text-sm text-slate-300">
-            You have used <strong className="text-cyan-400 font-black">{currentScans}/15 Free Beta Scans</strong> this month. Upgrade to Pro for unlimited AR scans and 1-click cross-listing.
+          <p className="text-xs text-slate-300">
+            You have used <strong className="text-cyan-400 font-black">{currentScans}/15 Free Beta Scans</strong> this month. Upgrade to Pro for unlimited AR scanning and 1-click cross-listing.
           </p>
         </div>
 
-        {/* Pricing Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Pricing Card */}
+        <div className="max-w-md mx-auto">
           {PLANS.map((plan) => (
             <div
               key={plan.id}
