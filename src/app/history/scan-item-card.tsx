@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Camera, AlertTriangle, CheckCircle2, Clock, ShoppingBag, Share2 } from "lucide-react";
+import { Camera, AlertTriangle, CheckCircle2, Clock, ShoppingBag, Share2, Lock } from "lucide-react";
 import { DeleteScanButton } from "./delete-button";
 import EbayListingModal from "@/components/ebay-listing-modal";
 import CrossListModal from "@/components/cross-list-modal";
+import SubscriptionPaywallModal from "@/components/subscription-paywall-modal";
 
 interface ScanRecord {
   id: string;
@@ -27,6 +28,7 @@ export function ScanItemCard({
   const [rating, setRating] = useState<"up" | "down" | null>(null);
   const [isEbayModalOpen, setIsEbayModalOpen] = useState(false);
   const [isCrossListOpen, setIsCrossListOpen] = useState(false);
+  const [isPaywallOpen, setIsPaywallOpen] = useState(false);
 
   if (deleted) return null;
 
@@ -42,6 +44,18 @@ export function ScanItemCard({
   const handleDeleted = () => {
     setDeleted(true);
     if (onDeleted) onDeleted();
+  };
+
+  const handleCrossListClick = () => {
+    if (typeof window !== "undefined") {
+      const isProOverride = localStorage.getItem("spadas_plan_override");
+      if (!isProOverride && scan.user_id !== "owner") {
+        // Trigger Paywall for Non-Pro users trying to cross-list
+        setIsPaywallOpen(true);
+        return;
+      }
+    }
+    setIsCrossListOpen(true);
   };
 
   const res = scan.result_json || {};
@@ -139,12 +153,15 @@ export function ScanItemCard({
               </button>
               <button
                 type="button"
-                onClick={() => setIsCrossListOpen(true)}
+                onClick={handleCrossListClick}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 rounded-lg text-xs font-bold transition cursor-pointer"
-                title="Generate Depop & FB Marketplace Copy"
+                title="Cross-list to Depop & FB Marketplace (PRO Feature)"
               >
                 <Share2 className="w-3.5 h-3.5" />
                 <span>Cross-List</span>
+                <span className="bg-amber-400/20 text-amber-300 border border-amber-400/30 text-[10px] px-1 py-0.5 rounded font-black flex items-center gap-0.5">
+                  <Lock className="w-2.5 h-2.5" /> PRO
+                </span>
               </button>
             </div>
           )}
@@ -192,6 +209,12 @@ export function ScanItemCard({
         condition={res?.analysis?.condition || "Used - Good"}
         category={category}
         description={res?.seo_description || res?.detailed_description || ""}
+      />
+
+      <SubscriptionPaywallModal
+        isOpen={isPaywallOpen}
+        onClose={() => setIsPaywallOpen(false)}
+        currentScans={10}
       />
     </>
   );

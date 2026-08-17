@@ -361,19 +361,17 @@ export async function POST(request: Request) {
     userLimiter.dayWindow.push(now);
     userRateLimitMap.set(user.id, userLimiter);
 
-    // Usage Limit Check (Bypassed for real-time live AR continuous video stream)
-    if (!isArScan) {
-      const usage = await checkUserUsage(user.id);
-      if (usage.limitReached) {
-        return NextResponse.json(
-          {
-            error:
-              "Free plan limit reached (10/10 AI generations used). Upgrade to Pro for unlimited AI listings.",
-            limitReached: true,
-          },
-          { status: 403 }
-        );
-      }
+    // Usage Limit Check (10 Free Scans total for Non-Pro accounts)
+    const usage = await checkUserUsage(user.id);
+    if (!usage.isPro && usage.limitReached) {
+      return NextResponse.json(
+        {
+          error: "Free plan limit reached (10/10 AI scans used). Upgrade to Spadas Pro ($10 AUD/mo) for unlimited AR scans.",
+          limitReached: true,
+          isPro: false,
+        },
+        { status: 403 }
+      );
     }
 
     const imageContent = imageUrls.map((url) => {

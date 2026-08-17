@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Camera, ChevronLeft, ChevronRight, AlertTriangle, Filter, Scale, CheckSquare, Square } from "lucide-react";
+import { Camera, ChevronLeft, ChevronRight, AlertTriangle, Filter, Scale, CheckSquare, Square, Lock } from "lucide-react";
 import { ClearAllHistoryButton } from "./delete-button";
 import { ScanItemCard } from "./scan-item-card";
 import ItemComparisonModal, { ComparisonItem } from "@/components/item-comparison-modal";
 import EbayListingModal from "@/components/ebay-listing-modal";
+import SubscriptionPaywallModal from "@/components/subscription-paywall-modal";
 
 interface ScanRecord {
   id: string;
@@ -38,6 +39,7 @@ export function HistoryFeedView({
   const [items, setItems] = useState<ScanRecord[]>(initialScans);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isCompareOpen, setIsCompareOpen] = useState(false);
+  const [isPaywallOpen, setIsPaywallOpen] = useState(false);
   const [activeEbayItem, setActiveEbayItem] = useState<ComparisonItem | null>(null);
 
   const toggleSelect = (id: string) => {
@@ -226,11 +228,23 @@ export function HistoryFeedView({
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 animate-fade-in max-w-[92vw]">
           <button
             type="button"
-            onClick={() => setIsCompareOpen(true)}
+            onClick={() => {
+              if (typeof window !== "undefined") {
+                const isProOverride = localStorage.getItem("spadas_plan_override");
+                if (!isProOverride) {
+                  setIsPaywallOpen(true);
+                  return;
+                }
+              }
+              setIsCompareOpen(true);
+            }}
             className="inline-flex items-center gap-2.5 rounded-full bg-gradient-to-r from-cyan-500 via-teal-500 to-emerald-500 px-6 py-3 text-xs sm:text-sm font-extrabold text-slate-950 shadow-[0_0_30px_rgba(6,182,212,0.6)] hover:scale-105 active:scale-95 transition cursor-pointer whitespace-nowrap"
           >
             <Scale className="w-4 h-4 text-slate-950" />
             <span>Compare Selected ({selectedIds.length} Items)</span>
+            <span className="bg-slate-950/80 text-amber-300 border border-amber-400/40 text-[10px] px-1.5 py-0.5 rounded-full font-black flex items-center gap-1">
+              <Lock className="w-2.5 h-2.5" /> PRO
+            </span>
           </button>
         </div>
       )}
@@ -244,6 +258,13 @@ export function HistoryFeedView({
           setIsCompareOpen(false);
           setActiveEbayItem(compItem);
         }}
+      />
+
+      {/* Subscription Paywall Modal for Non-Pro Users */}
+      <SubscriptionPaywallModal
+        isOpen={isPaywallOpen}
+        onClose={() => setIsPaywallOpen(false)}
+        currentScans={10}
       />
 
       {/* Ebay Listing Automation Modal */}
