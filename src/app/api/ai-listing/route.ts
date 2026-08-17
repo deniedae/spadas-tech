@@ -549,7 +549,7 @@ Rules:
     // Log which provider served every response per user specification
     const activeProvider = "openai-vision";
     (result as any).provider = activeProvider;
-    console.log(`[ai-listing] Served response using provider: ${activeProvider} | userId: ${user.id}`);
+    console.log(`[Spadas Vision Diagnostic] userId: ${user.id} | provider: ${activeProvider} | product_name: "${result.analysis?.product_name}" | brand: "${result.analysis?.brand}" | category: "${result.analysis?.category}"`);
 
     // Fetch REAL-TIME eBay Australia 30-Day Sold Comps for the identified item
     if (result.analysis?.product_name) {

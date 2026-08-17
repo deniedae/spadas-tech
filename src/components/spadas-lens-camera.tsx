@@ -1250,9 +1250,25 @@ function SpadasLensCameraCore() {
                 )}
 
                 {scanErrorState.type === "no_match" && (
-                  <div className="flex items-center gap-2 rounded-xl bg-slate-800/90 backdrop-blur-md px-4 py-2.5 text-xs font-semibold text-slate-300 shadow-xl border border-slate-700/60">
-                    <Camera className="h-4 w-4 shrink-0 text-cyan-400" />
-                    <span>Couldn't identify this item. Try better lighting or a closer shot.</span>
+                  <div className="flex items-center justify-between gap-3 rounded-xl bg-slate-900/95 backdrop-blur-md px-4 py-3 text-xs font-semibold text-slate-200 shadow-2xl border border-slate-700/80 pointer-events-auto w-full">
+                    <div className="flex items-center gap-2.5">
+                      <Camera className="h-4 w-4 shrink-0 text-cyan-400" />
+                      <div>
+                        <div className="font-bold text-slate-100">Unclear Item Frame</div>
+                        <div className="text-[11px] text-slate-400">Align brand tags or move closer under bright lighting.</div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setScanErrorState({ type: null });
+                        void processCurrentFrame(true);
+                      }}
+                      className="inline-flex items-center gap-1 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold px-3 py-1.5 rounded-lg text-xs transition shrink-0 cursor-pointer"
+                    >
+                      <RefreshCw className="h-3.5 w-3.5" />
+                      <span>Retry Scan</span>
+                    </button>
                   </div>
                 )}
 
