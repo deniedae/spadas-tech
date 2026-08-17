@@ -182,7 +182,7 @@ export default function Dashboard() {
                 onClick={() => setIsPaywallOpen(true)}
                 className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 px-5 text-xs font-black text-slate-950 shadow-lg shadow-amber-500/20 hover:scale-105 active:scale-95 transition cursor-pointer"
               >
-                <span>👑 Upgrade to Pro ($29)</span>
+                <span>👑 Upgrade to Pro ($10 AUD/mo)</span>
               </button>
               <Link
                 href="/lens"
