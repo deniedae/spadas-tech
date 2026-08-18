@@ -142,20 +142,15 @@ export default function EbayListingModal({
         ) : (
           /* Pre-filled Listing Form */
           <form onSubmit={handleSubmit} className="space-y-4">
-            {!isConnected && (
-              <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs flex items-center justify-between gap-3 text-amber-300">
-                <div className="flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 shrink-0 text-amber-400" />
-                  <span>eBay account not linked. Publishing will create a Sandbox Demo draft.</span>
-                </div>
-                <a
-                  href="/api/auth/ebay/connect"
-                  className="px-3 py-1 bg-amber-400 hover:bg-amber-300 text-slate-950 font-extrabold rounded-lg text-[11px] shrink-0 transition"
-                >
-                  Connect eBay
-                </a>
+            <div className="p-3 bg-blue-500/10 border border-blue-500/30 rounded-xl text-xs flex items-center justify-between gap-3 text-blue-300">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 text-blue-400" />
+                <span>Direct 1-Click eBay API Sync is coming soon. Use Cross-List Copy Generator for 1-tap listing!</span>
               </div>
-            )}
+              <span className="px-2.5 py-1 bg-blue-500/20 text-blue-300 font-extrabold rounded-lg text-[11px] shrink-0 border border-blue-500/30">
+                Coming Soon
+              </span>
+            </div>
 
             {error && (
               <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-300 text-xs flex items-center gap-2">

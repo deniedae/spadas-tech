@@ -315,19 +315,10 @@ export default function SettingsPage() {
           </div>
 
           <div className="flex items-center gap-3">
-            {ebayConnected ? (
-              <div className="flex items-center gap-2 rounded-xl bg-emerald-500/15 border border-emerald-500/30 px-4 py-2 text-xs font-bold text-emerald-400">
-                <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span>Connected to eBay</span>
-              </div>
-            ) : (
-              <a
-                href="/api/auth/ebay/connect"
-                className="inline-flex h-11 items-center gap-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 px-5 text-sm font-bold text-white shadow-md transition cursor-pointer"
-              >
-                🔵 Connect eBay Account
-              </a>
-            )}
+            <div className="flex items-center gap-2 rounded-xl bg-blue-500/10 border border-blue-500/30 px-4 py-2.5 text-xs font-black text-blue-400">
+              <span className="h-2 w-2 rounded-full bg-blue-400 animate-ping" />
+              <span>⏳ Direct 1-Click eBay Sync — Coming Soon</span>
+            </div>
           </div>
         </div>
       </section>
