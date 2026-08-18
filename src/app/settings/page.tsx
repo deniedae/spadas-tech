@@ -610,8 +610,8 @@ export default function SettingsPage() {
         </p>
 
         {plan === "Pro" ? (
-          <div className="mt-5 inline-flex items-center gap-2 rounded-xl bg-blue-500/10 px-4 py-3 text-sm font-semibold text-blue-600 dark:text-blue-400 border border-blue-500/20">
-            ✨ Pro Plan Active — You have unlimited access to all AI features.
+          <div className="mt-5 inline-flex items-center gap-2 rounded-xl bg-emerald-500/10 px-4 py-3 text-sm font-bold text-emerald-400 border border-emerald-500/20 shadow-sm">
+            👑 Spadas Pro Active ($10 AUD/mo) — Unlimited access to 60FPS AR scanning & 1-click cross-listing.
           </div>
         ) : (
           <button

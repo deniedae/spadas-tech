@@ -13,7 +13,10 @@ export function AppSidebar() {
   return (
     <aside className="w-72 bg-sidebar text-sidebar-foreground border-r border-sidebar-border flex flex-col">
       <div className="p-6 border-b border-sidebar-border">
-        <h1 className="text-2xl font-bold text-primary">SpadasTechnology</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-primary">SpadasTechnology</h1>
+          <span className="rounded-md bg-emerald-500/20 px-2 py-0.5 text-[10px] font-black text-emerald-400 border border-emerald-500/30">👑 PRO</span>
+        </div>
         <p className="text-sm text-muted-foreground">AI Reseller Platform</p>
       </div>
 
