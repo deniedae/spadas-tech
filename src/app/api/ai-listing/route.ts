@@ -414,11 +414,12 @@ INSTANT SINGLE-PASS BRAND & OCR MANDATE:
 - Inspect every square millimeter of the image for text, brand logos, model plates, clothing tags, card set numbers, and packaging typography.
 - If ANY brand logo or name (e.g. Nike, Sony, Nintendo, Bose, Logitech, EFM, Apple, Samsung, Adidas, Pokémon, Wizards of the Coast) is present anywhere in the frame, extract and specify that exact brand name on your VERY FIRST PASS. Never leave brand empty if a logo or text is visible.
 
-REAL MARKET VALUE & EBAY SOLD COMP VALUATION MANDATE:
-1. Accurate Resale Market Valuations:
-   - Provide realistic, accurate Australian eBay sold comp price ranges (suggested_price_min, suggested_price_max, suggested_price_median) reflecting current market resale values.
+REAL MARKET VALUE & EBAY AUSTRALIA SOLD COMP VALUATION MANDATE:
+1. Accurate Resale Market Valuations (STRICT AUSTRALIAN DOLLARS AUD):
+   - Provide realistic, accurate Australian eBay sold comp price ranges (suggested_price_min, suggested_price_max, suggested_price_median) strictly calculated in AUSTRALIAN DOLLARS (AUD).
+   - CURRENCY CONVERSION RULE: If an item comp is commonly priced in USD or global currency, automatically convert to AUD by multiplying USD x 1.52 (e.g. $100 USD -> $152 AUD). All numeric prices MUST represent AUD.
    - Always default condition to clean, professional pre-owned categories ("used_working" or "Used - Good") unless factory-sealed.
-   - Never output "untested" or "faulty" penalties. Resellers need real, clean pre-owned market comp prices.
+   - Never output "untested" or "faulty" penalties. Resellers need real, clean pre-owned market comp prices in AUD.
 
 2. Sales Velocity & Flip Speed Prediction:
    - Always populate "sales_velocity" object:
@@ -547,7 +548,8 @@ Rules:
     // Log which provider served every response per user specification
     const activeProvider = "openai-vision";
     (result as any).provider = activeProvider;
-    console.log(`[Spadas Vision Diagnostic] userId: ${user.id} | provider: ${activeProvider} | product_name: "${result.analysis?.product_name}" | brand: "${result.analysis?.brand}" | category: "${result.analysis?.category}"`);
+    (result as any).suggested_price_currency = "AUD";
+    console.log(`[Spadas Vision Diagnostic] userId: ${user.id} | provider: ${activeProvider} | product_name: "${result.analysis?.product_name}" | brand: "${result.analysis?.brand}" | category: "${result.analysis?.category}" | currency: AUD`);
 
     // Fetch REAL-TIME eBay Australia 30-Day Sold Comps for the identified item
     if (result.analysis?.product_name) {

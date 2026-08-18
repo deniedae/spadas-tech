@@ -51,7 +51,7 @@ export async function fetchEbayAustraliaSoldComps(productName: string): Promise<
 
   // 2. Direct eBay Australia Public RSS/HTML Sold Comps Scraper (Zero API Key required!)
   try {
-    const ebayRssUrl = `https://www.ebay.com.au/sch/i.html?_nkw=${keyword}&LH_Sold=1&LH_Complete=1&_sop=13&_rss=1`;
+    const ebayRssUrl = `https://www.ebay.com.au/sch/i.html?_nkw=${keyword}&LH_Sold=1&LH_Complete=1&_sop=13&_currency=15&_rss=1`;
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 4000);
 
