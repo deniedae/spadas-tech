@@ -7,6 +7,11 @@ import {
   ShoppingCart,
   AlertCircle,
   X,
+  Sparkles,
+  Camera,
+  Crosshair,
+  ListPlus,
+  ArrowRight,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -14,12 +19,10 @@ import { supabase } from "@/app/lib/supabase";
 import Link from "next/link";
 import Image from "next/image";
 import NewListingDialog from "@/components/new-listing-dialog";
-import { fmtMoney, calcProfit, calcInventoryValue } from "@/app/lib/listings";
+import { fmtMoney, calcProfit } from "@/app/lib/listings";
 import PullToRefresh from "@/components/pull-to-refresh";
-import ResellerRpgMode from "@/components/reseller-rpg-mode";
 import SubscriptionPaywallModal from "@/components/subscription-paywall-modal";
 
-// --- Types (was: any[]) ---------------------------------------------------
 interface Listing {
   id: string;
   product: string;
@@ -49,11 +52,10 @@ const INITIAL_STATS: DashboardStats = {
   sold: 0,
 };
 
-// --- Stat card extracted (was: copy-pasted 4×) ----------------------------
 function StatCard({
   label,
   value,
-  valueClassName = "",
+  valueClassName = "text-white",
   icon: Icon,
   trend = "+12.4%",
   loading,
@@ -66,23 +68,23 @@ function StatCard({
   loading: boolean;
 }) {
   return (
-    <div className="saas-card rounded-2xl p-6 relative overflow-hidden transition-all duration-300">
+    <div className="rounded-3xl border border-slate-800 bg-slate-900/90 p-6 shadow-2xl backdrop-blur-xl relative overflow-hidden transition-all duration-300 hover:border-slate-700">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-extrabold uppercase tracking-wider text-muted-foreground">{label}</p>
+        <p className="text-xs font-black uppercase tracking-wider text-slate-400">{label}</p>
         {Icon && (
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400">
+          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400">
             <Icon className="h-5 w-5" aria-hidden="true" />
           </div>
         )}
       </div>
       {loading ? (
-        <div className="mt-3 h-9 w-28 animate-pulse rounded-lg bg-muted" />
+        <div className="mt-4 h-9 w-28 animate-pulse rounded-xl bg-slate-800" />
       ) : (
-        <div className="mt-3 flex items-baseline justify-between">
+        <div className="mt-4 flex items-baseline justify-between">
           <h2 className={`text-3xl sm:text-4xl font-black tabular-nums tracking-tight ${valueClassName}`}>
             {value}
           </h2>
-          <span className="inline-flex items-center rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-extrabold text-emerald-500 border border-emerald-500/20">
+          <span className="inline-flex items-center rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-[10px] font-black text-emerald-400 border border-emerald-500/30">
             {trend}
           </span>
         </div>
@@ -151,41 +153,103 @@ export default function Dashboard() {
           }
         });
 
-        // inventory = sum of selling prices for unsold listings (shared helper)
-        const inventory = calcInventoryValue(data);
+        let inventory = 0;
+        data.forEach((item) => {
+          if (item.status !== "Sold") {
+            inventory += Number(item.price) || 0;
+          }
+        });
 
-        if (cancelled) return;
-        setStats({ listings: data.length, inventory, revenue, profit, sold });
-      } catch (err) {
+        setStats({
+          listings: data.length,
+          inventory,
+          revenue,
+          profit,
+          sold,
+        });
+      } catch (err: any) {
         if (!cancelled) {
-          setError("Couldn't load your dashboard. Please try refreshing.");
+          setError(err?.message || "Failed to load dashboard data.");
         }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     }
 
-    loadDashboard();
+    void loadDashboard();
+
     return () => {
       cancelled = true;
     };
   }, [router]);
 
+  const handleRefresh = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("listings")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      if (data) {
+        setRecentListings(data.slice(0, 5));
+        let revenue = 0;
+        let profit = 0;
+        let sold = 0;
+        let inventory = 0;
+
+        data.forEach((item) => {
+          if (item.status === "Sold") {
+            sold++;
+            revenue += Number(item.sold_price) || 0;
+            profit += calcProfit(item);
+          } else {
+            inventory += Number(item.price) || 0;
+          }
+        });
+
+        setStats({
+          listings: data.length,
+          inventory,
+          revenue,
+          profit,
+          sold,
+        });
+      }
+    } catch (err: any) {
+      setError(err?.message || "Refresh failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <PullToRefresh onRefresh={async () => { window.location.reload(); }}>
-      <div className="w-full max-w-full overflow-x-hidden min-w-0 box-border">
-        {/* Hero Banner — Enterprise SaaS Grade */}
-        <div className="mb-8 rounded-3xl bg-gradient-to-r from-slate-950 via-slate-900 to-indigo-950 p-6 md:p-10 text-white border border-slate-800 shadow-2xl space-y-4">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div className="space-y-2">
-              <div className="inline-flex items-center gap-2 rounded-full bg-cyan-500/10 border border-cyan-500/30 px-3.5 py-1 text-xs font-black text-cyan-300">
-                <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-                ENTERPRISE RESELLER SUITE • LIVE MARKET ARBITRAGE
+    <PullToRefresh onRefresh={handleRefresh}>
+      <div className="space-y-8 max-w-7xl mx-auto pb-12">
+        {/* Header Hero — Dark Glass SaaS Banner */}
+        <div className="rounded-3xl border border-cyan-500/30 bg-slate-900/90 p-6 sm:p-8 text-white shadow-2xl backdrop-blur-xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 h-48 w-48 rounded-full bg-cyan-500/10 blur-3xl pointer-events-none" />
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full bg-cyan-500/15 border border-cyan-400/30 px-3.5 py-1 text-xs font-black text-cyan-300">
+                <Sparkles className="h-3.5 w-3.5 text-cyan-400 animate-pulse" />
+                COMMAND CENTER • SPADAS AI
               </div>
-              <h1 className="text-3xl font-black tracking-tight sm:text-4xl">
-                Welcome back to Spadas <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-400">Command Center</span> 👋
+              <h1 className="text-3xl font-black tracking-tight sm:text-4xl text-white mt-2">
+                Welcome back to Spadas <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-400 to-indigo-400">Command Center</span> 👋
               </h1>
-              <p className="max-w-2xl text-xs sm:text-sm text-slate-300 leading-relaxed">
+              <p className="max-w-2xl text-xs sm:text-sm text-slate-300 leading-relaxed mt-1">
                 Real-time inventory management, automated 60FPS AR shelf scanning, and 1-click cross-platform listing engine.
               </p>
             </div>
@@ -207,109 +271,104 @@ export default function Dashboard() {
               )}
               <Link
                 href="/lens"
-                className="btn-primary shadow-lg shadow-cyan-500/25 active:scale-95 transition"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-5 text-xs font-black text-white shadow-lg shadow-cyan-500/25 hover:scale-105 active:scale-95 transition cursor-pointer"
               >
                 <span>📷 Open Spadas Lens AR</span>
               </Link>
               <Link
                 href="/history"
-                className="px-4 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 font-bold text-xs rounded-xl transition flex items-center gap-1.5 active:scale-95"
+                className="inline-flex h-11 items-center justify-center gap-2 px-5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 font-black text-xs rounded-xl transition shadow-md shadow-emerald-500/10 active:scale-95 cursor-pointer"
               >
                 <span>📜 View Scan History</span>
-              </Link>
-              <Link
-                href="/generator"
-                className="btn-secondary active:scale-95 transition"
-              >
-                <span>✨ Create AI Listing</span>
               </Link>
             </div>
           </div>
         </div>
 
-        {/* KILLER FEATURE: The "Pokémon GO" of Hustling (IRL RPG Mode) - Hidden for now */}
-        {/* <div className="mb-8"><ResellerRpgMode /></div> */}
-
-      <div className="space-y-8">
-        {/* Error banner */}
+        {/* Error Banner */}
         {error && (
           <div
             role="alert"
-            className="flex items-start gap-3 rounded-2xl border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive"
+            className="flex items-center justify-between rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-xs font-bold text-rose-300 shadow-md"
           >
-            <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0" aria-hidden="true" />
-            <p className="flex-1">{error}</p>
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 text-rose-400 shrink-0" />
+              <span>{error}</span>
+            </div>
             <button
               type="button"
               onClick={() => setError(null)}
-              aria-label="Dismiss"
-              className="rounded p-1 text-destructive hover:bg-destructive/15"
+              className="p-1 rounded hover:bg-rose-500/20 text-rose-300 transition"
             >
               <X className="h-4 w-4" />
             </button>
           </div>
         )}
 
-        {/* Stats */}
+        {/* Core Stat Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
           <StatCard label="Listings" value={String(stats.listings)} icon={Package} loading={loading} />
           <StatCard label="Inventory Value" value={fmtMoney(stats.inventory)} icon={DollarSign} loading={loading} />
           <StatCard
             label="Profit"
             value={fmtMoney(stats.profit)}
-            valueClassName="text-green-600"
+            valueClassName="text-emerald-400 font-black"
             icon={TrendingUp}
             loading={loading}
           />
           <StatCard label="Items Sold" value={String(stats.sold)} icon={ShoppingCart} loading={loading} />
         </div>
 
-        {/* Quick Actions */}
-        <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-6">
+        {/* Quick Action SaaS Panels */}
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
           <Link
             href="/lens"
-            className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-cyan-600 via-blue-600 to-indigo-700 p-6 text-white shadow-lg shadow-cyan-500/20 transition hover:scale-[1.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="relative overflow-hidden rounded-3xl border border-cyan-500/40 bg-gradient-to-br from-cyan-950 via-slate-900 to-slate-950 p-6 text-white shadow-2xl transition hover:scale-[1.02] cursor-pointer group"
           >
             <div className="flex items-center justify-between">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/20 backdrop-blur-md px-3 py-1 text-[11px] font-extrabold text-white border border-white/30">
-                <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" /> LIVE 60FPS AR
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-cyan-500/20 px-3 py-1 text-[10px] font-black text-cyan-300 border border-cyan-500/40">
+                <span className="h-2 w-2 rounded-full bg-cyan-400 animate-ping" /> LIVE 60FPS AR
               </span>
             </div>
-            <h2 className="mt-4 text-2xl font-bold">📷 Spadas Lens AR</h2>
-            <p className="mt-2 text-xs text-cyan-100">Continuous camera scanner with profit overlays & audio chimes.</p>
+            <h2 className="mt-4 text-2xl font-black text-white group-hover:text-cyan-300 transition">📷 Spadas Lens AR</h2>
+            <p className="mt-2 text-xs text-slate-300 leading-relaxed">Continuous camera scanner with profit overlays & audio chimes.</p>
           </Link>
 
           <Link
             href="/generator"
-            className="bg-primary text-primary-foreground rounded-2xl p-6 shadow-sm transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-safe:hover:scale-[1.02]"
+            className="rounded-3xl border border-slate-800 bg-slate-900/90 p-6 text-white shadow-2xl backdrop-blur-xl transition hover:scale-[1.02] hover:border-slate-700 cursor-pointer group"
           >
-            <h2 className="text-2xl font-bold">🤖 Generate Listing</h2>
-            <p className="mt-2 text-xs text-primary-foreground/80">Create AI listings in seconds.</p>
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 mb-2">
+              <Sparkles className="h-5 w-5" />
+            </div>
+            <h2 className="text-2xl font-black text-white group-hover:text-cyan-300 transition">🤖 AI Generator</h2>
+            <p className="mt-2 text-xs text-slate-400 leading-relaxed">Create AI listings in seconds from photo gallery.</p>
           </Link>
+
           <Link
             href="/sourcing"
-            className="bg-card text-card-foreground rounded-2xl shadow-sm border border-border p-8 hover:shadow-md transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="rounded-3xl border border-slate-800 bg-slate-900/90 p-6 text-white shadow-2xl backdrop-blur-xl transition hover:scale-[1.02] hover:border-slate-700 cursor-pointer group"
           >
-            <h2 className="text-2xl font-bold">🎯 Sourcing Assistant</h2>
-            <p className="mt-3 text-muted-foreground">Get a buy/pass verdict before you spend.</p>
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 mb-2">
+              <Crosshair className="h-5 w-5" />
+            </div>
+            <h2 className="text-2xl font-black text-white group-hover:text-emerald-300 transition">🎯 Sourcing Assistant</h2>
+            <p className="mt-2 text-xs text-slate-400 leading-relaxed">Get a buy/pass verdict before you spend in store.</p>
           </Link>
 
-          <Link
-            href="/listings"
-            className="bg-card text-card-foreground rounded-2xl shadow-sm border border-border p-8 hover:shadow-md transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-          >
-            <h2 className="text-2xl font-bold">📦 My Listings</h2>
-            <p className="mt-3 text-muted-foreground">View and manage your listings.</p>
-          </Link>
-
-          <div className="bg-card text-card-foreground rounded-2xl shadow-sm border border-border p-8">
-            <h2 className="text-2xl font-bold">⚡ Quick Add</h2>
-            <p className="mt-3 text-muted-foreground">Create a fresh listing in seconds.</p>
-            <div className="mt-6">
+          <div className="rounded-3xl border border-slate-800 bg-slate-900/90 p-6 text-white shadow-2xl backdrop-blur-xl flex flex-col justify-between">
+            <div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 mb-2">
+                <ListPlus className="h-5 w-5" />
+              </div>
+              <h2 className="text-2xl font-black text-white">⚡ Quick Add</h2>
+              <p className="mt-2 text-xs text-slate-400 leading-relaxed">Create a fresh listing manually in seconds.</p>
+            </div>
+            <div className="mt-4">
               <NewListingDialog
                 trigger={
-                  <button className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90">
-                    + Add listing
+                  <button className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-4 py-2.5 text-xs font-black text-white shadow-md hover:scale-105 transition cursor-pointer">
+                    + Add Listing
                   </button>
                 }
               />
@@ -317,126 +376,104 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Recent Listings */}
-        <div className="bg-card text-card-foreground rounded-2xl shadow-sm border border-border p-8">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold">Recent Listings</h2>
+        {/* Recent Listings Table */}
+        <div className="rounded-3xl border border-slate-800 bg-slate-900/90 p-6 md:p-8 shadow-2xl backdrop-blur-xl space-y-6">
+          <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+            <div>
+              <h2 className="text-2xl font-black text-white">Recent Inventory Listings</h2>
+              <p className="text-xs text-slate-400">Latest items scanned or published to your reseller inventory.</p>
+            </div>
             {recentListings.length > 0 && (
               <Link
                 href="/listings"
-                className="text-sm font-medium text-primary hover:text-primary/80"
+                className="inline-flex items-center gap-1 text-xs font-black text-cyan-400 hover:text-cyan-300 transition"
               >
-                View all →
+                <span>View all listings</span>
+                <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             )}
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="text-left border-b border-border">
+              <thead className="text-left border-b border-slate-800 text-slate-400 text-xs font-black uppercase tracking-wider">
                 <tr>
-                  <th scope="col" className="pb-4 text-muted-foreground">Product</th>
-                  <th scope="col" className="pb-4 text-muted-foreground">Price</th>
-                  <th scope="col" className="pb-4 text-muted-foreground">Status</th>
-                  <th scope="col" className="pb-4 text-muted-foreground">Added</th>
+                  <th scope="col" className="pb-4">Product</th>
+                  <th scope="col" className="pb-4">Target Price</th>
+                  <th scope="col" className="pb-4">Status</th>
+                  <th scope="col" className="pb-4">Date Added</th>
                 </tr>
               </thead>
-              <tbody>
-                {/* Loading skeleton rows */}
+              <tbody className="divide-y divide-slate-800/60 text-xs">
                 {loading &&
                   Array.from({ length: 4 }).map((_, i) => (
-                    <tr key={i} className="border-t border-border">
-                      <td className="p-4">
+                    <tr key={i}>
+                      <td className="py-4">
                         <div className="flex items-center gap-3">
-                          <div className="h-12 w-12 rounded-lg bg-muted animate-pulse" />
-                          <div className="h-4 w-32 rounded bg-muted animate-pulse" />
+                          <div className="h-10 w-10 rounded-xl bg-slate-800 animate-pulse" />
+                          <div className="h-4 w-36 rounded bg-slate-800 animate-pulse" />
                         </div>
                       </td>
-                      <td className="p-4">
-                        <div className="h-4 w-16 rounded bg-muted animate-pulse" />
-                      </td>
-                      <td className="p-4">
-                        <div className="h-5 w-16 rounded-full bg-muted animate-pulse" />
-                      </td>
-                      <td className="p-4">
-                        <div className="h-4 w-20 rounded bg-muted animate-pulse" />
-                      </td>
+                      <td className="py-4"><div className="h-4 w-16 rounded bg-slate-800 animate-pulse" /></td>
+                      <td className="py-4"><div className="h-4 w-16 rounded bg-slate-800 animate-pulse" /></td>
+                      <td className="py-4"><div className="h-4 w-20 rounded bg-slate-800 animate-pulse" /></td>
                     </tr>
                   ))}
 
-                {/* Empty state */}
                 {!loading && recentListings.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="p-0">
-                      <div className="flex flex-col items-center justify-center px-6 py-12 text-center">
-                        <Package className="h-10 w-10 text-muted-foreground/40" aria-hidden="true" />
-                        <p className="mt-3 text-sm font-medium">No listings yet</p>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                          Generate your first AI listing to get started.
-                        </p>
-                        <Link
-                          href="/generator"
-                          className="mt-4 inline-flex items-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                        >
-                          Generate listing
-                        </Link>
-                      </div>
+                    <td colSpan={4} className="py-8 text-center text-slate-400">
+                      No listings created yet. Tap <strong>📷 Open Spadas Lens AR</strong> to scan your first item!
                     </td>
                   </tr>
                 )}
 
-                {/* Rows */}
                 {!loading &&
-                  recentListings.map((item) => {
-                    const isSold = item.status === "Sold";
-                    return (
-                      <tr key={item.id} className="border-t border-border transition-colors hover:bg-muted/50">
-                        <td className="p-4">
-                          <div className="flex items-center gap-3">
+                  recentListings.map((item) => (
+                    <tr key={item.id} className="hover:bg-slate-800/40 transition">
+                      <td className="py-4 font-bold text-slate-100">
+                        <div className="flex items-center gap-3">
+                          {item.image_url ? (
                             <Image
-                              src={item.image_url || "/placeholder.png"}
+                              src={item.image_url}
                               alt={item.product}
-                              width={48}
-                              height={48}
-                              loading="lazy"
-                              className="h-12 w-12 rounded-lg border border-border object-cover"
+                              width={40}
+                              height={40}
+                              className="h-10 w-10 rounded-xl object-cover border border-slate-800"
                             />
-                            <span className="font-medium">{item.product}</span>
-                          </div>
-                        </td>
-                        <td className="p-4 tabular-nums text-muted-foreground">
-                          {fmtMoney(Number(item.price) || 0)}
-                        </td>
-                        <td className="p-4">
-                          <span
-                            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                              isSold
-                                ? "bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-400"
-                                : "bg-primary/10 text-primary"
-                            }`}
-                          >
-                            {item.status}
-                          </span>
-                        </td>
-                        <td className="p-4 text-muted-foreground">
-                          {new Date(item.created_at).toLocaleDateString("en-AU")}
-                        </td>
-                      </tr>
-                    );
-                  })}
+                          ) : (
+                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-800 text-slate-400">
+                              <Package className="h-5 w-5" />
+                            </div>
+                          )}
+                          <span className="truncate max-w-xs">{item.product}</span>
+                        </div>
+                      </td>
+                      <td className="py-4 font-black text-cyan-300 tabular-nums">
+                        {fmtMoney(Number(item.price) || 0)}
+                      </td>
+                      <td className="py-4">
+                        <span
+                          className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-black border ${
+                            item.status === "Sold"
+                              ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+                              : "bg-blue-500/15 text-blue-300 border-blue-500/30"
+                          }`}
+                        >
+                          {item.status}
+                        </span>
+                      </td>
+                      <td className="py-4 text-slate-400 font-mono">
+                        {new Date(item.created_at).toLocaleDateString()}
+                      </td>
+                    </tr>
+                  ))}
               </tbody>
             </table>
           </div>
         </div>
       </div>
-      
-      {/* Subscription Paywall Modal */}
-      <SubscriptionPaywallModal
-        isOpen={isPaywallOpen}
-        onClose={() => setIsPaywallOpen(false)}
-        currentScans={15}
-      />
-    </div>
-  </PullToRefresh>
-);
+      <SubscriptionPaywallModal isOpen={isPaywallOpen} onClose={() => setIsPaywallOpen(false)} />
+    </PullToRefresh>
+  );
 }
