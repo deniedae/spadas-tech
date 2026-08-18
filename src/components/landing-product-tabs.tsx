@@ -59,9 +59,9 @@ const MODES: ProductMode[] = [
     actionHref: "/radar",
   },
   {
-    id: "waze-radar",
+    id: "spadas-radar",
     badge: "SPATIAL GPS RADAR",
-    title: "The Waze for Resellers",
+    title: "Spadas Live Arbitrage Radar",
     icon: "🗺️",
     description: "Live spatial GPS map tracking high-yield op shops, flea markets, and live crowdsourced reseller reports nearby.",
     metrics: [
@@ -69,7 +69,7 @@ const MODES: ProductMode[] = [
       { label: "Store Reports", value: "Live Crowdsourced" },
       { label: "SLAM Clusters", value: "Anonymized" },
     ],
-    actionText: "Launch Waze Radar",
+    actionText: "Launch Spadas Radar",
     actionHref: "/radar",
   },
 ];

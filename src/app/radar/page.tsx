@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import SpadasRadarCopilot from "@/components/spadas-radar-copilot";
-import WazeResellerHeatmap from "@/components/waze-reseller-heatmap";
+import SpadasResellerHeatmap from "@/components/spadas-reseller-heatmap";
 
 export default function RadarPage() {
   const [loading, setLoading] = useState(true);
@@ -136,8 +136,8 @@ export default function RadarPage() {
         </p>
       </div>
 
-      {/* KILLER FEATURE: Live Spatial Heat Mapping (The Waze for Resellers) */}
-      <WazeResellerHeatmap />
+      {/* Live Spatial Heat Mapping */}
+      <SpadasResellerHeatmap />
 
       {/* KILLER FEATURE: AI Arbitrage Radar & Cross-Platform Exporter Copilot */}
       <SpadasRadarCopilot />

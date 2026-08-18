@@ -1,9 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { MapPin, Flame, Sparkles, Navigation, Plus, AlertCircle, RefreshCw, Radio } from "lucide-react";
+import React, { useState } from "react";
+import { MapPin, Flame, Sparkles, Navigation, Plus, Radio } from "lucide-react";
 import { toast } from "sonner";
-import { fmtMoney } from "@/app/lib/listings";
 
 interface StoreHeatPoint {
   id: string;
@@ -91,11 +90,11 @@ const INITIAL_STORES: StoreHeatPoint[] = [
   },
 ];
 
-export default function WazeResellerHeatmap() {
+export default function SpadasResellerHeatmap() {
   const [stores, setStores] = useState<StoreHeatPoint[]>(INITIAL_STORES);
   const [selectedStore, setSelectedStore] = useState<StoreHeatPoint | null>(INITIAL_STORES[0]);
   const [reportText, setReportText] = useState("");
-  const [userLocation, setUserLocation] = useState<string>("Sydney, NSW");
+  const [userLocation] = useState<string>("Sydney, NSW");
 
   const handleReportSubmit = () => {
     if (!selectedStore || !reportText.trim()) return;
@@ -127,7 +126,7 @@ export default function WazeResellerHeatmap() {
     );
 
     setReportText("");
-    toast.success(`Live Waze report posted for ${selectedStore.name}!`);
+    toast.success(`Live Spadas Radar report posted for ${selectedStore.name}!`);
 
     // Trigger 15ms haptic feedback
     if (typeof window !== "undefined" && "vibrate" in navigator) {
@@ -136,7 +135,7 @@ export default function WazeResellerHeatmap() {
   };
 
   const [spatialMeshMode, setSpatialMeshMode] = useState<boolean>(true);
-  const [telemetryNodesCount, setTelemetryNodesCount] = useState<number>(412);
+  const [telemetryNodesCount] = useState<number>(412);
 
   return (
     <div className="rounded-3xl border border-cyan-500/30 bg-slate-950 p-6 md:p-8 space-y-6 shadow-2xl overflow-hidden box-border max-w-full">
@@ -145,7 +144,7 @@ export default function WazeResellerHeatmap() {
         <div>
           <div className="inline-flex items-center gap-2 rounded-full bg-cyan-500/15 border border-cyan-400/40 px-3.5 py-1 text-xs font-black text-cyan-300">
             <Radio className="h-3.5 w-3.5 text-cyan-400 animate-pulse" />
-            LIVE SPATIAL AI HEAT MAPPING • THE WAZE FOR RESELLERS
+            LIVE SPATIAL AI HEAT MAPPING • SPADAS RADAR CROWDSOURCING
           </div>
           <h2 className="text-2xl sm:text-3xl font-black text-white mt-2 flex items-center gap-2">
             <span>Thrift Store Spatial AI Yield Mesh</span>
@@ -255,7 +254,7 @@ export default function WazeResellerHeatmap() {
           })}
         </div>
 
-        {/* Selected Store Inspector & Waze Crowdsourced Reporter */}
+        {/* Selected Store Inspector & Spadas Radar Crowdsourced Reporter */}
         <div className="space-y-4 w-full">
           {selectedStore ? (
             <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5 space-y-4 shadow-xl">
@@ -301,7 +300,7 @@ export default function WazeResellerHeatmap() {
               {/* Latest Live Reseller Crowdsourced Report */}
               <div className="rounded-xl bg-amber-500/10 border border-amber-500/30 p-3 space-y-1">
                 <div className="flex items-center justify-between text-[10px] font-extrabold text-amber-300">
-                  <span>💬 Latest Live Waze Report:</span>
+                  <span>💬 Latest Live Radar Report:</span>
                   <span>{selectedStore.reportTime}</span>
                 </div>
                 <p className="text-xs font-semibold text-amber-200">
@@ -312,7 +311,7 @@ export default function WazeResellerHeatmap() {
               {/* Post Live Crowdsourced Reseller Report Input */}
               <div className="space-y-2 pt-2 border-t border-slate-800">
                 <label className="text-xs font-bold text-slate-300 block">
-                  📢 Post Live Reseller Status Report (Waze Mode):
+                  📢 Post Live Reseller Status Report (Spadas Radar):
                 </label>
                 <div className="flex gap-2">
                   <input
