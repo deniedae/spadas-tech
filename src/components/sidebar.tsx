@@ -8,9 +8,11 @@ export default function Sidebar() {
 
   const navItems = [
     { href: "/dashboard", label: "🏠 Dashboard" },
+    { href: "/lens", label: "📷 Spadas Lens AR" },
+    { href: "/history", label: "📜 Scan History" },
     { href: "/listings", label: "📦 Listings" },
     { href: "/analytics", label: "📈 Analytics" },
-    { href: "/sourcing", label: "🎯 Sourcing" },  // Added sourcing link here
+    { href: "/sourcing", label: "🎯 Sourcing" },
     { href: "/settings", label: "⚙️ Settings" },
   ];
 

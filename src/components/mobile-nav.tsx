@@ -6,7 +6,7 @@ import {
   LayoutDashboard,
   Package,
   Camera,
-  Radar,
+  History,
   Settings,
 } from "lucide-react";
 
@@ -29,9 +29,9 @@ export default function MobileNav() {
       isCenter: false,
     },
     {
-      href: "/listings",
-      label: "Listings",
-      icon: Package,
+      href: "/history",
+      label: "History",
+      icon: History,
       isCenter: false,
     },
     {
@@ -41,9 +41,9 @@ export default function MobileNav() {
       isCenter: true,
     },
     {
-      href: "/radar",
-      label: "Radar",
-      icon: Radar,
+      href: "/listings",
+      label: "Listings",
+      icon: Package,
       isCenter: false,
     },
     {

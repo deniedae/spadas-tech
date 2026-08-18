@@ -191,6 +191,12 @@ export default function Dashboard() {
                 <span>📷 Open Spadas Lens AR</span>
               </Link>
               <Link
+                href="/history"
+                className="px-4 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 font-bold text-xs rounded-xl transition flex items-center gap-1.5 active:scale-95"
+              >
+                <span>📜 View Scan History</span>
+              </Link>
+              <Link
                 href="/generator"
                 className="btn-secondary active:scale-95 transition"
               >

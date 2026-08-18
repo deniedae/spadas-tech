@@ -27,6 +27,7 @@ import {
   LogIn,
   ShoppingBag,
   HelpCircle,
+  History,
 } from "lucide-react";
 import { toast } from "sonner";
 import { fmtMoney } from "@/app/lib/listings";
@@ -1523,6 +1524,16 @@ function SpadasLensCameraCore() {
             >
               <HelpCircle className="h-3.5 w-3.5 text-cyan-400" />
               <span>Guide</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => router.push("/history")}
+              className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-emerald-500/40 bg-emerald-500/20 px-3 text-xs font-bold text-emerald-300 hover:bg-emerald-500/30 cursor-pointer transition shadow-sm shadow-emerald-500/20"
+              title="Open Scan History Feed"
+            >
+              <History className="h-3.5 w-3.5 text-emerald-400" />
+              <span>History</span>
             </button>
 
             <button

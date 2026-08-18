@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Package, Sparkles, BarChart3, Settings, Crosshair, Camera } from "lucide-react";
+import { Home, Package, Sparkles, BarChart3, Settings, Crosshair, Camera, History } from "lucide-react";
 
 export function AppSidebar() {
   const pathname = usePathname();
@@ -58,6 +58,19 @@ export function AppSidebar() {
             <span>Spadas Lens AR</span>
           </div>
           <span className="flex h-2 w-2 rounded-full bg-cyan-400 animate-ping" />
+        </Link>
+
+        <Link
+          href="/history"
+          aria-current={isActive("/history") ? "page" : undefined}
+          className={`flex items-center gap-3 rounded-lg p-3 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+            isActive("/history")
+              ? "bg-emerald-950/40 text-emerald-400 font-semibold border border-emerald-800/40"
+              : "text-sidebar-foreground hover:bg-sidebar-accent"
+          }`}
+        >
+          <History size={18} aria-hidden="true" className={isActive("/history") ? "text-emerald-400" : "text-muted-foreground"} />
+          Scan History
         </Link>
 
         <Link
