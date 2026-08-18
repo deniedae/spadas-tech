@@ -259,6 +259,9 @@ function SpadasLensCameraCore() {
   const [isPaywallOpen, setIsPaywallOpen] = useState<boolean>(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(false);
   const [activeEbayItem, setActiveEbayItem] = useState<any | null>(null);
+  const [isOwner, setIsOwner] = useState<boolean>(false);
+  const [isPro, setIsPro] = useState<boolean>(false);
+
   const [selectedCurrency, setSelectedCurrency] = useState<SupportedCurrency>(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("spadas_selected_currency");
@@ -270,20 +273,50 @@ function SpadasLensCameraCore() {
   });
   const prevFramePixelsRef = useRef<Uint8ClampedArray | null>(null);
 
+  // Verify Owner (deniedae@gmail.com) and Pro User status
+  useEffect(() => {
+    async function checkOwnerAndProStatus() {
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
+        if (user?.email?.toLowerCase() === "deniedae@gmail.com") {
+          setIsOwner(true);
+          setIsPro(true);
+          return;
+        }
+
+        if (typeof window !== "undefined" && localStorage.getItem("spadas_plan_override") === "pro") {
+          setIsPro(true);
+          return;
+        }
+
+        const res = await fetch("/api/usage").catch(() => null);
+        if (res && res.ok) {
+          const d = await res.json().catch(() => ({}));
+          if (d?.isPro) setIsPro(true);
+        }
+      } catch {}
+    }
+    void checkOwnerAndProStatus();
+  }, []);
+
   // Native Offline Dead-Zone Signal Watcher
   const [isOffline, setIsOffline] = useState<boolean>(
     typeof navigator !== "undefined" ? !navigator.onLine : false
   );
 
-  // Dynamic Mobile DevTools Console Overlay (?debug=true)
+  // Dynamic Mobile DevTools Console Overlay (?debug=true) - Restricted to Owner
   useEffect(() => {
+    if (!isOwner) return;
     if (typeof window === 'undefined') return;
     if (!new URLSearchParams(window.location.search).has('debug')) return;
     const s = document.createElement('script');
     s.src = 'https://cdn.jsdelivr.net/npm/eruda';
     s.onload = () => (window as any).eruda?.init();
     document.body.appendChild(s);
-  }, []);
+  }, [isOwner]);
 
   // Persistent Local Storage Caching for Offline Thrift Store Sourcing
   useEffect(() => {
@@ -1430,14 +1463,21 @@ function SpadasLensCameraCore() {
             </button>
 
             {/* Pro Subscription Paywall Badge */}
-            <button
-              type="button"
-              onClick={() => setIsPaywallOpen(true)}
-              className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-cyan-500 px-3.5 text-xs font-black text-slate-950 shadow-lg shadow-amber-500/20 hover:scale-105 transition active:scale-95 cursor-pointer"
-            >
-              <Sparkles className="h-3.5 w-3.5 text-slate-950 animate-pulse" />
-              <span>👑 Upgrade Pro</span>
-            </button>
+            {isPro ? (
+              <div className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/40 px-3.5 text-xs font-black text-emerald-300 shadow-md shadow-emerald-500/10">
+                <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
+                <span>👑 PRO</span>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsPaywallOpen(true)}
+                className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-cyan-500 px-3.5 text-xs font-black text-slate-950 shadow-lg shadow-amber-500/20 hover:scale-105 transition active:scale-95 cursor-pointer"
+              >
+                <Sparkles className="h-3.5 w-3.5 text-slate-950 animate-pulse" />
+                <span>👑 Upgrade Pro ($10/mo)</span>
+              </button>
+            )}
 
             <button
               type="button"
@@ -1512,19 +1552,21 @@ function SpadasLensCameraCore() {
               ))}
             </div>
 
-            <button
-              type="button"
-              onClick={() => setShowDebugDrawer(!showDebugDrawer)}
-              className={`inline-flex h-9 items-center gap-1.5 rounded-xl border px-3 text-xs font-bold transition cursor-pointer ${
-                showDebugDrawer
-                  ? "bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-sm shadow-amber-500/20"
-                  : "bg-white/10 text-white border-white/20 hover:bg-white/20"
-              }`}
-            >
-              <Bug className="h-3.5 w-3.5 text-amber-400" />
-              <span>{showDebugDrawer ? "Hide Debug" : "🐞 Debug Drawer"}</span>
-              {showDebugDrawer ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-            </button>
+            {isOwner && (
+              <button
+                type="button"
+                onClick={() => setShowDebugDrawer(!showDebugDrawer)}
+                className={`inline-flex h-9 items-center gap-1.5 rounded-xl border px-3 text-xs font-bold transition cursor-pointer ${
+                  showDebugDrawer
+                    ? "bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-sm shadow-amber-500/20"
+                    : "bg-white/10 text-white border-white/20 hover:bg-white/20"
+                }`}
+              >
+                <Bug className="h-3.5 w-3.5 text-amber-400" />
+                <span>{showDebugDrawer ? "Hide Debug" : "🐞 Debug Drawer"}</span>
+                {showDebugDrawer ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+              </button>
+            )}
 
             {/* Global Geo Currency Selector */}
             <div className="flex items-center gap-1 bg-white/10 border border-white/20 rounded-xl p-1">
@@ -1625,8 +1667,8 @@ function SpadasLensCameraCore() {
             </div>
           </div>
 
-          {/* Diagnostics & Debug Drawer Panel */}
-          {showDebugDrawer && (
+          {/* Diagnostics & Debug Drawer Panel - Owner Only */}
+          {showDebugDrawer && isOwner && (
             <div className="w-full rounded-2xl bg-slate-950/95 border border-amber-500/30 p-4 shadow-2xl space-y-3 backdrop-blur-md">
               <div className="flex items-center justify-between border-b border-slate-800 pb-2">
                 <div className="flex items-center gap-2">
