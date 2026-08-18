@@ -33,6 +33,7 @@ import { toast } from "sonner";
 import { fmtMoney } from "@/app/lib/listings";
 import { createListing } from "@/app/lib/createlisting";
 import { supabase } from "@/app/lib/supabase";
+import { detectGeoCurrency, CURRENCY_CONFIGS, SupportedCurrency } from "@/app/lib/currency-routing";
 import ShareDealDialog from "@/components/share-deal-dialog";
 import TiktokVideoExporter from "@/components/tiktok-video-exporter";
 import SubscriptionPaywallModal from "@/components/subscription-paywall-modal";
@@ -258,6 +259,15 @@ function SpadasLensCameraCore() {
   const [isPaywallOpen, setIsPaywallOpen] = useState<boolean>(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(false);
   const [activeEbayItem, setActiveEbayItem] = useState<any | null>(null);
+  const [selectedCurrency, setSelectedCurrency] = useState<SupportedCurrency>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("spadas_selected_currency");
+      if (saved && (saved === "AUD" || saved === "USD" || saved === "EUR" || saved === "GBP")) {
+        return saved as SupportedCurrency;
+      }
+    }
+    return detectGeoCurrency().currency;
+  });
   const prevFramePixelsRef = useRef<Uint8ClampedArray | null>(null);
 
   // Native Offline Dead-Zone Signal Watcher
@@ -808,7 +818,7 @@ function SpadasLensCameraCore() {
       res = await fetch("/api/ai-listing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageUrls: frameDataUrl ? [frameDataUrl] : [], isArScan: true }),
+        body: JSON.stringify({ imageUrls: frameDataUrl ? [frameDataUrl] : [], isArScan: true, currency: selectedCurrency }),
         signal: controller.signal,
       }).catch((e) => {
         if (e?.name === 'AbortError') {
@@ -1515,6 +1525,35 @@ function SpadasLensCameraCore() {
               <span>{showDebugDrawer ? "Hide Debug" : "🐞 Debug Drawer"}</span>
               {showDebugDrawer ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
             </button>
+
+            {/* Global Geo Currency Selector */}
+            <div className="flex items-center gap-1 bg-white/10 border border-white/20 rounded-xl p-1">
+              {(["AUD", "USD", "EUR", "GBP"] as SupportedCurrency[]).map((c) => {
+                const conf = CURRENCY_CONFIGS[c];
+                return (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => {
+                      setSelectedCurrency(c);
+                      if (typeof window !== "undefined") {
+                        localStorage.setItem("spadas_selected_currency", c);
+                      }
+                      toast.success(`Switched Comps to ${conf.flag} ${c} (${conf.ebaySite})`);
+                    }}
+                    className={`px-2 py-0.5 rounded-lg text-xs font-black transition cursor-pointer flex items-center gap-1 ${
+                      selectedCurrency === c
+                        ? "bg-emerald-500 text-slate-950 shadow-sm"
+                        : "text-slate-300 hover:text-white hover:bg-white/10"
+                    }`}
+                    title={`Switch to ${c} Sold Comps (${conf.ebaySite})`}
+                  >
+                    <span>{conf.flag}</span>
+                    <span>{c}</span>
+                  </button>
+                );
+              })}
+            </div>
 
             <button
               type="button"

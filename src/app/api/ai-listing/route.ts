@@ -13,6 +13,7 @@ import { AR_SCAN_MODEL_FALLBACKS, LISTING_MODEL_FALLBACKS, getPrimaryAiApiKey, c
 import { callClaudeVision } from "@/app/lib/config/claude-vision";
 import { callGeminiVision } from "@/app/lib/config/gemini-vision";
 import { fetchEbayAustraliaSoldComps } from "@/app/lib/ebay-australia-comps";
+import { detectGeoCurrency, SupportedCurrency } from "@/app/lib/currency-routing";
 import type { AiListingResult } from "@/types/ai-listing";
 
 export const preferredRegion = "syd1";
@@ -545,16 +546,19 @@ Rules:
       result = generateMockAiListingResult();
     }
 
-    // Log which provider served every response per user specification
     const activeProvider = "openai-vision";
-    (result as any).provider = activeProvider;
-    (result as any).suggested_price_currency = "AUD";
-    console.log(`[Spadas Vision Diagnostic] userId: ${user.id} | provider: ${activeProvider} | product_name: "${result.analysis?.product_name}" | brand: "${result.analysis?.brand}" | category: "${result.analysis?.category}" | currency: AUD`);
+    const countryHeader = request.headers.get("x-vercel-ip-country");
+    const geoInfo = detectGeoCurrency(countryHeader);
+    const targetCurrency: SupportedCurrency = (body.currency as SupportedCurrency) || geoInfo.currency;
 
-    // Fetch REAL-TIME eBay Australia 30-Day Sold Comps for the identified item
+    (result as any).provider = activeProvider;
+    (result as any).suggested_price_currency = targetCurrency;
+    console.log(`[Spadas Vision Diagnostic] userId: ${user.id} | provider: ${activeProvider} | product_name: "${result.analysis?.product_name}" | brand: "${result.analysis?.brand}" | category: "${result.analysis?.category}" | currency: ${targetCurrency}`);
+
+    // Fetch REAL-TIME regional eBay 30-Day Sold Comps in target currency
     if (result.analysis?.product_name) {
       try {
-        const ebayComps = await fetchEbayAustraliaSoldComps(result.analysis.product_name);
+        const ebayComps = await fetchEbayAustraliaSoldComps(result.analysis.product_name, targetCurrency);
         if (ebayComps && ebayComps.count > 0) {
           result.suggested_price_min = ebayComps.min;
           result.suggested_price_max = ebayComps.max;
