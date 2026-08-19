@@ -28,6 +28,7 @@ import {
   ShoppingBag,
   HelpCircle,
   History,
+  Crosshair,
 } from "lucide-react";
 import { toast } from "sonner";
 import { fmtMoney } from "@/app/lib/listings";
@@ -263,6 +264,8 @@ function SpadasLensCameraCore() {
   const [activeEbayItem, setActiveEbayItem] = useState<any | null>(null);
   const [isOwner, setIsOwner] = useState<boolean>(false);
   const [isPro, setIsPro] = useState<boolean>(false);
+  const [scanMode, setScanMode] = useState<"SWEEP" | "TARGET">("SWEEP");
+  const [scanFeedback, setScanFeedback] = useState<"HIT" | "MISS" | null>(null);
 
   const [selectedCurrency, setSelectedCurrency] = useState<SupportedCurrency>(() => {
     if (typeof window !== "undefined") {
@@ -1327,6 +1330,30 @@ function SpadasLensCameraCore() {
               </div>
             )}
 
+            {/* Immediate Scan Feedback Flash Ring */}
+            {scanFeedback === "HIT" && (
+              <div className="absolute inset-0 z-30 pointer-events-none border-4 border-emerald-400 bg-emerald-500/10 transition-all duration-300 animate-pulse shadow-[inset_0_0_50px_rgba(52,211,153,0.6)]" />
+            )}
+            {scanFeedback === "MISS" && (
+              <div className="absolute inset-0 z-30 pointer-events-none border-4 border-rose-500 bg-rose-500/10 transition-all duration-300 animate-pulse shadow-[inset_0_0_50px_rgba(244,63,94,0.6)]" />
+            )}
+
+            {/* Target Precision Crosshair Reticle for Crowded Shelves */}
+            {scanMode === "TARGET" && (
+              <div className="absolute inset-0 z-25 pointer-events-none flex items-center justify-center">
+                <div className="relative h-44 w-44 rounded-full border-2 border-dashed border-cyan-400 bg-cyan-500/10 flex items-center justify-center shadow-[0_0_30px_rgba(34,211,238,0.5)] animate-pulse">
+                  <div className="h-2 w-2 rounded-full bg-cyan-400 animate-ping" />
+                  <div className="absolute top-0 h-4 w-0.5 bg-cyan-400" />
+                  <div className="absolute bottom-0 h-4 w-0.5 bg-cyan-400" />
+                  <div className="absolute left-0 w-4 h-0.5 bg-cyan-400" />
+                  <div className="absolute right-0 w-4 h-0.5 bg-cyan-400" />
+                  <span className="absolute -bottom-7 rounded-full bg-slate-950/90 border border-cyan-400/50 px-2.5 py-0.5 text-[9px] font-black text-cyan-300">
+                    🎯 TARGET PRECISION RETICLE
+                  </span>
+                </div>
+              </div>
+            )}
+
             {/* Target Framing Reticle with Modern Glassmorphic Corner Brackets */}
             <div className="absolute inset-0 z-15 pointer-events-none flex items-center justify-center">
               <div className="relative w-[65%] h-[75%] max-w-[340px] max-h-[460px] rounded-2xl border border-cyan-400/40 flex flex-col justify-between p-3 bg-cyan-500/5 backdrop-blur-[1px]">
@@ -1434,6 +1461,23 @@ function SpadasLensCameraCore() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                const nextMode = scanMode === "SWEEP" ? "TARGET" : "SWEEP";
+                setScanMode(nextMode);
+                toast.success(nextMode === "TARGET" ? "🎯 Target Precision Mode Active — Aim laser reticle at item!" : "⚡ Wide Shelf Sweep Mode Active");
+              }}
+              className={`inline-flex h-9 items-center gap-1.5 rounded-xl px-3.5 text-xs font-black transition cursor-pointer border ${
+                scanMode === "TARGET"
+                  ? "bg-cyan-500 text-slate-950 border-cyan-300 shadow-[0_0_16px_rgba(34,211,238,0.6)]"
+                  : "bg-slate-900 text-cyan-300 border-slate-700 hover:text-white"
+              }`}
+            >
+              <Crosshair className="h-3.5 w-3.5" />
+              <span>{scanMode === "TARGET" ? "🎯 Target Mode" : "⚡ Sweep Mode"}</span>
+            </button>
+
             <button
               type="button"
               onClick={() => setAutoScanActive(!autoScanActive)}
