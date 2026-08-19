@@ -363,9 +363,9 @@ export async function POST(request: Request) {
     userLimiter.dayWindow.push(now);
     userRateLimitMap.set(user.id, userLimiter);
 
-    // Usage Limit Check (10 Free Scans total for Non-Pro accounts)
+    // Usage Limit Check (10 Free Scans total for Non-Pro accounts on full generator routes)
     const usage = await checkUserUsage(user.id);
-    if (!usage.isPro && usage.limitReached) {
+    if (!isArScan && !usage.isPro && usage.limitReached) {
       return NextResponse.json(
         {
           error: "Free plan limit reached (10/10 AI scans used). Upgrade to Spadas Pro ($10 AUD/mo) for unlimited AR scans.",
