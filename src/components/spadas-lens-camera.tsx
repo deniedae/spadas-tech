@@ -825,8 +825,8 @@ function SpadasLensCameraCore() {
         const fullHeight = video.videoHeight || video.clientHeight || 720;
 
         if (fullWidth > 0 && fullHeight > 0) {
-          // DOWNSCALE FRAME BEFORE ENCODING: Max 512px on the long edge, JPEG quality 0.6
-          const maxDim = 512;
+          // HIGH-DEFINITION 1080P FRAME ENCODING: Max 1024px on the long edge, JPEG quality 0.85
+          const maxDim = 1024;
           let targetW = fullWidth;
           let targetH = fullHeight;
 
@@ -844,11 +844,18 @@ function SpadasLensCameraCore() {
           const ctx = canvas.getContext("2d");
           if (ctx) {
             ctx.imageSmoothingEnabled = true;
-            ctx.imageSmoothingQuality = "medium";
+            ctx.imageSmoothingQuality = "high";
+            ctx.filter = "contrast(1.15) brightness(1.08)";
             ctx.drawImage(video, 0, 0, fullWidth, fullHeight, 0, 0, targetW, targetH);
-            frameDataUrl = canvas.toDataURL("image/jpeg", 0.6);
+            frameDataUrl = canvas.toDataURL("image/jpeg", 0.85);
           }
         }
+      }
+
+      if (!frameDataUrl || frameDataUrl.length < 2000) {
+        console.warn("[Spadas Lens]", cycleId, "Frame snapshot too small or uninitialized, retrying frame...");
+        setAnalyzingRealFrame(false);
+        return;
       }
 
       let res: Response | null = null;
