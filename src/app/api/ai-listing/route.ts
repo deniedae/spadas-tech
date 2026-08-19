@@ -387,15 +387,13 @@ export async function POST(request: Request) {
     const openai = createOpenAiClient();
     let completion;
     let hasCreditOrQuotaError = false;
-    // For AR Camera scans, strictly use high-speed gpt-4o-mini to guarantee sub-second vision response times
-    const targetModels = isArScan ? ["gpt-4o-mini"] : LISTING_MODEL_FALLBACKS;
+    const targetModels = isArScan ? AR_SCAN_MODEL_FALLBACKS : LISTING_MODEL_FALLBACKS;
 
     for (const modelName of targetModels) {
       try {
         const reqParams: any = {
           model: modelName,
           temperature: 0.0,
-          max_tokens: isArScan ? 450 : 1200,
           response_format: zodResponseFormat(AiListingResultSchema, "ai_listing_analysis"),
           messages: [
             {
