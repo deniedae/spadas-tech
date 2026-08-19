@@ -34,6 +34,8 @@ import { fmtMoney } from "@/app/lib/listings";
 import { createListing } from "@/app/lib/createlisting";
 import { supabase } from "@/app/lib/supabase";
 import { detectGeoCurrency, CURRENCY_CONFIGS, SupportedCurrency } from "@/app/lib/currency-routing";
+import { resilientFetch } from "@/app/lib/resilient-fetch";
+import { saveScanOffline } from "@/app/lib/offline-storage";
 import ShareDealDialog from "@/components/share-deal-dialog";
 import TiktokVideoExporter from "@/components/tiktok-video-exporter";
 import SubscriptionPaywallModal from "@/components/subscription-paywall-modal";
@@ -847,13 +849,13 @@ function SpadasLensCameraCore() {
       }
 
       let res: Response | null = null;
-      console.log('[Spadas Lens]', cycleId, 'Starting fetch for frame with analyzingRealFrame:', analyzingRealFrame);
-      res = await fetch("/api/ai-listing", {
+      console.log('[Spadas Lens]', cycleId, 'Starting resilient fetch for frame with analyzingRealFrame:', analyzingRealFrame);
+      res = await resilientFetch("/api/ai-listing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ imageUrls: frameDataUrl ? [frameDataUrl] : [], isArScan: true, currency: selectedCurrency }),
         signal: controller.signal,
-      }).catch((e) => {
+      }, { maxRetries: 2, initialDelayMs: 300 }).catch((e) => {
         if (e?.name === 'AbortError') {
           console.error('[Spadas Lens]', cycleId, 'Fetch aborted:', e);
         } else {
