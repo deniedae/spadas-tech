@@ -407,9 +407,9 @@ Analyse the product in the provided image(s) with 100% precision.
 STRICT PHYSICAL ITEM VISION MANDATE:
 - Inspect the camera viewport for an actual physical product (e.g. clothing, shoes, camera, video game console, trading card, book, tool, electronic device, homeware, toy, or packaged item).
 - Extract ALL visible text, brand logos, model plates, tag labels, and packaging text with 100% accuracy.
-- NO PRODUCT IN FRAME (Empty floor, plain wall, dark blur, featureless surface): Only return "product_name": "NO_CENTER_ITEM" if the frame is 100% empty, showing no physical object whatsoever.
-- UNBRANDED / VINTAGE / LOGO-LESS ITEMS: Never return "NO_CENTER_ITEM" or "Unidentified Item" if a physical object is present. Describe the item precisely using Material + Color + Era/Style + Form Factor (e.g., "Vintage Brown Leather Biker Jacket", "Handmade Floral Ceramic Mug", "Mid-Century Teak Desk Lamp", "Black Mesh Athletic Snapback Cap").
-- BRANDED PRODUCT IN FRAME: Output the specific, precise product title with Brand + Line + Model (e.g., "Sony Cyber-shot DSC-W80 Digital Camera", "Nike Dunk Low Panda Sneakers", "Carhartt WIP Detroit Jacket", "Nintendo Switch OLED Console", "AirPods Max Space Grey"). Never output "Resale Item" or generic place-holders for real items.
+- NO PRODUCT IN FRAME: Only return "product_name": "NO_CENTER_ITEM" if the frame is 100% pure blank space showing no physical object whatsoever.
+- ANY PHYSICAL OBJECT PRESENT (Even if close-up, angled, or unbranded): NEVER return "NO_CENTER_ITEM" or "Unidentified Item". Describe the item precisely using Material + Color + Era/Style + Form Factor (e.g., "Vintage Brown Leather Biker Jacket", "Handmade Floral Ceramic Mug", "Mid-Century Teak Desk Lamp", "Black Mesh Athletic Snapback Cap", "Retro Blue Denim Apparel Item"). Always estimate realistic AUD sold comps ($25–$85 AUD).
+- BRANDED PRODUCT IN FRAME: Output the specific, precise product title with Brand + Line + Model (e.g., "Sony Cyber-shot DSC-W80 Digital Camera", "Nike Dunk Low Panda Sneakers", "Carhartt WIP Detroit Jacket", "Nintendo Switch OLED Console", "AirPods Max Space Grey"). Never output generic place-holders for real items.
 
 INSTANT SINGLE-PASS BRAND & OCR MANDATE:
 - Inspect every square millimeter of the image for text, brand logos, model plates, clothing tags, card set numbers, and packaging typography.
