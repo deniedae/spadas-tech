@@ -1278,13 +1278,6 @@ function SpadasLensCameraCore() {
                   <span>📶 Offline Dead-Zone Active — Camera Scanner Ready</span>
                 </div>
               </div>
-            ) : isOwner && isMockFallback ? (
-              <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 w-[92%] max-w-md mx-auto pointer-events-none">
-                <div className="flex items-center justify-center gap-2 rounded-xl bg-amber-500/95 backdrop-blur-md px-4 py-2 text-xs font-extrabold text-slate-950 shadow-2xl border border-amber-300/60 animate-pulse">
-                  <ShieldAlert className="h-4 w-4 shrink-0 text-slate-950" />
-                  <span>⚠️ Owner Debug: AI Vision Running in Test Mode</span>
-                </div>
-              </div>
             ) : null}
 
             {/* Phase 4: Non-Alarming Scan Error State Banner */}
