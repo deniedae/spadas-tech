@@ -319,7 +319,8 @@ export async function POST(request: Request) {
     userLimiter.minuteWindow = userLimiter.minuteWindow.filter((t) => now - t < 60000);
     userLimiter.dayWindow = userLimiter.dayWindow.filter((t) => now - t < 86400000);
 
-    if (userLimiter.inFlight) {
+    // Bypass in-flight lock for continuous AR camera streams so 100% of camera frames reach OpenAI Vision
+    if (!isArScan && userLimiter.inFlight) {
       return NextResponse.json(
         {
           error: "rate_limit",
@@ -331,7 +332,7 @@ export async function POST(request: Request) {
       );
     }
 
-    if (userLimiter.minuteWindow.length >= 10) {
+    if (!isArScan && userLimiter.minuteWindow.length >= 10) {
       const oldestInMin = userLimiter.minuteWindow[0];
       const retryAfterSeconds = Math.max(1, Math.ceil((60000 - (now - oldestInMin)) / 1000));
       return NextResponse.json(
