@@ -814,7 +814,7 @@ function SpadasLensCameraCore() {
     const hardTimeoutId = setTimeout(() => {
       controller.abort();
       setAnalyzingRealFrame(false);
-    }, 5000);
+    }, 12000);
 
     try {
       const video = videoRef.current;

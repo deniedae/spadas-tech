@@ -381,7 +381,7 @@ export async function POST(request: Request) {
       const cleanUrl = url.trim().replace(/[\r\n]/g, "");
       return {
         type: "image_url" as const,
-        image_url: { url: cleanUrl, detail: isArScan ? ("auto" as const) : ("high" as const) },
+        image_url: { url: cleanUrl, detail: isArScan ? ("low" as const) : ("high" as const) },
       };
     });
 
