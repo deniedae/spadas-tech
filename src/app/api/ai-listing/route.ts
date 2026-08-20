@@ -611,45 +611,79 @@ Rules:
 
     return NextResponse.json(result);
   } catch (err: any) {
-    console.warn("[ai-listing] OpenAI call encountered error — auto-healing with high-value reseller catalog analysis:", err?.message);
-    const mockResult = generateMockAiListingResult();
+    console.error("[ai-listing] Primary AI call encountered error:", err?.message);
 
-    if (userId && supabaseClient) {
-      try {
-        const firstImg = rawImageUrls[0] || "";
-        const sanitizedUrl = firstImg.startsWith("data:")
-          ? `data:image/jpeg;base64,...(${firstImg.length} bytes)`
-          : firstImg;
-
-        console.log('[Spadas Lens] Inserting scan record:', {
-          userId,
-          imageUrl: sanitizedUrl,
-          tokenCount: 0,
-          status: "failed"
-        });
-
-        await supabaseClient.from("scans").insert([
-          {
-            user_id: userId,
-            image_url: sanitizedUrl,
-            result_json: { error: err?.message || "Scan failed", fallback: mockResult },
-            token_count: 0,
-            status: "failed",
-          },
-        ]);
-      } catch (dbErr) {
-        console.error('[Spadas Lens] Error inserting scan record:', dbErr);
-      }
-    }
-
-    return NextResponse.json(mockResult);
+    return NextResponse.json(
+      { error: err?.message || "AI Vision processing failed." },
+      { status: 500 }
+    );
   } finally {
     if (userId) {
       const currentLimiter = userRateLimitMap.get(userId);
       if (currentLimiter) {
         currentLimiter.inFlight = false;
-        userRateLimitMap.set(userId, currentLimiter);
       }
     }
+  }
+}
+
+async function callGemini15FlashVision(base64DataUrl: string): Promise<any | null> {
+  const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GOOGLE_AI_API_KEY;
+  if (!apiKey) return null;
+
+  try {
+    const base64Data = base64DataUrl.replace(/^data:image\/\w+;base64,/, "");
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+
+    const prompt = `Analyse the product in this image for an Australian reseller valuation app. Return ONLY a JSON object:
+{
+  "product_name": "Brand + Model + Title",
+  "brand": "Brand",
+  "category": "Category",
+  "condition": "Used - Good",
+  "suggested_price_min": 50,
+  "suggested_price_max": 120,
+  "suggested_price_median": 85,
+  "detected_objects": [
+    {
+      "id": "obj-1",
+      "product_name": "Brand + Model + Title",
+      "brand": "Brand",
+      "category": "Category",
+      "condition": "Used - Good",
+      "bbox": { "x": 15, "y": 15, "width": 70, "height": 70 },
+      "confidence_score": 0.98
+    }
+  ]
+}`;
+
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              { text: prompt },
+              { inlineData: { mimeType: "image/jpeg", data: base64Data } }
+            ]
+          }
+        ],
+        generationConfig: {
+          temperature: 0.1,
+          responseMimeType: "application/json"
+        }
+      })
+    });
+
+    if (!response.ok) return null;
+    const json = await response.json();
+    const text = json?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) return null;
+
+    return JSON.parse(text);
+  } catch (e) {
+    console.warn("[Gemini 1.5 Flash Vision] Sub-300ms call error:", e);
+    return null;
   }
 }
