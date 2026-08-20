@@ -820,40 +820,38 @@ function SpadasLensCameraCore() {
       const video = videoRef.current;
       let frameDataUrl = "";
 
-      if (video && (video.srcObject || video.readyState >= 1 || video.currentTime > 0 || video.videoWidth > 0)) {
-        const fullWidth = video.videoWidth || video.clientWidth || 1280;
-        const fullHeight = video.videoHeight || video.clientHeight || 720;
+      if (video && video.videoWidth >= 200 && video.videoHeight >= 200) {
+        const fullWidth = video.videoWidth;
+        const fullHeight = video.videoHeight;
 
-        if (fullWidth > 0 && fullHeight > 0) {
-          // HIGH-DEFINITION 1080P FRAME ENCODING: Max 1024px on the long edge, JPEG quality 0.85
-          const maxDim = 1024;
-          let targetW = fullWidth;
-          let targetH = fullHeight;
+        // LIGHTWEIGHT HIGH-SPEED FRAME ENCODING: Max 800px on the long edge, JPEG quality 0.75 (~45KB payload)
+        const maxDim = 800;
+        let targetW = fullWidth;
+        let targetH = fullHeight;
 
-          if (fullWidth >= fullHeight) {
-            targetW = Math.min(maxDim, fullWidth);
-            targetH = Math.round((fullHeight * targetW) / fullWidth);
-          } else {
-            targetH = Math.min(maxDim, fullHeight);
-            targetW = Math.round((fullWidth * targetH) / fullHeight);
-          }
+        if (fullWidth >= fullHeight) {
+          targetW = Math.min(maxDim, fullWidth);
+          targetH = Math.round((fullHeight * targetW) / fullWidth);
+        } else {
+          targetH = Math.min(maxDim, fullHeight);
+          targetW = Math.round((fullWidth * targetH) / fullHeight);
+        }
 
-          const canvas = document.createElement("canvas");
-          canvas.width = targetW;
-          canvas.height = targetH;
-          const ctx = canvas.getContext("2d");
-          if (ctx) {
-            ctx.imageSmoothingEnabled = true;
-            ctx.imageSmoothingQuality = "high";
-            ctx.filter = "contrast(1.15) brightness(1.08)";
-            ctx.drawImage(video, 0, 0, fullWidth, fullHeight, 0, 0, targetW, targetH);
-            frameDataUrl = canvas.toDataURL("image/jpeg", 0.85);
-          }
+        const canvas = document.createElement("canvas");
+        canvas.width = targetW;
+        canvas.height = targetH;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = "high";
+          ctx.filter = "contrast(1.12) brightness(1.06)";
+          ctx.drawImage(video, 0, 0, fullWidth, fullHeight, 0, 0, targetW, targetH);
+          frameDataUrl = canvas.toDataURL("image/jpeg", 0.75);
         }
       }
 
-      if (!frameDataUrl || frameDataUrl.length < 2000) {
-        console.warn("[Spadas Lens]", cycleId, "Frame snapshot too small or uninitialized, retrying frame...");
+      if (!frameDataUrl || !frameDataUrl.startsWith("data:image/jpeg;base64,") || frameDataUrl.length < 4000) {
+        console.warn("[Spadas Lens]", cycleId, "Frame snapshot uninitialized or invalid JPEG payload, retrying frame...");
         setAnalyzingRealFrame(false);
         return;
       }
