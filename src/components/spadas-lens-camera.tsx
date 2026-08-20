@@ -804,6 +804,8 @@ function SpadasLensCameraCore() {
     // If camera stream is not active yet when user taps Scan Now, auto-start camera stream first
     if (!stream && forceManual) {
       await startCamera();
+      // 400ms Camera Autofocus Warmup Guard to allow mobile lens & auto-exposure to stabilize
+      await new Promise((resolve) => setTimeout(resolve, 400));
     }
 
     setCameraMoving(false);
@@ -819,7 +821,7 @@ function SpadasLensCameraCore() {
         const fullHeight = video.videoHeight || video.clientHeight || 480;
 
         if (fullWidth > 0 && fullHeight > 0) {
-          // LIGHTWEIGHT HIGH-SPEED FRAME ENCODING: Max 800px on the long edge, JPEG quality 0.75 (~45KB payload)
+          // LIGHTWEIGHT HIGH-SPEED FRAME ENCODING: Max 800px on the long edge, JPEG quality 0.80 (~48KB payload)
           const maxDim = 800;
           let targetW = fullWidth;
           let targetH = fullHeight;
@@ -839,9 +841,9 @@ function SpadasLensCameraCore() {
           if (ctx) {
             ctx.imageSmoothingEnabled = true;
             ctx.imageSmoothingQuality = "high";
-            ctx.filter = "contrast(1.12) brightness(1.06)";
+            ctx.filter = "contrast(1.15) brightness(1.10)";
             ctx.drawImage(video, 0, 0, fullWidth, fullHeight, 0, 0, targetW, targetH);
-            frameDataUrl = canvas.toDataURL("image/jpeg", 0.75);
+            frameDataUrl = canvas.toDataURL("image/jpeg", 0.80);
           }
         }
       }
