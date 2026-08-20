@@ -657,9 +657,14 @@ async function callGemini15FlashVision(base64DataUrl: string): Promise<any | nul
   ]
 }`;
 
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (apiKey.startsWith("AQ.")) {
+      headers["Authorization"] = `Bearer ${apiKey}`;
+    }
+
     const response = await fetch(endpoint, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({
         contents: [
           {
