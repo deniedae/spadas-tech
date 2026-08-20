@@ -543,8 +543,11 @@ Rules:
     */
 
     if (!result) {
-      console.warn("[ai-listing] Primary AI call returned empty — using fallback reseller analysis.");
-      result = generateMockAiListingResult();
+      console.error("[ai-listing] OpenAI Vision model returned empty response or schema validation error.");
+      return NextResponse.json(
+        { error: "OpenAI Vision call failed to return valid analysis. Please ensure camera snapshot is clear." },
+        { status: 502 }
+      );
     }
 
     const activeProvider = "openai-vision";
