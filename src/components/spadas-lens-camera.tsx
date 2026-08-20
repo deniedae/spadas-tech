@@ -914,24 +914,23 @@ function SpadasLensCameraCore() {
       let pName =
         data?.analysis?.product_name ||
         data?.detected_objects?.[0]?.product_name ||
+        data?.items?.[0]?.product_name ||
         data?.product_name ||
         data?.item_title ||
         null;
 
-      if (!pName || pName === "null" || pName === "NO_CENTER_ITEM" || isVagueOrPartialRead(pName)) {
+      if (!pName || pName === "null" || pName === "NO_CENTER_ITEM") {
         setScanErrorState({ type: "no_match" });
         return;
       }
 
       setScanErrorState({ type: null });
 
-      // Clear any previous error on successful identification
-      setScanErrorState({ type: null });
-
       // Extract Multi-Object Detected Items from REAL OpenAI Vision response
+      const rawDetected = data?.items || data?.detected_objects;
       const detected =
-        data?.detected_objects && Array.isArray(data.detected_objects) && data.detected_objects.length > 0
-          ? data.detected_objects
+        rawDetected && Array.isArray(rawDetected) && rawDetected.length > 0
+          ? rawDetected
           : [
               {
                 id: `obj-${Date.now()}`,
