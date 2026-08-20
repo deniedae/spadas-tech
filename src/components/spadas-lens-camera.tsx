@@ -810,48 +810,44 @@ function SpadasLensCameraCore() {
     setAnalyzingRealFrame(true);
     toast.info("📷 Analyzing item in viewport...", { duration: 1500 });
 
-    const controller = new AbortController();
-    const hardTimeoutId = setTimeout(() => {
-      controller.abort();
-      setAnalyzingRealFrame(false);
-    }, 12000);
-
     try {
       const video = videoRef.current;
       let frameDataUrl = "";
 
-      if (video && video.videoWidth >= 200 && video.videoHeight >= 200) {
-        const fullWidth = video.videoWidth;
-        const fullHeight = video.videoHeight;
+      if (video) {
+        const fullWidth = video.videoWidth || video.clientWidth || 640;
+        const fullHeight = video.videoHeight || video.clientHeight || 480;
 
-        // LIGHTWEIGHT HIGH-SPEED FRAME ENCODING: Max 800px on the long edge, JPEG quality 0.75 (~45KB payload)
-        const maxDim = 800;
-        let targetW = fullWidth;
-        let targetH = fullHeight;
+        if (fullWidth > 0 && fullHeight > 0) {
+          // LIGHTWEIGHT HIGH-SPEED FRAME ENCODING: Max 800px on the long edge, JPEG quality 0.75 (~45KB payload)
+          const maxDim = 800;
+          let targetW = fullWidth;
+          let targetH = fullHeight;
 
-        if (fullWidth >= fullHeight) {
-          targetW = Math.min(maxDim, fullWidth);
-          targetH = Math.round((fullHeight * targetW) / fullWidth);
-        } else {
-          targetH = Math.min(maxDim, fullHeight);
-          targetW = Math.round((fullWidth * targetH) / fullHeight);
-        }
+          if (fullWidth >= fullHeight) {
+            targetW = Math.min(maxDim, fullWidth);
+            targetH = Math.round((fullHeight * targetW) / fullWidth);
+          } else {
+            targetH = Math.min(maxDim, fullHeight);
+            targetW = Math.round((fullWidth * targetH) / fullHeight);
+          }
 
-        const canvas = document.createElement("canvas");
-        canvas.width = targetW;
-        canvas.height = targetH;
-        const ctx = canvas.getContext("2d");
-        if (ctx) {
-          ctx.imageSmoothingEnabled = true;
-          ctx.imageSmoothingQuality = "high";
-          ctx.filter = "contrast(1.12) brightness(1.06)";
-          ctx.drawImage(video, 0, 0, fullWidth, fullHeight, 0, 0, targetW, targetH);
-          frameDataUrl = canvas.toDataURL("image/jpeg", 0.75);
+          const canvas = document.createElement("canvas");
+          canvas.width = targetW;
+          canvas.height = targetH;
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = "high";
+            ctx.filter = "contrast(1.12) brightness(1.06)";
+            ctx.drawImage(video, 0, 0, fullWidth, fullHeight, 0, 0, targetW, targetH);
+            frameDataUrl = canvas.toDataURL("image/jpeg", 0.75);
+          }
         }
       }
 
-      if (!frameDataUrl || !frameDataUrl.startsWith("data:image/jpeg;base64,") || frameDataUrl.length < 4000) {
-        console.warn("[Spadas Lens]", cycleId, "Frame snapshot uninitialized or invalid JPEG payload, retrying frame...");
+      if (!frameDataUrl || !frameDataUrl.startsWith("data:image/jpeg;base64,") || frameDataUrl.length < 1000) {
+        console.warn("[Spadas Lens]", cycleId, "Frame snapshot uninitialized, retrying frame...");
         setAnalyzingRealFrame(false);
         return;
       }
@@ -862,17 +858,10 @@ function SpadasLensCameraCore() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ imageUrls: frameDataUrl ? [frameDataUrl] : [], isArScan: true, currency: selectedCurrency }),
-        signal: controller.signal,
       }, { maxRetries: 2, initialDelayMs: 300 }).catch((e) => {
-        if (e?.name === 'AbortError') {
-          console.error('[Spadas Lens]', cycleId, 'Fetch aborted:', e);
-        } else {
-          console.error('[Spadas Lens]', cycleId, 'Fetch error:', e);
-        }
+        console.error('[Spadas Lens]', cycleId, 'Fetch error:', e);
         return null;
       });
-
-      clearTimeout(hardTimeoutId);
 
       let data: any = null;
       let raw = "";
@@ -1136,14 +1125,8 @@ function SpadasLensCameraCore() {
       }
     } catch (err: any) {
       console.log('[Spadas Lens] fetch threw:', String(err));
-      clearTimeout(hardTimeoutId);
-      if (err?.name === "AbortError") {
-        console.warn("[Spadas Lens] AI Vision fetch request aborted due to hard timeout.");
-      } else {
-        console.warn("Live camera Vision scan warning:", err?.message);
-      }
+      console.warn("Live camera Vision scan warning:", err?.message);
     } finally {
-      clearTimeout(hardTimeoutId);
       // GUARANTEED ALWAYS-RELEASE STATE RESET
       setAnalyzingRealFrame(false);
     }
