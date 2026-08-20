@@ -85,9 +85,23 @@ export async function fetchEbayAustraliaSoldComps(
 
       if (prices.length > 0) {
         prices.sort((a, b) => a - b);
-        // Trim extreme outliers (top 10% and bottom 10%)
-        const trimCount = Math.floor(prices.length * 0.1);
-        const validPrices = prices.slice(trimCount, prices.length - trimCount || prices.length);
+
+        // IQR (Interquartile Range) Statistical Outlier Trimming: Removes expensive bundles & accessories
+        let validPrices = prices;
+        if (prices.length >= 4) {
+          const q1Idx = Math.floor(prices.length * 0.25);
+          const q3Idx = Math.floor(prices.length * 0.75);
+          const q1 = prices[q1Idx];
+          const q3 = prices[q3Idx];
+          const iqr = q3 - q1;
+          const lowerBound = Math.max(5, q1 - 1.5 * iqr);
+          const upperBound = q3 + 1.5 * iqr;
+
+          const filtered = prices.filter((p) => p >= lowerBound && p <= upperBound);
+          if (filtered.length > 0) {
+            validPrices = filtered;
+          }
+        }
 
         const midIdx = Math.floor(validPrices.length / 2);
         const median = validPrices.length % 2 === 0 ? (validPrices[midIdx - 1] + validPrices[midIdx]) / 2 : validPrices[midIdx];

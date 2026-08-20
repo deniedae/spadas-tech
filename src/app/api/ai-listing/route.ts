@@ -419,6 +419,10 @@ INSTANT SINGLE-PASS BRAND & OCR MANDATE:
 REAL MARKET VALUE & EBAY AUSTRALIA SOLD COMP VALUATION MANDATE:
 1. Accurate Resale Market Valuations (STRICT AUSTRALIAN DOLLARS AUD):
    - Provide realistic, accurate Australian eBay sold comp price ranges (suggested_price_min, suggested_price_max, suggested_price_median) strictly calculated in AUSTRALIAN DOLLARS (AUD).
+   - CATEGORY PRECISION RULE:
+     * Standard Non-Elite Xbox Wireless Controllers (Carbon Black, Robot White, Shock Blue, Pulse Red, Velocity Green, Deep Pink): Typical pre-owned sold comps are $45–$75 AUD ($35–$50 USD). NEVER value standard non-elite Xbox controllers above $80 AUD ($55 USD). Only value at $160–$250 AUD if it is explicitly an Elite Series 2 or rare Limited Edition (Starfield, 20th Anniversary).
+     * Standard PS5 DualSense Controllers (White, Midnight Black, Cosmic Red): Typical pre-owned sold comps are $55–$85 AUD ($40–$60 USD).
+     * Nintendo Switch Pro Controllers: Typical pre-owned sold comps are $50–$75 AUD ($35–$50 USD).
    - CURRENCY CONVERSION RULE: If an item comp is commonly priced in USD or global currency, automatically convert to AUD by multiplying USD x 1.52 (e.g. $100 USD -> $152 AUD). All numeric prices MUST represent AUD.
    - Always default condition to clean, professional pre-owned categories ("used_working" or "Used - Good") unless factory-sealed.
    - Never output "untested" or "faulty" penalties. Resellers need real, clean pre-owned market comp prices in AUD.
