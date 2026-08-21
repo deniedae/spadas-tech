@@ -237,6 +237,7 @@ let cycleSeq = 0;
 function SpadasLensCameraCore() {
   const router = useRouter();
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [scanMode, setScanMode] = useState<"live" | "deep">("live");
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [scanning, setScanning] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
@@ -264,7 +265,6 @@ function SpadasLensCameraCore() {
   const [activeEbayItem, setActiveEbayItem] = useState<any | null>(null);
   const [isOwner, setIsOwner] = useState<boolean>(false);
   const [isPro, setIsPro] = useState<boolean>(false);
-  const [scanMode, setScanMode] = useState<"SWEEP" | "TARGET">("SWEEP");
   const [scanFeedback, setScanFeedback] = useState<"HIT" | "MISS" | null>(null);
 
   const [selectedCurrency, setSelectedCurrency] = useState<SupportedCurrency>(() => {
@@ -918,12 +918,38 @@ function SpadasLensCameraCore() {
         return;
       }
 
+      const imagePayloads = [frameDataUrl];
+
+      // DEEP DIAGNOSTIC FUSION MODE: Capture 2nd micro-snapshot (tag / model plate) after 450ms
+      if (scanMode === "deep") {
+        toast.info("🔬 Deep Scan: Capturing tag / detail snapshot...", { duration: 1500 });
+        await new Promise((resolve) => setTimeout(resolve, 450));
+
+        if (video) {
+          const fullW2 = video.videoWidth || video.clientWidth || 640;
+          const fullH2 = video.videoHeight || video.clientHeight || 480;
+          const canvas2 = document.createElement("canvas");
+          canvas2.width = Math.min(800, fullW2);
+          canvas2.height = Math.min(800, fullH2);
+          const ctx2 = canvas2.getContext("2d");
+          if (ctx2) {
+            ctx2.imageSmoothingEnabled = true;
+            ctx2.filter = "contrast(1.18) brightness(1.10)";
+            ctx2.drawImage(video, 0, 0, fullW2, fullH2, 0, 0, canvas2.width, canvas2.height);
+            const tagSnap = canvas2.toDataURL("image/jpeg", 0.85);
+            if (tagSnap && tagSnap.length > 2000) {
+              imagePayloads.push(tagSnap);
+            }
+          }
+        }
+      }
+
       let res: Response | null = null;
       console.log('[Spadas Lens]', cycleId, 'Starting resilient fetch for frame with analyzingRealFrame:', analyzingRealFrame);
       res = await resilientFetch("/api/ai-listing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageUrls: frameDataUrl ? [frameDataUrl] : [], isArScan: true, currency: selectedCurrency }),
+        body: JSON.stringify({ imageUrls: imagePayloads, isArScan: true, currency: selectedCurrency }),
       }, { maxRetries: 2, initialDelayMs: 300 }).catch((e) => {
         console.error('[Spadas Lens]', cycleId, 'Fetch error:', e);
         return null;
@@ -1344,21 +1370,37 @@ function SpadasLensCameraCore() {
               <div className="absolute inset-0 z-30 pointer-events-none border-4 border-rose-500 bg-rose-500/10 transition-all duration-300 animate-pulse shadow-[inset_0_0_50px_rgba(244,63,94,0.6)]" />
             )}
 
-            {/* Target Precision Crosshair Reticle for Crowded Shelves */}
-            {scanMode === "TARGET" && (
-              <div className="absolute inset-0 z-25 pointer-events-none flex items-center justify-center">
-                <div className="relative h-44 w-44 rounded-full border-2 border-dashed border-cyan-400 bg-cyan-500/10 flex items-center justify-center shadow-[0_0_30px_rgba(34,211,238,0.5)] animate-pulse">
-                  <div className="h-2 w-2 rounded-full bg-cyan-400 animate-ping" />
-                  <div className="absolute top-0 h-4 w-0.5 bg-cyan-400" />
-                  <div className="absolute bottom-0 h-4 w-0.5 bg-cyan-400" />
-                  <div className="absolute left-0 w-4 h-0.5 bg-cyan-400" />
-                  <div className="absolute right-0 w-4 h-0.5 bg-cyan-400" />
-                  <span className="absolute -bottom-7 rounded-full bg-slate-950/90 border border-cyan-400/50 px-2.5 py-0.5 text-[9px] font-black text-cyan-300">
-                    🎯 TARGET PRECISION RETICLE
-                  </span>
-                </div>
-              </div>
-            )}
+            {/* Deep Fusion vs Live Sweep Mode Switcher Bar */}
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-35 flex items-center gap-1 rounded-full bg-slate-950/90 backdrop-blur-xl border border-slate-800/80 p-1 shadow-2xl pointer-events-auto">
+              <button
+                type="button"
+                onClick={() => {
+                  setScanMode("live");
+                  toast.info("⚡ Switched to Live AR Sweep Mode");
+                }}
+                className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1 text-[11px] font-black transition-all ${
+                  scanMode === "live"
+                    ? "bg-cyan-400 text-slate-950 shadow-[0_0_12px_rgba(34,211,238,0.6)]"
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                <Zap className="h-3 w-3" /> ⚡ Live Sweep
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setScanMode("deep");
+                  toast.success("🔬 Switched to Deep Fusion 100% Diagnostic Mode (Dual-Snap Tag Capture)");
+                }}
+                className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1 text-[11px] font-black transition-all ${
+                  scanMode === "deep"
+                    ? "bg-purple-500 text-white shadow-[0_0_12px_rgba(168,85,247,0.6)] animate-pulse"
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                <Sparkles className="h-3 w-3" /> 🔬 Deep Fusion 100%
+              </button>
+            </div>
 
             {/* Target Framing Reticle with Modern Glassmorphic Corner Brackets */}
             <div className="absolute inset-0 z-15 pointer-events-none flex items-center justify-center">
@@ -1470,18 +1512,18 @@ function SpadasLensCameraCore() {
             <button
               type="button"
               onClick={() => {
-                const nextMode = scanMode === "SWEEP" ? "TARGET" : "SWEEP";
+                const nextMode = scanMode === "live" ? "deep" : "live";
                 setScanMode(nextMode);
-                toast.success(nextMode === "TARGET" ? "🎯 Target Precision Mode Active — Aim laser reticle at item!" : "⚡ Wide Shelf Sweep Mode Active");
+                toast.success(nextMode === "deep" ? "🔬 Deep Fusion 100% Mode Active (Dual-Snap Tag Capture)" : "⚡ Live AR Sweep Mode Active");
               }}
               className={`inline-flex h-9 items-center gap-1.5 rounded-xl px-3.5 text-xs font-black transition cursor-pointer border ${
-                scanMode === "TARGET"
-                  ? "bg-cyan-500 text-slate-950 border-cyan-300 shadow-[0_0_16px_rgba(34,211,238,0.6)]"
+                scanMode === "deep"
+                  ? "bg-purple-500 text-white border-purple-300 shadow-[0_0_16px_rgba(168,85,247,0.6)] animate-pulse"
                   : "bg-slate-900 text-cyan-300 border-slate-700 hover:text-white"
               }`}
             >
-              <Crosshair className="h-3.5 w-3.5" />
-              <span>{scanMode === "TARGET" ? "🎯 Target Mode" : "⚡ Sweep Mode"}</span>
+              <Sparkles className="h-3.5 w-3.5" />
+              <span>{scanMode === "deep" ? "🔬 Deep Scan 100%" : "⚡ Live Sweep"}</span>
             </button>
 
             <button

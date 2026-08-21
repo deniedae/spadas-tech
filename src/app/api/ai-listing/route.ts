@@ -376,12 +376,16 @@ export async function POST(request: Request) {
       );
     }
 
-    const imageContent = imageUrls.map((url) => {
+    const isDeepFusion = imageUrls.length > 1;
+    const imageContent = imageUrls.map((url, idx) => {
       // Clean base64 strings (remove whitespace/newlines) to prevent OpenAI 400 "unsupported image" errors
       const cleanUrl = url.trim().replace(/[\r\n]/g, "");
       return {
         type: "image_url" as const,
-        image_url: { url: cleanUrl, detail: isArScan ? ("low" as const) : ("high" as const) },
+        image_url: {
+          url: cleanUrl,
+          detail: isDeepFusion || !isArScan ? ("high" as const) : ("low" as const),
+        },
       };
     });
 
