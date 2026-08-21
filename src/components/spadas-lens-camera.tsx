@@ -879,22 +879,17 @@ function SpadasLensCameraCore() {
         const fullHeight = video.videoHeight || video.clientHeight || 480;
 
         if (fullWidth > 0 && fullHeight > 0) {
-          // CENTER-CROP VIEWPORT FOCUS ENCODER: Crop middle 80% around HUD crosshair to eliminate background clutter
-          const cropMarginX = Math.round(fullWidth * 0.10);
-          const cropMarginY = Math.round(fullHeight * 0.10);
-          const cropWidth = fullWidth - cropMarginX * 2;
-          const cropHeight = fullHeight - cropMarginY * 2;
+          // FULL-FRAME UNCROPPED ENCODER: Capture 100% full camera viewport so no brand logos or text tags are cut off
+          const maxDim = 1000;
+          let targetW = fullWidth;
+          let targetH = fullHeight;
 
-          const maxDim = 800;
-          let targetW = cropWidth;
-          let targetH = cropHeight;
-
-          if (cropWidth >= cropHeight) {
-            targetW = Math.min(maxDim, cropWidth);
-            targetH = Math.round((cropHeight * targetW) / cropWidth);
+          if (fullWidth >= fullHeight) {
+            targetW = Math.min(maxDim, fullWidth);
+            targetH = Math.round((fullHeight * targetW) / fullWidth);
           } else {
-            targetH = Math.min(maxDim, cropHeight);
-            targetW = Math.round((cropWidth * targetH) / cropHeight);
+            targetH = Math.min(maxDim, fullHeight);
+            targetW = Math.round((fullWidth * targetH) / fullHeight);
           }
 
           const canvas = document.createElement("canvas");
@@ -905,9 +900,9 @@ function SpadasLensCameraCore() {
             ctx.imageSmoothingEnabled = true;
             ctx.imageSmoothingQuality = "high";
             ctx.filter = "contrast(1.15) brightness(1.10)";
-            // Draw Center-Cropped Viewport Region for 300% OCR Precision
-            ctx.drawImage(video, cropMarginX, cropMarginY, cropWidth, cropHeight, 0, 0, targetW, targetH);
-            frameDataUrl = canvas.toDataURL("image/jpeg", 0.82);
+            // Draw 100% Full Uncropped Viewport for 99%+ Flagship gpt-4o Accuracy
+            ctx.drawImage(video, 0, 0, fullWidth, fullHeight, 0, 0, targetW, targetH);
+            frameDataUrl = canvas.toDataURL("image/jpeg", 0.85);
           }
         }
       }
