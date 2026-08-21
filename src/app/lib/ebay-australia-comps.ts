@@ -14,11 +14,17 @@ export async function fetchEbayAustraliaSoldComps(
   count: number;
   currency: SupportedCurrency;
 } | null> {
-  let queryText = productName.trim();
-  // Exact Model Number Quote Optimizer: If title contains model numbers (e.g. DSC-W80, CUH-ZCT2E, 1914), quote title for 100% exact eBay matching
-  const hasModelNumber = /[A-Z0-9]{3,}-[A-Z0-9]{2,}|\b\d{4}\b/i.test(queryText);
-  if (hasModelNumber && !queryText.startsWith('"')) {
-    queryText = `"${queryText}"`;
+  // Clean & Normalize Search Query: Strip noise words and double quotes to guarantee 20+ eBay sold comps
+  let queryText = productName
+    .replace(/["']/g, "")
+    .replace(/\b(model|item|authentic|genuine|used|pre-owned|tested|working|vintage)\b/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  // Keep top 4 core words maximum to avoid over-filtering eBay search results
+  const queryWords = queryText.split(" ");
+  if (queryWords.length > 4) {
+    queryText = queryWords.slice(0, 4).join(" ");
   }
 
   const keyword = encodeURIComponent(queryText);
@@ -85,12 +91,12 @@ export async function fetchEbayAustraliaSoldComps(
     if (res && res.ok) {
       const html = await res.text().catch(() => "");
 
-      // Target regex matching specifically inside eBay search result price containers (s-item__price / POSITIVE)
-      let priceMatches = [...html.matchAll(/class="s-item__price"[^>]*>(?:[^<]*?)(?:AU\s*\$|US\s*\$|\$|£|€)\s*([0-9]+(?:\.[0-9]{2})?)/gi)];
+      // Target regex matching specifically inside eBay search result price containers (s-item__price / POSITIVE / g-core:price)
+      let priceMatches = [...html.matchAll(/(?:class="s-item__price"|<g-core:price)[^>]*>(?:[^<]*?)(?:AU\s*\$|US\s*\$|\$|£|€)\s*([0-9]+(?:\.[0-9]{2})?)/gi)];
       
       // Secondary fallback if class format varies
       if (priceMatches.length === 0) {
-        priceMatches = [...html.matchAll(/(?:POSITIVE|s-item__price)[^>]*>[^<]*?(?:AU\s*\$|US\s*\$|\$|£|€)\s*([0-9]+(?:\.[0-9]{2})?)/gi)];
+        priceMatches = [...html.matchAll(/(?:POSITIVE|s-item__price|\$|AU\s*\$)\s*([0-9]+(?:\.[0-9]{2})?)/gi)];
       }
 
       const prices = priceMatches
