@@ -376,15 +376,14 @@ export async function POST(request: Request) {
       );
     }
 
-    const isDeepFusion = imageUrls.length > 1;
-    const imageContent = imageUrls.map((url, idx) => {
+    const imageContent = imageUrls.map((url) => {
       // Clean base64 strings (remove whitespace/newlines) to prevent OpenAI 400 "unsupported image" errors
       const cleanUrl = url.trim().replace(/[\r\n]/g, "");
       return {
         type: "image_url" as const,
         image_url: {
           url: cleanUrl,
-          detail: isDeepFusion || !isArScan ? ("high" as const) : ("low" as const),
+          detail: "high" as const, // High-Detail 512px tile resolution for 100% OCR & brand identification
         },
       };
     });
