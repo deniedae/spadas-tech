@@ -77,11 +77,18 @@ export async function fetchEbayAustraliaSoldComps(
 
     if (res && res.ok) {
       const html = await res.text().catch(() => "");
-      // Regex match sold prices from regional eBay result HTML (e.g., "AU $45.00", "$120.50", "£45.00", "€60.00")
-      const priceMatches = [...html.matchAll(/(?:AU\s*\$|US\s*\$|\$|£|€)\s*([0-9]+(?:\.[0-9]{2})?)/gi)];
+
+      // Target regex matching specifically inside eBay search result price containers (s-item__price / POSITIVE)
+      let priceMatches = [...html.matchAll(/class="s-item__price"[^>]*>(?:[^<]*?)(?:AU\s*\$|US\s*\$|\$|£|€)\s*([0-9]+(?:\.[0-9]{2})?)/gi)];
+      
+      // Secondary fallback if class format varies
+      if (priceMatches.length === 0) {
+        priceMatches = [...html.matchAll(/(?:POSITIVE|s-item__price)[^>]*>[^<]*?(?:AU\s*\$|US\s*\$|\$|£|€)\s*([0-9]+(?:\.[0-9]{2})?)/gi)];
+      }
+
       const prices = priceMatches
         .map((m) => parseFloat(m[1]))
-        .filter((n) => !Number.isNaN(n) && n >= 5 && n <= 5000);
+        .filter((n) => !Number.isNaN(n) && n >= 5 && n <= 3500);
 
       if (prices.length > 0) {
         prices.sort((a, b) => a - b);

@@ -577,6 +577,19 @@ Rules:
       }
     }
 
+    // CATEGORY PRICE SANITY GUARD: Prevent sponsored tray outliers from inflating standard peripherals
+    if (result.analysis?.product_name) {
+      const lowerTitle = result.analysis.product_name.toLowerCase();
+
+      // Standard Xbox Wireless Controller (Non-Elite / Non-Limited) Sanity Guard
+      if (lowerTitle.includes("xbox") && lowerTitle.includes("controller") && !lowerTitle.includes("elite") && !lowerTitle.includes("starfield") && !lowerTitle.includes("anniversary")) {
+        const cappedMedian = Math.min(result.suggested_price_median || 65, 75);
+        result.suggested_price_min = Math.min(result.suggested_price_min || 45, 55);
+        result.suggested_price_max = Math.min(result.suggested_price_max || 85, 85);
+        result.suggested_price_median = cappedMedian;
+      }
+    }
+
     // Persist scan history to public.scans table (skip empty sentinel scans)
     const isSentinelScan =
       !result ||
