@@ -920,26 +920,23 @@ function SpadasLensCameraCore() {
 
       const imagePayloads = [frameDataUrl];
 
-      // DEEP DIAGNOSTIC FUSION MODE: Capture 2nd micro-snapshot (tag / model plate) after 450ms
-      if (scanMode === "deep") {
-        toast.info("🔬 Deep Scan: Capturing tag / detail snapshot...", { duration: 1500 });
-        await new Promise((resolve) => setTimeout(resolve, 450));
+      // DUAL-FRAME HIGH-DETAIL FUSION (PERMANENT DEFAULT): Automatically capture 2nd micro-snapshot (tag / detail)
+      await new Promise((resolve) => setTimeout(resolve, 350));
 
-        if (video) {
-          const fullW2 = video.videoWidth || video.clientWidth || 640;
-          const fullH2 = video.videoHeight || video.clientHeight || 480;
-          const canvas2 = document.createElement("canvas");
-          canvas2.width = Math.min(800, fullW2);
-          canvas2.height = Math.min(800, fullH2);
-          const ctx2 = canvas2.getContext("2d");
-          if (ctx2) {
-            ctx2.imageSmoothingEnabled = true;
-            ctx2.filter = "contrast(1.18) brightness(1.10)";
-            ctx2.drawImage(video, 0, 0, fullW2, fullH2, 0, 0, canvas2.width, canvas2.height);
-            const tagSnap = canvas2.toDataURL("image/jpeg", 0.85);
-            if (tagSnap && tagSnap.length > 2000) {
-              imagePayloads.push(tagSnap);
-            }
+      if (video) {
+        const fullW2 = video.videoWidth || video.clientWidth || 640;
+        const fullH2 = video.videoHeight || video.clientHeight || 480;
+        const canvas2 = document.createElement("canvas");
+        canvas2.width = Math.min(800, fullW2);
+        canvas2.height = Math.min(800, fullH2);
+        const ctx2 = canvas2.getContext("2d");
+        if (ctx2) {
+          ctx2.imageSmoothingEnabled = true;
+          ctx2.filter = "contrast(1.18) brightness(1.10)";
+          ctx2.drawImage(video, 0, 0, fullW2, fullH2, 0, 0, canvas2.width, canvas2.height);
+          const tagSnap = canvas2.toDataURL("image/jpeg", 0.85);
+          if (tagSnap && tagSnap.length > 2000) {
+            imagePayloads.push(tagSnap);
           }
         }
       }
