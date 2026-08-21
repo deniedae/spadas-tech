@@ -14,7 +14,14 @@ export async function fetchEbayAustraliaSoldComps(
   count: number;
   currency: SupportedCurrency;
 } | null> {
-  const keyword = encodeURIComponent(productName.trim());
+  let queryText = productName.trim();
+  // Exact Model Number Quote Optimizer: If title contains model numbers (e.g. DSC-W80, CUH-ZCT2E, 1914), quote title for 100% exact eBay matching
+  const hasModelNumber = /[A-Z0-9]{3,}-[A-Z0-9]{2,}|\b\d{4}\b/i.test(queryText);
+  if (hasModelNumber && !queryText.startsWith('"')) {
+    queryText = `"${queryText}"`;
+  }
+
+  const keyword = encodeURIComponent(queryText);
   if (!keyword) return null;
 
   const config = CURRENCY_CONFIGS[targetCurrency] || CURRENCY_CONFIGS.AUD;

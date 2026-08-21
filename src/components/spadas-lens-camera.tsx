@@ -821,17 +821,22 @@ function SpadasLensCameraCore() {
         const fullHeight = video.videoHeight || video.clientHeight || 480;
 
         if (fullWidth > 0 && fullHeight > 0) {
-          // LIGHTWEIGHT HIGH-SPEED FRAME ENCODING: Max 800px on the long edge, JPEG quality 0.80 (~48KB payload)
-          const maxDim = 800;
-          let targetW = fullWidth;
-          let targetH = fullHeight;
+          // CENTER-CROP VIEWPORT FOCUS ENCODER: Crop middle 80% around HUD crosshair to eliminate background clutter
+          const cropMarginX = Math.round(fullWidth * 0.10);
+          const cropMarginY = Math.round(fullHeight * 0.10);
+          const cropWidth = fullWidth - cropMarginX * 2;
+          const cropHeight = fullHeight - cropMarginY * 2;
 
-          if (fullWidth >= fullHeight) {
-            targetW = Math.min(maxDim, fullWidth);
-            targetH = Math.round((fullHeight * targetW) / fullWidth);
+          const maxDim = 800;
+          let targetW = cropWidth;
+          let targetH = cropHeight;
+
+          if (cropWidth >= cropHeight) {
+            targetW = Math.min(maxDim, cropWidth);
+            targetH = Math.round((cropHeight * targetW) / cropWidth);
           } else {
-            targetH = Math.min(maxDim, fullHeight);
-            targetW = Math.round((fullWidth * targetH) / fullHeight);
+            targetH = Math.min(maxDim, cropHeight);
+            targetW = Math.round((cropWidth * targetH) / cropHeight);
           }
 
           const canvas = document.createElement("canvas");
@@ -842,8 +847,9 @@ function SpadasLensCameraCore() {
             ctx.imageSmoothingEnabled = true;
             ctx.imageSmoothingQuality = "high";
             ctx.filter = "contrast(1.15) brightness(1.10)";
-            ctx.drawImage(video, 0, 0, fullWidth, fullHeight, 0, 0, targetW, targetH);
-            frameDataUrl = canvas.toDataURL("image/jpeg", 0.80);
+            // Draw Center-Cropped Viewport Region for 300% OCR Precision
+            ctx.drawImage(video, cropMarginX, cropMarginY, cropWidth, cropHeight, 0, 0, targetW, targetH);
+            frameDataUrl = canvas.toDataURL("image/jpeg", 0.82);
           }
         }
       }
