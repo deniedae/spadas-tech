@@ -1312,18 +1312,18 @@ function SpadasLensCameraCore() {
     }
   }, [analyzingRealFrame, soundEnabled]);
 
-  // RESET FRONTEND STATE MACHINE: Keep scanned items visible for 12 seconds
+  // CLEAN HUD STATE MACHINE: Keep only the most recent scan visible for 3.5 seconds to avoid screen clutter
   useEffect(() => {
     const interval = setInterval(() => {
       const now = Date.now();
       setActiveScans((prev) =>
         prev.filter((item) => {
-          const isStuckPending = item.status === "pending" && now - item.timestamp > 6000;
-          const isStale = now - item.timestamp > 12000;
+          const isStuckPending = item.status === "pending" && now - item.timestamp > 3000;
+          const isStale = now - item.timestamp > 3500;
           return !isStuckPending && !isStale;
         })
       );
-    }, 1000);
+    }, 500);
     return () => clearInterval(interval);
   }, []);
 
@@ -1334,7 +1334,7 @@ function SpadasLensCameraCore() {
 
   // Active Auto-Scan & Scene Change Watcher for Sweep, Focus, and Deep modes
   useEffect(() => {
-    if (!stream || !autoScanActive) return;
+    if (!stream || !autoScanActive || !!deepVerifyItem) return;
 
     let isDestroyed = false;
     const offCanvas = document.createElement("canvas");
@@ -1409,7 +1409,7 @@ function SpadasLensCameraCore() {
       isDestroyed = true;
       clearInterval(interval);
     };
-  }, [stream, autoScanActive, scanMode]);
+  }, [stream, autoScanActive, scanMode, deepVerifyItem]);
 
   useEffect(() => {
     return () => {
@@ -1569,28 +1569,18 @@ function SpadasLensCameraCore() {
               <div className="absolute inset-0 z-30 pointer-events-none border-4 border-rose-500 bg-rose-500/10 transition-all duration-300 animate-pulse shadow-[inset_0_0_50px_rgba(244,63,94,0.6)]" />
             )}
 
-            {/* Target Framing Reticle with Modern Glassmorphic Corner Brackets */}
-            <div className="absolute inset-0 z-15 pointer-events-none flex items-center justify-center">
-              <div className="relative w-[65%] h-[75%] max-w-[340px] max-h-[460px] rounded-2xl border border-cyan-400/40 flex flex-col justify-between p-3 bg-cyan-500/5 backdrop-blur-[1px]">
-                <div className="absolute -top-1 -left-1 w-5 h-5 border-t-2 border-l-2 border-cyan-400 rounded-tl shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
-                <div className="absolute -top-1 -right-1 w-5 h-5 border-t-2 border-r-2 border-cyan-400 rounded-tr shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
-                <div className="absolute -bottom-1 -left-1 w-5 h-5 border-b-2 border-l-2 border-cyan-400 rounded-bl shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
-                <div className="absolute -bottom-1 -right-1 w-5 h-5 border-b-2 border-r-2 border-cyan-400 rounded-br shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
-
-                {/* Helper text when no active scans are present */}
-                {activeScans.length === 0 && (
-                  <div className="w-full text-center mt-2">
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-950/85 backdrop-blur-md px-3.5 py-1.5 text-[11px] font-extrabold text-cyan-300 border border-cyan-400/40 shadow-xl">
-                      <span className="h-2 w-2 rounded-full bg-cyan-400 animate-ping" />
-                      SPADAS LENS AR • PAN CAMERA ACROSS ITEMS
-                    </span>
-                  </div>
-                )}
+            {/* Minimalist Glassmorphic Corner Viewfinder Ticks (Unobstructed View) */}
+            <div className="absolute inset-0 z-15 pointer-events-none flex items-center justify-center p-8">
+              <div className="relative w-full h-full max-w-[420px] max-h-[500px] pointer-events-none">
+                <div className="absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2 border-cyan-400/70 rounded-tl-lg" />
+                <div className="absolute top-0 right-0 w-6 h-6 border-t-2 border-r-2 border-cyan-400/70 rounded-tr-lg" />
+                <div className="absolute bottom-0 left-0 w-6 h-6 border-b-2 border-l-2 border-cyan-400/70 rounded-bl-lg" />
+                <div className="absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 border-cyan-400/70 rounded-br-lg" />
               </div>
             </div>
 
-            {/* Multi-Object Parallel Bounding Box Overlays */}
-            {activeScans.map((scan) => (
+            {/* Sleek Minimalist AR Bounding Box & 1-Line Floating Pill */}
+            {activeScans.slice(0, 1).map((scan) => (
               <div
                 key={scan.id}
                 style={{
@@ -1599,125 +1589,73 @@ function SpadasLensCameraCore() {
                   width: `${scan.bbox.width}%`,
                   height: `${scan.bbox.height}%`,
                 }}
-                className={`absolute z-20 pointer-events-none transition-all duration-300 border-2 rounded-xl ${
+                className={`absolute z-20 pointer-events-none transition-all duration-300 border-2 rounded-2xl ${
                   scan.status === "valued"
-                    ? "border-emerald-400 shadow-[0_0_18px_rgba(52,211,153,0.85)]"
-                    : "border-cyan-400 animate-pulse shadow-[0_0_12px_rgba(34,211,238,0.6)]"
+                    ? "border-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.7)]"
+                    : "border-cyan-400 animate-pulse shadow-[0_0_10px_rgba(34,211,238,0.5)]"
                 }`}
               >
-                {/* High-Contrast Interactive HUD Overlay Header */}
-                <div className="absolute top-2 left-2 flex flex-col gap-1.5 bg-slate-950/95 text-white border border-cyan-500/40 rounded-xl p-2.5 text-xs font-bold shadow-2xl backdrop-blur-md z-30 pointer-events-auto max-w-[280px] sm:max-w-xs">
-                  <div className="flex items-center justify-between gap-1.5">
-                    <span className="text-slate-100 font-extrabold truncate text-xs">{scan.productName}</span>
-                    {scan.inventoryCondition === "untested" || scan.inventoryCondition === "faulty_for_parts" ? (
-                      <span className="bg-amber-500/25 text-amber-300 border border-amber-500/40 px-1 py-0.5 rounded text-[9px] font-black shrink-0">
-                        🟠 UNTESTED
-                      </span>
-                    ) : scan.inventoryCondition === "refurbished" ? (
-                      <span className="bg-blue-500/25 text-blue-300 border border-blue-500/40 px-1 py-0.5 rounded text-[9px] font-black shrink-0">
-                        🔹 REFURB
-                      </span>
-                    ) : (
-                      <span className="bg-emerald-500/25 text-emerald-300 border border-emerald-500/40 px-1 py-0.5 rounded text-[9px] font-black shrink-0">
-                        🟢 WORKING
-                      </span>
-                    )}
-                  </div>
+                {/* 1-Line Cyberpunk Floating Pill */}
+                <div className="absolute -top-10 left-0 flex items-center gap-1.5 bg-slate-950/95 text-white border border-cyan-400/50 rounded-full px-3 py-1 text-xs font-bold shadow-2xl backdrop-blur-md z-30 pointer-events-auto max-w-[90vw] whitespace-nowrap animate-fade-in">
+                  <span className="text-white font-extrabold truncate max-w-[110px] sm:max-w-[150px] text-[11px]">{scan.productName}</span>
+                  <span className="text-cyan-300 font-extrabold text-[10px] bg-cyan-500/20 px-1.5 py-0.5 rounded">
+                    Sell: {fmtMoney(scan.estimatedValue || 0)}
+                  </span>
+                  <span className="text-emerald-400 font-black text-[10px] bg-emerald-500/20 px-1.5 py-0.5 rounded">
+                    +{fmtMoney(scan.estimatedProfit || 0)}
+                  </span>
 
-                  {/* Primary Transparent Pricing Breakdown */}
-                  {scan.status === "valued" ? (
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <div className="bg-cyan-500/20 border border-cyan-400/40 text-cyan-300 px-2 py-0.5 rounded text-[11px] font-black">
-                        Sell: {fmtMoney(scan.estimatedValue || 0)}
-                      </div>
-                      <div className="bg-slate-800 text-slate-300 border border-slate-700 px-1.5 py-0.5 rounded text-[10px] font-medium">
-                        Buy: {fmtMoney(scan.estCost || Math.max(3, Math.round((scan.estimatedValue || 0) * 0.35)))}
-                      </div>
-                      <div className="bg-emerald-400 text-slate-950 px-2 py-0.5 rounded text-[11px] font-black shadow-sm">
-                        +{fmtMoney(scan.estimatedProfit || 0)} Profit
-                      </div>
-                    </div>
-                  ) : (
-                    <span className="bg-cyan-500/20 text-cyan-300 border border-cyan-400/40 px-2 py-0.5 rounded text-[11px] font-bold animate-pulse inline-block self-start">
-                      Valuing item...
-                    </span>
-                  )}
-
-                  <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
-                    {scan.suggestedPriceMin && scan.suggestedPriceMax && (
-                      <span className="bg-slate-900 text-slate-400 border border-slate-800 px-1.5 py-0.5 rounded text-[10px] font-mono">
-                        Range: {fmtMoney(scan.suggestedPriceMin)}–{fmtMoney(scan.suggestedPriceMax)}
-                      </span>
-                    )}
-
-                    {scan.ebayCompsCount && scan.ebayCompsCount > 0 ? (
-                      <span className="bg-blue-500/20 text-blue-300 border border-blue-400/40 px-1.5 py-0.5 rounded text-[10px] font-black tracking-tight">
-                        📊 {scan.ebayCompsCount} Sold (30d)
-                      </span>
-                    ) : null}
-
-                    {scan.confidenceScore && (
-                      <span className="bg-cyan-500/10 text-cyan-300 border border-cyan-400/30 px-1 py-0.5 rounded text-[9px] font-bold">
-                        {Math.round(scan.confidenceScore * 100)}% Conf
-                      </span>
-                    )}
-                  </div>
-
-                  {/* 1-Tap Inline Add to Inventory Action */}
                   <button
                     type="button"
                     onClick={(e) => handleQuickAdd(e, scan)}
-                    className="ml-1 inline-flex items-center gap-1 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 px-2.5 py-0.5 rounded-lg text-[10px] font-black shadow-md hover:scale-105 active:scale-95 transition cursor-pointer"
+                    className="ml-1 bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-2 py-0.5 rounded-full text-[10px] font-black transition cursor-pointer"
                   >
-                    + Add
+                    +Add
                   </button>
-
-                  {/* 1-Tap Inline Deep Verify Action */}
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
                       setDeepVerifyItem(scan);
                     }}
-                    className="inline-flex items-center gap-1 bg-purple-600 hover:bg-purple-500 text-white px-2 py-0.5 rounded-lg text-[10px] font-black shadow-md hover:scale-105 active:scale-95 transition cursor-pointer"
+                    className="bg-purple-600 hover:bg-purple-500 text-white px-2 py-0.5 rounded-full text-[10px] font-black transition cursor-pointer"
                   >
-                    <ShieldCheck className="h-3 w-3 text-purple-200" /> Verify
+                    Verify
                   </button>
                 </div>
               </div>
             ))}
 
-            {/* Live Incoming Findings Stream Ticker in Sweep Mode */}
+            {/* Single Floating Discovery Toast at Viewport Bottom */}
             {capturedLog.length > 0 && (
-              <div className="absolute bottom-3 left-3 right-3 z-30 pointer-events-none flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
-                {capturedLog.slice(0, 3).map((hit) => (
-                  <div
-                    key={hit.id}
-                    className="inline-flex items-center gap-2 rounded-xl bg-slate-950/90 border border-emerald-500/50 p-2 shadow-2xl backdrop-blur-md pointer-events-auto shrink-0 animate-fade-in"
-                  >
-                    <div className="h-6 w-6 rounded-lg bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center text-[10px] font-black text-emerald-400">
-                      ✓
-                    </div>
-                    <div className="text-left">
-                      <span className="text-[11px] font-extrabold text-white line-clamp-1 max-w-[150px]">
+              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-30 pointer-events-none w-auto max-w-[92%]">
+                {(() => {
+                  const hit = capturedLog[0];
+                  return (
+                    <div
+                      key={hit.id}
+                      className="inline-flex items-center gap-2.5 rounded-full bg-slate-950/95 border border-emerald-400/60 px-3.5 py-1.5 shadow-2xl backdrop-blur-md pointer-events-auto animate-fade-in"
+                    >
+                      <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping shrink-0" />
+                      <span className="text-[11px] font-extrabold text-white truncate max-w-[140px] sm:max-w-[200px]">
                         {hit.name}
                       </span>
-                      <span className="text-[10px] font-bold text-slate-300 block">
-                        Sell: <strong className="text-cyan-300 font-extrabold">{fmtMoney(hit.estimatedValue)}</strong> • Profit: <strong className="text-emerald-400 font-black">+{fmtMoney(hit.estimatedProfit)}</strong>
+                      <span className="text-[11px] font-black text-emerald-400 shrink-0">
+                        +{fmtMoney(hit.estimatedProfit)} Profit
                       </span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeepVerifyItem(hit);
+                        }}
+                        className="px-2 py-0.5 rounded-full bg-purple-600 hover:bg-purple-500 text-white text-[9px] font-black shadow-sm cursor-pointer shrink-0"
+                      >
+                        Verify
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setDeepVerifyItem(hit);
-                      }}
-                      className="ml-1 px-2 py-1 rounded-md bg-purple-600 hover:bg-purple-500 text-white text-[9px] font-black shadow-sm cursor-pointer"
-                    >
-                      Verify
-                    </button>
-                  </div>
-                ))}
+                  );
+                })()}
               </div>
             )}
           </>

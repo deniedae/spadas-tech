@@ -608,13 +608,28 @@ Rules:
       }
     }
 
-    // Persist scan history to public.scans table (skip empty sentinel scans)
+    // Clean up brand and title from junk punctuation (e.g. "/", ".", "-")
+    if (result.analysis) {
+      const rawPName = (result.analysis.product_name || "").trim();
+      if (/^[.\/_\-–—:;,\s]+$/.test(rawPName) || rawPName.length < 3) {
+        result.analysis.product_name = "NO_CENTER_ITEM";
+      }
+
+      const rawBrand = (result.analysis.brand || "").trim();
+      if (/^[.\/_\-–—:;,\s]+$/.test(rawBrand) || rawBrand.length < 2) {
+        result.analysis.brand = null;
+      }
+    }
+
+    // Persist scan history to public.scans table (skip empty sentinel / junk scans)
+    const rawTitle = result.analysis?.product_name || (result as any).product_name || "";
     const isSentinelScan =
       !result ||
+      rawTitle === "NO_CENTER_ITEM" ||
+      rawTitle.length < 3 ||
+      /^[.\/_\-–—:;,\s]+$/.test(rawTitle) ||
       (result as any).category === "NO_CENTER_ITEM" ||
-      result.analysis?.category === "NO_CENTER_ITEM" ||
-      result.analysis?.product_name === "NO_CENTER_ITEM" ||
-      (result as any).product_name === "NO_CENTER_ITEM";
+      result.analysis?.category === "NO_CENTER_ITEM";
 
     if (user && !isSentinelScan) {
       try {

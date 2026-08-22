@@ -62,14 +62,23 @@ export function ScanItemCard({
   };
 
   const res = scan.result_json || {};
-  const title =
+  let rawTitle =
     res?.analysis?.product_name ||
     res?.detected_objects?.[0]?.product_name ||
     res?.product_name ||
     res?.item_title ||
-    (scan.status === "failed" ? "Failed Scan Attempt" : "Scanned Item");
+    "";
 
-  const brand = res?.analysis?.brand || res?.brand || "Generic";
+  if (!rawTitle || rawTitle.trim().length < 3 || /^[.\/_\-–—:;,\s]+$/.test(rawTitle.trim())) {
+    rawTitle = scan.status === "failed" ? "Failed Scan Attempt" : "Resale Item";
+  }
+  const title = rawTitle;
+
+  let rawBrand = res?.analysis?.brand || res?.brand || "";
+  if (!rawBrand || rawBrand.trim().length < 2 || /^[.\/_\-–—:;,\s]+$/.test(rawBrand.trim())) {
+    rawBrand = "Generic";
+  }
+  const brand = rawBrand;
   const category = res?.analysis?.category || res?.category || "Resale Item";
   const minPrice = res?.suggested_price_min || 0;
   const maxPrice = res?.suggested_price_max || 0;
