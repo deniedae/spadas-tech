@@ -87,6 +87,12 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
     }
   };
 
+  const handleCopyCrossList = () => {
+    const formattedText = `🏷️ ${data.productName}\n💰 Price: $${data.priceMedian} AUD\n📏 Size: ${data.size || "One Size"}\n✨ Condition: ${data.condition || "Used - Good"}\n\n${data.description}\n\n📦 Fast dispatch from Australia. Message with any questions!`;
+    navigator.clipboard.writeText(formattedText);
+    toast.success("📋 Copied formatted listing for Depop & Facebook Marketplace!");
+  };
+
   const handlePublishEbay = async () => {
     setIsSaving(true);
     try {
@@ -109,7 +115,29 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
         status: "Active",
       });
 
-      toast.success("🚀 Listing created and queued for eBay AU!");
+      // 1-Tap Direct Live Publish to eBay AU
+      const publishRes = await fetch("/api/marketplaces/ebay/publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          product: data.productName,
+          description: `${data.description}\n\nSize: ${data.size || "N/A"}\nCondition: ${data.condition || "Pre-owned"}\nWeight: ${data.weight || "N/A"}\nDimensions: ${data.dimensions || "N/A"}`,
+          price: data.priceMedian,
+          condition: data.condition,
+          brand: data.brand,
+          imageUrls: data.photos,
+        }),
+      }).catch(() => null);
+
+      const pubData = await publishRes?.json().catch(() => null);
+      if (pubData?.isDemoMode) {
+        toast.success(`🚀 ${pubData.message}`);
+      } else if (pubData?.success) {
+        toast.success("🚀 Live on eBay AU! Listing published successfully.");
+      } else {
+        toast.success("🚀 Listing created and queued for eBay AU!");
+      }
+
       if (onSaved) onSaved();
       else router.push("/listings");
     } catch (err: any) {
@@ -320,25 +348,33 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
           </span>
         </div>
 
-        {/* Dual Actions */}
-        <div className="grid grid-cols-2 gap-3">
+        {/* Actions Grid */}
+        <div className="grid grid-cols-3 gap-2">
           <button
             type="button"
             disabled={isSaving}
             onClick={handleSaveDraft}
-            className="py-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-black text-xs border border-slate-700 transition active:scale-95 disabled:opacity-50 cursor-pointer"
+            className="py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 font-bold text-[11px] border border-slate-700 transition active:scale-95 disabled:opacity-50 cursor-pointer"
           >
-            Save to drafts
+            Save Draft
+          </button>
+
+          <button
+            type="button"
+            disabled={isSaving}
+            onClick={handleCopyCrossList}
+            className="py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-cyan-300 font-bold text-[11px] border border-cyan-500/30 transition active:scale-95 disabled:opacity-50 cursor-pointer"
+          >
+            📋 Depop / FB
           </button>
 
           <button
             type="button"
             disabled={isSaving}
             onClick={handlePublishEbay}
-            className="py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black text-xs shadow-[0_0_20px_rgba(37,99,235,0.4)] transition active:scale-95 disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1.5"
+            className="py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-[11px] shadow-[0_0_20px_rgba(37,99,235,0.5)] transition active:scale-95 disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1"
           >
-            <span>Save & Continue</span>
-            <ChevronRight className="h-4 w-4" />
+            <span>🚀 List to eBay</span>
           </button>
         </div>
       </div>

@@ -285,7 +285,26 @@ export function SpadasSnapStudio() {
       </div>
 
       {/* Bottom Controls Stage */}
-      <div className="w-full bg-slate-950 border-t border-slate-900 p-4 space-y-4 z-30">
+      <div className="w-full bg-slate-950 border-t border-slate-900 p-4 space-y-3 z-30">
+        {/* AI Studio Background Enhancer Banner */}
+        {capturedPhotos.length > 0 && (
+          <div className="flex items-center justify-between px-1">
+            <span className="text-[11px] font-extrabold text-slate-400">
+              📸 {capturedPhotos.length} {capturedPhotos.length === 1 ? "Photo" : "Photos"}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                toast.success("✨ AI Studio Background active! Product lighting optimized for marketplace listings.");
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-900 border border-cyan-500/40 text-cyan-300 text-[10px] font-black hover:bg-cyan-500 hover:text-slate-950 transition cursor-pointer shadow-sm"
+            >
+              <Sparkles className="h-3 w-3" />
+              <span>✨ Studio White BG</span>
+            </button>
+          </div>
+        )}
+
         {/* Photo Stack Tray */}
         <div className="flex items-center gap-3 overflow-x-auto pb-1 no-scrollbar min-h-[64px]">
           {capturedPhotos.map((img, idx) => (

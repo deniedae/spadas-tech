@@ -54,8 +54,17 @@ export default function MobileNav() {
     },
   ];
 
-  const isActiveLink = (href: string) =>
-    pathname === href || pathname.startsWith(href + "/");
+  const isActiveLink = (href: string) => {
+    if (href === "/lens") {
+      return (
+        pathname === "/lens" ||
+        pathname === "/studio" ||
+        pathname === "/snap" ||
+        pathname === "/listings/ai-new"
+      );
+    }
+    return pathname === href || pathname.startsWith(href + "/");
+  };
 
   return (
     <nav

@@ -1,6 +1,6 @@
 "use client";
 
-import SpadasLensCamera from "@/components/spadas-lens-camera";
+import UnifiedCameraHub from "@/components/unified-camera-hub";
 import { Sparkles, Flame, Eye, TrendingUp, Compass, Volume2, ShieldCheck } from "lucide-react";
 
 export default function LensPage() {
@@ -13,35 +13,8 @@ export default function LensPage() {
 
   return (
     <div className="w-full max-w-full overflow-x-hidden box-border space-y-8 animate-fade-in pb-16">
-      {/* Header */}
-      <div className="rounded-3xl border border-cyan-500/20 bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-800 p-6 md:p-10 text-white shadow-xl space-y-3">
-        <div className="inline-flex items-center gap-2 rounded-full bg-white/10 backdrop-blur-md px-3.5 py-1 text-xs font-bold text-cyan-200 border border-white/20">
-          <Eye className="h-3.5 w-3.5 text-cyan-300" />
-          REVOLUTIONARY AR VISION TECHNOLOGY
-        </div>
-        <h1 className="text-3xl font-extrabold tracking-tight md:text-4xl">
-          Spadas Lens — Live Video AR Sourcing & Heatmap
-        </h1>
-        <p className="text-sm text-cyan-100 max-w-2xl leading-relaxed">
-          Pan your phone camera across thrift store racks or shelves. Spadas Lens identifies logos, titles, and tags in real-time, overlays <strong>🟩 AR Green Bounding Boxes</strong> on high-margin hits, and chimes in your ear so you source 10x faster than anyone else.
-        </p>
-      </div>
-
-      {/* Spadas Lens Live Camera Stream */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-cyan-500" />
-            <h2 className="text-xl font-bold tracking-tight">Live AR Camera Feed</h2>
-          </div>
-          <span className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground">
-            <Volume2 className="h-4 w-4 text-cyan-500" />
-            Hands-Free Audio Cues Active
-          </span>
-        </div>
-
-        <SpadasLensCamera />
-      </div>
+      {/* Spadas Lens Unified Camera Hub (Lens AR + Snap Studio) */}
+      <UnifiedCameraHub />
 
       {/* Predictive Heatmap Sourcing Radar */}
       <div className="space-y-4 pt-6 border-t border-border">
