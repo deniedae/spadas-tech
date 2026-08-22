@@ -253,9 +253,6 @@ function SpadasLensCameraCore() {
   const [rateLimited, setRateLimited] = useState(false);
   const [activeScans, setActiveScans] = useState<ActiveScanItem[]>([]);
   const [capturedLog, setCapturedLog] = useState<DetectedHit[]>([]);
-
-  const profitableCount = capturedLog.filter((h) => (h.estimatedProfit || 0) >= minProfitThreshold).length;
-  const bestProfit = capturedLog.reduce((max, h) => Math.max(max, h.estimatedProfit || 0), 0);
   const [selectedHitIds, setSelectedHitIds] = useState<string[]>([]);
   const [exporting, setExporting] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
@@ -278,6 +275,9 @@ function SpadasLensCameraCore() {
   const [isPro, setIsPro] = useState<boolean>(false);
   const [scanFeedback, setScanFeedback] = useState<"HIT" | "MISS" | null>(null);
   const [sessionScanCount, setSessionScanCount] = useState<number>(0);
+
+  const profitableCount = capturedLog.filter((h) => (h.estimatedProfit || 0) >= minProfitThreshold).length;
+  const bestProfit = capturedLog.reduce((max, h) => Math.max(max, h.estimatedProfit || 0), 0);
 
   const handleQuickAdd = async (e: React.MouseEvent, item: ActiveScanItem) => {
     e.stopPropagation();
