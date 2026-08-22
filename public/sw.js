@@ -5,7 +5,8 @@ const PRECACHE_ASSETS = [
   "/",
   "/dashboard",
   "/lens",
-  "/inventory",
+  "/listings",
+  "/studio",
   "/calculator",
   "/offline.html",
   "/manifest.json",
@@ -13,8 +14,6 @@ const PRECACHE_ASSETS = [
   "/icon-512.png",
   "/maskable-192.png",
   "/maskable-512.png",
-  "/screenshots/desktop.png",
-  "/screenshots/mobile.png"
 ];
 
 // Install Event

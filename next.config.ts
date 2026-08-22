@@ -57,6 +57,15 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  async redirects() {
+    return [
+      {
+        source: "/inventory",
+        destination: "/listings",
+        permanent: true,
+      },
+    ];
+  },
   async rewrites() {
     return [
       {

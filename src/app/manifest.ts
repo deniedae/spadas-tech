@@ -88,7 +88,7 @@ export default function manifest(): MetadataRoute.Manifest {
         name: "Inventory Overview",
         short_name: "Inventory",
         description: "View active inventory and stock status",
-        url: "/inventory",
+        url: "/listings",
         icons: [
           {
             src: "/icon-192.png",
