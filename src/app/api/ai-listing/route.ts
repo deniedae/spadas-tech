@@ -296,7 +296,7 @@ export async function POST(request: Request) {
     supabaseClient = supabase;
 
     const body = await request.json().catch(() => ({}));
-    const { imageUrls, isArScan } = body as { imageUrls?: string[]; isArScan?: boolean };
+    const { imageUrls, isArScan, mode } = body as { imageUrls?: string[]; isArScan?: boolean; mode?: "sweep" | "deep" | "standard" };
     rawImageUrls = imageUrls || [];
 
     if (!imageUrls || imageUrls.length === 0) {
@@ -548,27 +548,27 @@ Rules:
       }
     }
 
-    // Secondary vision providers (Google Gemini & Anthropic Claude) TEMPORARILY DISABLED per spec
-    /*
+    let activeProvider = "openai-vision";
+
     if (!result && imageUrls.length > 0) {
-      const geminiResult = await callGeminiVision(imageUrls[0]);
-      if (geminiResult) result = geminiResult;
+      try {
+        const geminiResult = await callGeminiVision(imageUrls[0]);
+        if (geminiResult && geminiResult.analysis?.product_name) {
+          result = geminiResult;
+          activeProvider = "gemini-flash";
+        }
+      } catch (gemErr) {
+        console.warn("[ai-listing] Gemini vision fallback warning:", gemErr);
+      }
     }
-    if (!result && imageUrls.length > 0) {
-      const claudeResult = await callClaudeVision(imageUrls[0]);
-      if (claudeResult) result = claudeResult;
-    }
-    */
 
     if (!result) {
-      console.error("[ai-listing] OpenAI Vision model returned empty response or schema validation error.");
+      console.error("[ai-listing] Vision models returned empty response or schema validation error.");
       return NextResponse.json(
-        { error: "OpenAI Vision call failed to return valid analysis. Please ensure camera snapshot is clear." },
+        { error: "Vision scan failed to return valid analysis. Please ensure camera snapshot is clear." },
         { status: 502 }
       );
     }
-
-    const activeProvider = "openai-vision";
     const countryHeader = request.headers.get("x-vercel-ip-country");
     const geoInfo = detectGeoCurrency(countryHeader);
     const targetCurrency: SupportedCurrency = (body.currency as SupportedCurrency) || geoInfo.currency;
@@ -585,6 +585,10 @@ Rules:
           result.suggested_price_min = ebayComps.min;
           result.suggested_price_max = ebayComps.max;
           result.suggested_price_median = ebayComps.median;
+          result.ebay_comps_count = ebayComps.count;
+          if (result.detected_objects && result.detected_objects.length > 0) {
+            result.detected_objects[0].ebay_comps_count = ebayComps.count;
+          }
         }
       } catch (compErr) {
         console.warn("[ai-listing] Live eBay comps lookup warning:", compErr);

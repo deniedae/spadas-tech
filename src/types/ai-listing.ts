@@ -70,6 +70,7 @@ export interface AiListingResult {
   suggested_price_max: number;
   suggested_price_median?: number;
   suggested_price_currency: "USD" | "AUD" | "GBP" | "EUR";
+  ebay_comps_count?: number;
   sales_velocity?: SalesVelocityEstimate;
   future_grail?: FutureGrailPrediction;
   isMockFallback?: boolean;
@@ -81,6 +82,7 @@ export interface AiListingResult {
     condition: string;
     bbox: { x: number; y: number; width: number; height: number };
     confidence_score: number;
+    ebay_comps_count?: number;
   }>;
 }
 

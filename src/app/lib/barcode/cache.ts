@@ -7,7 +7,12 @@ export async function getCachedBarcode(barcode: string) {
     .eq("barcode", barcode)
     .single();
 
-  if (error) return null;
+  if (error || !data) return null;
+
+  const name = (data.name || "").trim();
+  if (!name || name.toLowerCase() === "unknown product" || name.toLowerCase() === "unknown title") {
+    return null;
+  }
 
   return data;
 }
@@ -22,9 +27,14 @@ export async function saveBarcode(product: {
   suggestedPrice?: number;
   source?: string;
 }) {
+  const cleanName = (product.name || "").trim();
+  if (!cleanName || cleanName.toLowerCase() === "unknown product" || cleanName.toLowerCase() === "unknown title") {
+    return;
+  }
+
   await supabase.from("barcode_cache").upsert({
     barcode: product.barcode,
-    name: product.name,
+    name: cleanName,
     brand: product.brand,
     category: product.category,
     image: product.image,

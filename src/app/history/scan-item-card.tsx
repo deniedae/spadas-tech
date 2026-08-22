@@ -46,14 +46,17 @@ export function ScanItemCard({
     if (onDeleted) onDeleted();
   };
 
-  const handleCrossListClick = () => {
-    if (typeof window !== "undefined") {
-      const isProOverride = localStorage.getItem("spadas_plan_override");
-      if (!isProOverride && scan.user_id !== "owner") {
-        // Trigger Paywall for Non-Pro users trying to cross-list
+  const handleCrossListClick = async () => {
+    try {
+      const res = await fetch("/api/stripe/status");
+      const data = await res.json().catch(() => ({}));
+      const isPro = Boolean(data?.active || data?.plan === "Pro");
+      if (!isPro && scan.user_id !== "owner") {
         setIsPaywallOpen(true);
         return;
       }
+    } catch {
+      // Fallback
     }
     setIsCrossListOpen(true);
   };

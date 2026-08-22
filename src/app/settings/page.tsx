@@ -124,20 +124,6 @@ export default function SettingsPage() {
 
         setUser({ email: currentUser.email ?? "" });
 
-        if (currentUser.email?.toLowerCase() === "deniedae@gmail.com") {
-          setPlan("Pro");
-          setPlanStatus("active");
-          setLoading(false);
-          return;
-        }
-
-        if (typeof window !== "undefined" && localStorage.getItem("spadas_plan_override") === "pro") {
-          setPlan("Pro");
-          setPlanStatus("active");
-          setLoading(false);
-          return;
-        }
-
         const res = await fetch("/api/stripe/status");
         if (res.ok) {
           const statusData = await res.json();

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Camera, ChevronLeft, ChevronRight, AlertTriangle, Filter, Scale, CheckSquare, Square, Lock } from "lucide-react";
 import { ClearAllHistoryButton } from "./delete-button";
@@ -40,7 +40,19 @@ export function HistoryFeedView({
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isCompareOpen, setIsCompareOpen] = useState(false);
   const [isPaywallOpen, setIsPaywallOpen] = useState(false);
+  const [isPro, setIsPro] = useState(false);
   const [activeEbayItem, setActiveEbayItem] = useState<ComparisonItem | null>(null);
+
+  useEffect(() => {
+    fetch("/api/stripe/status")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.active || d.plan === "Pro") {
+          setIsPro(true);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) =>
@@ -229,12 +241,9 @@ export function HistoryFeedView({
           <button
             type="button"
             onClick={() => {
-              if (typeof window !== "undefined") {
-                const isProOverride = localStorage.getItem("spadas_plan_override");
-                if (!isProOverride) {
-                  setIsPaywallOpen(true);
-                  return;
-                }
+              if (!isPro) {
+                setIsPaywallOpen(true);
+                return;
               }
               setIsCompareOpen(true);
             }}

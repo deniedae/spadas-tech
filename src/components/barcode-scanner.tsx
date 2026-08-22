@@ -67,8 +67,8 @@ export default function BarcodeScanner({
 
       const data = await res.json();
 
-      if (!data.success) {
-        setScanError(data.message || "Barcode not found.");
+      if (!data.success || !data.product || !(data.product.name || "").trim() || data.product.name.toLowerCase() === "unknown product" || data.product.name.toLowerCase() === "unknown title") {
+        setScanError(data?.message || `Barcode (${decodedText}) was scanned, but a product title could not be found in barcode databases. Try typing the title manually.`);
         return;
       }
 

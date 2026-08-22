@@ -9,8 +9,9 @@ import UsageBadge from "@/components/usage-badge";
 import PricingStrategyCard from "@/components/pricing-strategy-card";
 import {
   Sparkles, Loader2, AlertCircle, CheckCircle2, XCircle,
-  TrendingUp, DollarSign, Target, ArrowRight,
+  TrendingUp, DollarSign, Target, ArrowRight, ShieldCheck,
 } from "lucide-react";
+import { DeepVerifyModal } from "@/components/deep-verify-modal";
 
 interface SourcingVerdict {
   identification: {
@@ -79,6 +80,7 @@ export default function SourcingPage() {
   const [uploading, setUploading] = useState(false);
   const [checking, setChecking] = useState(false);
   const [verdict, setVerdict] = useState<SourcingVerdict | null>(null);
+  const [isDeepVerifyOpen, setIsDeepVerifyOpen] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -366,9 +368,17 @@ export default function SourcingPage() {
             <button
               type="button"
               onClick={reset}
-              className="inline-flex h-11 flex-1 items-center justify-center rounded-xl border border-border bg-background px-4 text-sm font-medium hover:bg-muted"
+              className="inline-flex h-11 flex-1 items-center justify-center rounded-xl border border-border bg-background px-4 text-sm font-medium hover:bg-muted cursor-pointer"
             >
               Check another item
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsDeepVerifyOpen(true)}
+              className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-purple-600 px-4 text-sm font-semibold text-white transition hover:bg-purple-500 shadow-md cursor-pointer"
+            >
+              <ShieldCheck className="h-4 w-4 text-purple-200" />
+              Deep Verify Authenticity
             </button>
             <button
               type="button"
@@ -380,12 +390,24 @@ export default function SourcingPage() {
                 if (cost) params.set("cost", cost);
                 router.push(`/generator?${params.toString()}`);
               }}
-              className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
+              className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 cursor-pointer"
             >
               List this item
               <ArrowRight className="h-4 w-4" />
             </button>
           </div>
+
+          {/* Deep Verify Modal */}
+          {verdict && (
+            <DeepVerifyModal
+              isOpen={isDeepVerifyOpen}
+              onClose={() => setIsDeepVerifyOpen(false)}
+              productName={verdict.identification.product_name}
+              brand={verdict.identification.brand || "Brand"}
+              category={verdict.identification.category}
+              initialImage={imageUrls[0]}
+            />
+          )}
         </div>
       )}
     </main>

@@ -57,7 +57,8 @@ function StatCard({
   value,
   valueClassName = "text-white",
   icon: Icon,
-  trend = "+12.4%",
+  trend = "—",
+  trendPositive = true,
   loading,
 }: {
   label: string;
@@ -65,6 +66,7 @@ function StatCard({
   valueClassName?: string;
   icon?: React.ComponentType<{ className?: string }>;
   trend?: string;
+  trendPositive?: boolean;
   loading: boolean;
 }) {
   return (
@@ -84,7 +86,13 @@ function StatCard({
           <h2 className={`text-3xl sm:text-4xl font-black tabular-nums tracking-tight ${valueClassName}`}>
             {value}
           </h2>
-          <span className="inline-flex items-center rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-[10px] font-black text-emerald-400 border border-emerald-500/30">
+          <span
+            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-black border ${
+              trendPositive
+                ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
+                : "bg-rose-500/15 text-rose-400 border-rose-500/30"
+            }`}
+          >
             {trend}
           </span>
         </div>
@@ -93,14 +101,82 @@ function StatCard({
   );
 }
 
+/** Compute a formatted week-over-week trend string from all listings. */
+function calcWeeklyTrend(
+  all: Listing[],
+  getValue: (item: Listing) => number,
+  filter?: (item: Listing) => boolean
+): { label: string; positive: boolean } {
+  const now = Date.now();
+  const oneWeek = 7 * 24 * 60 * 60 * 1000;
+  const twoWeeks = 2 * oneWeek;
+
+  const items = filter ? all.filter(filter) : all;
+
+  const thisWeek = items
+    .filter((i) => now - new Date(i.created_at).getTime() < oneWeek)
+    .reduce((sum, i) => sum + getValue(i), 0);
+
+  const lastWeek = items
+    .filter((i) => {
+      const age = now - new Date(i.created_at).getTime();
+      return age >= oneWeek && age < twoWeeks;
+    })
+    .reduce((sum, i) => sum + getValue(i), 0);
+
+  if (lastWeek === 0 && thisWeek === 0) return { label: "—", positive: true };
+  if (lastWeek === 0) return { label: "New", positive: true };
+
+  const pct = Math.round(((thisWeek - lastWeek) / lastWeek) * 100);
+  return {
+    label: `${pct >= 0 ? "+" : ""}${pct}% vs last wk`,
+    positive: pct >= 0,
+  };
+}
+
+async function fetchDashboardListings(userId: string): Promise<Listing[]> {
+  const { data, error } = await supabase
+    .from("listings")
+    .select("*")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return (data as Listing[]) || [];
+}
+
 export default function Dashboard() {
   const router = useRouter();
+  const [allListings, setAllListings] = useState<Listing[]>([]);
   const [stats, setStats] = useState<DashboardStats>(INITIAL_STATS);
   const [recentListings, setRecentListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
+  const [proLoading, setProLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isPaywallOpen, setIsPaywallOpen] = useState(false);
   const [isPro, setIsPro] = useState(false);
+
+  /** Shared logic to process raw listing data into stats + recent view. */
+  function processListings(data: Listing[]) {
+    let revenue = 0;
+    let profit = 0;
+    let sold = 0;
+    let inventory = 0;
+
+    data.forEach((item) => {
+      if (item.status === "Sold") {
+        sold++;
+        revenue += Number(item.sold_price) || 0;
+        profit += calcProfit(item);
+      } else {
+        inventory += Number(item.price) || 0;
+      }
+    });
+
+    setAllListings(data);
+    setRecentListings(data.slice(0, 5));
+    setStats({ listings: data.length, inventory, revenue, profit, sold });
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -116,60 +192,25 @@ export default function Dashboard() {
           return;
         }
 
-        if (user.email?.toLowerCase() === "deniedae@gmail.com") {
-          setIsPro(true);
-        } else if (typeof window !== "undefined" && localStorage.getItem("spadas_plan_override") === "pro") {
-          setIsPro(true);
-        } else {
-          fetch("/api/usage")
-            .then((r) => r.json())
-            .then((d) => {
-              if (d?.isPro && !cancelled) setIsPro(true);
-            })
-            .catch(() => {});
-        }
+        // Pro check — always resolved server-side from /api/stripe/status
+        fetch("/api/stripe/status")
+          .then((r) => r.json())
+          .then((d) => {
+            if (!cancelled) {
+              setIsPro(Boolean(d.active || d.plan === "Pro"));
+              setProLoading(false);
+            }
+          })
+          .catch(() => {
+            if (!cancelled) setProLoading(false);
+          });
 
-        const { data, error } = await supabase
-          .from("listings")
-          .select("*")
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: false });
-
-        if (error) throw error;
+        const data = await fetchDashboardListings(user.id);
         if (cancelled) return;
-        if (!data) return;
-
-        setRecentListings(data.slice(0, 5));
-
-        let revenue = 0;
-        let profit = 0;
-        let sold = 0;
-
-        data.forEach((item) => {
-          if (item.status === "Sold") {
-            sold++;
-            revenue += Number(item.sold_price) || 0;
-            profit += calcProfit(item);
-          }
-        });
-
-        let inventory = 0;
-        data.forEach((item) => {
-          if (item.status !== "Sold") {
-            inventory += Number(item.price) || 0;
-          }
-        });
-
-        setStats({
-          listings: data.length,
-          inventory,
-          revenue,
-          profit,
-          sold,
-        });
-      } catch (err: any) {
+        processListings(data);
+      } catch (err: unknown) {
         if (!cancelled) {
-          setError(err?.message || "Failed to load dashboard data.");
+          setError((err as Error)?.message || "Failed to load dashboard data.");
         }
       } finally {
         if (!cancelled) {
@@ -195,40 +236,10 @@ export default function Dashboard() {
 
       if (!user) return;
 
-      const { data, error } = await supabase
-        .from("listings")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      if (data) {
-        setRecentListings(data.slice(0, 5));
-        let revenue = 0;
-        let profit = 0;
-        let sold = 0;
-        let inventory = 0;
-
-        data.forEach((item) => {
-          if (item.status === "Sold") {
-            sold++;
-            revenue += Number(item.sold_price) || 0;
-            profit += calcProfit(item);
-          } else {
-            inventory += Number(item.price) || 0;
-          }
-        });
-
-        setStats({
-          listings: data.length,
-          inventory,
-          revenue,
-          profit,
-          sold,
-        });
-      }
-    } catch (err: any) {
-      setError(err?.message || "Refresh failed");
+      const data = await fetchDashboardListings(user.id);
+      processListings(data);
+    } catch (err: unknown) {
+      setError((err as Error)?.message || "Refresh failed");
     } finally {
       setLoading(false);
     }
@@ -255,7 +266,9 @@ export default function Dashboard() {
             </div>
 
             <div className="flex flex-wrap items-center gap-3 shrink-0">
-              {isPro ? (
+              {proLoading ? (
+                <div className="h-11 w-44 rounded-xl bg-slate-800/80 animate-pulse border border-slate-700/50" />
+              ) : isPro ? (
                 <div className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-emerald-500/15 border border-emerald-500/40 px-5 text-xs font-black text-emerald-300 shadow-md shadow-emerald-500/10">
                   <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
                   <span>👑 SPADAS PRO ACTIVE</span>
@@ -307,16 +320,60 @@ export default function Dashboard() {
 
         {/* Core Stat Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-          <StatCard label="Listings" value={String(stats.listings)} icon={Package} loading={loading} />
-          <StatCard label="Inventory Value" value={fmtMoney(stats.inventory)} icon={DollarSign} loading={loading} />
-          <StatCard
-            label="Profit"
-            value={fmtMoney(stats.profit)}
-            valueClassName="text-emerald-400 font-black"
-            icon={TrendingUp}
-            loading={loading}
-          />
-          <StatCard label="Items Sold" value={String(stats.sold)} icon={ShoppingCart} loading={loading} />
+          {(() => {
+            const listingsTrend = calcWeeklyTrend(allListings, () => 1);
+            const inventoryTrend = calcWeeklyTrend(
+              allListings,
+              (i) => (i.status !== "Sold" ? Number(i.price) || 0 : 0)
+            );
+            const profitTrend = calcWeeklyTrend(
+              allListings,
+              (i) => calcProfit(i),
+              (i) => i.status === "Sold"
+            );
+            const soldTrend = calcWeeklyTrend(
+              allListings,
+              () => 1,
+              (i) => i.status === "Sold"
+            );
+            return (
+              <>
+                <StatCard
+                  label="Listings"
+                  value={String(stats.listings)}
+                  icon={Package}
+                  trend={listingsTrend.label}
+                  trendPositive={listingsTrend.positive}
+                  loading={loading}
+                />
+                <StatCard
+                  label="Inventory Value"
+                  value={fmtMoney(stats.inventory)}
+                  icon={DollarSign}
+                  trend={inventoryTrend.label}
+                  trendPositive={inventoryTrend.positive}
+                  loading={loading}
+                />
+                <StatCard
+                  label="Profit"
+                  value={fmtMoney(stats.profit)}
+                  valueClassName="text-emerald-400 font-black"
+                  icon={TrendingUp}
+                  trend={profitTrend.label}
+                  trendPositive={profitTrend.positive}
+                  loading={loading}
+                />
+                <StatCard
+                  label="Items Sold"
+                  value={String(stats.sold)}
+                  icon={ShoppingCart}
+                  trend={soldTrend.label}
+                  trendPositive={soldTrend.positive}
+                  loading={loading}
+                />
+              </>
+            );
+          })()}
         </div>
 
         {/* Quick Action SaaS Panels */}

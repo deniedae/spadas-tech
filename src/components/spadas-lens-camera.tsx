@@ -29,6 +29,7 @@ import {
   HelpCircle,
   History,
   Crosshair,
+  ShieldCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 import { fmtMoney } from "@/app/lib/listings";
@@ -42,6 +43,7 @@ import TiktokVideoExporter from "@/components/tiktok-video-exporter";
 import SubscriptionPaywallModal from "@/components/subscription-paywall-modal";
 import EbayListingModal from "@/components/ebay-listing-modal";
 import CameraOnboardingOverlay from "@/components/camera-onboarding-overlay";
+import { DeepVerifyModal } from "@/components/deep-verify-modal";
 
 // Catch-All React Error Boundary for Live Camera & Hit List Stability
 interface ErrorBoundaryProps {
@@ -107,6 +109,7 @@ interface DetectedHit {
   bbox: { x: number; y: number; width: number; height: number }; // percentage coords
   timestamp: number;
   isGrail?: boolean;
+  ebayCompsCount?: number;
   salesVelocity?: {
     sell_speed: "FAST_FLIP" | "MODERATE" | "SLOW_BURNER";
     est_days_to_sell: string;
@@ -226,6 +229,10 @@ export interface ActiveScanItem {
   bbox: { x: number; y: number; width: number; height: number };
   status: "pending" | "valued" | "rejected";
   estimatedValue?: number;
+  suggestedPriceMin?: number;
+  suggestedPriceMax?: number;
+  confidenceScore?: number;
+  ebayCompsCount?: number;
   estCost?: number;
   estimatedProfit?: number;
   estRoi?: number;
@@ -237,7 +244,7 @@ let cycleSeq = 0;
 function SpadasLensCameraCore() {
   const router = useRouter();
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [scanMode, setScanMode] = useState<"live" | "deep">("live");
+  const [scanMode, setScanMode] = useState<"sweep" | "live" | "deep">("sweep");
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [scanning, setScanning] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
@@ -246,6 +253,9 @@ function SpadasLensCameraCore() {
   const [rateLimited, setRateLimited] = useState(false);
   const [activeScans, setActiveScans] = useState<ActiveScanItem[]>([]);
   const [capturedLog, setCapturedLog] = useState<DetectedHit[]>([]);
+
+  const profitableCount = capturedLog.filter((h) => (h.estimatedProfit || 0) >= minProfitThreshold).length;
+  const bestProfit = capturedLog.reduce((max, h) => Math.max(max, h.estimatedProfit || 0), 0);
   const [selectedHitIds, setSelectedHitIds] = useState<string[]>([]);
   const [exporting, setExporting] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
@@ -263,9 +273,39 @@ function SpadasLensCameraCore() {
   const [isPaywallOpen, setIsPaywallOpen] = useState<boolean>(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(false);
   const [activeEbayItem, setActiveEbayItem] = useState<any | null>(null);
+  const [deepVerifyItem, setDeepVerifyItem] = useState<DetectedHit | ActiveScanItem | null>(null);
   const [isOwner, setIsOwner] = useState<boolean>(false);
   const [isPro, setIsPro] = useState<boolean>(false);
   const [scanFeedback, setScanFeedback] = useState<"HIT" | "MISS" | null>(null);
+  const [sessionScanCount, setSessionScanCount] = useState<number>(0);
+
+  const handleQuickAdd = async (e: React.MouseEvent, item: ActiveScanItem) => {
+    e.stopPropagation();
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        toast.error("Please log in to save listings.");
+        return;
+      }
+
+      const { error } = await createListing({
+        userId: user.id,
+        product: item.productName,
+        description: `Sourced via Spadas Lens AR. Category: ${item.category}. Estimated profit: +$${item.estimatedProfit?.toFixed(2) || "0"}.`,
+        price: item.estimatedValue || 45,
+        cost: item.estCost || 10,
+        status: "Draft",
+      });
+
+      if (error) throw error;
+      toast.success(`✅ Added "${item.productName}" to inventory drafts!`);
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to add to drafts.");
+    }
+  };
 
   const [selectedCurrency, setSelectedCurrency] = useState<SupportedCurrency>(() => {
     if (typeof window !== "undefined") {
@@ -278,7 +318,7 @@ function SpadasLensCameraCore() {
   });
   const prevFramePixelsRef = useRef<Uint8ClampedArray | null>(null);
 
-  // Verify Owner (deniedae@gmail.com) and Pro User status
+  // Verify Owner and Pro User status purely server-side
   useEffect(() => {
     async function checkOwnerAndProStatus() {
       try {
@@ -286,21 +326,20 @@ function SpadasLensCameraCore() {
           data: { user },
         } = await supabase.auth.getUser();
 
-        if (user?.email?.toLowerCase() === "deniedae@gmail.com") {
-          setIsOwner(true);
-          setIsPro(true);
-          return;
-        }
+        if (user) {
+          const res = await fetch("/api/stripe/status").catch(() => null);
+          if (res && res.ok) {
+            const d = await res.json().catch(() => ({}));
+            if (d?.active || d?.plan === "Pro") {
+              setIsPro(true);
+            }
+          }
 
-        if (typeof window !== "undefined" && localStorage.getItem("spadas_plan_override") === "pro") {
-          setIsPro(true);
-          return;
-        }
-
-        const res = await fetch("/api/usage").catch(() => null);
-        if (res && res.ok) {
-          const d = await res.json().catch(() => ({}));
-          if (d?.isPro) setIsPro(true);
+          const usageRes = await fetch("/api/usage").catch(() => null);
+          if (usageRes && usageRes.ok) {
+            const u = await usageRes.json().catch(() => ({}));
+            if (u?.isPro) setIsPro(true);
+          }
         }
       } catch {}
     }
@@ -838,11 +877,11 @@ function SpadasLensCameraCore() {
 
               if (bRes && bRes.ok) {
                 const bData = await bRes.json().catch(() => null);
-                if (bData && bData.product) {
-                  const pName = bData.product.name;
+                const pName = (bData?.product?.name || "").trim();
+                if (bData && bData.product && pName && pName.toLowerCase() !== "unknown product" && pName.toLowerCase() !== "unknown title") {
                   const estValue = bData.product.suggestedPrice || 45;
-                  const estCost = 10;
-                  const estProfit = Math.max(15, estValue - estCost);
+                  const estCost = Math.max(3, Math.round(estValue * 0.35));
+                  const estProfit = Math.max(5, estValue - estCost);
                   const scanObj: ActiveScanItem = {
                     id: `barcode-${Date.now()}`,
                     productName: pName,
@@ -855,6 +894,9 @@ function SpadasLensCameraCore() {
                     bbox: { x: 15, y: 15, width: 70, height: 70 },
                     status: "valued",
                     estimatedValue: estValue,
+                    suggestedPriceMin: Math.round(estValue * 0.8),
+                    suggestedPriceMax: Math.round(estValue * 1.2),
+                    confidenceScore: 0.99,
                     estCost: estCost,
                     estimatedProfit: estProfit,
                     estRoi: Math.round((estProfit / estCost) * 100),
@@ -862,9 +904,15 @@ function SpadasLensCameraCore() {
                   };
 
                   setActiveScans((prev) => [scanObj, ...prev.slice(0, 4)]);
-                  toast.success(`🎯 Instant Barcode Hit: ${pName} (+$${estProfit.toFixed(2)} AUD Net Profit)`);
+                  setSessionScanCount((prev) => prev + 1);
+                  if (typeof navigator !== "undefined" && navigator.vibrate) {
+                    navigator.vibrate(80);
+                  }
+                  toast.success(`🎯 Instant Barcode Hit: ${pName} (+${fmtMoney(estProfit)} Net Profit)`);
                   setAnalyzingRealFrame(false);
                   return;
+                } else {
+                  console.log("[Spadas Lens] Barcode lookup returned empty/unknown product name — falling back to AI Vision frame analysis.");
                 }
               }
             }
@@ -941,7 +989,7 @@ function SpadasLensCameraCore() {
       res = await resilientFetch("/api/ai-listing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageUrls: imagePayloads, isArScan: true, currency: selectedCurrency }),
+        body: JSON.stringify({ imageUrls: imagePayloads, isArScan: true, currency: selectedCurrency, mode: scanMode }),
       }, { maxRetries: 2, initialDelayMs: 300 }).catch((e) => {
         console.error('[Spadas Lens]', cycleId, 'Fetch error:', e);
         return null;
@@ -1067,6 +1115,10 @@ function SpadasLensCameraCore() {
           asIsDisclaimer: data.as_is_disclaimer || "",
           bbox: item.bbox || { x: 20, y: 20, width: 60, height: 60 },
           status: "pending",
+          suggestedPriceMin: Number(data.suggested_price_min) || undefined,
+          suggestedPriceMax: Number(data.suggested_price_max) || undefined,
+          confidenceScore: item.confidence_score || data.analysis?.confidence_score || 0.95,
+          ebayCompsCount: item.ebay_comps_count || data.ebay_comps_count || undefined,
           timestamp: now,
         };
 
@@ -1093,6 +1145,10 @@ function SpadasLensCameraCore() {
             ...obj,
             status: "valued",
             estimatedValue: baseVal,
+            suggestedPriceMin: rawMin,
+            suggestedPriceMax: rawMax,
+            confidenceScore: obj.confidenceScore || 0.95,
+            ebayCompsCount: obj.ebayCompsCount,
             estCost,
             estimatedProfit,
             estRoi,
@@ -1102,6 +1158,8 @@ function SpadasLensCameraCore() {
             asIsDisclaimer: obj.asIsDisclaimer,
           };
 
+          setSessionScanCount((prev) => prev + 1);
+
           // Stream Background SLAM Anonymized Telemetry to Global Inventory Heatmap Backend
           if (typeof fetch !== "undefined") {
             try {
@@ -1110,7 +1168,7 @@ function SpadasLensCameraCore() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                   deviceId: `slam-device-${Math.floor(Math.random() * 1000)}`,
-                  storeName: "Salvos Stores Schofields",
+                  storeName: "Local Sourcing Hub",
                   scannedItem: {
                     name: obj.productName,
                     profit: estimatedProfit,
@@ -1131,6 +1189,9 @@ function SpadasLensCameraCore() {
 
           // Grail Alert Triggering Engine ($80+ Profit or 250%+ ROI)
           if (isGrailHit && grailMode) {
+            if (typeof navigator !== "undefined" && navigator.vibrate) {
+              navigator.vibrate([100, 50, 200]);
+            }
             playGrailVictoryFanfare();
             speakCue(`Grail item detected! ${obj.productName}. Est Net Profit ${fmtMoney(estimatedProfit)}.`);
             setActiveGrailAlert({
@@ -1149,6 +1210,9 @@ function SpadasLensCameraCore() {
             const isCooldownActive = lastChimed && (now - lastChimed.time < 15000);
 
             if (!isSameProduct || !isCooldownActive) {
+              if (typeof navigator !== "undefined" && navigator.vibrate) {
+                navigator.vibrate(80);
+              }
               playHighProfitChime();
               speakCue(`High profit hit: ${obj.productName}. Profit ${fmtMoney(estimatedProfit)}.`);
               lastChimedRef.current = { name: obj.productName, time: now };
@@ -1170,6 +1234,7 @@ function SpadasLensCameraCore() {
             estRoi,
             verdict: estimatedProfit > 15 ? "BUY" : "CAUTION",
             confidence: 0.98,
+            ebayCompsCount: obj.ebayCompsCount,
             bbox: obj.bbox,
             timestamp: now,
             isGrail: isGrailHit,
@@ -1273,7 +1338,40 @@ function SpadasLensCameraCore() {
               className="h-full w-full object-cover"
             />
 
-            {/* Floating AR Real $50 Cash Bounty Crate Drop Badge - Hidden */}
+            {/* Persistent Session Scan & Profit Stats Ticker */}
+            <div className="absolute top-3.5 left-3.5 right-3.5 z-30 pointer-events-none flex flex-wrap items-center justify-between gap-2">
+              <div className="inline-flex items-center gap-2 rounded-full bg-slate-950/90 border border-cyan-500/40 px-3.5 py-1 text-[11px] font-black text-cyan-300 shadow-xl backdrop-blur-md">
+                <Crosshair className="h-3.5 w-3.5 text-cyan-400" />
+                <span>🎯 {sessionScanCount} Scanned</span>
+                <span className="text-slate-600">•</span>
+                <span className="text-emerald-400">💰 {profitableCount} Profitable</span>
+                {bestProfit > 0 && (
+                  <>
+                    <span className="text-slate-600">•</span>
+                    <span className="text-amber-300">👑 Top: +{fmtMoney(bestProfit)}</span>
+                  </>
+                )}
+              </div>
+
+              <div className="hidden sm:inline-flex items-center gap-1.5 rounded-full bg-slate-950/90 border border-purple-500/40 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-purple-300 shadow-xl backdrop-blur-md">
+                <span className="h-2 w-2 rounded-full bg-purple-400 animate-ping" />
+                <span>{scanMode === "sweep" ? "⚡ SWEEP STREAM" : scanMode === "deep" ? "🔬 DEEP FUSION" : "🎯 LIVE FOCUS"}</span>
+              </div>
+            </div>
+
+            {/* Holographic Neon Sweeping Laser Line when analyzing */}
+            {analyzingRealFrame && (
+              <div className="absolute inset-x-0 h-1 bg-gradient-to-r from-transparent via-cyan-400 to-transparent shadow-[0_0_20px_#22d3ee] animate-pulse z-30 pointer-events-none top-1/2 -translate-y-1/2" />
+            )}
+
+            {/* Camera Shake / Fast Movement Amber Alert Border */}
+            {cameraMoving && (
+              <div className="absolute inset-0 border-4 border-amber-400/80 rounded-3xl pointer-events-none z-30 animate-pulse flex items-center justify-center">
+                <span className="bg-slate-950/90 text-amber-300 border border-amber-400/50 px-3.5 py-1 rounded-full text-xs font-black shadow-2xl backdrop-blur-md">
+                  📱 Hold camera steady over item...
+                </span>
+              </div>
+            )}
 
             {/* Holographic AR Grail Alert Overlay */}
             {activeGrailAlert && (
@@ -1398,36 +1496,121 @@ function SpadasLensCameraCore() {
                     : "border-cyan-400 animate-pulse shadow-[0_0_12px_rgba(34,211,238,0.6)]"
                 }`}
               >
-                {/* Minimal High-Contrast Text Overlay Header */}
-                <div className="absolute top-2 left-2 flex items-center gap-2 bg-slate-950/95 text-white border border-cyan-500/40 rounded-lg px-3 py-1.5 text-xs font-bold shadow-2xl backdrop-blur-md whitespace-nowrap z-30">
-                  <span className="text-slate-100 font-extrabold truncate max-w-[180px]">{scan.productName}</span>
+                {/* High-Contrast Interactive HUD Overlay Header */}
+                <div className="absolute top-2 left-2 flex flex-col gap-1.5 bg-slate-950/95 text-white border border-cyan-500/40 rounded-xl p-2.5 text-xs font-bold shadow-2xl backdrop-blur-md z-30 pointer-events-auto max-w-[280px] sm:max-w-xs">
+                  <div className="flex items-center justify-between gap-1.5">
+                    <span className="text-slate-100 font-extrabold truncate text-xs">{scan.productName}</span>
+                    {scan.inventoryCondition === "untested" || scan.inventoryCondition === "faulty_for_parts" ? (
+                      <span className="bg-amber-500/25 text-amber-300 border border-amber-500/40 px-1 py-0.5 rounded text-[9px] font-black shrink-0">
+                        🟠 UNTESTED
+                      </span>
+                    ) : scan.inventoryCondition === "refurbished" ? (
+                      <span className="bg-blue-500/25 text-blue-300 border border-blue-500/40 px-1 py-0.5 rounded text-[9px] font-black shrink-0">
+                        🔹 REFURB
+                      </span>
+                    ) : (
+                      <span className="bg-emerald-500/25 text-emerald-300 border border-emerald-500/40 px-1 py-0.5 rounded text-[9px] font-black shrink-0">
+                        🟢 WORKING
+                      </span>
+                    )}
+                  </div>
 
-                  {scan.inventoryCondition === "untested" || scan.inventoryCondition === "faulty_for_parts" ? (
-                    <span className="bg-amber-500/25 text-amber-300 border border-amber-500/40 px-1.5 py-0.5 rounded text-[10px] font-black">
-                      🟠 UNTESTED / FOR PARTS
-                    </span>
-                  ) : scan.inventoryCondition === "refurbished" ? (
-                    <span className="bg-blue-500/25 text-blue-300 border border-blue-500/40 px-1.5 py-0.5 rounded text-[10px] font-black">
-                      🔹 REFURBISHED
-                    </span>
+                  {/* Primary Transparent Pricing Breakdown */}
+                  {scan.status === "valued" ? (
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <div className="bg-cyan-500/20 border border-cyan-400/40 text-cyan-300 px-2 py-0.5 rounded text-[11px] font-black">
+                        Sell: {fmtMoney(scan.estimatedValue || 0)}
+                      </div>
+                      <div className="bg-slate-800 text-slate-300 border border-slate-700 px-1.5 py-0.5 rounded text-[10px] font-medium">
+                        Buy: {fmtMoney(scan.estCost || Math.max(3, Math.round((scan.estimatedValue || 0) * 0.35)))}
+                      </div>
+                      <div className="bg-emerald-400 text-slate-950 px-2 py-0.5 rounded text-[11px] font-black shadow-sm">
+                        +{fmtMoney(scan.estimatedProfit || 0)} Profit
+                      </div>
+                    </div>
                   ) : (
-                    <span className="bg-emerald-500/25 text-emerald-300 border border-emerald-500/40 px-1.5 py-0.5 rounded text-[10px] font-black">
-                      🟢 WORKING
+                    <span className="bg-cyan-500/20 text-cyan-300 border border-cyan-400/40 px-2 py-0.5 rounded text-[11px] font-bold animate-pulse inline-block self-start">
+                      Valuing item...
                     </span>
                   )}
 
-                  {scan.status === "valued" && scan.estimatedProfit !== undefined ? (
-                    <span className="bg-emerald-400 text-slate-950 px-2 py-0.5 rounded text-[11px] font-black tracking-tight shadow-md">
-                      +${scan.estimatedProfit.toFixed(2)} Profit
-                    </span>
-                  ) : (
-                    <span className="bg-cyan-500/20 text-cyan-300 border border-cyan-400/40 px-1.5 py-0.5 rounded text-[11px] font-bold animate-pulse">
-                      Valuing...
-                    </span>
-                  )}
+                  <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                    {scan.suggestedPriceMin && scan.suggestedPriceMax && (
+                      <span className="bg-slate-900 text-slate-400 border border-slate-800 px-1.5 py-0.5 rounded text-[10px] font-mono">
+                        Range: {fmtMoney(scan.suggestedPriceMin)}–{fmtMoney(scan.suggestedPriceMax)}
+                      </span>
+                    )}
+
+                    {scan.ebayCompsCount && scan.ebayCompsCount > 0 ? (
+                      <span className="bg-blue-500/20 text-blue-300 border border-blue-400/40 px-1.5 py-0.5 rounded text-[10px] font-black tracking-tight">
+                        📊 {scan.ebayCompsCount} Sold (30d)
+                      </span>
+                    ) : null}
+
+                    {scan.confidenceScore && (
+                      <span className="bg-cyan-500/10 text-cyan-300 border border-cyan-400/30 px-1 py-0.5 rounded text-[9px] font-bold">
+                        {Math.round(scan.confidenceScore * 100)}% Conf
+                      </span>
+                    )}
+                  </div>
+
+                  {/* 1-Tap Inline Add to Inventory Action */}
+                  <button
+                    type="button"
+                    onClick={(e) => handleQuickAdd(e, scan)}
+                    className="ml-1 inline-flex items-center gap-1 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 px-2.5 py-0.5 rounded-lg text-[10px] font-black shadow-md hover:scale-105 active:scale-95 transition cursor-pointer"
+                  >
+                    + Add
+                  </button>
+
+                  {/* 1-Tap Inline Deep Verify Action */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeepVerifyItem(scan);
+                    }}
+                    className="inline-flex items-center gap-1 bg-purple-600 hover:bg-purple-500 text-white px-2 py-0.5 rounded-lg text-[10px] font-black shadow-md hover:scale-105 active:scale-95 transition cursor-pointer"
+                  >
+                    <ShieldCheck className="h-3 w-3 text-purple-200" /> Verify
+                  </button>
                 </div>
               </div>
             ))}
+
+            {/* Live Incoming Findings Stream Ticker in Sweep Mode */}
+            {capturedLog.length > 0 && (
+              <div className="absolute bottom-3 left-3 right-3 z-30 pointer-events-none flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+                {capturedLog.slice(0, 3).map((hit) => (
+                  <div
+                    key={hit.id}
+                    className="inline-flex items-center gap-2 rounded-xl bg-slate-950/90 border border-emerald-500/50 p-2 shadow-2xl backdrop-blur-md pointer-events-auto shrink-0 animate-fade-in"
+                  >
+                    <div className="h-6 w-6 rounded-lg bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center text-[10px] font-black text-emerald-400">
+                      ✓
+                    </div>
+                    <div className="text-left">
+                      <span className="text-[11px] font-extrabold text-white line-clamp-1 max-w-[150px]">
+                        {hit.name}
+                      </span>
+                      <span className="text-[10px] font-bold text-slate-300 block">
+                        Sell: <strong className="text-cyan-300 font-extrabold">{fmtMoney(hit.estimatedValue)}</strong> • Profit: <strong className="text-emerald-400 font-black">+{fmtMoney(hit.estimatedProfit)}</strong>
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeepVerifyItem(hit);
+                      }}
+                      className="ml-1 px-2 py-1 rounded-md bg-purple-600 hover:bg-purple-500 text-white text-[9px] font-black shadow-sm cursor-pointer"
+                    >
+                      Verify
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </>
         ) : (
           /* Placeholder View before starting */
@@ -1464,27 +1647,58 @@ function SpadasLensCameraCore() {
                 ? "API Rate Limit - Retrying..."
                 : analyzingRealFrame
                 ? "Scanning Live Frame..."
+                : scanMode === "sweep"
+                ? "⚡ Continuous Sweep Active (Walk & Pan)"
                 : "Continuous AR Scanner (1.5s)"}
             </span>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                const nextMode = scanMode === "live" ? "deep" : "live";
-                setScanMode(nextMode);
-                toast.success(nextMode === "deep" ? "🔬 Deep Fusion 100% Mode Active (Dual-Snap Tag Capture)" : "⚡ Live AR Sweep Mode Active");
-              }}
-              className={`inline-flex h-9 items-center gap-1.5 rounded-xl px-3.5 text-xs font-black transition cursor-pointer border ${
-                scanMode === "deep"
-                  ? "bg-purple-500 text-white border-purple-300 shadow-[0_0_16px_rgba(168,85,247,0.6)] animate-pulse"
-                  : "bg-slate-900 text-cyan-300 border-slate-700 hover:text-white"
-              }`}
-            >
-              <Sparkles className="h-3.5 w-3.5" />
-              <span>{scanMode === "deep" ? "🔬 Deep Scan 100%" : "⚡ Live Sweep"}</span>
-            </button>
+            {/* Multi-Mode Selector: Sweep | Live Focus | Deep Scan */}
+            <div className="flex items-center gap-1 bg-slate-900 border border-slate-700 rounded-xl p-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setScanMode("sweep");
+                  toast.success("⚡ Continuous Sweep Mode Active (Walk & Scan)");
+                }}
+                className={`px-3 py-1 rounded-lg text-xs font-black transition cursor-pointer ${
+                  scanMode === "sweep"
+                    ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 shadow-md shadow-emerald-500/20"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                ⚡ Sweep
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setScanMode("live");
+                  toast.success("🎯 Live Focus Mode Active");
+                }}
+                className={`px-3 py-1 rounded-lg text-xs font-black transition cursor-pointer ${
+                  scanMode === "live"
+                    ? "bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                🎯 Focus
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setScanMode("deep");
+                  toast.success("🔬 Deep Fusion 100% Active");
+                }}
+                className={`px-3 py-1 rounded-lg text-xs font-black transition cursor-pointer ${
+                  scanMode === "deep"
+                    ? "bg-purple-500 text-white shadow-md shadow-purple-500/30"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                🔬 Deep
+              </button>
+            </div>
 
             <button
               type="button"
@@ -1870,7 +2084,7 @@ function SpadasLensCameraCore() {
                   }`}
                 >
                   <div className="flex items-center justify-between gap-1 w-full min-w-0">
-                    <div className="flex items-center gap-1.5 min-w-0 truncate">
+                    <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
                       <input
                         type="checkbox"
                         checked={isSelected}
@@ -1878,8 +2092,14 @@ function SpadasLensCameraCore() {
                         onClick={(e) => e.stopPropagation()}
                         className="h-4 w-4 rounded border-slate-700 bg-slate-900 text-emerald-500 focus:ring-emerald-400 cursor-pointer shrink-0"
                       />
+                      <span className="text-[11px] font-black px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-400/40 shrink-0">
+                        Sell: {fmtMoney(item.estimatedValue)}
+                      </span>
+                      <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 shrink-0">
+                        Buy: {fmtMoney(item.estCost || Math.max(3, Math.round(item.estimatedValue * 0.35)))}
+                      </span>
                       <span className="text-[11px] font-black px-2 py-0.5 rounded bg-emerald-500 text-slate-950 uppercase tracking-tight shrink-0 shadow-sm">
-                        +${item.estimatedProfit.toFixed(2)} Profit
+                        +{fmtMoney(item.estimatedProfit)} Profit
                       </span>
                     </div>
 
@@ -1943,6 +2163,14 @@ function SpadasLensCameraCore() {
                       >
                         <ShoppingBag className="w-3 h-3" /> List
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => setDeepVerifyItem(item)}
+                        className="inline-flex items-center gap-1 px-2 py-1 bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/40 rounded-md text-[10px] font-extrabold transition cursor-pointer"
+                        title="Run forensic authenticity verification"
+                      >
+                        <ShieldCheck className="w-3 h-3" /> Verify
+                      </button>
                       <TiktokVideoExporter
                         productTitle={item.name}
                         profit={item.estimatedProfit}
@@ -1962,7 +2190,11 @@ function SpadasLensCameraCore() {
 
                   <div className="flex items-center justify-between text-[10px] pt-1 border-t border-border/40 text-slate-400">
                     <span className="font-semibold text-cyan-400">
-                      📊 eBay Sold Comp: {fmtMoney(item.estimatedValue * 0.85)} – {fmtMoney(item.estimatedValue * 1.15)}
+                      📊 {item.ebayCompsCount ? (
+                        <span className="text-emerald-400 font-bold">{item.ebayCompsCount} Confirmed eBay Sales (30d)</span>
+                      ) : (
+                        <span>eBay Comps: {fmtMoney(item.estimatedValue * 0.85)} – {fmtMoney(item.estimatedValue * 1.15)}</span>
+                      )}
                     </span>
                     <button
                       type="button"
@@ -2019,6 +2251,17 @@ function SpadasLensCameraCore() {
           price={activeEbayItem.estimatedValue || 25}
           condition={activeEbayItem.condition || "Used - Good"}
           description={`Authentic ${activeEbayItem.brand || ""} ${activeEbayItem.productName || activeEbayItem.name || "Scanned Item"}. Clean pre-owned condition, tested & fully functional. Fast dispatch from Australia.`}
+        />
+      )}
+
+      {/* Forensic Deep Verify Modal */}
+      {deepVerifyItem && (
+        <DeepVerifyModal
+          isOpen={!!deepVerifyItem}
+          onClose={() => setDeepVerifyItem(null)}
+          productName={(deepVerifyItem as any).productName || (deepVerifyItem as any).name || "Scanned Item"}
+          brand={(deepVerifyItem as any).brand || "Brand"}
+          category={(deepVerifyItem as any).category || "Fashion / Collectibles"}
         />
       )}
 

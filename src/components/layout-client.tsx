@@ -30,19 +30,33 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
   // Pages that don't show sidebar layout (public pages)
   const publicPages = ["/", "/login", "/signup", "/privacy"];
 
+  // Track mobile viewport to prevent aria-hidden and focus-trap on desktop sidebar
+  const [isMobile, setIsMobile] = useState(false);
+
   useEffect(() => {
-    if (sidebarOpen) {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  useEffect(() => {
+    if (sidebarOpen && isMobile) {
       const firstLink = document.querySelector("nav a");
       if (firstLink instanceof HTMLElement) firstLink.focus();
       document.body.style.overflow = "hidden";
     } else {
-      hamburgerButtonRef.current?.focus();
+      if (isMobile) {
+        hamburgerButtonRef.current?.focus();
+      }
       document.body.style.overflow = "";
     }
     return () => {
       document.body.style.overflow = "";
     };
-  }, [sidebarOpen]);
+  }, [sidebarOpen, isMobile]);
 
   // User & Subscription state for sidebar
   const [userEmail, setUserEmail] = useState<string | null>(null);
@@ -57,12 +71,9 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
 
         if (user?.email) {
           setUserEmail(user.email);
-          if (user.email.toLowerCase() === "deniedae@gmail.com") {
-            setIsProUser(true);
-            return;
-          }
         }
 
+        // Pro check — resolved server-side only, no client-side email bypass
         const res = await fetch("/api/stripe/status");
         if (res.ok) {
           const data = await res.json();
@@ -168,7 +179,7 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
           sidebarOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
         }`}
         onClick={() => setSidebarOpen(false)}
-        aria-hidden={!sidebarOpen}
+        aria-hidden={isMobile ? !sidebarOpen : true}
       />
 
       {/* Sidebar container */}
@@ -176,9 +187,10 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
         className={`fixed inset-y-0 left-0 z-50 w-64 bg-slate-950 border-r border-slate-800 text-white transition-transform duration-300 ease-in-out md:static md:translate-x-0 shrink-0 flex flex-col ${
           sidebarOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full"
         }`}
-        aria-hidden={!sidebarOpen}
+        aria-hidden={isMobile && !sidebarOpen ? true : undefined}
+        aria-label="Main sidebar"
       >
-        <FocusLock disabled={!sidebarOpen} className="flex-1 flex flex-col h-full">
+        <FocusLock disabled={!isMobile || !sidebarOpen} className="flex-1 flex flex-col h-full">
           {/* Branding and close button */}
           <div className="p-6 border-b border-slate-800 relative">
             <h1 className="text-2xl font-black bg-gradient-to-r from-cyan-400 via-blue-400 to-indigo-400 bg-clip-text text-transparent select-none tracking-tight">⚡ Spadas AI</h1>
