@@ -1747,6 +1747,15 @@ function SpadasLensCameraCore() {
               </button>
             </div>
 
+            {/* Quick Link to Spadas Snap Studio Multi-Photo Camera */}
+            <a
+              href="/studio"
+              className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-3.5 text-xs font-black text-slate-950 shadow-md shadow-cyan-500/20 hover:scale-105 transition cursor-pointer"
+            >
+              <Camera className="h-3.5 w-3.5" />
+              <span>📸 Snap Studio</span>
+            </a>
+
             <button
               type="button"
               onClick={() => setAutoScanActive(!autoScanActive)}

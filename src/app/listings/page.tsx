@@ -11,6 +11,7 @@ import NewListingDialog from "@/components/new-listing-dialog";
 import { toast } from "sonner";
 import { createListing } from "@/app/lib/createlisting";
 import { fmtMoney, calcProfit, calcInventoryValue } from "@/app/lib/listings";
+import Link from "next/link";
 import {
   Package,
   Search,
@@ -19,6 +20,7 @@ import {
   PackageOpen,
   AlertCircle,
   X,
+  Camera,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -193,7 +195,16 @@ async function deleteListing(id: string) {
             Manage your inventory, profits and sales.
           </p>
         </div>
-        <NewListingDialog />
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <Link
+            href="/studio"
+            className="inline-flex h-10 items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 px-4 text-xs font-black text-slate-950 shadow-[0_0_20px_rgba(6,182,212,0.4)] hover:scale-105 active:scale-95 transition cursor-pointer"
+          >
+            <Camera className="h-4 w-4 text-slate-950" />
+            <span>📸 Snap Studio</span>
+          </Link>
+          <NewListingDialog />
+        </div>
       </div>
 
       {/* Error banner */}
