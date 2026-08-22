@@ -166,6 +166,82 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
           <ChevronRight className="h-5 w-5 text-slate-500 shrink-0" />
         </div>
 
+        {/* PROMINENT RESALE PRICE & PROFIT BREAKDOWN CARD */}
+        <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-cyan-500/50 space-y-3.5 shadow-2xl">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-black uppercase tracking-wider text-cyan-300">
+                💰 Suggested Resale Price
+              </span>
+            </div>
+            <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full text-[10px] font-black">
+              +${(data.priceMedian - Math.max(3, Math.round(data.priceMedian * 0.35))).toFixed(2)} AUD Profit
+            </span>
+          </div>
+
+          <div className="flex items-baseline justify-between">
+            <div>
+              <span className="text-3xl font-black text-white">${data.priceMedian.toFixed(2)}</span>
+              <span className="text-xs text-slate-400 font-bold ml-1.5">{data.currency}</span>
+            </div>
+            <div className="text-right">
+              <span className="text-[11px] text-slate-400 block font-semibold">
+                Range: ${data.priceMin.toFixed(0)} - ${data.priceMax.toFixed(0)} {data.currency}
+              </span>
+            </div>
+          </div>
+
+          {/* Transparent Profit Math */}
+          <div className="flex items-center gap-2 pt-1 border-t border-slate-800/80 text-xs font-bold text-slate-300 flex-wrap">
+            <span className="bg-cyan-500/10 text-cyan-300 px-2 py-0.5 rounded border border-cyan-500/20">
+              Sell: ${data.priceMedian.toFixed(2)}
+            </span>
+            <span className="bg-slate-800 text-slate-300 px-2 py-0.5 rounded border border-slate-700">
+              Buy: ${Math.max(3, Math.round(data.priceMedian * 0.35)).toFixed(2)}
+            </span>
+            <span className="bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded border border-emerald-500/30">
+              Net Profit: +${(data.priceMedian - Math.max(3, Math.round(data.priceMedian * 0.35))).toFixed(2)}
+            </span>
+          </div>
+
+          {/* Smart Pricing Selector Pills */}
+          <div className="grid grid-cols-3 gap-2 pt-1">
+            <button
+              type="button"
+              onClick={() => setData(prev => ({ ...prev, priceMedian: Math.max(10, Math.round(prev.priceMin || prev.priceMedian * 0.85)) }))}
+              className={`py-2 px-2 rounded-xl text-[10px] font-black border transition cursor-pointer ${
+                data.priceMedian <= data.priceMin
+                  ? "bg-amber-400 text-slate-950 border-amber-300 shadow-md"
+                  : "bg-slate-800/90 text-slate-300 border-slate-700 hover:text-white"
+              }`}
+            >
+              ⚡ Fast Flip (${Math.max(10, Math.round(data.priceMin || data.priceMedian * 0.85))})
+            </button>
+            <button
+              type="button"
+              onClick={() => setData(prev => ({ ...prev, priceMedian: initialData.priceMedian }))}
+              className={`py-2 px-2 rounded-xl text-[10px] font-black border transition cursor-pointer ${
+                data.priceMedian === initialData.priceMedian
+                  ? "bg-cyan-500 text-slate-950 border-cyan-400 shadow-md"
+                  : "bg-slate-800/90 text-slate-300 border-slate-700 hover:text-white"
+              }`}
+            >
+              🎯 Median (${initialData.priceMedian.toFixed(0)})
+            </button>
+            <button
+              type="button"
+              onClick={() => setData(prev => ({ ...prev, priceMedian: Math.round(prev.priceMax || prev.priceMedian * 1.2) }))}
+              className={`py-2 px-2 rounded-xl text-[10px] font-black border transition cursor-pointer ${
+                data.priceMedian >= data.priceMax
+                  ? "bg-purple-500 text-white border-purple-400 shadow-md"
+                  : "bg-slate-800/90 text-slate-300 border-slate-700 hover:text-white"
+              }`}
+            >
+              👑 Top Dollar (${Math.round(data.priceMax || data.priceMedian * 1.2)})
+            </button>
+          </div>
+        </div>
+
         {/* Size Card */}
         <div
           onClick={() => openEditor("size", "Size")}
@@ -229,17 +305,19 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
         </div>
       </div>
 
-      {/* Floating Bottom Earnings & Actions Bar (Sticky) */}
-      <div className="fixed bottom-0 inset-x-0 max-w-lg mx-auto p-4 bg-slate-950/95 border-t border-slate-800/90 backdrop-blur-xl z-40 space-y-3">
+      {/* Floating Bottom Earnings & Actions Bar (Positioned above Mobile Nav) */}
+      <div className="fixed bottom-16 md:bottom-0 inset-x-0 max-w-lg mx-auto p-4 bg-slate-950/95 border-t border-slate-800/90 backdrop-blur-xl z-40 space-y-3 shadow-2xl">
         {/* Estimated Earning Row */}
         <div className="flex items-center justify-between text-xs font-bold text-slate-400">
           <div className="flex items-center gap-1.5">
-            <span>Estimated earning of your listing:</span>
-            <span className="text-white font-black text-sm">
-              $${data.priceMedian.toFixed(2)} {data.currency}
+            <span>Estimated earning:</span>
+            <span className="text-emerald-400 font-black text-sm">
+              +${(data.priceMedian - Math.max(3, Math.round(data.priceMedian * 0.35))).toFixed(2)} {data.currency}
             </span>
           </div>
-          <Info className="h-4 w-4 text-slate-500" />
+          <span className="text-white font-extrabold text-xs">
+            List Price: ${data.priceMedian.toFixed(2)}
+          </span>
         </div>
 
         {/* Dual Actions */}
@@ -257,9 +335,10 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
             type="button"
             disabled={isSaving}
             onClick={handlePublishEbay}
-            className="py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black text-xs shadow-[0_0_20px_rgba(37,99,235,0.4)] transition active:scale-95 disabled:opacity-50 cursor-pointer"
+            className="py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black text-xs shadow-[0_0_20px_rgba(37,99,235,0.4)] transition active:scale-95 disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1.5"
           >
-            Save & Continue
+            <span>Save & Continue</span>
+            <ChevronRight className="h-4 w-4" />
           </button>
         </div>
       </div>
