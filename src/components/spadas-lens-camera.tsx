@@ -963,23 +963,24 @@ function SpadasLensCameraCore() {
 
       const imagePayloads = [frameDataUrl];
 
-      // DUAL-FRAME HIGH-DETAIL FUSION (PERMANENT DEFAULT): Automatically capture 2nd micro-snapshot (tag / detail)
-      await new Promise((resolve) => setTimeout(resolve, 350));
-
-      if (video) {
-        const fullW2 = video.videoWidth || video.clientWidth || 640;
-        const fullH2 = video.videoHeight || video.clientHeight || 480;
-        const canvas2 = document.createElement("canvas");
-        canvas2.width = Math.min(800, fullW2);
-        canvas2.height = Math.min(800, fullH2);
-        const ctx2 = canvas2.getContext("2d");
-        if (ctx2) {
-          ctx2.imageSmoothingEnabled = true;
-          ctx2.filter = "contrast(1.18) brightness(1.10)";
-          ctx2.drawImage(video, 0, 0, fullW2, fullH2, 0, 0, canvas2.width, canvas2.height);
-          const tagSnap = canvas2.toDataURL("image/jpeg", 0.85);
-          if (tagSnap && tagSnap.length > 2000) {
-            imagePayloads.push(tagSnap);
+      // DUAL-FRAME HIGH-DETAIL FUSION: Capture 2nd macro/tag snapshot when in Deep Scan mode
+      if (scanMode === "deep") {
+        await new Promise((resolve) => setTimeout(resolve, 350));
+        if (video) {
+          const fullW2 = video.videoWidth || video.clientWidth || 640;
+          const fullH2 = video.videoHeight || video.clientHeight || 480;
+          const canvas2 = document.createElement("canvas");
+          canvas2.width = Math.min(800, fullW2);
+          canvas2.height = Math.min(800, fullH2);
+          const ctx2 = canvas2.getContext("2d");
+          if (ctx2) {
+            ctx2.imageSmoothingEnabled = true;
+            ctx2.filter = "contrast(1.18) brightness(1.10)";
+            ctx2.drawImage(video, 0, 0, fullW2, fullH2, 0, 0, canvas2.width, canvas2.height);
+            const tagSnap = canvas2.toDataURL("image/jpeg", 0.85);
+            if (tagSnap && tagSnap.length > 2000) {
+              imagePayloads.push(tagSnap);
+            }
           }
         }
       }
@@ -1300,7 +1301,84 @@ function SpadasLensCameraCore() {
     processFrameRef.current = processCurrentFrame;
   }, [processCurrentFrame]);
 
-  // Auto-scan interval loop removed per user specification — scanning occurs strictly on explicit button press / tap
+  // Active Auto-Scan & Scene Change Watcher for Sweep, Focus, and Deep modes
+  useEffect(() => {
+    if (!stream || !autoScanActive) return;
+
+    let isDestroyed = false;
+    const offCanvas = document.createElement("canvas");
+    offCanvas.width = 64;
+    offCanvas.height = 64;
+    const offCtx = offCanvas.getContext("2d", { willReadFrequently: true });
+
+    let stableTicks = 0;
+    let lastScanTriggerTime = Date.now();
+
+    const interval = setInterval(() => {
+      if (isDestroyed) return;
+      const video = videoRef.current;
+      if (!video || video.readyState < 2 || video.paused) return;
+
+      if (!offCtx) return;
+      offCtx.drawImage(video, 0, 0, 64, 64);
+      const imgData = offCtx.getImageData(0, 0, 64, 64);
+      const pixels = imgData.data;
+
+      const prev = prevFramePixelsRef.current;
+      if (!prev || prev.length !== pixels.length) {
+        prevFramePixelsRef.current = new Uint8ClampedArray(pixels);
+        return;
+      }
+
+      // Calculate pixel delta
+      let diffSum = 0;
+      for (let i = 0; i < pixels.length; i += 16) {
+        diffSum += Math.abs(pixels[i] - prev[i]);
+      }
+      const avgDiff = diffSum / (pixels.length / 16) / 255;
+      prevFramePixelsRef.current = new Uint8ClampedArray(pixels);
+
+      const isPanning = avgDiff > 0.12;
+      const isStill = avgDiff < 0.06;
+
+      if (isPanning) {
+        setCameraMoving(true);
+        stableTicks = 0;
+      } else {
+        setCameraMoving(false);
+        stableTicks++;
+      }
+
+      const timeSinceLast = Date.now() - lastScanTriggerTime;
+
+      // Mode 1: SWEEP MODE (Walk & Pan) -> Triggers when panning onto a new scene OR steady for > 2s
+      if (scanMode === "sweep") {
+        if ((isPanning && timeSinceLast > 1200) || (isStill && stableTicks >= 2 && timeSinceLast > 2200)) {
+          lastScanTriggerTime = Date.now();
+          void processFrameRef.current(false);
+        }
+      } 
+      // Mode 2: FOCUS MODE -> Triggers when camera is stabilized over an item for 1.2s
+      else if (scanMode === "live") {
+        if (isStill && stableTicks >= 2 && timeSinceLast > 3000) {
+          lastScanTriggerTime = Date.now();
+          void processFrameRef.current(false);
+        }
+      }
+      // Mode 3: DEEP MODE -> Triggers when camera is locked steady over an item for 1.8s
+      else if (scanMode === "deep") {
+        if (isStill && stableTicks >= 3 && timeSinceLast > 4000) {
+          lastScanTriggerTime = Date.now();
+          void processFrameRef.current(false);
+        }
+      }
+    }, 600);
+
+    return () => {
+      isDestroyed = true;
+      clearInterval(interval);
+    };
+  }, [stream, autoScanActive, scanMode]);
 
   useEffect(() => {
     return () => {
