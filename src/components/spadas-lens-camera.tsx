@@ -132,25 +132,37 @@ function isVacuumCleaner(name: string, category: string): boolean {
   return /\b(vacuum|vacuum cleaner|hoover|roomba|dyson\s*v\d+|shop-vac|carpet cleaner)\b/i.test(text);
 }
 
-// Strict Vague / Partial Read Detector (Only reject explicit failure strings)
-function isVagueOrPartialRead(productName?: string | null, brand?: string | null): boolean {
-  if (!productName || productName.trim() === "" || productName === "NO_CENTER_ITEM") return true;
-  const lower = productName.toLowerCase().trim();
+// Strict Vague / Partial Read Detector (Rejects punctuation-only, short noise, and placeholder titles)
+function isVagueOrPartialRead(productName?: string | null): boolean {
+  if (!productName || typeof productName !== "string") return true;
+  const trimmed = productName.trim();
+  if (trimmed.length < 3) return true;
+  if (/^[.\/_\-–—:;,#@!$%^&*()+=~`\s]+$/.test(trimmed)) return true;
+  const alphanumeric = trimmed.replace(/[^a-zA-Z0-9]/g, "");
+  if (alphanumeric.length < 2) return true;
 
-  // Only reject explicit non-descriptive failure placeholders
+  const lower = trimmed.toLowerCase();
   const explicitFailures = [
+    "no_center_item",
     "scanned item",
     "scanned reseller item",
+    "resale item",
     "unknown item",
     "unidentified item",
+    "unidentified",
+    "unknown product",
+    "unknown title",
     "could not be identified",
     "cannot be determined",
     "exact card details unclear",
+    "vintage electronics / resale item",
+    "null",
+    "undefined",
+    "object",
+    "item",
   ];
 
-  if (lower === "item" || lower === "scanned item" || lower === "object") return true;
-
-  return explicitFailures.some((phrase) => lower === phrase || lower.startsWith(phrase));
+  return explicitFailures.some((phrase) => lower === phrase || lower === `.${phrase}` || lower.startsWith(`${phrase} `));
 }
 
 // Clean Condition Subtitle Helper (Strips internal AI reasoning notes)
@@ -1003,32 +1015,9 @@ function SpadasLensCameraCore() {
         return;
       }
 
-      if (!data) {
-        data = {
-          analysis: {
-            product_name: "Vintage Electronics / Resale Item",
-            brand: "Retro",
-            category: "General Resale",
-            condition: "Used - Good",
-            confidence_score: 0.95,
-          },
-          suggested_price_median: 65,
-          suggested_price_min: 45,
-          suggested_price_max: 85,
-          suggested_price_currency: selectedCurrency || "AUD",
-          ebay_comps_count: 14,
-          detected_objects: [
-            {
-              id: `obj-${Date.now()}`,
-              product_name: "Vintage Electronics / Resale Item",
-              brand: "Retro",
-              category: "General Resale",
-              condition: "Used - Good",
-              bbox: { x: 20, y: 20, width: 60, height: 60 },
-              confidence_score: 0.95,
-            },
-          ],
-        };
+      if (!data || data.error) {
+        setAnalyzingRealFrame(false);
+        return;
       }
 
       let pName =
@@ -1037,10 +1026,12 @@ function SpadasLensCameraCore() {
         data?.items?.[0]?.product_name ||
         data?.product_name ||
         data?.item_title ||
-        "Resale Item";
+        "";
 
-      if (!pName || pName === "null" || pName === "NO_CENTER_ITEM") {
-        pName = "Resale Item";
+      if (isVagueOrPartialRead(pName)) {
+        // No distinct item detected — stay clean without inserting placeholder cards or fake prices
+        setAnalyzingRealFrame(false);
+        return;
       }
 
       setScanErrorState({ type: null });
@@ -1070,10 +1061,6 @@ function SpadasLensCameraCore() {
         let pName = (item.product_name || "").trim();
         const cat = item.category || "General Resale";
 
-        if (!pName || pName === "NO_CENTER_ITEM" || pName === "null") {
-          continue;
-        }
-
         // Clean out internal AI notes from title instead of dropping the scan hit
         pName = pName
           .replace(/\(.*?unclear.*?\)/gi, "")
@@ -1084,7 +1071,9 @@ function SpadasLensCameraCore() {
           .replace(/could not be identified/gi, "")
           .trim();
 
-        if (!pName) pName = "Resale Item";
+        if (isVagueOrPartialRead(pName)) {
+          continue;
+        }
 
         // Hard-Kill Exclusions (Strict Vacuum Cleaner Rejection)
         if (isVacuumCleaner(pName, cat)) {
@@ -1120,12 +1109,12 @@ function SpadasLensCameraCore() {
       // Process and render all verified scan items on HUD overlay
       for (const obj of validPendingItems) {
         try {
-          let rawMin = Number(data.suggested_price_min) || 25;
-          let rawMax = Number(data.suggested_price_max) || rawMin + 20;
+          let rawMin = Number(data.suggested_price_min) || 15;
+          let rawMax = Number(data.suggested_price_max) || rawMin + 10;
           let baseVal = Number(data.suggested_price_median) || Math.round(((rawMin + rawMax) / 2) * 100) / 100;
 
           let itemCondition = cleanConditionText(obj.condition);
-          let estCost = Math.max(2, Math.round(baseVal * 0.35));
+          let estCost = baseVal <= 4 ? 1 : Math.max(2, Math.round(baseVal * 0.35 * 100) / 100);
           let estimatedProfit = Math.max(0, Math.round((baseVal - estCost) * 100) / 100);
           let estRoi = estCost > 0 ? Math.round((estimatedProfit / estCost) * 100) : 0;
 
@@ -1221,7 +1210,7 @@ function SpadasLensCameraCore() {
             estCost,
             estimatedProfit,
             estRoi,
-            verdict: estimatedProfit > 15 ? "BUY" : "CAUTION",
+            verdict: estimatedProfit > 15 ? "BUY" : estimatedProfit >= 5 ? "CAUTION" : "PASS",
             confidence: 0.98,
             ebayCompsCount: obj.ebayCompsCount,
             compsSource: obj.compsSource,

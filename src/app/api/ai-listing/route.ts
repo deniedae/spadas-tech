@@ -414,7 +414,7 @@ Analyse the product in the provided image(s) using eBay.ai's 4-step identificati
 EBAY.AI OFFICIAL 4-STEP IDENTIFICATION ENGINE:
 1. CATEGORICAL ANCHOR CLASSIFICATION:
    - First, classify the item into its top-level category anchor: [Sneakers / Outerwear / Digital Cameras / Film Cameras / Video Games & Consoles / Trading Cards / Audio Electronics / Collectibles / Homewares / Books / Tools / Sporting Goods / Toys].
-   - NO PRODUCT IN FRAME: Only return "product_name": "NO_CENTER_ITEM" if frame is 100% pure blank space with no physical object.
+   - NO PRODUCT IN FRAME / UNCLEAR FRAME: If the frame is blank, blurry, points at an empty surface, or contains no distinct identifiable object, you MUST set "product_name": "NO_CENTER_ITEM" and "detected_objects": null. NEVER output ".", "-", "item", "null", or invented placeholder names with fabricated prices.
 
 2. ITEM SPECIFICS MATRIX EXTRACTION:
    - Inspect frame image(s) (front view + tag/detail view) for:
@@ -436,10 +436,11 @@ EBAY.AI OFFICIAL 4-STEP IDENTIFICATION ENGINE:
 REAL MARKET VALUE & EBAY AUSTRALIA MARKET PRICING MANDATE:
 1. Accurate Resale Market Valuations (STRICT AUSTRALIAN DOLLARS AUD):
    - Provide realistic, conservative resale price estimates (suggested_price_min, suggested_price_max, suggested_price_median) strictly calculated in AUSTRALIAN DOLLARS (AUD) based on current pre-owned market value. Do NOT fabricate or invent sold comp counts — live pricing is fetched by the server.
-   - CATEGORY PRECISION RULE:
+   - CATEGORY PRECISION RULES:
      * Standard Non-Elite Xbox Wireless Controllers (Carbon Black, Robot White, Shock Blue, Pulse Red, Velocity Green, Deep Pink): Typical pre-owned comps are $45–$75 AUD ($35–$50 USD). NEVER value standard non-elite Xbox controllers above $80 AUD ($55 USD). Only value at $160–$250 AUD if it is explicitly an Elite Series 2 or rare Limited Edition (Starfield, 20th Anniversary).
      * Standard PS5 DualSense Controllers (White, Midnight Black, Cosmic Red): Typical pre-owned comps are $55–$85 AUD ($40–$60 USD).
      * Nintendo Switch Pro Controllers: Typical pre-owned comps are $50–$75 AUD ($35–$50 USD).
+     * Single Everyday Consumables / Grocery / Stationery (Single standard disposable lighters, single normal pens/pencils, single generic charging cables, loose everyday household consumables): A single standard disposable lighter (e.g. BIC, Cricket) retail value is $2–$3 AUD, resale flip value is $0–$3 AUD. NEVER price a single disposable lighter or single pen at $15–$25 AUD (those are 10-pack / bulk tray prices). Accurately output suggested_price_min: 1, suggested_price_max: 3, suggested_price_median: 2, and mark sales_velocity as SLOW_BURNER.
    - CURRENCY CONVERSION RULE: If an item comp is commonly priced in USD or global currency, automatically convert to AUD by multiplying USD x 1.52 (e.g. $100 USD -> $152 AUD). All numeric prices MUST represent AUD.
    - Always default condition to clean, professional pre-owned categories ("used_working" or "Used - Good") unless factory-sealed.
    - Never output "untested" or "faulty" penalties. Resellers need real, clean pre-owned market comp prices in AUD.
@@ -617,12 +618,70 @@ Rules:
         result.suggested_price_max = Math.min(result.suggested_price_max || 85, 85);
         result.suggested_price_median = cappedMedian;
       }
+
+      // Single Disposable Lighter Sanity Guard (prevent multi-pack eBay listings from overvaluing a single $2 lighter)
+      if (
+        lowerTitle.includes("lighter") &&
+        !lowerTitle.includes("zippo") &&
+        !lowerTitle.includes("dupont") &&
+        !lowerTitle.includes("dunhill") &&
+        !lowerTitle.includes("vintage") &&
+        !lowerTitle.includes("gold") &&
+        !lowerTitle.includes("silver") &&
+        !lowerTitle.includes("antique")
+      ) {
+        if (
+          lowerTitle.includes("bic") ||
+          lowerTitle.includes("cricket") ||
+          lowerTitle.includes("disposable") ||
+          lowerTitle.includes("clipper") ||
+          lowerTitle.includes("flint lighter")
+        ) {
+          result.suggested_price_min = 1;
+          result.suggested_price_max = 3;
+          result.suggested_price_median = 2;
+          if (result.sales_velocity) {
+            result.sales_velocity.sell_speed = "SLOW_BURNER";
+            result.sales_velocity.est_days_to_sell = "Low Flip Margin";
+            result.sales_velocity.demand_score = 30;
+          }
+        }
+      }
+
+      // Single Standard Pen / Pencil Sanity Guard (prevent bulk box pricing)
+      if (
+        (lowerTitle.includes("pen") || lowerTitle.includes("pencil") || lowerTitle.includes("marker") || lowerTitle.includes("biro")) &&
+        !lowerTitle.includes("montblanc") &&
+        !lowerTitle.includes("parker") &&
+        !lowerTitle.includes("cross") &&
+        !lowerTitle.includes("fountain") &&
+        !lowerTitle.includes("vintage") &&
+        !lowerTitle.includes("pack") &&
+        !lowerTitle.includes("box") &&
+        !lowerTitle.includes("set")
+      ) {
+        if (lowerTitle.includes("bic") || lowerTitle.includes("papermate") || lowerTitle.includes("sharpie") || lowerTitle.includes("ballpoint")) {
+          result.suggested_price_min = 1;
+          result.suggested_price_max = 3;
+          result.suggested_price_median = 2;
+          if (result.sales_velocity) {
+            result.sales_velocity.sell_speed = "SLOW_BURNER";
+            result.sales_velocity.est_days_to_sell = "Low Flip Margin";
+          }
+        }
+      }
     }
 
-    // Clean up brand and title from junk punctuation (e.g. "/", ".", "-")
+    // Clean up brand and title from junk punctuation (e.g. "/", ".", "-") across analysis and detected_objects
+    const isJunkTitle = (title?: string | null) => {
+      if (!title) return true;
+      const trimmed = title.trim();
+      return /^[.\/_\-–—:;,#@!$%^&*()+=~`\s]+$/.test(trimmed) || trimmed.length < 3 || trimmed.replace(/[^a-zA-Z0-9]/g, "").length < 2;
+    };
+
     if (result.analysis) {
       const rawPName = (result.analysis.product_name || "").trim();
-      if (/^[.\/_\-–—:;,\s]+$/.test(rawPName) || rawPName.length < 3) {
+      if (isJunkTitle(rawPName)) {
         result.analysis.product_name = "NO_CENTER_ITEM";
       }
 
@@ -630,6 +689,10 @@ Rules:
       if (/^[.\/_\-–—:;,\s]+$/.test(rawBrand) || rawBrand.length < 2) {
         result.analysis.brand = null;
       }
+    }
+
+    if (result.detected_objects && Array.isArray(result.detected_objects)) {
+      result.detected_objects = result.detected_objects.filter((obj) => !isJunkTitle(obj.product_name));
     }
 
     // Persist scan history to public.scans table (skip empty sentinel / junk scans)

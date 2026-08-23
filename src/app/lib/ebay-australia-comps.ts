@@ -182,11 +182,25 @@ export async function fetchEbayAustraliaSoldComps(
         const data = await res.json().catch(() => null);
         const items: any[] = data?.itemSummaries ?? [];
 
-        const prices: number[] = items
-          .map((item: any) => Number(item.price?.value))
-          .filter((n: number) => !isNaN(n) && n >= 3 && n <= 5000);
+        const isQueryMultiPack = /\b(pack|lot|bundle|set|box|bulk|\d+x|\d+\s*pk)\b/i.test(productName);
 
-        if (prices.length >= 3) {
+        let candidateItems = items;
+        if (!isQueryMultiPack && items.length > 0) {
+          // If searching for a single item, filter out bulk packs / trays / multipacks that distort the price
+          const singleUnitItems = items.filter((item: any) => {
+            const title = (item.title || "").toLowerCase();
+            return !/\b(\d+\s*pack|\d+\s*pk|\d+\s*pcs|\d+\s*pieces|pack of \d+|box of \d+|tray of|lot of \d+|\d+x\b|carton of|wholesale)\b/i.test(title);
+          });
+          if (singleUnitItems.length >= 2) {
+            candidateItems = singleUnitItems;
+          }
+        }
+
+        const prices: number[] = candidateItems
+          .map((item: any) => Number(item.price?.value))
+          .filter((n: number) => !isNaN(n) && n >= 1 && n <= 5000);
+
+        if (prices.length >= 2) {
           prices.sort((a, b) => a - b);
           const valid = trimIqrOutliers(prices);
           return {
