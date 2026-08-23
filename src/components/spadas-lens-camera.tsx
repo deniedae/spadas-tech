@@ -806,17 +806,20 @@ function SpadasLensCameraCore() {
     autoScanActiveRef.current = autoScanActive;
   }, [autoScanActive]);
 
-  // Frame Scanner with In-Flight Lock & Max 512px Frame Downscaling
+  const analyzingRef = useRef(false);
+
+  // Frame Scanner with Resilient Lock & 1200px High-Detail Processing
   const processCurrentFrame = useCallback(async (forceManual = false) => {
     const cycleId = ++cycleSeq;
-    console.log('[Spadas Lens]', cycleId, 'enter');
 
-    // RESTORE IN-FLIGHT LOCK: Refuse to start a new scan while one is pending
-    if (analyzingRealFrame) {
-      console.log('[Spadas Lens]', cycleId, 'blocked re-entry');
+    // Fast ref-based lock to prevent concurrent overlapping fetches
+    if (analyzingRef.current) {
+      console.log('[Spadas Lens]', cycleId, 'blocked re-entry (analyzing in progress)');
       return;
     }
-    console.log('[Spadas Lens]', cycleId, 'guard fellthrough');
+
+    analyzingRef.current = true;
+    setAnalyzingRealFrame(true);
     setScanErrorState({ type: null });
 
     const currentTime = Date.now();
@@ -825,13 +828,10 @@ function SpadasLensCameraCore() {
     // If camera stream is not active yet when user taps Scan Now, auto-start camera stream first
     if (!stream && forceManual) {
       await startCamera();
-      // 400ms Camera Autofocus Warmup Guard to allow mobile lens & auto-exposure to stabilize
       await new Promise((resolve) => setTimeout(resolve, 400));
     }
 
     setCameraMoving(false);
-    setAnalyzingRealFrame(true);
-    toast.info("📷 Analyzing item in viewport...", { duration: 1500 });
 
     try {
       const video = videoRef.current;
@@ -1242,9 +1242,10 @@ function SpadasLensCameraCore() {
       console.warn("Live camera Vision scan warning:", err?.message);
     } finally {
       // GUARANTEED ALWAYS-RELEASE STATE RESET
+      analyzingRef.current = false;
       setAnalyzingRealFrame(false);
     }
-  }, [analyzingRealFrame, soundEnabled]);
+  }, [soundEnabled]);
 
   // CLEAN HUD STATE MACHINE: Keep only the most recent scan visible for 3.5 seconds to avoid screen clutter
   useEffect(() => {
@@ -1642,6 +1643,7 @@ function SpadasLensCameraCore() {
             autoActive: autoScanActive,
             setAutoActive: setAutoScanActive,
             onScanNow: () => {
+              analyzingRef.current = false;
               setAnalyzingRealFrame(false);
               void processCurrentFrame(true);
             },

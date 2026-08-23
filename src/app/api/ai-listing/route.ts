@@ -108,6 +108,7 @@ const userRateLimitMap = new Map<string, UserRateLimitRecord>();
 
 export async function POST(request: Request) {
   let userId: string | null = null;
+  let userIdentifier: string | null = null;
   let rawImageUrls: string[] = [];
   let supabaseClient: any = null;
   try {
@@ -147,7 +148,7 @@ export async function POST(request: Request) {
     }
 
     const clientIp = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "guest";
-    const userIdentifier = user ? user.id : `guest-${clientIp}`;
+    userIdentifier = user ? user.id : `guest-${clientIp}`;
     userId = user?.id || null;
 
     const now = Date.now();
@@ -156,54 +157,58 @@ export async function POST(request: Request) {
     userLimiter.minuteWindow = userLimiter.minuteWindow.filter((t) => now - t < 60000);
     userLimiter.dayWindow = userLimiter.dayWindow.filter((t) => now - t < 86400000);
 
-    // Bypass in-flight lock for continuous AR camera streams so 100% of camera frames reach OpenAI Vision
-    if (!isArScan && userLimiter.inFlight) {
-      return NextResponse.json(
-        {
-          error: "rate_limit",
-          scope: "user",
-          message: "A scan is already in-flight for your account. Please wait.",
-          retryAfterSeconds: 5,
-        },
-        { status: 429 }
-      );
-    }
+    // For standard listing generator (multi-step form), enforce strict 10/min and 100/day limits
+    if (!isArScan) {
+      if (userLimiter.inFlight) {
+        return NextResponse.json(
+          {
+            error: "rate_limit",
+            scope: "user",
+            message: "A listing is already generating. Please wait a moment.",
+            retryAfterSeconds: 3,
+          },
+          { status: 429 }
+        );
+      }
 
-    // Guest trial limit on AR scanning (up to 30 free live camera scans per day per IP before requiring signup)
-    if (!user && userLimiter.dayWindow.length >= 30) {
-      return NextResponse.json(
-        {
-          error: "Guest trial limit reached (30 AR scans). Please sign up or log in for unlimited scanning.",
-          requiresAuth: true,
-        },
-        { status: 401 }
-      );
-    }
+      if (userLimiter.minuteWindow.length >= 15) {
+        const oldestInMin = userLimiter.minuteWindow[0];
+        const retryAfterSeconds = Math.max(1, Math.ceil((60000 - (now - oldestInMin)) / 1000));
+        return NextResponse.json(
+          {
+            error: "rate_limit",
+            scope: "user",
+            message: `Rate limit reached. Please wait ${retryAfterSeconds}s.`,
+            retryAfterSeconds,
+          },
+          { status: 429 }
+        );
+      }
 
-    if (!isArScan && userLimiter.minuteWindow.length >= 10) {
-      const oldestInMin = userLimiter.minuteWindow[0];
-      const retryAfterSeconds = Math.max(1, Math.ceil((60000 - (now - oldestInMin)) / 1000));
-      return NextResponse.json(
-        {
-          error: "rate_limit",
-          scope: "user",
-          message: `You've reached your scan limit (10 scans/min). Please wait ${retryAfterSeconds}s.`,
-          retryAfterSeconds,
-        },
-        { status: 429 }
-      );
-    }
-
-    if (userLimiter.dayWindow.length >= 100) {
-      return NextResponse.json(
-        {
-          error: "rate_limit",
-          scope: "user",
-          message: "Daily scan limit reached (100 scans/day). Please try again tomorrow.",
-          retryAfterSeconds: 3600,
-        },
-        { status: 429 }
-      );
+      if (userLimiter.dayWindow.length >= 200) {
+        return NextResponse.json(
+          {
+            error: "rate_limit",
+            scope: "user",
+            message: "Daily scan limit reached. Please try again later.",
+            retryAfterSeconds: 600,
+          },
+          { status: 429 }
+        );
+      }
+    } else {
+      // For AR Camera Lens: fast debounce (max 40 scans/min per user/IP)
+      if (userLimiter.minuteWindow.length >= 40) {
+        return NextResponse.json(
+          {
+            error: "rate_limit",
+            scope: "user",
+            message: "Camera scanning rapidly. Slow down slightly.",
+            retryAfterSeconds: 2,
+          },
+          { status: 429 }
+        );
+      }
     }
 
     userLimiter.inFlight = true;
@@ -534,8 +539,8 @@ STRICT IDENTIFICATION & TITLE RULES:
 
     return NextResponse.json(createEmptyScanResult());
   } finally {
-    if (userId) {
-      const currentLimiter = userRateLimitMap.get(userId);
+    if (userIdentifier) {
+      const currentLimiter = userRateLimitMap.get(userIdentifier);
       if (currentLimiter) {
         currentLimiter.inFlight = false;
       }
