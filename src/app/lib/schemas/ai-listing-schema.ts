@@ -52,6 +52,9 @@ export const VisualReasoningSchema = z.object({
 });
 
 export const ProductAnalysisSchema = z.object({
+  status: z
+    .enum(["identified", "unidentified"])
+    .describe("Set to 'identified' if a distinct resale product is clearly recognized in center focus; set to 'unidentified' if low confidence, blurry, background, or unidentifiable."),
   visual_reasoning: VisualReasoningSchema.nullable(),
   product_name: z.string().nullable(),
   brand: z.string().nullable(),
@@ -112,6 +115,9 @@ export const FutureGrailSchema = z.object({
 });
 
 export const AiListingResultSchema = z.object({
+  status: z
+    .enum(["identified", "unidentified"])
+    .describe("'identified' if a verified product is found, 'unidentified' if low confidence, unidentifiable, or no item in focus."),
   inventory_condition: InventoryConditionEnum,
   defect_notes: z.array(z.string()),
   as_is_disclaimer: z.string().nullable(),

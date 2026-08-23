@@ -960,7 +960,7 @@ function SpadasLensCameraCore() {
         return;
       }
 
-      const imagePayloads = centerCropDataUrl ? [centerCropDataUrl, frameDataUrl] : [frameDataUrl];
+      const imagePayloads = [centerCropDataUrl || frameDataUrl];
 
       let res: Response | null = null;
       console.log('[Spadas Lens]', cycleId, 'Starting resilient fetch for frame with analyzingRealFrame:', analyzingRealFrame);
@@ -1017,6 +1017,12 @@ function SpadasLensCameraCore() {
       }
 
       if (!data || data.error) {
+        setAnalyzingRealFrame(false);
+        return;
+      }
+
+      // Hard check: if unidentified, stay clean without inserting placeholder cards or fake prices
+      if (data.status === "unidentified" || data.analysis?.status === "unidentified") {
         setAnalyzingRealFrame(false);
         return;
       }

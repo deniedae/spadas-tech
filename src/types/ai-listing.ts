@@ -12,8 +12,9 @@ export interface VisualReasoning {
 
 /** What the vision model extracts from the uploaded photos. */
 export interface ProductAnalysis {
-  visual_reasoning?: VisualReasoning;
-  product_name: string;
+  status?: "identified" | "unidentified";
+  visual_reasoning?: VisualReasoning | null;
+  product_name: string | null;
   brand: string | null;
   model: string | null;
   category: string;
@@ -64,6 +65,7 @@ export interface FutureGrailPrediction {
 
 /** Full AI-generated listing payload. */
 export interface AiListingResult {
+  status?: "identified" | "unidentified";
   inventory_condition?: InventoryCondition;
   defect_notes?: string[];
   as_is_disclaimer?: string;

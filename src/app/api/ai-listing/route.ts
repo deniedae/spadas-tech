@@ -20,16 +20,19 @@ export const preferredRegion = "syd1";
 
 function createEmptyScanResult(): AiListingResult {
   return {
+    status: "unidentified",
     isMockFallback: false,
     inventory_condition: "used_working",
     defect_notes: [],
     as_is_disclaimer: undefined,
     detected_objects: [],
     analysis: {
-      product_name: "NO_CENTER_ITEM",
+      status: "unidentified",
+      visual_reasoning: null,
+      product_name: "unidentified",
       brand: null,
       model: null,
-      category: "NO_CENTER_ITEM",
+      category: "unidentified",
       color: null,
       material: null,
       condition: "Used",
@@ -270,49 +273,39 @@ Identify ONLY the single primary physical item positioned in the center target r
               content: [
                 {
                   type: "text",
-                  text: `You are the flagship AI product recognition, OCR transcription, and Australian eBay market valuation engine for Spadas Reseller Platform.
-${modePrompt}
+                  text: `You are a high-precision retail product identification and market valuation engine.
 
-CORE DIRECTIVE: ZERO GUESSWORK • EXACT VISUAL IDENTIFICATION ONLY:
-You must NEVER invent, guess, or spit out random items.
-If the camera is pointed at a generic background (wall, floor, table, curtain, blurred room) with no distinct physical resale item in center focus, you MUST return:
-- "analysis.product_name": "NO_CENTER_ITEM"
-- "detected_objects": null
-- "analysis.visual_reasoning": null
+RULES:
+- Identify ONLY what is directly visible in the image (Image 1 is the high-resolution center crop).
+- Use visible OCR text, brand logos, model markings, packaging, and unmistakable product form factor.
+- Do NOT guess.
+- Do NOT infer from background objects, tables, or hands.
+- Do NOT hallucinate brand, model, title, category, or condition.
+- If the item cannot be identified with strong, verified visible evidence (or if the image is blurry, empty, or unidentifiable), you MUST return:
+  "status": "unidentified"
+  "analysis": {
+    "status": "unidentified",
+    "visual_reasoning": null,
+    "product_name": null,
+    "brand": null,
+    "model": null,
+    "category": "unidentified",
+    "condition": "Used",
+    "confidence": "low",
+    "confidence_score": 0
+  }
+  "suggested_price_min": 0
+  "suggested_price_max": 0
 
-MANDATORY CHAIN-OF-THOUGHT VISUAL REASONING ENGINE:
-When a real item is present in center focus, populate "analysis.visual_reasoning" BEFORE deciding "product_name":
-1. "visible_text_detected": Transcribe EVERY visible word, book/game title, brand marking, MPN/model code, or label printed on the product verbatim via OCR.
-2. "physical_object_description": Describe the physical object precisely (exact shape, colors, materials, form factor, buttons/ports, packaging).
-3. "brand_identified": Verified brand name ONLY if an unmistakable brand logo or brand text is visible in the photo. If unbranded, generic, or not visible, set null.
-4. "identification_reasoning": Step-by-step deductive explanation connecting the visual evidence and OCR text to the item's identity.
+IDENTIFICATION STANDARD:
+- "product_name": exact visible product title (e.g. "BIC Classic Disposable Lighter", "Atomic Habits by James Clear Paperback Book", "Sony Cyber-shot DSC-W80 Digital Camera").
+- "brand": ONLY if clearly printed on the product or an unmistakable logo is visible. If unbranded/generic, set null.
+- "category": obvious product category.
+- If OCR is weak, partial, or conflicting, mark "status": "unidentified".
 
-STRICT PRODUCT IDENTIFICATION RULES:
-1. PURE VISUAL GROUNDING — NO BRAND HALLUCINATIONS:
-   - Identify the product based ONLY on what is directly visible in the image.
-   - NEVER guess or invent famous brands (e.g. Nike, Apple, Sony, Carhartt, Canon, Nintendo) on generic or unbranded items.
-   - If the item is unbranded or generic, describe it truthfully (e.g. "Yellow Disposable Flint Lighter", "White Ceramic Coffee Mug with C-Handle", "Stainless Steel Double-Wall Thermal Bottle 750ml", "Men's Plain Black Cotton Crewneck T-Shirt").
-
-2. VERBATIM OCR TEXT EXTRACTION:
-   - For books, video games, board games, DVDs, tools, boxed items, electronics, and consumables: extract the exact title/model text verbatim off the cover/label.
-   - Examples:
-     * Lighter with "BIC" printed on it -> "BIC Classic Full Size Disposable Lighter"
-     * Book with "Atomic Habits" on cover -> "Atomic Habits by James Clear Paperback Book"
-     * Switch game "The Legend of Zelda: Tears of the Kingdom" -> "The Legend of Zelda: Tears of the Kingdom Nintendo Switch Game"
-     * Camera "Sony Cyber-shot DSC-W80" -> "Sony Cyber-shot DSC-W80 Digital Camera"
-
-3. HONEST CATALOG TITLE ASSEMBLY:
-   - Branded items: "[Brand] [Model/Line/Title] [Key Feature/Color] [Category/Form Factor]"
-   - Unbranded items: "[Color/Material] [Style] [Product Type]"
-
-4. REALISTIC AUSTRALIAN RESALE VALUATION (AUD):
-   - Provide realistic, conservative pre-owned market estimates in Australian Dollars (AUD).
-   - Single everyday low-cost consumables (single disposable lighter, single pen, basic cable): estimate $1–$3 AUD, sell_speed: "SLOW_BURNER".
-   - Standard wireless controllers (Xbox Wireless, PS5 DualSense): estimate $45–$75 AUD.
-   - Video games & collectibles: estimate realistic pre-owned market rate in AUD.
-
-5. BANNED ITEMS:
-   - Vacuum cleaners of all types remain strictly banned. Set "product_name": null for any vacuum cleaner.`,
+OUTPUT DIRECTIVE:
+- Be conservative.
+- PREFER "unidentified" OVER A WRONG GUESS.`,
                 },
                 ...imageContent,
               ],
@@ -376,16 +369,49 @@ STRICT PRODUCT IDENTIFICATION RULES:
       console.warn("[ai-listing] Vision models returned empty response — returning clean empty result.");
       return NextResponse.json(createEmptyScanResult());
     }
+
     const countryHeader = request.headers.get("x-vercel-ip-country");
     const geoInfo = detectGeoCurrency(countryHeader);
     const targetCurrency: SupportedCurrency = (body.currency as SupportedCurrency) || geoInfo.currency;
 
     (result as any).provider = activeProvider;
     (result as any).suggested_price_currency = targetCurrency;
+
+    // HARD POST-CHECK QUALITY & GROUNDING VALIDATOR:
+    const isUnidentified =
+      result.status === "unidentified" ||
+      result.analysis?.status === "unidentified" ||
+      result.analysis?.confidence === "low" ||
+      (result.analysis?.confidence_score !== undefined && result.analysis.confidence_score < 0.65) ||
+      !result.analysis?.product_name ||
+      result.analysis.product_name === "NO_CENTER_ITEM" ||
+      result.analysis.product_name.toLowerCase() === "unidentified" ||
+      result.analysis.product_name.toLowerCase() === "unknown product" ||
+      result.analysis.product_name.toLowerCase() === "null";
+
+    if (isUnidentified) {
+      result.status = "unidentified";
+      if (result.analysis) {
+        result.analysis.status = "unidentified";
+        result.analysis.product_name = null;
+        result.analysis.brand = null;
+      }
+      result.suggested_price_min = 0;
+      result.suggested_price_max = 0;
+      result.suggested_price_median = 0;
+      result.detected_objects = [];
+      return NextResponse.json(result);
+    }
+
+    result.status = "identified";
+    if (result.analysis) {
+      result.analysis.status = "identified";
+    }
+
     console.log(`[Spadas Vision Diagnostic] userId: ${userId || "guest"} | provider: ${activeProvider} | product_name: "${result.analysis?.product_name}" | brand: "${result.analysis?.brand}" | category: "${result.analysis?.category}" | currency: ${targetCurrency}`);
 
-    // Fetch REAL-TIME regional eBay Comps in target currency via Browse API / Sold Comps API
-    if (result.analysis?.product_name) {
+    // Fetch REAL-TIME regional eBay Comps in target currency via Browse API ONLY for verified identified products
+    if (result.analysis?.product_name && result.status === "identified") {
       try {
         const ebayComps = await fetchEbayAustraliaSoldComps(result.analysis.product_name, targetCurrency);
         if (ebayComps && ebayComps.count > 0) {

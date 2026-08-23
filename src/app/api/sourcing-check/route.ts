@@ -225,14 +225,15 @@ export async function POST(req: Request) {
     // 2. Fetch real sold prices with 2.5s Circuit Breaker timeout -> SerpApi fallback
     let rawComps: Array<{ title?: string; condition?: string; soldPrice: number; soldCurrency: string }> = [];
 
+    const pName = ai.analysis?.product_name || "";
     try {
-      rawComps = await fetchPrimaryComps(ai.analysis.product_name);
-      if (rawComps.length === 0) {
+      rawComps = pName ? await fetchPrimaryComps(pName) : [];
+      if (rawComps.length === 0 && pName) {
         throw new Error("Primary scraper returned 0 items");
       }
     } catch (err) {
       console.warn("[sourcing-check] Primary scraper failed/timed out (2.5s Circuit Breaker), calling SerpApi backup...", err);
-      rawComps = await fetchBackupComps(ai.analysis.product_name);
+      rawComps = pName ? await fetchBackupComps(pName) : [];
     }
 
     let marketPrices = {
@@ -310,12 +311,12 @@ export async function POST(req: Request) {
 
     const result: SourcingVerdict = {
       identification: {
-        product_name: ai.analysis.product_name,
-        brand: ai.analysis.brand,
-        category: ai.analysis.category,
-        condition: ai.analysis.condition,
-        confidence: ai.analysis.confidence,
-        confidence_score: ai.analysis.confidence_score,
+        product_name: ai.analysis?.product_name || "Unidentified Item",
+        brand: ai.analysis?.brand || null,
+        category: ai.analysis?.category || "General Resale",
+        condition: ai.analysis?.condition || "Used",
+        confidence: ai.analysis?.confidence || "low",
+        confidence_score: ai.analysis?.confidence_score || 0,
       },
       market_prices: marketPrices,
       cost,
