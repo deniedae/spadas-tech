@@ -18,209 +18,44 @@ import type { AiListingResult } from "@/types/ai-listing";
 
 export const preferredRegion = "syd1";
 
-function generateMockAiListingResult(requestIndex = 0): AiListingResult {
-  const dynamicCatalog = [
-    {
-      product_name: "Canon PowerShot G7 X Mark II Digital Camera",
-      brand: "Canon",
-      model: "G7 X Mark II",
-      category: "Digital Cameras",
-      condition: "Used - Working",
-      price_min: 450,
-      price_max: 620,
-      bbox: { x: 18, y: 15, width: 62, height: 65 },
-      ebayTitle: "Canon PowerShot G7 X Mark II 20.1MP Digital Camera Black Tested",
-      fbTitle: "Canon PowerShot G7 X Mark II Camera - Great Condition",
-      depopTitle: "canon g7x mark ii digital camera #canon #digicam #vlog",
-    },
-    {
-      product_name: "Olympus Mju II 35mm Point & Shoot Film Camera",
-      brand: "Olympus",
-      model: "Stylus Epic / Mju II",
-      category: "Film Cameras",
-      condition: "Used - Working",
-      price_min: 280,
-      price_max: 380,
-      bbox: { x: 22, y: 20, width: 56, height: 58 },
-      ebayTitle: "Olympus Mju II Stylus Epic 35mm 1:2.8 Film Camera Black Tested Working",
-      fbTitle: "Olympus Mju II 35mm Film Camera (Tested)",
-      depopTitle: "olympus mju ii 35mm film camera #olympus #film #35mm",
-    },
-    {
-      product_name: "Nike Dunk Low Retro White Black Panda (2021)",
-      brand: "Nike",
-      model: "DD1391-100",
-      category: "Sneakers",
-      condition: "Used - Good",
-      price_min: 130,
-      price_max: 180,
-      bbox: { x: 15, y: 22, width: 70, height: 55 },
-      ebayTitle: "Nike Dunk Low Retro White Black Panda Size US 10 DD1391-100 Authentic",
-      fbTitle: "Nike Dunk Low Panda - US 10 - Good Condition",
-      depopTitle: "nike dunk low panda size 10 #nike #dunk #sneakers",
-    },
-    {
-      product_name: "Carhartt WIP Detroit Canvas Jacket Brown",
-      brand: "Carhartt",
-      model: "Detroit Jacket",
-      category: "Vintage Outerwear",
-      condition: "Used - Good",
-      price_min: 160,
-      price_max: 240,
-      bbox: { x: 12, y: 10, width: 75, height: 78 },
-      ebayTitle: "Carhartt WIP Detroit Jacket Hamilton Brown Canvas Size L Vintage",
-      fbTitle: "Carhartt Detroit Jacket - Size L - Great Condition",
-      depopTitle: "carhartt detroit jacket brown canvas #carhartt #vintage #workwear",
-    },
-    {
-      product_name: "Nintendo Switch OLED Model White Console",
-      brand: "Nintendo",
-      model: "HEG-001",
-      category: "Video Games & Consoles",
-      condition: "Used - Working",
-      price_min: 240,
-      price_max: 320,
-      bbox: { x: 20, y: 18, width: 60, height: 62 },
-      ebayTitle: "Nintendo Switch OLED Model White 64GB Console Complete Boxed Tested",
-      fbTitle: "Nintendo Switch OLED White + Accessories",
-      depopTitle: "nintendo switch oled white #nintendo #switch #gaming",
-    },
-    {
-      product_name: "Apple AirPods Max Wireless Headphones Space Grey",
-      brand: "Apple",
-      model: "AirPods Max",
-      category: "Audio Electronics",
-      condition: "Used - Working",
-      price_min: 420,
-      price_max: 550,
-      bbox: { x: 22, y: 14, width: 56, height: 68 },
-      ebayTitle: "Apple AirPods Max Space Grey Over-Ear Wireless Headphones Genuine",
-      fbTitle: "Apple AirPods Max Space Grey - Works Great",
-      depopTitle: "apple airpods max space grey #apple #airpods #headphones",
-    },
-    {
-      product_name: "Ed Hardy Vintage Y2K Skull Full Zip Hoodie",
-      brand: "Ed Hardy",
-      model: "Christian Audigier Y2K",
-      category: "Y2K Streetwear",
-      condition: "Used - Good",
-      price_min: 110,
-      price_max: 160,
-      bbox: { x: 15, y: 12, width: 70, height: 75 },
-      ebayTitle: "Vintage Y2K Ed Hardy By Christian Audigier Rhinestone Zip Hoodie L",
-      fbTitle: "Ed Hardy Y2K Hoodie - Size L",
-      depopTitle: "vintage ed hardy hoodie y2k #edhardy #y2k #streetwear",
-    },
-    {
-      product_name: "Bose QuietComfort 45 Wireless Noise Cancelling Headphones",
-      brand: "Bose",
-      model: "QC45",
-      category: "Audio Electronics",
-      condition: "Used - Working",
-      price_min: 190,
-      price_max: 260,
-      bbox: { x: 20, y: 16, width: 60, height: 64 },
-      ebayTitle: "Bose QuietComfort 45 Wireless Noise Cancelling Headphones Black Boxed",
-      fbTitle: "Bose QC45 Headphones - Great Condition",
-      depopTitle: "bose quietcomfort 45 headphones #bose #audio #headphones",
-    },
-    {
-      product_name: "Nintendo Game Boy Advance SP Cobalt Blue",
-      brand: "Nintendo",
-      model: "AGS-001",
-      category: "Retro Gaming",
-      condition: "Used - Working",
-      price_min: 120,
-      price_max: 170,
-      bbox: { x: 25, y: 22, width: 50, height: 54 },
-      ebayTitle: "Nintendo Game Boy Advance GBA SP Cobalt Blue AGS-001 Console Tested",
-      fbTitle: "Game Boy Advance SP Cobalt Blue + Charger",
-      depopTitle: "nintendo gameboy advance sp cobalt blue #gameboy #nintendo",
-    },
-    {
-      product_name: "Harley Davidson 3D Emblem Vintage 90s Eagle Tee",
-      brand: "Harley Davidson",
-      model: "3D Emblem 1991",
-      category: "Vintage T-Shirts",
-      condition: "Used - Good",
-      price_min: 85,
-      price_max: 140,
-      bbox: { x: 18, y: 14, width: 64, height: 72 },
-      ebayTitle: "Vintage 90s Harley Davidson 3D Emblem Eagle T-Shirt Size XL Single Stitch",
-      fbTitle: "Vintage 90s Harley Davidson Tee - Size XL",
-      depopTitle: "vintage 90s harley davidson t-shirt #harley #vintage #biker",
-    },
-    {
-      product_name: "Sony Walkman WM-FX290 Cassette Player",
-      brand: "Sony",
-      model: "WM-FX290",
-      category: "Vintage Electronics",
-      condition: "Used - Working",
-      price_min: 65,
-      price_max: 85,
-      bbox: { x: 20, y: 20, width: 60, height: 55 },
-      ebayTitle: "Sony Walkman WM-FX290 AM/FM Radio Cassette Player Belt Replaced",
-      fbTitle: "Sony Walkman Cassette Player - Working",
-      depopTitle: "sony walkman cassette player vintage #sony #walkman #cassette",
-    },
-  ];
-
-  // Rotate items dynamically based on current timestamp/index so every scan returns a new item
-  const selectedIdx = (Math.floor(Date.now() / 2500) + requestIndex) % dynamicCatalog.length;
-  const item = dynamicCatalog[selectedIdx];
-  const medianPrice = Math.round(((item.price_min + item.price_max) / 2) * 100) / 100;
-
+function createEmptyScanResult(): AiListingResult {
   return {
     isMockFallback: false,
     inventory_condition: "used_working",
-    defect_notes: ["Clean pre-owned condition verified"],
-    as_is_disclaimer: "Item tested and functional.",
-    detected_objects: [
-      {
-        id: `obj-${Date.now()}-${selectedIdx}`,
-        product_name: item.product_name,
-        brand: item.brand,
-        category: item.category,
-        condition: item.condition,
-        bbox: item.bbox,
-        confidence_score: 0.97,
-      },
-    ],
+    defect_notes: [],
+    as_is_disclaimer: undefined,
+    detected_objects: [],
     analysis: {
-      product_name: item.product_name,
-      brand: item.brand,
-      model: item.model,
-      category: item.category,
-      color: "Original",
+      product_name: "NO_CENTER_ITEM",
+      brand: null,
+      model: null,
+      category: "NO_CENTER_ITEM",
+      color: null,
       material: null,
-      condition: item.condition,
+      condition: "Used",
       accessories_detected: [],
-      confidence: "high",
-      confidence_score: 0.97,
+      confidence: "low",
+      confidence_score: 0,
     },
     market_titles: {
-      ebay: item.ebayTitle,
-      facebook_marketplace: item.fbTitle,
-      vinted: item.product_name,
-      depop: item.depopTitle,
+      ebay: "",
+      facebook_marketplace: "",
+      vinted: "",
+      depop: "",
     },
-    seo_description: `Authentic ${item.brand} ${item.product_name} in ${item.condition} condition. Tested and fully functional.`,
-    detailed_description: `Authentic ${item.brand} ${item.product_name}.\nCondition: ${item.condition}.\nFully inspected and functional. Fast dispatch from Australia.`,
+    seo_description: "",
+    detailed_description: "",
     shipping_estimate: {
       size: "small",
-      estimated_weight_grams: 450,
-      dimensions_cm: { length: 22, width: 16, height: 12 },
-      notes: "Standard trackable parcel dispatch from Australia",
+      estimated_weight_grams: 300,
+      dimensions_cm: null,
+      notes: null,
     },
-    item_specifics: {
-      Brand: item.brand,
-      Model: item.model,
-      Condition: item.condition,
-    },
-    suggested_keywords: [item.brand.toLowerCase(), item.category.toLowerCase(), "authentic", "resale"],
-    suggested_price_min: item.price_min,
-    suggested_price_max: item.price_max,
-    suggested_price_median: medianPrice,
+    item_specifics: {},
+    suggested_keywords: [],
+    suggested_price_min: 0,
+    suggested_price_max: 0,
+    suggested_price_median: 0,
     suggested_price_currency: "AUD",
   };
 }
@@ -296,28 +131,27 @@ export async function POST(request: Request) {
     supabaseClient = supabase;
 
     const body = await request.json().catch(() => ({}));
-    const { imageUrls, isArScan, mode } = body as { imageUrls?: string[]; isArScan?: boolean; mode?: "sweep" | "deep" | "standard" };
+    const { imageUrls, isArScan, mode } = body as { imageUrls?: string[]; isArScan?: boolean; mode?: "sweep" | "deep" | "live" | "focus" | "standard" };
     rawImageUrls = imageUrls || [];
 
     if (!imageUrls || imageUrls.length === 0) {
-      return NextResponse.json(generateMockAiListingResult());
+      return NextResponse.json(createEmptyScanResult());
     }
 
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
-    if (!user) {
-      if (isArScan) {
-        return NextResponse.json(generateMockAiListingResult());
-      }
+    if (!user && !isArScan) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    userId = user.id;
+    const clientIp = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "guest";
+    const userIdentifier = user ? user.id : `guest-${clientIp}`;
+    userId = user?.id || null;
 
     const now = Date.now();
-    const userLimiter = userRateLimitMap.get(user.id) || { minuteWindow: [], dayWindow: [], inFlight: false };
+    const userLimiter = userRateLimitMap.get(userIdentifier) || { minuteWindow: [], dayWindow: [], inFlight: false };
 
     userLimiter.minuteWindow = userLimiter.minuteWindow.filter((t) => now - t < 60000);
     userLimiter.dayWindow = userLimiter.dayWindow.filter((t) => now - t < 86400000);
@@ -332,6 +166,17 @@ export async function POST(request: Request) {
           retryAfterSeconds: 5,
         },
         { status: 429 }
+      );
+    }
+
+    // Guest trial limit on AR scanning (up to 30 free live camera scans per day per IP before requiring signup)
+    if (!user && userLimiter.dayWindow.length >= 30) {
+      return NextResponse.json(
+        {
+          error: "Guest trial limit reached (30 AR scans). Please sign up or log in for unlimited scanning.",
+          requiresAuth: true,
+        },
+        { status: 401 }
       );
     }
 
@@ -364,19 +209,21 @@ export async function POST(request: Request) {
     userLimiter.inFlight = true;
     userLimiter.minuteWindow.push(now);
     userLimiter.dayWindow.push(now);
-    userRateLimitMap.set(user.id, userLimiter);
+    userRateLimitMap.set(userIdentifier, userLimiter);
 
     // Usage Limit Check (10 Free Scans total for Non-Pro accounts on full generator routes)
-    const usage = await checkUserUsage(user.id);
-    if (!isArScan && !usage.isPro && usage.limitReached) {
-      return NextResponse.json(
-        {
-          error: "Free plan limit reached (10/10 AI scans used). Upgrade to Spadas Pro ($10 AUD/mo) for unlimited AR scans.",
-          limitReached: true,
-          isPro: false,
-        },
-        { status: 403 }
-      );
+    if (user && !isArScan) {
+      const usage = await checkUserUsage(user.id);
+      if (!usage.isPro && usage.limitReached) {
+        return NextResponse.json(
+          {
+            error: "Free plan limit reached (10/10 AI scans used). Upgrade to Spadas Pro ($10 AUD/mo) for unlimited AR scans.",
+            limitReached: true,
+            isPro: false,
+          },
+          { status: 403 }
+        );
+      }
     }
 
     const imageContent = imageUrls.map((url) => {
@@ -396,6 +243,20 @@ export async function POST(request: Request) {
     let hasCreditOrQuotaError = false;
     const targetModels = isArScan ? AR_SCAN_MODEL_FALLBACKS : LISTING_MODEL_FALLBACKS;
 
+    const modePrompt =
+      mode === "sweep"
+        ? `SCAN MODE: CONTINUOUS SWEEP / MULTI-ITEM DETECTION.
+The user is walking or panning their camera across items on a shelf, rack, or table.
+Detect distinct resale items visible in the scene. Provide multi-object bounding boxes in detected_objects for each identified resale item with its exact brand, model, and category. If nothing valuable/identifiable is in frame, set product_name: "NO_CENTER_ITEM".`
+        : mode === "deep"
+        ? `SCAN MODE: DEEP FORENSIC & OCR INSPECTION.
+The user is holding the camera close for an in-depth authenticity and catalog check.
+The secondary image provided is an extreme macro zoom of the product's label, model stamp, neck tag, serial number, or hallmark.
+Perform rigorous OCR on all visible text, MPN, RN, date codes, and set numbers. Output exact model details, year/era, and full defect observations with maximum precision.`
+        : `SCAN MODE: TARGETED CENTER RETICLE FOCUS.
+The user is aiming the center crosshairs at ONE specific target product.
+Focus 100% of your attention on the object positioned in the center of the frame (or the center crop in the 2nd image). Ignore any background clutter, peripheral items, or hands. Identify this single center item with maximum precision (exact brand, product line, model number, colorway).`;
+
     for (const modelName of targetModels) {
       try {
         const reqParams: any = {
@@ -409,6 +270,8 @@ export async function POST(request: Request) {
                 {
                   type: "text",
                   text: `You are the official eBay.ai Reselling & Valuation Expert across eBay, TCGPlayer, PriceCharting, Google Books, and Depop.
+${modePrompt}
+
 Analyse the product in the provided image(s) using eBay.ai's 4-step identification framework with 100% precision.
 
 EBAY.AI OFFICIAL 4-STEP IDENTIFICATION ENGINE:
@@ -567,8 +430,8 @@ Rules:
     }
 
     if (!result) {
-      console.warn("[ai-listing] Vision models returned empty response — using catalog fallback.");
-      return NextResponse.json(generateMockAiListingResult());
+      console.warn("[ai-listing] Vision models returned empty response — returning clean empty result.");
+      return NextResponse.json(createEmptyScanResult());
     }
     const countryHeader = request.headers.get("x-vercel-ip-country");
     const geoInfo = detectGeoCurrency(countryHeader);
@@ -576,7 +439,7 @@ Rules:
 
     (result as any).provider = activeProvider;
     (result as any).suggested_price_currency = targetCurrency;
-    console.log(`[Spadas Vision Diagnostic] userId: ${user.id} | provider: ${activeProvider} | product_name: "${result.analysis?.product_name}" | brand: "${result.analysis?.brand}" | category: "${result.analysis?.category}" | currency: ${targetCurrency}`);
+    console.log(`[Spadas Vision Diagnostic] userId: ${userId || "guest"} | provider: ${activeProvider} | product_name: "${result.analysis?.product_name}" | brand: "${result.analysis?.brand}" | category: "${result.analysis?.category}" | currency: ${targetCurrency}`);
 
     // Fetch REAL-TIME regional eBay Comps in target currency via Browse API / Sold Comps API
     if (result.analysis?.product_name) {
@@ -737,7 +600,7 @@ Rules:
   } catch (err: any) {
     console.error("[ai-listing] Primary AI call encountered error:", err?.message);
 
-    return NextResponse.json(generateMockAiListingResult());
+    return NextResponse.json(createEmptyScanResult());
   } finally {
     if (userId) {
       const currentLimiter = userRateLimitMap.get(userId);

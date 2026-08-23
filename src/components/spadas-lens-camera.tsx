@@ -903,7 +903,7 @@ function SpadasLensCameraCore() {
         const fullHeight = video.videoHeight || video.clientHeight || 480;
 
         if (fullWidth > 0 && fullHeight > 0) {
-          // FULL-FRAME UNCROPPED ENCODER: Capture 100% full camera viewport so no brand logos or text tags are cut off
+          // FULL-FRAME UNCROPPED ENCODER: Capture 100% full camera viewport with natural lighting
           const maxDim = 1000;
           let targetW = fullWidth;
           let targetH = fullHeight;
@@ -923,10 +923,9 @@ function SpadasLensCameraCore() {
           if (ctx) {
             ctx.imageSmoothingEnabled = true;
             ctx.imageSmoothingQuality = "high";
-            ctx.filter = "contrast(1.15) brightness(1.10)";
-            // Draw 100% Full Uncropped Viewport for 99%+ Flagship gpt-4o Accuracy
+            // Clean natural image without synthetic contrast distortion
             ctx.drawImage(video, 0, 0, fullWidth, fullHeight, 0, 0, targetW, targetH);
-            frameDataUrl = canvas.toDataURL("image/jpeg", 0.85);
+            frameDataUrl = canvas.toDataURL("image/jpeg", 0.88);
           }
         }
       }
@@ -939,24 +938,48 @@ function SpadasLensCameraCore() {
 
       const imagePayloads = [frameDataUrl];
 
-      // DUAL-FRAME HIGH-DETAIL FUSION: Capture 2nd macro/tag snapshot when in Deep Scan mode
-      if (scanMode === "deep") {
-        await new Promise((resolve) => setTimeout(resolve, 350));
-        if (video) {
-          const fullW2 = video.videoWidth || video.clientWidth || 640;
-          const fullH2 = video.videoHeight || video.clientHeight || 480;
-          const canvas2 = document.createElement("canvas");
-          canvas2.width = Math.min(800, fullW2);
-          canvas2.height = Math.min(800, fullH2);
-          const ctx2 = canvas2.getContext("2d");
-          if (ctx2) {
-            ctx2.imageSmoothingEnabled = true;
-            ctx2.filter = "contrast(1.18) brightness(1.10)";
-            ctx2.drawImage(video, 0, 0, fullW2, fullH2, 0, 0, canvas2.width, canvas2.height);
-            const tagSnap = canvas2.toDataURL("image/jpeg", 0.85);
-            if (tagSnap && tagSnap.length > 2000) {
-              imagePayloads.push(tagSnap);
-            }
+      // FOCUS MODE: Provide 2nd targeted center reticle crop for 2x optical zoom on the crosshair item
+      if (scanMode === "live" && video) {
+        const fullW = video.videoWidth || video.clientWidth || 640;
+        const fullH = video.videoHeight || video.clientHeight || 480;
+        const cropSize = Math.round(Math.min(fullW, fullH) * 0.50);
+        const cropX = Math.round((fullW - cropSize) / 2);
+        const cropY = Math.round((fullH - cropSize) / 2);
+
+        const canvasFocus = document.createElement("canvas");
+        canvasFocus.width = 600;
+        canvasFocus.height = 600;
+        const ctxFocus = canvasFocus.getContext("2d");
+        if (ctxFocus) {
+          ctxFocus.imageSmoothingEnabled = true;
+          ctxFocus.imageSmoothingQuality = "high";
+          ctxFocus.drawImage(video, cropX, cropY, cropSize, cropSize, 0, 0, 600, 600);
+          const focusSnap = canvasFocus.toDataURL("image/jpeg", 0.88);
+          if (focusSnap && focusSnap.length > 2000) {
+            imagePayloads.push(focusSnap);
+          }
+        }
+      }
+
+      // DEEP MODE: Provide 2nd extreme macro center zoom for fine serials, tags, and hallmarks
+      if (scanMode === "deep" && video) {
+        const fullW = video.videoWidth || video.clientWidth || 640;
+        const fullH = video.videoHeight || video.clientHeight || 480;
+        const cropSize = Math.round(Math.min(fullW, fullH) * 0.38);
+        const cropX = Math.round((fullW - cropSize) / 2);
+        const cropY = Math.round((fullH - cropSize) / 2);
+
+        const canvasDeep = document.createElement("canvas");
+        canvasDeep.width = 750;
+        canvasDeep.height = 750;
+        const ctxDeep = canvasDeep.getContext("2d");
+        if (ctxDeep) {
+          ctxDeep.imageSmoothingEnabled = true;
+          ctxDeep.imageSmoothingQuality = "high";
+          ctxDeep.drawImage(video, cropX, cropY, cropSize, cropSize, 0, 0, 750, 750);
+          const deepSnap = canvasDeep.toDataURL("image/jpeg", 0.90);
+          if (deepSnap && deepSnap.length > 2000) {
+            imagePayloads.push(deepSnap);
           }
         }
       }
@@ -1289,6 +1312,7 @@ function SpadasLensCameraCore() {
     offCanvas.height = 64;
     const offCtx = offCanvas.getContext("2d", { willReadFrequently: true });
 
+    let wasMoving = false;
     let stableTicks = 0;
     let lastScanTriggerTime = Date.now();
 
@@ -1316,41 +1340,50 @@ function SpadasLensCameraCore() {
       const avgDiff = diffSum / (pixels.length / 16) / 255;
       prevFramePixelsRef.current = new Uint8ClampedArray(pixels);
 
-      const isPanning = avgDiff > 0.12;
-      const isStill = avgDiff < 0.06;
+      const isPanning = avgDiff > 0.09;
+      const isStill = avgDiff <= 0.055;
 
       if (isPanning) {
         setCameraMoving(true);
+        wasMoving = true;
         stableTicks = 0;
-      } else {
+      } else if (isStill) {
         setCameraMoving(false);
         stableTicks++;
       }
 
-      const timeSinceLast = Date.now() - lastScanTriggerTime;
+      const now = Date.now();
+      const timeSinceLast = now - lastScanTriggerTime;
 
-      // Mode 1: SWEEP MODE (Walk & Pan) -> Triggers when panning onto a new scene OR steady for > 2s
+      // Mode 1: SWEEP MODE (Continuous Walk & Scan)
+      // Trigger immediately when camera slows/settles after moving OR when steady over a scene for ~2.4s
       if (scanMode === "sweep") {
-        if ((isPanning && timeSinceLast > 1200) || (isStill && stableTicks >= 2 && timeSinceLast > 2200)) {
-          lastScanTriggerTime = Date.now();
-          void processFrameRef.current(false);
+        if (!isPanning) {
+          const justSettled = wasMoving && stableTicks >= 2 && timeSinceLast > 1200;
+          const periodicStable = stableTicks >= 8 && timeSinceLast > 2400;
+
+          if (justSettled || periodicStable) {
+            wasMoving = false;
+            lastScanTriggerTime = now;
+            void processFrameRef.current(false);
+          }
         }
       } 
-      // Mode 2: FOCUS MODE -> Triggers when camera is stabilized over an item for 1.2s
+      // Mode 2: FOCUS MODE -> Targeted Reticle Lock (hold steady over center reticle for ~600ms)
       else if (scanMode === "live") {
-        if (isStill && stableTicks >= 2 && timeSinceLast > 3000) {
-          lastScanTriggerTime = Date.now();
+        if (isStill && stableTicks >= 3 && timeSinceLast > 2000) {
+          lastScanTriggerTime = now;
           void processFrameRef.current(false);
         }
       }
-      // Mode 3: DEEP MODE -> Triggers when camera is locked steady over an item for 1.8s
+      // Mode 3: DEEP MODE -> Deep Forensic inspection (hold steady for ~1s)
       else if (scanMode === "deep") {
-        if (isStill && stableTicks >= 3 && timeSinceLast > 4000) {
-          lastScanTriggerTime = Date.now();
+        if (isStill && stableTicks >= 4 && timeSinceLast > 3200) {
+          lastScanTriggerTime = now;
           void processFrameRef.current(false);
         }
       }
-    }, 600);
+    }, 250);
 
     return () => {
       isDestroyed = true;
