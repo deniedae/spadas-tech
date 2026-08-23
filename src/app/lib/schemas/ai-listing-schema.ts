@@ -52,7 +52,7 @@ export const VisualReasoningSchema = z.object({
 });
 
 export const ProductAnalysisSchema = z.object({
-  visual_reasoning: VisualReasoningSchema.optional(),
+  visual_reasoning: VisualReasoningSchema.nullable(),
   product_name: z.string().nullable(),
   brand: z.string().nullable(),
   model: z.string().nullable(),
@@ -126,8 +126,8 @@ export const AiListingResultSchema = z.object({
   suggested_price_min: z.number(),
   suggested_price_max: z.number(),
   suggested_price_currency: z.string(),
-  sales_velocity: SalesVelocitySchema.nullable().optional(),
-  future_grail: FutureGrailSchema.nullable().optional(),
+  sales_velocity: SalesVelocitySchema.nullable(),
+  future_grail: FutureGrailSchema.nullable(),
 });
 
 export type GenerateListingSchemaType = z.infer<typeof GenerateListingSchema>;
