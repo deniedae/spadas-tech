@@ -265,35 +265,39 @@ Focus 100% on the single primary product located in the center of the frame. Ign
               content: [
                 {
                   type: "text",
-                  text: `You are an expert product identification and resale valuation engine for eBay Australia and global marketplaces.
+                  text: `You are an expert product identification, OCR, and resale valuation engine for eBay Australia and global marketplaces.
 ${modePrompt}
 
-CRITICAL IDENTIFICATION & GROUNDING MANDATES:
-1. STRICT VISUAL GROUNDING — NO BRAND HALLUCINATIONS:
+MANDATORY CHAIN-OF-THOUGHT VISUAL REASONING ENGINE:
+Before deciding on "product_name", you MUST first populate "analysis.visual_reasoning":
+1. "visible_text_detected": Transcribe EVERY word, book/game title, brand marking, MPN/model code, or label printed on the product verbatim via OCR.
+2. "physical_object_description": Explicitly describe the physical object (exact colors, materials, form factor, buttons/ports, packaging).
+3. "brand_identified": Verified brand name ONLY if an unmistakable brand logo or brand text is visible in the photo. If unbranded, generic, or not visible, set null.
+4. "identification_reasoning": Provide a step-by-step deductive explanation connecting the visual evidence and OCR text to the item's identity.
+
+STRICT IDENTIFICATION & TITLE RULES:
+1. PURE VISUAL GROUNDING — NO BRAND HALLUCINATIONS:
    - Identify the product based ONLY on what is directly visible in the image.
-   - Extract the BRAND ONLY if a brand logo, emblem, label, or brand name is clearly visible on the item or packaging.
-   - If the item is unbranded, generic, or the brand cannot be verified from the photo, set "brand": null.
    - NEVER invent or guess famous brands (e.g. Nike, Apple, Sony, Carhartt, Canon, Nintendo) on generic or unbranded items.
+   - If the item is unbranded, describe it truthfully (e.g. "White Ceramic Coffee Mug with C-Handle", "Stainless Steel Double-Wall Thermal Bottle 750ml", "Men's Black Cotton Crewneck T-Shirt").
 
 2. VERBATIM OCR TEXT EXTRACTION:
-   - If the product has visible text (book title, game cover, DVD title, food packaging, tool label, electronics model number, wine/spirit label), transcribe that exact text directly into "product_name".
-   - Examples of correct extraction:
-     * Book titled "Atomic Habits" -> "Atomic Habits by James Clear Paperback Book"
-     * Nintendo Switch cartridge "Mario Kart 8 Deluxe" -> "Mario Kart 8 Deluxe Nintendo Switch Game"
-     * Coffee beans package "Vittoria Espresso 1kg" -> "Vittoria Espresso Coffee Beans 1kg"
+   - For books, video games, board games, DVDs, tools, boxed items, and consumables: extract the exact title/model text verbatim off the cover/label.
+   - Examples:
+     * Book with "Atomic Habits" on cover -> "Atomic Habits by James Clear Paperback Book"
+     * Switch game "The Legend of Zelda: Tears of the Kingdom" -> "The Legend of Zelda: Tears of the Kingdom Nintendo Switch Game"
+     * Packaged coffee "Vittoria Mountain Grown 1kg" -> "Vittoria Mountain Grown Coffee Beans 1kg"
      * Bottle "Vegemite 380g" -> "Vegemite Yeast Extract Spread 380g"
-     * Unbranded ceramic cup -> "White Ceramic Coffee Mug with Handle"
-     * Unbranded stainless bottle -> "Stainless Steel Insulated Water Bottle"
 
 3. HONEST CATALOG TITLE ASSEMBLY:
-   - Assemble "product_name" as: "[Brand if verified] [Model/Line/Title] [Key Feature/Color] [Category/Form Factor]"
-   - Unbranded items: Describe accurately using "[Color/Material] [Style] [Product Type]" (e.g. "Black Cotton Crewneck T-Shirt", "Clear Glass Mason Jar 500ml").
-   - NO PRODUCT IN FRAME: If frame is empty, blurry, or points at a blank surface/floor with no distinct physical item, set "product_name": "NO_CENTER_ITEM" and "detected_objects": null.
+   - Branded items: "[Brand] [Model/Line/Title] [Key Feature/Color] [Category/Form Factor]"
+   - Unbranded items: "[Color/Material] [Style] [Product Type]"
+   - NO PRODUCT IN FRAME: If frame is blank, blurry, points at floor/wall with no distinct physical item, set "product_name": "NO_CENTER_ITEM" and "detected_objects": null.
 
 4. REALISTIC AUSTRALIAN RESALE VALUATION (AUD):
    - Provide realistic, conservative pre-owned market estimates in Australian Dollars (AUD).
    - Single everyday low-cost consumables (single disposable lighter, single pen, basic charging cable): estimate $1–$3 AUD, sell_speed: "SLOW_BURNER".
-   - Standard controllers (Xbox Wireless, PS5 DualSense): estimate $45–$75 AUD.
+   - Standard wireless controllers (Xbox Wireless, PS5 DualSense): estimate $45–$75 AUD.
    - Video games & collectibles: estimate realistic pre-owned market rate in AUD.
 
 5. BANNED ITEMS:

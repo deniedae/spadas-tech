@@ -696,13 +696,15 @@ function SpadasLensCameraCore() {
       setCameraError(null);
       let mediaStream: MediaStream | null = null;
 
-      // Primary Mobile Back Camera (Environment Lens)
+      // Primary Mobile Back Camera (Environment Lens with Full HD 1080p & Continuous Autofocus)
       try {
         mediaStream = await navigator.mediaDevices.getUserMedia({
           video: {
             facingMode: { ideal: "environment" },
-            width: { ideal: 1280, max: 1920 },
-            height: { ideal: 720, max: 1080 },
+            width: { ideal: 1920, min: 1280 },
+            height: { ideal: 1080, min: 720 },
+            // @ts-ignore - Hardware hints for sharpest focus on barcodes and text
+            focusMode: { ideal: "continuous" },
           },
           audio: false,
         });
@@ -710,7 +712,11 @@ function SpadasLensCameraCore() {
         // Fallback 1: Flexible Environment Mode
         try {
           mediaStream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: "environment" },
+            video: {
+              facingMode: "environment",
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+            },
             audio: false,
           });
         } catch {
@@ -1177,8 +1183,13 @@ function SpadasLensCameraCore() {
           const verifiedHit: DetectedHit = {
             id: `hit-${now}-${Math.random().toString(36).substring(2, 8)}`,
             name: obj.productName,
+            brand: obj.brand || data?.analysis?.brand || null,
             category: obj.category,
             condition: itemCondition,
+            visualReasoning: data?.analysis?.visual_reasoning ? {
+              visible_text_detected: data.analysis.visual_reasoning.visible_text_detected,
+              physical_object_description: data.analysis.visual_reasoning.physical_object_description,
+            } : undefined,
             inventoryCondition: "used_working",
             defectNotes: obj.defectNotes,
             asIsDisclaimer: obj.asIsDisclaimer,
@@ -1401,9 +1412,15 @@ function SpadasLensCameraCore() {
               </div>
             </div>
 
-            {/* Holographic Neon Sweeping Laser Line when analyzing */}
+            {/* Holographic AR Analyzing & Reasoning State */}
             {analyzingRealFrame && (
-              <div className="absolute inset-x-0 h-1 bg-gradient-to-r from-transparent via-cyan-400 to-transparent shadow-[0_0_20px_#22d3ee] animate-pulse z-30 pointer-events-none top-1/2 -translate-y-1/2" />
+              <div className="absolute inset-0 z-30 pointer-events-none flex flex-col items-center justify-center bg-slate-950/20 backdrop-blur-[2px] animate-fade-in">
+                <div className="absolute inset-x-0 h-0.5 bg-gradient-to-r from-transparent via-cyan-400 to-transparent shadow-[0_0_25px_#22d3ee] animate-pulse top-1/2 -translate-y-1/2" />
+                <div className="inline-flex items-center gap-2 rounded-full bg-slate-950/90 border border-cyan-400/60 px-4 py-1.5 text-xs font-black text-cyan-300 shadow-[0_0_30px_rgba(6,182,212,0.4)] backdrop-blur-md">
+                  <Sparkles className="h-4 w-4 text-cyan-400 animate-spin" />
+                  <span>🧠 Deep AI Vision Reasoning...</span>
+                </div>
+              </div>
             )}
 
             {/* Camera Shake / Fast Movement Amber Alert Border */}

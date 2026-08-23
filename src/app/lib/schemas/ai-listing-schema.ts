@@ -35,7 +35,24 @@ export const DetectedObjectSchema = z.object({
   confidence_score: z.number(),
 });
 
+export const VisualReasoningSchema = z.object({
+  visible_text_detected: z
+    .array(z.string())
+    .describe("Every word, title, brand name, model number, or text printed on the product transcribed verbatim via OCR"),
+  physical_object_description: z
+    .string()
+    .describe("Physical description of the object: color, material, form factor, and distinguishing features"),
+  brand_identified: z
+    .string()
+    .nullable()
+    .describe("Verified brand name if a logo/text is visible on the product, or null if unbranded or generic"),
+  identification_reasoning: z
+    .string()
+    .describe("Step-by-step reasoning explaining why this exact item is identified based on the visual evidence"),
+});
+
 export const ProductAnalysisSchema = z.object({
+  visual_reasoning: VisualReasoningSchema.optional(),
   product_name: z.string().nullable(),
   brand: z.string().nullable(),
   model: z.string().nullable(),

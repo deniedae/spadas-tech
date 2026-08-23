@@ -3,8 +3,16 @@
 
 export type Confidence = "high" | "medium" | "low";
 
+export interface VisualReasoning {
+  visible_text_detected: string[];
+  physical_object_description: string;
+  brand_identified: string | null;
+  identification_reasoning: string;
+}
+
 /** What the vision model extracts from the uploaded photos. */
 export interface ProductAnalysis {
+  visual_reasoning?: VisualReasoning;
   product_name: string;
   brand: string | null;
   model: string | null;

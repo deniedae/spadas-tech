@@ -1,10 +1,20 @@
 import OpenAI from "openai";
 
-export const AR_SCAN_MODEL = "gpt-4o";
-export const LISTING_MODEL = "gpt-4o";
+export const AR_SCAN_MODEL = "chatgpt-4o-latest";
+export const LISTING_MODEL = "chatgpt-4o-latest";
 
-export const AR_SCAN_MODEL_FALLBACKS = ["gpt-4o", "gpt-4o-2024-08-06"];
-export const LISTING_MODEL_FALLBACKS = ["gpt-4o", "gpt-4o-2024-08-06"];
+export const AR_SCAN_MODEL_FALLBACKS = [
+  "chatgpt-4o-latest",
+  "gpt-4o",
+  "gpt-4o-2024-11-20",
+  "gpt-4o-2024-08-06",
+];
+export const LISTING_MODEL_FALLBACKS = [
+  "chatgpt-4o-latest",
+  "gpt-4o",
+  "gpt-4o-2024-11-20",
+  "gpt-4o-2024-08-06",
+];
 
 /**
  * Returns active verified AI API key

@@ -86,12 +86,44 @@ export default function LensHitCard({
             onClick={(e) => e.stopPropagation()}
             className="h-3.5 w-3.5 mt-0.5 rounded border-slate-700 bg-slate-900 text-emerald-500 focus:ring-emerald-400 cursor-pointer shrink-0 accent-emerald-500"
           />
-          <h4 className="text-xs font-bold text-white leading-snug line-clamp-2">
-            {item.isGrail && (
-              <Trophy className="h-3 w-3 text-amber-400 inline mr-1 shrink-0" />
+          <div className="min-w-0 flex-1">
+            <h4 className="text-xs font-bold text-white leading-snug line-clamp-2">
+              {item.isGrail && (
+                <Trophy className="h-3 w-3 text-amber-400 inline mr-1 shrink-0" />
+              )}
+              {item.name}
+            </h4>
+
+            {/* Visual Identification Badges */}
+            <div className="flex flex-wrap items-center gap-1.5 mt-1">
+              {item.brand ? (
+                <span className="inline-flex items-center text-[9px] font-extrabold bg-cyan-950/70 border border-cyan-500/30 text-cyan-300 px-1.5 py-0.5 rounded">
+                  🏷️ {item.brand}
+                </span>
+              ) : (
+                <span className="inline-flex items-center text-[9px] font-semibold bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded">
+                  Generic / Unbranded
+                </span>
+              )}
+              {item.category && (
+                <span className="inline-flex items-center text-[9px] font-semibold bg-slate-800/80 text-slate-300 px-1.5 py-0.5 rounded">
+                  {item.category}
+                </span>
+              )}
+              {item.condition && (
+                <span className="inline-flex items-center text-[9px] font-medium text-slate-400">
+                  • {item.condition}
+                </span>
+              )}
+            </div>
+
+            {/* OCR Evidence Snippet */}
+            {item.visualReasoning?.visible_text_detected && item.visualReasoning.visible_text_detected.length > 0 && (
+              <p className="text-[9px] text-slate-400 truncate mt-0.5 font-mono">
+                🔤 OCR: {item.visualReasoning.visible_text_detected.slice(0, 3).join(" • ")}
+              </p>
             )}
-            {item.name}
-          </h4>
+          </div>
         </div>
         <span
           className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black border shrink-0 ${verdictStyle}`}

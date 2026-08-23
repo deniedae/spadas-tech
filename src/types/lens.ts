@@ -6,8 +6,13 @@
 export interface DetectedHit {
   id: string;
   name: string;
+  brand?: string | null;
   category: string;
   condition: string;
+  visualReasoning?: {
+    visible_text_detected?: string[];
+    physical_object_description?: string;
+  };
   inventoryCondition?: "untested" | "faulty_for_parts" | "used_working" | "refurbished";
   defectNotes?: string[];
   asIsDisclaimer?: string;
