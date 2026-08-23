@@ -184,7 +184,7 @@ let cycleSeq = 0;
 function SpadasLensCameraCore() {
   const router = useRouter();
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [scanMode, setScanMode] = useState<"sweep" | "live" | "deep">("sweep");
+  const [scanMode, setScanMode] = useState<"sweep" | "live" | "deep">("live");
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [scanning, setScanning] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
@@ -904,12 +904,14 @@ function SpadasLensCameraCore() {
         }
       }
 
+      let centerCropDataUrl = "";
+
       if (video) {
         const fullWidth = video.videoWidth || video.clientWidth || 640;
         const fullHeight = video.videoHeight || video.clientHeight || 480;
 
         if (fullWidth > 0 && fullHeight > 0) {
-          // Clean 1200px High-Res Frame Capture for 100% OCR & Visual Grounding
+          // 1. Clean 1200px High-Res Full Frame Capture
           const maxDim = 1200;
           let targetW = fullWidth;
           let targetH = fullHeight;
@@ -932,6 +934,23 @@ function SpadasLensCameraCore() {
             ctx.drawImage(video, 0, 0, fullWidth, fullHeight, 0, 0, targetW, targetH);
             frameDataUrl = canvas.toDataURL("image/jpeg", 0.90);
           }
+
+          // 2. High-Detail Laser Center Crop (Target Reticle Area: Center 65% x 65%)
+          const cropW = Math.round(fullWidth * 0.65);
+          const cropH = Math.round(fullHeight * 0.65);
+          const cropX = Math.round((fullWidth - cropW) / 2);
+          const cropY = Math.round((fullHeight - cropH) / 2);
+
+          const cropCanvas = document.createElement("canvas");
+          cropCanvas.width = 800;
+          cropCanvas.height = 800;
+          const cropCtx = cropCanvas.getContext("2d");
+          if (cropCtx) {
+            cropCtx.imageSmoothingEnabled = true;
+            cropCtx.imageSmoothingQuality = "high";
+            cropCtx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, 800, 800);
+            centerCropDataUrl = cropCanvas.toDataURL("image/jpeg", 0.92);
+          }
         }
       }
 
@@ -941,7 +960,7 @@ function SpadasLensCameraCore() {
         return;
       }
 
-      const imagePayloads = [frameDataUrl];
+      const imagePayloads = centerCropDataUrl ? [centerCropDataUrl, frameDataUrl] : [frameDataUrl];
 
       let res: Response | null = null;
       console.log('[Spadas Lens]', cycleId, 'Starting resilient fetch for frame with analyzingRealFrame:', analyzingRealFrame);

@@ -249,14 +249,14 @@ export async function POST(request: Request) {
     const targetModels = isArScan ? AR_SCAN_MODEL_FALLBACKS : LISTING_MODEL_FALLBACKS;
 
     const modePrompt =
-      mode === "sweep"
-        ? `SCAN MODE: CONTINUOUS SWEEP / MULTI-ITEM DETECTION.
-Scan the full scene and identify distinct physical products visible. Provide bounding boxes in detected_objects for each identified product. If no distinct object is in frame, return product_name: "NO_CENTER_ITEM".`
-        : mode === "deep"
+      mode === "deep"
         ? `SCAN MODE: DEEP FORENSIC & OCR INSPECTION.
 Perform deep OCR inspection of all text, model plates, serial numbers, care tags, and condition flaws visible on the centered item.`
-        : `SCAN MODE: TARGETED CENTER FOCUS.
-Focus 100% on the single primary product located in the center of the frame. Ignore hands, background objects, and peripheral clutter.`;
+        : mode === "sweep"
+        ? `SCAN MODE: MULTI-ITEM SCENE SCAN.
+Identify distinct physical products visible in the scene. If no distinct object is in frame, return product_name: "NO_CENTER_ITEM".`
+        : `SCAN MODE: TARGETED CENTER RETICLE FOCUS.
+Identify ONLY the single primary physical item positioned in the center target reticle (Image 1 is the high-res center crop). Disregard hands, table, floor, and room background.`;
 
     for (const modelName of targetModels) {
       try {
@@ -270,38 +270,44 @@ Focus 100% on the single primary product located in the center of the frame. Ign
               content: [
                 {
                   type: "text",
-                  text: `You are an expert product identification, OCR, and resale valuation engine for eBay Australia and global marketplaces.
+                  text: `You are the flagship AI product recognition, OCR transcription, and Australian eBay market valuation engine for Spadas Reseller Platform.
 ${modePrompt}
 
-MANDATORY CHAIN-OF-THOUGHT VISUAL REASONING ENGINE:
-Before deciding on "product_name", you MUST first populate "analysis.visual_reasoning":
-1. "visible_text_detected": Transcribe EVERY word, book/game title, brand marking, MPN/model code, or label printed on the product verbatim via OCR.
-2. "physical_object_description": Explicitly describe the physical object (exact colors, materials, form factor, buttons/ports, packaging).
-3. "brand_identified": Verified brand name ONLY if an unmistakable brand logo or brand text is visible in the photo. If unbranded, generic, or not visible, set null.
-4. "identification_reasoning": Provide a step-by-step deductive explanation connecting the visual evidence and OCR text to the item's identity.
+CORE DIRECTIVE: ZERO GUESSWORK • EXACT VISUAL IDENTIFICATION ONLY:
+You must NEVER invent, guess, or spit out random items.
+If the camera is pointed at a generic background (wall, floor, table, curtain, blurred room) with no distinct physical resale item in center focus, you MUST return:
+- "analysis.product_name": "NO_CENTER_ITEM"
+- "detected_objects": null
+- "analysis.visual_reasoning": null
 
-STRICT IDENTIFICATION & TITLE RULES:
+MANDATORY CHAIN-OF-THOUGHT VISUAL REASONING ENGINE:
+When a real item is present in center focus, populate "analysis.visual_reasoning" BEFORE deciding "product_name":
+1. "visible_text_detected": Transcribe EVERY visible word, book/game title, brand marking, MPN/model code, or label printed on the product verbatim via OCR.
+2. "physical_object_description": Describe the physical object precisely (exact shape, colors, materials, form factor, buttons/ports, packaging).
+3. "brand_identified": Verified brand name ONLY if an unmistakable brand logo or brand text is visible in the photo. If unbranded, generic, or not visible, set null.
+4. "identification_reasoning": Step-by-step deductive explanation connecting the visual evidence and OCR text to the item's identity.
+
+STRICT PRODUCT IDENTIFICATION RULES:
 1. PURE VISUAL GROUNDING — NO BRAND HALLUCINATIONS:
    - Identify the product based ONLY on what is directly visible in the image.
-   - NEVER invent or guess famous brands (e.g. Nike, Apple, Sony, Carhartt, Canon, Nintendo) on generic or unbranded items.
-   - If the item is unbranded, describe it truthfully (e.g. "White Ceramic Coffee Mug with C-Handle", "Stainless Steel Double-Wall Thermal Bottle 750ml", "Men's Black Cotton Crewneck T-Shirt").
+   - NEVER guess or invent famous brands (e.g. Nike, Apple, Sony, Carhartt, Canon, Nintendo) on generic or unbranded items.
+   - If the item is unbranded or generic, describe it truthfully (e.g. "Yellow Disposable Flint Lighter", "White Ceramic Coffee Mug with C-Handle", "Stainless Steel Double-Wall Thermal Bottle 750ml", "Men's Plain Black Cotton Crewneck T-Shirt").
 
 2. VERBATIM OCR TEXT EXTRACTION:
-   - For books, video games, board games, DVDs, tools, boxed items, and consumables: extract the exact title/model text verbatim off the cover/label.
+   - For books, video games, board games, DVDs, tools, boxed items, electronics, and consumables: extract the exact title/model text verbatim off the cover/label.
    - Examples:
+     * Lighter with "BIC" printed on it -> "BIC Classic Full Size Disposable Lighter"
      * Book with "Atomic Habits" on cover -> "Atomic Habits by James Clear Paperback Book"
      * Switch game "The Legend of Zelda: Tears of the Kingdom" -> "The Legend of Zelda: Tears of the Kingdom Nintendo Switch Game"
-     * Packaged coffee "Vittoria Mountain Grown 1kg" -> "Vittoria Mountain Grown Coffee Beans 1kg"
-     * Bottle "Vegemite 380g" -> "Vegemite Yeast Extract Spread 380g"
+     * Camera "Sony Cyber-shot DSC-W80" -> "Sony Cyber-shot DSC-W80 Digital Camera"
 
 3. HONEST CATALOG TITLE ASSEMBLY:
    - Branded items: "[Brand] [Model/Line/Title] [Key Feature/Color] [Category/Form Factor]"
    - Unbranded items: "[Color/Material] [Style] [Product Type]"
-   - NO PRODUCT IN FRAME: If frame is blank, blurry, points at floor/wall with no distinct physical item, set "product_name": "NO_CENTER_ITEM" and "detected_objects": null.
 
 4. REALISTIC AUSTRALIAN RESALE VALUATION (AUD):
    - Provide realistic, conservative pre-owned market estimates in Australian Dollars (AUD).
-   - Single everyday low-cost consumables (single disposable lighter, single pen, basic charging cable): estimate $1–$3 AUD, sell_speed: "SLOW_BURNER".
+   - Single everyday low-cost consumables (single disposable lighter, single pen, basic cable): estimate $1–$3 AUD, sell_speed: "SLOW_BURNER".
    - Standard wireless controllers (Xbox Wireless, PS5 DualSense): estimate $45–$75 AUD.
    - Video games & collectibles: estimate realistic pre-owned market rate in AUD.
 
