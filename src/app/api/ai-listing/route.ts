@@ -246,16 +246,12 @@ export async function POST(request: Request) {
     const modePrompt =
       mode === "sweep"
         ? `SCAN MODE: CONTINUOUS SWEEP / MULTI-ITEM DETECTION.
-The user is walking or panning their camera across items on a shelf, rack, or table.
-Detect distinct resale items visible in the scene. Provide multi-object bounding boxes in detected_objects for each identified resale item with its exact brand, model, and category. If nothing valuable/identifiable is in frame, set product_name: "NO_CENTER_ITEM".`
+Scan the full scene and identify distinct physical products visible. Provide bounding boxes in detected_objects for each identified product. If no distinct object is in frame, return product_name: "NO_CENTER_ITEM".`
         : mode === "deep"
         ? `SCAN MODE: DEEP FORENSIC & OCR INSPECTION.
-The user is holding the camera close for an in-depth authenticity and catalog check.
-The secondary image provided is an extreme macro zoom of the product's label, model stamp, neck tag, serial number, or hallmark.
-Perform rigorous OCR on all visible text, MPN, RN, date codes, and set numbers. Output exact model details, year/era, and full defect observations with maximum precision.`
-        : `SCAN MODE: TARGETED CENTER RETICLE FOCUS.
-The user is aiming the center crosshairs at ONE specific target product.
-Focus 100% of your attention on the object positioned in the center of the frame (or the center crop in the 2nd image). Ignore any background clutter, peripheral items, or hands. Identify this single center item with maximum precision (exact brand, product line, model number, colorway).`;
+Perform deep OCR inspection of all text, model plates, serial numbers, care tags, and condition flaws visible on the centered item.`
+        : `SCAN MODE: TARGETED CENTER FOCUS.
+Focus 100% on the single primary product located in the center of the frame. Ignore hands, background objects, and peripheral clutter.`;
 
     for (const modelName of targetModels) {
       try {
@@ -269,107 +265,39 @@ Focus 100% of your attention on the object positioned in the center of the frame
               content: [
                 {
                   type: "text",
-                  text: `You are the official eBay.ai Reselling & Valuation Expert across eBay, TCGPlayer, PriceCharting, Google Books, and Depop.
+                  text: `You are an expert product identification and resale valuation engine for eBay Australia and global marketplaces.
 ${modePrompt}
 
-Analyse the product in the provided image(s) using eBay.ai's 4-step identification framework with 100% precision.
+CRITICAL IDENTIFICATION & GROUNDING MANDATES:
+1. STRICT VISUAL GROUNDING — NO BRAND HALLUCINATIONS:
+   - Identify the product based ONLY on what is directly visible in the image.
+   - Extract the BRAND ONLY if a brand logo, emblem, label, or brand name is clearly visible on the item or packaging.
+   - If the item is unbranded, generic, or the brand cannot be verified from the photo, set "brand": null.
+   - NEVER invent or guess famous brands (e.g. Nike, Apple, Sony, Carhartt, Canon, Nintendo) on generic or unbranded items.
 
-EBAY.AI OFFICIAL 4-STEP IDENTIFICATION ENGINE:
-1. CATEGORICAL ANCHOR CLASSIFICATION:
-   - First, classify the item into its top-level category anchor: [Sneakers / Outerwear / Digital Cameras / Film Cameras / Video Games & Consoles / Trading Cards / Audio Electronics / Collectibles / Homewares / Books / Tools / Sporting Goods / Toys].
-   - NO PRODUCT IN FRAME / UNCLEAR FRAME: If the frame is blank, blurry, points at an empty surface, or contains no distinct identifiable object, you MUST set "product_name": "NO_CENTER_ITEM" and "detected_objects": null. NEVER output ".", "-", "item", "null", or invented placeholder names with fabricated prices.
+2. VERBATIM OCR TEXT EXTRACTION:
+   - If the product has visible text (book title, game cover, DVD title, food packaging, tool label, electronics model number, wine/spirit label), transcribe that exact text directly into "product_name".
+   - Examples of correct extraction:
+     * Book titled "Atomic Habits" -> "Atomic Habits by James Clear Paperback Book"
+     * Nintendo Switch cartridge "Mario Kart 8 Deluxe" -> "Mario Kart 8 Deluxe Nintendo Switch Game"
+     * Coffee beans package "Vittoria Espresso 1kg" -> "Vittoria Espresso Coffee Beans 1kg"
+     * Bottle "Vegemite 380g" -> "Vegemite Yeast Extract Spread 380g"
+     * Unbranded ceramic cup -> "White Ceramic Coffee Mug with Handle"
+     * Unbranded stainless bottle -> "Stainless Steel Insulated Water Bottle"
 
-2. ITEM SPECIFICS MATRIX EXTRACTION:
-   - Inspect frame image(s) (front view + tag/detail view) for:
-     * Brand: Exact brand name (e.g. Nike, Sony, Canon, Nintendo, Carhartt, Apple, Bose, Adidas, Pokémon, Wizards of the Coast).
-     * Line / Model / MPN: Exact product line, model number, or MPN code (e.g. Dunk Low, Cyber-shot DSC-W80, PowerShot G7 X Mark II, Switch OLED HEG-001, Detroit Jacket, AirPods Max).
-     * Colorway / Key Feature: Primary colorway, finish, or key defining feature (e.g. Panda White Black, Space Grey, Hamilton Brown Canvas).
-     * Vintage Era: (e.g. Y2K 2000s, 90s Vintage, Modern).
+3. HONEST CATALOG TITLE ASSEMBLY:
+   - Assemble "product_name" as: "[Brand if verified] [Model/Line/Title] [Key Feature/Color] [Category/Form Factor]"
+   - Unbranded items: Describe accurately using "[Color/Material] [Style] [Product Type]" (e.g. "Black Cotton Crewneck T-Shirt", "Clear Glass Mason Jar 500ml").
+   - NO PRODUCT IN FRAME: If frame is empty, blurry, or points at a blank surface/floor with no distinct physical item, set "product_name": "NO_CENTER_ITEM" and "detected_objects": null.
 
-3. STANDARDIZED EBAY CATALOG TITLE ASSEMBLY:
-   - Construct "product_name" using eBay's official top-converting SEO catalog formula:
-     product_name = "[Brand] [Model/Line] [Colorway/Key Feature] [Category/Form Factor]"
-     (Examples: "Sony Cyber-shot DSC-W80 Silver 7.2MP Digital Camera", "Nike Dunk Low Retro White Black Panda Sneakers", "Carhartt WIP Detroit Canvas Jacket Brown", "Nintendo Switch OLED Model White Console").
-   - Unbranded Items: Describe precisely using Material + Color + Style + Form Factor (e.g. "Vintage Brown Leather Biker Jacket", "Handmade Floral Ceramic Mug").
+4. REALISTIC AUSTRALIAN RESALE VALUATION (AUD):
+   - Provide realistic, conservative pre-owned market estimates in Australian Dollars (AUD).
+   - Single everyday low-cost consumables (single disposable lighter, single pen, basic charging cable): estimate $1–$3 AUD, sell_speed: "SLOW_BURNER".
+   - Standard controllers (Xbox Wireless, PS5 DualSense): estimate $45–$75 AUD.
+   - Video games & collectibles: estimate realistic pre-owned market rate in AUD.
 
-4. INSTANT OCR & BRAND MANDATE:
-   - Inspect every square millimeter of the image(s) for clothing neck tags, model plates, serial stickers, and card set numbers.
-   - If ANY brand logo or name is visible anywhere in the frame, extract that exact brand name on your VERY FIRST PASS. Never leave brand empty if a logo or text is visible.
-
-REAL MARKET VALUE & EBAY AUSTRALIA MARKET PRICING MANDATE:
-1. Accurate Resale Market Valuations (STRICT AUSTRALIAN DOLLARS AUD):
-   - Provide realistic, conservative resale price estimates (suggested_price_min, suggested_price_max, suggested_price_median) strictly calculated in AUSTRALIAN DOLLARS (AUD) based on current pre-owned market value. Do NOT fabricate or invent sold comp counts — live pricing is fetched by the server.
-   - CATEGORY PRECISION RULES:
-     * Standard Non-Elite Xbox Wireless Controllers (Carbon Black, Robot White, Shock Blue, Pulse Red, Velocity Green, Deep Pink): Typical pre-owned comps are $45–$75 AUD ($35–$50 USD). NEVER value standard non-elite Xbox controllers above $80 AUD ($55 USD). Only value at $160–$250 AUD if it is explicitly an Elite Series 2 or rare Limited Edition (Starfield, 20th Anniversary).
-     * Standard PS5 DualSense Controllers (White, Midnight Black, Cosmic Red): Typical pre-owned comps are $55–$85 AUD ($40–$60 USD).
-     * Nintendo Switch Pro Controllers: Typical pre-owned comps are $50–$75 AUD ($35–$50 USD).
-     * Single Everyday Consumables / Grocery / Stationery (Single standard disposable lighters, single normal pens/pencils, single generic charging cables, loose everyday household consumables): A single standard disposable lighter (e.g. BIC, Cricket) retail value is $2–$3 AUD, resale flip value is $0–$3 AUD. NEVER price a single disposable lighter or single pen at $15–$25 AUD (those are 10-pack / bulk tray prices). Accurately output suggested_price_min: 1, suggested_price_max: 3, suggested_price_median: 2, and mark sales_velocity as SLOW_BURNER.
-   - CURRENCY CONVERSION RULE: If an item comp is commonly priced in USD or global currency, automatically convert to AUD by multiplying USD x 1.52 (e.g. $100 USD -> $152 AUD). All numeric prices MUST represent AUD.
-   - Always default condition to clean, professional pre-owned categories ("used_working" or "Used - Good") unless factory-sealed.
-   - Never output "untested" or "faulty" penalties. Resellers need real, clean pre-owned market comp prices in AUD.
-
-2. Sales Velocity & Flip Speed Prediction:
-   - Always populate "sales_velocity" object:
-     * sell_speed: "FAST_FLIP" (for video games, streetwear, TCG cards, Apple/Sony/Bose electronics), "MODERATE" (standard electronics, books, homewares), or "SLOW_BURNER" (rare vintage/niche items).
-     * est_days_to_sell: "1-3 Days" for FAST_FLIP, "7-14 Days" for MODERATE, "30-90 Days" for SLOW_BURNER.
-     * demand_score: integer from 55 to 98 representing sell-through demand ratio.
-     * sell_through_rate: e.g. "88% High Demand" or "65% Steady Turnover".
-
-3. Viral Trend Predictive Analytics & "Future Grail" Mandate:
-   - Cross-reference scanned item against spiking TikTok hashtags (#digicam, #y2kfashion, #vintagetech, #retrogaming) and Reddit r/ThriftStoreHauls / r/Flipping trends.
-   - If item is a vintage digital camera (Sony Cyber-shot, Canon PowerShot, Nikon Coolpix, Olympus FE), Y2K clothing brand (Ed Hardy, Von Dutch, JNCO, Affliction, Harley Davidson), or retro gaming item where viral social media demand is spiking before eBay market prices peak:
-     * Set "future_grail": {
-         "is_future_grail": true,
-         "trend_source": "TikTok #digicam Viral", // or "Reddit Y2K Surge"
-         "viral_score": 92, // integer 80..98
-         "current_price": suggested_price_median,
-         "projected_peak_price": Math.round(suggested_price_median * 1.8 * 100) / 100,
-         "projected_roi_gain": "+85% in 30 Days",
-         "holding_recommendation": "BUY & HOLD 30 DAYS",
-         "value_curve": [suggested_price_median, Math.round(suggested_price_median * 1.1), Math.round(suggested_price_median * 1.35), Math.round(suggested_price_median * 1.6), Math.round(suggested_price_median * 1.8)]
-       }
-   - If not a viral trending item, set "future_grail": { "is_future_grail": false, "trend_source": null, "viral_score": 45, "current_price": 0, "projected_peak_price": 0, "projected_roi_gain": "0%", "holding_recommendation": "STANDARD FLIP", "value_curve": [] }.
-
-4. Professional Market Descriptions:
-   - Provide clean, crisp product descriptions and SEO titles tailored for eBay, Depop, and Facebook Marketplace.
-
-4. Banned Category Prohibition:
-   - Vacuum Cleaners and floor care appliances of any type remain STRICTLY BANNED. Instantly set product_name: null.
-
-UNIVERSAL VISION GATEWAY MANDATE:
-- Evaluate ALL items in the frame, including groceries, consumables, pantry items, coffee/tea, household goods, tools, media, electronics, clothing, and low-cost items.
-- DO NOT reject or ghost items based on category. Groceries, food, consumables, tools, media, and household goods MUST BE EVALUATED and priced.
-- EXCEPTION: Vacuum cleaners and floor sweepers remain STRICTLY BANNED. Set "product_name": null for any vacuum cleaner.
-
-STRICT SPECIFICITY FOR PRICING:
-- NO VAGUE COMPS: Every detected item MUST include its specific brand, product line, model, or variant (e.g. "Bialetti Moka Express 6-Cup Coffee Maker" instead of "Coffee Maker", "Vittoria Mountain Grown Coffee Beans 1kg" instead of "Coffee", "Logitech MX Keys Wireless Keyboard" instead of "Keyboard").
-- TRADING CARD (TCG) SPECIFICITY: For trading cards (Pokémon, Yu-Gi-Oh!, Magic: The Gathering, Sports Cards), you MUST append the set name or card number (e.g., "Yu-Gi-Oh! MRD-015 Time Wizard", "Pokémon Charizard Base Set 4/102"). Set "product_name": null if only generic "Trading Card" is read.
-
-CONDITION PARITY & LISTING HONESTY:
-- Accurately assess physical condition (e.g. "New / Sealed" ONLY if factory sealed packaging is clearly visible; otherwise mark "Used - Good" or "Used - Working").
-- Never assume an item is Brand New if it is opened, thrifted, or used.
-
-STRICT IDENTIFICATION GATEWAY (NO PARTIAL OR VAGUE MATCHES):
-1. Strict Brand/Model/Variant Identification Gateway:
-   - DO NOT return an item if the exact brand, model, set, or variant cannot be positively identified from the image or text.
-   - Nullify Vague Reads: If details are vague or unclear (e.g. "exact card details unclear", "exact set/variant not fully readable", "unknown model", "unidentified item"), set "product_name": null.
-
-2. Precise Comp & Clean Output Formatting:
-   - Clean Subtitles & Condition: DO NOT include internal AI reasoning in condition or subtitle fields. Return clean, professional condition labels.
-
-STRICT MANDATORY OCR & IDENTIFICATION LOCK:
-1. Mandatory Brand OCR Lock:
-   - If visible text, logo, or brand marking (e.g., "EFM", "Sony", "Bose", "JBL", "Nike", "Apple", "Nintendo", "Logitech") is detected on the item, package, or label, lock onto that exact brand name.
-2. Physical Type Validation:
-   - Verify physical form factor before outputting product name (e.g., speaker cannot be classified as charging pad).
-
-Rules:
-- Use realistic Australian resale prices in AUD.
-- Titles must be SEO-friendly and within 80 characters.
-- confidence_score is a number between 0 and 1.
-- seo_description: a short, punchy 1-2 sentence summary optimised for search.
-- detailed_description: a full marketplace listing body — 3-5 short paragraphs, plain text, no markdown, no emoji. Cover what it is, condition, key features, and any flaws visible in the photo.
-- shipping_estimate.size: classify parcel as small, medium, large, or extra-large.`,
+5. BANNED ITEMS:
+   - Vacuum cleaners of all types remain strictly banned. Set "product_name": null for any vacuum cleaner.`,
                 },
                 ...imageContent,
               ],

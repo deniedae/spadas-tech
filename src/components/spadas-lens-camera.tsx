@@ -903,8 +903,8 @@ function SpadasLensCameraCore() {
         const fullHeight = video.videoHeight || video.clientHeight || 480;
 
         if (fullWidth > 0 && fullHeight > 0) {
-          // FULL-FRAME UNCROPPED ENCODER: Capture 100% full camera viewport with natural lighting
-          const maxDim = 1000;
+          // Clean 1200px High-Res Frame Capture for 100% OCR & Visual Grounding
+          const maxDim = 1200;
           let targetW = fullWidth;
           let targetH = fullHeight;
 
@@ -923,9 +923,8 @@ function SpadasLensCameraCore() {
           if (ctx) {
             ctx.imageSmoothingEnabled = true;
             ctx.imageSmoothingQuality = "high";
-            // Clean natural image without synthetic contrast distortion
             ctx.drawImage(video, 0, 0, fullWidth, fullHeight, 0, 0, targetW, targetH);
-            frameDataUrl = canvas.toDataURL("image/jpeg", 0.88);
+            frameDataUrl = canvas.toDataURL("image/jpeg", 0.90);
           }
         }
       }
@@ -937,52 +936,6 @@ function SpadasLensCameraCore() {
       }
 
       const imagePayloads = [frameDataUrl];
-
-      // FOCUS MODE: Provide 2nd targeted center reticle crop for 2x optical zoom on the crosshair item
-      if (scanMode === "live" && video) {
-        const fullW = video.videoWidth || video.clientWidth || 640;
-        const fullH = video.videoHeight || video.clientHeight || 480;
-        const cropSize = Math.round(Math.min(fullW, fullH) * 0.50);
-        const cropX = Math.round((fullW - cropSize) / 2);
-        const cropY = Math.round((fullH - cropSize) / 2);
-
-        const canvasFocus = document.createElement("canvas");
-        canvasFocus.width = 600;
-        canvasFocus.height = 600;
-        const ctxFocus = canvasFocus.getContext("2d");
-        if (ctxFocus) {
-          ctxFocus.imageSmoothingEnabled = true;
-          ctxFocus.imageSmoothingQuality = "high";
-          ctxFocus.drawImage(video, cropX, cropY, cropSize, cropSize, 0, 0, 600, 600);
-          const focusSnap = canvasFocus.toDataURL("image/jpeg", 0.88);
-          if (focusSnap && focusSnap.length > 2000) {
-            imagePayloads.push(focusSnap);
-          }
-        }
-      }
-
-      // DEEP MODE: Provide 2nd extreme macro center zoom for fine serials, tags, and hallmarks
-      if (scanMode === "deep" && video) {
-        const fullW = video.videoWidth || video.clientWidth || 640;
-        const fullH = video.videoHeight || video.clientHeight || 480;
-        const cropSize = Math.round(Math.min(fullW, fullH) * 0.38);
-        const cropX = Math.round((fullW - cropSize) / 2);
-        const cropY = Math.round((fullH - cropSize) / 2);
-
-        const canvasDeep = document.createElement("canvas");
-        canvasDeep.width = 750;
-        canvasDeep.height = 750;
-        const ctxDeep = canvasDeep.getContext("2d");
-        if (ctxDeep) {
-          ctxDeep.imageSmoothingEnabled = true;
-          ctxDeep.imageSmoothingQuality = "high";
-          ctxDeep.drawImage(video, cropX, cropY, cropSize, cropSize, 0, 0, 750, 750);
-          const deepSnap = canvasDeep.toDataURL("image/jpeg", 0.90);
-          if (deepSnap && deepSnap.length > 2000) {
-            imagePayloads.push(deepSnap);
-          }
-        }
-      }
 
       let res: Response | null = null;
       console.log('[Spadas Lens]', cycleId, 'Starting resilient fetch for frame with analyzingRealFrame:', analyzingRealFrame);
