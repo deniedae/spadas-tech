@@ -433,13 +433,13 @@ EBAY.AI OFFICIAL 4-STEP IDENTIFICATION ENGINE:
    - Inspect every square millimeter of the image(s) for clothing neck tags, model plates, serial stickers, and card set numbers.
    - If ANY brand logo or name is visible anywhere in the frame, extract that exact brand name on your VERY FIRST PASS. Never leave brand empty if a logo or text is visible.
 
-REAL MARKET VALUE & EBAY AUSTRALIA SOLD COMP VALUATION MANDATE:
+REAL MARKET VALUE & EBAY AUSTRALIA MARKET PRICING MANDATE:
 1. Accurate Resale Market Valuations (STRICT AUSTRALIAN DOLLARS AUD):
-   - Provide realistic, accurate Australian eBay sold comp price ranges (suggested_price_min, suggested_price_max, suggested_price_median) strictly calculated in AUSTRALIAN DOLLARS (AUD).
+   - Provide realistic, conservative resale price estimates (suggested_price_min, suggested_price_max, suggested_price_median) strictly calculated in AUSTRALIAN DOLLARS (AUD) based on current pre-owned market value. Do NOT fabricate or invent sold comp counts — live pricing is fetched by the server.
    - CATEGORY PRECISION RULE:
-     * Standard Non-Elite Xbox Wireless Controllers (Carbon Black, Robot White, Shock Blue, Pulse Red, Velocity Green, Deep Pink): Typical pre-owned sold comps are $45–$75 AUD ($35–$50 USD). NEVER value standard non-elite Xbox controllers above $80 AUD ($55 USD). Only value at $160–$250 AUD if it is explicitly an Elite Series 2 or rare Limited Edition (Starfield, 20th Anniversary).
-     * Standard PS5 DualSense Controllers (White, Midnight Black, Cosmic Red): Typical pre-owned sold comps are $55–$85 AUD ($40–$60 USD).
-     * Nintendo Switch Pro Controllers: Typical pre-owned sold comps are $50–$75 AUD ($35–$50 USD).
+     * Standard Non-Elite Xbox Wireless Controllers (Carbon Black, Robot White, Shock Blue, Pulse Red, Velocity Green, Deep Pink): Typical pre-owned comps are $45–$75 AUD ($35–$50 USD). NEVER value standard non-elite Xbox controllers above $80 AUD ($55 USD). Only value at $160–$250 AUD if it is explicitly an Elite Series 2 or rare Limited Edition (Starfield, 20th Anniversary).
+     * Standard PS5 DualSense Controllers (White, Midnight Black, Cosmic Red): Typical pre-owned comps are $55–$85 AUD ($40–$60 USD).
+     * Nintendo Switch Pro Controllers: Typical pre-owned comps are $50–$75 AUD ($35–$50 USD).
    - CURRENCY CONVERSION RULE: If an item comp is commonly priced in USD or global currency, automatically convert to AUD by multiplying USD x 1.52 (e.g. $100 USD -> $152 AUD). All numeric prices MUST represent AUD.
    - Always default condition to clean, professional pre-owned categories ("used_working" or "Used - Good") unless factory-sealed.
    - Never output "untested" or "faulty" penalties. Resellers need real, clean pre-owned market comp prices in AUD.
@@ -577,7 +577,7 @@ Rules:
     (result as any).suggested_price_currency = targetCurrency;
     console.log(`[Spadas Vision Diagnostic] userId: ${user.id} | provider: ${activeProvider} | product_name: "${result.analysis?.product_name}" | brand: "${result.analysis?.brand}" | category: "${result.analysis?.category}" | currency: ${targetCurrency}`);
 
-    // Fetch REAL-TIME regional eBay 30-Day Sold Comps in target currency
+    // Fetch REAL-TIME regional eBay Comps in target currency via Browse API / Sold Comps API
     if (result.analysis?.product_name) {
       try {
         const ebayComps = await fetchEbayAustraliaSoldComps(result.analysis.product_name, targetCurrency);
@@ -586,12 +586,23 @@ Rules:
           result.suggested_price_max = ebayComps.max;
           result.suggested_price_median = ebayComps.median;
           result.ebay_comps_count = ebayComps.count;
+          (result as any).comps_source = ebayComps.source;
           if (result.detected_objects && result.detected_objects.length > 0) {
             result.detected_objects[0].ebay_comps_count = ebayComps.count;
+            (result.detected_objects[0] as any).comps_source = ebayComps.source;
+          }
+        } else {
+          result.ebay_comps_count = undefined;
+          (result as any).comps_source = "ai_estimate";
+          if (result.detected_objects && result.detected_objects.length > 0) {
+            result.detected_objects[0].ebay_comps_count = undefined;
+            (result.detected_objects[0] as any).comps_source = "ai_estimate";
           }
         }
       } catch (compErr) {
         console.warn("[ai-listing] Live eBay comps lookup warning:", compErr);
+        result.ebay_comps_count = undefined;
+        (result as any).comps_source = "ai_estimate";
       }
     }
 

@@ -1,142 +1,207 @@
 import { CURRENCY_CONFIGS, SupportedCurrency } from "./currency-routing";
 
 /**
- * Live eBay Regional 30-Day Sold Comps Fetcher
- * Queries live eBay sold comps (ebay.com.au, ebay.com, ebay.de, ebay.co.uk) to calculate accurate min, max, and median resale prices in target currency.
+ * Maps Spadas currency codes to eBay marketplace IDs and AU contextual headers.
+ * marketplaceId MUST be sent as a header — not a query param — or eBay returns US prices.
  */
-export async function fetchEbayAustraliaSoldComps(
-  productName: string,
-  targetCurrency: SupportedCurrency = "AUD"
-): Promise<{
+const EBAY_MARKETPLACE: Record<SupportedCurrency, { id: string; country: string }> = {
+  AUD: { id: "EBAY_AU", country: "AU" },
+  USD: { id: "EBAY_US", country: "US" },
+  EUR: { id: "EBAY_DE", country: "DE" },
+  GBP: { id: "EBAY_GB", country: "GB" },
+};
+
+/** Module-level app token cache — shared across all requests in the same server instance */
+let _appToken: { token: string; expiresAt: number } | null = null;
+
+async function getEbayAppToken(): Promise<string | null> {
+  // Serve from cache with 60s buffer before expiry
+  if (_appToken && Date.now() < _appToken.expiresAt - 60_000) {
+    return _appToken.token;
+  }
+
+  const clientId = process.env.EBAY_CLIENT_ID?.trim();
+  const clientSecret = process.env.EBAY_CLIENT_SECRET?.trim();
+  if (!clientId || !clientSecret) return null;
+
+  try {
+    const env = (process.env.EBAY_ENVIRONMENT || "production").toLowerCase();
+    const host = env === "production" ? "api.ebay.com" : "api.sandbox.ebay.com";
+    const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
+
+    const res = await fetch(`https://${host}/identity/v1/oauth2/token`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Authorization: `Basic ${credentials}`,
+      },
+      body: "grant_type=client_credentials&scope=https%3A%2F%2Fapi.ebay.com%2Foauth%2Fapi_scope",
+    });
+
+    if (!res.ok) {
+      console.warn(`[eBay Comps] App token fetch failed (${res.status})`);
+      return null;
+    }
+
+    const data = await res.json();
+    if (!data.access_token) return null;
+
+    _appToken = {
+      token: data.access_token,
+      expiresAt: Date.now() + (data.expires_in || 7200) * 1000,
+    };
+    return _appToken.token;
+  } catch (err) {
+    console.warn("[eBay Comps] App token error:", err);
+    return null;
+  }
+}
+
+function trimIqrOutliers(prices: number[]): number[] {
+  if (prices.length < 4) return prices;
+  const q1 = prices[Math.floor(prices.length * 0.25)];
+  const q3 = prices[Math.floor(prices.length * 0.75)];
+  const iqr = q3 - q1;
+  const filtered = prices.filter(
+    (p) => p >= Math.max(3, q1 - 1.5 * iqr) && p <= q3 + 1.5 * iqr
+  );
+  return filtered.length >= 2 ? filtered : prices;
+}
+
+function calcMedian(sorted: number[]): number {
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0
+    ? (sorted[mid - 1] + sorted[mid]) / 2
+    : sorted[mid];
+}
+
+export type CompsSource = "browse_api" | "sold_comps_api" | "ai_estimate";
+
+export interface EbayCompsResult {
   min: number;
   max: number;
   median: number;
   count: number;
   currency: SupportedCurrency;
-} | null> {
-  // Clean & Normalize Search Query: Strip noise words and double quotes to guarantee 20+ eBay sold comps
+  source: CompsSource;
+}
+
+/**
+ * Fetches real eBay AU price data for a product name.
+ *
+ * Priority:
+ *   1. Paid sold-comps API (if SOLD_COMPS_API_KEY is set) — real 30-day sold data
+ *   2. eBay Browse API (active listings) — real market prices, no seller approval needed
+ *
+ * Returns null if both sources fail, so the caller can label the price as "AI Estimate".
+ */
+export async function fetchEbayAustraliaSoldComps(
+  productName: string,
+  targetCurrency: SupportedCurrency = "AUD"
+): Promise<EbayCompsResult | null> {
+  // Normalise query — strip noise, cap at 4 core keywords for best eBay match coverage
   let queryText = productName
     .replace(/["']/g, "")
     .replace(/\b(model|item|authentic|genuine|used|pre-owned|tested|working|vintage)\b/gi, "")
     .replace(/\s+/g, " ")
     .trim();
 
-  // Keep top 4 core words maximum to avoid over-filtering eBay search results
-  const queryWords = queryText.split(" ");
-  if (queryWords.length > 4) {
-    queryText = queryWords.slice(0, 4).join(" ");
-  }
+  const words = queryText.split(" ");
+  if (words.length > 4) queryText = words.slice(0, 4).join(" ");
+  if (!queryText) return null;
 
-  const keyword = encodeURIComponent(queryText);
-  if (!keyword) return null;
+  const encodedQuery = encodeURIComponent(queryText);
 
-  const config = CURRENCY_CONFIGS[targetCurrency] || CURRENCY_CONFIGS.AUD;
-  const ebayDomain = config.ebaySite;
-
-  // 1. Try API Sold Comps service if key is present
+  // ── 1. Paid sold-comps API (real 30-day sold data) ─────────────────────────
   if (process.env.SOLD_COMPS_API_KEY) {
     try {
-      const url = `https://api.sold-comps.com/v1/scrape?keyword=${keyword}&ebaySite=${ebayDomain}&page=1&count=60&daysToScrape=30&sortOrder=endedRecently`;
+      const config = CURRENCY_CONFIGS[targetCurrency] || CURRENCY_CONFIGS.AUD;
+      const url = `https://api.sold-comps.com/v1/scrape?keyword=${encodedQuery}&ebaySite=${config.ebaySite}&page=1&count=60&daysToScrape=30&sortOrder=endedRecently`;
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 4000);
+      const timer = setTimeout(() => controller.abort(), 5000);
 
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${process.env.SOLD_COMPS_API_KEY}` },
         signal: controller.signal,
       }).catch(() => null);
-
       clearTimeout(timer);
 
-      if (res && res.ok) {
+      if (res?.ok) {
         const data = await res.json().catch(() => null);
-        const items = data?.items ?? [];
-        const prices = items
+        const prices: number[] = (data?.items ?? [])
           .map((i: any) => Number(i.soldPrice))
-          .filter((n: number) => !Number.isNaN(n) && n > 0);
+          .filter((n: number) => !isNaN(n) && n > 0);
 
         if (prices.length > 0) {
-          prices.sort((a: number, b: number) => a - b);
-          const midIdx = Math.floor(prices.length / 2);
-          const median = prices.length % 2 === 0 ? (prices[midIdx - 1] + prices[midIdx]) / 2 : prices[midIdx];
+          prices.sort((a, b) => a - b);
+          const valid = trimIqrOutliers(prices);
           return {
-            min: Math.round(prices[0] * 100) / 100,
-            max: Math.round(prices[prices.length - 1] * 100) / 100,
-            median: Math.round(median * 100) / 100,
-            count: prices.length,
+            min: Math.round(valid[0] * 100) / 100,
+            max: Math.round(valid[valid.length - 1] * 100) / 100,
+            median: Math.round(calcMedian(valid) * 100) / 100,
+            count: valid.length,
             currency: targetCurrency,
+            source: "sold_comps_api",
           };
         }
       }
     } catch (err) {
-      console.warn("[eBay Comps] Primary API sold comps warning:", err);
+      console.warn("[eBay Comps] Sold-comps API warning:", err);
     }
   }
 
-  // 2. Direct Regional eBay Public RSS/HTML Sold Comps Scraper
+  // ── 2. eBay Browse API — active listing price range ────────────────────────
+  // Uses app-level client_credentials token (no user auth needed).
+  // marketplaceId MUST be in the header, not the URL — critical for AU pricing.
   try {
-    const ebayRssUrl = `https://www.${ebayDomain}/sch/i.html?_nkw=${keyword}&LH_Sold=1&LH_Complete=1&_sop=13&_rss=1`;
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 4000);
+    const appToken = await getEbayAppToken();
+    if (appToken) {
+      const marketplace = EBAY_MARKETPLACE[targetCurrency] || EBAY_MARKETPLACE.AUD;
+      const env = (process.env.EBAY_ENVIRONMENT || "production").toLowerCase();
+      const apiHost = env === "production" ? "api.ebay.com" : "api.sandbox.ebay.com";
 
-    const res = await fetch(ebayRssUrl, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept-Language": "en-US,en;q=0.9",
-      },
-      signal: controller.signal,
-    }).catch(() => null);
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 6000);
 
-    clearTimeout(timer);
-
-    if (res && res.ok) {
-      const html = await res.text().catch(() => "");
-
-      // Target regex matching specifically inside eBay search result price containers (s-item__price / POSITIVE / g-core:price)
-      let priceMatches = [...html.matchAll(/(?:class="s-item__price"|<g-core:price)[^>]*>(?:[^<]*?)(?:AU\s*\$|US\s*\$|\$|£|€)\s*([0-9]+(?:\.[0-9]{2})?)/gi)];
-      
-      // Secondary fallback if class format varies
-      if (priceMatches.length === 0) {
-        priceMatches = [...html.matchAll(/(?:POSITIVE|s-item__price|\$|AU\s*\$)\s*([0-9]+(?:\.[0-9]{2})?)/gi)];
-      }
-
-      const prices = priceMatches
-        .map((m) => parseFloat(m[1]))
-        .filter((n) => !Number.isNaN(n) && n >= 5 && n <= 3500);
-
-      if (prices.length > 0) {
-        prices.sort((a, b) => a - b);
-
-        // IQR (Interquartile Range) Statistical Outlier Trimming: Removes expensive bundles & accessories
-        let validPrices = prices;
-        if (prices.length >= 4) {
-          const q1Idx = Math.floor(prices.length * 0.25);
-          const q3Idx = Math.floor(prices.length * 0.75);
-          const q1 = prices[q1Idx];
-          const q3 = prices[q3Idx];
-          const iqr = q3 - q1;
-          const lowerBound = Math.max(5, q1 - 1.5 * iqr);
-          const upperBound = q3 + 1.5 * iqr;
-
-          const filtered = prices.filter((p) => p >= lowerBound && p <= upperBound);
-          if (filtered.length > 0) {
-            validPrices = filtered;
-          }
+      const res = await fetch(
+        `https://${apiHost}/buy/browse/v1/item_summary/search` +
+          `?q=${encodedQuery}&filter=buyingOptions%3A%7BFIXED_PRICE%7D&limit=50`,
+        {
+          headers: {
+            Authorization: `Bearer ${appToken}`,
+            "X-EBAY-C-MARKETPLACE-ID": marketplace.id,
+            "X-EBAY-C-ENDUSERCTX": `contextualLocation=country=${marketplace.country}`,
+            "Content-Type": "application/json",
+          },
+          signal: controller.signal,
         }
+      ).catch(() => null);
+      clearTimeout(timer);
 
-        const midIdx = Math.floor(validPrices.length / 2);
-        const median = validPrices.length % 2 === 0 ? (validPrices[midIdx - 1] + validPrices[midIdx]) / 2 : validPrices[midIdx];
+      if (res?.ok) {
+        const data = await res.json().catch(() => null);
+        const items: any[] = data?.itemSummaries ?? [];
 
-        return {
-          min: Math.round(validPrices[0] * 100) / 100,
-          max: Math.round(validPrices[validPrices.length - 1] * 100) / 100,
-          median: Math.round(median * 100) / 100,
-          count: validPrices.length,
-          currency: targetCurrency,
-        };
+        const prices: number[] = items
+          .map((item: any) => Number(item.price?.value))
+          .filter((n: number) => !isNaN(n) && n >= 3 && n <= 5000);
+
+        if (prices.length >= 3) {
+          prices.sort((a, b) => a - b);
+          const valid = trimIqrOutliers(prices);
+          return {
+            min: Math.round(valid[0] * 100) / 100,
+            max: Math.round(valid[valid.length - 1] * 100) / 100,
+            median: Math.round(calcMedian(valid) * 100) / 100,
+            count: valid.length,
+            currency: targetCurrency,
+            source: "browse_api",
+          };
+        }
       }
     }
   } catch (err) {
-    console.warn("[eBay Comps] Public regional eBay scraper warning:", err);
+    console.warn("[eBay Comps] Browse API warning:", err);
   }
 
   return null;

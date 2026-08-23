@@ -2,8 +2,6 @@ import React, { Component, ReactNode, useEffect, useRef, useState, useCallback }
 import { useRouter } from "next/navigation";
 import {
   Camera,
-  Volume2,
-  VolumeX,
   Sparkles,
   CheckCircle2,
   RefreshCw,
@@ -11,25 +9,11 @@ import {
   ShieldAlert,
   Clock,
   ArrowRight,
-  Sliders,
-  Bug,
-  Terminal,
-  ChevronDown,
-  ChevronUp,
-  Sun,
-  Search,
   Trash2,
-  Mic,
-  MicOff,
   Trophy,
-  Gift,
   WifiOff,
   LogIn,
-  ShoppingBag,
-  HelpCircle,
-  History,
   Crosshair,
-  ShieldCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 import { fmtMoney } from "@/app/lib/listings";
@@ -38,12 +22,14 @@ import { supabase } from "@/app/lib/supabase";
 import { detectGeoCurrency, CURRENCY_CONFIGS, SupportedCurrency } from "@/app/lib/currency-routing";
 import { resilientFetch } from "@/app/lib/resilient-fetch";
 import { saveScanOffline } from "@/app/lib/offline-storage";
-import ShareDealDialog from "@/components/share-deal-dialog";
-import TiktokVideoExporter from "@/components/tiktok-video-exporter";
 import SubscriptionPaywallModal from "@/components/subscription-paywall-modal";
 import EbayListingModal from "@/components/ebay-listing-modal";
 import CameraOnboardingOverlay from "@/components/camera-onboarding-overlay";
 import { DeepVerifyModal } from "@/components/deep-verify-modal";
+import LensHitCard from "@/components/lens-hit-card";
+import LensControlsBar from "@/components/lens-controls-bar";
+import type { DetectedHit, ActiveScanItem } from "@/types/lens";
+export type { DetectedHit, ActiveScanItem } from "@/types/lens";
 
 // Catch-All React Error Boundary for Live Camera & Hit List Stability
 interface ErrorBoundaryProps {
@@ -90,42 +76,6 @@ class CameraErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySta
 
     return this.props.children;
   }
-}
-
-interface DetectedHit {
-  id: string;
-  name: string;
-  category: string;
-  condition: string;
-  inventoryCondition?: "untested" | "faulty_for_parts" | "used_working" | "refurbished";
-  defectNotes?: string[];
-  asIsDisclaimer?: string;
-  estimatedValue: number;
-  estCost: number;
-  estimatedProfit: number;
-  estRoi: number;
-  verdict: "BUY" | "CAUTION" | "PASS";
-  confidence: number;
-  bbox: { x: number; y: number; width: number; height: number }; // percentage coords
-  timestamp: number;
-  isGrail?: boolean;
-  ebayCompsCount?: number;
-  salesVelocity?: {
-    sell_speed: "FAST_FLIP" | "MODERATE" | "SLOW_BURNER";
-    est_days_to_sell: string;
-    demand_score: number;
-    sell_through_rate: string;
-  };
-  futureGrail?: {
-    is_future_grail: boolean;
-    trend_source: string | null;
-    viral_score: number;
-    current_price: number;
-    projected_peak_price: number;
-    projected_roi_gain: string;
-    holding_recommendation: string;
-    value_curve: number[];
-  };
 }
 
 // Stop-words list for debouncer filtering
@@ -217,28 +167,6 @@ function cleanConditionText(rawCondition: string): string {
     .trim() || "Used";
 }
 
-export interface ActiveScanItem {
-  id: string;
-  productName: string;
-  brand?: string | null;
-  category: string;
-  condition: string;
-  inventoryCondition?: "untested" | "faulty_for_parts" | "used_working" | "refurbished";
-  defectNotes?: string[];
-  asIsDisclaimer?: string;
-  bbox: { x: number; y: number; width: number; height: number };
-  status: "pending" | "valued" | "rejected";
-  estimatedValue?: number;
-  suggestedPriceMin?: number;
-  suggestedPriceMax?: number;
-  confidenceScore?: number;
-  ebayCompsCount?: number;
-  estCost?: number;
-  estimatedProfit?: number;
-  estRoi?: number;
-  timestamp: number;
-}
-
 let cycleSeq = 0;
 
 function SpadasLensCameraCore() {
@@ -313,6 +241,33 @@ function SpadasLensCameraCore() {
       toast.success(`✅ Added "${item.productName}" to inventory drafts!`);
     } catch (err: any) {
       toast.error(err?.message || "Failed to add to drafts.");
+    }
+  };
+
+  const handleSaveDraftHit = async (hit: DetectedHit) => {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        toast.error("Please log in to save listings.");
+        return;
+      }
+
+      const { error } = await createListing({
+        userId: user.id,
+        product: hit.name,
+        description: `Sourced via Spadas Lens AR. Category: ${hit.category}. Condition: ${hit.condition}. Estimated profit: +$${hit.estimatedProfit?.toFixed(2) || "0"}.`,
+        price: hit.estimatedValue || 45,
+        cost: hit.estCost || 10,
+        status: "Draft",
+      });
+
+      if (error) throw error;
+      toast.success(`✅ Saved "${hit.name}" to inventory drafts!`);
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to save to drafts.");
     }
   };
 
@@ -1151,6 +1106,7 @@ function SpadasLensCameraCore() {
           suggestedPriceMax: Number(data.suggested_price_max) || undefined,
           confidenceScore: item.confidence_score || data.analysis?.confidence_score || 0.95,
           ebayCompsCount: item.ebay_comps_count || data.ebay_comps_count || undefined,
+          compsSource: data.comps_source || (data.ebay_comps_count ? "browse_api" : "ai_estimate"),
           timestamp: now,
         };
 
@@ -1181,6 +1137,7 @@ function SpadasLensCameraCore() {
             suggestedPriceMax: rawMax,
             confidenceScore: obj.confidenceScore || 0.95,
             ebayCompsCount: obj.ebayCompsCount,
+            compsSource: obj.compsSource,
             estCost,
             estimatedProfit,
             estRoi,
@@ -1267,6 +1224,7 @@ function SpadasLensCameraCore() {
             verdict: estimatedProfit > 15 ? "BUY" : "CAUTION",
             confidence: 0.98,
             ebayCompsCount: obj.ebayCompsCount,
+            compsSource: obj.compsSource,
             bbox: obj.bbox,
             timestamp: now,
             isGrail: isGrailHit,
@@ -1682,419 +1640,63 @@ function SpadasLensCameraCore() {
         )}
       </div>
 
-      {/* Camera Controls Bar (Pinned Outside Camera Viewport Container) */}
+      {/* Pinned Controls Bar */}
       {stream && (
-        <div className="w-full box-border flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-slate-950/90 backdrop-blur-md p-4 border border-slate-800 shadow-2xl">
-          <div className="flex items-center gap-2 text-xs font-bold">
-            <span className={`h-2.5 w-2.5 rounded-full animate-pulse ${cameraMoving ? "bg-amber-400" : rateLimited ? "bg-amber-400" : "bg-emerald-400"}`} />
-            <span className={cameraMoving ? "text-amber-300" : rateLimited ? "text-amber-300" : "text-cyan-300"}>
-              {cameraMoving
-                ? "📱 Hold camera steady over item..."
-                : rateLimited
-                ? "API Rate Limit - Retrying..."
-                : analyzingRealFrame
-                ? "Scanning Live Frame..."
-                : scanMode === "sweep"
-                ? "⚡ Continuous Sweep Active (Walk & Pan)"
-                : "Continuous AR Scanner (1.5s)"}
-            </span>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Multi-Mode Selector: Sweep | Live Focus | Deep Scan */}
-            <div className="flex items-center gap-1 bg-slate-900 border border-slate-700 rounded-xl p-1">
-              <button
-                type="button"
-                onClick={() => {
-                  setScanMode("sweep");
-                  toast.success("⚡ Continuous Sweep Mode Active (Walk & Scan)");
-                }}
-                className={`px-3 py-1 rounded-lg text-xs font-black transition cursor-pointer ${
-                  scanMode === "sweep"
-                    ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 shadow-md shadow-emerald-500/20"
-                    : "text-slate-400 hover:text-white"
-                }`}
-              >
-                ⚡ Sweep
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setScanMode("live");
-                  toast.success("🎯 Live Focus Mode Active");
-                }}
-                className={`px-3 py-1 rounded-lg text-xs font-black transition cursor-pointer ${
-                  scanMode === "live"
-                    ? "bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20"
-                    : "text-slate-400 hover:text-white"
-                }`}
-              >
-                🎯 Focus
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setScanMode("deep");
-                  toast.success("🔬 Deep Fusion 100% Active");
-                }}
-                className={`px-3 py-1 rounded-lg text-xs font-black transition cursor-pointer ${
-                  scanMode === "deep"
-                    ? "bg-purple-500 text-white shadow-md shadow-purple-500/30"
-                    : "text-slate-400 hover:text-white"
-                }`}
-              >
-                🔬 Deep
-              </button>
-            </div>
-
-            {/* Quick Link to Spadas Snap Studio Multi-Photo Camera */}
-            <a
-              href="/studio"
-              className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-3.5 text-xs font-black text-slate-950 shadow-md shadow-cyan-500/20 hover:scale-105 transition cursor-pointer"
-            >
-              <Camera className="h-3.5 w-3.5" />
-              <span>📸 Snap Studio</span>
-            </a>
-
-            <button
-              type="button"
-              onClick={() => setAutoScanActive(!autoScanActive)}
-              className={`inline-flex h-9 items-center gap-1.5 rounded-xl px-3.5 text-xs font-bold transition cursor-pointer ${
-                autoScanActive
-                  ? "bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20"
-                  : "bg-white/10 text-white border border-white/20 hover:bg-white/20"
-              }`}
-            >
-              <Zap className="h-3.5 w-3.5" />
-              <span>{autoScanActive ? "Auto-Scan: ON" : "Paused"}</span>
-            </button>
-
-            {/* AR Grail Detector Mode Toggle (Viral TikTok Mode) */}
-            <button
-              type="button"
-              onClick={() => {
-                setGrailMode(!grailMode);
-                toast.success(!grailMode ? "🚨 AR Grail Detector Active ($80+ Fanfare)!" : "Grail Detector muted.");
-              }}
-              className={`inline-flex h-9 items-center gap-1.5 rounded-xl border px-3 text-xs font-bold transition cursor-pointer ${
-                grailMode
-                  ? "bg-amber-400 text-slate-950 border-amber-300 shadow-md shadow-amber-400/30 font-black animate-pulse"
-                  : "bg-white/10 text-white border-white/20 hover:bg-white/20"
-              }`}
-            >
-              <Trophy className="h-3.5 w-3.5 text-slate-950" />
-              <span>{grailMode ? "🚨 Grail Mode ON" : "Grail Off"}</span>
-            </button>
-
-            {/* Pro Subscription Paywall Badge */}
-            {isPro ? (
-              <div className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/40 px-3.5 text-xs font-black text-emerald-300 shadow-md shadow-emerald-500/10">
-                <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
-                <span>👑 PRO</span>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setIsPaywallOpen(true)}
-                className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-cyan-500 px-3.5 text-xs font-black text-slate-950 shadow-lg shadow-amber-500/20 hover:scale-105 transition active:scale-95 cursor-pointer"
-              >
-                <Sparkles className="h-3.5 w-3.5 text-slate-950 animate-pulse" />
-                <span>👑 Upgrade Pro ($10/mo)</span>
-              </button>
-            )}
-
-            <button
-              type="button"
-              onClick={() => {
-                setAnalyzingRealFrame(false);
-                void processCurrentFrame(true);
-              }}
-              className="inline-flex h-9 items-center gap-1.5 rounded-xl px-4 text-sm font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/30 transition cursor-pointer active:scale-95"
-            >
-              <RefreshCw className={`h-4 w-4 ${analyzingRealFrame ? "animate-spin" : ""}`} />
-              <span>{analyzingRealFrame ? "Scanning..." : "Scan Now"}</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setSoundEnabled(!soundEnabled)}
-              className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-3.5 text-xs font-semibold text-white hover:bg-white/20 cursor-pointer"
-            >
-              {soundEnabled ? <Volume2 className="h-4 w-4 text-cyan-400" /> : <VolumeX className="h-4 w-4 text-slate-400" />}
-              <span>{soundEnabled ? "Audio Cues ON" : "Muted"}</span>
-            </button>
-
-            {/* Hands-Free Voice Commands Assistant */}
-            <button
-              type="button"
-              onClick={toggleVoiceAssistant}
-              className={`inline-flex h-9 items-center gap-1.5 rounded-xl border px-3 text-xs font-bold transition cursor-pointer ${
-                voiceListening
-                  ? "bg-emerald-500/25 text-emerald-300 border-emerald-500/50 shadow-md shadow-emerald-500/20"
-                  : "bg-white/10 text-white border-white/20 hover:bg-white/20"
-              }`}
-            >
-              {voiceListening ? (
-                <Mic className="h-4 w-4 text-emerald-400 animate-pulse" />
-              ) : (
-                <MicOff className="h-4 w-4 text-slate-400" />
-              )}
-              <span>{voiceListening ? "Voice Active" : "Voice Control"}</span>
-            </button>
-
-            {/* Hardware Flashlight / Torch Control */}
-            <button
-              type="button"
-              onClick={toggleTorch}
-              title={torchSupported ? "Toggle Hardware Flashlight" : "Flashlight not supported on this camera/browser"}
-              className={`inline-flex h-9 items-center gap-1.5 rounded-xl border px-3 text-xs font-bold transition cursor-pointer ${
-                torchEnabled
-                  ? "bg-amber-400 text-slate-950 border-amber-300 shadow-md shadow-amber-400/30"
-                  : "bg-white/10 text-white border-white/20 hover:bg-white/20"
-              }`}
-            >
-              <Sun className={`h-4 w-4 ${torchEnabled ? "text-slate-950 animate-pulse" : "text-amber-400"}`} />
-              <span>{torchEnabled ? "Flash ON" : "Torch"}</span>
-            </button>
-
-            {/* Hardware Optical Zoom Controls */}
-            <div className="flex items-center gap-1 bg-white/10 border border-white/20 rounded-xl p-1">
-              <Search className="h-3.5 w-3.5 text-cyan-400 ml-1 shrink-0" />
-              {[1, 2, 3].map((z) => (
-                <button
-                  key={z}
-                  type="button"
-                  onClick={() => setZoomLevel(z)}
-                  className={`px-2 py-0.5 rounded-lg text-xs font-black transition cursor-pointer ${
-                    zoomLevel === z
-                      ? "bg-cyan-400 text-slate-950 shadow-sm"
-                      : "text-slate-300 hover:text-white hover:bg-white/10"
-                  }`}
-                >
-                  {z}x
-                </button>
-              ))}
-            </div>
-
-            {isOwner && (
-              <button
-                type="button"
-                onClick={() => setShowDebugDrawer(!showDebugDrawer)}
-                className={`inline-flex h-9 items-center gap-1.5 rounded-xl border px-3 text-xs font-bold transition cursor-pointer ${
-                  showDebugDrawer
-                    ? "bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-sm shadow-amber-500/20"
-                    : "bg-white/10 text-white border-white/20 hover:bg-white/20"
-                }`}
-              >
-                <Bug className="h-3.5 w-3.5 text-amber-400" />
-                <span>{showDebugDrawer ? "Hide Debug" : "🐞 Debug Drawer"}</span>
-                {showDebugDrawer ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-              </button>
-            )}
-
-            {/* Global Geo Currency Selector */}
-            <div className="flex items-center gap-1 bg-white/10 border border-white/20 rounded-xl p-1">
-              {(["AUD", "USD", "EUR", "GBP"] as SupportedCurrency[]).map((c) => {
-                const conf = CURRENCY_CONFIGS[c];
-                return (
-                  <button
-                    key={c}
-                    type="button"
-                    onClick={() => {
-                      setSelectedCurrency(c);
-                      if (typeof window !== "undefined") {
-                        localStorage.setItem("spadas_selected_currency", c);
-                      }
-                      toast.success(`Switched Comps to ${conf.flag} ${c} (${conf.ebaySite})`);
-                    }}
-                    className={`px-2 py-0.5 rounded-lg text-xs font-black transition cursor-pointer flex items-center gap-1 ${
-                      selectedCurrency === c
-                        ? "bg-emerald-500 text-slate-950 shadow-sm"
-                        : "text-slate-300 hover:text-white hover:bg-white/10"
-                    }`}
-                    title={`Switch to ${c} Sold Comps (${conf.ebaySite})`}
-                  >
-                    <span>{conf.flag}</span>
-                    <span>{c}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setIsOnboardingOpen(true)}
-              className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-3 text-xs font-bold text-white hover:bg-white/20 cursor-pointer transition"
-              title="Open AR Camera Framing Guide"
-            >
-              <HelpCircle className="h-3.5 w-3.5 text-cyan-400" />
-              <span>Guide</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => router.push("/history")}
-              className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-emerald-500/40 bg-emerald-500/20 px-3 text-xs font-bold text-emerald-300 hover:bg-emerald-500/30 cursor-pointer transition shadow-sm shadow-emerald-500/20"
-              title="Open Scan History Feed"
-            >
-              <History className="h-3.5 w-3.5 text-emerald-400" />
-              <span>History</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={stopCamera}
-              className="inline-flex h-9 items-center rounded-xl bg-red-600 px-3.5 text-xs font-bold text-white hover:bg-red-500 cursor-pointer transition"
-            >
-              Stop
-            </button>
-          </div>
-
-          {/* Custom Profit Threshold Slider & Presets Bar */}
-          <div className="w-full pt-3 flex flex-wrap items-center justify-between gap-3 border-t border-slate-800/80">
-            <div className="flex items-center gap-2 text-xs">
-              <Sliders className="h-4 w-4 text-emerald-400 shrink-0" />
-              <span className="font-bold text-slate-200">Chime Min Profit:</span>
-              <span className="font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded text-xs">
-                ${minProfitThreshold} AUD
-              </span>
-            </div>
-
-            <div className="flex items-center gap-3 flex-1 max-w-xs">
-              <input
-                type="range"
-                min="5"
-                max="100"
-                step="5"
-                value={minProfitThreshold}
-                onChange={(e) => updateProfitThreshold(Number(e.target.value))}
-                className="w-full accent-emerald-400 h-1.5 bg-slate-800 rounded-lg cursor-pointer"
-              />
-            </div>
-
-            <div className="flex items-center gap-1">
-              <span className="text-[10px] text-slate-400 font-bold mr-1">Presets:</span>
-              {[10, 20, 30, 50].map((preset) => (
-                <button
-                  key={preset}
-                  type="button"
-                  onClick={() => updateProfitThreshold(preset)}
-                  className={`px-2 py-1 rounded text-[11px] font-black transition cursor-pointer ${
-                    minProfitThreshold === preset
-                      ? "bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20"
-                      : "bg-slate-900 border border-slate-800 text-slate-300 hover:bg-slate-800"
-                  }`}
-                >
-                  ${preset}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Diagnostics & Debug Drawer Panel - Owner Only */}
-          {showDebugDrawer && isOwner && (
-            <div className="w-full rounded-2xl bg-slate-950/95 border border-amber-500/30 p-4 shadow-2xl space-y-3 backdrop-blur-md">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                <div className="flex items-center gap-2">
-                  <Terminal className="h-4 w-4 text-amber-400 shrink-0" />
-                  <h4 className="text-xs font-extrabold text-amber-300 uppercase tracking-wider">
-                    Live AR Scan Diagnostics & Debugger
-                  </h4>
-                </div>
-                <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full border ${
-                  isMockFallback
-                    ? "bg-amber-500/20 text-amber-300 border-amber-500/30"
-                    : "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
-                }`}>
-                  {isMockFallback ? "⚠️ MOCK FALLBACK MODE" : "🟢 LIVE OPENAI VISION"}
-                </span>
-              </div>
-
-              {lastRawApiResponse ? (
-                <div className="space-y-3">
-                  {/* Diagnostic Metrics Grid */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                    <div className="bg-slate-900 border border-slate-800 rounded-xl p-2.5 space-y-1">
-                      <span className="text-[10px] text-slate-400 font-semibold block">Detected Item</span>
-                      <span className="font-bold text-white truncate block">
-                        {lastRawApiResponse.analysis?.product_name ||
-                          lastRawApiResponse.detected_objects?.[0]?.product_name ||
-                          "Unidentified Item"}
-                      </span>
-                    </div>
-
-                    <div className="bg-slate-900 border border-slate-800 rounded-xl p-2.5 space-y-1">
-                      <span className="text-[10px] text-slate-400 font-semibold block">Raw Market Comp</span>
-                      <span className="font-extrabold text-cyan-300 block">
-                        ${lastRawApiResponse.suggested_price_min || 0} - ${lastRawApiResponse.suggested_price_max || 0} {lastRawApiResponse.suggested_price_currency || "AUD"}
-                      </span>
-                    </div>
-
-                    <div className="bg-slate-900 border border-slate-800 rounded-xl p-2.5 space-y-1">
-                      <span className="text-[10px] text-slate-400 font-semibold block">Calculated Net Profit</span>
-                      <span className="font-extrabold text-emerald-400 block">
-                        +${Math.max(
-                          0,
-                          Math.round(
-                            (((Number(lastRawApiResponse.suggested_price_min) || 25) +
-                              (Number(lastRawApiResponse.suggested_price_max) || 40)) /
-                              2 -
-                              Math.max(
-                                2,
-                                Math.round(
-                                  (((Number(lastRawApiResponse.suggested_price_min) || 25) +
-                                    (Number(lastRawApiResponse.suggested_price_max) || 40)) /
-                                    2) *
-                                    0.35
-                                )
-                              )) *
-                              100
-                          ) / 100
-                        )} AUD
-                      </span>
-                    </div>
-
-                    <div className="bg-slate-900 border border-slate-800 rounded-xl p-2.5 space-y-1">
-                      <span className="text-[10px] text-slate-400 font-semibold block">Scan Engine Data Source</span>
-                      <span className="font-bold text-amber-300 block">
-                        {lastRawApiResponse.isMockFallback ? "Simulated Catalog" : "OpenAI GPT-4o Vision"}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Expose Raw API Error if any */}
-                  {latestApiError && (
-                    <div className="bg-red-950/60 border border-red-500/40 rounded-xl p-2.5 space-y-0.5">
-                      <span className="text-[10px] font-bold text-red-300 uppercase tracking-wider block">
-                        Latest API Error:
-                      </span>
-                      <span className="text-xs font-mono text-red-200 block break-words">
-                        {latestApiError}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Expandable Raw JSON Response Payload */}
-                  <div className="space-y-1">
-                    <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wide">
-                      Raw API Payload (/api/ai-listing):
-                    </span>
-                    <pre className="text-[10px] text-emerald-400 bg-slate-900 border border-slate-800 rounded-xl p-3 font-mono overflow-x-auto max-h-40 selection:bg-emerald-500/30">
-                      {JSON.stringify(lastRawApiResponse, null, 2)}
-                    </pre>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-4 text-slate-400 text-xs font-semibold">
-                  No frame scan payload recorded yet. Tap "Scan Now" or enable "Auto-Scan" to capture live diagnostic data.
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+        <LensControlsBar
+          scan={{
+            mode: scanMode,
+            setMode: setScanMode,
+            isAnalyzing: analyzingRealFrame,
+            autoActive: autoScanActive,
+            setAutoActive: setAutoScanActive,
+            onScanNow: () => {
+              setAnalyzingRealFrame(false);
+              void processCurrentFrame(true);
+            },
+            onStop: stopCamera,
+            cameraMoving,
+            rateLimited,
+          }}
+          hardware={{
+            torchEnabled,
+            torchSupported,
+            onToggleTorch: toggleTorch,
+            zoomLevel,
+            setZoomLevel,
+          }}
+          audio={{
+            soundEnabled,
+            onToggleSound: () => setSoundEnabled(!soundEnabled),
+            voiceListening,
+            voiceSupported: typeof window !== "undefined" && ("SpeechRecognition" in window || "webkitSpeechRecognition" in window),
+            onToggleVoice: toggleVoiceAssistant,
+          }}
+          prefs={{
+            grailMode,
+            setGrailMode,
+            currency: selectedCurrency,
+            setCurrency: (c) => setSelectedCurrency(c),
+            isPro,
+            onUpgrade: () => setIsPaywallOpen(true),
+            minProfitThreshold,
+            updateProfitThreshold,
+          }}
+          nav={{
+            onGuide: () => setIsOnboardingOpen(true),
+            onHistory: () => router.push("/history"),
+          }}
+          debug={{
+            isOwner,
+            showDebugDrawer,
+            setShowDebugDrawer,
+            lastRawApiResponse,
+            latestApiError,
+            isMockFallback,
+          }}
+        />
       )}
 
-      {/* Always-Visible Real-Time Scanned Hits Feed */}
+      {/* Real-Time Scanned Hits Feed */}
       <div className="w-full max-w-full overflow-x-hidden box-border rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-lg space-y-4 mx-auto">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
           <h3 className="text-sm font-bold flex items-center gap-2">
@@ -2107,172 +1709,47 @@ function SpadasLensCameraCore() {
             )}
           </h3>
 
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={selectAllHits}
-                className="text-[11px] font-semibold text-cyan-500 hover:text-cyan-400 hover:underline cursor-pointer"
-              >
-                {selectedHitIds.length === capturedLog.length ? "Deselect All" : "Select All"}
-              </button>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={selectAllHits}
+              className="text-[11px] font-semibold text-cyan-500 hover:text-cyan-400 hover:underline cursor-pointer"
+            >
+              {selectedHitIds.length === capturedLog.length ? "Deselect All" : "Select All"}
+            </button>
 
-              <button
-                type="button"
-                onClick={clearAllHits}
-                className="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-500 hover:text-rose-400 hover:underline cursor-pointer"
-              >
-                <Trash2 className="h-3 w-3" /> Clear List
-              </button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 w-full box-border">
-            {capturedLog.map((item) => {
-              const isSelected = selectedHitIds.includes(item.id);
-              return (
-                <div
-                  key={item.id}
-                  onClick={() => toggleSelectHit(item.id)}
-                  className={`relative w-full min-w-0 box-border overflow-hidden cursor-pointer transition-all rounded-xl border p-3 space-y-1.5 shadow-sm ${
-                    isSelected
-                      ? "border-emerald-500 bg-emerald-500/10 shadow-[0_0_16px_rgba(16,185,129,0.25)] ring-1 ring-emerald-500"
-                      : "border-border bg-card hover:border-cyan-500/40 hover:bg-accent/40"
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-1 w-full min-w-0">
-                    <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => toggleSelectHit(item.id)}
-                        onClick={(e) => e.stopPropagation()}
-                        className="h-4 w-4 rounded border-slate-700 bg-slate-900 text-emerald-500 focus:ring-emerald-400 cursor-pointer shrink-0"
-                      />
-                      <span className="text-[11px] font-black px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-400/40 shrink-0">
-                        Sell: {fmtMoney(item.estimatedValue)}
-                      </span>
-                      <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 shrink-0">
-                        Buy: {fmtMoney(item.estCost || Math.max(3, Math.round(item.estimatedValue * 0.35)))}
-                      </span>
-                      <span className="text-[11px] font-black px-2 py-0.5 rounded bg-emerald-500 text-slate-950 uppercase tracking-tight shrink-0 shadow-sm">
-                        +{fmtMoney(item.estimatedProfit)} Profit
-                      </span>
-                    </div>
-
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 shrink-0">
-                      {item.verdict}
-                    </span>
-                  </div>
-
-                  {item.isGrail && (
-                    <div className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 px-2 py-0.5 text-[9px] font-black text-slate-950 shadow-md">
-                      <Trophy className="h-3 w-3 text-slate-950" /> 👑 GRAIL FIND
-                    </div>
-                  )}
-
-                  {item.salesVelocity && (
-                    <div className="flex items-center justify-between text-[10px] pt-0.5">
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-black text-[9px] ${
-                        item.salesVelocity.sell_speed === "FAST_FLIP"
-                          ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
-                          : item.salesVelocity.sell_speed === "MODERATE"
-                          ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40"
-                          : "bg-amber-500/20 text-amber-300 border border-amber-500/40"
-                      }`}>
-                        {item.salesVelocity.sell_speed === "FAST_FLIP" ? "⚡ FAST FLIP" : item.salesVelocity.sell_speed === "MODERATE" ? "⚖️ MODERATE" : "🐢 SLOW BURNER"}
-                        <span>({item.salesVelocity.est_days_to_sell})</span>
-                      </span>
-                      <span className="font-extrabold text-slate-400 text-[9px]">
-                        🔥 {item.salesVelocity.sell_through_rate}
-                      </span>
-                    </div>
-                  )}
-
-                  {item.futureGrail?.is_future_grail && (
-                    <div className="rounded-xl bg-purple-950/40 border border-purple-500/40 p-2 space-y-1 mt-1 shadow-md">
-                      <div className="flex items-center justify-between">
-                        <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-purple-500 via-fuchsia-500 to-pink-500 px-2 py-0.5 text-[9px] font-black text-white shadow-sm">
-                          <Sparkles className="h-3 w-3 text-white animate-pulse" /> 🔮 FUTURE GRAIL • {item.futureGrail.trend_source}
-                        </span>
-                        <span className="text-[10px] font-black text-fuchsia-300">
-                          {item.futureGrail.projected_roi_gain}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between text-[10px] text-slate-300">
-                        <span>Current: <strong>{fmtMoney(item.estimatedValue)}</strong></span>
-                        <span className="text-emerald-400 font-extrabold">30D Peak: {fmtMoney(item.futureGrail.projected_peak_price)}</span>
-                      </div>
-                    </div>
-                  )}
-
-                  <h4 className="text-xs font-bold text-foreground truncate leading-snug w-full min-w-0 pt-0.5">{item.name}</h4>
-
-                  <div className="flex items-center justify-between text-[11px] pt-1 border-t border-border/60 w-full min-w-0">
-                    <span className="text-muted-foreground text-[10px] truncate max-w-[60%]">{item.condition}</span>
-                    <div className="flex items-center gap-1.5 flex-wrap" onClick={(e) => e.stopPropagation()}>
-                      <span className="font-extrabold text-emerald-600 dark:text-emerald-400 shrink-0 mr-1">{fmtMoney(item.estimatedValue)}</span>
-                      <button
-                        type="button"
-                        onClick={() => setActiveEbayItem(item)}
-                        className="inline-flex items-center gap-1 px-2 py-1 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 rounded-md text-[10px] font-extrabold transition cursor-pointer"
-                        title="List item on eBay"
-                      >
-                        <ShoppingBag className="w-3 h-3" /> List
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setDeepVerifyItem(item)}
-                        className="inline-flex items-center gap-1 px-2 py-1 bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/40 rounded-md text-[10px] font-extrabold transition cursor-pointer"
-                        title="Run forensic authenticity verification"
-                      >
-                        <ShieldCheck className="w-3 h-3" /> Verify
-                      </button>
-                      <TiktokVideoExporter
-                        productTitle={item.name}
-                        profit={item.estimatedProfit}
-                        estPrice={item.estimatedValue}
-                        condition={item.condition}
-                        sellSpeed={item.salesVelocity?.sell_speed}
-                        estDays={item.salesVelocity?.est_days_to_sell}
-                      />
-                      <ShareDealDialog
-                        productTitle={item.name}
-                        profit={item.estimatedProfit}
-                        estPrice={item.estimatedValue}
-                        condition={item.condition}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between text-[10px] pt-1 border-t border-border/40 text-slate-400">
-                    <span className="font-semibold text-cyan-400">
-                      📊 {item.ebayCompsCount ? (
-                        <span className="text-emerald-400 font-bold">{item.ebayCompsCount} Confirmed eBay Sales (30d)</span>
-                      ) : (
-                        <span>eBay Comps: {fmtMoney(item.estimatedValue * 0.85)} – {fmtMoney(item.estimatedValue * 1.15)}</span>
-                      )}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        void fetch("/api/scans/report", {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ scanId: item.id, itemName: item.name }),
-                        }).catch(() => {});
-                        toast.info("Thanks — misidentification flagged for review.", { id: `report-${item.id}` });
-                      }}
-                      className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 hover:text-amber-400 transition cursor-pointer"
-                    >
-                      <ShieldAlert className="h-3 w-3" /> Report
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
+            <button
+              type="button"
+              onClick={clearAllHits}
+              className="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-500 hover:text-rose-400 hover:underline cursor-pointer"
+            >
+              <Trash2 className="h-3 w-3" /> Clear List
+            </button>
           </div>
         </div>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 w-full box-border">
+          {capturedLog.map((item) => (
+            <LensHitCard
+              key={item.id}
+              item={item}
+              isSelected={selectedHitIds.includes(item.id)}
+              onSelect={toggleSelectHit}
+              onSaveDraft={handleSaveDraftHit}
+              onDeepVerify={(hit) => setDeepVerifyItem(hit)}
+              onListEbay={(hit) => setActiveEbayItem(hit)}
+              onReport={(id, name) => {
+                void fetch("/api/scans/report", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ scanId: id, itemName: name }),
+                }).catch(() => {});
+                toast.info("Thanks — misidentification flagged for review.", { id: `report-${id}` });
+              }}
+            />
+          ))}
+        </div>
+      </div>
 
       {/* Sticky Bottom Export FAB */}
       {selectedHitIds.length > 0 && (
