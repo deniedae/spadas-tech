@@ -64,9 +64,17 @@ export function getEbayAuthUrl(state: string): string {
     "https://api.ebay.com/oauth/api_scope",
     "https://api.ebay.com/oauth/api_scope/sell.inventory",
     "https://api.ebay.com/oauth/api_scope/sell.fulfillment",
-  ].join("%20");
+  ].join(" ");
 
-  return `https://${host}/oauth2/authorize?client_id=${encodeURIComponent(clientId)}&response_type=code&redirect_uri=${encodeURIComponent(ruName)}&scope=${scopes}&state=${encodeURIComponent(state)}&prompt=login`;
+  const params = new URLSearchParams({
+    client_id: clientId,
+    response_type: "code",
+    redirect_uri: ruName,
+    scope: scopes,
+    state: state,
+  });
+
+  return `https://${host}/oauth2/authorize?${params.toString()}`;
 }
 
 /**
