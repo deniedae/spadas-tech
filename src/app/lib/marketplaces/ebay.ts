@@ -178,13 +178,21 @@ export async function publishToEbayInventory(
 ) {
   const sku = `SPADAS-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
 
+  // eBay requires valid public HTTP/HTTPS URLs for imageUrls; filter out base64 data URIs
+  const validHttpImageUrls = (listing.imageUrls || []).filter(
+    (url) => typeof url === "string" && (url.startsWith("http://") || url.startsWith("https://"))
+  );
+
   const payload: EbayInventoryItemPayload = {
     sku,
     product: {
       title: listing.product.slice(0, 80),
       description: listing.description || `Listed via Spadas Technology AI Platform. ${listing.product}`,
       brand: listing.brand || "Unbranded",
-      imageUrls: listing.imageUrls && listing.imageUrls.length > 0 ? listing.imageUrls : undefined,
+      aspects: {
+        Brand: [listing.brand || "Unbranded"],
+      },
+      imageUrls: validHttpImageUrls.length > 0 ? validHttpImageUrls : undefined,
     },
     condition: mapToEbayCondition(listing.condition || "Used"),
     availability: {
