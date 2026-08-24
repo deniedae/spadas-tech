@@ -199,8 +199,10 @@ export async function publishToEbayInventory(
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${accessToken}`,
       "Content-Language": "en-US",
+      "Accept": "application/json",
+      "Accept-Language": "en-US",
+      Authorization: `Bearer ${accessToken}`,
     },
     body: JSON.stringify(payload),
   });
