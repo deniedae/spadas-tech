@@ -1,7 +1,17 @@
 "use client";
 
 import React, { useState } from "react";
-import { ShoppingBag, CheckCircle2, ExternalLink, Loader2, X, AlertCircle } from "lucide-react";
+import {
+  ShoppingBag,
+  CheckCircle2,
+  ExternalLink,
+  Loader2,
+  X,
+  AlertCircle,
+  FileText,
+  Copy,
+  Layers,
+} from "lucide-react";
 import { toast } from "sonner";
 
 interface EbayListingModalProps {
@@ -25,7 +35,6 @@ export default function EbayListingModal({
   condition: initialCondition = "Used - Good",
   description: initialDescription = "",
   imageUrls = [],
-  isConnected = false,
 }: EbayListingModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,10 +45,23 @@ export default function EbayListingModal({
   const [inputPrice, setInputPrice] = useState(initialPrice);
   const [inputCondition, setInputCondition] = useState(initialCondition);
   const [inputDescription, setInputDescription] = useState(
-    initialDescription || `Authentic ${initialBrand} ${initialTitle}. Clean pre-owned condition, tested & working.`
+    initialDescription ||
+      `Authentic ${initialBrand} ${initialTitle}. Clean pre-owned condition, tested & working.`
   );
 
   if (!isOpen) return null;
+
+  const handleOpenEbayDraftWizard = () => {
+    // Copy item description so user can paste it straight into eBay's description box if needed
+    if (navigator?.clipboard && inputDescription) {
+      navigator.clipboard.writeText(inputDescription);
+      toast.success("📋 Item description copied to clipboard!");
+    }
+    const ebayPrelistUrl = `https://www.ebay.com.au/sl/prelist/suggest?keyword=${encodeURIComponent(
+      inputTitle
+    )}`;
+    window.open(ebayPrelistUrl, "_blank", "noopener,noreferrer");
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,7 +91,7 @@ export default function EbayListingModal({
       }
 
       if (data.success) {
-        setPublishedUrl(data.listingUrl || "https://sandbox.ebay.com/itm/SPADAS-DEMO-ITEM");
+        setPublishedUrl(data.listingUrl || "https://www.ebay.com.au/sh/lst/active");
         setIsDemo(!!data.isDemoMode);
         toast.success(
           data.isDemoMode
@@ -77,9 +99,10 @@ export default function EbayListingModal({
             : "Successfully published to eBay Seller Hub!"
         );
       }
-    } catch (err: any) {
-      setError(err?.message || "Publish request failed");
-      toast.error(err?.message || "Failed to publish listing to eBay.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Publish request failed";
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -111,16 +134,16 @@ export default function EbayListingModal({
             </div>
             <div className="space-y-1">
               <h3 className="text-xl font-bold text-slate-100">
-                {isDemo ? "Draft Created (Demo Mode)" : "Published to eBay!"}
+                {isDemo ? "Draft Created (Demo Mode)" : "Saved to eBay Seller Hub!"}
               </h3>
               <p className="text-xs text-slate-400 max-w-sm mx-auto">
                 {isDemo
                   ? "Item pre-filled in sandbox mode. Connect your real eBay Seller account in Settings for live Seller Hub sync."
-                  : "Your item draft is now active in your eBay Seller Hub dashboard."}
+                  : "Your item is stored in your eBay Seller Hub inventory where you can review, add photos, or publish anytime."}
               </p>
             </div>
 
-            <div className="pt-2 flex items-center justify-center gap-3">
+            <div className="pt-3 flex flex-wrap items-center justify-center gap-3">
               <a
                 href={publishedUrl}
                 target="_blank"
@@ -130,6 +153,16 @@ export default function EbayListingModal({
                 <span>Open eBay Seller Hub</span>
                 <ExternalLink className="w-4 h-4" />
               </a>
+
+              <button
+                type="button"
+                onClick={handleOpenEbayDraftWizard}
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-cyan-300 font-bold rounded-xl text-xs border border-cyan-500/30 transition"
+              >
+                <FileText className="w-4 h-4 text-cyan-400" />
+                <span>Open Web Draft Wizard</span>
+              </button>
+
               <button
                 type="button"
                 onClick={onClose}
@@ -145,7 +178,7 @@ export default function EbayListingModal({
             <div className="p-3 bg-cyan-500/10 border border-cyan-500/30 rounded-xl text-xs flex items-center justify-between gap-3 text-cyan-300">
               <div className="flex items-center gap-2">
                 <ShoppingBag className="w-4 h-4 shrink-0 text-cyan-400" />
-                <span>Publish directly to your connected eBay Seller Hub inventory.</span>
+                <span>1-Click Save to eBay Inventory or Launch Draft Listing Wizard.</span>
               </div>
               <span className="px-2.5 py-1 bg-cyan-500/20 text-cyan-300 font-extrabold rounded-lg text-[11px] shrink-0 border border-cyan-500/30">
                 1-Click Live
@@ -163,7 +196,11 @@ export default function EbayListingModal({
             <div className="space-y-1">
               <div className="flex items-center justify-between text-xs font-semibold text-slate-300">
                 <label htmlFor="ebay-title">eBay Item Title (Max 80 Chars)</label>
-                <span className={`text-[11px] font-mono ${inputTitle.length > 80 ? "text-rose-400 font-bold" : "text-slate-500"}`}>
+                <span
+                  className={`text-[11px] font-mono ${
+                    inputTitle.length > 80 ? "text-rose-400 font-bold" : "text-slate-500"
+                  }`}
+                >
                   {inputTitle.length}/80
                 </span>
               </div>
@@ -181,7 +218,9 @@ export default function EbayListingModal({
             {/* Price & Condition */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <label htmlFor="ebay-price" className="text-xs font-semibold text-slate-300 block">Buy It Now (AUD)</label>
+                <label htmlFor="ebay-price" className="text-xs font-semibold text-slate-300 block">
+                  Buy It Now (AUD)
+                </label>
                 <div className="relative">
                   <span className="absolute left-3 top-2 text-xs font-bold text-slate-400">$</span>
                   <input
@@ -198,7 +237,12 @@ export default function EbayListingModal({
               </div>
 
               <div className="space-y-1">
-                <label htmlFor="ebay-condition" className="text-xs font-semibold text-slate-300 block">Condition</label>
+                <label
+                  htmlFor="ebay-condition"
+                  className="text-xs font-semibold text-slate-300 block"
+                >
+                  Condition
+                </label>
                 <select
                   id="ebay-condition"
                   value={inputCondition}
@@ -215,7 +259,20 @@ export default function EbayListingModal({
 
             {/* Description */}
             <div className="space-y-1">
-              <label htmlFor="ebay-description" className="text-xs font-semibold text-slate-300 block">Item Description</label>
+              <div className="flex items-center justify-between text-xs font-semibold text-slate-300">
+                <label htmlFor="ebay-description">Item Description</label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(inputDescription);
+                    toast.success("Description copied to clipboard!");
+                  }}
+                  className="text-[11px] text-cyan-400 hover:text-cyan-300 flex items-center gap-1 cursor-pointer font-normal"
+                >
+                  <Copy className="w-3 h-3" />
+                  <span>Copy text</span>
+                </button>
+              </div>
               <textarea
                 id="ebay-description"
                 rows={3}
@@ -226,31 +283,43 @@ export default function EbayListingModal({
             </div>
 
             {/* Actions */}
-            <div className="pt-2 flex items-center justify-end gap-3">
+            <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
               <button
                 type="button"
-                onClick={onClose}
-                className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl text-xs transition"
+                onClick={handleOpenEbayDraftWizard}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-cyan-300 font-bold rounded-xl text-xs border border-cyan-500/30 transition cursor-pointer"
+                title="Opens eBay's official Draft Listing Wizard with pre-filled title & category so you can finish details directly on eBay"
               >
-                Cancel
+                <FileText className="w-4 h-4 text-cyan-400" />
+                <span>Open in eBay Draft Wizard</span>
               </button>
-              <button
-                type="submit"
-                disabled={loading || inputTitle.length === 0}
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-extrabold rounded-xl text-xs shadow-lg shadow-cyan-500/20 transition disabled:opacity-50 cursor-pointer"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Publishing to eBay...</span>
-                  </>
-                ) : (
-                  <>
-                    <ShoppingBag className="w-4 h-4" />
-                    <span>Publish Listing</span>
-                  </>
-                )}
-              </button>
+
+              <div className="flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl text-xs transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading || inputTitle.length === 0}
+                  className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:opacity-90 text-slate-950 font-black rounded-xl text-xs shadow-lg shadow-cyan-500/20 transition disabled:opacity-50 cursor-pointer"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
+                      <span>Saving to eBay...</span>
+                    </>
+                  ) : (
+                    <>
+                      <ShoppingBag className="w-4 h-4" />
+                      <span>Save to Inventory</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </form>
         )}
