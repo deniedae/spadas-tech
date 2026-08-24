@@ -183,18 +183,18 @@ export async function publishToEbayInventory(
     (url) => typeof url === "string" && (url.startsWith("http://") || url.startsWith("https://"))
   );
 
-  const payload: EbayInventoryItemPayload = {
-    sku,
+  const condition = mapToEbayCondition(listing.condition || "Used");
+  const payload: Record<string, unknown> = {
     product: {
       title: listing.product.slice(0, 80),
       description: listing.description || `Listed via Spadas Technology AI Platform. ${listing.product}`,
-      brand: listing.brand || "Unbranded",
       aspects: {
         Brand: [listing.brand || "Unbranded"],
       },
-      imageUrls: validHttpImageUrls.length > 0 ? validHttpImageUrls : undefined,
+      ...(validHttpImageUrls.length > 0 ? { imageUrls: validHttpImageUrls } : {}),
     },
-    condition: mapToEbayCondition(listing.condition || "Used"),
+    condition,
+    ...(condition !== "NEW" ? { conditionDescription: "Pre-owned in working condition." } : {}),
     availability: {
       shipToLocationAvailability: {
         quantity: 1,
