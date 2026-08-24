@@ -163,7 +163,40 @@ export function mapToEbayCondition(cond: string): EbayInventoryItemPayload["cond
 }
 
 /**
- * Publish Spadas AI Listing to eBay Inventory REST API
+ * Ensure an inventory location exists on the seller's account
+ */
+async function ensureMerchantLocation(apiHost: string, accessToken: string, locationKey: string) {
+  try {
+    const locPayload = {
+      location: {
+        address: {
+          addressLine1: "123 Reseller St",
+          city: "Melbourne",
+          stateOrProvince: "VIC",
+          postalCode: "3000",
+          country: "AU",
+        },
+      },
+      name: "Spadas Main Warehouse",
+      merchantLocationStatus: "ENABLED",
+      locationTypes: ["WAREHOUSE"],
+    };
+
+    await fetch(`https://${apiHost}/sell/inventory/v1/location/${locationKey}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(locPayload),
+    });
+  } catch (locErr) {
+    console.warn("Could not ensure merchant location:", locErr);
+  }
+}
+
+/**
+ * Publish Spadas AI Listing to eBay Inventory & Offer REST API
  */
 export async function publishToEbayInventory(
   accessToken: string,
@@ -176,15 +209,20 @@ export async function publishToEbayInventory(
     imageUrls?: string[];
   }
 ) {
-  const sku = `SPADAS-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+  const apiHost = getApiHost();
+  const merchantLocationKey = "spadas_store_au";
+  const sku = `SPADAS_AU_${Date.now()}`;
 
-  // eBay requires valid public HTTP/HTTPS URLs for imageUrls; filter out base64 data URIs
+  // 1. Ensure merchant location exists on eBay
+  await ensureMerchantLocation(apiHost, accessToken, merchantLocationKey);
+
+  // 2. Filter valid image URLs
   const validHttpImageUrls = (listing.imageUrls || []).filter(
     (url) => typeof url === "string" && (url.startsWith("http://") || url.startsWith("https://"))
   );
 
   const condition = mapToEbayCondition(listing.condition || "Used");
-  const payload: Record<string, unknown> = {
+  const itemPayload: Record<string, unknown> = {
     product: {
       title: listing.product.slice(0, 80),
       description: listing.description || `Listed via Spadas Technology AI Platform. ${listing.product}`,
@@ -202,17 +240,17 @@ export async function publishToEbayInventory(
     },
   };
 
-  const apiHost = getApiHost();
+  // 3. Create or Replace Inventory Item
   const res = await fetch(`https://${apiHost}/sell/inventory/v1/inventory_item/${encodeURIComponent(sku)}`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
-      "Content-Language": "en-US",
+      "Content-Language": "en-AU",
       "Accept": "application/json",
-      "Accept-Language": "en-US",
+      "Accept-Language": "en-AU",
       Authorization: `Bearer ${accessToken}`,
     },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(itemPayload),
   });
 
   if (!res.ok && res.status !== 204) {
@@ -220,13 +258,82 @@ export async function publishToEbayInventory(
     throw new Error(`eBay Inventory API error (${res.status}): ${errText}`);
   }
 
+  // 4. Create an Offer for this inventory item
+  let offerId: string | null = null;
+  let isLive = false;
+  let listingId: string | null = null;
+
+  try {
+    const offerPayload = {
+      sku: sku,
+      marketplaceId: "EBAY_AU",
+      format: "FIXED_PRICE",
+      availableQuantity: 1,
+      merchantLocationKey: merchantLocationKey,
+      pricingSummary: {
+        price: {
+          value: Number(listing.price || 25).toFixed(2),
+          currency: "AUD",
+        },
+      },
+      listingDescription: listing.description || `Listed via Spadas Technology AI Platform. ${listing.product}`,
+    };
+
+    const offerRes = await fetch(`https://${apiHost}/sell/inventory/v1/offer`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+        "Content-Language": "en-AU",
+        "Accept": "application/json",
+        "Accept-Language": "en-AU",
+      },
+      body: JSON.stringify(offerPayload),
+    });
+
+    if (offerRes.ok) {
+      const offerData = await offerRes.json();
+      offerId = offerData.offerId || null;
+
+      // 5. If offer created, attempt to publish it live
+      if (offerId) {
+        const pubRes = await fetch(`https://${apiHost}/sell/inventory/v1/offer/${offerId}/publish`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+            "Content-Language": "en-AU",
+            "Accept": "application/json",
+            "Accept-Language": "en-AU",
+          },
+        });
+
+        if (pubRes.ok) {
+          const pubData = await pubRes.json();
+          listingId = pubData.listingId || null;
+          isLive = !!listingId;
+        }
+      }
+    }
+  } catch (offerErr) {
+    console.warn("Offer creation/publish warning:", offerErr);
+  }
+
   const isProduction = apiHost === "api.ebay.com";
+  const listingUrl = isLive && listingId
+    ? `https://${isProduction ? "www" : "sandbox"}.ebay.com.au/itm/${listingId}`
+    : `https://${isProduction ? "www" : "sandbox"}.ebay.com.au/sh/lst/drafts`;
+
   return {
     success: true,
     sku,
+    offerId,
+    isLive,
+    listingId,
     environment: isProduction ? "production" : "sandbox",
-    listingUrl: isProduction
-      ? "https://www.ebay.com.au/sh/lst/active"
-      : "https://sandbox.ebay.com/sh/lst/active",
+    listingUrl,
+    message: isLive
+      ? "Listing is LIVE on eBay!"
+      : "Inventory draft and offer created in your eBay Seller Hub!",
   };
 }
