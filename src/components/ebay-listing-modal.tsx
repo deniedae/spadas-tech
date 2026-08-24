@@ -10,9 +10,11 @@ import {
   AlertCircle,
   FileText,
   Copy,
-  Layers,
+  Bookmark,
 } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/app/lib/supabase";
+import { createListing } from "@/app/lib/createlisting";
 
 interface EbayListingModalProps {
   isOpen: boolean;
@@ -37,6 +39,7 @@ export default function EbayListingModal({
   imageUrls = [],
 }: EbayListingModalProps) {
   const [loading, setLoading] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [publishedUrl, setPublishedUrl] = useState<string | null>(null);
   const [isDemo, setIsDemo] = useState<boolean>(false);
@@ -51,12 +54,43 @@ export default function EbayListingModal({
 
   if (!isOpen) return null;
 
-  const handleOpenEbayDraftWizard = () => {
-    // Copy item description so user can paste it straight into eBay's description box if needed
+  const handleOpenEbayDraftWizard = async () => {
+    setSavingDraft(true);
+
+    // 1. Copy description to clipboard
     if (navigator?.clipboard && inputDescription) {
-      navigator.clipboard.writeText(inputDescription);
-      toast.success("📋 Item description copied to clipboard!");
+      try {
+        await navigator.clipboard.writeText(inputDescription);
+      } catch {
+        // clipboard fallback
+      }
     }
+
+    // 2. Save as Draft into Spadas AI Listings table
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (user) {
+        await createListing({
+          userId: user.id,
+          product: inputTitle,
+          price: Number(inputPrice),
+          description: inputDescription,
+          status: "Draft",
+        });
+        toast.success("💾 Saved draft to Spadas AI & copied description!");
+      } else {
+        toast.success("📋 Item description copied to clipboard!");
+      }
+    } catch {
+      toast.success("📋 Item description copied to clipboard!");
+    } finally {
+      setSavingDraft(false);
+    }
+
+    // 3. Open eBay's official listing draft wizard in a new tab
     const ebayPrelistUrl = `https://www.ebay.com.au/sl/prelist/suggest?keyword=${encodeURIComponent(
       inputTitle
     )}`;
@@ -160,7 +194,7 @@ export default function EbayListingModal({
                 className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-cyan-300 font-bold rounded-xl text-xs border border-cyan-500/30 transition"
               >
                 <FileText className="w-4 h-4 text-cyan-400" />
-                <span>Open Web Draft Wizard</span>
+                <span>Open in eBay Draft Wizard</span>
               </button>
 
               <button
@@ -287,11 +321,16 @@ export default function EbayListingModal({
               <button
                 type="button"
                 onClick={handleOpenEbayDraftWizard}
-                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-cyan-300 font-bold rounded-xl text-xs border border-cyan-500/30 transition cursor-pointer"
-                title="Opens eBay's official Draft Listing Wizard with pre-filled title & category so you can finish details directly on eBay"
+                disabled={savingDraft || inputTitle.length === 0}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-cyan-300 font-bold rounded-xl text-xs border border-cyan-500/30 transition cursor-pointer disabled:opacity-50"
+                title="Saves a draft in Spadas AI and opens eBay's draft wizard so you can finish anytime"
               >
-                <FileText className="w-4 h-4 text-cyan-400" />
-                <span>Open in eBay Draft Wizard</span>
+                {savingDraft ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-cyan-400" />
+                ) : (
+                  <Bookmark className="w-4 h-4 text-cyan-400" />
+                )}
+                <span>Save Draft & Open eBay Wizard</span>
               </button>
 
               <div className="flex items-center justify-end gap-2">
