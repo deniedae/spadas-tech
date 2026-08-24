@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/app/lib/supabase";
+import { createClient } from "@/app/lib/server";
 import { publishToEbayInventory, refreshEbayToken } from "@/app/lib/marketplaces/ebay";
+import { createClient as createAdminClient } from "@supabase/supabase-js";
 
 export async function POST(req: NextRequest) {
   try {
+    const supabase = await createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -22,19 +24,28 @@ export async function POST(req: NextRequest) {
     const targetBrand = brand || listing?.analysis?.brand || "Unbranded";
     const targetImages = imageUrls || listing?.imageUrls || [];
 
-    // Fetch user's eBay tokens from Supabase
-    const { data: tokenRow } = await supabase
+    // Fetch user's eBay tokens from Supabase using admin client or SSR client
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    const dbClient =
+      supabaseUrl && serviceRoleKey
+        ? createAdminClient(supabaseUrl, serviceRoleKey, {
+            auth: { persistSession: false, autoRefreshToken: false },
+          })
+        : supabase;
+
+    const { data: tokenRow } = await dbClient
       .from("user_marketplace_tokens")
       .select("*")
       .eq("user_id", user.id)
       .eq("platform", "ebay")
-      .single();
+      .maybeSingle();
 
     let accessToken = tokenRow?.access_token;
     let refreshToken = tokenRow?.refresh_token || process.env.EBAY_USER_REFRESH_TOKEN;
 
     if (!accessToken && !refreshToken) {
-      // Demo Mode / Unlinked Fallback for Testing
       if (process.env.NODE_ENV === "development" || !process.env.EBAY_CLIENT_ID) {
         return NextResponse.json({
           success: true,
@@ -59,11 +70,15 @@ export async function POST(req: NextRequest) {
         const refreshed = await refreshEbayToken(refreshToken);
         accessToken = refreshed.access_token;
 
-        await supabase.from("user_marketplace_tokens").update({
-          access_token: refreshed.access_token,
-          expires_at: new Date(Date.now() + refreshed.expires_in * 1000).toISOString(),
-          updated_at: new Date().toISOString(),
-        }).eq("user_id", user.id).eq("platform", "ebay");
+        await dbClient
+          .from("user_marketplace_tokens")
+          .update({
+            access_token: refreshed.access_token,
+            expires_at: new Date(Date.now() + refreshed.expires_in * 1000).toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq("user_id", user.id)
+          .eq("platform", "ebay");
       } catch (refreshErr) {
         console.error("Token refresh failed:", refreshErr);
         return NextResponse.json(
@@ -83,11 +98,9 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json(result);
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Failed to publish listing to eBay.";
     console.error("eBay Publish Error:", err);
-    return NextResponse.json(
-      { error: err.message || "Failed to publish listing to eBay." },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

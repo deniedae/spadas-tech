@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { exchangeCodeForTokens } from "@/app/lib/marketplaces/ebay";
-import { supabase } from "@/app/lib/supabase";
+import { createClient } from "@/app/lib/server";
+import { createClient as createAdminClient } from "@supabase/supabase-js";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -17,21 +18,53 @@ export async function GET(req: NextRequest) {
   }
 
   if (!code) {
-    return NextResponse.redirect(new URL("/settings?ebayError=No code provided", req.url));
+    return NextResponse.redirect(new URL("/settings?ebayError=No authorization code provided", req.url));
   }
 
   try {
     const tokens = await exchangeCodeForTokens(code);
 
+    // Try resolving user from SSR cookies first
+    const supabase = await createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
-    if (user) {
-      // Upsert tokens in user_marketplace_tokens table
-      await supabase.from("user_marketplace_tokens").upsert([
+    let resolvedUserId = user?.id;
+
+    // Fallback: decode userId from state if cookies were not passed across redirects
+    if (!resolvedUserId && state) {
+      try {
+        const decoded = JSON.parse(Buffer.from(state, "base64url").toString("utf-8"));
+        if (decoded.userId && decoded.userId !== "guest") {
+          resolvedUserId = decoded.userId;
+        }
+      } catch (parseErr) {
+        console.warn("Could not parse OAuth state:", parseErr);
+      }
+    }
+
+    if (!resolvedUserId) {
+      return NextResponse.redirect(
+        new URL("/settings?ebayError=Could not identify your Spadas account. Please log in and retry.", req.url)
+      );
+    }
+
+    // Save tokens using service role key to ensure permission
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    const dbClient =
+      supabaseUrl && serviceRoleKey
+        ? createAdminClient(supabaseUrl, serviceRoleKey, {
+            auth: { persistSession: false, autoRefreshToken: false },
+          })
+        : supabase;
+
+    const { error: upsertError } = await dbClient.from("user_marketplace_tokens").upsert(
+      [
         {
-          user_id: user.id,
+          user_id: resolvedUserId,
           platform: "ebay",
           access_token: tokens.access_token,
           refresh_token: tokens.refresh_token,
@@ -40,14 +73,23 @@ export async function GET(req: NextRequest) {
           is_connected: true,
           updated_at: new Date().toISOString(),
         },
-      ]);
+      ],
+      { onConflict: "user_id,platform" }
+    );
+
+    if (upsertError) {
+      console.error("Failed to save eBay marketplace tokens:", upsertError);
+      return NextResponse.redirect(
+        new URL(`/settings?ebayError=${encodeURIComponent(upsertError.message)}`, req.url)
+      );
     }
 
     return NextResponse.redirect(new URL("/settings?ebayConnected=true", req.url));
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "OAuth exchange failed";
     console.error("eBay Callback Exception:", err);
     return NextResponse.redirect(
-      new URL(`/settings?ebayError=${encodeURIComponent(err.message || "OAuth exchange failed")}`, req.url)
+      new URL(`/settings?ebayError=${encodeURIComponent(message)}`, req.url)
     );
   }
 }
