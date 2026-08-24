@@ -26,9 +26,13 @@ export interface EbayInventoryItemPayload {
   };
 }
 
-const EBAY_ENV = process.env.EBAY_ENVIRONMENT || "production";
-const EBAY_AUTH_HOST = EBAY_ENV === "production" ? "auth.ebay.com" : "auth.sandbox.ebay.com";
-const EBAY_API_HOST = EBAY_ENV === "production" ? "api.ebay.com" : "api.sandbox.ebay.com";
+export function getApiHost(): string {
+  const clientId = resolveClientId();
+  if (clientId.includes("-PRD-") || process.env.EBAY_ENVIRONMENT === "production") {
+    return "api.ebay.com";
+  }
+  return "api.sandbox.ebay.com";
+}
 
 const SCOPES = [
   "https://api.ebay.com/oauth/api_scope",
@@ -94,7 +98,8 @@ export async function exchangeCodeForTokens(code: string): Promise<EbayOAuthToke
     redirect_uri: ruName,
   });
 
-  const res = await fetch(`https://${EBAY_API_HOST}/identity/v1/oauth2/token`, {
+  const apiHost = getApiHost();
+  const res = await fetch(`https://${apiHost}/identity/v1/oauth2/token`, {
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
@@ -126,7 +131,8 @@ export async function refreshEbayToken(refreshToken: string): Promise<EbayOAuthT
     scope: SCOPES,
   });
 
-  const res = await fetch(`https://${EBAY_API_HOST}/identity/v1/oauth2/token`, {
+  const apiHost = getApiHost();
+  const res = await fetch(`https://${apiHost}/identity/v1/oauth2/token`, {
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
@@ -188,7 +194,8 @@ export async function publishToEbayInventory(
     },
   };
 
-  const res = await fetch(`https://${EBAY_API_HOST}/sell/inventory/v1/inventory_item/${encodeURIComponent(sku)}`, {
+  const apiHost = getApiHost();
+  const res = await fetch(`https://${apiHost}/sell/inventory/v1/inventory_item/${encodeURIComponent(sku)}`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
@@ -203,10 +210,11 @@ export async function publishToEbayInventory(
     throw new Error(`eBay Inventory API error (${res.status}): ${errText}`);
   }
 
+  const isProduction = apiHost === "api.ebay.com";
   return {
     success: true,
     sku,
-    environment: EBAY_ENV,
-    listingUrl: `https://${EBAY_ENV === "production" ? "www" : "sandbox"}.ebay.com/itm/${sku}`,
+    environment: isProduction ? "production" : "sandbox",
+    listingUrl: `https://${isProduction ? "www" : "sandbox"}.ebay.com/itm/${sku}`,
   };
 }
