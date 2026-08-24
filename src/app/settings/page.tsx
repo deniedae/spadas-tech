@@ -9,7 +9,6 @@ import {
   Shield,
   Palette,
   MessageSquare,
-  Info,
   Gem,
   Loader2,
   X,
@@ -19,6 +18,9 @@ import {
   Download,
   Smartphone,
   AlertCircle,
+  ShoppingBag,
+  CheckCircle2,
+  LinkIcon,
 } from "lucide-react";
 import SubscriptionPaywallModal from "@/components/subscription-paywall-modal";
 
@@ -36,6 +38,8 @@ export default function SettingsPage() {
   const [upgrading, setUpgrading] = useState(false);
   const [confirmLogout, setConfirmLogout] = useState(false);
   const [confirmUpgrade, setConfirmUpgrade] = useState(false);
+  const [ebayConnected, setEbayConnected] = useState(false);
+  const [ebayConnecting, setEbayConnecting] = useState(false);
   const [isPaywallOpen, setIsPaywallOpen] = useState(false);
   const [defaultMarketplace, setDefaultMarketplace] = useState("eBay");
   const [defaultCurrency, setDefaultCurrency] = useState("AUD");
@@ -50,13 +54,44 @@ export default function SettingsPage() {
     if (typeof window !== "undefined") {
       const urlParams = new URLSearchParams(window.location.search);
       if (urlParams.get("ebayConnected") === "true") {
-        toast.success("Successfully connected your eBay seller account!");
+        setEbayConnected(true);
+        toast.success("✅ eBay seller account connected successfully!");
+        // Clean URL
+        window.history.replaceState({}, "", "/settings");
       }
       if (urlParams.get("ebayError")) {
         toast.error(`eBay Connection Error: ${urlParams.get("ebayError")}`);
+        window.history.replaceState({}, "", "/settings");
       }
     }
   }, []);
+
+  // Check if user already has eBay connected
+  useEffect(() => {
+    async function checkEbayStatus() {
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (!currentUser) return;
+      const { data } = await supabase
+        .from("user_marketplace_tokens")
+        .select("is_connected")
+        .eq("user_id", currentUser.id)
+        .eq("platform", "ebay")
+        .maybeSingle();
+      setEbayConnected(!!data?.is_connected);
+    }
+    void checkEbayStatus();
+  }, []);
+
+  async function connectEbay() {
+    setEbayConnecting(true);
+    try {
+      // Redirect to eBay OAuth — browser follows the redirect chain
+      window.location.href = "/api/auth/ebay/connect";
+    } catch {
+      toast.error("Failed to start eBay connection. Try again.");
+      setEbayConnecting(false);
+    }
+  }
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -279,23 +314,63 @@ export default function SettingsPage() {
 
       {/* Marketplace Integrations */}
       <section className="rounded-3xl border border-slate-800 bg-slate-900/90 p-6 md:p-8 shadow-2xl backdrop-blur-xl space-y-4">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="inline-flex items-center gap-2 rounded-full bg-cyan-500/15 border border-cyan-400/30 px-3 py-1 text-xs font-black text-cyan-300">
-              🛒 MARKETPLACE INTEGRATIONS
+        <div className="flex items-center gap-3 border-b border-slate-800 pb-4">
+          <ShoppingBag className="h-6 w-6 text-cyan-400 shrink-0" aria-hidden="true" />
+          <div>
+            <h2 className="text-xl font-black text-white">Marketplace Integrations</h2>
+            <p className="text-xs text-slate-400">Connect your seller accounts for 1-click inventory publishing.</p>
+          </div>
+        </div>
+
+        {/* eBay Connection Card */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5 rounded-2xl border border-slate-800 bg-slate-950 p-5">
+          <div className="flex items-center gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-slate-700 bg-slate-900 text-2xl">
+              🛍️
             </div>
-            <h2 className="text-xl font-black text-white">Direct Marketplace Inventory Sync</h2>
-            <p className="text-xs text-slate-400 max-w-xl leading-relaxed">
-              Automated 1-click publishing for live eBay seller hub listings.
-            </p>
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-black text-white">eBay Seller Hub</span>
+                {ebayConnected && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-black text-emerald-400">
+                    <CheckCircle2 className="h-3 w-3" />
+                    CONNECTED
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-400">
+                {ebayConnected
+                  ? "Your eBay account is linked. 1-click publish is active."
+                  : "Connect to publish listings directly to your eBay Seller Hub."}
+              </p>
+            </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 rounded-xl bg-blue-500/15 border border-blue-500/30 px-4 py-2.5 text-xs font-black text-blue-300 shadow-md">
-              <span className="h-2 w-2 rounded-full bg-blue-400 animate-ping" />
-              <span>⏳ Direct 1-Click eBay Sync — Coming Soon</span>
-            </div>
-          </div>
+          <button
+            type="button"
+            id="ebay-connect-btn"
+            onClick={connectEbay}
+            disabled={ebayConnecting}
+            className={`inline-flex w-full sm:w-auto shrink-0 items-center justify-center gap-2 rounded-xl px-5 py-3 text-xs font-black transition active:scale-95 cursor-pointer disabled:opacity-50 ${
+              ebayConnected
+                ? "border border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700"
+                : "bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/20 hover:opacity-90"
+            }`}
+          >
+            {ebayConnecting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : ebayConnected ? (
+              <>
+                <LinkIcon className="h-4 w-4" />
+                <span>Reconnect eBay</span>
+              </>
+            ) : (
+              <>
+                <ShoppingBag className="h-4 w-4" />
+                <span>Connect eBay Account</span>
+              </>
+            )}
+          </button>
         </div>
       </section>
 

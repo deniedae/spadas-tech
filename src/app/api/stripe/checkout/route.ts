@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
+import { createClient } from "@/app/lib/server";
 
 export async function POST(request: Request) {
   try {
@@ -17,7 +18,6 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json().catch(() => ({}));
-    const email = typeof body?.email === "string" ? body.email.trim() : "";
     const planId = typeof body?.planId === "string" ? body.planId : "starter";
 
     // Determine target price ID based on selected plan tier
@@ -30,11 +30,24 @@ export async function POST(request: Request) {
       targetPriceId = process.env.STRIPE_ENTERPRISE_PRICE_ID;
     }
 
+    // Get authenticated user server-side so we can pass user_id to the webhook
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ message: "You must be logged in to upgrade." }, { status: 401 });
+    }
+
     const stripe = new Stripe(secretKey);
 
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
-      customer_email: email || undefined,
+      customer_email: user.email || undefined,
+      // client_reference_id is Stripe's first-class field for associating a checkout with your own user ID.
+      // The webhook reads this to reliably look up the user — no email-matching fragility.
+      client_reference_id: user.id,
       line_items: [
         {
           price: targetPriceId,
@@ -48,7 +61,8 @@ export async function POST(request: Request) {
         app: "spadas-ai",
         plan_id: planId,
         price_id: targetPriceId,
-        user_email: email,
+        user_id: user.id,
+        user_email: user.email || "",
       },
     });
 

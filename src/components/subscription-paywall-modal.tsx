@@ -67,25 +67,19 @@ export default function SubscriptionPaywallModal({
       });
 
       const data = await res.json();
+
       if (res.ok && data.url) {
+        // Redirect to real Stripe Checkout — the only valid path to Pro
         window.location.href = data.url;
-      } else {
-        toast.success(`🎉 Activating 7-Day Free Trial of ${plan.name}!`);
-        if (typeof window !== "undefined") {
-          localStorage.setItem("spadas_plan_override", plan.id);
-        }
-        setTimeout(() => {
-          onClose();
-        }, 800);
+        return; // Don't clear loadingPlan — we're navigating away
       }
-    } catch {
-      toast.success(`🎉 Activating 7-Day Free Trial of ${plan.name}!`);
-      if (typeof window !== "undefined") {
-        localStorage.setItem("spadas_plan_override", plan.id);
-      }
-      setTimeout(() => {
-        onClose();
-      }, 800);
+
+      // Surface the actual server error — never silently bypass the paywall
+      const message = data?.message || "Checkout unavailable. Please try again.";
+      toast.error(`Checkout failed: ${message}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Network error. Please check your connection.";
+      toast.error(message);
     } finally {
       setLoadingPlan(null);
     }
