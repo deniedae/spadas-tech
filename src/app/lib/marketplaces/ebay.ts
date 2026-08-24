@@ -225,6 +225,8 @@ export async function publishToEbayInventory(
     success: true,
     sku,
     environment: isProduction ? "production" : "sandbox",
-    listingUrl: `https://${isProduction ? "www" : "sandbox"}.ebay.com/itm/${sku}`,
+    listingUrl: isProduction
+      ? "https://www.ebay.com.au/sh/lst/active"
+      : "https://sandbox.ebay.com/sh/lst/active",
   };
 }
