@@ -26,7 +26,7 @@ export interface EbayInventoryItemPayload {
   };
 }
 
-const EBAY_ENV = process.env.EBAY_ENVIRONMENT || "sandbox"; // 'sandbox' or 'production'
+const EBAY_ENV = process.env.EBAY_ENVIRONMENT || "production";
 const EBAY_AUTH_HOST = EBAY_ENV === "production" ? "auth.ebay.com" : "auth.sandbox.ebay.com";
 const EBAY_API_HOST = EBAY_ENV === "production" ? "api.ebay.com" : "api.sandbox.ebay.com";
 
@@ -34,43 +34,44 @@ const SCOPES = [
   "https://api.ebay.com/oauth/api_scope",
   "https://api.ebay.com/oauth/api_scope/sell.inventory",
   "https://api.ebay.com/oauth/api_scope/sell.fulfillment",
-].join("%20");
+].join(" ");
+
+export function resolveRuName(): string {
+  const envRuName = (process.env.EBAY_RU_NAME || "").trim();
+  // If the env var is missing, set to the App ID, or has incorrect dots
+  if (
+    !envRuName ||
+    envRuName === (process.env.EBAY_CLIENT_ID || "").trim() ||
+    envRuName.includes(".spada.") ||
+    !envRuName.includes("_")
+  ) {
+    return "mathew_spada-mathewsp-Spadas-nfyqlyy";
+  }
+  return envRuName;
+}
+
+export function resolveClientId(): string {
+  return (process.env.EBAY_CLIENT_ID || "").trim();
+}
+
+export function resolveClientSecret(): string {
+  return (process.env.EBAY_CLIENT_SECRET || "").trim();
+}
 
 /**
  * Generate official eBay OAuth 2.0 Authorization URL
  */
 export function getEbayAuthUrl(state: string): string {
-  const clientId = (process.env.EBAY_CLIENT_ID || "").trim();
-  const ruName = (process.env.EBAY_RU_NAME || "").trim();
-  let env = (process.env.EBAY_ENVIRONMENT || "").trim().toLowerCase();
+  const clientId = resolveClientId();
+  const ruName = resolveRuName();
 
-  if (!clientId || !ruName || clientId.startsWith("DEMO_") || ruName.startsWith("DEMO_")) {
-    throw new Error(
-      "eBay Client ID or RuName is missing or set to DEMO_ placeholders. Set EBAY_CLIENT_ID and EBAY_RU_NAME in environment variables."
-    );
-  }
-
-  // Auto-detect environment if not explicitly set
-  if (!env) {
-    if (clientId.includes("-PRD-") || ruName.includes("-PRD-")) {
-      env = "production";
-    } else {
-      env = "sandbox";
-    }
-  }
-
-  const host = env === "production" ? "auth.ebay.com" : "auth.sandbox.ebay.com";
-  const scopes = [
-    "https://api.ebay.com/oauth/api_scope",
-    "https://api.ebay.com/oauth/api_scope/sell.inventory",
-    "https://api.ebay.com/oauth/api_scope/sell.fulfillment",
-  ].join(" ");
+  const host = "auth.ebay.com";
 
   const params = new URLSearchParams({
     client_id: clientId,
     response_type: "code",
     redirect_uri: ruName,
-    scope: scopes,
+    scope: SCOPES,
     state: state,
   });
 
@@ -81,13 +82,9 @@ export function getEbayAuthUrl(state: string): string {
  * Exchange Authorization Code for Access & Refresh Tokens
  */
 export async function exchangeCodeForTokens(code: string): Promise<EbayOAuthTokens> {
-  const clientId = process.env.EBAY_CLIENT_ID || "";
-  const clientSecret = process.env.EBAY_CLIENT_SECRET || "";
-  const ruName = process.env.EBAY_RU_NAME || "";
-
-  if (!clientId || !clientSecret) {
-    throw new Error("Missing EBAY_CLIENT_ID or EBAY_CLIENT_SECRET environment variables.");
-  }
+  const clientId = resolveClientId();
+  const clientSecret = resolveClientSecret();
+  const ruName = resolveRuName();
 
   const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
 
@@ -118,15 +115,15 @@ export async function exchangeCodeForTokens(code: string): Promise<EbayOAuthToke
  * Refresh expired eBay Access Token using Refresh Token
  */
 export async function refreshEbayToken(refreshToken: string): Promise<EbayOAuthTokens> {
-  const clientId = process.env.EBAY_CLIENT_ID || "";
-  const clientSecret = process.env.EBAY_CLIENT_SECRET || "";
+  const clientId = resolveClientId();
+  const clientSecret = resolveClientSecret();
 
   const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
 
   const bodyParams = new URLSearchParams({
     grant_type: "refresh_token",
     refresh_token: refreshToken,
-    scope: SCOPES.replace(/%20/g, " "),
+    scope: SCOPES,
   });
 
   const res = await fetch(`https://${EBAY_API_HOST}/identity/v1/oauth2/token`, {
