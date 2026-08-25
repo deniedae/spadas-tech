@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   ShoppingBag,
   CheckCircle2,
@@ -51,6 +51,21 @@ export default function EbayListingModal({
     initialDescription ||
       `Authentic ${initialBrand} ${initialTitle}. Clean pre-owned condition, tested & working.`
   );
+
+  useEffect(() => {
+    if (isOpen) {
+      setInputTitle((initialTitle || "").slice(0, 80));
+      setInputPrice(Number(initialPrice) || 25);
+      setInputCondition(initialCondition || "Used - Good");
+      setInputDescription(
+        initialDescription ||
+          (initialTitle ? `Authentic ${initialBrand} ${initialTitle}. Clean pre-owned condition, tested & working.` : "")
+      );
+      setError(null);
+      setPublishedUrl(null);
+      setPublishedSku(null);
+    }
+  }, [isOpen, initialTitle, initialPrice, initialCondition, initialDescription, initialBrand]);
 
   if (!isOpen) return null;
 
