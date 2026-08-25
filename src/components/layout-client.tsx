@@ -61,6 +61,7 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
   // User & Subscription state for sidebar
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [isProUser, setIsProUser] = useState(false);
+  const [isEbayConnected, setIsEbayConnected] = useState(false);
 
   useEffect(() => {
     async function loadUserAndSub() {
@@ -71,6 +72,15 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
 
         if (user?.email) {
           setUserEmail(user.email);
+
+          // Check eBay connection
+          const { data: ebayData } = await supabase
+            .from("user_marketplace_tokens")
+            .select("is_connected")
+            .eq("user_id", user.id)
+            .eq("platform", "ebay")
+            .maybeSingle();
+          setIsEbayConnected(!!ebayData?.is_connected);
         }
 
         // Pro check — resolved server-side only, no client-side email bypass
@@ -99,14 +109,14 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
     return <>{children}</>;
   }
 
-  // Streamlined Navigation items for sidebar (Less is More approach)
+  // Streamlined Navigation items for sidebar (Spadas Radar hidden, Profit Calculator added)
   const navItems = [
     { href: "/lens", label: "🔮 Spadas Lens AR" },
     { href: "/history", label: "📜 Scan History" },
     { href: "/dashboard", label: "🏠 Dashboard" },
     { href: "/listings", label: "📦 My Listings" },
-    { href: "/radar", label: "📡 Spadas Radar" },
     { href: "/generator", label: "🤖 AI Generator" },
+    { href: "/calculator", label: "💰 Profit Calculator" },
     { href: "/settings", label: "⚙️ Settings" },
   ];
 
@@ -120,8 +130,8 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
     "/history": "Scan History Feed",
     "/dashboard": "Dashboard",
     "/listings": "My Listings",
-    "/radar": "Spadas Radar Arbitrage",
     "/generator": "AI Generator",
+    "/calculator": "Reseller Profit Calculator",
     "/settings": "Settings",
   };
   const pageTitle = pageTitleMap[pathname] || "SpadasTechnology";
@@ -271,15 +281,30 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
           </div>
 
           {/* SaaS Header Right Actions & Live Market Sync Status */}
-          <div className="hidden sm:flex items-center gap-4">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 px-3 py-1 text-xs font-bold text-emerald-700">
-              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-              eBay AU Sold Comps Live
-            </span>
+          <div className="hidden sm:flex items-center gap-3">
+            {isEbayConnected ? (
+              <Link
+                href="/settings"
+                className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 px-3 py-1 text-xs font-bold text-emerald-400 hover:bg-emerald-500/20 transition cursor-pointer"
+                title="eBay Account Connected - 1-Click Publishing Active"
+              >
+                <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span>🛍️ eBay Connected</span>
+              </Link>
+            ) : (
+              <Link
+                href="/settings"
+                className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 px-3 py-1 text-xs font-bold text-amber-400 hover:bg-amber-500/20 transition cursor-pointer"
+                title="Click to Connect your eBay Seller Hub"
+              >
+                <span className="h-2 w-2 rounded-full bg-amber-400" />
+                <span>⚡ Connect eBay</span>
+              </Link>
+            )}
 
             <Link
               href="/lens"
-              className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-cyan-600 px-3.5 text-xs font-extrabold text-white shadow-sm hover:bg-cyan-500 transition cursor-pointer active:scale-95"
+              className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-3.5 text-xs font-black text-slate-950 shadow-md shadow-cyan-500/20 hover:scale-105 transition cursor-pointer active:scale-95"
             >
               📷 Open Camera AR
             </Link>

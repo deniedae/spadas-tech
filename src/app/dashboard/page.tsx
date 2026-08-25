@@ -155,6 +155,7 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [isPaywallOpen, setIsPaywallOpen] = useState(false);
   const [isPro, setIsPro] = useState(false);
+  const [isEbayConnected, setIsEbayConnected] = useState(false);
 
   /** Shared logic to process raw listing data into stats + recent view. */
   function processListings(data: Listing[]) {
@@ -190,6 +191,18 @@ export default function Dashboard() {
         if (!user) {
           router.push("/login");
           return;
+        }
+
+        // Check eBay token status
+        const { data: ebayToken } = await supabase
+          .from("user_marketplace_tokens")
+          .select("is_connected")
+          .eq("user_id", user.id)
+          .eq("platform", "ebay")
+          .maybeSingle();
+
+        if (!cancelled) {
+          setIsEbayConnected(!!ebayToken?.is_connected);
         }
 
         // Pro check — always resolved server-side from /api/stripe/status
@@ -297,6 +310,61 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
+
+        {/* Live Marketplace Integration Hub Status */}
+        {isEbayConnected ? (
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-3xl bg-slate-900/90 border border-emerald-500/30 p-4 sm:p-5 shadow-2xl backdrop-blur-xl">
+            <div className="flex items-center gap-3.5">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 shrink-0">
+                <ShoppingCart className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-black text-white">eBay Seller Hub Connected</h3>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-[10px] font-black text-emerald-400 border border-emerald-500/30">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    LIVE & ACTIVE
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  1-click background publishing is ready. Your scan drafts and listings sync directly to your eBay account.
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/settings"
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 px-3.5 py-2 rounded-xl transition border border-slate-700 shrink-0 cursor-pointer"
+            >
+              <span>Manage Integration</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+        ) : (
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-3xl bg-gradient-to-r from-slate-900 via-blue-950/40 to-slate-900 border border-cyan-500/30 p-4 sm:p-5 shadow-2xl backdrop-blur-xl">
+            <div className="flex items-center gap-3.5">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 shrink-0">
+                <ShoppingCart className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-black text-white">Connect your eBay Seller Account</h3>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-cyan-500/20 px-2 py-0.5 text-[10px] font-black text-cyan-400 border border-cyan-500/30">
+                    RECOMMENDED
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Unlock 1-click publishing directly from camera scans to your eBay Australia store.
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/api/auth/ebay/connect"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-4 py-2 text-xs font-black text-slate-950 shadow-md shadow-cyan-500/20 hover:scale-105 transition shrink-0 cursor-pointer"
+            >
+              <span>⚡ Connect eBay</span>
+            </Link>
+          </div>
+        )}
 
         {/* Error Banner */}
         {error && (
