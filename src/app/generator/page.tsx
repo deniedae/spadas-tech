@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import ImageDropzone from "@/components/image-dropzone";
 import UsageBadge from "@/components/usage-badge";
 import PricingStrategyCard from "@/components/pricing-strategy-card";
+import EbayListingModal from "@/components/ebay-listing-modal";
 import type { AiListingResult, Confidence, ShippingSize } from "@/types/ai-listing";
 import { ArrowLeft, Sparkles, Loader2, Save, TrendingUp, ShieldCheck, ShoppingBag, Camera } from "lucide-react";
 import Link from "next/link";
@@ -39,44 +40,8 @@ export default function AiNewListingPage() {
   const [stageIdx, setStageIdx] = useState(0);
   const [result, setResult] = useState<AiListingResult | null>(null);
   const [saving, setSaving] = useState(false);
-  const [publishingEbay, setPublishingEbay] = useState(false);
+  const [isEbayModalOpen, setIsEbayModalOpen] = useState(false);
   const stageTimer = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  async function handlePublishEbay() {
-    if (!form.product.trim()) {
-      toast.error("Product name is required.");
-      return;
-    }
-    setPublishingEbay(true);
-    try {
-      const res = await fetch("/api/marketplaces/ebay/publish", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          product: form.product.trim(),
-          description: form.seo_description || form.detailed_description,
-          price: Number(form.price) || 25,
-          condition: form.condition,
-          brand: form.brand,
-          imageUrls,
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok || data.error) {
-        throw new Error(data.error || "Failed to publish to eBay.");
-      }
-
-      toast.success(data.message || "Successfully published to eBay!");
-      if (data.listingUrl) {
-        window.open(data.listingUrl, "_blank");
-      }
-    } catch (err: any) {
-      toast.error(err.message || "Failed to publish to eBay.");
-    } finally {
-      setPublishingEbay(false);
-    }
-  }
 
   const [form, setForm] = useState({
     product: "",
@@ -563,7 +528,7 @@ export default function AiNewListingPage() {
               <button
                 type="button"
                 onClick={handleSave}
-                disabled={saving || publishingEbay}
+                disabled={saving}
                 className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-800 hover:bg-slate-700 px-4 py-3 text-xs font-bold text-slate-200 border border-slate-700 transition active:scale-95 disabled:opacity-50 cursor-pointer"
               >
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
@@ -572,23 +537,34 @@ export default function AiNewListingPage() {
 
               <button
                 type="button"
-                onClick={handlePublishEbay}
-                disabled={saving || publishingEbay}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-4 py-3 text-xs font-black text-slate-950 shadow-lg shadow-cyan-500/20 hover:scale-105 active:scale-95 transition disabled:opacity-50 cursor-pointer"
+                onClick={() => {
+                  if (!form.product.trim()) {
+                    toast.error("Please enter a product title first.");
+                    return;
+                  }
+                  setIsEbayModalOpen(true);
+                }}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-4 py-3 text-xs font-black text-slate-950 shadow-lg shadow-cyan-500/20 hover:scale-105 active:scale-95 transition cursor-pointer"
               >
-                {publishingEbay ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <>
-                    <ShoppingBag className="h-4 w-4" />
-                    <span>⚡ Publish to eBay</span>
-                  </>
-                )}
+                <ShoppingBag className="h-4 w-4" />
+                <span>⚡ Publish to eBay</span>
               </button>
             </div>
           </div>
         </section>
       </div>
+
+      {/* Dedicated eBay Publish Review Modal */}
+      <EbayListingModal
+        isOpen={isEbayModalOpen}
+        onClose={() => setIsEbayModalOpen(false)}
+        title={form.ebay_title || form.product}
+        brand={form.brand || "Authentic"}
+        price={Number(form.price) || 25}
+        condition={form.condition || "Used - Good"}
+        description={form.detailed_description || form.seo_description}
+        imageUrls={imageUrls}
+      />
     </main>
   );
 }

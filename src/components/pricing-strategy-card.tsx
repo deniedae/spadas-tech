@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { Zap, Target, Gem, Clock, ArrowRight, Check } from "lucide-react";
-import { fmtMoney } from "@/app/lib/listings";
 
 interface PricingStrategyCardProps {
   medianPrice: number;
@@ -20,16 +19,14 @@ export default function PricingStrategyCard({
   onSelectPrice,
 }: PricingStrategyCardProps) {
   const baseMedian = Number(medianPrice) || 0;
-  const baseMin = Number(minPrice) || Math.round(baseMedian * 0.75 * 100) / 100;
-  const baseMax = Number(maxPrice) || Math.round(baseMedian * 1.25 * 100) / 100;
 
-  // 1. Quick Sell (25% below median or min price)
+  // 1. Quick Sell (28% below median)
   const quickSellPrice = Math.max(1, Math.round(baseMedian * 0.72 * 100) / 100);
 
   // 2. Market Value (Median)
   const marketPrice = baseMedian;
 
-  // 3. Top Dollar (Upper 80th percentile / 20% above median)
+  // 3. Top Dollar (20% above median)
   const topDollarPrice = Math.round(baseMedian * 1.2 * 100) / 100;
 
   const [selectedStrategy, setSelectedStrategy] = useState<"quick" | "market" | "top">("market");
@@ -42,9 +39,9 @@ export default function PricingStrategyCard({
       price: quickSellPrice,
       estDays: "1 – 2 Days",
       icon: Zap,
-      color: "border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400",
-      btnColor: "bg-amber-600 hover:bg-amber-500 text-white",
-      desc: "Priced ~28% under market for same-day or 48-hour quick turnaround.",
+      color: "border-amber-500/40 bg-amber-500/15 text-amber-300",
+      btnColor: "bg-amber-500 hover:bg-amber-400 text-slate-950",
+      desc: "Priced ~28% under market for rapid same-day or 48-hour quick cash turnaround.",
     },
     {
       id: "market" as const,
@@ -53,8 +50,8 @@ export default function PricingStrategyCard({
       price: marketPrice,
       estDays: "7 – 21 Days",
       icon: Target,
-      color: "border-blue-500/40 bg-blue-500/10 text-blue-600 dark:text-blue-400",
-      btnColor: "bg-blue-600 hover:bg-blue-500 text-white",
+      color: "border-cyan-500/40 bg-cyan-500/15 text-cyan-300",
+      btnColor: "bg-gradient-to-r from-cyan-500 to-blue-600 hover:opacity-90 text-slate-950",
       desc: "Standard eBay median price. Balances maximum profit with steady turnover.",
     },
     {
@@ -64,7 +61,7 @@ export default function PricingStrategyCard({
       price: topDollarPrice,
       estDays: "21 – 45 Days",
       icon: Gem,
-      color: "border-purple-500/40 bg-purple-500/10 text-purple-600 dark:text-purple-400",
+      color: "border-purple-500/40 bg-purple-500/15 text-purple-300",
       btnColor: "bg-purple-600 hover:bg-purple-500 text-white",
       desc: "Priced at upper market range for patient sellers targeting peak buyer value.",
     },
@@ -76,15 +73,17 @@ export default function PricingStrategyCard({
   };
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-4">
+    <div className="rounded-3xl border border-slate-800 bg-slate-900/90 p-6 shadow-2xl backdrop-blur-xl space-y-5 text-slate-100 animate-fade-in">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-4">
         <div>
-          <h2 className="text-lg font-bold">eBay Sold Pricing Strategy</h2>
-          <p className="text-xs text-muted-foreground">
-            Choose your selling strategy based on real eBay sold comps
+          <h2 className="text-sm font-black uppercase tracking-wider text-slate-300">
+            eBay Sold Pricing Strategy
+          </h2>
+          <p className="text-xs text-slate-400">
+            Choose your selling strategy based on real eBay completed comps
           </p>
         </div>
-        <span className="rounded-full bg-muted px-3 py-1 text-xs font-semibold text-muted-foreground border border-border">
+        <span className="rounded-full bg-slate-950 px-3 py-1 text-xs font-bold text-cyan-400 border border-slate-800">
           Currency: {currency}
         </span>
       </div>
@@ -108,12 +107,12 @@ export default function PricingStrategyCard({
               }}
               className={`relative flex flex-col justify-between rounded-2xl border-2 p-5 text-left transition cursor-pointer ${
                 isSelected
-                  ? "border-primary bg-primary/5 shadow-md scale-[1.02]"
-                  : "border-border bg-card hover:border-primary/40 hover:bg-muted/30"
+                  ? "border-cyan-400 bg-cyan-950/40 shadow-[0_0_20px_rgba(6,182,212,0.25)] scale-[1.02]"
+                  : "border-slate-800 bg-slate-950/80 hover:border-slate-700 hover:bg-slate-900/90"
               }`}
             >
               {isSelected && (
-                <span className="absolute -top-3 right-3 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm">
+                <span className="absolute -top-3 right-3 flex h-6 w-6 items-center justify-center rounded-full bg-cyan-400 text-slate-950 font-black shadow-md">
                   <Check className="h-3.5 w-3.5" />
                 </span>
               )}
@@ -127,21 +126,21 @@ export default function PricingStrategyCard({
                 </div>
 
                 <div>
-                  <h3 className="text-base font-bold">{s.name}</h3>
+                  <h3 className="text-base font-black text-white">{s.name}</h3>
                   <div className="mt-1 flex items-baseline gap-1">
-                    <span className="text-2xl font-black tabular-nums">
+                    <span className="text-2xl font-black text-white tabular-nums">
                       ${s.price.toFixed(2)}
                     </span>
-                    <span className="text-xs text-muted-foreground">{currency}</span>
+                    <span className="text-xs text-slate-400">{currency}</span>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <Clock className="h-3.5 w-3.5 text-primary" />
-                  <span>Est. Turnaround: <strong>{s.estDays}</strong></span>
+                <div className="flex items-center gap-1.5 text-xs text-slate-400">
+                  <Clock className="h-3.5 w-3.5 text-cyan-400" />
+                  <span>Est. Turnaround: <strong className="text-slate-200">{s.estDays}</strong></span>
                 </div>
 
-                <p className="text-xs text-muted-foreground leading-relaxed">
+                <p className="text-xs text-slate-400 leading-relaxed">
                   {s.desc}
                 </p>
               </div>
@@ -152,7 +151,7 @@ export default function PricingStrategyCard({
                   e.stopPropagation();
                   handleSelect(s.id, s.price);
                 }}
-                className={`mt-4 inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-xl text-xs font-bold transition shadow-sm ${s.btnColor}`}
+                className={`mt-4 inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-xl text-xs font-black transition shadow-md cursor-pointer ${s.btnColor}`}
               >
                 <span>Use ${s.price.toFixed(2)} Price</span>
                 <ArrowRight className="h-3.5 w-3.5" />
