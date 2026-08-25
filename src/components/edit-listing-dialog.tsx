@@ -9,12 +9,12 @@ import { X } from "lucide-react";
 type ListingLike = {
   id: number | string;
   product: string;
-  price: number | string | null;
-  cost: number | string | null;
-  purchase_price: number | string | null;
-  sold_price: number | string | null;
-  shipping_cost: number | string | null;
-  fees: number | string | null;
+  price?: number | string | null;
+  cost?: number | string | null;
+  purchase_price?: number | string | null;
+  sold_price?: number | string | null;
+  shipping_cost?: number | string | null;
+  fees?: number | string | null;
   sold_at?: string | null;
   status: string;
 };
