@@ -293,6 +293,8 @@ function SpadasLensCameraCore() {
     return detectGeoCurrency().currency;
   });
   const prevFramePixelsRef = useRef<Uint8ClampedArray | null>(null);
+  const lastScanTimeRef = useRef<number>(0);
+  const lastRecognizedSignatureRef = useRef<{ name: string; timestamp: number } | null>(null);
 
   // Verify Owner and Pro User status purely server-side
   useEffect(() => {
@@ -597,8 +599,6 @@ function SpadasLensCameraCore() {
     }
   };
 
-  // Lightweight Non-Blocking Debounce Timestamp
-  const lastScanTimeRef = useRef<number>(0);
 
   // Track last chimed item for anti-spam loop prevention
   const lastChimedRef = useRef<{ name: string; time: number } | null>(null);
@@ -998,17 +998,18 @@ function SpadasLensCameraCore() {
       }
 
       if (res?.status === 429) {
+        lastScanTimeRef.current = Date.now() + 4500; // Cooldown backoff penalty
         const scope = data?.scope || "user";
         const retryAfter = Number(data?.retryAfter) || 0;
         if (scope === "upstream") {
           setScanErrorState({ type: "rate_limit_upstream" });
-          toast.warning("Busy right now. Try again in a few seconds.", { id: "rate-upstream" });
+          toast.warning("Busy right now. Pausing scan for 4s.", { id: "rate-upstream" });
         } else {
           setScanErrorState({ type: "rate_limit_user", retryAfter });
           toast.warning(
             retryAfter > 0
-              ? `You've hit your scan limit. Try again in ${retryAfter}s.`
-              : "You've hit your scan limit. Try again shortly.",
+              ? `Scan rate limit. Resuming in ${retryAfter}s.`
+              : "Scan rate limit. Pausing briefly...",
             { id: "rate-user" }
           );
         }
@@ -1040,6 +1041,12 @@ function SpadasLensCameraCore() {
         setAnalyzingRealFrame(false);
         return;
       }
+
+      // Duplicate Prevention: Record signature of identified item
+      lastRecognizedSignatureRef.current = {
+        name: pName.toLowerCase().trim(),
+        timestamp: Date.now(),
+      };
 
       setScanErrorState({ type: null });
 
@@ -1272,14 +1279,14 @@ function SpadasLensCameraCore() {
     }
   }, [soundEnabled]);
 
-  // CLEAN HUD STATE MACHINE: Keep only the most recent scan visible for 3.5 seconds to avoid screen clutter
+  // HUD STATE MACHINE: Keep recognized item cards visible for 12 seconds
   useEffect(() => {
     const interval = setInterval(() => {
       const now = Date.now();
       setActiveScans((prev) =>
         prev.filter((item) => {
-          const isStuckPending = item.status === "pending" && now - item.timestamp > 3000;
-          const isStale = now - item.timestamp > 3500;
+          const isStuckPending = item.status === "pending" && now - item.timestamp > 4000;
+          const isStale = now - item.timestamp > 12000;
           return !isStuckPending && !isStale;
         })
       );
@@ -1292,7 +1299,7 @@ function SpadasLensCameraCore() {
     processFrameRef.current = processCurrentFrame;
   }, [processCurrentFrame]);
 
-  // Active Auto-Scan & Scene Change Watcher for Sweep, Focus, and Deep modes
+  // Active Auto-Scan & Scene Change Watcher with strict Throttling & Duplicate Prevention
   useEffect(() => {
     if (!stream || !autoScanActive || !!deepVerifyItem) return;
 
@@ -1304,10 +1311,12 @@ function SpadasLensCameraCore() {
 
     let wasMoving = false;
     let stableTicks = 0;
-    let lastScanTriggerTime = Date.now();
+    let lastAutoTriggerTime = Date.now();
 
     const interval = setInterval(() => {
       if (isDestroyed) return;
+      if (analyzingRef.current) return; // In-flight state lock: never trigger while a scan is processing
+
       const video = videoRef.current;
       if (!video || video.readyState < 2 || video.paused) return;
 
@@ -1322,7 +1331,7 @@ function SpadasLensCameraCore() {
         return;
       }
 
-      // Calculate pixel delta
+      // Calculate pixel delta across frame
       let diffSum = 0;
       for (let i = 0; i < pixels.length; i += 16) {
         diffSum += Math.abs(pixels[i] - prev[i]);
@@ -1330,46 +1339,59 @@ function SpadasLensCameraCore() {
       const avgDiff = diffSum / (pixels.length / 16) / 255;
       prevFramePixelsRef.current = new Uint8ClampedArray(pixels);
 
-      const isPanning = avgDiff > 0.09;
-      const isStill = avgDiff <= 0.055;
+      const isPanning = avgDiff > 0.085;
+      const isStill = avgDiff <= 0.05;
 
       if (isPanning) {
         setCameraMoving(true);
         wasMoving = true;
         stableTicks = 0;
+        // User panned away to a new scene — clear duplicate lock
+        lastRecognizedSignatureRef.current = null;
       } else if (isStill) {
         setCameraMoving(false);
         stableTicks++;
       }
 
       const now = Date.now();
-      const timeSinceLast = now - lastScanTriggerTime;
+      const timeSinceLast = now - Math.max(lastAutoTriggerTime, lastScanTimeRef.current);
 
-      // Mode 1: SWEEP MODE (Continuous Walk & Scan)
-      // Trigger immediately when camera slows/settles after moving OR when steady over a scene for ~2.4s
+      // Duplicate Prevention: If camera is holding still over an item already identified in the last 12s, DO NOT rescan
+      const hasRecentDetection =
+        lastRecognizedSignatureRef.current &&
+        now - lastRecognizedSignatureRef.current.timestamp < 12000;
+
+      if (hasRecentDetection && !wasMoving) {
+        return;
+      }
+
+      // Strict Throttling & Cooldowns:
+      // Mode 1: SWEEP MODE -> 3500ms min cooldown
       if (scanMode === "sweep") {
         if (!isPanning) {
-          const justSettled = wasMoving && stableTicks >= 2 && timeSinceLast > 1200;
-          const periodicStable = stableTicks >= 8 && timeSinceLast > 2400;
+          const justSettled = wasMoving && stableTicks >= 2 && timeSinceLast >= 3200;
+          const periodicScan = stableTicks >= 12 && timeSinceLast >= 4500;
 
-          if (justSettled || periodicStable) {
+          if (justSettled || periodicScan) {
             wasMoving = false;
-            lastScanTriggerTime = now;
+            lastAutoTriggerTime = now;
             void processFrameRef.current(false);
           }
         }
-      } 
-      // Mode 2: FOCUS MODE -> Targeted Reticle Lock (hold steady over center reticle for ~600ms)
+      }
+      // Mode 2: LIVE FOCUS -> 3500ms min cooldown
       else if (scanMode === "live") {
-        if (isStill && stableTicks >= 3 && timeSinceLast > 2000) {
-          lastScanTriggerTime = now;
+        if (isStill && stableTicks >= 4 && timeSinceLast >= 3500) {
+          wasMoving = false;
+          lastAutoTriggerTime = now;
           void processFrameRef.current(false);
         }
       }
-      // Mode 3: DEEP MODE -> Deep Forensic inspection (hold steady for ~1s)
+      // Mode 3: DEEP FORENSIC -> 5000ms min cooldown
       else if (scanMode === "deep") {
-        if (isStill && stableTicks >= 4 && timeSinceLast > 3200) {
-          lastScanTriggerTime = now;
+        if (isStill && stableTicks >= 5 && timeSinceLast >= 5000) {
+          wasMoving = false;
+          lastAutoTriggerTime = now;
           void processFrameRef.current(false);
         }
       }
