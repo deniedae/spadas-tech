@@ -764,38 +764,67 @@ function SpadasLensCameraCore() {
     window.speechSynthesis.speak(utterance);
   };
 
-  // Lightweight AudioContext Chime for High-Signal ($20+ Profit) Hits
-  const playHighProfitChime = () => {
+  // Multi-Tier Reseller Audio Synthesizer based on profit margin
+  const playChime = (profit = 15) => {
     if (!soundEnabled || typeof window === "undefined") return;
     try {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioCtx) return;
       const ctx = new AudioCtx();
-      const osc1 = ctx.createOscillator();
-      const osc2 = ctx.createOscillator();
-      const gain = ctx.createGain();
-
       const now = ctx.currentTime;
-      osc1.type = "sine";
-      osc2.type = "sine";
 
-      osc1.frequency.setValueAtTime(587.33, now);
-      osc1.frequency.exponentialRampToValueAtTime(880, now + 0.12);
-
-      osc2.frequency.setValueAtTime(880, now + 0.08);
-      osc2.frequency.exponentialRampToValueAtTime(1174.66, now + 0.22);
-
-      gain.gain.setValueAtTime(0.2, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
-
-      osc1.connect(gain);
-      osc2.connect(gain);
-      gain.connect(ctx.destination);
-
-      osc1.start(now);
-      osc2.start(now + 0.04);
-      osc1.stop(now + 0.28);
-      osc2.stop(now + 0.28);
+      if (profit >= 80) {
+        // GRAIL FIND FANFARE (4-tone victory arpeggio)
+        const freqs = [523.25, 659.25, 783.99, 1046.50];
+        freqs.forEach((f, idx) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          const t = now + idx * 0.07;
+          osc.type = "triangle";
+          osc.frequency.setValueAtTime(f, t);
+          gain.gain.setValueAtTime(0.3, t);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(t);
+          osc.stop(t + 0.28);
+        });
+      } else if (profit >= 30) {
+        // STRONG FLIP (Harmonic Triad Chord)
+        const freqs = [587.33, 739.99, 880.00];
+        freqs.forEach((f) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = "sine";
+          osc.frequency.setValueAtTime(f, now);
+          gain.gain.setValueAtTime(0.2, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.3);
+        });
+      } else {
+        // STANDARD RESALE FIND (Clean High-Tech Dual-Tone Chirp)
+        const osc1 = ctx.createOscillator();
+        const osc2 = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc1.type = "sine";
+        osc2.type = "sine";
+        osc1.frequency.setValueAtTime(587.33, now);
+        osc1.frequency.exponentialRampToValueAtTime(880, now + 0.12);
+        osc2.frequency.setValueAtTime(880, now + 0.08);
+        osc2.frequency.exponentialRampToValueAtTime(1174.66, now + 0.22);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+        osc1.connect(gain);
+        osc2.connect(gain);
+        gain.connect(ctx.destination);
+        osc1.start(now);
+        osc2.start(now + 0.04);
+        osc1.stop(now + 0.28);
+        osc2.stop(now + 0.28);
+      }
     } catch (e) {
       console.error("AudioContext chime error:", e);
     }
@@ -1205,7 +1234,7 @@ function SpadasLensCameraCore() {
               if (typeof navigator !== "undefined" && navigator.vibrate) {
                 navigator.vibrate(80);
               }
-              playHighProfitChime();
+              playChime(estimatedProfit);
               speakCue(`High profit hit: ${obj.productName}. Profit ${fmtMoney(estimatedProfit)}.`);
               lastChimedRef.current = { name: obj.productName, time: now };
             }
@@ -1440,7 +1469,7 @@ function SpadasLensCameraCore() {
             />
 
             {/* Persistent Session Scan & Profit Stats Ticker */}
-            <div className="absolute top-3.5 left-3.5 right-3.5 z-30 pointer-events-none flex flex-wrap items-center justify-between gap-2">
+            <div className="absolute top-3.5 left-3.5 right-3.5 z-30 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
               <div className="inline-flex items-center gap-2 rounded-full bg-slate-950/90 border border-cyan-500/40 px-3.5 py-1 text-[11px] font-black text-cyan-300 shadow-xl backdrop-blur-md">
                 <Crosshair className="h-3.5 w-3.5 text-cyan-400" />
                 <span>🎯 {sessionScanCount} Scanned</span>
@@ -1454,9 +1483,55 @@ function SpadasLensCameraCore() {
                 )}
               </div>
 
-              <div className="hidden sm:inline-flex items-center gap-1.5 rounded-full bg-slate-950/90 border border-purple-500/40 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-purple-300 shadow-xl backdrop-blur-md">
-                <span className="h-2 w-2 rounded-full bg-purple-400 animate-ping" />
-                <span>{scanMode === "sweep" ? "⚡ SWEEP STREAM" : scanMode === "deep" ? "🔬 DEEP FUSION" : "🎯 LIVE FOCUS"}</span>
+              <div className="flex items-center gap-2 pointer-events-auto">
+                {/* 1x / 2x Digital Zoom Toggle */}
+                {zoomSupported && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setZoomLevel(zoomLevel === 1 ? 2 : 1);
+                    }}
+                    className="h-8 px-2.5 rounded-full border border-slate-700 bg-slate-950/80 text-[11px] font-black text-cyan-300 hover:border-cyan-400 transition shadow-lg backdrop-blur-md cursor-pointer"
+                    title="Toggle Camera Zoom"
+                  >
+                    {zoomLevel}x
+                  </button>
+                )}
+
+                {/* Torch / Flashlight Toggle */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void toggleTorch();
+                  }}
+                  className={`h-8 w-8 rounded-full border flex items-center justify-center transition backdrop-blur-md shadow-lg cursor-pointer ${
+                    torchEnabled
+                      ? "bg-amber-400 border-amber-300 text-slate-950 shadow-[0_0_15px_rgba(251,191,36,0.6)]"
+                      : "bg-slate-950/80 border-slate-700 text-slate-300 hover:text-white hover:border-slate-500"
+                  }`}
+                  title={torchEnabled ? "Flashlight ON" : "Turn Flashlight ON"}
+                >
+                  <Zap className="h-3.5 w-3.5" />
+                </button>
+
+                {/* Sound Chime Toggle */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSoundEnabled(!soundEnabled);
+                  }}
+                  className={`h-8 w-8 rounded-full border flex items-center justify-center transition backdrop-blur-md shadow-lg cursor-pointer ${
+                    soundEnabled
+                      ? "bg-cyan-500/20 border-cyan-400 text-cyan-300"
+                      : "bg-slate-950/80 border-slate-700 text-slate-500"
+                  }`}
+                  title={soundEnabled ? "Audio Chimes Active" : "Audio Muted"}
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                </button>
               </div>
             </div>
 
@@ -1609,6 +1684,16 @@ function SpadasLensCameraCore() {
                     className="ml-1 bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-2 py-0.5 rounded-full text-[10px] font-black transition cursor-pointer"
                   >
                     +Add
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveEbayItem(scan);
+                    }}
+                    className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 px-2 py-0.5 rounded-full text-[10px] font-black transition cursor-pointer"
+                  >
+                    ⚡eBay
                   </button>
                   <button
                     type="button"
