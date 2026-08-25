@@ -230,17 +230,6 @@ export function SpadasOrbitHero() {
               </p>
             </div>
 
-            <SocialAuthProviders redirectTo="/dashboard" />
-
-            <div className="relative my-5 flex items-center justify-center">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-slate-800" />
-              </div>
-              <span className="relative bg-slate-950 px-3 text-[10px] font-black uppercase tracking-wider text-slate-500">
-                Or with email
-              </span>
-            </div>
-
             <form onSubmit={handleAuthSubmit} className="space-y-4">
               <div ref={liveRegionRef} aria-live="polite" className="sr-only" />
 

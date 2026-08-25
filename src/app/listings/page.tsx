@@ -606,8 +606,8 @@ export default function ListingsPage() {
                                 {item.product}
                               </p>
                               <div className="flex items-center gap-1 text-[11px] text-slate-400">
-                                <span className="rounded bg-slate-800 px-1.5 py-0.2 font-mono text-[10px] text-slate-400">
-                                  ID: {item.id.slice(0, 8)}
+                                <span className="rounded bg-slate-800 px-1.5 py-0.5 font-mono text-[10px] text-slate-400">
+                                  ID: {String(item.id || "").slice(0, 8)}
                                 </span>
                               </div>
                             </div>
