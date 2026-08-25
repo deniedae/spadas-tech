@@ -193,28 +193,31 @@ export default function ExportListingDialog({
   return (
     <Dialog>
       <DialogTrigger>
-        <Button variant="outline" size="sm" className="gap-1.5 rounded-xl border-border hover:bg-muted">
-          <Share2 className="h-4 w-4 text-blue-500" />
+        <button
+          type="button"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs border border-slate-700 transition cursor-pointer"
+        >
+          <Share2 className="h-3.5 w-3.5 text-cyan-400" />
           <span>Cross-List</span>
-        </Button>
+        </button>
       </DialogTrigger>
 
-      <DialogContent className="sm:max-w-xl rounded-2xl border-border bg-card p-6 shadow-2xl">
+      <DialogContent className="sm:max-w-xl rounded-3xl border-slate-800 bg-slate-900 p-6 shadow-2xl text-slate-100">
         <DialogHeader>
-          <div className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
               <Layers className="h-5 w-5" />
             </div>
             <div>
-              <DialogTitle className="text-xl font-bold">Auto-Post to Marketplace</DialogTitle>
-              <p className="text-xs text-muted-foreground">
-                Automated listing publisher for Facebook Marketplace, eBay, Vinted, & Depop.
+              <DialogTitle className="text-xl font-bold text-slate-100">Auto-Post & Cross-List</DialogTitle>
+              <p className="text-xs text-slate-400">
+                1-Click formatted listing copy for eBay, Facebook Marketplace, Depop, & Vinted.
               </p>
             </div>
           </div>
         </DialogHeader>
 
-        <div className="space-y-5 mt-2">
+        <div className="space-y-4 mt-2">
           {/* Platform selection tabs */}
           <div className="flex flex-wrap gap-2">
             {(Object.keys(platformData) as Array<keyof typeof platformData>).map((key) => {
@@ -225,10 +228,10 @@ export default function ExportListingDialog({
                   key={key}
                   type="button"
                   onClick={() => setPlatform(key)}
-                  className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition ${
+                  className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold transition cursor-pointer ${
                     isSelected
-                      ? "bg-primary text-primary-foreground shadow-md"
-                      : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
+                      ? "bg-cyan-500 text-slate-950 font-black shadow-md shadow-cyan-500/20"
+                      : "bg-slate-950 text-slate-400 hover:text-white border border-slate-800"
                   }`}
                 >
                   <span>{p.icon}</span>
@@ -239,97 +242,98 @@ export default function ExportListingDialog({
           </div>
 
           {/* Formatted Listing Preview */}
-          <div className="rounded-xl border border-border bg-muted/40 p-5 space-y-4">
-            <div className="flex items-center justify-between gap-2 border-b border-border/60 pb-3">
-              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
-                <Sparkles className="h-3.5 w-3.5 text-blue-500" />
+          <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4 space-y-3">
+            <div className="flex items-center justify-between gap-2 border-b border-slate-800 pb-2.5">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                <Sparkles className="h-3.5 w-3.5 text-cyan-400" />
                 {currentData.name} Title
               </span>
               <span
-                className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
+                className={`text-[11px] font-mono px-2 py-0.5 rounded-full ${
                   isTitleOverLimit
-                    ? "bg-red-500/15 text-red-600 border border-red-500/30"
-                    : "bg-green-500/15 text-green-600 dark:text-green-400"
+                    ? "bg-red-500/20 text-red-400 border border-red-500/30 font-bold"
+                    : "bg-emerald-500/15 text-emerald-400 font-semibold"
                 }`}
               >
                 {titleCharCount} / {currentData.maxTitleChars} chars
               </span>
             </div>
 
-            <p className="text-sm font-bold text-foreground leading-snug">
+            <p className="text-sm font-bold text-slate-100 leading-snug">
               {currentData.title}
             </p>
 
-            <div className="border-t border-border/60 pt-3 space-y-1.5">
-              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <div className="border-t border-slate-800 pt-2.5 space-y-1">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
                 Description Body
               </span>
-              <p className="text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed max-h-36 overflow-y-auto">
+              <p className="text-xs text-slate-300 whitespace-pre-wrap leading-relaxed max-h-32 overflow-y-auto font-sans bg-slate-900/60 p-2.5 rounded-xl border border-slate-800/80">
                 {currentData.description}
               </p>
             </div>
 
-            <div className="flex items-center justify-between border-t border-border/60 pt-3 text-xs">
-              <span className="text-muted-foreground">Asking Price:</span>
-              <span className="text-base font-bold text-green-600 dark:text-green-400">
+            <div className="flex items-center justify-between border-t border-slate-800 pt-2.5 text-xs">
+              <span className="text-slate-400">Asking Price:</span>
+              <span className="text-base font-black text-emerald-400">
                 ${priceValue.toFixed(2)} AUD
               </span>
             </div>
           </div>
 
-          {/* Auto-Post Button */}
-          <Button
-            onClick={runAutoPostFacebook}
-            className="h-12 w-full gap-2.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 font-semibold text-white shadow-lg transition hover:opacity-95"
+          {/* Launch / Auto-Post Button */}
+          <button
+            type="button"
+            onClick={launchPlatformListing}
+            className="h-12 w-full flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 font-black text-xs text-slate-950 shadow-lg shadow-cyan-500/20 transition hover:opacity-95 cursor-pointer"
           >
-            <Sparkles className="h-5 w-5" />
-            <span>🚀 Auto-Post Product to {currentData.name}</span>
-          </Button>
+            <Sparkles className="h-4 w-4" />
+            <span>🚀 Open {currentData.name} & Copy Listing</span>
+          </button>
 
           {/* Copy Actions */}
-          <div className="grid grid-cols-2 gap-3">
-            <Button
-              variant="outline"
+          <div className="grid grid-cols-2 gap-2.5">
+            <button
+              type="button"
               onClick={() => copyToClipboard(currentData.title, "title")}
-              className="h-11 gap-2 rounded-xl text-xs font-semibold"
+              className="h-10 flex items-center justify-center gap-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 transition cursor-pointer"
             >
-              {copiedTitle ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+              {copiedTitle ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5 text-slate-400" />}
               <span>{copiedTitle ? "Title Copied!" : "Copy Title"}</span>
-            </Button>
+            </button>
 
-            <Button
-              variant="outline"
+            <button
+              type="button"
               onClick={() => copyToClipboard(currentData.description, "desc")}
-              className="h-11 gap-2 rounded-xl text-xs font-semibold"
+              className="h-10 flex items-center justify-center gap-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 transition cursor-pointer"
             >
-              {copiedDesc ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-              <span>{copiedDesc ? "Description Copied!" : "Copy Description"}</span>
-            </Button>
+              {copiedDesc ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5 text-slate-400" />}
+              <span>{copiedDesc ? "Desc Copied!" : "Copy Description"}</span>
+            </button>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-2.5">
-            <Button
+          <div className="flex flex-col sm:flex-row gap-2">
+            <button
+              type="button"
               onClick={() =>
                 copyToClipboard(
                   `TITLE:\n${currentData.title}\n\nDESCRIPTION:\n${currentData.description}\n\nPRICE: $${priceValue.toFixed(2)}`,
                   "all"
                 )
               }
-              variant="outline"
-              className="h-11 flex-1 gap-2 rounded-xl text-xs font-semibold border-border hover:bg-muted"
+              className="h-10 flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 transition cursor-pointer"
             >
-              {copiedAll ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-              <span>{copiedAll ? "All Copied!" : "⚡ Copy Package"}</span>
-            </Button>
+              {copiedAll ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5 text-slate-400" />}
+              <span>{copiedAll ? "Package Copied!" : "⚡ Copy Full Package"}</span>
+            </button>
 
-            <Button
-              variant="outline"
+            <button
+              type="button"
               onClick={downloadCSV}
-              className="h-11 gap-2 rounded-xl text-xs font-semibold border-border hover:bg-muted"
+              className="h-10 px-4 flex items-center justify-center gap-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 transition cursor-pointer"
             >
-              <Download className="h-4 w-4" />
-              <span>Export CSV</span>
-            </Button>
+              <Download className="h-3.5 w-3.5 text-slate-400" />
+              <span>CSV</span>
+            </button>
           </div>
         </div>
       </DialogContent>

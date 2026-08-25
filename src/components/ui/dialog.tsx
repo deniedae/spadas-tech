@@ -1,7 +1,9 @@
 "use client";
 
 import * as React from "react";
+import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
+import { X } from "lucide-react";
 
 type DialogContextType = {
   open: boolean;
@@ -60,25 +62,45 @@ export function DialogContent({
   className?: string;
 }) {
   const ctx = React.useContext(DialogContext);
+  const [mounted, setMounted] = React.useState(false);
 
-  if (!ctx?.open) return null;
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+  if (!ctx?.open || !mounted) return null;
+
+  const content = (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in">
+      {/* Backdrop click to close */}
       <div
-        className={`relative w-full max-w-lg rounded-xl bg-white p-6 shadow-xl ${className}`}
+        className="fixed inset-0"
+        onClick={() => ctx.setOpen(false)}
+      />
+
+      <div
+        className={cn(
+          "relative z-10 w-full max-w-lg rounded-2xl bg-slate-900 border border-slate-800 p-6 shadow-2xl text-slate-100 max-h-[90vh] overflow-y-auto",
+          className
+        )}
       >
         <button
+          type="button"
           onClick={() => ctx.setOpen(false)}
-          className="absolute right-4 top-4 text-xl"
+          className="absolute right-4 top-4 p-1.5 rounded-xl text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition cursor-pointer"
+          aria-label="Close dialog"
         >
-          ✕
+          <X className="w-5 h-5" />
         </button>
 
         {children}
       </div>
     </div>
   );
+
+  return typeof document !== "undefined"
+    ? createPortal(content, document.body)
+    : null;
 }
 
 export function DialogHeader({
@@ -96,7 +118,11 @@ export function DialogTitle({
   children: React.ReactNode;
   className?: string;
 }) {
-  return <h2 className={cn("text-xl font-bold", className)}>{children}</h2>;
+  return (
+    <h2 className={cn("text-xl font-bold text-slate-100", className)}>
+      {children}
+    </h2>
+  );
 }
 
 export function DialogDescription({
@@ -106,7 +132,9 @@ export function DialogDescription({
   children: React.ReactNode;
   className?: string;
 }) {
-  return <p className={cn("text-sm text-muted-foreground", className)}>{children}</p>;
+  return (
+    <p className={cn("text-xs text-slate-400 mt-1", className)}>{children}</p>
+  );
 }
 
 export function DialogFooter({
@@ -116,34 +144,9 @@ export function DialogFooter({
   children: React.ReactNode;
   className?: string;
 }) {
-  return <div className={cn("mt-4 flex justify-end gap-2", className)}>{children}</div>;
-}
-
-export function DialogClose({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const ctx = React.useContext(DialogContext);
-
   return (
-    <div
-      onClick={() => ctx?.setOpen(false)}
-      className="inline-block cursor-pointer"
-    >
+    <div className={cn("mt-6 flex items-center justify-end gap-3", className)}>
       {children}
     </div>
   );
-}
-
-export function DialogPortal({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  return <>{children}</>;
-}
-
-export function DialogOverlay() {
-  return null;
 }
