@@ -18,6 +18,8 @@ import {
   ShieldCheck,
   TrendingUp,
   Crosshair,
+  CheckCircle2,
+  Camera,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -127,6 +129,7 @@ export default function LandingInteractiveDemo() {
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState(0);
   const [simulatingEbay, setSimulatingEbay] = useState(false);
+  const [simulatedPublished, setSimulatedPublished] = useState(false);
 
   const playChime = () => {
     try {
@@ -142,12 +145,13 @@ export default function LandingInteractiveDemo() {
       gain.connect(ctx.destination);
       osc.start();
       osc.stop(ctx.currentTime + 0.3);
-      toast.success("🔊 Audio Chime Triggered: High-Profit Grail Found!");
+      toast.success("🔊 Audio Chime: High-Margin Grail Detected!");
     } catch {}
   };
 
   const handleSelectSample = (sample: SampleItem) => {
     setSelectedSample(sample);
+    setSimulatedPublished(false);
     setLoading(true);
     setLoadingStep(1);
 
@@ -164,12 +168,13 @@ export default function LandingInteractiveDemo() {
 
     setTimeout(() => {
       toast.info("📦 Registering Merchant Location & SKU...");
-    }, 800);
+    }, 700);
 
     setTimeout(() => {
       setSimulatingEbay(false);
+      setSimulatedPublished(true);
       toast.success(`🚀 Live on eBay AU! Offer Created at $${selectedSample.medianPrice} AUD.`);
-    }, 1800);
+    }, 1600);
   };
 
   const estProfit = selectedSample.medianPrice - selectedSample.cost - (selectedSample.medianPrice * 0.134 + 0.33);
@@ -396,46 +401,84 @@ export default function LandingInteractiveDemo() {
             )}
 
             {activeTab === "ebay" && (
-              <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6 text-center space-y-4">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 mx-auto text-slate-950 font-black shadow-lg shadow-cyan-500/30">
-                  <ShoppingBag className="h-7 w-7" />
-                </div>
-                <div className="space-y-1">
-                  <h3 className="text-lg font-black text-white">
-                    Live eBay Australia API Publisher
-                  </h3>
-                  <p className="text-xs text-slate-400 max-w-md mx-auto">
-                    Spadas AI creates warehouse inventory, sets AUD pricing, generates specifics, and publishes your listing in 1 background API call.
-                  </p>
-                </div>
+              <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6 sm:p-8 text-center space-y-4">
+                {simulatedPublished ? (
+                  <div className="space-y-4 animate-fade-in">
+                    <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 mx-auto shadow-[0_0_30px_rgba(16,185,129,0.3)]">
+                      <CheckCircle2 className="h-8 w-8" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/30">
+                        Live API Simulation Complete
+                      </span>
+                      <h3 className="text-xl sm:text-2xl font-black text-white">
+                        Offer Created: {selectedSample.name}
+                      </h3>
+                      <p className="text-xs text-slate-300 max-w-md mx-auto">
+                        Listed on eBay Australia at <strong className="text-emerald-400">${selectedSample.medianPrice}.00 AUD</strong> • Projected Profit: <strong className="text-emerald-400">+${estProfit.toFixed(2)} AUD</strong>
+                      </p>
+                    </div>
 
-                <button
-                  type="button"
-                  disabled={simulatingEbay}
-                  onClick={handleSimulateEbay}
-                  className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 px-8 font-black text-xs text-slate-950 shadow-xl shadow-cyan-500/30 hover:scale-105 active:scale-95 transition cursor-pointer disabled:opacity-50"
-                >
-                  {simulatingEbay ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin text-slate-950" />
-                      <span>Publishing to eBay AU...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Zap className="h-4 w-4" />
-                      <span>🚀 Test Live Publish to eBay AU</span>
-                    </>
-                  )}
-                </button>
+                    <div className="pt-3 flex flex-col sm:flex-row items-center justify-center gap-3">
+                      <Link
+                        href="/lens"
+                        className="w-full sm:w-auto inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 px-6 text-xs font-black text-slate-950 shadow-xl shadow-cyan-500/30 hover:scale-105 transition active:scale-95 cursor-pointer"
+                      >
+                        <Zap className="w-4 h-4" />
+                        <span>Launch Real Camera on Your Items</span>
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => setSimulatedPublished(false)}
+                        className="w-full sm:w-auto inline-flex h-12 items-center justify-center px-5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold border border-slate-700 transition cursor-pointer"
+                      >
+                        Reset Demo
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 mx-auto text-slate-950 font-black shadow-lg shadow-cyan-500/30">
+                      <ShoppingBag className="h-7 w-7" />
+                    </div>
+                    <div className="space-y-1">
+                      <h3 className="text-lg font-black text-white">
+                        Live eBay Australia API Publisher
+                      </h3>
+                      <p className="text-xs text-slate-400 max-w-md mx-auto">
+                        Spadas AI creates warehouse inventory, sets AUD pricing, generates specifics, and publishes your listing in 1 background API call.
+                      </p>
+                    </div>
 
-                <div className="pt-4 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-center gap-4 text-xs text-slate-400">
-                  <Link
-                    href="/signup"
-                    className="text-cyan-400 font-bold hover:underline"
-                  >
-                    Create Free Account to Use on Real Items →
-                  </Link>
-                </div>
+                    <button
+                      type="button"
+                      disabled={simulatingEbay}
+                      onClick={handleSimulateEbay}
+                      className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 px-8 font-black text-xs text-slate-950 shadow-xl shadow-cyan-500/30 hover:scale-105 active:scale-95 transition cursor-pointer disabled:opacity-50"
+                    >
+                      {simulatingEbay ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin text-slate-950" />
+                          <span>Publishing to eBay AU...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Zap className="h-4 w-4" />
+                          <span>🚀 Test Live Publish to eBay AU</span>
+                        </>
+                      )}
+                    </button>
+
+                    <div className="pt-4 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-center gap-4 text-xs text-slate-400">
+                      <Link
+                        href="/signup"
+                        className="text-cyan-400 font-bold hover:underline"
+                      >
+                        Create Free Account to Use on Real Items →
+                      </Link>
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </div>
