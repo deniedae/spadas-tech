@@ -8,9 +8,8 @@ import {
   Loader2,
   X,
   AlertCircle,
-  FileText,
-  Copy,
   Bookmark,
+  Copy,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/app/lib/supabase";
@@ -39,9 +38,10 @@ export default function EbayListingModal({
   imageUrls = [],
 }: EbayListingModalProps) {
   const [loading, setLoading] = useState(false);
-  const [savingDraft, setSavingDraft] = useState(false);
+  const [savingLocal, setSavingLocal] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [publishedUrl, setPublishedUrl] = useState<string | null>(null);
+  const [publishedSku, setPublishedSku] = useState<string | null>(null);
   const [isDemo, setIsDemo] = useState<boolean>(false);
 
   const [inputTitle, setInputTitle] = useState(initialTitle.slice(0, 80));
@@ -54,19 +54,8 @@ export default function EbayListingModal({
 
   if (!isOpen) return null;
 
-  const handleOpenEbayDraftWizard = async () => {
-    setSavingDraft(true);
-
-    // 1. Copy description to clipboard
-    if (navigator?.clipboard && inputDescription) {
-      try {
-        await navigator.clipboard.writeText(inputDescription);
-      } catch {
-        // clipboard fallback
-      }
-    }
-
-    // 2. Save as Draft into Spadas AI Listings table
+  const handleSaveDraftLocal = async () => {
+    setSavingLocal(true);
     try {
       const {
         data: { user },
@@ -80,21 +69,17 @@ export default function EbayListingModal({
           description: inputDescription,
           status: "Draft",
         });
-        toast.success("💾 Saved draft to Spadas AI & copied description!");
+        toast.success("💾 Saved draft to your Spadas AI Listings tab!");
+        onClose();
       } else {
-        toast.success("📋 Item description copied to clipboard!");
+        toast.error("Please log in to save drafts to your account.");
       }
-    } catch {
-      toast.success("📋 Item description copied to clipboard!");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to save draft.";
+      toast.error(msg);
     } finally {
-      setSavingDraft(false);
+      setSavingLocal(false);
     }
-
-    // 3. Open eBay's official listing draft wizard in a new tab
-    const ebayPrelistUrl = `https://www.ebay.com.au/sl/prelist/suggest?keyword=${encodeURIComponent(
-      inputTitle
-    )}`;
-    window.open(ebayPrelistUrl, "_blank", "noopener,noreferrer");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -126,12 +111,28 @@ export default function EbayListingModal({
 
       if (data.success) {
         setPublishedUrl(data.listingUrl || "https://www.ebay.com.au/sh/lst/active");
+        setPublishedSku(data.sku || null);
         setIsDemo(!!data.isDemoMode);
-        toast.success(
-          data.isDemoMode
-            ? "Published to eBay Sandbox Demo!"
-            : "Successfully published to eBay Seller Hub!"
-        );
+
+        // Also save to Spadas AI local listings for convenience
+        try {
+          const {
+            data: { user },
+          } = await supabase.auth.getUser();
+          if (user) {
+            await createListing({
+              userId: user.id,
+              product: inputTitle,
+              price: Number(inputPrice),
+              description: inputDescription,
+              status: "Active",
+            });
+          }
+        } catch {
+          // ignore local save error if published to eBay
+        }
+
+        toast.success("🎉 Successfully created on your eBay Seller Hub!");
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Publish request failed";
@@ -168,21 +169,26 @@ export default function EbayListingModal({
             </div>
             <div className="space-y-1">
               <h3 className="text-xl font-bold text-slate-100">
-                {isDemo ? "Draft Created (Demo Mode)" : "Saved to eBay Seller Hub!"}
+                {isDemo ? "Draft Created (Demo Mode)" : "Created in eBay Seller Hub!"}
               </h3>
               <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                {publishedSku ? (
+                  <span className="font-mono text-cyan-400 block mb-1 text-[11px]">
+                    SKU: {publishedSku}
+                  </span>
+                ) : null}
                 {isDemo
-                  ? "Item pre-filled in sandbox mode. Connect your real eBay Seller account in Settings for live Seller Hub sync."
-                  : "Your item is stored in your eBay Seller Hub inventory where you can review, add photos, or publish anytime."}
+                  ? "Item created in demo mode. Connect your real eBay Seller account in Settings."
+                  : "Your item and pricing offer are securely stored in your eBay Seller Hub."}
               </p>
             </div>
 
-            <div className="pt-3 flex flex-wrap items-center justify-center gap-3">
+            <div className="pt-3 flex items-center justify-center gap-3">
               <a
                 href={publishedUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold rounded-xl text-xs shadow-lg shadow-emerald-500/20 transition"
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold rounded-xl text-xs shadow-lg shadow-emerald-500/20 transition cursor-pointer"
               >
                 <span>Open eBay Seller Hub</span>
                 <ExternalLink className="w-4 h-4" />
@@ -190,19 +196,10 @@ export default function EbayListingModal({
 
               <button
                 type="button"
-                onClick={handleOpenEbayDraftWizard}
-                className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-cyan-300 font-bold rounded-xl text-xs border border-cyan-500/30 transition"
-              >
-                <FileText className="w-4 h-4 text-cyan-400" />
-                <span>Open in eBay Draft Wizard</span>
-              </button>
-
-              <button
-                type="button"
                 onClick={onClose}
-                className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl text-xs transition"
+                className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl text-xs transition cursor-pointer"
               >
-                Close
+                Done
               </button>
             </div>
           </div>
@@ -212,10 +209,10 @@ export default function EbayListingModal({
             <div className="p-3 bg-cyan-500/10 border border-cyan-500/30 rounded-xl text-xs flex items-center justify-between gap-3 text-cyan-300">
               <div className="flex items-center gap-2">
                 <ShoppingBag className="w-4 h-4 shrink-0 text-cyan-400" />
-                <span>1-Click Save to eBay Inventory or Launch Draft Listing Wizard.</span>
+                <span>Automatic 1-Click Sync to your connected eBay Seller account.</span>
               </div>
               <span className="px-2.5 py-1 bg-cyan-500/20 text-cyan-300 font-extrabold rounded-lg text-[11px] shrink-0 border border-cyan-500/30">
-                1-Click Live
+                100% Auto
               </span>
             </div>
 
@@ -320,17 +317,17 @@ export default function EbayListingModal({
             <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
               <button
                 type="button"
-                onClick={handleOpenEbayDraftWizard}
-                disabled={savingDraft || inputTitle.length === 0}
-                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-cyan-300 font-bold rounded-xl text-xs border border-cyan-500/30 transition cursor-pointer disabled:opacity-50"
-                title="Saves a draft in Spadas AI and opens eBay's draft wizard so you can finish anytime"
+                onClick={handleSaveDraftLocal}
+                disabled={savingLocal || loading || inputTitle.length === 0}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl text-xs border border-slate-700 transition cursor-pointer disabled:opacity-50"
+                title="Save draft locally in your Spadas AI account under My Listings"
               >
-                {savingDraft ? (
-                  <Loader2 className="w-4 h-4 animate-spin text-cyan-400" />
+                {savingLocal ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
                 ) : (
-                  <Bookmark className="w-4 h-4 text-cyan-400" />
+                  <Bookmark className="w-4 h-4 text-slate-400" />
                 )}
-                <span>Save Draft & Open eBay Wizard</span>
+                <span>Save to Spadas Listings</span>
               </button>
 
               <div className="flex items-center justify-end gap-2">
@@ -349,12 +346,12 @@ export default function EbayListingModal({
                   {loading ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
-                      <span>Saving to eBay...</span>
+                      <span>Creating on eBay...</span>
                     </>
                   ) : (
                     <>
                       <ShoppingBag className="w-4 h-4" />
-                      <span>Save to Inventory</span>
+                      <span>⚡ Publish to eBay</span>
                     </>
                   )}
                 </button>
