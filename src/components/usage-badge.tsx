@@ -67,26 +67,26 @@ export default function UsageBadge({
   return (
     <>
       {usage.isPro ? (
-        <div className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-blue-600/15 to-cyan-500/15 px-3 py-1 text-xs font-semibold text-blue-600 dark:text-blue-400 border border-blue-500/20">
-          <Sparkles className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
-          <span>Pro Plan — Unlimited Uses</span>
+        <div className="inline-flex items-center gap-1.5 rounded-full bg-cyan-500/15 px-3 py-1 text-xs font-black text-cyan-300 border border-cyan-400/30">
+          <Sparkles className="h-3.5 w-3.5 text-cyan-400" />
+          <span>Pro Plan — Unlimited</span>
         </div>
       ) : (
         <div className="inline-flex items-center gap-2">
           <button
             type="button"
             onClick={() => setShowUpgradeModal(true)}
-            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition ${
+            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-black transition cursor-pointer border ${
               usage.limitReached
-                ? "bg-red-500/15 text-red-600 border border-red-500/30 animate-pulse"
-                : "bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/20 hover:bg-amber-500/25"
+                ? "bg-rose-500/20 text-rose-300 border-rose-500/40 animate-pulse"
+                : "bg-amber-500/15 text-amber-300 border-amber-500/30 hover:bg-amber-500/25"
             }`}
           >
             <Zap className="h-3.5 w-3.5" />
             <span>
               {usage.limitReached
-                ? "0 / 10 Free Uses Left (Limit Reached)"
-                : `${usage.usesLeft} / 10 Free Uses Left`}
+                ? `0 / ${usage.maxFreeUses} Free Scans (Limit Reached)`
+                : `${usage.usesLeft} / ${usage.maxFreeUses} Free Scans Left`}
             </span>
           </button>
         </div>
@@ -94,56 +94,56 @@ export default function UsageBadge({
 
       {/* Upgrade Modal */}
       {showUpgradeModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="w-full max-w-md rounded-2xl bg-card border border-border p-6 shadow-2xl space-y-5 text-center">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400">
-              <ShieldAlert className="h-6 w-6" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-xl p-4 animate-fade-in">
+          <div className="w-full max-w-md rounded-3xl bg-slate-900 border border-slate-800 p-6 sm:p-8 shadow-2xl space-y-5 text-center text-slate-100">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-cyan-500/15 text-cyan-400 border border-cyan-400/30">
+              <ShieldAlert className="h-7 w-7" />
             </div>
 
             <div className="space-y-1">
-              <h3 className="text-xl font-bold">
+              <h3 className="text-xl font-black text-white">
                 {usage.limitReached
-                  ? "Free Plan Limit Reached"
+                  ? "Free Scan Limit Reached"
                   : "Upgrade to Spadas Pro"}
               </h3>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-xs text-slate-300">
                 {usage.limitReached
-                  ? "You've used all 10 free AI listing generations. Upgrade to Pro for unlimited AI listings, sourcing checks, and profit analytics."
-                  : "Unlock unlimited AI generations, barcode scans, and priority market pricing."}
+                  ? `You've used all ${usage.maxFreeUses} free AI scans. Upgrade to Spadas Pro for unlimited 60FPS AR camera scans, live sold comps, and 1-click eBay publishing.`
+                  : "Unlock unlimited AI generations, 60FPS continuous camera scanner, and 1-click publishing."}
               </p>
             </div>
 
-            <div className="rounded-xl bg-muted/50 p-4 text-left space-y-2 text-xs">
-              <div className="flex items-center gap-2 font-medium text-foreground">
-                ✓ Unlimited AI Listing Generations
+            <div className="rounded-2xl bg-slate-950 p-4 text-left space-y-2 text-xs border border-slate-800">
+              <div className="flex items-center gap-2 font-bold text-slate-200">
+                ✓ Unlimited 60FPS Continuous AR Camera Scans
               </div>
-              <div className="flex items-center gap-2 font-medium text-foreground">
-                ✓ Unlimited Sourcing Assistant Checks
+              <div className="flex items-center gap-2 font-bold text-slate-200">
+                ✓ Live Australia 30-Day Completed eBay Comps
               </div>
-              <div className="flex items-center gap-2 font-medium text-foreground">
-                ✓ Multi-Marketplace Title & SEO Copywriting
+              <div className="flex items-center gap-2 font-bold text-slate-200">
+                ✓ 1-Click Automated Background Publishing to eBay AU
               </div>
             </div>
 
-            <div className="flex flex-col gap-2.5">
+            <div className="flex flex-col gap-2.5 pt-2">
               <button
                 type="button"
                 onClick={handleUpgrade}
                 disabled={upgrading}
-                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 font-semibold text-white shadow-md transition hover:opacity-90 disabled:opacity-50"
+                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 font-black text-xs text-slate-950 shadow-xl shadow-cyan-500/30 hover:scale-[1.02] active:scale-[0.98] transition cursor-pointer disabled:opacity-50"
               >
                 {upgrading ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
+                  <Loader2 className="h-5 w-5 animate-spin text-slate-950" />
                 ) : (
                   <Sparkles className="h-5 w-5" />
                 )}
-                <span>Upgrade to Pro — Unlimited Access</span>
+                <span>Upgrade to Spadas Pro ($10 AUD/mo)</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setShowUpgradeModal(false)}
-                className="text-xs text-muted-foreground hover:text-foreground py-1"
+                className="text-xs text-slate-400 hover:text-white py-1 transition cursor-pointer"
               >
                 Dismiss
               </button>

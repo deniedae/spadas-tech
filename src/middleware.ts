@@ -1,8 +1,35 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
+// Explicit public routes that unauthenticated users are allowed to access
+const PUBLIC_PATHS = [
+  "/",
+  "/login",
+  "/signup",
+  "/privacy",
+  "/press",
+  "/creators",
+  "/spadas-ai.apk",
+  "/favicon.ico",
+];
+
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
+
+  // Allow next.js internal assets, static media files, and public APIs
+  if (
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/api/stripe/webhook") ||
+    pathname.startsWith("/api/marketplaces/ebay/webhook") ||
+    pathname.includes(".") // Static files like .png, .jpg, .svg, .ico, .apk
+  ) {
+    return NextResponse.next();
+  }
+
+  // Allow explicit public marketing and auth pages
+  if (PUBLIC_PATHS.includes(pathname)) {
+    return NextResponse.next();
+  }
 
   let response = NextResponse.next({
     request,
@@ -35,7 +62,7 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Protect private application pages if user is not logged in
+  // If user is not authenticated, block access to all app features and redirect to /login
   if (!user) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
@@ -46,19 +73,14 @@ export async function middleware(request: NextRequest) {
   return response;
 }
 
-// Explicitly match ONLY protected application pages
 export const config = {
   matcher: [
-    "/dashboard/:path*",
-    "/inventory/:path*",
-    "/lens/:path*",
-    "/radar/:path*",
-    "/generator/:path*",
-    "/velocity/:path*",
-    "/analytics/:path*",
-    "/settings/:path*",
-    "/listings/:path*",
-    "/sourcing/:path*",
-    "/history/:path*",
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     */
+    "/((?!_next/static|_next/image|favicon.ico).*)",
   ],
 };

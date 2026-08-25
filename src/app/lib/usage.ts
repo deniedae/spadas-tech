@@ -9,8 +9,9 @@ export interface UsageStatus {
   maxFreeUses: number;
 }
 
+export const MAX_FREE_USES = 5;
+
 export async function checkUserUsage(userId: string): Promise<UsageStatus> {
-  const MAX_FREE_USES = 10;
   const cookieStore = await cookies();
 
   const supabase = createServerClient(
@@ -37,7 +38,7 @@ export async function checkUserUsage(userId: string): Promise<UsageStatus> {
   // Admin & Owner Account Lifetime Pro Grant
   const isOwner = user?.email?.toLowerCase() === "deniedae@gmail.com";
 
-  // 1. Check if user is an active Pro subscriber
+  // 1. Check if user is an active Pro subscriber in Stripe / Supabase
   const { data: sub } = await supabase
     .from("user_subscriptions")
     .select("status")
@@ -69,13 +70,13 @@ export async function checkUserUsage(userId: string): Promise<UsageStatus> {
     };
   }
 
-  // 2. Count AI generations used on Free Plan
-  const { count: aiCount } = await supabase
-    .from("ai_listing_analyses")
+  // 2. Count scans used on Free Plan from scans and analyses tables
+  const { count: scanCount } = await supabase
+    .from("scans")
     .select("*", { count: "exact", head: true })
     .eq("user_id", userId);
 
-  const usesCount = aiCount ?? 0;
+  const usesCount = scanCount ?? 0;
   const usesLeft = Math.max(0, MAX_FREE_USES - usesCount);
   const limitReached = usesCount >= MAX_FREE_USES;
 
