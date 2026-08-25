@@ -99,15 +99,15 @@ export async function fetchEbayAustraliaSoldComps(
   productName: string,
   targetCurrency: SupportedCurrency = "AUD"
 ): Promise<EbayCompsResult | null> {
-  // Normalise query — strip noise, cap at 4 core keywords for best eBay match coverage
+  // Normalise query — strip noise, keep up to 6 core brand and model keywords for exact comp matching
   let queryText = productName
     .replace(/["']/g, "")
-    .replace(/\b(model|item|authentic|genuine|used|pre-owned|tested|working|vintage)\b/gi, "")
+    .replace(/\b(model|item|authentic|genuine|used|pre-owned|tested|working|vintage|retro|clean|great|condition)\b/gi, "")
     .replace(/\s+/g, " ")
     .trim();
 
-  const words = queryText.split(" ");
-  if (words.length > 4) queryText = words.slice(0, 4).join(" ");
+  const words = queryText.split(" ").filter((w) => w.length >= 2);
+  if (words.length > 6) queryText = words.slice(0, 6).join(" ");
   if (!queryText) return null;
 
   const encodedQuery = encodeURIComponent(queryText);
