@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Camera, Layers, Sparkles, MapPin, ArrowRight, ShieldCheck, CheckCircle2 } from "lucide-react";
+import { Camera, Layers, Sparkles, Calculator, ArrowRight, ShieldCheck, CheckCircle2, ShoppingBag } from "lucide-react";
 import Link from "next/link";
 
 interface ProductMode {
@@ -20,57 +20,57 @@ const MODES: ProductMode[] = [
     id: "lens-ar",
     badge: "LIVE 60FPS AR CAMERA",
     title: "Spadas Lens AR Vision",
-    icon: "📷",
-    description: "Continuous camera scanning over shelves & racks with real-time profit overlays, audio chimes, and live 30-day eBay AU sold comps.",
+    icon: "🔮",
+    description: "Continuous camera scanning over thrift shelves & clothing racks with real-time profit overlays, audio chimes, and live 30-day eBay AU sold comps.",
     metrics: [
-      { label: "Frame Rate", value: "60 FPS" },
-      { label: "Comp Accuracy", value: "100% AUD" },
-      { label: "Scan Speed", value: "< 1.5 Seconds" },
+      { label: "Scan Speed", value: "< 1.2 Seconds" },
+      { label: "Comp Accuracy", value: "100% Live AUD" },
+      { label: "Detection Mode", value: "Continuous 60FPS" },
     ],
     actionText: "Try Lens AR Scanner",
     actionHref: "/lens",
   },
   {
-    id: "cross-lister",
-    badge: "1-CLICK MULTI-POST",
-    title: "Multi-Platform Cross-Lister",
-    icon: "⚡",
-    description: "Cross-list inventory across eBay, Facebook Marketplace, Depop, Vinted, and Poshmark in 1 tap with platform-specific descriptions.",
+    id: "ai-studio",
+    badge: "MARKETPLACE COPYWRITER",
+    title: "AI Listing Studio",
+    icon: "🤖",
+    description: "Generate high-converting 80-character eBay SEO titles, condition notes, and detailed descriptions from single or multi-angle photos in seconds.",
     metrics: [
-      { label: "Supported Channels", value: "5 Marketplaces" },
-      { label: "Copy Speed", value: "Instant" },
-      { label: "Fee Calculators", value: "Automatic" },
+      { label: "eBay SEO Titles", value: "80-Char Max" },
+      { label: "Multi-Platform", value: "eBay, FB, Depop" },
+      { label: "Generation Time", value: "2.4 Seconds" },
     ],
-    actionText: "Explore Cross-Lister",
+    actionText: "Try AI Generator",
+    actionHref: "/generator",
+  },
+  {
+    id: "ebay-sync",
+    badge: "AUTOMATED PUBLISHING",
+    title: "1-Click eBay AU Publishing",
+    icon: "🛍️",
+    description: "Seamlessly publish scan drafts directly to your eBay account in the background. Automated inventory management, Australian warehouse registration, and live offers.",
+    metrics: [
+      { label: "API Integration", value: "Official REST" },
+      { label: "Publish Speed", value: "1-Tap Instant" },
+      { label: "Sync Status", value: "Live Background" },
+    ],
+    actionText: "Manage Listings",
     actionHref: "/listings",
   },
   {
-    id: "future-grail",
-    badge: "PREDICTIVE ANALYTICS",
-    title: "30-Day Value Projection",
-    icon: "🔮",
-    description: "Cross-references scanned digicams & Y2K fashion against spiking TikTok hashtags & Reddit mentions before market prices adjust.",
+    id: "profit-calc",
+    badge: "REAL-TIME FEE SIMULATOR",
+    title: "Reseller Profit Calculator",
+    icon: "💰",
+    description: "Simulate exact net profit, margin %, and ROI % across eBay Australia (13.4% + $0.33), Depop, and Facebook Marketplace before spending a single dollar.",
     metrics: [
-      { label: "Trend Sources", value: "TikTok & Reddit" },
-      { label: "Prediction Window", value: "30 Days" },
-      { label: "ROI Boost", value: "+85% Average" },
+      { label: "Marketplace Fees", value: "Exact 13.4%" },
+      { label: "Postage Satchels", value: "AusPost Pre-set" },
+      { label: "Margin Insights", value: "Instant ROI %" },
     ],
-    actionText: "View Value Curves",
-    actionHref: "/radar",
-  },
-  {
-    id: "spadas-radar",
-    badge: "SPATIAL GPS RADAR",
-    title: "Spadas Live Arbitrage Radar",
-    icon: "🗺️",
-    description: "Live spatial GPS map tracking high-yield op shops, flea markets, and live crowdsourced reseller reports nearby.",
-    metrics: [
-      { label: "Yield Heatmaps", value: "Real-Time GPS" },
-      { label: "Store Reports", value: "Live Crowdsourced" },
-      { label: "SLAM Clusters", value: "Anonymized" },
-    ],
-    actionText: "Launch Spadas Radar",
-    actionHref: "/radar",
+    actionText: "Calculate Profits",
+    actionHref: "/calculator",
   },
 ];
 
@@ -88,7 +88,7 @@ export default function LandingProductTabs() {
           Everything You Need to Scale
         </h2>
         <p className="text-sm text-slate-300">
-          Tap through the 4 core product engines built for high-volume resellers.
+          Explore the 4 core product engines built for high-volume thrifters and resellers.
         </p>
       </div>
 
@@ -101,7 +101,7 @@ export default function LandingProductTabs() {
             onClick={() => setActiveMode(mode)}
             className={`inline-flex items-center gap-2 rounded-2xl px-5 py-3 text-xs font-black transition cursor-pointer border ${
               activeMode.id === mode.id
-                ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-white border-cyan-300 shadow-[0_0_20px_rgba(6,182,212,0.4)] scale-105"
+                ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 border-cyan-300 shadow-[0_0_20px_rgba(6,182,212,0.4)] scale-105 font-black"
                 : "bg-slate-900/80 border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800"
             }`}
           >
@@ -129,7 +129,7 @@ export default function LandingProductTabs() {
 
           <Link
             href={activeMode.actionHref}
-            className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 px-6 text-sm font-extrabold text-white shadow-xl shadow-cyan-500/20 hover:opacity-90 transition shrink-0 active:scale-95"
+            className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 px-6 text-sm font-black text-slate-950 shadow-xl shadow-cyan-500/20 hover:opacity-90 transition shrink-0 active:scale-95 cursor-pointer"
           >
             <span>{activeMode.actionText}</span>
             <ArrowRight className="h-4 w-4" />
