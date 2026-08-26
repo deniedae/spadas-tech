@@ -215,6 +215,7 @@ function SpadasLensCameraCore() {
   const [isPro, setIsPro] = useState<boolean>(false);
   const [scanFeedback, setScanFeedback] = useState<"HIT" | "MISS" | null>(null);
   const [sessionScanCount, setSessionScanCount] = useState<number>(0);
+  const [shutterFlash, setShutterFlash] = useState<boolean>(false);
 
   // Persistent Offscreen Canvases & Strict In-Flight Request Locking (Zero GC Churn)
   const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -886,6 +887,14 @@ function SpadasLensCameraCore() {
     if (!stream && forceManual) {
       await startCamera();
       await new Promise((resolve) => setTimeout(resolve, 400));
+    }
+
+    if (forceManual) {
+      setShutterFlash(true);
+      setTimeout(() => setShutterFlash(false), 180);
+      if (typeof navigator !== "undefined" && navigator.vibrate) {
+        navigator.vibrate([40, 20, 50]);
+      }
     }
 
     setCameraMoving(false);
@@ -1811,38 +1820,37 @@ function SpadasLensCameraCore() {
               </div>
             ))}
 
-            {/* Single Floating Discovery Toast at Viewport Bottom */}
-            {capturedLog.length > 0 && (
-              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-30 pointer-events-none w-auto max-w-[92%]">
-                {(() => {
-                  const hit = capturedLog[0];
-                  return (
-                    <div
-                      key={hit.id}
-                      className="inline-flex items-center gap-2.5 rounded-full bg-slate-950/95 border border-emerald-400/60 px-3.5 py-1.5 shadow-2xl backdrop-blur-md pointer-events-auto animate-fade-in"
-                    >
-                      <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping shrink-0" />
-                      <span className="text-[11px] font-extrabold text-white truncate max-w-[140px] sm:max-w-[200px]">
-                        {hit.name}
-                      </span>
-                      <span className="text-[11px] font-black text-emerald-400 shrink-0">
-                        +{fmtMoney(hit.estimatedProfit)} Profit
-                      </span>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setDeepVerifyItem(hit);
-                        }}
-                        className="px-2 py-0.5 rounded-full bg-purple-600 hover:bg-purple-500 text-white text-[9px] font-black shadow-sm cursor-pointer shrink-0"
-                      >
-                        Verify
-                      </button>
-                    </div>
-                  );
-                })()}
-              </div>
+            {/* Optical Shutter Flash Overlay */}
+            {shutterFlash && (
+              <div className="absolute inset-0 z-40 bg-white/70 backdrop-blur-sm pointer-events-none transition-opacity duration-200" />
             )}
+
+            {/* Quick Snap & Value Tactile Shutter Button (Center Floating) */}
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 pointer-events-auto flex items-center justify-center">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  analyzingRef.current = false;
+                  setAnalyzingRealFrame(false);
+                  void processCurrentFrame(true);
+                }}
+                disabled={analyzingRealFrame}
+                className="group relative flex items-center justify-center h-16 w-16 sm:h-20 sm:w-20 rounded-full bg-gradient-to-tr from-cyan-500 via-blue-500 to-emerald-400 p-1 shadow-[0_0_35px_rgba(6,182,212,0.6)] active:scale-95 transition-all duration-200 cursor-pointer disabled:opacity-50"
+                title="⚡ Quick Snap & Value"
+              >
+                <div className="flex h-full w-full items-center justify-center rounded-full bg-slate-950/90 border-2 border-white/90 group-hover:bg-slate-900 transition">
+                  {analyzingRealFrame ? (
+                    <RefreshCw className="h-6 w-6 sm:h-7 sm:w-7 text-cyan-400 animate-spin" />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center text-center">
+                      <Sparkles className="h-6 w-6 sm:h-7 sm:w-7 text-cyan-300 group-hover:scale-110 transition-transform" />
+                      <span className="text-[8px] sm:text-[9px] font-black text-cyan-300 uppercase tracking-tight -mt-0.5">SNAP</span>
+                    </div>
+                  )}
+                </div>
+              </button>
+            </div>
           </>
         ) : (
           /* Placeholder View before starting */
