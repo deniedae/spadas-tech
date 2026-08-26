@@ -135,11 +135,22 @@ export default function LensHitCard({
       {/* ── Row 2: Dominant Profit + Secondary Stats ──────────────────────── */}
       <div className="flex items-end justify-between gap-3">
         <div>
-          <div className="text-[9px] font-semibold text-slate-500 uppercase tracking-widest mb-0.5">
-            Net Profit
+          <div className="text-[9px] font-semibold text-slate-500 uppercase tracking-widest mb-0.5 flex items-center gap-1.5">
+            <span>Net Profit</span>
+            {item.copVerdict && (
+              <span className={`px-1.5 py-0.2 rounded font-black text-[9px] ${
+                item.copVerdict === "MUST_COP"
+                  ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                  : item.copVerdict === "QUICK_FLIP"
+                  ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/30"
+                  : "bg-slate-800 text-slate-400"
+              }`}>
+                {item.copVerdict === "MUST_COP" ? "👑 MUST COP" : item.copVerdict === "QUICK_FLIP" ? "⚡ QUICK FLIP" : "⛔ PASS"}
+              </span>
+            )}
           </div>
           <div className="text-3xl font-black text-emerald-400 leading-none tracking-tight">
-            +{fmtMoney(item.estimatedProfit)}
+            +{fmtMoney(item.trueNetProfit || item.estimatedProfit)}
           </div>
         </div>
         <div className="flex flex-col items-end gap-0.5 text-[10px] text-slate-400 shrink-0">
@@ -150,14 +161,16 @@ export default function LensHitCard({
             </span>
           </span>
           <span>
-            Cost{" "}
-            <span className="font-bold text-slate-300">
-              {fmtMoney(item.estCost)}
+            {item.tagPrice ? "🏷️ Tag " : "Cost "}
+            <span className="font-bold text-amber-300">
+              {fmtMoney(item.tagPrice || item.estCost)}
             </span>
           </span>
           <span>
             ROI{" "}
-            <span className="font-bold text-slate-300">{item.estRoi}%</span>
+            <span className="font-bold text-emerald-300">
+              {item.roiPercentage || item.estRoi}%
+            </span>
           </span>
         </div>
       </div>

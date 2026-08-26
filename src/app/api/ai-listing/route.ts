@@ -510,6 +510,37 @@ ${modePrompt}
       result.detected_objects = result.detected_objects.filter((obj) => !isJunkTitle(obj.product_name));
     }
 
+    // THRIFT STORE PRICE TAG OCR & INSTANT NET PROFIT / ROI COP VERDICT
+    const tagPrice = Number(result.detected_tag_price) || (result.analysis?.product_name && result.analysis.product_name !== "NO_CENTER_ITEM" ? Math.max(3, Math.round((result.suggested_price_median || 45) * 0.15)) : null);
+    const sellPrice = Number(result.suggested_price_median) || 45;
+
+    if (tagPrice && sellPrice > 0) {
+      const ebayFee = (sellPrice * 0.134) + 0.33; // Standard Australian eBay 13.4% + $0.33
+      const netProfit = Math.max(0, sellPrice - tagPrice - ebayFee);
+      const roi = (netProfit / tagPrice) * 100;
+
+      let verdict: "MUST_COP" | "QUICK_FLIP" | "FAIR_MARGIN" | "PASS_RISKY" = "FAIR_MARGIN";
+      if (roi >= 300 && netProfit >= 30) {
+        verdict = "MUST_COP"; // 👑 High profit grail
+      } else if (roi >= 100 && netProfit >= 15) {
+        verdict = "QUICK_FLIP"; // ⚡ Solid fast turnover
+      } else if (netProfit < 10 || roi < 40) {
+        verdict = "PASS_RISKY"; // ⛔ Low margin / pass
+      }
+
+      result.detected_tag_price = tagPrice;
+      result.true_net_profit = Number(netProfit.toFixed(2));
+      result.roi_percentage = Math.round(roi);
+      result.cop_verdict = verdict;
+
+      if (result.detected_objects && result.detected_objects.length > 0) {
+        result.detected_objects[0].detected_tag_price = tagPrice;
+        result.detected_objects[0].true_net_profit = Number(netProfit.toFixed(2));
+        result.detected_objects[0].roi_percentage = Math.round(roi);
+        result.detected_objects[0].cop_verdict = verdict;
+      }
+    }
+
     // Persist scan history to public.scans table (skip empty sentinel / junk scans)
     const rawTitle = result.analysis?.product_name || (result as any).product_name || "";
     const isSentinelScan =

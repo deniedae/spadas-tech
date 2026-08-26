@@ -63,6 +63,17 @@ export interface FutureGrailPrediction {
   value_curve: number[];
 }
 
+export type CopVerdict = "MUST_COP" | "QUICK_FLIP" | "FAIR_MARGIN" | "PASS_RISKY";
+
+export interface ThriftTagOcrData {
+  detected_tag_price: number | null;
+  tag_currency: string;
+  tag_read_confidence: "high" | "medium" | "low" | "none";
+  true_net_profit: number;
+  roi_percentage: number;
+  cop_verdict: CopVerdict;
+}
+
 /** Full AI-generated listing payload. */
 export interface AiListingResult {
   status?: "identified" | "unidentified";
@@ -83,6 +94,10 @@ export interface AiListingResult {
   ebay_comps_count?: number;
   sales_velocity?: SalesVelocityEstimate;
   future_grail?: FutureGrailPrediction;
+  detected_tag_price?: number;
+  true_net_profit?: number;
+  roi_percentage?: number;
+  cop_verdict?: CopVerdict;
   isMockFallback?: boolean;
   detected_objects?: Array<{
     id: string;
@@ -93,6 +108,10 @@ export interface AiListingResult {
     bbox: { x: number; y: number; width: number; height: number };
     confidence_score: number;
     ebay_comps_count?: number;
+    detected_tag_price?: number;
+    true_net_profit?: number;
+    roi_percentage?: number;
+    cop_verdict?: CopVerdict;
   }>;
 }
 

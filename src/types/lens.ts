@@ -25,6 +25,10 @@ export interface DetectedHit {
   bbox: { x: number; y: number; width: number; height: number };
   timestamp: number;
   isGrail?: boolean;
+  tagPrice?: number;
+  trueNetProfit?: number;
+  roiPercentage?: number;
+  copVerdict?: "MUST_COP" | "QUICK_FLIP" | "FAIR_MARGIN" | "PASS_RISKY";
   /** Number of eBay listings found (active or sold depending on compsSource) */
   ebayCompsCount?: number;
   /** Data source used for price comps — drives the UI label */
@@ -67,5 +71,9 @@ export interface ActiveScanItem {
   estCost?: number;
   estimatedProfit?: number;
   estRoi?: number;
+  tagPrice?: number;
+  trueNetProfit?: number;
+  roiPercentage?: number;
+  copVerdict?: "MUST_COP" | "QUICK_FLIP" | "FAIR_MARGIN" | "PASS_RISKY";
   timestamp: number;
 }

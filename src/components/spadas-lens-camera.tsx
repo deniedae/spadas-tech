@@ -1157,9 +1157,14 @@ function SpadasLensCameraCore() {
           let baseVal = Number(data.suggested_price_median) || Math.round(((rawMin + rawMax) / 2) * 100) / 100;
 
           let itemCondition = cleanConditionText(obj.condition);
-          let estCost = baseVal <= 4 ? 1 : Math.max(2, Math.round(baseVal * 0.35 * 100) / 100);
-          let estimatedProfit = Math.max(0, Math.round((baseVal - estCost) * 100) / 100);
-          let estRoi = estCost > 0 ? Math.round((estimatedProfit / estCost) * 100) : 0;
+          let detectedTagPrice = Number(data.detected_tag_price) || (baseVal <= 4 ? 1 : Math.max(3, Math.round(baseVal * 0.15 * 100) / 100));
+          let trueNetProfit = Number(data.true_net_profit) || Math.max(0, Math.round((baseVal - detectedTagPrice - (baseVal * 0.134 + 0.33)) * 100) / 100);
+          let roiPercentage = Number(data.roi_percentage) || (detectedTagPrice > 0 ? Math.round((trueNetProfit / detectedTagPrice) * 100) : 0);
+          let copVerdict: "MUST_COP" | "QUICK_FLIP" | "FAIR_MARGIN" | "PASS_RISKY" = data.cop_verdict || (roiPercentage >= 300 && trueNetProfit >= 30 ? "MUST_COP" : roiPercentage >= 100 && trueNetProfit >= 15 ? "QUICK_FLIP" : trueNetProfit < 10 ? "PASS_RISKY" : "FAIR_MARGIN");
+
+          let estCost = detectedTagPrice;
+          let estimatedProfit = trueNetProfit;
+          let estRoi = roiPercentage;
 
           const valuedItem: ActiveScanItem = {
             ...obj,
@@ -1173,6 +1178,10 @@ function SpadasLensCameraCore() {
             estCost,
             estimatedProfit,
             estRoi,
+            tagPrice: detectedTagPrice,
+            trueNetProfit,
+            roiPercentage,
+            copVerdict,
             condition: itemCondition,
             inventoryCondition: "used_working",
             defectNotes: obj.defectNotes,
@@ -1258,6 +1267,10 @@ function SpadasLensCameraCore() {
             estCost,
             estimatedProfit,
             estRoi,
+            tagPrice: detectedTagPrice,
+            trueNetProfit,
+            roiPercentage,
+            copVerdict,
             verdict: estimatedProfit > 15 ? "BUY" : estimatedProfit >= 5 ? "CAUTION" : "PASS",
             confidence: 0.98,
             ebayCompsCount: obj.ebayCompsCount,
@@ -1668,20 +1681,44 @@ function SpadasLensCameraCore() {
                     : "border-cyan-400 animate-pulse shadow-[0_0_10px_rgba(34,211,238,0.5)]"
                 }`}
               >
-                {/* 1-Line Cyberpunk Floating Pill */}
-                <div className="absolute -top-10 left-0 flex items-center gap-1.5 bg-slate-950/95 text-white border border-cyan-400/50 rounded-full px-3 py-1 text-xs font-bold shadow-2xl backdrop-blur-md z-30 pointer-events-auto max-w-[90vw] whitespace-nowrap animate-fade-in">
-                  <span className="text-white font-extrabold truncate max-w-[110px] sm:max-w-[150px] text-[11px]">{scan.productName}</span>
-                  <span className="text-cyan-300 font-extrabold text-[10px] bg-cyan-500/20 px-1.5 py-0.5 rounded">
-                    Sell: {fmtMoney(scan.estimatedValue || 0)}
+                {/* Thrift Price Tag OCR & Instant Net Profit Holographic Floating Pill */}
+                <div className="absolute -top-12 left-0 flex flex-wrap items-center gap-1.5 bg-slate-950/95 text-white border border-cyan-400/50 rounded-2xl px-3 py-1.5 text-xs font-bold shadow-2xl backdrop-blur-md z-30 pointer-events-auto max-w-[94vw] animate-fade-in">
+                  <span className="text-white font-black truncate max-w-[100px] sm:max-w-[140px] text-[11px]">
+                    {scan.productName}
                   </span>
-                  <span className="text-emerald-400 font-black text-[10px] bg-emerald-500/20 px-1.5 py-0.5 rounded">
-                    +{fmtMoney(scan.estimatedProfit || 0)}
+
+                  {scan.tagPrice ? (
+                    <span className="text-amber-300 font-extrabold text-[10px] bg-amber-500/20 px-1.5 py-0.5 rounded border border-amber-500/30">
+                      🏷️ ${scan.tagPrice.toFixed(2)}
+                    </span>
+                  ) : null}
+
+                  <span className="text-cyan-300 font-extrabold text-[10px] bg-cyan-500/20 px-1.5 py-0.5 rounded border border-cyan-500/30">
+                    💰 {fmtMoney(scan.estimatedValue || 0)}
                   </span>
+
+                  <span className="text-emerald-400 font-black text-[10px] bg-emerald-500/20 px-1.5 py-0.5 rounded border border-emerald-500/30">
+                    +{fmtMoney(scan.trueNetProfit || scan.estimatedProfit || 0)}
+                  </span>
+
+                  {scan.copVerdict && (
+                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
+                      scan.copVerdict === "MUST_COP"
+                        ? "bg-emerald-500 text-slate-950 font-black shadow-md shadow-emerald-500/40"
+                        : scan.copVerdict === "QUICK_FLIP"
+                        ? "bg-cyan-500 text-slate-950 font-black"
+                        : scan.copVerdict === "PASS_RISKY"
+                        ? "bg-rose-500/20 text-rose-300 border border-rose-500/30"
+                        : "bg-slate-800 text-slate-300"
+                    }`}>
+                      {scan.copVerdict === "MUST_COP" ? "👑 COP" : scan.copVerdict === "QUICK_FLIP" ? "⚡ FLIP" : "⛔ PASS"}
+                    </span>
+                  )}
 
                   <button
                     type="button"
                     onClick={(e) => handleQuickAdd(e, scan)}
-                    className="ml-1 bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-2 py-0.5 rounded-full text-[10px] font-black transition cursor-pointer"
+                    className="ml-0.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-2.5 py-0.5 rounded-full text-[10px] font-black transition cursor-pointer active:scale-95"
                   >
                     +Add
                   </button>
@@ -1691,7 +1728,7 @@ function SpadasLensCameraCore() {
                       e.stopPropagation();
                       setActiveEbayItem(scan);
                     }}
-                    className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 px-2 py-0.5 rounded-full text-[10px] font-black transition cursor-pointer"
+                    className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 px-2.5 py-0.5 rounded-full text-[10px] font-black transition cursor-pointer active:scale-95"
                   >
                     ⚡eBay
                   </button>

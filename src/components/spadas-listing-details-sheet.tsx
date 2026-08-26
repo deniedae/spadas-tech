@@ -21,6 +21,10 @@ export interface SpadasListingData {
   priceMax: number;
   currency: string;
   photos: string[];
+  buyCost?: number;
+  trueNetProfit?: number;
+  roiPercentage?: number;
+  copVerdict?: "MUST_COP" | "QUICK_FLIP" | "FAIR_MARGIN" | "PASS_RISKY";
 }
 
 interface Props {
@@ -194,81 +198,103 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
           <ChevronRight className="h-5 w-5 text-slate-500 shrink-0" />
         </div>
 
-        {/* PROMINENT RESALE PRICE & PROFIT BREAKDOWN CARD */}
-        <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-cyan-500/50 space-y-3.5 shadow-2xl">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs font-black uppercase tracking-wider text-cyan-300">
-                💰 Suggested Resale Price
-              </span>
-            </div>
-            <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full text-[10px] font-black">
-              +${(data.priceMedian - Math.max(3, Math.round(data.priceMedian * 0.35))).toFixed(2)} AUD Profit
-            </span>
-          </div>
+        {/* Resale Price Card with Transparent Profit Math */}
+        {(() => {
+          const currentBuyCost = data.buyCost || Math.max(3, Math.round(data.priceMedian * 0.15));
+          const currentEbayFee = (data.priceMedian * 0.134) + 0.33;
+          const currentNetProfit = Math.max(0, data.priceMedian - currentBuyCost - currentEbayFee);
+          const currentRoi = currentBuyCost > 0 ? Math.round((currentNetProfit / currentBuyCost) * 100) : 0;
 
-          <div className="flex items-baseline justify-between">
-            <div>
-              <span className="text-3xl font-black text-white">${data.priceMedian.toFixed(2)}</span>
-              <span className="text-xs text-slate-400 font-bold ml-1.5">{data.currency}</span>
-            </div>
-            <div className="text-right">
-              <span className="text-[11px] text-slate-400 block font-semibold">
-                Range: ${data.priceMin.toFixed(0)} - ${data.priceMax.toFixed(0)} {data.currency}
-              </span>
-            </div>
-          </div>
+          return (
+            <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-cyan-500/40 space-y-3 shadow-xl">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-black uppercase tracking-wider text-cyan-300">
+                    💰 Suggested Resale Price
+                  </span>
+                </div>
+                <div className="flex items-center gap-1">
+                  {data.copVerdict && (
+                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
+                      data.copVerdict === "MUST_COP"
+                        ? "bg-emerald-500 text-slate-950 font-black shadow-md shadow-emerald-500/30"
+                        : data.copVerdict === "QUICK_FLIP"
+                        ? "bg-cyan-500 text-slate-950 font-black"
+                        : "bg-slate-800 text-slate-300"
+                    }`}>
+                      {data.copVerdict === "MUST_COP" ? "👑 MUST COP" : data.copVerdict === "QUICK_FLIP" ? "⚡ QUICK FLIP" : "FAIR MARGIN"}
+                    </span>
+                  )}
+                  <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full text-[10px] font-black">
+                    +${currentNetProfit.toFixed(2)} AUD Profit
+                  </span>
+                </div>
+              </div>
 
-          {/* Transparent Profit Math */}
-          <div className="flex items-center gap-2 pt-1 border-t border-slate-800/80 text-xs font-bold text-slate-300 flex-wrap">
-            <span className="bg-cyan-500/10 text-cyan-300 px-2 py-0.5 rounded border border-cyan-500/20">
-              Sell: ${data.priceMedian.toFixed(2)}
-            </span>
-            <span className="bg-slate-800 text-slate-300 px-2 py-0.5 rounded border border-slate-700">
-              Buy: ${Math.max(3, Math.round(data.priceMedian * 0.35)).toFixed(2)}
-            </span>
-            <span className="bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded border border-emerald-500/30">
-              Net Profit: +${(data.priceMedian - Math.max(3, Math.round(data.priceMedian * 0.35))).toFixed(2)}
-            </span>
-          </div>
+              <div className="flex items-baseline justify-between">
+                <div>
+                  <span className="text-3xl font-black text-white">${data.priceMedian.toFixed(2)}</span>
+                  <span className="text-xs text-slate-400 font-bold ml-1.5">{data.currency}</span>
+                </div>
+                <div className="text-right">
+                  <span className="text-[11px] text-slate-400 block font-semibold">
+                    Range: ${data.priceMin.toFixed(0)} - ${data.priceMax.toFixed(0)} {data.currency}
+                  </span>
+                </div>
+              </div>
 
-          {/* Smart Pricing Selector Pills */}
-          <div className="grid grid-cols-3 gap-2 pt-1">
-            <button
-              type="button"
-              onClick={() => setData(prev => ({ ...prev, priceMedian: Math.max(10, Math.round(prev.priceMin || prev.priceMedian * 0.85)) }))}
-              className={`py-2 px-2 rounded-xl text-[10px] font-black border transition cursor-pointer ${
-                data.priceMedian <= data.priceMin
-                  ? "bg-amber-400 text-slate-950 border-amber-300 shadow-md"
-                  : "bg-slate-800/90 text-slate-300 border-slate-700 hover:text-white"
-              }`}
-            >
-              ⚡ Fast Flip (${Math.max(10, Math.round(data.priceMin || data.priceMedian * 0.85))})
-            </button>
-            <button
-              type="button"
-              onClick={() => setData(prev => ({ ...prev, priceMedian: initialData.priceMedian }))}
-              className={`py-2 px-2 rounded-xl text-[10px] font-black border transition cursor-pointer ${
-                data.priceMedian === initialData.priceMedian
-                  ? "bg-cyan-500 text-slate-950 border-cyan-400 shadow-md"
-                  : "bg-slate-800/90 text-slate-300 border-slate-700 hover:text-white"
-              }`}
-            >
-              🎯 Median (${initialData.priceMedian.toFixed(0)})
-            </button>
-            <button
-              type="button"
-              onClick={() => setData(prev => ({ ...prev, priceMedian: Math.round(prev.priceMax || prev.priceMedian * 1.2) }))}
-              className={`py-2 px-2 rounded-xl text-[10px] font-black border transition cursor-pointer ${
-                data.priceMedian >= data.priceMax
-                  ? "bg-purple-500 text-white border-purple-400 shadow-md"
-                  : "bg-slate-800/90 text-slate-300 border-slate-700 hover:text-white"
-              }`}
-            >
-              👑 Top Dollar (${Math.round(data.priceMax || data.priceMedian * 1.2)})
-            </button>
-          </div>
-        </div>
+              {/* Transparent Profit Math */}
+              <div className="flex items-center gap-2 pt-1 border-t border-slate-800/80 text-xs font-bold text-slate-300 flex-wrap">
+                <span className="bg-cyan-500/10 text-cyan-300 px-2 py-0.5 rounded border border-cyan-500/20">
+                  Sell: ${data.priceMedian.toFixed(2)}
+                </span>
+                <span className="bg-amber-500/10 text-amber-300 px-2 py-0.5 rounded border border-amber-500/30">
+                  {data.buyCost ? "🏷️ Tag Buy: " : "Est Buy: "}${currentBuyCost.toFixed(2)}
+                </span>
+                <span className="bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded border border-emerald-500/30">
+                  Net Profit: +${currentNetProfit.toFixed(2)} ({currentRoi}% ROI)
+                </span>
+              </div>
+
+              {/* Smart Pricing Selector Pills */}
+              <div className="grid grid-cols-3 gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setData(prev => ({ ...prev, priceMedian: Math.max(10, Math.round(prev.priceMin || prev.priceMedian * 0.85)) }))}
+                  className={`py-2 px-2 rounded-xl text-[10px] font-black border transition cursor-pointer ${
+                    data.priceMedian <= data.priceMin
+                      ? "bg-amber-400 text-slate-950 border-amber-300 shadow-md"
+                      : "bg-slate-800/90 text-slate-300 border-slate-700 hover:text-white"
+                  }`}
+                >
+                  ⚡ Fast Flip (${Math.max(10, Math.round(data.priceMin || data.priceMedian * 0.85))})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setData(prev => ({ ...prev, priceMedian: initialData.priceMedian }))}
+                  className={`py-2 px-2 rounded-xl text-[10px] font-black border transition cursor-pointer ${
+                    data.priceMedian === initialData.priceMedian
+                      ? "bg-cyan-500 text-slate-950 border-cyan-400 shadow-md"
+                      : "bg-slate-800/90 text-slate-300 border-slate-700 hover:text-white"
+                  }`}
+                >
+                  🎯 Median (${initialData.priceMedian.toFixed(0)})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setData(prev => ({ ...prev, priceMedian: Math.round(prev.priceMax || prev.priceMedian * 1.2) }))}
+                  className={`py-2 px-2 rounded-xl text-[10px] font-black border transition cursor-pointer ${
+                    data.priceMedian >= data.priceMax
+                      ? "bg-purple-500 text-white border-purple-400 shadow-md"
+                      : "bg-slate-800/90 text-slate-300 border-slate-700 hover:text-white"
+                  }`}
+                >
+                  👑 Top Dollar (${Math.round(data.priceMax || data.priceMedian * 1.2)})
+                </button>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Size Card */}
         <div
