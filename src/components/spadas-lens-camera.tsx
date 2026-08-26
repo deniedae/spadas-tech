@@ -184,11 +184,11 @@ let cycleSeq = 0;
 function SpadasLensCameraCore() {
   const router = useRouter();
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [scanMode, setScanMode] = useState<"sweep" | "live" | "deep">("live");
+  const [scanMode, setScanMode] = useState<"snap" | "sweep" | "barcode" | "live">("snap");
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [scanning, setScanning] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
-  const [autoScanActive, setAutoScanActive] = useState(true);
+  const [autoScanActive, setAutoScanActive] = useState(false);
   const [analyzingRealFrame, setAnalyzingRealFrame] = useState(false);
   const [rateLimited, setRateLimited] = useState(false);
   const [activeScans, setActiveScans] = useState<ActiveScanItem[]>([]);
@@ -216,6 +216,10 @@ function SpadasLensCameraCore() {
   const [scanFeedback, setScanFeedback] = useState<"HIT" | "MISS" | null>(null);
   const [sessionScanCount, setSessionScanCount] = useState<number>(0);
   const [shutterFlash, setShutterFlash] = useState<boolean>(false);
+
+  // Barcode Single-Scan Debounce (1 scan only per barcode item)
+  const lastDetectedBarcodeRef = useRef<string | null>(null);
+  const lastBarcodeTimeRef = useRef<number>(0);
 
   // Persistent Offscreen Canvases & Strict In-Flight Request Locking (Zero GC Churn)
   const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -912,9 +916,17 @@ function SpadasLensCameraCore() {
           const detectedBarcodes = await detector.detect(video).catch(() => []);
           if (detectedBarcodes && detectedBarcodes.length > 0) {
             const codeVal = detectedBarcodes[0]?.rawValue;
+            const nowTime = Date.now();
             if (codeVal && codeVal.length >= 4) {
-              console.log("[Spadas Lens] Instant WASM Barcode Detected:", codeVal);
-              toast.success(`⚡ Barcode Detected: ${codeVal}`, { duration: 1500 });
+              // Strict Single-Scan Debounce: Only 1 scan per barcode (4s cooldown)
+              if (lastDetectedBarcodeRef.current === codeVal && nowTime - lastBarcodeTimeRef.current < 4000) {
+                setAnalyzingRealFrame(false);
+                return;
+              }
+              lastDetectedBarcodeRef.current = codeVal;
+              lastBarcodeTimeRef.current = nowTime;
+
+              console.log("[Spadas Lens] Single Barcode Lock-on:", codeVal);
               
               // Direct sub-100ms Barcode Comps Resolver
               const bRes = await fetch("/api/barcode", {
@@ -1495,7 +1507,7 @@ function SpadasLensCameraCore() {
       }
 
       // Strict Throttling & Cooldowns:
-      // Mode 1: SWEEP MODE -> 3500ms min cooldown
+      // Mode 1: SWEEP / AUTO AR MODE -> 3500ms min cooldown
       if (scanMode === "sweep") {
         if (!isPanning) {
           const justSettled = wasMoving && stableTicks >= 2 && timeSinceLast >= 3200;
@@ -1508,17 +1520,9 @@ function SpadasLensCameraCore() {
           }
         }
       }
-      // Mode 2: LIVE FOCUS -> 3500ms min cooldown
-      else if (scanMode === "live") {
-        if (isStill && stableTicks >= 4 && timeSinceLast >= 3500) {
-          wasMoving = false;
-          lastAutoTriggerTime = now;
-          void processFrameRef.current(false);
-        }
-      }
-      // Mode 3: DEEP FORENSIC -> 5000ms min cooldown
-      else if (scanMode === "deep") {
-        if (isStill && stableTicks >= 5 && timeSinceLast >= 5000) {
+      // Mode 2: BARCODE MODE
+      else if (scanMode === "barcode") {
+        if (stableTicks >= 2 && timeSinceLast >= 2000) {
           wasMoving = false;
           lastAutoTriggerTime = now;
           void processFrameRef.current(false);

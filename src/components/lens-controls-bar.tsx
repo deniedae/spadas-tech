@@ -27,8 +27,8 @@ import { toast } from "sonner";
 
 export interface LensControlsBarProps {
   scan: {
-    mode: "live" | "deep" | "sweep";
-    setMode: (m: "live" | "deep" | "sweep") => void;
+    mode: "snap" | "sweep" | "barcode" | "live" | "deep";
+    setMode: (m: any) => void;
     isAnalyzing: boolean;
     autoActive: boolean;
     setAutoActive: (v: boolean) => void;
@@ -94,8 +94,24 @@ export default function LensControlsBar({
           <button
             type="button"
             onClick={() => {
+              scan.setMode("snap");
+              scan.setAutoActive(false);
+              toast.success("📸 1-Tap Snap Mode Active (Single Scan on Shutter)");
+            }}
+            className={`px-3 py-1.5 rounded-lg text-xs font-black transition cursor-pointer ${
+              scan.mode === "snap"
+                ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-slate-950 shadow-md shadow-cyan-500/20"
+                : "text-slate-400 hover:text-white"
+            }`}
+          >
+            📸 1-Tap Snap
+          </button>
+          <button
+            type="button"
+            onClick={() => {
               scan.setMode("sweep");
-              toast.success("⚡ Continuous Sweep Active (Walk & Scan)");
+              scan.setAutoActive(true);
+              toast.success("⚡ Continuous AR Active (Hands-Free)");
             }}
             className={`px-3 py-1.5 rounded-lg text-xs font-black transition cursor-pointer ${
               scan.mode === "sweep"
@@ -103,35 +119,21 @@ export default function LensControlsBar({
                 : "text-slate-400 hover:text-white"
             }`}
           >
-            ⚡ Sweep
+            ⚡ Auto AR
           </button>
           <button
             type="button"
             onClick={() => {
-              scan.setMode("live");
-              toast.success("🎯 Live Focus Mode Active");
+              scan.setMode("barcode");
+              toast.success("🏷️ Barcode & Tag Scanner Active");
             }}
             className={`px-3 py-1.5 rounded-lg text-xs font-black transition cursor-pointer ${
-              scan.mode === "live"
-                ? "bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20"
-                : "text-slate-400 hover:text-white"
-            }`}
-          >
-            🎯 Focus
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              scan.setMode("deep");
-              toast.success("🔬 Deep Fusion Active");
-            }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-black transition cursor-pointer ${
-              scan.mode === "deep"
+              scan.mode === "barcode"
                 ? "bg-purple-500 text-white shadow-md shadow-purple-500/30"
                 : "text-slate-400 hover:text-white"
             }`}
           >
-            🔬 Deep
+            🏷️ Barcode
           </button>
         </div>
 
