@@ -216,14 +216,42 @@ function SpadasLensCameraCore() {
   const [scanFeedback, setScanFeedback] = useState<"HIT" | "MISS" | null>(null);
   const [sessionScanCount, setSessionScanCount] = useState<number>(0);
 
+  // Persistent Offscreen Canvases & Strict In-Flight Request Locking (Zero GC Churn)
+  const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const cropCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const isAnalyzingRef = useRef<boolean>(false);
+  const scanExpiryTimerRef = useRef<NodeJS.Timeout | null>(null);
+
   const profitableCount = capturedLog.filter((h) => (h.estimatedProfit || 0) >= minProfitThreshold).length;
   const bestProfit = capturedLog.reduce((max, h) => Math.max(max, h.estimatedProfit || 0), 0);
+
+  // Background / Mobile Tab Switch Reconnect Listener
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        const isTrackEnded = stream?.getVideoTracks().some((t) => t.readyState === "ended");
+        if (!stream || isTrackEnded) {
+          console.log("[Spadas Lens AR] App foregrounded — reconnecting camera stream...");
+          void startCamera();
+        }
+      } else {
+        isAnalyzingRef.current = false;
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      if (scanExpiryTimerRef.current) clearTimeout(scanExpiryTimerRef.current);
+    };
+  }, [stream]);
 
   // Safety watchdog to prevent analyzingRealFrame from getting permanently stuck
   useEffect(() => {
     if (!analyzingRealFrame) return;
     const timeout = setTimeout(() => {
       setAnalyzingRealFrame(false);
+      isAnalyzingRef.current = false;
     }, 5000);
     return () => clearTimeout(timeout);
   }, [analyzingRealFrame]);
@@ -953,15 +981,18 @@ function SpadasLensCameraCore() {
             targetW = Math.round((fullWidth * targetH) / fullHeight);
           }
 
-          const canvas = document.createElement("canvas");
+          if (!offscreenCanvasRef.current) {
+            offscreenCanvasRef.current = document.createElement("canvas");
+          }
+          const canvas = offscreenCanvasRef.current;
           canvas.width = targetW;
           canvas.height = targetH;
-          const ctx = canvas.getContext("2d");
+          const ctx = canvas.getContext("2d", { willReadFrequently: true });
           if (ctx) {
             ctx.imageSmoothingEnabled = true;
             ctx.imageSmoothingQuality = "high";
             ctx.drawImage(video, 0, 0, fullWidth, fullHeight, 0, 0, targetW, targetH);
-            frameDataUrl = canvas.toDataURL("image/jpeg", 0.90);
+            frameDataUrl = canvas.toDataURL("image/jpeg", 0.88);
           }
 
           // 2. High-Detail Laser Center Crop (Target Reticle Area: Center 65% x 65%)
@@ -970,15 +1001,18 @@ function SpadasLensCameraCore() {
           const cropX = Math.round((fullWidth - cropW) / 2);
           const cropY = Math.round((fullHeight - cropH) / 2);
 
-          const cropCanvas = document.createElement("canvas");
+          if (!cropCanvasRef.current) {
+            cropCanvasRef.current = document.createElement("canvas");
+          }
+          const cropCanvas = cropCanvasRef.current;
           cropCanvas.width = 800;
           cropCanvas.height = 800;
-          const cropCtx = cropCanvas.getContext("2d");
+          const cropCtx = cropCanvas.getContext("2d", { willReadFrequently: true });
           if (cropCtx) {
             cropCtx.imageSmoothingEnabled = true;
             cropCtx.imageSmoothingQuality = "high";
             cropCtx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, 800, 800);
-            centerCropDataUrl = cropCanvas.toDataURL("image/jpeg", 0.92);
+            centerCropDataUrl = cropCanvas.toDataURL("image/jpeg", 0.90);
           }
         }
       }
@@ -1209,11 +1243,19 @@ function SpadasLensCameraCore() {
             } catch {}
           }
 
-          // Dynamically update activeScans array with latest scanned valuation card
+          // Dynamically update activeScans array with smooth 3.5s decay retention
+          if (scanExpiryTimerRef.current) {
+            clearTimeout(scanExpiryTimerRef.current);
+          }
+
           setActiveScans((prev) => {
             const filtered = prev.filter((s) => getKeywordSimilarity(s.productName, obj.productName) < 0.6);
-            return [valuedItem, ...filtered].slice(0, 4);
+            return [valuedItem, ...filtered].slice(0, 3);
           });
+
+          scanExpiryTimerRef.current = setTimeout(() => {
+            setActiveScans([]);
+          }, 3500);
 
           const isGrailHit = estimatedProfit >= 80 || estRoi >= 250;
 
