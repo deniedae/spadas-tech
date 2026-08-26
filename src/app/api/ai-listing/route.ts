@@ -360,17 +360,16 @@ ${modePrompt}
     (result as any).provider = activeProvider;
     (result as any).suggested_price_currency = targetCurrency;
 
-    // HARD POST-CHECK QUALITY & GROUNDING VALIDATOR:
+    // GROUNDING VALIDATOR: Only discard if genuinely no physical item or empty sentinel
+    const rawProdName = (result.analysis?.product_name || (result as any).product_name || "").trim();
     const isUnidentified =
-      result.status === "unidentified" ||
-      result.analysis?.status === "unidentified" ||
-      result.analysis?.confidence === "low" ||
-      (result.analysis?.confidence_score !== undefined && result.analysis.confidence_score < 0.65) ||
-      !result.analysis?.product_name ||
-      result.analysis.product_name === "NO_CENTER_ITEM" ||
-      result.analysis.product_name.toLowerCase() === "unidentified" ||
-      result.analysis.product_name.toLowerCase() === "unknown product" ||
-      result.analysis.product_name.toLowerCase() === "null";
+      !rawProdName ||
+      rawProdName === "NO_CENTER_ITEM" ||
+      rawProdName.toLowerCase() === "unidentified" ||
+      rawProdName.toLowerCase() === "unknown product" ||
+      rawProdName.toLowerCase() === "null" ||
+      rawProdName.length < 2 ||
+      /^[.\/_\-–—:;,\s]+$/.test(rawProdName);
 
     if (isUnidentified) {
       result.status = "unidentified";
@@ -389,6 +388,12 @@ ${modePrompt}
     result.status = "identified";
     if (result.analysis) {
       result.analysis.status = "identified";
+      result.analysis.product_name = rawProdName;
+      if (!result.suggested_price_median || result.suggested_price_median === 0) {
+        result.suggested_price_median = 35;
+        result.suggested_price_min = 20;
+        result.suggested_price_max = 50;
+      }
     }
 
     console.log(`[Spadas Vision Diagnostic] userId: ${userId || "guest"} | provider: ${activeProvider} | product_name: "${result.analysis?.product_name}" | brand: "${result.analysis?.brand}" | category: "${result.analysis?.category}" | currency: ${targetCurrency}`);

@@ -918,9 +918,13 @@ function SpadasLensCameraCore() {
                 const bData = await bRes.json().catch(() => null);
                 const pName = (bData?.product?.name || "").trim();
                 if (bData && bData.product && pName && pName.toLowerCase() !== "unknown product" && pName.toLowerCase() !== "unknown title") {
-                  const estValue = bData.product.suggestedPrice || 45;
-                  const estCost = Math.max(3, Math.round(estValue * 0.35));
-                  const estProfit = Math.max(5, estValue - estCost);
+                  const estValue = Number(bData.product.suggestedPrice) || 45;
+                  const estCost = Math.max(2, Math.round(estValue * 0.15));
+                  const ebayFee = (estValue * 0.134) + 0.33;
+                  const estProfit = Math.max(0, Math.round((estValue - estCost - ebayFee) * 100) / 100);
+                  const estRoi = estCost > 0 ? Math.round((estProfit / estCost) * 100) : 0;
+                  const copVerdict = estRoi >= 300 && estProfit >= 25 ? "MUST_COP" : estRoi >= 100 ? "QUICK_FLIP" : "FAIR_MARGIN";
+
                   const scanObj: ActiveScanItem = {
                     id: `barcode-${Date.now()}`,
                     productName: pName,
@@ -938,16 +942,48 @@ function SpadasLensCameraCore() {
                     confidenceScore: 0.99,
                     estCost: estCost,
                     estimatedProfit: estProfit,
-                    estRoi: Math.round((estProfit / estCost) * 100),
+                    estRoi: estRoi,
+                    tagPrice: estCost,
+                    trueNetProfit: estProfit,
+                    roiPercentage: estRoi,
+                    copVerdict: copVerdict,
                     timestamp: Date.now(),
                   };
 
-                  setActiveScans((prev) => [scanObj, ...prev.slice(0, 4)]);
+                  const verifiedHit: DetectedHit = {
+                    id: `hit-${Date.now()}`,
+                    name: pName,
+                    brand: bData.product.brand || "Authentic",
+                    category: bData.product.category || "Media / Barcode Item",
+                    condition: "Used - Good",
+                    inventoryCondition: "used_working",
+                    defectNotes: [],
+                    asIsDisclaimer: "",
+                    estimatedValue: estValue,
+                    estCost: estCost,
+                    estimatedProfit: estProfit,
+                    estRoi: estRoi,
+                    tagPrice: estCost,
+                    trueNetProfit: estProfit,
+                    roiPercentage: estRoi,
+                    copVerdict: copVerdict,
+                    verdict: estProfit >= 15 ? "BUY" : "CAUTION",
+                    confidence: 0.99,
+                    bbox: { x: 15, y: 15, width: 70, height: 70 },
+                    timestamp: Date.now(),
+                  };
+
+                  setActiveScans([scanObj]);
+                  setCapturedLog((prev) => [verifiedHit, ...prev.filter((h) => h.name !== pName)].slice(0, 50));
                   setSessionScanCount((prev) => prev + 1);
+
+                  if (scanExpiryTimerRef.current) clearTimeout(scanExpiryTimerRef.current);
+                  scanExpiryTimerRef.current = setTimeout(() => setActiveScans([]), 4500);
+
                   if (typeof navigator !== "undefined" && navigator.vibrate) {
-                    navigator.vibrate(80);
+                    navigator.vibrate(100);
                   }
-                  toast.success(`🎯 Instant Barcode Hit: ${pName} (+${fmtMoney(estProfit)} Net Profit)`);
+                  playChime(estProfit);
                   setAnalyzingRealFrame(false);
                   return;
                 } else {
@@ -1590,23 +1626,10 @@ function SpadasLensCameraCore() {
               </div>
             </div>
 
-            {/* Holographic AR Analyzing & Reasoning State */}
+            {/* Minimalist Scanning Beam Indicator */}
             {analyzingRealFrame && (
-              <div className="absolute inset-0 z-30 pointer-events-none flex flex-col items-center justify-center bg-slate-950/20 backdrop-blur-[2px] animate-fade-in">
-                <div className="absolute inset-x-0 h-0.5 bg-gradient-to-r from-transparent via-cyan-400 to-transparent shadow-[0_0_25px_#22d3ee] animate-pulse top-1/2 -translate-y-1/2" />
-                <div className="inline-flex items-center gap-2 rounded-full bg-slate-950/90 border border-cyan-400/60 px-4 py-1.5 text-xs font-black text-cyan-300 shadow-[0_0_30px_rgba(6,182,212,0.4)] backdrop-blur-md">
-                  <Sparkles className="h-4 w-4 text-cyan-400 animate-spin" />
-                  <span>🧠 Deep AI Vision Reasoning...</span>
-                </div>
-              </div>
-            )}
-
-            {/* Camera Shake / Fast Movement Amber Alert Border */}
-            {cameraMoving && (
-              <div className="absolute inset-0 border-4 border-amber-400/80 rounded-3xl pointer-events-none z-30 animate-pulse flex items-center justify-center">
-                <span className="bg-slate-950/90 text-amber-300 border border-amber-400/50 px-3.5 py-1 rounded-full text-xs font-black shadow-2xl backdrop-blur-md">
-                  📱 Hold camera steady over item...
-                </span>
+              <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 z-25 pointer-events-none flex flex-col items-center justify-center">
+                <div className="w-full h-[2px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent shadow-[0_0_20px_#22d3ee] animate-pulse" />
               </div>
             )}
 
