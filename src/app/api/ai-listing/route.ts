@@ -14,6 +14,7 @@ import { callClaudeVision } from "@/app/lib/config/claude-vision";
 import { callGeminiVision } from "@/app/lib/config/gemini-vision";
 import { fetchEbayAustraliaSoldComps } from "@/app/lib/ebay-australia-comps";
 import { detectGeoCurrency, SupportedCurrency } from "@/app/lib/currency-routing";
+import { saveProductToCache, getCachedProductScan } from "@/app/lib/cache/product-cache";
 import type { AiListingResult } from "@/types/ai-listing";
 
 export const preferredRegion = "syd1";
@@ -233,6 +234,14 @@ export async function POST(request: Request) {
           },
           { status: 403 }
         );
+      }
+    }
+
+    // Sub-30ms Cache Lookup for repeated queries or known products
+    if (body.productName || body.query) {
+      const cached = await getCachedProductScan(body.productName || body.query);
+      if (cached && cached.status === "identified") {
+        return NextResponse.json(cached);
       }
     }
 
@@ -555,6 +564,11 @@ ${modePrompt}
       /^[.\/_\-–—:;,\s]+$/.test(rawTitle) ||
       (result as any).category === "NO_CENTER_ITEM" ||
       result.analysis?.category === "NO_CENTER_ITEM";
+
+    // Save to Global Reseller Product Cache for sub-30ms instant repeated recognition
+    if (result && result.status === "identified" && rawTitle && !isSentinelScan) {
+      void saveProductToCache(rawTitle, result);
+    }
 
     if (user && !isSentinelScan) {
       try {
