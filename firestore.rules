@@ -1,0 +1,42 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isProAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.email.lower() == "deniedae@gmail.com" ||
+        request.auth.token.email == "deniedae@gmail.com"
+      );
+    }
+
+    // User Profiles Collection
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isProAdmin();
+      allow create, update: if isOwner(userId) || isProAdmin();
+      allow delete: if isProAdmin();
+    }
+
+    // Listings Collection
+    match /listings/{listingId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isProAdmin());
+      allow create: if isAuthenticated() && (request.resource.data.userId == request.auth.uid || isProAdmin());
+      allow update, delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isProAdmin());
+    }
+
+    // Scans & AR Valuation Records Collection
+    match /scans/{scanId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isProAdmin());
+      allow create: if isAuthenticated() && (request.resource.data.userId == request.auth.uid || isProAdmin());
+      allow update, delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isProAdmin());
+    }
+  }
+}

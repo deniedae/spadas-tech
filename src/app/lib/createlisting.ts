@@ -1,4 +1,5 @@
 import { supabase } from "@/app/lib/supabase";
+import { saveListingToFirestore } from "@/app/lib/firestore-listings";
 
 export interface ListingInput {
   userId: string;
@@ -15,6 +16,7 @@ export interface ListingInput {
 }
 
 export async function createListing(data: ListingInput) {
+  // 1. Primary Store: Supabase
   const { data: result, error } = await supabase
     .from("listings")
     .insert([
@@ -35,6 +37,20 @@ export async function createListing(data: ListingInput) {
     ])
     .select()
     .single();
+
+  // 2. Dual-Store Sync: Cloud Firestore
+  try {
+    void saveListingToFirestore(data.userId, {
+      product: data.product,
+      description: data.description ?? "",
+      price: data.price ?? 0,
+      cost: data.cost ?? 0,
+      image: data.image ?? "",
+      status: data.status ?? "Active",
+    });
+  } catch (fsErr) {
+    console.warn("[Firestore Dual-Store] Non-blocking sync notice:", fsErr);
+  }
 
   return { data: result, error };
 }

@@ -12,6 +12,7 @@ import NewListingDialog from "@/components/new-listing-dialog";
 import EbayListingModal from "@/components/ebay-listing-modal";
 import { toast } from "sonner";
 import { fmtMoney, calcProfit, calcInventoryValue } from "@/app/lib/listings";
+import { fetchUserListings, deleteListingFromFirestore } from "@/app/lib/firestore-listings";
 import {
   Package,
   Search,
@@ -91,17 +92,43 @@ export default function ListingsPage() {
         return;
       }
 
-      const { data, error } = await supabase
-        .from("listings")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("id", { ascending: false });
+      let primaryListings: Listing[] = [];
 
-      if (error) {
-        throw error;
+      try {
+        const { data, error } = await supabase
+          .from("listings")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("id", { ascending: false });
+
+        if (!error && data) {
+          primaryListings = data as Listing[];
+        }
+      } catch (sbErr) {
+        console.warn("[Supabase] loadListings failed, querying Firestore fallback:", sbErr);
       }
 
-      setListings((data as Listing[]) || []);
+      // If primary store has records, use them; otherwise fallback to Cloud Firestore
+      if (primaryListings.length > 0) {
+        setListings(primaryListings);
+      } else {
+        const fsListings = await fetchUserListings(user.id);
+        if (fsListings.length > 0) {
+          const adapted: Listing[] = fsListings.map((fl) => ({
+            id: fl.id || `fs-${Date.now()}`,
+            product: fl.product,
+            description: fl.description,
+            price: fl.price,
+            cost: fl.cost,
+            status: fl.status,
+            image_url: fl.image || null,
+          }));
+          setListings(adapted);
+        } else {
+          setListings([]);
+        }
+      }
+
       setError(null);
     } catch (err) {
       console.error(err);
@@ -157,16 +184,18 @@ export default function ListingsPage() {
 
     if (!user) return;
 
-    const { error } = await supabase
-      .from("listings")
-      .delete()
-      .eq("id", id)
-      .eq("user_id", user.id);
+    try {
+      await supabase
+        .from("listings")
+        .delete()
+        .eq("id", id)
+        .eq("user_id", user.id);
+    } catch {}
 
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
+    try {
+      await deleteListingFromFirestore(id, user.id);
+    } catch {}
+
     toast.success("Listing deleted!");
     loadListings();
   }
