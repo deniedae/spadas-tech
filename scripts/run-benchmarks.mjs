@@ -1,10 +1,12 @@
 /**
  * Spadas Resale Engine Rigorous Performance Benchmarks
- * Evaluates real measured latencies (p50, p95, p99), memory deltas, and provider fallbacks.
+ * Evaluates real measured latencies (p50, p95, p99), memory deltas, provider fallbacks,
+ * and strict AbortController timeout & reason assertions.
  */
 
 import { performance } from "perf_hooks";
 import os from "os";
+import assert from "assert";
 
 // ── Pure Offline Engine & Cop Verdict Re-implementation for isolated benchmarking ──
 const CATEGORY_THRIFT_COGS = {
@@ -101,38 +103,69 @@ function getCachedValuation(keyText, maxAgeMs = 86400000) {
   return null;
 }
 
-// ── Mock Upstream Provider with Configurable Latency & Timeout ──
-async function mockUpstreamProvider(itemName, latencyMs, shouldFail = false) {
-  await new Promise((resolve) => setTimeout(resolve, latencyMs));
-  if (shouldFail) {
-    throw new Error("Provider timeout / upstream failure");
-  }
-  return {
-    product_name: itemName,
-    suggested_price: 65.0,
-    confidence: 0.95,
-  };
-}
+// ── AbortSignal & Circuit Breaker Engine with Strict In-Flight & Reason Tracking ──
+async function executeWithCircuitBreaker(providerTask, options) {
+  const { timeoutMs, abortReason = "CIRCUIT_BREAKER_TIMEOUT", fallback } = options;
+  const controller = new AbortController();
+  const signal = controller.signal;
 
-async function appraiseWithTimeout(itemName, providerLatencyMs, timeoutMs) {
-  const timeoutPromise = new Promise((_, reject) =>
-    setTimeout(() => reject(new Error("CIRCUIT_BREAKER_TIMEOUT")), timeoutMs)
-  );
+  let recordedAbortReason = null;
+  signal.addEventListener("abort", () => {
+    recordedAbortReason = typeof signal.reason === "string" ? signal.reason : String(signal.reason || abortReason);
+  });
 
-  try {
-    const result = await Promise.race([
-      mockUpstreamProvider(itemName, providerLatencyMs),
-      timeoutPromise,
-    ]);
-    return { source: "upstream", data: result };
-  } catch {
-    // Fallback to offline cop verdict calculation immediately
-    const fallback = calculateThriftCopVerdict({
-      resalePrice: 45.0,
-      category: "apparel",
-    });
-    return { source: "offline_fallback", data: fallback };
-  }
+  const startTime = performance.now();
+  let timerId;
+
+  const timeoutPromise = new Promise((resolve) => {
+    timerId = setTimeout(async () => {
+      // Trigger AbortSignal with recorded reason
+      if (!signal.aborted) {
+        controller.abort(abortReason);
+      }
+
+      const elapsed = performance.now() - startTime;
+      const fallbackData = await fallback();
+
+      resolve({
+        result: fallbackData,
+        source: "offline_fallback",
+        durationMs: elapsed,
+        aborted: true,
+        abortReason: recordedAbortReason || abortReason,
+      });
+    }, timeoutMs);
+  });
+
+  const upstreamPromise = (async () => {
+    try {
+      const data = await providerTask(signal);
+      if (timerId) clearTimeout(timerId);
+
+      return {
+        result: data,
+        source: "upstream",
+        durationMs: performance.now() - startTime,
+        aborted: false,
+        abortReason: null,
+      };
+    } catch (err) {
+      if (timerId) clearTimeout(timerId);
+      if (signal.aborted) {
+        const fallbackData = await fallback();
+        return {
+          result: fallbackData,
+          source: "offline_fallback",
+          durationMs: performance.now() - startTime,
+          aborted: true,
+          abortReason: recordedAbortReason || abortReason,
+        };
+      }
+      throw err;
+    }
+  })();
+
+  return await Promise.race([upstreamPromise, timeoutPromise]);
 }
 
 // ── Statistical Helper ──
@@ -184,7 +217,6 @@ async function runBenchmarks() {
   console.log("⏱️  Running Benchmark 1: Cold Appraisal...");
   const coldSamples = [];
   for (let i = 0; i < 20; i++) {
-    // Clear cache to simulate cold state
     memoryCache.clear();
     const t0 = performance.now();
     const item = `Cold Item Vintage Jacket ${i}`;
@@ -215,7 +247,7 @@ async function runBenchmarks() {
     });
     await Promise.all(tasks);
     const t1 = performance.now();
-    parallelSamples.push((t1 - t0) / 10); // Per-item latency in batch
+    parallelSamples.push((t1 - t0) / 10);
   }
   results["Parallel Appraisal (per item)"] = calculatePercentiles(parallelSamples);
 
@@ -229,7 +261,7 @@ async function runBenchmarks() {
     const t0 = performance.now();
     const val = getCachedValuation("Nike Air Max 95 OG");
     const t1 = performance.now();
-    if (!val) throw new Error("Cache hit assertion failed");
+    assert.ok(val, "Cache hit assertion failed");
     hitSamples.push(t1 - t0);
   }
   results["Cache Hit (in-memory)"] = calculatePercentiles(hitSamples);
@@ -241,7 +273,7 @@ async function runBenchmarks() {
     const t0 = performance.now();
     const val = getCachedValuation(`Uncached NonExistent Item SKU #${i}`);
     const t1 = performance.now();
-    if (val !== null) throw new Error("Cache miss assertion failed");
+    assert.strictEqual(val, null, "Cache miss assertion failed");
     missSamples.push(t1 - t0);
   }
   results["Cache Miss"] = calculatePercentiles(missSamples);
@@ -257,22 +289,77 @@ async function runBenchmarks() {
       category: "sneakers",
     });
     const t1 = performance.now();
-    if (v.copVerdict !== "MUST_COP") throw new Error("Cop verdict assertion failed");
+    assert.strictEqual(v.copVerdict, "MUST_COP", "Cop verdict assertion failed");
     offlineSamples.push(t1 - t0);
   }
   results["Offline Fallback"] = calculatePercentiles(offlineSamples);
 
-  // 6. Slow-Provider Timeout Benchmark (Circuit breaker 50ms timeout)
-  console.log("⏱️  Running Benchmark 6: Slow-Provider Timeout & Circuit Breaker (50ms timeout)...");
+  // 6. Slow-Provider Timeout & Strict AbortSignal Assertion Benchmark
+  console.log("⏱️  Running Benchmark 6: Slow-Provider Timeout & AbortSignal Assertions (60ms timeout)...");
   const timeoutSamples = [];
-  for (let i = 0; i < 20; i++) {
+  const CONFIGURED_TIMEOUT_MS = 60;
+  const SLOW_PROVIDER_LATENCY_MS = 250;
+
+  for (let i = 0; i < 25; i++) {
+    let providerWasAborted = false;
+    let providerPendingDuration = 0;
+    const providerStartTime = performance.now();
+
+    const slowProviderTask = (signal) => {
+      return new Promise((resolve) => {
+        const timer = setTimeout(() => {
+          if (!signal.aborted) {
+            resolve({ product_name: "Late Item", price: 75.0 });
+          }
+        }, SLOW_PROVIDER_LATENCY_MS);
+
+        signal.addEventListener("abort", () => {
+          clearTimeout(timer);
+          providerWasAborted = true;
+          providerPendingDuration = performance.now() - providerStartTime;
+        });
+      });
+    };
+
     const t0 = performance.now();
-    const res = await appraiseWithTimeout("Laggy Server Item", 250, false); // 250ms provider with 50ms timeout
+    const res = await executeWithCircuitBreaker(slowProviderTask, {
+      timeoutMs: CONFIGURED_TIMEOUT_MS,
+      abortReason: "CIRCUIT_BREAKER_TIMEOUT",
+      fallback: () => calculateThriftCopVerdict({ resalePrice: 50.0, category: "apparel" }),
+    });
     const t1 = performance.now();
-    if (res.source !== "offline_fallback") throw new Error("Timeout fallback assertion failed");
-    timeoutSamples.push(t1 - t0);
+    const measuredElapsedMs = t1 - t0;
+
+    // Strict Empirical Assertions:
+    // 1. Provider remained pending for at least the configured timeout
+    assert.ok(
+      providerPendingDuration >= CONFIGURED_TIMEOUT_MS * 0.95,
+      `Provider did not remain pending for timeout: ${providerPendingDuration}ms vs ${CONFIGURED_TIMEOUT_MS}ms`
+    );
+
+    // 2. Fallback is NOT returned before the timeout
+    assert.ok(
+      measuredElapsedMs >= CONFIGURED_TIMEOUT_MS * 0.95,
+      `Fallback was returned prematurely at ${measuredElapsedMs}ms (before ${CONFIGURED_TIMEOUT_MS}ms timeout)!`
+    );
+
+    // 3. Abort signal is triggered
+    assert.strictEqual(res.aborted, true, "Abort signal was not triggered on timeout!");
+    assert.strictEqual(providerWasAborted, true, "Provider listener did not receive abort signal!");
+
+    // 4. Abort reason is recorded
+    assert.strictEqual(
+      res.abortReason,
+      "CIRCUIT_BREAKER_TIMEOUT",
+      `Expected abort reason 'CIRCUIT_BREAKER_TIMEOUT', received '${res.abortReason}'`
+    );
+
+    // 5. Returned source is offline fallback
+    assert.strictEqual(res.source, "offline_fallback", "Result source was not offline_fallback!");
+
+    timeoutSamples.push(measuredElapsedMs);
   }
-  results["Slow-Provider Timeout (50ms Circuit Breaker)"] = calculatePercentiles(timeoutSamples);
+  results[`Slow-Provider Timeout (${CONFIGURED_TIMEOUT_MS}ms Circuit Breaker)`] = calculatePercentiles(timeoutSamples);
 
   const finalMem = process.memoryUsage();
   const memDelta = {
@@ -305,10 +392,18 @@ async function runBenchmarks() {
   console.log(` • Total Heap Size:   ${memDelta.heapTotalMB} MB`);
   console.log(` • Process RSS:       ${memDelta.rssMB} MB\n`);
 
-  console.log("✅ All benchmark assertions PASSED.");
+  console.log("🔍 TIMEOUT & ABORT VERIFICATION SUMMARY:");
+  console.log(` • Configured Timeout:                  ${CONFIGURED_TIMEOUT_MS} ms`);
+  console.log(` • Provider Pending Before Abort:       >= ${CONFIGURED_TIMEOUT_MS} ms (PASSED ✓)`);
+  console.log(` • Fallback Return Elapsed Time:        >= ${CONFIGURED_TIMEOUT_MS} ms (PASSED ✓)`);
+  console.log(` • AbortSignal.aborted Status:          true (PASSED ✓)`);
+  console.log(` • AbortSignal.reason Recorded:         "CIRCUIT_BREAKER_TIMEOUT" (PASSED ✓)`);
+  console.log(` • Result Fallback Source:              "offline_fallback" (PASSED ✓)\n`);
+
+  console.log("✅ All benchmark & abort signal assertions PASSED.");
 }
 
 runBenchmarks().catch((err) => {
-  console.error("Benchmark failed:", err);
+  console.error("Benchmark failed with assertion error:", err);
   process.exit(1);
 });
