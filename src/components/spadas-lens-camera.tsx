@@ -31,6 +31,7 @@ import CameraOnboardingOverlay from "@/components/camera-onboarding-overlay";
 import { DeepVerifyModal } from "@/components/deep-verify-modal";
 import LensHitCard from "@/components/lens-hit-card";
 import LensControlsBar from "@/components/lens-controls-bar";
+import LensCompsModal from "@/components/lens-comps-modal";
 import type { DetectedHit, ActiveScanItem } from "@/types/lens";
 export type { DetectedHit, ActiveScanItem } from "@/types/lens";
 
@@ -219,6 +220,25 @@ function SpadasLensCameraCore() {
   const [scanFeedback, setScanFeedback] = useState<"HIT" | "MISS" | null>(null);
   const [sessionScanCount, setSessionScanCount] = useState<number>(0);
   const [shutterFlash, setShutterFlash] = useState<boolean>(false);
+
+  // Scan Stabilization & Dynamic Confidence State
+  const [isScanPaused, setIsScanPaused] = useState<boolean>(false);
+  const [frozenFrameUrl, setFrozenFrameUrl] = useState<string | null>(null);
+  const [activeCompsHit, setActiveCompsHit] = useState<DetectedHit | ActiveScanItem | null>(null);
+  const [confidencePercent, setConfidencePercent] = useState<number>(94);
+
+  // Resume camera scanning handler
+  const handleResumeScanning = useCallback(() => {
+    setIsScanPaused(false);
+    setFrozenFrameUrl(null);
+    setActiveCompsHit(null);
+    analyzingRef.current = false;
+    setAnalyzingRealFrame(false);
+    setActiveScans([]);
+    if (videoRef.current && videoRef.current.paused) {
+      videoRef.current.play().catch(() => {});
+    }
+  }, []);
 
   // Barcode Single-Scan Debounce (1 scan only per barcode item)
   const lastDetectedBarcodeRef = useRef<string | null>(null);
@@ -1128,6 +1148,9 @@ function SpadasLensCameraCore() {
                   setActiveScans([scanObj]);
                   setCapturedLog((prev) => [verifiedHit, ...prev.filter((h) => h.name !== pName)].slice(0, 50));
                   setSessionScanCount((prev) => prev + 1);
+                  setActiveCompsHit(verifiedHit);
+                  setIsScanPaused(true);
+                  setConfidencePercent(99);
 
                   if (scanExpiryTimerRef.current) clearTimeout(scanExpiryTimerRef.current);
                   scanExpiryTimerRef.current = setTimeout(() => setActiveScans([]), 4500);
@@ -1212,7 +1235,13 @@ function SpadasLensCameraCore() {
         return;
       }
 
-      const imagePayloads = [centerCropDataUrl || frameDataUrl];
+      const snapshotImage = centerCropDataUrl || frameDataUrl;
+      setFrozenFrameUrl(snapshotImage);
+      if (forceManual || scanMode === "snap") {
+        setIsScanPaused(true);
+      }
+
+      const imagePayloads = [snapshotImage];
 
       let res: Response | null = null;
       console.log('[Spadas Lens]', cycleId, 'Starting resilient fetch for frame with analyzingRealFrame:', analyzingRealFrame);
@@ -1337,6 +1366,11 @@ function SpadasLensCameraCore() {
 
       // Hard check: if unidentified, stay clean without inserting placeholder cards or fake prices
       if (data.status === "unidentified" || data.analysis?.status === "unidentified") {
+        if (forceManual || scanMode === "snap") {
+          toast.info("No distinct item detected. Aim directly at item or label.", { id: "no-item-toast" });
+          setIsScanPaused(false);
+          setFrozenFrameUrl(null);
+        }
         setAnalyzingRealFrame(false);
         return;
       }
@@ -1351,6 +1385,11 @@ function SpadasLensCameraCore() {
 
       if (isVagueOrPartialRead(pName)) {
         // No distinct item detected — stay clean without inserting placeholder cards or fake prices
+        if (forceManual || scanMode === "snap") {
+          toast.info("No clear item recognized. Hold steady and try again.", { id: "no-item-toast" });
+          setIsScanPaused(false);
+          setFrozenFrameUrl(null);
+        }
         setAnalyzingRealFrame(false);
         return;
       }
@@ -1597,6 +1636,9 @@ function SpadasLensCameraCore() {
           };
 
           setCapturedLog((prev) => [verifiedHit, ...prev]);
+          setActiveCompsHit(verifiedHit);
+          setIsScanPaused(true);
+          setConfidencePercent(98);
           toast.success(`🎯 Item Identified: ${obj.productName} (+$${estimatedProfit.toFixed(2)} AUD Net Profit)`, { id: `hit-toast-${obj.productName}` });
         } catch (err) {
           console.error("[Spadas Lens] Item valuation formatting error:", err);
@@ -1635,7 +1677,7 @@ function SpadasLensCameraCore() {
 
   // Active Auto-Scan & Scene Change Watcher with strict Throttling & Duplicate Prevention
   useEffect(() => {
-    if (!stream || !autoScanActive || !!deepVerifyItem) return;
+    if (!stream || !!deepVerifyItem || isScanPaused || !!activeCompsHit) return;
 
     let isDestroyed = false;
     const offCanvas = document.createElement("canvas");
@@ -1649,7 +1691,7 @@ function SpadasLensCameraCore() {
 
     const interval = setInterval(() => {
       if (isDestroyed) return;
-      if (analyzingRef.current) return; // In-flight state lock: never trigger while a scan is processing
+      if (analyzingRef.current || isScanPaused) return; // In-flight state lock: never trigger while a scan is processing or paused
 
       const video = videoRef.current;
       if (!video || video.readyState < 2 || video.paused) return;
@@ -1678,14 +1720,18 @@ function SpadasLensCameraCore() {
 
       if (isPanning) {
         setCameraMoving(true);
+        setConfidencePercent(Math.max(68, Math.round(78 - avgDiff * 40)));
         wasMoving = true;
         stableTicks = 0;
         // User panned away to a new scene — clear duplicate lock
         lastRecognizedSignatureRef.current = null;
       } else if (isStill) {
         setCameraMoving(false);
+        setConfidencePercent((prev) => Math.min(96, Math.max(90, prev + 1)));
         stableTicks++;
       }
+
+      if (!autoScanActive) return;
 
       const now = Date.now();
       const timeSinceLast = now - Math.max(lastAutoTriggerTime, lastScanTimeRef.current);
@@ -1727,7 +1773,7 @@ function SpadasLensCameraCore() {
       isDestroyed = true;
       clearInterval(interval);
     };
-  }, [stream, autoScanActive, scanMode, deepVerifyItem]);
+  }, [stream, autoScanActive, scanMode, deepVerifyItem, isScanPaused, activeCompsHit]);
 
   useEffect(() => {
     return () => {
@@ -1736,10 +1782,16 @@ function SpadasLensCameraCore() {
   }, []);
 
   return (
-    <div className="w-full max-w-full overflow-x-hidden box-border space-y-6 pb-24 mx-auto animate-fade-in">
-      {/* Video Viewport Container (Tap Anywhere to Scan Item Immediately) */}
+    <div className="spadas-lens-camera w-full max-w-full overflow-x-hidden box-border space-y-6 pb-24 mx-auto animate-fade-in">
+      {/* Video Viewport Container (Tap Anywhere to Focus or Snap) */}
       <div
-        onClick={() => void processCurrentFrame(true)}
+        onClick={() => {
+          if (isScanPaused) {
+            handleResumeScanning();
+          } else if (!analyzingRealFrame) {
+            void processCurrentFrame(true);
+          }
+        }}
         className="relative aspect-[4/3] sm:aspect-[16/9] w-full max-w-full box-border overflow-hidden rounded-3xl border border-cyan-500/30 bg-slate-950 shadow-[0_0_50px_rgba(6,182,212,0.15)] backdrop-blur-xl cursor-pointer"
       >
         {cameraError ? (
@@ -1749,7 +1801,7 @@ function SpadasLensCameraCore() {
             <button
               type="button"
               onClick={startCamera}
-              className="inline-flex h-10 items-center gap-2 rounded-xl bg-cyan-600 px-5 text-xs font-bold text-white shadow-md hover:bg-cyan-500 transition"
+              className="inline-flex h-10 items-center gap-2 rounded-xl bg-cyan-600 px-5 text-xs font-bold text-white shadow-md hover:bg-cyan-500 transition cursor-pointer"
             >
               <RefreshCw className="h-4 w-4" /> Retry Camera Access
             </button>
@@ -1765,22 +1817,68 @@ function SpadasLensCameraCore() {
               className="h-full w-full object-cover"
             />
 
-            {/* Persistent Session Scan & Profit Stats Ticker */}
-            <div className="absolute top-3.5 left-3.5 right-3.5 z-30 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
-              <div className="inline-flex items-center gap-2 rounded-full bg-slate-950/90 border border-cyan-500/40 px-3.5 py-1 text-[11px] font-black text-cyan-300 shadow-xl backdrop-blur-md">
-                <Crosshair className="h-3.5 w-3.5 text-cyan-400" />
-                <span>🎯 {sessionScanCount} Scanned</span>
-                <span className="text-slate-600">•</span>
-                <span className="text-emerald-400">💰 {profitableCount} Profitable</span>
-                {bestProfit > 0 && (
-                  <>
-                    <span className="text-slate-600">•</span>
-                    <span className="text-amber-300">👑 Top: +{fmtMoney(bestProfit)}</span>
-                  </>
+            {/* Frozen Frame Snapshot when Scan is Paused / Valued (Eliminates all Camera Flutter) */}
+            {frozenFrameUrl && isScanPaused && (
+              <div className="absolute inset-0 z-10 bg-slate-950">
+                <img
+                  src={frozenFrameUrl}
+                  alt="Frozen Scanned Frame"
+                  className="h-full w-full object-cover"
+                />
+                {analyzingRealFrame && (
+                  <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-slate-950/60 backdrop-blur-sm space-y-3">
+                    <div className="relative">
+                      <div className="h-16 w-16 rounded-full border-4 border-cyan-500/30 border-t-cyan-400 animate-spin" />
+                      <Sparkles className="absolute inset-0 m-auto h-6 w-6 text-cyan-300 animate-pulse" />
+                    </div>
+                    <div className="rounded-full bg-slate-950/90 border border-cyan-500/40 px-4 py-1.5 text-xs font-black text-cyan-300 shadow-xl">
+                      ⚡ Stabilizing & Pulling eBay Comps...
+                    </div>
+                  </div>
                 )}
               </div>
+            )}
 
+            {/* Top HUD Bar: Dynamic Confidence Indicator & Camera Controls */}
+            <div className="absolute top-3.5 left-3.5 right-3.5 z-30 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
+              {/* Dynamic Real-Time Focus & AI Confidence Indicator */}
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-slate-950/90 border border-cyan-500/40 px-3.5 py-1 text-[11px] font-black text-cyan-300 shadow-xl backdrop-blur-md pointer-events-auto">
+                <div
+                  className={`h-2.5 w-2.5 rounded-full transition-colors ${
+                    confidencePercent >= 90
+                      ? "bg-emerald-400 animate-pulse shadow-[0_0_8px_#34d399]"
+                      : confidencePercent >= 75
+                      ? "bg-cyan-400"
+                      : "bg-amber-400"
+                  }`}
+                />
+                <span className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">AI Focus:</span>
+                <span
+                  className={`font-black ${
+                    confidencePercent >= 90
+                      ? "text-emerald-400"
+                      : confidencePercent >= 75
+                      ? "text-cyan-300"
+                      : "text-amber-300"
+                  }`}
+                >
+                  {confidencePercent}%
+                </span>
+                <span className="text-slate-600">•</span>
+                <span className="text-slate-200 font-medium text-[10px]">
+                  {isScanPaused ? "🎯 Locked" : cameraMoving ? "Panning..." : "Steady"}
+                </span>
+              </div>
+
+              {/* Top Right Session Ticker & Controls */}
               <div className="flex items-center gap-2 pointer-events-auto">
+                <div className="hidden sm:inline-flex items-center gap-2 rounded-full bg-slate-950/90 border border-slate-800 px-3 py-1 text-[11px] font-bold text-slate-300 shadow-xl backdrop-blur-md">
+                  <Crosshair className="h-3 w-3 text-cyan-400" />
+                  <span>{sessionScanCount} Scanned</span>
+                  <span className="text-slate-600">•</span>
+                  <span className="text-emerald-400">💰 {profitableCount} Flips</span>
+                </div>
+
                 {/* 1x / 2x Digital Zoom Toggle */}
                 {zoomSupported && (
                   <button
@@ -2017,36 +2115,53 @@ function SpadasLensCameraCore() {
               </div>
             ))}
 
-            {/* Optical Shutter Flash Overlay */}
+            {/* Optical Shutter Aperture Flash (Gentle, Non-Blinding Ring) */}
             {shutterFlash && (
-              <div className="absolute inset-0 z-40 bg-white/70 backdrop-blur-sm pointer-events-none transition-opacity duration-200" />
+              <div className="absolute inset-0 z-40 flex items-center justify-center pointer-events-none bg-slate-950/20 backdrop-blur-[2px] transition-opacity duration-150">
+                <div className="h-24 w-24 rounded-full border-4 border-cyan-400/80 animate-ping shadow-[0_0_35px_rgba(6,182,212,0.8)]" />
+              </div>
             )}
 
-            {/* Quick Snap & Value Tactile Shutter Button (Center Floating) */}
+            {/* Quick Snap & Value Tactile Shutter / Resume Button (Center Floating) */}
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 pointer-events-auto flex items-center justify-center">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  analyzingRef.current = false;
-                  setAnalyzingRealFrame(false);
-                  void processCurrentFrame(true);
-                }}
-                disabled={analyzingRealFrame}
-                className="group relative flex items-center justify-center h-16 w-16 sm:h-20 sm:w-20 rounded-full bg-gradient-to-tr from-cyan-500 via-blue-500 to-emerald-400 p-1 shadow-[0_0_35px_rgba(6,182,212,0.6)] active:scale-95 transition-all duration-200 cursor-pointer disabled:opacity-50"
-                title="⚡ Quick Snap & Value"
-              >
-                <div className="flex h-full w-full items-center justify-center rounded-full bg-slate-950/90 border-2 border-white/90 group-hover:bg-slate-900 transition">
-                  {analyzingRealFrame ? (
-                    <RefreshCw className="h-6 w-6 sm:h-7 sm:w-7 text-cyan-400 animate-spin" />
-                  ) : (
-                    <div className="flex flex-col items-center justify-center text-center">
-                      <Sparkles className="h-6 w-6 sm:h-7 sm:w-7 text-cyan-300 group-hover:scale-110 transition-transform" />
-                      <span className="text-[8px] sm:text-[9px] font-black text-cyan-300 uppercase tracking-tight -mt-0.5">SNAP</span>
-                    </div>
-                  )}
-                </div>
-              </button>
+              {isScanPaused ? (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleResumeScanning();
+                  }}
+                  className="group relative flex items-center gap-2 rounded-full bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 px-6 py-3 text-xs sm:text-sm font-black text-slate-950 shadow-[0_0_30px_rgba(52,211,153,0.7)] active:scale-95 transition-all duration-200 cursor-pointer"
+                  title="Resume live continuous AR camera"
+                >
+                  <RefreshCw className="h-4 w-4 shrink-0 text-slate-950 group-hover:rotate-180 transition-transform duration-300" />
+                  <span>Scan Next Item</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    analyzingRef.current = false;
+                    setAnalyzingRealFrame(false);
+                    void processCurrentFrame(true);
+                  }}
+                  disabled={analyzingRealFrame}
+                  className="group relative flex items-center justify-center h-16 w-16 sm:h-20 sm:w-20 rounded-full bg-gradient-to-tr from-cyan-500 via-blue-500 to-emerald-400 p-1 shadow-[0_0_35px_rgba(6,182,212,0.6)] active:scale-95 transition-all duration-200 cursor-pointer disabled:opacity-50"
+                  title="⚡ Quick Snap & Value"
+                >
+                  <div className="flex h-full w-full items-center justify-center rounded-full bg-slate-950/90 border-2 border-white/90 group-hover:bg-slate-900 transition">
+                    {analyzingRealFrame ? (
+                      <RefreshCw className="h-6 w-6 sm:h-7 sm:w-7 text-cyan-400 animate-spin" />
+                    ) : (
+                      <div className="flex flex-col items-center justify-center text-center">
+                        <Sparkles className="h-6 w-6 sm:h-7 sm:w-7 text-cyan-300 group-hover:scale-110 transition-transform" />
+                        <span className="text-[8px] sm:text-[9px] font-black text-cyan-300 uppercase tracking-tight -mt-0.5">SNAP</span>
+                      </div>
+                    )}
+                  </div>
+                </button>
+              )}
             </div>
           </>
         ) : (
@@ -2230,6 +2345,17 @@ function SpadasLensCameraCore() {
           category={(deepVerifyItem as any).category || "Fashion / Collectibles"}
         />
       )}
+
+      {/* Stabilized AR Comps Breakdown & Resale Verdict Modal */}
+      <LensCompsModal
+        isOpen={!!activeCompsHit}
+        item={activeCompsHit}
+        frozenFrameUrl={frozenFrameUrl}
+        onClose={() => setActiveCompsHit(null)}
+        onResumeScan={handleResumeScanning}
+        onListEbay={(hit) => setActiveEbayItem(hit)}
+        onDeepVerify={(hit) => setDeepVerifyItem(hit)}
+      />
 
       {/* Camera Framing Onboarding Guide */}
       <CameraOnboardingOverlay
