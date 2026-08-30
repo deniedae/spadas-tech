@@ -41,11 +41,18 @@
   },
   "share_target": {
     "action": "/lens",
-    "method": "GET",
+    "method": "POST",
+    "enctype": "multipart/form-data",
     "params": {
       "title": "title",
       "text": "text",
-      "url": "url"
+      "url": "url",
+      "files": [
+        {
+          "name": "images",
+          "accept": ["image/jpeg", "image/png", "image/webp", "image/*"]
+        }
+      ]
     }
   },
   "file_handlers": [
@@ -68,7 +75,7 @@
   },
   "shortcuts": [
     {
-      "name": "Scan Product",
+      "name": "⚡ Spadas Lens AR",
       "short_name": "Scan",
       "description": "Scan shelf or product label with AI lens",
       "url": "/lens",
@@ -81,7 +88,7 @@
       ]
     },
     {
-      "name": "Inventory Overview",
+      "name": "📦 Inventory Overview",
       "short_name": "Inventory",
       "description": "View active inventory and stock status",
       "url": "/inventory",
@@ -94,7 +101,7 @@
       ]
     },
     {
-      "name": "Profit Calculator",
+      "name": "💰 Profit Calculator",
       "short_name": "Calculator",
       "description": "Calculate profit margins and fee structures",
       "url": "/calculator",
