@@ -283,13 +283,16 @@ function SpadasLensCameraCore() {
           const bData = await bRes.json();
           const pName = (bData?.product?.name || "").trim();
           if (bData?.product && pName && !pName.toLowerCase().includes("unknown")) {
-            const estValue = Number(bData.product.suggestedPrice) || 45;
-            const estCost = Math.max(2, Math.round(estValue * 0.15));
+            const isGrocery = (bData.product.category || "").toLowerCase().includes("grocer") || (bData.product.category || "").toLowerCase().includes("beverage") || (bData.product.category || "").toLowerCase().includes("food");
+            const estValue = Number(bData.product.suggestedPrice) || (isGrocery ? 2.5 : 35);
+            const estCost = estValue <= 5 ? Math.max(1, Math.round(estValue * 0.65 * 100) / 100) : Math.max(2, Math.round(estValue * 0.15));
             const ebayFee = estValue * 0.134 + 0.33;
             const estProfit = Math.max(0, Math.round((estValue - estCost - ebayFee) * 100) / 100);
             const estRoi = estCost > 0 ? Math.round((estProfit / estCost) * 100) : 0;
             const copVerdict =
-              estRoi >= 300 && estProfit >= 25
+              estProfit < 3
+                ? "PASS_RISKY"
+                : estRoi >= 300 && estProfit >= 25
                 ? "MUST_COP"
                 : estRoi >= 100
                 ? "QUICK_FLIP"
@@ -328,7 +331,7 @@ function SpadasLensCameraCore() {
               trueNetProfit: estProfit,
               roiPercentage: estRoi,
               copVerdict,
-              verdict: estProfit >= 15 ? "BUY" : "CAUTION",
+              verdict: estProfit >= 15 ? "BUY" : estProfit >= 5 ? "CAUTION" : "PASS",
               confidence: 0.99,
               bbox: { x: 15, y: 15, width: 70, height: 70 },
               timestamp: Date.now(),
@@ -1059,18 +1062,26 @@ function SpadasLensCameraCore() {
                 const bData = await bRes.json().catch(() => null);
                 const pName = (bData?.product?.name || "").trim();
                 if (bData && bData.product && pName && pName.toLowerCase() !== "unknown product" && pName.toLowerCase() !== "unknown title") {
-                  const estValue = Number(bData.product.suggestedPrice) || 45;
-                  const estCost = Math.max(2, Math.round(estValue * 0.15));
+                  const isGrocery = (bData.product.category || "").toLowerCase().includes("grocer") || (bData.product.category || "").toLowerCase().includes("beverage") || (bData.product.category || "").toLowerCase().includes("food");
+                  const estValue = Number(bData.product.suggestedPrice) || (isGrocery ? 2.5 : 35);
+                  const estCost = estValue <= 5 ? Math.max(1, Math.round(estValue * 0.65 * 100) / 100) : Math.max(2, Math.round(estValue * 0.15));
                   const ebayFee = (estValue * 0.134) + 0.33;
                   const estProfit = Math.max(0, Math.round((estValue - estCost - ebayFee) * 100) / 100);
                   const estRoi = estCost > 0 ? Math.round((estProfit / estCost) * 100) : 0;
-                  const copVerdict = estRoi >= 300 && estProfit >= 25 ? "MUST_COP" : estRoi >= 100 ? "QUICK_FLIP" : "FAIR_MARGIN";
+                  const copVerdict =
+                    estProfit < 3
+                      ? "PASS_RISKY"
+                      : estRoi >= 300 && estProfit >= 25
+                      ? "MUST_COP"
+                      : estRoi >= 100
+                      ? "QUICK_FLIP"
+                      : "FAIR_MARGIN";
 
                   const scanObj: ActiveScanItem = {
                     id: `barcode-${Date.now()}`,
                     productName: pName,
                     brand: bData.product.brand || "Authentic",
-                    category: bData.product.category || "Media / Barcode Item",
+                    category: bData.product.category || (isGrocery ? "Groceries & Beverages" : "Barcode Find"),
                     condition: "Used - Good",
                     inventoryCondition: "used_working",
                     defectNotes: [],
@@ -1095,7 +1106,7 @@ function SpadasLensCameraCore() {
                     id: `hit-${Date.now()}`,
                     name: pName,
                     brand: bData.product.brand || "Authentic",
-                    category: bData.product.category || "Media / Barcode Item",
+                    category: bData.product.category || (isGrocery ? "Groceries & Beverages" : "Barcode Find"),
                     condition: "Used - Good",
                     inventoryCondition: "used_working",
                     defectNotes: [],
@@ -1108,7 +1119,7 @@ function SpadasLensCameraCore() {
                     trueNetProfit: estProfit,
                     roiPercentage: estRoi,
                     copVerdict: copVerdict,
-                    verdict: estProfit >= 15 ? "BUY" : "CAUTION",
+                    verdict: estProfit >= 15 ? "BUY" : estProfit >= 5 ? "CAUTION" : "PASS",
                     confidence: 0.99,
                     bbox: { x: 15, y: 15, width: 70, height: 70 },
                     timestamp: Date.now(),

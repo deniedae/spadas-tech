@@ -6,6 +6,13 @@ export interface AIProduct {
 }
 
 const KNOWN_BRANDS = [
+  // Food, Drinks & Supermarket
+  "Devondale", "Moo", "Oak", "Big M", "Nippy's", "Dairy Farmers", "Pauls", "Dare", "Ice Break",
+  "Up&Go", "Sanitarium", "Cadbury", "Nestle", "Mars", "KitKat", "M&M's", "Lindt", "Ferrero",
+  "Tim Tam", "Arnott's", "Vegemite", "Milo", "Red Bull", "Monster", "Coca-Cola", "Pepsi",
+  "Gatorade", "Powerade", "Prime", "Kirks", "Bundaberg", "Lipton", "Twinings", "Nescafe",
+  "Cheezels", "Twisties", "Doritos", "Smith's", "Pringles", "Shapes",
+
   // Streetwear & Sneakers
   "Nike", "Adidas", "Jordan", "Yeezy", "New Balance", "Asics", "Puma", "Reebok", "Vans", "Converse",
   "Supreme", "Stussy", "Bape", "Palace", "Kith", "Fear of God", "Essentials", "Off-White", "Carhartt",
@@ -60,7 +67,9 @@ export async function normalizeProduct(product: {
   // 2. Intelligent Category Normalization
   let category = product.category || "General";
 
-  if (/\b(pokemon|nintendo|switch|ps5|ps4|playstation|xbox|gamecube|sega|game boy|ds|3ds|game)\b/i.test(lower)) {
+  if (/\b(milk|choc|chocolate|drink|juice|beverage|snack|chip|chips|biscuit|cookie|cereal|food|groceries|dairy|soda|coffee|tea|water|sauce|jam|spread)\b/i.test(lower) || /food/i.test(category)) {
+    category = "Groceries & Beverages";
+  } else if (/\b(pokemon|nintendo|switch|ps5|ps4|playstation|xbox|gamecube|sega|game boy|ds|3ds|game)\b/i.test(lower)) {
     category = "Video Games & Consoles";
   } else if (/\b(shoe|sneaker|dunk|jordan|air max|boost|slide|boot|cleat|runner)\b/i.test(lower)) {
     category = "Footwear & Sneakers";

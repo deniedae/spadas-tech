@@ -16,11 +16,57 @@ export async function estimatePrice(product: {
 }): Promise<EstimatedPriceResult> {
   const cleanName = (product.name || "").trim();
   const brand = (product.brand || "").trim();
+  const lower = cleanName.toLowerCase();
+  const category = product.category || "General";
+
+  // 1. Supermarket / Grocery & Beverage Calibration (Realistic retail supermarket pricing)
+  if (category === "Groceries & Beverages" || /\b(milk|drink|juice|soda|choc|chocolate|snack|chips|biscuit|cereal|dairy)\b/i.test(lower)) {
+    // Single-serving drink (e.g. 200ml, 250ml, 300ml, 375ml, 500ml, 600ml)
+    if (/\b(200\s*ml|250\s*ml|300\s*ml|350\s*ml|375\s*ml|tetra|poppet|small)\b/i.test(lower)) {
+      return {
+        suggestedPrice: 2.20,
+        confidence: "High",
+        source: "Supermarket Retail (Single 200-375ml)",
+      };
+    }
+
+    if (/\b(500\s*ml|600\s*ml|750\s*ml|bottle|can)\b/i.test(lower)) {
+      return {
+        suggestedPrice: 3.80,
+        confidence: "High",
+        source: "Supermarket Retail (500-600ml)",
+      };
+    }
+
+    if (/\b(1\s*l|1\s*litre|2\s*l|2\s*litre)\b/i.test(lower)) {
+      return {
+        suggestedPrice: 4.50,
+        confidence: "High",
+        source: "Supermarket Retail (1L-2L Bottle)",
+      };
+    }
+
+    if (/\b(bar|block|packet|bag|snack|chips)\b/i.test(lower)) {
+      return {
+        suggestedPrice: 3.00,
+        confidence: "High",
+        source: "Supermarket Retail (Snack / Confectionery)",
+      };
+    }
+
+    // Default grocery single unit baseline
+    return {
+      suggestedPrice: 3.50,
+      confidence: "Medium",
+      source: "Supermarket Grocery Baseline",
+    };
+  }
+
+  // 2. Query real live eBay sold comps for Non-Grocery Reseller Categories
   const searchQuery = brand && !cleanName.toLowerCase().includes(brand.toLowerCase())
     ? `${brand} ${cleanName}`
     : cleanName;
 
-  // 1. Query real live eBay sold comps
   try {
     const comps = await fetchEbayAustraliaSoldComps(searchQuery, "AUD");
     if (comps && comps.median > 0) {
@@ -37,14 +83,13 @@ export async function estimatePrice(product: {
     console.warn("[Barcode Pricing] Live comps lookup failed, using category baseline:", err);
   }
 
-  // 2. Dynamic Category baseline if live API has 0 results
-  const lower = cleanName.toLowerCase();
+  // 3. Category Baselines for Collectibles, Media, Fashion & Electronics
   const isPremiumBrand = brand && [
     "Nike", "Jordan", "Supreme", "Gucci", "Sony", "Apple", "Nintendo", "Lego",
     "Bose", "Patagonia", "Arc'teryx", "Balenciaga", "Prada", "Louis Vuitton"
   ].some((b) => brand.toLowerCase().includes(b.toLowerCase()));
 
-  if (product.category === "Video Games & Consoles" || lower.includes("pokemon")) {
+  if (category === "Video Games & Consoles" || lower.includes("pokemon")) {
     return {
       suggestedPrice: isPremiumBrand ? 65 : 45,
       confidence: "Medium",
@@ -52,7 +97,7 @@ export async function estimatePrice(product: {
     };
   }
 
-  if (product.category === "Footwear & Sneakers" || product.category === "Clothing & Streetwear") {
+  if (category === "Footwear & Sneakers" || category === "Clothing & Streetwear") {
     return {
       suggestedPrice: isPremiumBrand ? 95 : 40,
       confidence: "Medium",
@@ -60,7 +105,7 @@ export async function estimatePrice(product: {
     };
   }
 
-  if (product.category === "Consumer Electronics") {
+  if (category === "Consumer Electronics") {
     return {
       suggestedPrice: isPremiumBrand ? 120 : 55,
       confidence: "Medium",
@@ -68,7 +113,7 @@ export async function estimatePrice(product: {
     };
   }
 
-  if (product.category === "Toys & Collectibles") {
+  if (category === "Toys & Collectibles") {
     return {
       suggestedPrice: isPremiumBrand ? 50 : 28,
       confidence: "Medium",
@@ -76,7 +121,7 @@ export async function estimatePrice(product: {
     };
   }
 
-  if (product.category === "Books") {
+  if (category === "Books") {
     const isSpecialBook = lower.includes("harry potter") || lower.includes("hardcover") || lower.includes("first edition");
     return {
       suggestedPrice: isSpecialBook ? 32 : 16,
