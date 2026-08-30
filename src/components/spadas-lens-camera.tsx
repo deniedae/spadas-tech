@@ -27,6 +27,7 @@ import { syncProfitToAndroidWidget, triggerTactileHaptic } from "@/lib/android-b
 import { sourcingBus } from "@/lib/sourcing-event-bus";
 import { setCachedValuation, getCachedValuation } from "@/lib/offline-lru-cache";
 import { executeParallelAppraisal } from "@/lib/concurrent-appraiser";
+import { ScanTrace } from "@/lib/scan-trace";
 import { saveScanOffline } from "@/app/lib/offline-storage";
 import { appraiseItemLocally, saveOfflineHitLocally } from "@/app/lib/offline/offline-engine";
 import SubscriptionPaywallModal from "@/components/subscription-paywall-modal";
@@ -1135,6 +1136,8 @@ function SpadasLensCameraCore() {
 
     setCameraMoving(false);
 
+    const trace = new ScanTrace(scanMode);
+
     try {
       const video = videoRef.current;
       let frameDataUrl = "";
@@ -1350,6 +1353,8 @@ function SpadasLensCameraCore() {
 
       const snapshotImage = centerCropDataUrl || frameDataUrl;
       setFrozenFrameUrl(snapshotImage);
+      trace.markCaptureEnd();
+
       if (forceManual || scanMode === "snap") {
         setIsScanPaused(true);
       }
@@ -1358,6 +1363,8 @@ function SpadasLensCameraCore() {
 
       let res: Response | null = null;
       console.log('[Spadas Lens]', cycleId, 'Starting resilient fetch for frame with analyzingRealFrame:', analyzingRealFrame);
+      trace.markRequestDispatched();
+
       res = await resilientFetch("/api/ai-listing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1366,6 +1373,8 @@ function SpadasLensCameraCore() {
         console.error('[Spadas Lens]', cycleId, 'Fetch error:', e);
         return null;
       });
+
+      trace.markResponseReceived();
 
       let data: any = null;
       let raw = "";
@@ -1381,6 +1390,8 @@ function SpadasLensCameraCore() {
           data = null;
         }
       }
+
+      trace.markParseCompleted();
 
       setLastRawApiResponse(data);
 
@@ -1582,6 +1593,10 @@ function SpadasLensCameraCore() {
       }
 
       if (validPendingItems.length === 0) {
+        trace.markStateDecision("REJECTED_EMPTY_RESPONSE", "No valid center items passed confidence & rejection filters", {
+          previousRetained: true,
+        });
+        trace.markRenderCommitted();
         return;
       }
 
@@ -1748,6 +1763,13 @@ function SpadasLensCameraCore() {
             ),
           };
 
+          trace.markStateDecision("ACCEPTED_NEW_HIT", "High confidence identification committed to state", {
+            productName: obj.productName,
+            brand: obj.brand || undefined,
+            confidence: obj.confidenceScore,
+            previousRetained: false,
+          });
+
           setCapturedLog((prev) => [verifiedHit, ...prev]);
           setActiveCompsHit(verifiedHit);
           setIsScanPaused(true);
@@ -1759,6 +1781,7 @@ function SpadasLensCameraCore() {
             isGrail: isGrailHit,
           });
           setCachedValuation(verifiedHit.name, verifiedHit);
+          trace.markRenderCommitted();
 
           toast.success(`🎯 Item Identified: ${obj.productName} (+$${estimatedProfit.toFixed(2)} AUD Net Profit)`, { id: `hit-toast-${obj.productName}` });
         } catch (err) {
