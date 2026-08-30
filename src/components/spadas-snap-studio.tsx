@@ -4,6 +4,8 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Camera, RefreshCw, Sparkles, X, Image as ImageIcon, Zap, ShieldCheck, ChevronRight, ArrowLeft, Loader2, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { SpadasListingDetailsSheet, SpadasListingData } from "@/components/spadas-listing-details-sheet";
+import { calculateThriftCopVerdict } from "@/lib/thrift-cop-engine";
+import { triggerTactileHaptic, syncProfitToAndroidWidget } from "@/lib/android-bridge";
 
 export function SpadasSnapStudio() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -155,10 +157,17 @@ export function SpadasSnapStudio() {
           data?.seo_description ||
           `Authentic ${rawPName} in ${condVal} condition. Fast dispatch from Australia.`;
 
+        const priceMed = Number(data?.suggested_price_median) || 45;
+        const itemCat = data?.analysis?.category || data?.category || "General Resale";
+        const cop = calculateThriftCopVerdict({
+          resalePrice: priceMed,
+          category: itemCat,
+        });
+
         const listingPayload: SpadasListingData = {
           productName: rawPName,
           brand: data?.analysis?.brand || data?.brand || "Authentic",
-          category: data?.analysis?.category || data?.category || "General Resale",
+          category: itemCat,
           condition: condVal,
           size: sizeVal,
           description: descVal,
@@ -168,15 +177,20 @@ export function SpadasSnapStudio() {
           dimensions: data?.shipping_estimate?.dimensions_cm
             ? `${data.shipping_estimate.dimensions_cm.length} x ${data.shipping_estimate.dimensions_cm.width} x ${data.shipping_estimate.dimensions_cm.height} cm`
             : "4 x 4 x 10 in",
-          priceMedian: data?.suggested_price_median || 45,
-          priceMin: data?.suggested_price_min || 30,
-          priceMax: data?.suggested_price_max || 60,
+          priceMedian: priceMed,
+          priceMin: data?.suggested_price_min || Math.round(priceMed * 0.75),
+          priceMax: data?.suggested_price_max || Math.round(priceMed * 1.25),
           currency: data?.suggested_price_currency || "AUD",
           photos: capturedPhotos,
+          buyCost: cop.estimatedThriftCost,
+          trueNetProfit: cop.netProfit,
+          roiPercentage: cop.roiPercentage,
+          copVerdict: cop.copVerdict,
         };
 
+        triggerTactileHaptic(cop.copVerdict === "MUST_COP" ? "grail" : "success");
         setListingResult(listingPayload);
-        toast.success("🎯 Item identified and priced!");
+        toast.success(`🎯 ${cop.verdictLabel}: +$${cop.netProfit.toFixed(0)} Profit!`);
       } else {
         toast.error("Could not analyze item. Please try another shot.");
       }

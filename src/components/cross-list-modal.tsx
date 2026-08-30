@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useState } from "react";
-import { Copy, Check, X, Share2, ExternalLink } from "lucide-react";
+import { Copy, Check, X, Share2, Sparkles, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
+import { triggerTactileHaptic } from "@/lib/android-bridge";
 
 interface CrossListModalProps {
   isOpen: boolean;
@@ -25,7 +26,7 @@ export default function CrossListModal({
   category = "Resale",
   description = "",
 }: CrossListModalProps) {
-  const [activePlatform, setActivePlatform] = useState<"ebay" | "depop" | "facebook">("depop");
+  const [activePlatform, setActivePlatform] = useState<"ebay" | "depop" | "poshmark" | "mercari" | "facebook">("depop");
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
   if (!isOpen) return null;
@@ -42,29 +43,64 @@ export default function CrossListModal({
   const depopHashtags = `#${itemBrand.toLowerCase().replace(/\s+/g, "")} #vintage #y2k #streetwear #thrift`;
   const depopDesc = `${productName}\nBrand: ${itemBrand}\nCondition: ${itemCond}\n\nPrice: $${itemPrice} AUD\n\n${depopHashtags}`;
 
+  const poshmarkTitle = `${itemBrand} ${productName}`.slice(0, 50);
+  const poshmarkDesc = `Authentic ${itemBrand} ${productName}.\nSize: One Size / See details.\nCondition: ${itemCond}.\n\nFast shipping & smoke-free home! Reasonable offers welcome.`;
+
+  const mercariTitle = `${itemBrand} ${productName}`.slice(0, 40);
+  const mercariDesc = `Authentic ${itemBrand} ${productName}.\nCondition: ${itemCond}.\n\nShips securely within 24 hours. Check photos for exact details!`;
+
   const fbTitle = `${itemBrand} ${productName} - ${itemCond}`;
   const fbDesc = `Authentic ${productName}.\nCondition: ${itemCond}.\n\nPrice: $${itemPrice} AUD.\nPick up available or fast dispatch with tracking across Australia.`;
 
-  const currentTitle = activePlatform === "ebay" ? ebayTitle : activePlatform === "depop" ? depopTitle : fbTitle;
-  const currentDesc = activePlatform === "ebay" ? ebayDesc : activePlatform === "depop" ? depopDesc : fbDesc;
+  const currentTitle =
+    activePlatform === "ebay"
+      ? ebayTitle
+      : activePlatform === "depop"
+      ? depopTitle
+      : activePlatform === "poshmark"
+      ? poshmarkTitle
+      : activePlatform === "mercari"
+      ? mercariTitle
+      : fbTitle;
+
+  const currentDesc =
+    activePlatform === "ebay"
+      ? ebayDesc
+      : activePlatform === "depop"
+      ? depopDesc
+      : activePlatform === "poshmark"
+      ? poshmarkDesc
+      : activePlatform === "mercari"
+      ? mercariDesc
+      : fbDesc;
 
   const handleCopy = (text: string, label: string) => {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
       void navigator.clipboard.writeText(text);
       setCopiedField(label);
-      toast.success(`Copied ${label} for ${activePlatform.toUpperCase()} to clipboard!`);
+      triggerTactileHaptic("light");
+      toast.success(`Copied ${label} for ${activePlatform.toUpperCase()}!`);
       setTimeout(() => setCopiedField(null), 2000);
+    }
+  };
+
+  const handleCopyAllBundle = () => {
+    const fullBundle = `📌 TITLE:\n${currentTitle}\n\n💰 PRICE: $${itemPrice} AUD\n\n📝 DESCRIPTION:\n${currentDesc}`;
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      void navigator.clipboard.writeText(fullBundle);
+      triggerTactileHaptic("success");
+      toast.success(`📋 Copied complete ${activePlatform.toUpperCase()} listing package!`);
     }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-fade-in">
-      <div className="relative w-full max-w-lg overflow-hidden rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl space-y-5 p-6 text-slate-100">
+      <div className="relative w-full max-w-lg overflow-hidden rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl space-y-4 p-5 sm:p-6 text-slate-100">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-800 pb-3">
           <div className="flex items-center gap-2 text-cyan-400 font-bold text-base">
             <Share2 className="w-5 h-5" />
-            <span>Cross-Platform Listing Copy Generator</span>
+            <span>Cross-Platform Listing Generator</span>
           </div>
           <button
             type="button"
@@ -76,11 +112,11 @@ export default function CrossListModal({
         </div>
 
         {/* Platform Selection Tabs */}
-        <div className="grid grid-cols-3 gap-2 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs font-extrabold">
+        <div className="flex items-center gap-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs font-extrabold overflow-x-auto no-scrollbar">
           <button
             type="button"
             onClick={() => setActivePlatform("depop")}
-            className={`py-2 rounded-lg transition cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg transition shrink-0 cursor-pointer ${
               activePlatform === "depop"
                 ? "bg-rose-500 text-white shadow"
                 : "text-slate-400 hover:text-slate-200"
@@ -90,19 +126,8 @@ export default function CrossListModal({
           </button>
           <button
             type="button"
-            onClick={() => setActivePlatform("facebook")}
-            className={`py-2 rounded-lg transition cursor-pointer ${
-              activePlatform === "facebook"
-                ? "bg-blue-600 text-white shadow"
-                : "text-slate-400 hover:text-slate-200"
-            }`}
-          >
-            FB Market
-          </button>
-          <button
-            type="button"
             onClick={() => setActivePlatform("ebay")}
-            className={`py-2 rounded-lg transition cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg transition shrink-0 cursor-pointer ${
               activePlatform === "ebay"
                 ? "bg-cyan-500 text-slate-950 shadow"
                 : "text-slate-400 hover:text-slate-200"
@@ -110,7 +135,50 @@ export default function CrossListModal({
           >
             eBay
           </button>
+          <button
+            type="button"
+            onClick={() => setActivePlatform("poshmark")}
+            className={`px-3 py-1.5 rounded-lg transition shrink-0 cursor-pointer ${
+              activePlatform === "poshmark"
+                ? "bg-rose-700 text-white shadow"
+                : "text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            Poshmark
+          </button>
+          <button
+            type="button"
+            onClick={() => setActivePlatform("mercari")}
+            className={`px-3 py-1.5 rounded-lg transition shrink-0 cursor-pointer ${
+              activePlatform === "mercari"
+                ? "bg-blue-500 text-white shadow"
+                : "text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            Mercari
+          </button>
+          <button
+            type="button"
+            onClick={() => setActivePlatform("facebook")}
+            className={`px-3 py-1.5 rounded-lg transition shrink-0 cursor-pointer ${
+              activePlatform === "facebook"
+                ? "bg-blue-600 text-white shadow"
+                : "text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            FB Market
+          </button>
         </div>
+
+        {/* 1-Tap Copy Full Bundle Button */}
+        <button
+          type="button"
+          onClick={handleCopyAllBundle}
+          className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-md cursor-pointer transition"
+        >
+          <Sparkles className="w-3.5 h-3.5" />
+          <span>Copy Complete {activePlatform.toUpperCase()} Listing Package</span>
+        </button>
 
         {/* Title Copy Box */}
         <div className="space-y-1.5">
@@ -133,7 +201,7 @@ export default function CrossListModal({
         {/* Description Copy Box */}
         <div className="space-y-1.5">
           <div className="flex items-center justify-between text-xs font-semibold text-slate-300">
-            <span>Listing Description & Hashtags</span>
+            <span>Listing Description & Tags</span>
             <button
               type="button"
               onClick={() => handleCopy(currentDesc, "Description")}
@@ -145,7 +213,7 @@ export default function CrossListModal({
           </div>
           <textarea
             readOnly
-            rows={4}
+            rows={3}
             value={currentDesc}
             className="w-full p-3 rounded-xl bg-slate-950 border border-slate-800 font-sans text-xs text-slate-300 focus:outline-none resize-none"
           />
@@ -153,7 +221,7 @@ export default function CrossListModal({
 
         {/* Footer Actions */}
         <div className="pt-2 flex items-center justify-between border-t border-slate-800">
-          <span className="text-[11px] font-mono text-emerald-400 font-bold">Price: ${itemPrice} AUD</span>
+          <span className="text-xs font-mono text-emerald-400 font-bold">Price: ${itemPrice} AUD</span>
           <button
             type="button"
             onClick={onClose}

@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight, Check, Sparkles, ShoppingBag, Edit3, DollarS
 import { toast } from "sonner";
 import { supabase } from "@/app/lib/supabase";
 import { createListing } from "@/app/lib/createlisting";
+import { syncProfitToAndroidWidget, triggerTactileHaptic } from "@/lib/android-bridge";
 
 export interface SpadasListingData {
   productName: string;
@@ -80,6 +81,8 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
       if (res?.error) {
         toast.error(res.error.message || "Failed to save draft.");
       } else {
+        triggerTactileHaptic("success");
+        syncProfitToAndroidWidget(data.priceMedian - cost, 1);
         toast.success("Saved to Drafts!");
         if (onSaved) onSaved();
         else router.push("/listings");
