@@ -128,6 +128,25 @@ export function AppSidebar() {
           Settings
         </Link>
       </nav>
+
+      <div className="p-4 border-t border-sidebar-border">
+        <a
+          href="/spadas-ai.apk"
+          download="spadas-ai.apk"
+          className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-xs font-bold text-slate-200 hover:border-cyan-500/50 hover:bg-slate-850 transition group"
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-base">📱</span>
+            <div>
+              <p className="font-extrabold text-foreground text-[11px] group-hover:text-cyan-400 transition">Android App</p>
+              <p className="text-[10px] text-muted-foreground font-mono">Download .APK (v1.1)</p>
+            </div>
+          </div>
+          <span className="text-[10px] font-extrabold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 px-2 py-0.5 rounded-md">
+            Direct
+          </span>
+        </a>
+      </div>
     </aside>
   );
 }
