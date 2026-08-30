@@ -1,12 +1,18 @@
 import type { AiListingResult } from "@/types/ai-listing";
 
 /**
- * Call Google Gemini Vision API directly via HTTP fetch.
- * Provides fast multimodal vision detection, OCR, and valuation.
+ * Google Gemini Multimodal Vision & Resale Research Engine
+ * Directly performs deep visual identification, eBay/Depop resale pricing research,
+ * and high-converting listing copywriting from camera images.
  */
 export async function callGeminiVision(
   imageDataUrl: string,
-  geminiApiKey?: string
+  geminiApiKey?: string,
+  options?: {
+    categoryHint?: string;
+    mode?: "snap" | "sweep" | "barcode" | "deep" | "studio";
+    customPrompt?: string;
+  }
 ): Promise<AiListingResult | null> {
   const apiKey =
     geminiApiKey ||
@@ -29,67 +35,75 @@ export async function callGeminiVision(
 
     const modelsToTry = [
       "gemini-2.5-flash",
-      "gemini-3.5-flash",
-      "gemini-2.5-flash-image",
+      "gemini-2.5-pro",
+      "gemini-1.5-flash",
+      "gemini-1.5-pro",
     ];
 
-    const promptText = `You are an expert reseller appraiser and luxury marketplace authentication & valuation specialist for eBay, Depop, and Grailed.
+    const promptText = `You are the world's most capable AI reseller research assistant, luxury authenticator, and marketplace appraiser for eBay Australia, Depop, Grailed, and Poshmark.
 
-INSTRUCTIONS:
-1. IDENTIFY THE PHYSICAL ITEM IN THE IMAGE WITH HIGH FORENSIC ACCURACY:
-- LUXURY & DESIGNER GOODS (Prada, Gucci, Louis Vuitton, Chanel, Dior, Bottega Veneta, Saint Laurent, Fendi, Goyard, Hermes, Burberry, Celine, Coach, Vivienne Westwood):
-  - Carefully inspect any visible logos, triangular plaques, gold/silver lettering, or signature embossing (e.g. Prada Milan logo triangle, LV monogram, GG pattern, CC lock, YSL emblem).
-  - Inspect the material & texture: Saffiano cross-hatch leather, Tessuto nylon, Epi textured leather, monogram coated canvas, Caviar leather, Intrecciato woven leather, patent leather, or smooth calfskin.
-  - Identify the exact silhouette: Bifold Wallet, Zip-Around Continental Long Wallet, Flap Coin Purse, Cardholder, Chain Wallet, Crossbody Bag, Tote Bag.
-  - Set specific product_name: e.g. "Prada Saffiano Leather Triangle Logo Bifold Wallet", "Prada Saffiano Metal Zip Around Long Wallet", "Louis Vuitton Monogram Sarah Wallet", "Gucci GG Supreme Continental Wallet".
-  - Realistic Resale Pricing: Authentic designer wallets in pre-owned good condition typically range $180 - $480 AUD (bags $350 - $1200+ AUD).
+A reseller has taken a photo of an item in a thrift store, garage sale, or studio and asked you:
+"WHAT EXACTLY IS THIS ITEM, HOW MUCH CAN IT RESELL FOR IN AUD, AND GENERATE A COMPLETE RESELLER LISTING FOR IT."
 
-- SNEAKERS & STREETWEAR (Nike, Jordan, Yeezy, Adidas, Supreme, Stussy, Bape):
-  - Identify the specific silhouette, model, and colorway (e.g. "Nike Dunk Low Retro Panda", "Air Jordan 4 Military Black").
+PERFORM THOROUGH VISUAL IDENTIFICATION & SECONDARY MARKET RESEARCH:
 
-- VINTAGE DIGICAMS & TECH (Sony Cyber-shot, Canon PowerShot, Olympus, Nintendo):
-  - Read visible model number badges on the front or top plate (e.g. "Sony Cyber-shot DSC-W350 Digital Camera").
+1. EXACT PRODUCT IDENTIFICATION (Inspect the image forensically):
+- Brand: Identify the exact brand (e.g. Nike, Jordan, Prada, Gucci, Sony, Nintendo, Lego, Carhartt, The North Face, Ralph Lauren, Apple, Bose, Pokemon, Canon, etc.).
+- Model / Silhouette: Identify the exact model name, edition, style code, or silhouette (e.g. "Air Jordan 4 Military Black", "Prada Saffiano Triangle Bifold Wallet", "Sony Cyber-shot DSC-W350", "Pokemon HeartGold Version Nintendo DS").
+- Material & Colorway: e.g. "Saffiano Leather / Black", "Leather & Suede / Olive", "Canvas / Monogram".
+- Era / Vintage Check: Pre-1996 single stitch, Y2K CCD sensor tech, early 2000s streetwear, modern retail.
+- Visible Condition: Inspect for scuffs, heel drag, collar fading, screen scratches, or clean pre-owned status.
 
-- COMMON HOUSEHOLD / UNBRANDED ITEMS:
-  - If it's a generic mug, desk item, or cable, identify it honestly (e.g. "Ceramic Coffee Mug") and price realistically ($5 - $15 AUD).
-  - Do NOT hallucinate luxury brands unless clearly visible.
+2. SECONDARY RESALE MARKET VALUATION (AUD):
+- Calculate realistic pre-owned market sold comps on eBay Australia & Depop.
+- "suggested_price_min": Conservative quick-sale floor price in AUD.
+- "suggested_price_max": High-end collector peak price in AUD.
+- "suggested_price_median": Fair market target listing price in AUD.
+- (If common household grocery/mug/cable, price realistically at $5 - $20 AUD. If luxury/collector, price at true market value).
 
-Return valid JSON only matching this exact structure (no markdown formatting, no code block backticks):
+3. HIGH-CONVERTING RESELLER TITLES & COPYWRITING:
+- "market_titles.ebay": Max 80 characters. High-SEO keyword density format: [Brand] [Model/Style] [Key Color/Material] [Size/Edition] [Condition]. NO punctuation clutter, no fake emojis.
+- "market_titles.facebook_marketplace": Clean, friendly local title (e.g. "Prada Saffiano Leather Bifold Wallet - Great Condition").
+- "market_titles.depop": Trendy lowercase style with 3-4 viral hashtags (e.g. "prada saffiano leather triangle logo bifold wallet #prada #luxury #designer #vintage").
+- "seo_description": 1 concise SEO summary paragraph for search engines.
+- "detailed_description": 3 professional, human-sounding paragraphs (1: Overview & specs, 2: Honest condition & flaws, 3: Shipping & tracking notice). Plain text only, NO robotic buzzwords.
+
+Return ONLY a valid JSON object matching this structure (no markdown formatting, no code block backticks):
 {
   "inventory_condition": "used_working",
   "defect_notes": ["Clean pre-owned condition"],
-  "as_is_disclaimer": "Item tested and working. Sold as described.",
+  "as_is_disclaimer": "Item inspected and working. Sold as described.",
   "detected_objects": [
     {
       "id": "gemini-obj-1",
-      "product_name": "Prada Saffiano Leather Triangle Logo Bifold Wallet",
-      "brand": "Prada",
-      "category": "Designer & Luxury Goods",
+      "product_name": "Exact Brand + Model Name",
+      "brand": "Brand",
+      "category": "Category",
       "condition": "Used - Good",
       "bbox": { "x": 15, "y": 15, "width": 70, "height": 70 },
       "confidence_score": 0.98
     }
   ],
   "analysis": {
-    "product_name": "Prada Saffiano Leather Triangle Logo Bifold Wallet",
-    "brand": "Prada",
-    "model": "Saffiano Triangle Bifold",
-    "category": "Designer & Luxury Goods",
-    "color": "Black",
-    "material": "Saffiano Leather",
+    "product_name": "Exact Brand + Model Name",
+    "brand": "Brand",
+    "model": "Model",
+    "category": "Category",
+    "color": "Color",
+    "material": "Material",
     "condition": "Used - Good",
     "accessories_detected": [],
     "confidence": "high",
     "confidence_score": 0.98
   },
   "market_titles": {
-    "ebay": "Prada Saffiano Leather Triangle Logo Bifold Wallet Black Authentic",
-    "facebook_marketplace": "Prada Saffiano Leather Bifold Wallet - Great Condition",
-    "vinted": "Prada Saffiano Leather Triangle Logo Wallet",
-    "depop": "prada saffiano leather triangle logo bifold wallet #prada #luxury #designer"
+    "ebay": "Brand Model Colorway Key Attributes Clean SEO Title",
+    "facebook_marketplace": "Brand Model - Great Condition",
+    "vinted": "Brand Model Style",
+    "depop": "brand model colorway #brand #style #vintage #resale"
   },
-  "seo_description": "Authentic Prada Saffiano leather wallet featuring the signature triangular enamelled logo plate in great condition.",
-  "detailed_description": "Authentic Prada Saffiano leather wallet. Features durable textured leather construction with the iconic enamelled metal triangle logo. Interior includes multiple card slots, bill compartments, and coin pocket. Pre-owned in great condition. Fast tracked shipping.",
+  "seo_description": "Short SEO summary for search crawlers.",
+  "detailed_description": "Paragraph 1: Item overview and specifications.\\n\\nParagraph 2: Honest condition report.\\n\\nParagraph 3: Fast dispatch and secure packaging.",
   "shipping_estimate": {
     "size": "small",
     "estimated_weight_grams": 350,
@@ -97,15 +111,15 @@ Return valid JSON only matching this exact structure (no markdown formatting, no
     "notes": "Standard trackable parcel dispatch from Australia"
   },
   "item_specifics": {
-    "Brand": "Prada",
-    "Material": "Saffiano Leather",
-    "Type": "Wallet",
+    "Brand": "Brand",
+    "Model": "Model",
+    "Type": "Category",
     "Condition": "Used - Good"
   },
-  "suggested_keywords": ["prada", "saffiano", "wallet", "luxury", "authentic"],
-  "suggested_price_min": 180,
-  "suggested_price_max": 350,
-  "suggested_price_median": 260,
+  "suggested_keywords": ["keyword1", "keyword2", "keyword3"],
+  "suggested_price_min": 50,
+  "suggested_price_max": 120,
+  "suggested_price_median": 85,
   "suggested_price_currency": "AUD"
 }`;
 
