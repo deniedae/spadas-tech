@@ -47,6 +47,24 @@ export const OFFLINE_RESALE_KNOWLEDGE_BASE: Record<string, OfflineCategoryModel>
     demandRating: "FAST_FLIP",
     highValueKeywords: ["sony cyber-shot", "canon powershot", "olympus camedia", "nintendo game boy", "nintendo ds", "ipod classic", "casio exilim"],
   },
+  luxury_designer_leather: {
+    category: "Designer Luxury & Leather Goods",
+    subcategories: [
+      "Prada Saffiano Leather Triangle Logo Bifold Wallet",
+      "Prada Tessuto Nylon Zip Around Continental Wallet",
+      "Louis Vuitton Monogram Sarah Long Wallet",
+      "Gucci GG Supreme Continental Wallet",
+      "Bottega Veneta Intrecciato Leather Card Case",
+      "Saint Laurent Monogram Leather Flap Wallet",
+      "Chanel Caviar Quilted Classic Flap Wallet"
+    ],
+    medianPriceAUD: 260,
+    minPriceAUD: 160,
+    maxPriceAUD: 480,
+    typicalTagCostAUD: 25,
+    demandRating: "FAST_FLIP",
+    highValueKeywords: ["prada", "saffiano", "tessuto", "louis vuitton", "gucci", "chanel", "saint laurent", "ysl", "bottega", "dior", "fendi", "goyard", "hermes", "celine", "balenciaga", "loewe", "burberry"],
+  },
   designer_luxury: {
     category: "Designer & Gorpcore Outerwear",
     subcategories: ["Technical GORE-TEX Jacket", "Embroidered Polo Shirt", "Heritage Wool Knit Jumper", "Monogram Canvas Bag"],
@@ -55,7 +73,7 @@ export const OFFLINE_RESALE_KNOWLEDGE_BASE: Record<string, OfflineCategoryModel>
     maxPriceAUD: 290,
     typicalTagCostAUD: 12,
     demandRating: "FAST_FLIP",
-    highValueKeywords: ["arc'teryx", "patagonia", "ralph lauren", "burberry", "stone island", "prada", "diesel", "barbour"],
+    highValueKeywords: ["arc'teryx", "patagonia", "ralph lauren", "burberry", "stone island", "diesel", "barbour"],
   },
   collectibles_media: {
     category: "Collectibles, Vinyl & Media",

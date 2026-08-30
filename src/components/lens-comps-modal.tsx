@@ -128,10 +128,10 @@ export default function LensCompsModal({
 
         {/* Item Overview & Frozen Frame Snapshot */}
         <div className="flex items-start gap-3.5 bg-slate-950/70 p-3.5 rounded-2xl border border-slate-800">
-          {frozenFrameUrl ? (
-            <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl border border-cyan-500/40 shadow-md">
+          {(frozenFrameUrl || (item as any).image) ? (
+            <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl border border-cyan-500/40 shadow-md bg-slate-950">
               <img
-                src={frozenFrameUrl}
+                src={frozenFrameUrl || (item as any).image}
                 alt={title}
                 className="h-full w-full object-cover"
               />

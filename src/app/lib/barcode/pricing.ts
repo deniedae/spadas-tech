@@ -83,10 +83,24 @@ export async function estimatePrice(product: {
     console.warn("[Barcode Pricing] Live comps lookup failed, using category baseline:", err);
   }
 
-  // 3. Category Baselines for Collectibles, Media, Fashion & Electronics
+  // 3. Category Baselines for Luxury, Collectibles, Media, Fashion & Electronics
+  const isLuxuryBrand = [
+    "Prada", "Gucci", "Louis Vuitton", "Chanel", "Dior", "Hermes", "Bottega Veneta",
+    "Saint Laurent", "YSL", "Fendi", "Goyard", "Celine", "Balenciaga", "Burberry", "Loewe"
+  ].some((b) => (brand && brand.toLowerCase().includes(b.toLowerCase())) || lower.includes(b.toLowerCase()));
+
+  if (isLuxuryBrand) {
+    const isBag = /\b(bag|handbag|tote|backpack|crossbody)\b/i.test(lower);
+    return {
+      suggestedPrice: isBag ? 550 : 260,
+      confidence: "High",
+      source: "Designer Secondary Market Baseline",
+    };
+  }
+
   const isPremiumBrand = brand && [
-    "Nike", "Jordan", "Supreme", "Gucci", "Sony", "Apple", "Nintendo", "Lego",
-    "Bose", "Patagonia", "Arc'teryx", "Balenciaga", "Prada", "Louis Vuitton"
+    "Nike", "Jordan", "Supreme", "Sony", "Apple", "Nintendo", "Lego",
+    "Bose", "Patagonia", "Arc'teryx"
   ].some((b) => brand.toLowerCase().includes(b.toLowerCase()));
 
   if (category === "Video Games & Consoles" || lower.includes("pokemon")) {

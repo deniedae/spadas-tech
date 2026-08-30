@@ -266,71 +266,87 @@ export async function POST(request: Request) {
     const modePrompt =
       mode === "deep"
         ? `SCAN MODE: DEEP FORENSIC & OCR INSPECTION.
-Perform deep OCR inspection of all text, model plates, serial numbers, care tags, and condition flaws visible on the centered item.`
+Perform deep OCR inspection of all text, brand logos, model plates, serial numbers, care tags, and condition flaws visible on the centered item.`
         : mode === "sweep"
         ? `SCAN MODE: MULTI-ITEM SCENE SCAN.
 Identify distinct physical products visible in the scene. If no distinct object is in frame, return product_name: "NO_CENTER_ITEM".`
         : `SCAN MODE: TARGETED CENTER RETICLE FOCUS.
 Identify ONLY the single primary physical item positioned in the center target reticle (Image 1 is the high-res center crop). Disregard hands, table, floor, and room background.`;
 
-    for (const modelName of targetModels) {
-      try {
-        const reqParams: any = {
-          model: modelName,
-          temperature: 0.0,
-          response_format: zodResponseFormat(AiListingResultSchema, "ai_listing_analysis"),
-          messages: [
-            {
-              role: "user",
-              content: [
-                {
-                  type: "text",
-                  text: `You are an expert reseller appraiser and marketplace copywriter.
+    // Try OpenAI Vision first if key is valid
+    const hasOpenAiKey = getPrimaryAiApiKey().length > 10 && !getPrimaryAiApiKey().includes("placeholder");
+
+    if (hasOpenAiKey) {
+      for (const modelName of targetModels) {
+        try {
+          const reqParams: any = {
+            model: modelName,
+            temperature: 0.0,
+            response_format: zodResponseFormat(AiListingResultSchema, "ai_listing_analysis"),
+            messages: [
+              {
+                role: "user",
+                content: [
+                  {
+                    type: "text",
+                    text: `You are an expert reseller appraiser, luxury authenticator, and marketplace copywriter for eBay, Grailed, and Depop.
 
 ${modePrompt}
 
-1. ACCURATE IDENTIFICATION & ANTI-HALLUCINATION:
-- Identify ONLY what is directly visible in the image (Image 1 is the center crop).
-- Look for visible brand logos, OCR model text, tags, and unmistakable physical traits.
+1. ACCURATE IDENTIFICATION & FORENSIC RECOGNITION:
+- Identify ONLY what is directly visible in the image (Image 1 is the high-res center crop).
+- LUXURY & DESIGNER GOODS (Prada, Louis Vuitton, Gucci, Chanel, Dior, Bottega Veneta, Saint Laurent, Fendi, Goyard, Hermes, Burberry, Celine, Coach, MCM, Vivienne Westwood):
+  - Inspect visible hardware, logos, and emblems: Triangular metal enamel plaque ("PRADA MILANO"), gold/silver lettering, interlocking monogram, embossed leather stamps.
+  - Inspect leather texture and textile: Saffiano cross-hatch leather, Tessuto nylon, Epi textured leather, monogram coated canvas, Caviar leather, Intrecciato woven leather, patent leather, or smooth calfskin.
+  - Identify specific silhouette: Bifold Wallet, Zip-Around Continental Long Wallet, Flap Coin Purse, Cardholder, Chain Wallet, Crossbody Bag, Tote Bag.
+  - Formulate precise product_name: e.g. "Prada Saffiano Leather Triangle Logo Bifold Wallet", "Prada Saffiano Metal Zip Around Long Continental Wallet Black", "Louis Vuitton Monogram Sarah Long Wallet", "Gucci GG Supreme Continental Wallet".
+  - Realistic Resale Pricing: Authentic designer wallets in pre-owned good condition typically range $180 - $480 AUD (bags $350 - $1200+ AUD).
+
+- SNEAKERS & STREETWEAR (Nike, Jordan, Yeezy, Adidas, Supreme, Stussy, Bape):
+  - Identify specific model, silhouette, and colorway (e.g. "Nike Dunk Low Retro Panda", "Air Jordan 4 Military Black").
+
+- VINTAGE DIGICAMS & TECH (Sony Cyber-shot, Canon PowerShot, Olympus, Nintendo):
+  - Read visible model badges on the front or top plate (e.g. "Sony Cyber-shot DSC-W350 Digital Camera").
+
 - FOR COMMON HOUSEHOLD OR UNBRANDED ITEMS (e.g. coffee mug, water bottle, phone case, generic t-shirt, desk fan):
   - Identify it accurately as what it actually is (e.g. "Ceramic Coffee Mug White 350ml", "Stainless Steel Kitchen Tongs").
-  - Do NOT hallucinate high-end collector brands (e.g. do not guess Stanley, Nike, or Apple unless the logo/text is clearly visible).
+  - Do NOT hallucinate high-end collector brands unless clearly visible.
   - Price realistically ($3 - $20 AUD for generic goods).
 - If the item is blurry, empty, or genuinely unidentifiable, mark "status": "unidentified" rather than making a wild guess.
 
 2. PROFESSIONAL RESELLER COPYWRITING (MUST SOUND 100% HUMAN):
 - "market_titles.ebay": Max 80 characters. Use high-converting reseller structure:
   Format: [Brand] [Model/Style] [Key Color/Material] [Size/Attribute] [Condition]
-  Example: "Nike Vintage 90s Spellout Windbreaker Jacket Blue White Mens L"
-  NEVER repeat words (e.g. NEVER write "Nike Nike Vintage Vintage Jacket Clean").
-  NO punctuation clutter, no fake emojis.
-- "market_titles.facebook_marketplace": Clean, friendly, and local-buyer readable (e.g. "Nike Vintage 90s Windbreaker Jacket - Size L - Great Condition").
-- "market_titles.depop": Trendy lowercase aesthetic with 3-4 relevant hashtags (e.g. "vintage 90s nike windbreaker jacket #nike #vintage #streetwear #90s").
+  Example: "Prada Saffiano Leather Triangle Logo Bifold Wallet Black Authentic"
+  NEVER repeat words. NO punctuation clutter, no fake emojis.
+- "market_titles.facebook_marketplace": Clean, friendly, and local-buyer readable (e.g. "Prada Saffiano Leather Bifold Wallet - Great Condition").
+- "market_titles.depop": Trendy lowercase aesthetic with 3-4 relevant hashtags (e.g. "prada saffiano leather triangle logo bifold wallet #prada #luxury #designer").
 - "seo_description" & "detailed_description": Write a concise, professional 2-3 paragraph listing description written by an experienced human seller:
   - Paragraph 1: Overview of the item, brand, silhouette, and primary features.
   - Paragraph 2: Honest condition report (noting any visible wear, scuffs, or clean pre-owned status).
   - Paragraph 3: Fast shipping and careful packaging notice.
   - Plain clean text only. NO robotic buzzwords ("Introducing the ultimate...", "Look no further...").`,
-                },
-                ...imageContent,
-              ],
-            },
-          ],
-        };
+                  },
+                  ...imageContent,
+                ],
+              },
+            ],
+          };
 
-        try {
-          completion = await openai.chat.completions.create(reqParams);
-          if (completion?.choices?.[0]?.message?.content) break;
-        } catch (err1: any) {
-          console.warn(`[ai-listing] Primary call on ${modelName} failed:`, err1?.message);
+          try {
+            completion = await openai.chat.completions.create(reqParams);
+            if (completion?.choices?.[0]?.message?.content) break;
+          } catch (err1: any) {
+            console.warn(`[ai-listing] Primary call on ${modelName} failed:`, err1?.message);
 
-          if (isRateLimitError(err1) || isCreditOrQuotaError(err1)) {
-            console.warn(`[ai-listing] Upstream quota/rate issue on ${modelName} — falling through to next provider.`);
-            hasCreditOrQuotaError = true;
+            if (isRateLimitError(err1) || isCreditOrQuotaError(err1)) {
+              console.warn(`[ai-listing] Upstream quota/rate issue on ${modelName} — falling through to next provider.`);
+              hasCreditOrQuotaError = true;
+            }
           }
+        } catch (outerErr: any) {
+          console.warn(`[ai-listing] Model loop error on ${modelName}:`, outerErr?.message);
         }
-      } catch (outerErr: any) {
-        console.warn(`[ai-listing] Model loop error on ${modelName}:`, outerErr?.message);
       }
     }
 
@@ -533,6 +549,57 @@ ${modePrompt}
             result.sales_velocity.sell_speed = "SLOW_BURNER";
             result.sales_velocity.est_days_to_sell = "Low Flip Margin";
             result.sales_velocity.demand_score = 30;
+          }
+        }
+      }
+
+      // Luxury Designer Leather Goods Sanity Floor & Market Grounding (Prada, LV, Gucci, Chanel, etc.)
+      const isLuxuryBrand =
+        lowerTitle.includes("prada") ||
+        lowerTitle.includes("louis vuitton") ||
+        lowerTitle.includes("gucci") ||
+        lowerTitle.includes("chanel") ||
+        lowerTitle.includes("dior") ||
+        lowerTitle.includes("bottega") ||
+        lowerTitle.includes("saint laurent") ||
+        lowerTitle.includes("ysl") ||
+        lowerTitle.includes("hermes") ||
+        lowerTitle.includes("celine") ||
+        lowerTitle.includes("goyard") ||
+        lowerTitle.includes("balenciaga") ||
+        lowerTitle.includes("burberry") ||
+        lowerTitle.includes("loewe");
+
+      if (isLuxuryBrand) {
+        const isWalletOrSLG =
+          lowerTitle.includes("wallet") ||
+          lowerTitle.includes("purse") ||
+          lowerTitle.includes("cardholder") ||
+          lowerTitle.includes("card case") ||
+          lowerTitle.includes("bifold") ||
+          lowerTitle.includes("trifold") ||
+          lowerTitle.includes("saffiano") ||
+          lowerTitle.includes("coin pouch");
+
+        const isBag =
+          lowerTitle.includes("bag") ||
+          lowerTitle.includes("tote") ||
+          lowerTitle.includes("crossbody") ||
+          lowerTitle.includes("handbag") ||
+          lowerTitle.includes("backpack");
+
+        if (isWalletOrSLG) {
+          // Designer small leather goods should never be appraised at $35
+          if (!result.suggested_price_median || result.suggested_price_median < 120) {
+            result.suggested_price_median = 260;
+            result.suggested_price_min = 180;
+            result.suggested_price_max = 380;
+          }
+        } else if (isBag) {
+          if (!result.suggested_price_median || result.suggested_price_median < 250) {
+            result.suggested_price_median = 550;
+            result.suggested_price_min = 350;
+            result.suggested_price_max = 950;
           }
         }
       }

@@ -281,13 +281,31 @@ function SpadasLensCameraCore() {
       if (
         !codeVal ||
         codeVal.length < 4 ||
-        (lastDetectedBarcodeRef.current === codeVal && now - lastBarcodeTimeRef.current < 3500)
+        isScanPaused ||
+        (lastDetectedBarcodeRef.current === codeVal && now - lastBarcodeTimeRef.current < 4000)
       ) {
         return;
       }
 
       lastDetectedBarcodeRef.current = codeVal;
       lastBarcodeTimeRef.current = now;
+
+      // Capture frozen frame snapshot of what the camera was pointing at
+      let snapshotUrl: string | null = null;
+      if (videoRef.current && videoRef.current.videoWidth > 0) {
+        try {
+          const canvas = document.createElement("canvas");
+          canvas.width = videoRef.current.videoWidth;
+          canvas.height = videoRef.current.videoHeight;
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+            snapshotUrl = canvas.toDataURL("image/jpeg", 0.85);
+          }
+        } catch (e) {
+          console.warn("[Spadas Lens] Barcode snapshot capture skipped:", e);
+        }
+      }
 
       if (soundEnabled) playScanBeep();
       triggerScanHaptic([45, 25, 45]);
@@ -318,11 +336,13 @@ function SpadasLensCameraCore() {
                 ? "QUICK_FLIP"
                 : "FAIR_MARGIN";
 
+            const productImg = bData.product.image || snapshotUrl || null;
+
             const scanObj: ActiveScanItem = {
               id: `barcode-${Date.now()}`,
               productName: pName,
               brand: bData.product.brand || "Authentic",
-              category: bData.product.category || "Barcode Find",
+              category: bData.product.category || (isGrocery ? "Groceries & Beverages" : "Barcode Find"),
               condition: "Used - Good",
               bbox: { x: 15, y: 15, width: 70, height: 70 },
               status: "valued",
@@ -334,6 +354,7 @@ function SpadasLensCameraCore() {
               trueNetProfit: estProfit,
               roiPercentage: estRoi,
               copVerdict,
+              image: productImg,
               timestamp: Date.now(),
             };
 
@@ -341,7 +362,7 @@ function SpadasLensCameraCore() {
               id: `hit-${Date.now()}`,
               name: pName,
               brand: bData.product.brand || "Authentic",
-              category: bData.product.category || "Barcode Find",
+              category: bData.product.category || (isGrocery ? "Groceries & Beverages" : "Barcode Find"),
               condition: "Used - Good",
               estimatedValue: estValue,
               estCost,
@@ -354,12 +375,19 @@ function SpadasLensCameraCore() {
               verdict: estProfit >= 15 ? "BUY" : estProfit >= 5 ? "CAUTION" : "PASS",
               confidence: 0.99,
               bbox: { x: 15, y: 15, width: 70, height: 70 },
+              image: productImg,
               timestamp: Date.now(),
             };
 
+            if (snapshotUrl || productImg) {
+              setFrozenFrameUrl(snapshotUrl || productImg);
+            }
             setActiveScans([scanObj]);
             setCapturedLog((prev) => [verifiedHit, ...prev.filter((h) => h.name !== pName)].slice(0, 50));
             setSessionScanCount((prev) => prev + 1);
+            setActiveCompsHit(verifiedHit);
+            setIsScanPaused(true);
+            setConfidencePercent(99);
             playChime(estProfit);
             toast.success(`⚡ Barcode Lock: ${pName.slice(0, 24)}... (+$${estProfit} Net)`);
           }
@@ -368,27 +396,27 @@ function SpadasLensCameraCore() {
         console.warn("[Spadas Lens] Continuous barcode lookup error:", err);
       }
     },
-    [soundEnabled]
+    [soundEnabled, isScanPaused]
   );
 
   useEffect(() => {
-    if (!stream || !videoRef.current || !isNativeBarcodeDetectorSupported()) return;
+    if (!stream || !videoRef.current || !isNativeBarcodeDetectorSupported() || isScanPaused) return;
 
     const nativeScanner = createNativeBarcodeScanner(
       videoRef.current,
       (res) => {
-        if (res.rawValue) {
+        if (res.rawValue && !isScanPaused) {
           void handleNativeBarcode(res.rawValue);
         }
       },
-      { fpsThrottle: 45 }
+      { fpsThrottle: 15 } // Frame-skip sampling: 15 FPS sampling interval prevents CPU saturation & frame jitter
     );
 
     nativeScanner.start();
     return () => {
       nativeScanner.stop();
     };
-  }, [stream, handleNativeBarcode]);
+  }, [stream, handleNativeBarcode, isScanPaused]);
 
   // Safety watchdog to prevent analyzingRealFrame from getting permanently stuck
   useEffect(() => {
@@ -1097,6 +1125,25 @@ function SpadasLensCameraCore() {
                       ? "QUICK_FLIP"
                       : "FAIR_MARGIN";
 
+                  // Capture frame snapshot for preview
+                  let snapshotUrl: string | null = null;
+                  if (video && video.videoWidth > 0) {
+                    try {
+                      const canvas = document.createElement("canvas");
+                      canvas.width = video.videoWidth;
+                      canvas.height = video.videoHeight;
+                      const ctx = canvas.getContext("2d");
+                      if (ctx) {
+                        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                        snapshotUrl = canvas.toDataURL("image/jpeg", 0.85);
+                      }
+                    } catch (e) {
+                      console.warn("[Spadas Lens] Barcode snapshot capture skipped:", e);
+                    }
+                  }
+
+                  const productImg = bData.product.image || snapshotUrl || null;
+
                   const scanObj: ActiveScanItem = {
                     id: `barcode-${Date.now()}`,
                     productName: pName,
@@ -1119,6 +1166,7 @@ function SpadasLensCameraCore() {
                     trueNetProfit: estProfit,
                     roiPercentage: estRoi,
                     copVerdict: copVerdict,
+                    image: productImg,
                     timestamp: Date.now(),
                   };
 
@@ -1142,9 +1190,13 @@ function SpadasLensCameraCore() {
                     verdict: estProfit >= 15 ? "BUY" : estProfit >= 5 ? "CAUTION" : "PASS",
                     confidence: 0.99,
                     bbox: { x: 15, y: 15, width: 70, height: 70 },
+                    image: productImg,
                     timestamp: Date.now(),
                   };
 
+                  if (snapshotUrl || productImg) {
+                    setFrozenFrameUrl(snapshotUrl || productImg);
+                  }
                   setActiveScans([scanObj]);
                   setCapturedLog((prev) => [verifiedHit, ...prev.filter((h) => h.name !== pName)].slice(0, 50));
                   setSessionScanCount((prev) => prev + 1);
@@ -1675,7 +1727,7 @@ function SpadasLensCameraCore() {
     processFrameRef.current = processCurrentFrame;
   }, [processCurrentFrame]);
 
-  // Active Auto-Scan & Scene Change Watcher with strict Throttling & Duplicate Prevention
+  // Active Auto-Scan & Scene Change Watcher with Frame-Skip Delay & Sampling Interval
   useEffect(() => {
     if (!stream || !!deepVerifyItem || isScanPaused || !!activeCompsHit) return;
 
@@ -1687,11 +1739,19 @@ function SpadasLensCameraCore() {
 
     let wasMoving = false;
     let stableTicks = 0;
+    let frameSkipCounter = 0;
     let lastAutoTriggerTime = Date.now();
+    const SAMPLING_INTERVAL_MS = 320; // Frame-skip sampling interval: 320ms prevents CPU thrash & frame flutter
 
     const interval = setInterval(() => {
       if (isDestroyed) return;
       if (analyzingRef.current || isScanPaused) return; // In-flight state lock: never trigger while a scan is processing or paused
+
+      // Frame skip delay: skip every alternate tick if camera was in active motion
+      frameSkipCounter++;
+      if (wasMoving && frameSkipCounter % 2 !== 0) {
+        return;
+      }
 
       const video = videoRef.current;
       if (!video || video.readyState < 2 || video.paused) return;
@@ -1707,12 +1767,12 @@ function SpadasLensCameraCore() {
         return;
       }
 
-      // Calculate pixel delta across frame
+      // Strided pixel delta across frame (sampling step of 32 for zero-lag diffing)
       let diffSum = 0;
-      for (let i = 0; i < pixels.length; i += 16) {
+      for (let i = 0; i < pixels.length; i += 32) {
         diffSum += Math.abs(pixels[i] - prev[i]);
       }
-      const avgDiff = diffSum / (pixels.length / 16) / 255;
+      const avgDiff = diffSum / (pixels.length / 32) / 255;
       prevFramePixelsRef.current = new Uint8ClampedArray(pixels);
 
       const isPanning = avgDiff > 0.085;
@@ -1746,10 +1806,10 @@ function SpadasLensCameraCore() {
       }
 
       // Strict Throttling & Cooldowns:
-      // Mode 1: SWEEP / AUTO AR MODE -> 3500ms min cooldown
+      // Mode 1: SWEEP / AUTO AR MODE -> 3500ms min cooldown + settled frame confirmation
       if (scanMode === "sweep") {
         if (!isPanning) {
-          const justSettled = wasMoving && stableTicks >= 2 && timeSinceLast >= 3200;
+          const justSettled = wasMoving && stableTicks >= 3 && timeSinceLast >= 3200;
           const periodicScan = stableTicks >= 12 && timeSinceLast >= 4500;
 
           if (justSettled || periodicScan) {
@@ -1759,15 +1819,15 @@ function SpadasLensCameraCore() {
           }
         }
       }
-      // Mode 2: BARCODE MODE
+      // Mode 2: BARCODE MODE -> sampled debounce
       else if (scanMode === "barcode") {
-        if (stableTicks >= 2 && timeSinceLast >= 2000) {
+        if (stableTicks >= 3 && timeSinceLast >= 2000) {
           wasMoving = false;
           lastAutoTriggerTime = now;
           void processFrameRef.current(false);
         }
       }
-    }, 250);
+    }, SAMPLING_INTERVAL_MS);
 
     return () => {
       isDestroyed = true;

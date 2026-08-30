@@ -29,6 +29,7 @@ export interface DetectedHit {
   trueNetProfit?: number;
   roiPercentage?: number;
   copVerdict?: "MUST_COP" | "QUICK_FLIP" | "FAIR_MARGIN" | "PASS_RISKY";
+  image?: string | null;
   /** Number of eBay listings found (active or sold depending on compsSource) */
   ebayCompsCount?: number;
   /** Data source used for price comps — drives the UI label */
@@ -75,5 +76,6 @@ export interface ActiveScanItem {
   trueNetProfit?: number;
   roiPercentage?: number;
   copVerdict?: "MUST_COP" | "QUICK_FLIP" | "FAIR_MARGIN" | "PASS_RISKY";
+  image?: string | null;
   timestamp: number;
 }
