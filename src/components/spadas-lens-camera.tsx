@@ -135,11 +135,7 @@ function getKeywordSimilarity(str1: string, str2: string): number {
   return Math.max(dice, minOverlap, maxOverlap);
 }
 
-// Strict Vacuum Cleaner Filter (Banned Category)
-function isVacuumCleaner(name: string, category: string): boolean {
-  const text = `${name} ${category}`.toLowerCase();
-  return /\b(vacuum|vacuum cleaner|hoover|roomba|dyson\s*v\d+|shop-vac|carpet cleaner)\b/i.test(text);
-}
+
 
 // Strict Vague / Partial Read Detector (Rejects punctuation-only, short noise, and placeholder titles)
 function isVagueOrPartialRead(productName?: string | null): boolean {
@@ -1562,11 +1558,6 @@ function SpadasLensCameraCore() {
           .trim();
 
         if (isVagueOrPartialRead(pName)) {
-          continue;
-        }
-
-        // Hard-Kill Exclusions (Strict Vacuum Cleaner Rejection)
-        if (isVacuumCleaner(pName, cat)) {
           continue;
         }
 

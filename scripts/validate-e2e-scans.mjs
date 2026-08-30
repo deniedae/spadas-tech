@@ -1,13 +1,10 @@
 /**
  * Spadas End-to-End Scan Validation Harness
- * Runs the complete real-world validation matrix across:
- * - 10 Clear Scans of Recognizable Products
- * - 10 Blurry / Empty-Frame Scans
- * - 10 Repeated Duplicate Scans
- * - 10 Offline / Poor Network Scans
- * - 10 Overlapping Concurrent Scan Attempts
- * - Stale-Result Out-of-Order Race Protection
- * - Empty & Sentinel Response Guardrails
+ * Validates scan lifecycle states, sentinel rejection filters, and out-of-order race protections.
+ *
+ * NOTE: This is an automated Node.js simulation harness for pipeline logic,
+ * not a physical optical camera measurement. Physical device tests must be performed
+ * on a real Android device using the production mobile build.
  */
 
 import { performance } from "perf_hooks";
@@ -76,6 +73,39 @@ class ScanTrace {
   }
 }
 
+// ── Vague / Sentinel Read Filter Function (Matching Production) ──
+function isVagueOrPartialRead(productName) {
+  if (!productName || typeof productName !== "string") return true;
+  const trimmed = productName.trim();
+  if (trimmed.length < 3) return true;
+  if (/^[.\/_\-–—:;,#@!$%^&*()+=~`\s]+$/.test(trimmed)) return true;
+  const alphanumeric = trimmed.replace(/[^a-zA-Z0-9]/g, "");
+  if (alphanumeric.length < 2) return true;
+
+  const lower = trimmed.toLowerCase();
+  const explicitFailures = [
+    "no_center_item",
+    "scanned item",
+    "scanned reseller item",
+    "resale item",
+    "unknown item",
+    "unidentified item",
+    "unidentified",
+    "unknown product",
+    "unknown title",
+    "could not be identified",
+    "cannot be determined",
+    "exact card details unclear",
+    "vintage electronics / resale item",
+    "null",
+    "undefined",
+    "object",
+    "item",
+  ];
+
+  return explicitFailures.some((phrase) => lower === phrase || lower === `.${phrase}` || lower.startsWith(`${phrase} `));
+}
+
 // ── State Store with In-Flight Lock & Stale-Result Protection ──
 class CameraStateStore {
   constructor() {
@@ -101,11 +131,11 @@ class CameraStateStore {
     this.isAnalyzing = true;
     const scanTimestamp = Date.now();
 
-    // 2. Camera Frame Capture Stage
+    // 2. Frame Capture Simulation
     await new Promise((r) => setTimeout(r, input.captureLatencyMs || 8));
     trace.markCaptureEnd();
 
-    // 3. Network / Provider Dispatch Stage
+    // 3. Network Dispatch Simulation
     trace.markRequestDispatched();
     let responseData = null;
 
@@ -115,15 +145,12 @@ class CameraStateStore {
       }
       await new Promise((r) => setTimeout(r, input.networkLatencyMs || 25));
       trace.markResponseReceived();
-
-      // Parse Stage
       responseData = input.mockResponse;
       trace.markParseCompleted();
     } catch {
       trace.markResponseReceived();
       trace.markParseCompleted();
 
-      // Offline / Timeout Fallback
       trace.markStateDecision("FALLBACK_RETAINED_PREVIOUS", "Offline / Network failure — fallback activated", {
         previousRetained: !!this.activeOverlayHit,
       });
@@ -131,8 +158,7 @@ class CameraStateStore {
       return trace.markRenderCommitted();
     }
 
-    // 4. Stale-Result Race Condition Check
-    // If a newer scan has already committed while this scan was in flight, discard this older result
+    // 4. Stale-Result Out-of-Order Race Protection
     if (scanTimestamp < this.lastCommittedScanTimestamp) {
       trace.markStateDecision("REJECTED_DUPLICATE_STALE", "Out-of-order response: newer scan already committed", {
         previousRetained: true,
@@ -141,21 +167,17 @@ class CameraStateStore {
       return trace.markRenderCommitted();
     }
 
-    // 5. Empty & Sentinel Rejection
-    const pName = responseData?.analysis?.product_name || responseData?.product_name || "";
-    const isSentinel =
-      !pName ||
-      pName === "NO_CENTER_ITEM" ||
-      pName === "unidentified" ||
-      pName.toLowerCase().includes("vacuum cleaner");
-
-    if (isSentinel) {
-      trace.markStateDecision("REJECTED_EMPTY_RESPONSE", "Frame empty, unidentified, or hard-kill filtered", {
+    // 5. Accurate Vague / Sentinel Filter (Dyson vacuums are NOW fully accepted!)
+    const rawName = responseData?.analysis?.product_name ?? responseData?.product_name;
+    if (isVagueOrPartialRead(rawName)) {
+      trace.markStateDecision("REJECTED_EMPTY_RESPONSE", "Frame empty, sentinel phrase, or malformed title", {
         previousRetained: !!this.activeOverlayHit,
       });
       this.isAnalyzing = false;
       return trace.markRenderCommitted();
     }
+
+    const pName = String(rawName).trim();
 
     // 6. Duplicate Cooldown Check
     const sigKey = (pName + (responseData?.analysis?.brand || "")).toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -172,7 +194,7 @@ class CameraStateStore {
       return trace.markRenderCommitted();
     }
 
-    // 7. Accept New Hit & Commit State
+    // 7. Accept Valid Hit & Commit State
     const hit = {
       id: `hit-${scanTimestamp}`,
       name: pName,
@@ -199,20 +221,21 @@ class CameraStateStore {
   }
 }
 
-// ── Test Suites Execution ──
+// ── Validation Suites ──
 async function runAllValidationSuites() {
   console.log("================================================================================");
-  console.log("             SPADAS END-TO-END SCAN VALIDATION HARNESS");
+  console.log("             SPADAS SCAN LIFECYCLE HARNESS (SIMULATION VALIDATION)");
   console.log("================================================================================\n");
 
   const store = new CameraStateStore();
   const suiteResults = {};
 
-  // ── TEST 1: 10 Clear Scans of Recognizable Products ───────────────────────
-  console.log("📸 Test 1: Executing 10 Clear Scans of Recognizable Products...");
+  // ── TEST 1: 10 Clear Scans of Recognizable Products (Including Dyson V11!) ──
+  console.log("📸 Test 1: Executing 10 Clear Scans (Verifying Dyson V11 is ACCEPTED)...");
   const clearProducts = [
     { name: "Nike Dunk Low Retro Panda", brand: "Nike", price: 180 },
     { name: "Prada Saffiano Leather Bifold Wallet", brand: "Prada", price: 320 },
+    { name: "Dyson V11 Cordless Vacuum Cleaner", brand: "Dyson", price: 380 }, // Real appliance — MUST SUCCEED
     { name: "Sony Cyber-shot DSC-W350 Camera", brand: "Sony", price: 145 },
     { name: "Pokemon HeartGold Nintendo DS", brand: "Nintendo", price: 210 },
     { name: "Carhartt Detroit Jacket J97", brand: "Carhartt", price: 260 },
@@ -220,12 +243,10 @@ async function runAllValidationSuites() {
     { name: "Lego Star Wars X-Wing 75301", brand: "Lego", price: 85 },
     { name: "Canon PowerShot G7X Mark II", brand: "Canon", price: 650 },
     { name: "Ralph Lauren Polo Bear Knit Sweater", brand: "Ralph Lauren", price: 195 },
-    { name: "Apple AirPods Max Silver", brand: "Apple", price: 540 },
   ];
 
   const clearRecords = [];
-  for (let i = 0; i < clearProducts.length; i++) {
-    const p = clearProducts[i];
+  for (const p of clearProducts) {
     const rec = await store.processScan({
       mode: "sweep",
       captureLatencyMs: 10,
@@ -235,31 +256,30 @@ async function runAllValidationSuites() {
         suggested_price_median: p.price,
       },
     });
-    assert.strictEqual(rec.decision, "ACCEPTED_NEW_HIT");
+    assert.strictEqual(rec.decision, "ACCEPTED_NEW_HIT", `Failed to accept legitimate product: ${p.name}`);
     assert.strictEqual(rec.productName, p.name);
     clearRecords.push(rec);
-    // 4.1s gap between different products to respect cooldown
     await new Promise((r) => setTimeout(r, 10));
   }
   suiteResults["1. Clear Recognizable Scans (10/10)"] = clearRecords;
 
-  // ── TEST 2: 10 Blurry or Empty-Frame Scans ───────────────────────────────────
-  console.log("🌫️ Test 2: Executing 10 Blurry / Empty-Frame / Low-Confidence Scans...");
-  const emptyRecords = [];
-  const emptyScenarios = [
-    { desc: "Empty Tabletop", resp: { analysis: { product_name: "NO_CENTER_ITEM" } } },
-    { desc: "Blurry Motion", resp: { analysis: { product_name: "unidentified" } } },
-    { desc: "Null Product", resp: { analysis: { product_name: null } } },
-    { desc: "Empty JSON", resp: {} },
-    { desc: "Floor Background", resp: { analysis: { product_name: "NO_CENTER_ITEM" } } },
-    { desc: "Hand in Lens", resp: { analysis: { product_name: "unidentified" } } },
-    { desc: "Dark Glare", resp: { analysis: { product_name: "" } } },
-    { desc: "Vacuum Cleaner Hard-Kill", resp: { analysis: { product_name: "Dyson V11 Vacuum Cleaner" } } },
-    { desc: "Partial Glare", resp: { analysis: { product_name: "unidentified" } } },
-    { desc: "Low Contrast Noise", resp: { analysis: { product_name: "NO_CENTER_ITEM" } } },
+  // ── TEST 2: 10 Sentinel / Blurry / Empty Scans ──────────────────────────────
+  console.log("🌫️ Test 2: Executing 10 Sentinel / Empty / Malformed Rejections...");
+  const sentinelScenarios = [
+    { desc: "NO_CENTER_ITEM", resp: { analysis: { product_name: "NO_CENTER_ITEM" } } },
+    { desc: "Null Product Name", resp: { analysis: { product_name: null } } },
+    { desc: "Unidentified Sentinel", resp: { analysis: { product_name: "unidentified" } } },
+    { desc: "Empty String", resp: { analysis: { product_name: "" } } },
+    { desc: "Whitespace Only", resp: { analysis: { product_name: "   " } } },
+    { desc: "Punctuation Noise", resp: { analysis: { product_name: "...---..." } } },
+    { desc: "Malformed Non-String", resp: { analysis: { product_name: 12345 } } },
+    { desc: "Cannot Be Determined", resp: { analysis: { product_name: "cannot be determined" } } },
+    { desc: "Empty JSON Object", resp: {} },
+    { desc: "Undefined Property", resp: { analysis: {} } },
   ];
 
-  for (const s of emptyScenarios) {
+  const emptyRecords = [];
+  for (const s of sentinelScenarios) {
     const prevHit = store.activeOverlayHit?.name;
     const rec = await store.processScan({
       mode: "sweep",
@@ -267,17 +287,16 @@ async function runAllValidationSuites() {
       networkLatencyMs: 25,
       mockResponse: s.resp,
     });
-    assert.strictEqual(rec.decision, "REJECTED_EMPTY_RESPONSE");
-    assert.strictEqual(rec.previousValidHitRetained, true, "Must retain previous valid overlay!");
+    assert.strictEqual(rec.decision, "REJECTED_EMPTY_RESPONSE", `Sentinel '${s.desc}' was not rejected!`);
+    assert.strictEqual(rec.previousValidHitRetained, true, `Previous overlay lost on sentinel '${s.desc}'!`);
     assert.strictEqual(store.activeOverlayHit?.name, prevHit, "Overlay hit must NOT be wiped!");
     emptyRecords.push(rec);
   }
-  suiteResults["2. Blurry / Empty Frame Scans (10/10)"] = emptyRecords;
+  suiteResults["2. Sentinel / Empty Rejections (10/10)"] = emptyRecords;
 
-  // ── TEST 3: 10 Repeated Scans of the Same Product (Cooldown Rejection) ─────
-  console.log("🔁 Test 3: Executing 10 Repeated Scans of the Same Product (Duplicate Cooldown)...");
+  // ── TEST 3: 10 Repeated Scans of Same Product (Duplicate Cooldown) ────────
+  console.log("🔁 Test 3: Executing 10 Repeated Scans of Same Product (Duplicate Cooldown)...");
   const repeatRecords = [];
-  // Prime store with Prada Wallet
   await store.processScan({
     mode: "sweep",
     mockResponse: { analysis: { product_name: "Prada Saffiano Bifold", brand: "Prada" } },
@@ -294,7 +313,7 @@ async function runAllValidationSuites() {
   }
   suiteResults["3. Repeated Duplicate Scans (10/10)"] = repeatRecords;
 
-  // ── TEST 4: 10 Poor / Offline Network Scans ────────────────────────────────
+  // ── TEST 4: 10 Offline Network Scans ───────────────────────────────────────
   console.log("📴 Test 4: Executing 10 Poor / Offline Network Scans...");
   const offlineRecords = [];
   for (let i = 0; i < 10; i++) {
@@ -310,10 +329,10 @@ async function runAllValidationSuites() {
   }
   suiteResults["4. Offline / Network Drops (10/10)"] = offlineRecords;
 
-  // ── TEST 5: 10 Overlapping Concurrent Scan Attempts ────────────────────────
+  // ── TEST 5: 10 Overlapping Concurrent Scans ────────────────────────────────
   console.log("⚡ Test 5: Executing 10 Overlapping Concurrent Scan Attempts...");
   const overlapRecords = [];
-  store.isAnalyzing = true; // Lock in-flight
+  store.isAnalyzing = true;
 
   for (let i = 0; i < 10; i++) {
     const rec = await store.processScan({
@@ -323,33 +342,27 @@ async function runAllValidationSuites() {
     assert.strictEqual(rec.decision, "ABORTED_IN_FLIGHT");
     overlapRecords.push(rec);
   }
-  store.isAnalyzing = false; // Release lock
+  store.isAnalyzing = false;
   suiteResults["5. Overlapping Concurrent Lock (10/10)"] = overlapRecords;
 
   // ── TEST 6: Stale-Result Out-of-Order Race Condition Protection ────────────
   console.log("🛡️ Test 6: Testing Stale-Result Out-of-Order Race Condition Protection...");
-  // Simulate: Scan A starts at t=100 (slow 150ms). Scan B starts at t=120 (fast 20ms).
-  // Scan B finishes and commits at t=140. Scan A finishes at t=250.
-  // Scan A MUST be rejected so it cannot overwrite Scan B.
   const tA = Date.now();
   const tB = tA + 20;
 
-  // Scan B commits first
   store.lastCommittedScanTimestamp = tB;
   store.activeOverlayHit = { id: "scanB", name: "Scan B: Air Jordan 4", brand: "Jordan" };
 
-  // Scan A arrives late with timestamp tA < tB
   const staleScanA = await store.processScan({
     mode: "sweep",
     mockResponse: { analysis: { product_name: "Scan A: Old Nike Tee", brand: "Nike" } },
   });
 
-  // Verify Scan A cannot overwrite Scan B
   assert.strictEqual(store.activeOverlayHit.name, "Scan B: Air Jordan 4");
   console.log("   ✓ Stale Scan A rejected cleanly; Scan B overlay perfectly retained!");
 
   console.log("\n================================================================================");
-  console.log("                  MEASURED E2E SCAN TRACE TELEMETRY MATRIX");
+  console.log("           MEASURED SIMULATION TELEMETRY (HARNESS RESULTS)");
   console.log("================================================================================\n");
 
   const summaryRows = [];
@@ -378,11 +391,11 @@ async function runAllValidationSuites() {
   console.table(summaryRows);
 
   console.log("\n================================================================================");
-  console.log("✅ ALL 50 E2E VALIDATION SCENARIOS & RACE ASSERTIONS PASSED.");
+  console.log("✅ ALL SIMULATION SUITES & SENTINEL ASSERTIONS PASSED.");
   console.log("================================================================================");
 }
 
 runAllValidationSuites().catch((err) => {
-  console.error("E2E Validation Failed:", err);
+  console.error("Harness Failed:", err);
   process.exit(1);
 });
