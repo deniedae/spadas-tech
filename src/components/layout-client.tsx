@@ -109,9 +109,10 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
     return <>{children}</>;
   }
 
-  // Streamlined Navigation items for sidebar (Spadas Radar hidden, Profit Calculator added)
+  // Streamlined Navigation items for sidebar (Spadas Studio added for direct multi-angle studio workflow)
   const navItems = [
     { href: "/lens", label: "🔮 Spadas Lens AR" },
+    { href: "/studio", label: "📸 Spadas Studio" },
     { href: "/history", label: "📜 Scan History" },
     { href: "/dashboard", label: "🏠 Dashboard" },
     { href: "/listings", label: "📦 My Listings" },
@@ -127,6 +128,8 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
   // Dynamic page titles for header
   const pageTitleMap: Record<string, string> = {
     "/lens": "Spadas Lens AR Sourcing",
+    "/studio": "Spadas Snap Studio",
+    "/snap": "Spadas Snap Studio",
     "/history": "Scan History Feed",
     "/dashboard": "Dashboard",
     "/listings": "My Listings",

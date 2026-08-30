@@ -9,6 +9,7 @@ import { triggerTactileHaptic, syncProfitToAndroidWidget } from "@/lib/android-b
 
 export function SpadasSnapStudio() {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [capturedPhotos, setCapturedPhotos] = useState<string[]>([]);
@@ -17,38 +18,87 @@ export function SpadasSnapStudio() {
   const [listingResult, setListingResult] = useState<SpadasListingData | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Start Camera Stream
+  // Stop Camera Stream (Releases all hardware locks immediately)
+  const stopCamera = useCallback(() => {
+    if (streamRef.current) {
+      try {
+        streamRef.current.getTracks().forEach((track) => {
+          track.stop();
+          track.enabled = false;
+        });
+      } catch {}
+      streamRef.current = null;
+    }
+    if (stream) {
+      try {
+        stream.getTracks().forEach((track) => {
+          track.stop();
+          track.enabled = false;
+        });
+      } catch {}
+      setStream(null);
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+  }, [stream]);
+
+  // Start Camera Stream with progressive fallback constraints
   const startCamera = useCallback(async (mode: "environment" | "user" = facingMode) => {
     try {
-      if (stream) {
-        stream.getTracks().forEach((t) => t.stop());
+      // Ensure previous tracks are completely released first
+      if (streamRef.current) {
+        try {
+          streamRef.current.getTracks().forEach((t) => {
+            t.stop();
+            t.enabled = false;
+          });
+        } catch {}
+        streamRef.current = null;
       }
       setCameraError(null);
 
-      const newStream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: mode },
-          width: { ideal: 1280, max: 1920 },
-          height: { ideal: 720, max: 1080 },
-        },
-        audio: false,
-      });
+      let newStream: MediaStream | null = null;
+      try {
+        newStream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: mode },
+            width: { ideal: 1280, max: 1920 },
+            height: { ideal: 720, max: 1080 },
+          },
+          audio: false,
+        });
+      } catch {
+        // Fallback for strict device permissions
+        newStream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false,
+        });
+      }
 
+      streamRef.current = newStream;
       setStream(newStream);
     } catch (err: any) {
       console.warn("Physical camera access unavailable:", err);
       setCameraError("Camera unavailable or permission denied. You can still upload photos below.");
     }
-  }, [stream, facingMode]);
+  }, [facingMode]);
 
   useEffect(() => {
     void startCamera();
     return () => {
-      if (stream) {
-        stream.getTracks().forEach((t) => t.stop());
+      // Ensure all tracks are released when leaving Snap Studio
+      if (streamRef.current) {
+        try {
+          streamRef.current.getTracks().forEach((t) => {
+            t.stop();
+            t.enabled = false;
+          });
+        } catch {}
+        streamRef.current = null;
       }
     };
-  }, []);
+  }, [startCamera]);
 
   useEffect(() => {
     if (videoRef.current && stream) {
@@ -263,9 +313,17 @@ export function SpadasSnapStudio() {
             className="h-full w-full object-cover"
           />
         ) : (
-          <div className="p-8 text-center space-y-3">
+          <div className="p-8 text-center space-y-3 max-w-xs">
             <Camera className="h-12 w-12 text-cyan-400 mx-auto" />
-            <p className="text-xs text-slate-400">{cameraError || "Loading camera stream..."}</p>
+            <p className="text-xs text-slate-300">{cameraError || "Initializing camera stream..."}</p>
+            <button
+              type="button"
+              onClick={() => void startCamera()}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-cyan-500 text-slate-950 font-bold text-xs hover:bg-cyan-400 transition cursor-pointer"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              <span>Retry Camera</span>
+            </button>
           </div>
         )}
 

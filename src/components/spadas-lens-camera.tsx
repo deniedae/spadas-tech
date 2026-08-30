@@ -188,6 +188,7 @@ let cycleSeq = 0;
 function SpadasLensCameraCore() {
   const router = useRouter();
   const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const [scanMode, setScanMode] = useState<"snap" | "sweep" | "barcode" | "live">("snap");
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [scanning, setScanning] = useState(true);
@@ -558,6 +559,19 @@ function SpadasLensCameraCore() {
 
     // Auto-Start Camera Stream on Mount
     void startCamera();
+
+    return () => {
+      // Release camera hardware tracks immediately when unmounting or navigating away
+      if (streamRef.current) {
+        try {
+          streamRef.current.getTracks().forEach((track) => {
+            track.stop();
+            track.enabled = false;
+          });
+        } catch {}
+        streamRef.current = null;
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -866,8 +880,6 @@ function SpadasLensCameraCore() {
     }
   };
 
-  const streamRef = useRef<MediaStream | null>(null);
-
   // Bind stream to video element whenever stream changes with playback watchdog
   useEffect(() => {
     streamRef.current = stream;
@@ -894,9 +906,44 @@ function SpadasLensCameraCore() {
     }
   }, [stream]);
 
+  // Stop Camera Stream (Releases all hardware locks immediately)
+  const stopCamera = useCallback(() => {
+    if (streamRef.current) {
+      try {
+        streamRef.current.getTracks().forEach((track) => {
+          track.stop();
+          track.enabled = false;
+        });
+      } catch {}
+      streamRef.current = null;
+    }
+    if (stream) {
+      try {
+        stream.getTracks().forEach((track) => {
+          track.stop();
+          track.enabled = false;
+        });
+      } catch {}
+      setStream(null);
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    setScanning(false);
+    setActiveScans([]);
+  }, [stream]);
+
   // Start Camera Stream with mobile-optimized progressive WebRTC constraints
   const startCamera = async () => {
     try {
+      // Ensure any existing hardware tracks are stopped first
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => {
+          t.stop();
+          t.enabled = false;
+        });
+        streamRef.current = null;
+      }
       setCameraError(null);
       let mediaStream: MediaStream | null = null;
 
@@ -939,6 +986,7 @@ function SpadasLensCameraCore() {
         }
       }
 
+      streamRef.current = mediaStream;
       setStream(mediaStream);
       setScanning(true);
     } catch (err) {
@@ -947,16 +995,6 @@ function SpadasLensCameraCore() {
       setScanning(true);
       toast.info("Activated Interactive AR Test Scanner Mode.");
     }
-  };
-
-  // Stop Camera Stream
-  const stopCamera = () => {
-    if (stream) {
-      stream.getTracks().forEach((track) => track.stop());
-      setStream(null);
-    }
-    setScanning(false);
-    setActiveScans([]);
   };
 
   // Speak Voice Cue
