@@ -21,7 +21,7 @@ import { createListing } from "@/app/lib/createlisting";
 import { supabase } from "@/app/lib/supabase";
 import { detectGeoCurrency, CURRENCY_CONFIGS, SupportedCurrency } from "@/app/lib/currency-routing";
 import { resilientFetch } from "@/app/lib/resilient-fetch";
-import { playScanBeep, triggerScanHaptic } from "@/lib/barcode-detector";
+import { playScanBeep, triggerScanHaptic, createNativeBarcodeScanner, isNativeBarcodeDetectorSupported } from "@/lib/barcode-detector";
 import { syncProfitToAndroidWidget, triggerTactileHaptic } from "@/lib/android-bridge";
 import { saveScanOffline } from "@/app/lib/offline-storage";
 import { appraiseItemLocally, saveOfflineHitLocally } from "@/app/lib/offline/offline-engine";
@@ -253,6 +253,119 @@ function SpadasLensCameraCore() {
       if (scanExpiryTimerRef.current) clearTimeout(scanExpiryTimerRef.current);
     };
   }, [stream]);
+
+  // Continuous 60 FPS Native Barcode Scanner Loop
+  const handleNativeBarcode = useCallback(
+    async (codeVal: string) => {
+      const now = Date.now();
+      if (
+        !codeVal ||
+        codeVal.length < 4 ||
+        (lastDetectedBarcodeRef.current === codeVal && now - lastBarcodeTimeRef.current < 3500)
+      ) {
+        return;
+      }
+
+      lastDetectedBarcodeRef.current = codeVal;
+      lastBarcodeTimeRef.current = now;
+
+      if (soundEnabled) playScanBeep();
+      triggerScanHaptic([45, 25, 45]);
+
+      try {
+        const bRes = await fetch("/api/barcode", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ barcode: codeVal }),
+        });
+
+        if (bRes.ok) {
+          const bData = await bRes.json();
+          const pName = (bData?.product?.name || "").trim();
+          if (bData?.product && pName && !pName.toLowerCase().includes("unknown")) {
+            const estValue = Number(bData.product.suggestedPrice) || 45;
+            const estCost = Math.max(2, Math.round(estValue * 0.15));
+            const ebayFee = estValue * 0.134 + 0.33;
+            const estProfit = Math.max(0, Math.round((estValue - estCost - ebayFee) * 100) / 100);
+            const estRoi = estCost > 0 ? Math.round((estProfit / estCost) * 100) : 0;
+            const copVerdict =
+              estRoi >= 300 && estProfit >= 25
+                ? "MUST_COP"
+                : estRoi >= 100
+                ? "QUICK_FLIP"
+                : "FAIR_MARGIN";
+
+            const scanObj: ActiveScanItem = {
+              id: `barcode-${Date.now()}`,
+              productName: pName,
+              brand: bData.product.brand || "Authentic",
+              category: bData.product.category || "Barcode Find",
+              condition: "Used - Good",
+              bbox: { x: 15, y: 15, width: 70, height: 70 },
+              status: "valued",
+              estimatedValue: estValue,
+              estCost,
+              estimatedProfit: estProfit,
+              estRoi,
+              tagPrice: estCost,
+              trueNetProfit: estProfit,
+              roiPercentage: estRoi,
+              copVerdict,
+              timestamp: Date.now(),
+            };
+
+            const verifiedHit: DetectedHit = {
+              id: `hit-${Date.now()}`,
+              name: pName,
+              brand: bData.product.brand || "Authentic",
+              category: bData.product.category || "Barcode Find",
+              condition: "Used - Good",
+              estimatedValue: estValue,
+              estCost,
+              estimatedProfit: estProfit,
+              estRoi,
+              tagPrice: estCost,
+              trueNetProfit: estProfit,
+              roiPercentage: estRoi,
+              copVerdict,
+              verdict: estProfit >= 15 ? "BUY" : "CAUTION",
+              confidence: 0.99,
+              bbox: { x: 15, y: 15, width: 70, height: 70 },
+              timestamp: Date.now(),
+            };
+
+            setActiveScans([scanObj]);
+            setCapturedLog((prev) => [verifiedHit, ...prev.filter((h) => h.name !== pName)].slice(0, 50));
+            setSessionScanCount((prev) => prev + 1);
+            playChime(estProfit);
+            toast.success(`⚡ Barcode Lock: ${pName.slice(0, 24)}... (+$${estProfit} Net)`);
+          }
+        }
+      } catch (err) {
+        console.warn("[Spadas Lens] Continuous barcode lookup error:", err);
+      }
+    },
+    [soundEnabled]
+  );
+
+  useEffect(() => {
+    if (!stream || !videoRef.current || !isNativeBarcodeDetectorSupported()) return;
+
+    const nativeScanner = createNativeBarcodeScanner(
+      videoRef.current,
+      (res) => {
+        if (res.rawValue) {
+          void handleNativeBarcode(res.rawValue);
+        }
+      },
+      { fpsThrottle: 45 }
+    );
+
+    nativeScanner.start();
+    return () => {
+      nativeScanner.stop();
+    };
+  }, [stream, handleNativeBarcode]);
 
   // Safety watchdog to prevent analyzingRealFrame from getting permanently stuck
   useEffect(() => {
