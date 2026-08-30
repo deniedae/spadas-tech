@@ -164,7 +164,7 @@ export function createNativeBarcodeScanner(
             onDetected(first);
           }
         }
-      } catch (err) {
+      } catch {
         // Frame might be blank or video in transition, continue loop
       }
     }
