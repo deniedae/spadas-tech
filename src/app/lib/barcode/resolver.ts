@@ -200,11 +200,17 @@ export async function resolveBarcode(barcode: string): Promise<BarcodeProduct | 
     return null;
   }
 
+  const ai = await normalizeProduct({
+    name: productName,
+    category: product.category,
+    brand: product.brand,
+  });
+
   const normalizedProduct: BarcodeProduct = {
     barcode: product.barcode ?? cleanBarcode,
-    name: productName,
-    brand: product.brand || "",
-    category: product.category ?? "General",
+    name: ai.cleanTitle || productName,
+    brand: ai.brand || product.brand || "",
+    category: ai.category || product.category || "General",
     image: product.image || "",
     description: product.description || "",
     source: product.source ?? "Unknown",
@@ -213,24 +219,24 @@ export async function resolveBarcode(barcode: string): Promise<BarcodeProduct | 
   const pricing = await estimatePrice({
     name: normalizedProduct.name,
     category: normalizedProduct.category,
-  });
-
-  const ai = await normalizeProduct({
-    name: normalizedProduct.name,
-    category: normalizedProduct.category,
     brand: normalizedProduct.brand,
   });
+
+  const finalPrice =
+    product.suggestedPrice && product.suggestedPrice > 2
+      ? product.suggestedPrice
+      : pricing.suggestedPrice;
 
   const finalProduct: BarcodeProduct = {
     barcode: normalizedProduct.barcode,
     name: normalizedProduct.name,
-    brand: ai.brand || normalizedProduct.brand,
-    category: ai.category || normalizedProduct.category,
+    brand: normalizedProduct.brand || "Authentic",
+    category: normalizedProduct.category,
     image: normalizedProduct.image,
     description: normalizedProduct.description,
-    suggestedPrice: product.suggestedPrice || pricing.suggestedPrice,
+    suggestedPrice: Math.round(finalPrice * 100) / 100,
     confidence: pricing.confidence,
-    source: normalizedProduct.source,
+    source: pricing.source || normalizedProduct.source,
   };
 
   await saveBarcode({
