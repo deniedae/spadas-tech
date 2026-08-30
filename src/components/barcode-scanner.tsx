@@ -15,6 +15,14 @@ import {
   toggleCameraTorch,
 } from "@/lib/barcode-detector";
 import {
+  syncProfitToAndroidWidget,
+  triggerTactileHaptic,
+} from "@/lib/android-bridge";
+import {
+  calculateThriftCopVerdict,
+  ThriftPricingEstimate,
+} from "@/lib/thrift-cop-engine";
+import {
   Zap,
   Flashlight,
   Volume2,
@@ -27,6 +35,8 @@ import {
   RefreshCw,
   Camera,
   X,
+  TrendingUp,
+  DollarSign,
 } from "lucide-react";
 
 export type Product = {
@@ -40,6 +50,7 @@ export type Product = {
   description?: string;
   condition?: string;
   timestamp?: number;
+  copEstimate?: ThriftPricingEstimate;
 };
 
 export default function BarcodeScanner({
@@ -156,16 +167,25 @@ export default function BarcodeScanner({
         }
 
         const listing = generateListing(data.product);
+        const copEstimate = calculateThriftCopVerdict({
+          resalePrice: Number(data.product.suggestedPrice) || 30,
+          category: data.product.category,
+        });
+
         const merged: Product = {
           ...data.product,
           ...listing,
+          copEstimate,
           timestamp: Date.now(),
         };
 
         if (batchMode) {
           // Add to continuous batch list
           setScannedBatch((prev) => [merged, ...prev]);
-          toast.success(`⚡ Scanned: ${merged.name.slice(0, 32)}... ($${merged.suggestedPrice})`);
+          triggerTactileHaptic(copEstimate.copVerdict === "MUST_COP" ? "grail" : "success");
+          toast.success(
+            `⚡ Scanned: ${merged.name.slice(0, 28)}... (+$${copEstimate.netProfit.toFixed(0)} Profit)`
+          );
         } else {
           setProduct(merged);
           await stopAllScanners();
@@ -282,15 +302,19 @@ export default function BarcodeScanner({
 
     setIsBulkSaving(true);
     let successCount = 0;
+    let totalProjectedProfit = 0;
 
     for (const item of scannedBatch) {
       try {
+        const estProfit = item.copEstimate?.netProfit || (item.suggestedPrice * 0.7);
+        totalProjectedProfit += estProfit;
+
         const { error } = await createListing({
           userId: user.id,
           product: item.title || item.name,
           description: item.description || "",
           price: item.suggestedPrice,
-          cost: 0,
+          cost: item.copEstimate?.estimatedThriftCost || 0,
           image: item.image,
           status: "Draft",
         });
@@ -302,6 +326,9 @@ export default function BarcodeScanner({
     }
 
     setIsBulkSaving(false);
+    triggerTactileHaptic("success");
+    syncProfitToAndroidWidget(totalProjectedProfit, successCount);
+
     toast.success(`🎉 Successfully created ${successCount} listings from your batch!`);
     setScannedBatch([]);
   };
@@ -466,34 +493,49 @@ export default function BarcodeScanner({
           </div>
 
           <div className="grid gap-2 max-h-48 overflow-y-auto pr-1">
-            {scannedBatch.map((item, idx) => (
-              <div
-                key={`${item.barcode}-${idx}`}
-                className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card p-2.5 text-xs"
-              >
-                <div className="flex items-center gap-2.5 overflow-hidden">
-                  <img
-                    src={item.image || "/icon-192.png"}
-                    alt={item.name}
-                    className="h-9 w-9 rounded-lg object-contain bg-slate-900 border border-slate-800 shrink-0"
-                  />
-                  <div className="min-w-0">
-                    <p className="font-bold text-foreground truncate">{item.name}</p>
-                    <p className="text-[11px] text-muted-foreground">{item.barcode}</p>
+            {scannedBatch.map((item, idx) => {
+              const cop = item.copEstimate || calculateThriftCopVerdict({
+                resalePrice: item.suggestedPrice,
+                category: item.category,
+              });
+
+              return (
+                <div
+                  key={`${item.barcode}-${idx}`}
+                  className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card p-2.5 text-xs"
+                >
+                  <div className="flex items-center gap-2.5 overflow-hidden">
+                    <img
+                      src={item.image || "/icon-192.png"}
+                      alt={item.name}
+                      className="h-9 w-9 rounded-lg object-contain bg-slate-900 border border-slate-800 shrink-0"
+                    />
+                    <div className="min-w-0">
+                      <p className="font-bold text-foreground truncate">{item.name}</p>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold border ${cop.badgeStyle.bg} ${cop.badgeStyle.text} ${cop.badgeStyle.border}`}>
+                          {cop.copVerdict === "MUST_COP" ? "🔥 COP" : cop.copVerdict === "QUICK_FLIP" ? "⚡ FLIP" : "MARGIN"}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground">{item.barcode}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="font-extrabold text-emerald-500">+${cop.netProfit.toFixed(0)}</p>
+                    <p className="text-[10px] text-muted-foreground font-semibold">
+                      Sell: ${item.suggestedPrice}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setScannedBatch((b) => b.filter((_, i) => i !== idx))}
+                      className="text-muted-foreground hover:text-rose-400 text-[10px] block ml-auto mt-0.5"
+                    >
+                      Remove
+                    </button>
                   </div>
                 </div>
-                <div className="text-right shrink-0">
-                  <p className="font-extrabold text-emerald-500">${item.suggestedPrice}</p>
-                  <button
-                    type="button"
-                    onClick={() => setScannedBatch((b) => b.filter((_, i) => i !== idx))}
-                    className="text-muted-foreground hover:text-rose-400 text-[10px]"
-                  >
-                    Remove
-                  </button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -501,32 +543,63 @@ export default function BarcodeScanner({
       {/* Single Item Result Preview */}
       {!batchMode && product && (
         <div className="rounded-2xl border border-border bg-card p-5 sm:p-6 shadow-xl space-y-4 animate-scale-in">
-          <div className="flex flex-col sm:flex-row gap-5 items-center sm:items-start">
-            <img
-              src={product.image || "/icon-192.png"}
-              alt={product.name}
-              className="h-40 w-40 rounded-xl object-contain bg-slate-950 border border-border p-2"
-            />
-            <div className="flex-1 space-y-2 text-center sm:text-left">
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-bold text-emerald-400 border border-emerald-500/20">
-                <CheckCircle2 className="h-3 w-3" /> Catalog Matched
-              </span>
-              <h2 className="text-xl font-extrabold text-foreground">{product.name}</h2>
-              <div className="grid grid-cols-2 gap-2 text-xs pt-1">
-                <div>
-                  <span className="text-muted-foreground">Brand:</span>{" "}
-                  <strong className="text-foreground">{product.brand || "Generic"}</strong>
+          {/* Top Verdict Pill */}
+          {(() => {
+            const cop = product.copEstimate || calculateThriftCopVerdict({
+              resalePrice: product.suggestedPrice,
+              category: product.category,
+            });
+
+            return (
+              <div className="space-y-4">
+                <div className={`p-3 rounded-xl border flex items-center justify-between ${cop.badgeStyle.bg} ${cop.badgeStyle.border}`}>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-xs font-black uppercase ${cop.badgeStyle.text}`}>
+                      {cop.verdictLabel}
+                    </span>
+                  </div>
+                  <span className="text-xs font-bold text-foreground">
+                    +{cop.roiPercentage}% Projected ROI
+                  </span>
                 </div>
-                <div>
-                  <span className="text-muted-foreground">Category:</span>{" "}
-                  <strong className="text-foreground">{product.category || "General"}</strong>
-                </div>
-                <div className="col-span-2 text-sm font-extrabold text-emerald-500">
-                  Suggested Resale Price: ${product.suggestedPrice}
+
+                <div className="flex flex-col sm:flex-row gap-5 items-center sm:items-start">
+                  <img
+                    src={product.image || "/icon-192.png"}
+                    alt={product.name}
+                    className="h-40 w-40 rounded-xl object-contain bg-slate-950 border border-border p-2"
+                  />
+                  <div className="flex-1 space-y-2 text-center sm:text-left">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-bold text-emerald-400 border border-emerald-500/20">
+                      <CheckCircle2 className="h-3 w-3" /> Catalog Matched
+                    </span>
+                    <h2 className="text-xl font-extrabold text-foreground">{product.name}</h2>
+                    
+                    <div className="grid grid-cols-3 gap-2 text-xs pt-1">
+                      <div className="p-2 rounded-lg bg-muted/50 border border-border text-center">
+                        <p className="text-[10px] text-muted-foreground font-semibold">Resale Value</p>
+                        <p className="font-extrabold text-foreground text-sm">${product.suggestedPrice}</p>
+                      </div>
+                      <div className="p-2 rounded-lg bg-muted/50 border border-border text-center">
+                        <p className="text-[10px] text-muted-foreground font-semibold">Est. Thrift Cost</p>
+                        <p className="font-extrabold text-muted-foreground text-sm">${cop.estimatedThriftCost}</p>
+                      </div>
+                      <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-center">
+                        <p className="text-[10px] text-emerald-400 font-semibold">Net Profit</p>
+                        <p className="font-extrabold text-emerald-400 text-sm">+${cop.netProfit.toFixed(2)}</p>
+                      </div>
+                    </div>
+
+                    {cop.sourcingTip && (
+                      <p className="text-[11px] text-cyan-400/90 font-medium pt-1 text-left">
+                        {cop.sourcingTip}
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
+            );
+          })()}
 
           <div className="rounded-xl bg-muted/60 p-3.5 text-xs space-y-1">
             <p className="font-bold text-foreground">Listing Title:</p>
@@ -557,12 +630,17 @@ export default function BarcodeScanner({
                   return;
                 }
 
-                const { data, error } = await createListing({
+                const cop = product.copEstimate || calculateThriftCopVerdict({
+                  resalePrice: product.suggestedPrice,
+                  category: product.category,
+                });
+
+                const { error } = await createListing({
                   userId: user.id,
                   product: product.title || product.name,
                   description: product.description || "",
                   price: product.suggestedPrice,
-                  cost: 0,
+                  cost: cop.estimatedThriftCost,
                   image: product.image,
                   status: "Draft",
                 });
@@ -571,6 +649,9 @@ export default function BarcodeScanner({
                   toast.error(error.message || "Failed to create listing.");
                   return;
                 }
+
+                triggerTactileHaptic("success");
+                syncProfitToAndroidWidget(cop.netProfit, 1);
 
                 toast.success("Listing created in your inventory!");
                 onCreateListing?.(product);

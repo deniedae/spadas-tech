@@ -22,6 +22,7 @@ import { supabase } from "@/app/lib/supabase";
 import { detectGeoCurrency, CURRENCY_CONFIGS, SupportedCurrency } from "@/app/lib/currency-routing";
 import { resilientFetch } from "@/app/lib/resilient-fetch";
 import { playScanBeep, triggerScanHaptic } from "@/lib/barcode-detector";
+import { syncProfitToAndroidWidget, triggerTactileHaptic } from "@/lib/android-bridge";
 import { saveScanOffline } from "@/app/lib/offline-storage";
 import { appraiseItemLocally, saveOfflineHitLocally } from "@/app/lib/offline/offline-engine";
 import SubscriptionPaywallModal from "@/components/subscription-paywall-modal";
@@ -285,6 +286,8 @@ function SpadasLensCameraCore() {
       });
 
       if (error) throw error;
+      triggerTactileHaptic("success");
+      syncProfitToAndroidWidget(bestProfit + (item.estimatedProfit || 0), capturedLog.length + 1);
       toast.success(`✅ Added "${item.productName}" to inventory drafts!`);
     } catch (err: any) {
       toast.error(err?.message || "Failed to add to drafts.");
@@ -312,6 +315,8 @@ function SpadasLensCameraCore() {
       });
 
       if (error) throw error;
+      triggerTactileHaptic("success");
+      syncProfitToAndroidWidget(bestProfit + (hit.estimatedProfit || 0), capturedLog.length + 1);
       toast.success(`✅ Saved "${hit.name}" to inventory drafts!`);
     } catch (err: any) {
       toast.error(err?.message || "Failed to save to drafts.");
