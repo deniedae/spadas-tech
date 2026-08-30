@@ -41,21 +41,37 @@ export function SpadasAuthCard({ initialMode = "signup" }: Props) {
     setGoogleLoading(true);
 
     try {
-      const { user, error } = await signInWithGoogle();
+      const redirectUrl = `${window.location.origin}/auth/callback?redirect=${encodeURIComponent(redirectTarget)}`;
+      
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: redirectUrl,
+          queryParams: {
+            access_type: "offline",
+            prompt: "consent",
+          },
+        },
+      });
+
       if (error) {
-        setErrorMsg(error.message || "Google Sign-In was cancelled or failed.");
-        toast.error("Google Sign-In failed.");
+        // If Google provider is not enabled in Supabase dashboard
+        if (error.message.includes("provider is not enabled") || error.message.includes("Unsupported provider")) {
+          setErrorMsg("Google Sign-In is being initialized in Supabase. Please sign in with your email & password above.");
+          toast.info("Please use email & password sign-in.");
+        } else {
+          setErrorMsg(error.message);
+          toast.error(error.message);
+        }
         return;
       }
 
-      if (user) {
-        // Sync user profile to Firestore
-        await syncUserProfileToFirestore(user);
-        toast.success(`Welcome, ${user.displayName || "Reseller"}!`);
-        window.location.href = redirectTarget;
+      if (data?.url) {
+        window.location.href = data.url;
       }
     } catch (err: any) {
-      setErrorMsg(err?.message || "Google Sign-In failed.");
+      setErrorMsg(err?.message || "Google Sign-In failed. Please sign in with email.");
+      toast.error("Google Sign-In failed.");
     } finally {
       setGoogleLoading(false);
     }
