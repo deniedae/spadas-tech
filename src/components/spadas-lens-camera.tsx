@@ -24,6 +24,9 @@ import { detectGeoCurrency, CURRENCY_CONFIGS, SupportedCurrency } from "@/app/li
 import { resilientFetch } from "@/app/lib/resilient-fetch";
 import { playScanBeep, triggerScanHaptic, createNativeBarcodeScanner, isNativeBarcodeDetectorSupported } from "@/lib/barcode-detector";
 import { syncProfitToAndroidWidget, triggerTactileHaptic } from "@/lib/android-bridge";
+import { sourcingBus } from "@/lib/sourcing-event-bus";
+import { setCachedValuation, getCachedValuation } from "@/lib/offline-lru-cache";
+import { executeParallelAppraisal } from "@/lib/concurrent-appraiser";
 import { saveScanOffline } from "@/app/lib/offline-storage";
 import { appraiseItemLocally, saveOfflineHitLocally } from "@/app/lib/offline/offline-engine";
 import SubscriptionPaywallModal from "@/components/subscription-paywall-modal";
@@ -1749,6 +1752,14 @@ function SpadasLensCameraCore() {
           setActiveCompsHit(verifiedHit);
           setIsScanPaused(true);
           setConfidencePercent(98);
+
+          // Emit to Reactive Observer Sourcing Bus & Store to Local LRU Cache
+          sourcingBus.emit("ITEM_VALUED", {
+            item: verifiedHit,
+            isGrail: isGrailHit,
+          });
+          setCachedValuation(verifiedHit.name, verifiedHit);
+
           toast.success(`🎯 Item Identified: ${obj.productName} (+$${estimatedProfit.toFixed(2)} AUD Net Profit)`, { id: `hit-toast-${obj.productName}` });
         } catch (err) {
           console.error("[Spadas Lens] Item valuation formatting error:", err);
