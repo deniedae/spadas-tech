@@ -236,10 +236,10 @@ export default function LensHitCard({
 
       {/* ── Actions ──────────────────────────────────────────────────────── */}
       <div
-        className="flex items-center justify-between gap-2 pt-2.5 border-t border-slate-800/70"
+        className="flex flex-wrap items-center justify-between gap-2 pt-2.5 border-t border-slate-800/70"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
           <button
             type="button"
             onClick={() => onSaveDraft(item)}
@@ -247,6 +247,15 @@ export default function LensHitCard({
           >
             + Save Draft
           </button>
+          <a
+            href={`https://www.ebay.com.au/sch/i.html?_nkw=${encodeURIComponent(`${item.brand || ""} ${item.name}`.trim())}&LH_Sold=1&LH_Complete=1`}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 active:scale-95 text-cyan-300 border border-cyan-500/40 text-[10px] font-black transition cursor-pointer"
+            title="View Real Sold Comps on eBay"
+          >
+            Solds ↗
+          </a>
           <button
             type="button"
             onClick={() => onDeepVerify(item)}
@@ -258,9 +267,9 @@ export default function LensHitCard({
           <button
             type="button"
             onClick={() => onListEbay(item)}
-            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 active:scale-95 text-cyan-300 border border-cyan-500/40 text-[10px] font-black transition cursor-pointer"
+            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 active:scale-95 text-amber-300 border border-amber-500/40 text-[10px] font-black transition cursor-pointer"
           >
-            List eBay
+            eBay List
           </button>
         </div>
         <button

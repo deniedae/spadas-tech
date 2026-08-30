@@ -14,6 +14,7 @@ import {
   WifiOff,
   LogIn,
   Crosshair,
+  Power,
 } from "lucide-react";
 import { toast } from "sonner";
 import { fmtMoney } from "@/app/lib/listings";
@@ -191,6 +192,7 @@ function SpadasLensCameraCore() {
   const streamRef = useRef<MediaStream | null>(null);
   const [scanMode, setScanMode] = useState<"snap" | "sweep" | "barcode" | "live">("snap");
   const [stream, setStream] = useState<MediaStream | null>(null);
+  const [isCameraPoweredOn, setIsCameraPoweredOn] = useState<boolean>(true);
   const [scanning, setScanning] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [autoScanActive, setAutoScanActive] = useState(false);
@@ -929,8 +931,11 @@ function SpadasLensCameraCore() {
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
+    setIsCameraPoweredOn(false);
     setScanning(false);
     setActiveScans([]);
+    setAnalyzingRealFrame(false);
+    analyzingRef.current = false;
   }, [stream]);
 
   // Start Camera Stream with mobile-optimized progressive WebRTC constraints
@@ -988,14 +993,29 @@ function SpadasLensCameraCore() {
 
       streamRef.current = mediaStream;
       setStream(mediaStream);
+      setIsCameraPoweredOn(true);
       setScanning(true);
     } catch (err) {
       console.warn("Physical camera access blocked or unavailable — Activating Test Scanner Mode:", err);
       setIsMockFallback(true);
+      setIsCameraPoweredOn(true);
       setScanning(true);
       toast.info("Activated Interactive AR Test Scanner Mode.");
     }
   };
+
+  // Camera Power Toggle (Explicitly releases all hardware tracks & stream locks)
+  const handleToggleCameraPower = useCallback(() => {
+    if (isCameraPoweredOn && (stream || streamRef.current)) {
+      stopCamera();
+      setIsCameraPoweredOn(false);
+      toast.info("Camera powered off. Hardware resources released.", { id: "cam-power" });
+    } else {
+      setIsCameraPoweredOn(true);
+      void startCamera();
+      toast.success("Camera powering on...", { id: "cam-power" });
+    }
+  }, [isCameraPoweredOn, stream, stopCamera]);
 
   // Speak Voice Cue
   const speakCue = (text: string) => {
@@ -2025,6 +2045,30 @@ function SpadasLensCameraCore() {
                 >
                   <Sparkles className="h-3.5 w-3.5" />
                 </button>
+
+                {/* Camera Power Toggle Button */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleToggleCameraPower();
+                  }}
+                  className={`h-8 px-2.5 rounded-full border flex items-center gap-1.5 transition backdrop-blur-md shadow-lg cursor-pointer ${
+                    isCameraPoweredOn && stream
+                      ? "bg-emerald-500/20 border-emerald-400 text-emerald-300 hover:bg-emerald-500/30 shadow-[0_0_12px_rgba(52,211,153,0.3)]"
+                      : "bg-rose-500/20 border-rose-400 text-rose-300 hover:bg-rose-500/30 animate-pulse"
+                  }`}
+                  title={
+                    isCameraPoweredOn && stream
+                      ? "Camera Active — Click to Power Off & Release Hardware"
+                      : "Camera Standby — Click to Power ON"
+                  }
+                >
+                  <Power className={`h-3.5 w-3.5 ${isCameraPoweredOn && stream ? "text-emerald-400" : "text-rose-400"}`} />
+                  <span className="text-[10px] font-black uppercase tracking-wider hidden xs:inline">
+                    {isCameraPoweredOn && stream ? "Power ON" : "Power OFF"}
+                  </span>
+                </button>
               </div>
             </div>
 
@@ -2263,23 +2307,47 @@ function SpadasLensCameraCore() {
             </div>
           </>
         ) : (
-          /* Placeholder View before starting */
-          <div className="flex h-full flex-col items-center justify-center p-6 text-center space-y-4 text-white">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-cyan-500/20 border border-cyan-400/40 text-cyan-300 shadow-[0_0_30px_rgba(34,211,238,0.3)]">
-              <Camera className="h-8 w-8 text-cyan-400" />
+          /* Camera Standby / Hardware Released View */
+          <div className="relative flex h-full min-h-[300px] flex-col items-center justify-center p-6 text-center space-y-4 text-white bg-slate-950/95">
+            {/* Standby Top HUD Bar */}
+            <div className="absolute top-3.5 left-3.5 right-3.5 z-30 flex items-center justify-between pointer-events-auto">
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-slate-900 border border-slate-700 px-3 py-1 text-[11px] font-bold text-slate-400 shadow-md">
+                <span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
+                <span>Camera Standby • Hardware Released</span>
+              </div>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleToggleCameraPower();
+                }}
+                className="h-8 px-3 rounded-full border border-emerald-500/40 bg-emerald-500/20 text-emerald-300 text-[11px] font-black flex items-center gap-1.5 hover:bg-emerald-500/30 transition shadow-lg cursor-pointer"
+                title="Power On Camera"
+              >
+                <Power className="h-3.5 w-3.5 text-emerald-400" />
+                <span>Power ON</span>
+              </button>
             </div>
-            <div className="space-y-1 max-w-sm">
-              <h3 className="text-xl font-bold">Start Spadas Lens Live Stream</h3>
+
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-900 border border-slate-700 text-slate-400 shadow-[0_0_30px_rgba(0,0,0,0.5)]">
+              <Power className="h-8 w-8 text-slate-400" />
+            </div>
+            <div className="space-y-1.5 max-w-sm">
+              <h3 className="text-xl font-black text-white">Camera Standby (Hardware Released)</h3>
               <p className="text-xs text-slate-300 leading-relaxed">
-                Pan your camera across thrift store shelves or clothing racks. Spadas Lens AR identifies items in real-time and calculates AUD resale profit.
+                Camera hardware is released to conserve device battery and eliminate conflicts when switching to Spadas Studio.
               </p>
             </div>
             <button
               type="button"
-              onClick={startCamera}
-              className="inline-flex h-12 items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 px-8 text-sm font-bold text-white shadow-xl hover:opacity-90 transition cursor-pointer"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsCameraPoweredOn(true);
+                void startCamera();
+              }}
+              className="inline-flex h-12 items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 px-8 text-sm font-black text-slate-950 shadow-xl hover:brightness-110 active:scale-95 transition cursor-pointer"
             >
-              <Sparkles className="h-4 w-4" /> Launch Continuous AR Scanner
+              <Power className="h-4 w-4" /> Power On Camera
             </button>
           </div>
         )}
