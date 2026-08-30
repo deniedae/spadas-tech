@@ -1,0 +1,36 @@
+# Spadas AI — Google Play Store Listing Copy
+
+## App Title (Max 30 chars):
+Spadas AI: Reseller Lens & OCR
+
+## Short Description (Max 80 chars):
+Instant 60 FPS barcode scanner, real-time eBay comps, and AI listing generator.
+
+## Full Description:
+Supercharge your thrift, garage sale, and retail arbitrage flips with Spadas AI!
+
+⚡ ULTRA-FAST HARDWARE SCANNER
+• Scan 60 FPS barcodes and item labels in rapid succession with Turbo Batch Mode.
+• Built-in camera flashlight control to illuminate dim thrift store shelves.
+• Audio and tactile haptic scan feedback.
+
+💰 REAL-TIME EBAY PRICE COMPS & VALUE APPRAISAL
+• Instant estimated resale prices, net profit calculations, and ROI metrics.
+• Live sales velocity indicators (Sell-through rate, fast-flip vs slow-burner tags).
+• Grail detector alerts for high-value collectibles and rare vintage items.
+
+📸 1-CLICK AI LISTING CREATOR
+• Generate optimized eBay, Poshmark, and Mercari titles, item specifics, and descriptions from photos.
+• Auto-enhancement & contrast tuning for high-accuracy product matching.
+
+📊 COMPLETE INVENTORY & PROFIT TRACKER
+• Track cost of goods (COGS), active inventory value, and monthly net profit.
+• Android Home Screen Widget with live stats & 1-tap scan shortcut.
+• Quick Settings drop-down tile to scan from anywhere on your phone.
+
+---
+## Required Store Info:
+• Category: Business / Shopping
+• Privacy Policy URL: https://spadas-tech.vercel.app/privacy
+• Support Email: support@spadas.tech (or your email)
+• Target Audience: 13+
