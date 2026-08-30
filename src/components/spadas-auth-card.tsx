@@ -55,10 +55,15 @@ export function SpadasAuthCard({ initialMode = "signup" }: Props) {
       });
 
       if (error) {
-        // If Google provider is not enabled in Supabase dashboard
-        if (error.message.includes("provider is not enabled") || error.message.includes("Unsupported provider")) {
-          setErrorMsg("Google Sign-In is being initialized in Supabase. Please sign in with your email & password above.");
-          toast.info("Please use email & password sign-in.");
+        const lower = (error.message || "").toLowerCase();
+        if (
+          lower.includes("unsupported provider") ||
+          lower.includes("validation_failed") ||
+          lower.includes("not enabled") ||
+          lower.includes("provider")
+        ) {
+          setErrorMsg("Google Sign-In is not enabled in your Supabase dashboard yet. Please enter your email & password below to sign in.");
+          toast.info("Please sign in with your email & password below.");
         } else {
           setErrorMsg(error.message);
           toast.error(error.message);
