@@ -21,6 +21,7 @@ import { createListing } from "@/app/lib/createlisting";
 import { supabase } from "@/app/lib/supabase";
 import { detectGeoCurrency, CURRENCY_CONFIGS, SupportedCurrency } from "@/app/lib/currency-routing";
 import { resilientFetch } from "@/app/lib/resilient-fetch";
+import { playScanBeep, triggerScanHaptic } from "@/lib/barcode-detector";
 import { saveScanOffline } from "@/app/lib/offline-storage";
 import { appraiseItemLocally, saveOfflineHitLocally } from "@/app/lib/offline/offline-engine";
 import SubscriptionPaywallModal from "@/components/subscription-paywall-modal";
@@ -1002,9 +1003,10 @@ function SpadasLensCameraCore() {
                   if (scanExpiryTimerRef.current) clearTimeout(scanExpiryTimerRef.current);
                   scanExpiryTimerRef.current = setTimeout(() => setActiveScans([]), 4500);
 
-                  if (typeof navigator !== "undefined" && navigator.vibrate) {
-                    navigator.vibrate(100);
+                  if (soundEnabled) {
+                    playScanBeep();
                   }
+                  triggerScanHaptic([45, 25, 45]);
                   playChime(estProfit);
                   setAnalyzingRealFrame(false);
                   return;
