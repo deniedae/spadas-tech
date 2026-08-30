@@ -21,6 +21,14 @@ import {
   ShoppingBag,
   CheckCircle2,
   LinkIcon,
+  Zap,
+  ShieldCheck,
+  Layers,
+  ChevronDown,
+  ChevronUp,
+  Info,
+  ExternalLink,
+  FileCheck,
 } from "lucide-react";
 import SubscriptionPaywallModal from "@/components/subscription-paywall-modal";
 
@@ -47,6 +55,7 @@ export default function SettingsPage() {
   const [plan, setPlan] = useState("Free Beta");
   const [planStatus, setPlanStatus] = useState("active");
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [showApkGuide, setShowApkGuide] = useState(false);
   const [minProfit, setMinProfit] = useState(20);
   const [minRoi, setMinRoi] = useState(0);
 
@@ -277,38 +286,133 @@ export default function SettingsPage() {
       )}
 
       {/* Mobile App Download Banner */}
-      <section className="rounded-3xl border border-slate-800 bg-slate-900/90 p-6 md:p-8 shadow-2xl backdrop-blur-xl space-y-4">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-          <div className="space-y-1">
-            <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/15 border border-emerald-500/30 px-3 py-1 text-xs font-black text-emerald-300">
-              <Smartphone className="h-3.5 w-3.5 text-emerald-400" />
-              MOBILE PWA & ANDROID BUILD
+      <section className="rounded-3xl border border-slate-800 bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 p-6 md:p-8 shadow-2xl backdrop-blur-xl space-y-6">
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 px-3 py-1 text-xs font-black text-emerald-300">
+                <Smartphone className="h-3.5 w-3.5 text-emerald-400" />
+                OFFICIAL ANDROID APP & PWA
+              </span>
+              <span className="rounded-full bg-cyan-500/10 border border-cyan-500/20 px-2.5 py-0.5 text-[11px] font-mono font-bold text-cyan-400">
+                v1.1.0 (Signed Release)
+              </span>
+              <span className="rounded-full bg-amber-500/10 border border-amber-500/20 px-2.5 py-0.5 text-[11px] font-mono font-bold text-amber-300">
+                ~982 KB Ultra-Light
+              </span>
             </div>
-            <h2 className="text-xl font-black text-white">Standalone Mobile Scanner App</h2>
+            <h2 className="text-2xl font-black text-white tracking-tight">
+              Spadas AI Mobile Sourcing Suite
+            </h2>
             <p className="text-xs text-slate-400 max-w-xl leading-relaxed">
-              Install Spadas AI directly onto your iPhone or Android home-screen for instant 60FPS camera scanning in thrift stores.
+              Install the standalone Android application for 60 FPS hardware-accelerated barcode scanning, Home Screen profit widgets, pull-down Quick Settings tiles, and instant auto-updating.
             </p>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full lg:w-auto shrink-0">
             <a
               href="/spadas-ai.apk"
               download="spadas-ai.apk"
-              className="inline-flex h-11 w-full sm:w-auto items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 px-5 text-xs font-black text-slate-950 shadow-lg shadow-emerald-500/20 hover:scale-105 active:scale-95 transition cursor-pointer"
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 px-6 text-xs font-black text-slate-950 shadow-xl shadow-emerald-500/25 hover:scale-105 active:scale-95 transition cursor-pointer"
             >
               <Download className="h-4 w-4" />
-              <span>Download .APK</span>
+              <span>Download .APK (Direct)</span>
             </a>
 
             <button
               type="button"
               onClick={handleInstallApp}
-              className="inline-flex h-11 w-full sm:w-auto items-center justify-center gap-2 rounded-xl border border-slate-700 bg-slate-800 px-5 text-xs font-bold text-slate-200 hover:bg-slate-700 active:scale-95 transition cursor-pointer"
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-slate-700 bg-slate-800/90 px-5 text-xs font-bold text-slate-200 hover:bg-slate-700 hover:text-white active:scale-95 transition cursor-pointer"
             >
               <Smartphone className="h-4 w-4 text-cyan-400" />
-              <span>Install PWA</span>
+              <span>Install PWA (iOS / Chrome)</span>
             </button>
           </div>
+        </div>
+
+        {/* Feature Highlights Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2 border-t border-slate-800/80">
+          <div className="p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800/70 space-y-1">
+            <div className="flex items-center gap-2 text-cyan-400 text-xs font-extrabold">
+              <Zap className="h-4 w-4" />
+              <span>60 FPS GPU Scanner</span>
+            </div>
+            <p className="text-[11px] text-slate-400">
+              Hardware-accelerated barcode and label detector with instant retail sound synthesis.
+            </p>
+          </div>
+
+          <div className="p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800/70 space-y-1">
+            <div className="flex items-center gap-2 text-emerald-400 text-xs font-extrabold">
+              <Layers className="h-4 w-4" />
+              <span>Home Screen Widget</span>
+            </div>
+            <p className="text-[11px] text-slate-400">
+              Live widget updates with your daily projected profit and scanned draft count.
+            </p>
+          </div>
+
+          <div className="p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800/70 space-y-1">
+            <div className="flex items-center gap-2 text-amber-400 text-xs font-extrabold">
+              <Sliders className="h-4 w-4" />
+              <span>Quick Settings Tile</span>
+            </div>
+            <p className="text-[11px] text-slate-400">
+              Pull down Android notification shade to trigger camera scans from any app.
+            </p>
+          </div>
+
+          <div className="p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800/70 space-y-1">
+            <div className="flex items-center gap-2 text-indigo-400 text-xs font-extrabold">
+              <ShieldCheck className="h-4 w-4" />
+              <span>Cloud Auto-Updates</span>
+            </div>
+            <p className="text-[11px] text-slate-400">
+              Ultra-light ~1 MB package with zero bloat and seamless cloud feature syncing.
+            </p>
+          </div>
+        </div>
+
+        {/* 30-Second APK Installation Guide Toggle */}
+        <div className="rounded-2xl border border-slate-800 bg-slate-950/80 p-4 space-y-3">
+          <button
+            type="button"
+            onClick={() => setShowApkGuide(!showApkGuide)}
+            className="w-full flex items-center justify-between text-xs font-bold text-slate-300 hover:text-white transition cursor-pointer"
+          >
+            <div className="flex items-center gap-2">
+              <Info className="h-4 w-4 text-cyan-400" />
+              <span>Need help installing the Android APK? (30-second guide)</span>
+            </div>
+            {showApkGuide ? (
+              <ChevronUp className="h-4 w-4 text-slate-400" />
+            ) : (
+              <ChevronDown className="h-4 w-4 text-slate-400" />
+            )}
+          </button>
+
+          {showApkGuide && (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-slate-800/80 text-xs animate-fade-in">
+              <div className="space-y-1">
+                <span className="font-extrabold text-cyan-400 block">1. Download APK</span>
+                <p className="text-[11px] text-slate-400">
+                  Tap the green <strong>Download .APK</strong> button above. The ~982 KB file will download in ~2 seconds.
+                </p>
+              </div>
+              <div className="space-y-1">
+                <span className="font-extrabold text-cyan-400 block">2. Open Download</span>
+                <p className="text-[11px] text-slate-400">
+                  Tap the notification or open <code>spadas-ai.apk</code> from your device’s <strong>Downloads</strong> folder.
+                </p>
+              </div>
+              <div className="space-y-1">
+                <span className="font-extrabold text-cyan-400 block">3. Tap Install</span>
+                <p className="text-[11px] text-slate-400">
+                  Tap <strong>Install</strong>. If prompted by Android, toggle <em>&quot;Allow installation from this source&quot;</em>.
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </section>
 
