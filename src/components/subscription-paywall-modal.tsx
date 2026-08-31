@@ -49,11 +49,20 @@ export default function SubscriptionPaywallModal({
   currentScans?: number;
 }) {
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+  const [isAppStoreClient, setIsAppStoreClient] = useState(false);
+
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      const isStandalone = window.matchMedia("(display-mode: standalone)").matches;
+      const isWebView = /wv|Android.*Version\/[0-9.]+|Silk-Accelerated/i.test(navigator.userAgent);
+      setIsAppStoreClient(isStandalone || isWebView);
+    }
+  }, []);
 
   if (!isOpen) return null;
 
   const handleCheckout = async (plan: PlanTier) => {
-    if (plan.id === "free") {
+    if (plan.id === "free" || isAppStoreClient) {
       onClose();
       return;
     }
@@ -161,7 +170,7 @@ export default function SubscriptionPaywallModal({
                   <Loader2 className="h-4 w-4 animate-spin text-white" />
                 ) : (
                   <>
-                    <span>{plan.ctaText}</span>
+                    <span>{isAppStoreClient ? "Continue with Spadas Access" : plan.ctaText}</span>
                     <ArrowRight className="h-4 w-4" />
                   </>
                 )}
