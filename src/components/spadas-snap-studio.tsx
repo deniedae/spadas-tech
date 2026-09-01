@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { SpadasListingDetailsSheet, SpadasListingData } from "@/components/spadas-listing-details-sheet";
 import { calculateThriftCopVerdict } from "@/lib/thrift-cop-engine";
 import { triggerTactileHaptic, syncProfitToAndroidWidget } from "@/lib/android-bridge";
+import { detectGeoCurrency } from "@/app/lib/currency-routing";
 
 export function SpadasSnapStudio() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -181,12 +182,16 @@ export function SpadasSnapStudio() {
     toast.info("🔍 AI identifying item, extracting tags, and finding eBay comps...", { duration: 3000 });
 
     try {
+      const activeCurrency =
+        (typeof window !== "undefined" && localStorage.getItem("spadas_selected_currency")) ||
+        detectGeoCurrency().currency;
+
       const res = await fetch("/api/ai-listing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           imageUrls: capturedPhotos,
-          currency: "AUD",
+          currency: activeCurrency,
           mode: "deep",
         }),
       });

@@ -31,6 +31,7 @@ import {
   FileCheck,
 } from "lucide-react";
 import SubscriptionPaywallModal from "@/components/subscription-paywall-modal";
+import { CURRENCY_CONFIGS, SupportedCurrency, detectGeoCurrency } from "@/app/lib/currency-routing";
 
 interface UserMeta {
   email: string;
@@ -50,7 +51,7 @@ export default function SettingsPage() {
   const [ebayConnecting, setEbayConnecting] = useState(false);
   const [isPaywallOpen, setIsPaywallOpen] = useState(false);
   const [defaultMarketplace, setDefaultMarketplace] = useState("eBay");
-  const [defaultCurrency, setDefaultCurrency] = useState("AUD");
+  const [defaultCurrency, setDefaultCurrency] = useState<SupportedCurrency>("AUD");
   const [autoAiDescriptions, setAutoAiDescriptions] = useState(true);
   const [plan, setPlan] = useState("Free Beta");
   const [planStatus, setPlanStatus] = useState("active");
@@ -104,6 +105,20 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
+      const savedCurrency = localStorage.getItem("spadas_selected_currency");
+      if (savedCurrency && (savedCurrency === "AUD" || savedCurrency === "USD" || savedCurrency === "EUR" || savedCurrency === "GBP")) {
+        setDefaultCurrency(savedCurrency as SupportedCurrency);
+      } else {
+        const detected = detectGeoCurrency().currency;
+        setDefaultCurrency(detected);
+      }
+
+      const savedMarketplace = localStorage.getItem("spadas_default_marketplace");
+      if (savedMarketplace) setDefaultMarketplace(savedMarketplace);
+
+      const savedAutoAi = localStorage.getItem("spadas_auto_ai_descriptions");
+      if (savedAutoAi !== null) setAutoAiDescriptions(savedAutoAi === "true");
+
       const saved = localStorage.getItem("spadas_lens_chime_thresholds");
       if (saved) {
         try {
@@ -114,6 +129,38 @@ export default function SettingsPage() {
       }
     }
   }, []);
+
+  const handleUpdateCurrency = (newCurrency: string) => {
+    const validCurr = (["AUD", "USD", "EUR", "GBP"].includes(newCurrency) ? newCurrency : "AUD") as SupportedCurrency;
+    setDefaultCurrency(validCurr);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("spadas_selected_currency", validCurr);
+      window.dispatchEvent(new Event("spadas-currency-changed"));
+      window.dispatchEvent(new Event("storage"));
+      const conf = CURRENCY_CONFIGS[validCurr];
+      if (conf) {
+        toast.success(`Currency saved: ${conf.flag} ${validCurr} (${conf.symbol})`);
+      } else {
+        toast.success(`Currency saved: ${validCurr}`);
+      }
+    }
+  };
+
+  const handleUpdateMarketplace = (newMkt: string) => {
+    setDefaultMarketplace(newMkt);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("spadas_default_marketplace", newMkt);
+      toast.success(`Default marketplace set to ${newMkt}`);
+    }
+  };
+
+  const handleUpdateAutoAi = (val: boolean) => {
+    setAutoAiDescriptions(val);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("spadas_auto_ai_descriptions", String(val));
+      toast.success(val ? "Auto AI descriptions enabled" : "Auto AI descriptions disabled");
+    }
+  };
 
   const handleUpdateMinProfit = (val: number) => {
     setMinProfit(val);
@@ -609,7 +656,7 @@ export default function SettingsPage() {
                 Minimum Net Profit Threshold
               </span>
               <span className="text-emerald-400 font-black text-sm bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-0.5 rounded-lg">
-                ${minProfit} AUD
+                {CURRENCY_CONFIGS[defaultCurrency]?.symbol || "$"}{minProfit} {defaultCurrency}
               </span>
             </div>
             <p className="text-[11px] text-slate-400 leading-relaxed">
@@ -625,9 +672,9 @@ export default function SettingsPage() {
               className="w-full accent-emerald-400 h-2 bg-slate-800 rounded-lg cursor-pointer"
             />
             <div className="flex justify-between text-[10px] text-slate-500 font-mono font-bold">
-              <span>$5 AUD</span>
-              <span>$50 AUD</span>
-              <span>$100 AUD</span>
+              <span>{CURRENCY_CONFIGS[defaultCurrency]?.symbol || "$"}5 {defaultCurrency}</span>
+              <span>{CURRENCY_CONFIGS[defaultCurrency]?.symbol || "$"}50 {defaultCurrency}</span>
+              <span>{CURRENCY_CONFIGS[defaultCurrency]?.symbol || "$"}100 {defaultCurrency}</span>
             </div>
           </div>
 
@@ -677,8 +724,8 @@ export default function SettingsPage() {
             <span className="block">Default Marketplace</span>
             <select
               value={defaultMarketplace}
-              onChange={(e) => setDefaultMarketplace(e.target.value)}
-              className="w-full rounded-xl border border-slate-800 bg-slate-950 p-3 text-xs text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              onChange={(e) => handleUpdateMarketplace(e.target.value)}
+              className="w-full rounded-xl border border-slate-800 bg-slate-950 p-3 text-xs text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 cursor-pointer"
             >
               <option value="eBay">eBay</option>
               <option value="Facebook Marketplace">Facebook Marketplace</option>
@@ -690,13 +737,13 @@ export default function SettingsPage() {
             <span className="block">Default Currency</span>
             <select
               value={defaultCurrency}
-              onChange={(e) => setDefaultCurrency(e.target.value)}
-              className="w-full rounded-xl border border-slate-800 bg-slate-950 p-3 text-xs text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              onChange={(e) => handleUpdateCurrency(e.target.value)}
+              className="w-full rounded-xl border border-slate-800 bg-slate-950 p-3 text-xs text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 cursor-pointer"
             >
-              <option value="AUD">AUD (🇦🇺)</option>
-              <option value="USD">USD (🇺🇸)</option>
-              <option value="EUR">EUR (🇪🇺)</option>
-              <option value="GBP">GBP (🇬🇧)</option>
+              <option value="AUD">AUD (🇦🇺 $)</option>
+              <option value="USD">USD (🇺🇸 $)</option>
+              <option value="EUR">EUR (🇪🇺 €)</option>
+              <option value="GBP">GBP (🇬🇧 £)</option>
             </select>
           </label>
 
@@ -705,7 +752,7 @@ export default function SettingsPage() {
             <input
               type="checkbox"
               checked={autoAiDescriptions}
-              onChange={(e) => setAutoAiDescriptions(e.target.checked)}
+              onChange={(e) => handleUpdateAutoAi(e.target.checked)}
               className="h-4 w-4 accent-cyan-400 rounded cursor-pointer"
             />
           </label>
