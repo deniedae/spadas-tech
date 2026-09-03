@@ -377,14 +377,18 @@ Verified by Spadas AI Universal Forensic Engine`;
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="text-lg font-black text-white">
-                        {result.verdict === "LIKELY_AUTHENTIC"
-                          ? "✅ LIKELY AUTHENTIC"
+                        {result.verdict === "AUTHENTIC" || result.verdict === "LIKELY_AUTHENTIC"
+                          ? "✅ AUTHENTIC FACTORY SPEC"
+                          : result.verdict === "INSUFFICIENT_EVIDENCE" || result.verdict === "CANNOT_DETERMINE"
+                          ? "🔍 INSUFFICIENT EVIDENCE (RETAKE REQUIRED)"
                           : result.verdict === "SUSPICIOUS"
                           ? "⚠️ SUSPICIOUS ANOMALIES"
                           : "❌ COUNTERFEIT / REPLICA DETECTED"}
                       </span>
                       <span className="text-xs font-mono font-black px-2.5 py-0.5 rounded-full bg-slate-900 border border-white/20 text-cyan-300">
-                        {result.authenticity_score}% Score
+                        {result.authenticity_score !== null && result.authenticity_score !== undefined
+                          ? `${result.authenticity_score}% Score`
+                          : "Score Pending Retake"}
                       </span>
                     </div>
                     <p className="text-xs text-slate-300 mt-0.5">
@@ -395,31 +399,39 @@ Verified by Spadas AI Universal Forensic Engine`;
                 </div>
 
                 <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                  <button
-                    type="button"
-                    onClick={handleCopyPublicLink}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-black transition cursor-pointer shadow-md shadow-emerald-500/20 active:scale-95"
-                    title="Copy permanent public link to drop into eBay description"
-                  >
-                    <ExternalLink className="h-3.5 w-3.5" /> Public Link
-                  </button>
-                  <a
-                    href={publicCertUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-slate-200 hover:bg-slate-800 transition cursor-pointer"
-                    title="Open public digital certificate in new tab"
-                  >
-                    <QrCode className="h-3.5 w-3.5 text-cyan-400" /> View Cert
-                  </a>
-                  <button
-                    type="button"
-                    onClick={handleCopyCertificate}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-black transition cursor-pointer shadow-md shadow-cyan-500/20 active:scale-95"
-                    title="Copy full certificate markdown text"
-                  >
-                    <Share2 className="h-3.5 w-3.5" /> Copy Cert
-                  </button>
+                  {result.authenticity_score !== null && (result.verdict as string) !== "INSUFFICIENT_EVIDENCE" ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={handleCopyPublicLink}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-black transition cursor-pointer shadow-md shadow-emerald-500/20 active:scale-95"
+                        title="Copy permanent public link to drop into eBay description"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" /> Public Link
+                      </button>
+                      <a
+                        href={publicCertUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-slate-200 hover:bg-slate-800 transition cursor-pointer"
+                        title="Open public digital certificate in new tab"
+                      >
+                        <QrCode className="h-3.5 w-3.5 text-cyan-400" /> View Cert
+                      </a>
+                      <button
+                        type="button"
+                        onClick={handleCopyCertificate}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-black transition cursor-pointer shadow-md shadow-cyan-500/20 active:scale-95"
+                        title="Copy full certificate markdown text"
+                      >
+                        <Share2 className="h-3.5 w-3.5" /> Copy Cert
+                      </button>
+                    </>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-bold">
+                      <AlertTriangle className="h-3.5 w-3.5 text-amber-400" /> Certificate Publishing Blocked
+                    </span>
+                  )}
                   <button
                     type="button"
                     onClick={() => {

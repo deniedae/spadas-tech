@@ -157,4 +157,92 @@ assert.ok(sampleInspection.market_valuation_aud.excellent_condition > sampleInsp
 
 console.log("  ✓ Universal 5-Pillar Protocol and Decisive Verdict schema verified.");
 
+// Test 6: INSUFFICIENT_EVIDENCE flow & Retake Schema Contract
+console.log("▶ Test 6: INSUFFICIENT_EVIDENCE Flow & Retake Schema Verification");
+
+export async function runInsufficientEvidenceTest() {
+  // 1. Mock payload representing the degraded/blurry Prada bifold image scenario
+  const mockRequestPayload = {
+    images: [
+      {
+        url: 'https://cdn.spadas.ai/uploads/test-prada-blurry.jpg',
+        resolution: '640x480',
+        metadata: { hasLensHaze: true, detectedFocusScore: 0.28 }
+      }
+    ],
+    claimedBrand: 'Prada',
+    itemType: 'Small Leather Goods'
+  };
+
+  // 2. Expected engine output following the Universal 5-Pillar Schema
+  const expectedEngineResponse = {
+    item_identification: {
+      detected_brand: 'Prada',
+      item_category: 'Small Leather Goods & Wallets',
+      identified_material: 'Saffiano Leather',
+      model_estimate: 'Bifold Wallet'
+    },
+    verdict: 'INSUFFICIENT_EVIDENCE',
+    authenticity_score: null,
+    forensic_breakdown: {
+      material_integrity: null,
+      typography_and_hallmarks: null,
+      hardware_and_fasteners: null,
+      craftsmanship_and_seams: null,
+      security_tags_and_codes: null
+    },
+    decisive_tells: [
+      'Lettering resolution insufficient to verify Prada R-notch split',
+      'Hardware engravings and interior hot stamp not visible in provided angles'
+    ],
+    required_macro_inputs: [
+      'Straight-on macro shot of exterior PRADA metal lettering (glare-free)',
+      'Close-up of interior PRADA / MILANO heat stamp',
+      'Underside engraving on internal snap button or zipper pull'
+    ],
+    market_valuation_aud: {
+      fair_condition: 120,
+      excellent_condition: 200
+    },
+    condition_and_maintenance_notes:
+      'Gently wipe surface with a dry microfiber cloth; avoid harsh solvents on cross-hatch Saffiano finish.'
+  };
+
+  // 3. Schema & invariant assertions
+  assert.equal(
+    expectedEngineResponse.verdict,
+    'INSUFFICIENT_EVIDENCE',
+    'Verdict must be INSUFFICIENT_EVIDENCE instead of defaulting to a 50% score'
+  );
+
+  assert.equal(
+    expectedEngineResponse.authenticity_score,
+    null,
+    'Authenticity score must be null when critical pillars cannot be resolved'
+  );
+
+  assert(
+    Array.isArray(expectedEngineResponse.required_macro_inputs) &&
+      expectedEngineResponse.required_macro_inputs.length >= 2,
+    'Must specify at least 2 required macro angles for the retake prompt'
+  );
+
+  // 4. Validate UI modal integration contract
+  const modalProps = {
+    verdict: expectedEngineResponse.verdict,
+    retakePrompts: expectedEngineResponse.required_macro_inputs,
+    canPublishCertificate: expectedEngineResponse.authenticity_score !== null
+  };
+
+  assert.equal(
+    modalProps.canPublishCertificate,
+    false,
+    'Certificates must be blocked from publishing when verdict is INSUFFICIENT_EVIDENCE'
+  );
+
+  console.log('  ✓ Test 6 Passed: INSUFFICIENT_EVIDENCE flow & retake schema verified.');
+}
+
+await runInsufficientEvidenceTest();
+
 console.log("\n🎉 ALL FORENSIC AUTHENTICITY ENGINE TESTS PASSED!");

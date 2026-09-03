@@ -370,13 +370,13 @@ Respond ONLY with valid JSON adhering to this exact schema:
     }
 
     const calculatedScore =
-      raw.authenticity_score !== null && raw.authenticity_score !== undefined
+      verdict === "INSUFFICIENT_EVIDENCE"
+        ? null
+        : raw.authenticity_score !== null && raw.authenticity_score !== undefined
         ? Number(raw.authenticity_score)
         : verdict === "AUTHENTIC"
         ? 99
-        : verdict === "COUNTERFEIT"
-        ? 18
-        : 50;
+        : 18;
 
     const decisiveTells: string[] = Array.isArray(raw.decisive_tells) ? raw.decisive_tells : [];
     const positiveTells = decisiveTells.filter(
@@ -409,11 +409,12 @@ Respond ONLY with valid JSON adhering to this exact schema:
       brand ||
       "Luxury Brand";
 
-    const certId = generateCertificateId(detectedItemName, detectedItemBrand);
+    const canPublishCertificate = verdict !== "INSUFFICIENT_EVIDENCE" && calculatedScore !== null;
+    const certId = canPublishCertificate ? generateCertificateId(detectedItemName, detectedItemBrand) : undefined;
 
     const parsed: DeepVerifyResult = {
       certificate_id: certId,
-      certificate_url: `https://spadas.ai/cert/${certId}`,
+      certificate_url: certId ? `https://spadas.ai/cert/${certId}` : undefined,
       product_name: detectedItemName,
       brand: detectedItemBrand,
       category: activeCategory,
@@ -441,7 +442,9 @@ Respond ONLY with valid JSON adhering to this exact schema:
       inconclusive_areas: requiredMacro,
       forensic_summary:
         decisiveTells[0] ||
-        `Universal 5-pillar forensic audit confirms ${verdict.replace(/_/g, " ").toLowerCase()} status with ${calculatedScore}% authenticity score.`,
+        (verdict === "INSUFFICIENT_EVIDENCE"
+          ? `Forensic inspection requires additional macro inputs to eliminate uncertainty before issuing authenticity certificate.`
+          : `Universal 5-pillar forensic audit confirms ${verdict.replace(/_/g, " ").toLowerCase()} status with ${calculatedScore}% authenticity score.`),
       recommendation,
       cleanup_advisory: raw.condition_and_maintenance_notes,
       market_spread: marketSpread,
@@ -455,43 +458,45 @@ Respond ONLY with valid JSON adhering to this exact schema:
           : undefined,
     };
 
-    // Persist verified digital certificate for permanent public sharing
-    void saveCertificate({
-      id: certId,
-      created_at: new Date().toISOString(),
-      user_id: user.id,
-      product_name: parsed.product_name,
-      brand: parsed.brand,
-      category: parsed.category,
-      verdict: parsed.verdict,
-      authenticity_score: parsed.authenticity_score || 0,
-      confidence: parsed.confidence,
-      recommendation: parsed.recommendation,
-      forensic_breakdown: {
-        material: matScore,
-        typography: typoScore,
-        craftsmanship: craftScore,
-        hardware: hardScore,
-        security_tags_and_codes: secScore,
-        material_integrity: matScore,
-        typography_and_hallmarks: typoScore,
-        hardware_and_fasteners: hardScore,
-        craftsmanship_and_seams: craftScore,
-      },
-      item_identification: parsed.item_identification,
-      decisive_tells: parsed.decisive_tells,
-      required_macro_inputs: parsed.required_macro_inputs,
-      market_valuation_aud: parsed.market_valuation_aud,
-      condition_and_maintenance_notes: parsed.condition_and_maintenance_notes,
-      positive_indicators: parsed.positive_indicators,
-      red_flags: parsed.red_flags,
-      inconclusive_areas: parsed.inconclusive_areas,
-      forensic_summary: parsed.forensic_summary,
-      cleanup_advisory: parsed.cleanup_advisory,
-      market_spread: parsed.market_spread,
-      wear_and_tear_notes: parsed.wear_and_tear_notes,
-      image_urls: imageUrls || [],
-    });
+    // Only persist verified digital certificate when certificate can be published (i.e. not INSUFFICIENT_EVIDENCE)
+    if (canPublishCertificate && certId) {
+      void saveCertificate({
+        id: certId,
+        created_at: new Date().toISOString(),
+        user_id: user.id,
+        product_name: parsed.product_name,
+        brand: parsed.brand,
+        category: parsed.category,
+        verdict: parsed.verdict,
+        authenticity_score: parsed.authenticity_score || 0,
+        confidence: parsed.confidence,
+        recommendation: parsed.recommendation,
+        forensic_breakdown: {
+          material: matScore,
+          typography: typoScore,
+          craftsmanship: craftScore,
+          hardware: hardScore,
+          security_tags_and_codes: secScore,
+          material_integrity: matScore,
+          typography_and_hallmarks: typoScore,
+          hardware_and_fasteners: hardScore,
+          craftsmanship_and_seams: craftScore,
+        },
+        item_identification: parsed.item_identification,
+        decisive_tells: parsed.decisive_tells,
+        required_macro_inputs: parsed.required_macro_inputs,
+        market_valuation_aud: parsed.market_valuation_aud,
+        condition_and_maintenance_notes: parsed.condition_and_maintenance_notes,
+        positive_indicators: parsed.positive_indicators,
+        red_flags: parsed.red_flags,
+        inconclusive_areas: parsed.inconclusive_areas,
+        forensic_summary: parsed.forensic_summary,
+        cleanup_advisory: parsed.cleanup_advisory,
+        market_spread: parsed.market_spread,
+        wear_and_tear_notes: parsed.wear_and_tear_notes,
+        image_urls: imageUrls || [],
+      });
+    }
 
     return NextResponse.json(parsed);
   } catch (err: any) {
