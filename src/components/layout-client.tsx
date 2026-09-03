@@ -73,22 +73,26 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
         if (user?.email) {
           setUserEmail(user.email);
 
-          // Check eBay connection
-          const { data: ebayData } = await supabase
-            .from("user_marketplace_tokens")
-            .select("is_connected")
-            .eq("user_id", user.id)
-            .eq("platform", "ebay")
-            .maybeSingle();
-          setIsEbayConnected(!!ebayData?.is_connected);
-        }
+          // Check eBay connection via secure server-side endpoint
+          const { data: { session } } = await supabase.auth.getSession();
+          const authHeaders: Record<string, string> = {};
+          if (session?.access_token) {
+            authHeaders["Authorization"] = `Bearer ${session.access_token}`;
+          }
 
-        // Pro check — resolved server-side only, no client-side email bypass
-        const res = await fetch("/api/stripe/status");
-        if (res.ok) {
-          const data = await res.json();
-          if (data.active || data.plan === "Pro") {
-            setIsProUser(true);
+          const mktRes = await fetch("/api/marketplaces/status", { headers: authHeaders }).catch(() => null);
+          if (mktRes && mktRes.ok) {
+            const mktData = await mktRes.json().catch(() => ({}));
+            setIsEbayConnected(Boolean(mktData.isConnected));
+          }
+
+          // Pro check — resolved server-side only, no client-side email bypass
+          const res = await fetch("/api/stripe/status", { headers: authHeaders }).catch(() => null);
+          if (res && res.ok) {
+            const data = await res.json().catch(() => ({}));
+            if (data.active || data.plan === "Pro") {
+              setIsProUser(true);
+            }
           }
         }
       } catch {

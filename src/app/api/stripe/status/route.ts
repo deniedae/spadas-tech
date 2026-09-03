@@ -1,16 +1,31 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/app/lib/server";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    const authHeader = req.headers.get("authorization");
 
-    if (authError || !user) {
-      return NextResponse.json({ active: false, plan: "Free Beta", status: "inactive" }, { status: 401 });
+    let user: any = null;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      const token = authHeader.replace("Bearer ", "").trim();
+      const { data } = await supabase.auth.getUser(token);
+      user = data?.user;
+    }
+
+    if (!user) {
+      const {
+        data: { user: sessionUser },
+        error: authError,
+      } = await supabase.auth.getUser();
+      if (!authError) user = sessionUser;
+    }
+
+    if (!user) {
+      return NextResponse.json(
+        { error: "Authentication required. Please sign in to view subscription status." },
+        { status: 401 }
+      );
     }
 
     const { data, error } = await supabase

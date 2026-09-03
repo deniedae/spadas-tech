@@ -79,15 +79,16 @@ export default function SettingsPage() {
   // Check if user already has eBay connected
   useEffect(() => {
     async function checkEbayStatus() {
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
-      if (!currentUser) return;
-      const { data } = await supabase
-        .from("user_marketplace_tokens")
-        .select("is_connected")
-        .eq("user_id", currentUser.id)
-        .eq("platform", "ebay")
-        .maybeSingle();
-      setEbayConnected(!!data?.is_connected);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const authHeaders: Record<string, string> = {
+        Authorization: `Bearer ${session.access_token}`,
+      };
+      const res = await fetch("/api/marketplaces/status", { headers: authHeaders }).catch(() => null);
+      if (res && res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setEbayConnected(Boolean(data.isConnected));
+      }
     }
     void checkEbayStatus();
   }, []);
@@ -215,7 +216,13 @@ export default function SettingsPage() {
 
         setUser({ email: currentUser.email ?? "" });
 
-        const res = await fetch("/api/stripe/status");
+        const { data: { session } } = await supabase.auth.getSession();
+        const authHeaders: Record<string, string> = {};
+        if (session?.access_token) {
+          authHeaders["Authorization"] = `Bearer ${session.access_token}`;
+        }
+
+        const res = await fetch("/api/stripe/status", { headers: authHeaders });
         if (res.ok) {
           const statusData = await res.json();
           if (statusData.active || statusData.plan === "Pro") {

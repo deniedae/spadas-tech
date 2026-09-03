@@ -8,6 +8,7 @@ import { ScanItemCard } from "./scan-item-card";
 import ItemComparisonModal, { ComparisonItem } from "@/components/item-comparison-modal";
 import EbayListingModal from "@/components/ebay-listing-modal";
 import SubscriptionPaywallModal from "@/components/subscription-paywall-modal";
+import { supabase } from "@/app/lib/supabase";
 
 interface ScanRecord {
   id: string;
@@ -44,14 +45,23 @@ export function HistoryFeedView({
   const [activeEbayItem, setActiveEbayItem] = useState<ComparisonItem | null>(null);
 
   useEffect(() => {
-    fetch("/api/stripe/status")
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.active || d.plan === "Pro") {
-          setIsPro(true);
-        }
-      })
-      .catch(() => {});
+    async function checkPro() {
+      const { data: { session } } = await supabase.auth.getSession();
+      const authHeaders: Record<string, string> = {};
+      if (session?.access_token) {
+        authHeaders["Authorization"] = `Bearer ${session.access_token}`;
+      }
+
+      fetch("/api/stripe/status", { headers: authHeaders })
+        .then((r) => (r.ok ? r.json() : ({} as any)))
+        .then((d: any) => {
+          if (d?.active || d?.plan === "Pro") {
+            setIsPro(true);
+          }
+        })
+        .catch(() => {});
+    }
+    void checkPro();
   }, []);
 
   const toggleSelect = (id: string) => {

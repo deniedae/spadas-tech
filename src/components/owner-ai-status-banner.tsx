@@ -14,7 +14,15 @@ export default function OwnerAiStatusBanner() {
   const checkAiCredits = useCallback(async () => {
     setRefreshing(true);
     try {
-      const res = await fetch(`/api/ai-credits-status?t=${Date.now()}`, { cache: "no-store" });
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = {};
+      if (session?.access_token) {
+        headers["Authorization"] = `Bearer ${session.access_token}`;
+      }
+      const res = await fetch(`/api/ai-credits-status?t=${Date.now()}`, {
+        cache: "no-store",
+        headers,
+      });
       if (!res.ok) throw new Error("Check failed");
       const data = await res.json();
       if (data.isExhausted) {

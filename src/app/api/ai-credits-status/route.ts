@@ -2,8 +2,10 @@ if (process.env.NODE_ENV === "development") {
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 }
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
 import { getPrimaryAiApiKey, createOpenAiClient } from "@/app/lib/config/ai-models";
 
 export const preferredRegion = "syd1";
@@ -16,8 +18,52 @@ const NO_CACHE_HEADERS = {
   Expires: "0",
 };
 
-export async function GET() {
+// 60-second probe cache to eliminate DoS risk and OpenAI API billing drain
+let lastProbeCache: {
+  data: any;
+  timestamp: number;
+} | null = null;
+
+export async function GET(req: NextRequest) {
   try {
+    // 1. Enforce Authentication: require valid owner session
+    const authHeader = req.headers.get("authorization");
+    const cookieStore = await cookies();
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll: () => cookieStore.getAll(),
+          setAll: (c) => c.forEach(({ name, value, options }) => cookieStore.set(name, value, options)),
+        },
+      }
+    );
+
+    let user: any = null;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      const token = authHeader.replace("Bearer ", "").trim();
+      const { data } = await supabase.auth.getUser(token);
+      user = data?.user;
+    }
+
+    if (!user) {
+      const { data } = await supabase.auth.getUser();
+      user = data?.user;
+    }
+
+    if (!user || user.email?.toLowerCase() !== "deniedae@gmail.com") {
+      return NextResponse.json(
+        { error: "Unauthorized. Missing owner authentication credentials." },
+        { status: 401, headers: NO_CACHE_HEADERS }
+      );
+    }
+
+    // 2. Serve from short-lived 60s memory cache if fresh
+    const now = Date.now();
+    if (lastProbeCache && now - lastProbeCache.timestamp < 60000) {
+      return NextResponse.json(lastProbeCache.data, { headers: NO_CACHE_HEADERS });
+    }
     const apiKey = getPrimaryAiApiKey();
     if (!apiKey || apiKey.startsWith("sk-proj-placeholder")) {
       return NextResponse.json(
@@ -61,15 +107,14 @@ export async function GET() {
         { signal: controller.signal }
       );
       clearTimeout(timeoutId);
-      return NextResponse.json(
-        {
-          status: "active",
-          isExhausted: false,
-          message: "OpenAI Vision API Credits Active & Online",
-          checkedAt: new Date().toISOString(),
-        },
-        { headers: NO_CACHE_HEADERS }
-      );
+      const probeResult = {
+        status: "active",
+        isExhausted: false,
+        message: "OpenAI Vision API Credits Active & Online",
+        checkedAt: new Date().toISOString(),
+      };
+      lastProbeCache = { data: probeResult, timestamp: Date.now() };
+      return NextResponse.json(probeResult, { headers: NO_CACHE_HEADERS });
     } catch (err: any) {
       clearTimeout(timeoutId);
       const status = err?.status || err?.statusCode;

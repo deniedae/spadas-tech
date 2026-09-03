@@ -6,6 +6,7 @@ import { DeleteScanButton } from "./delete-button";
 import EbayListingModal from "@/components/ebay-listing-modal";
 import CrossListModal from "@/components/cross-list-modal";
 import SubscriptionPaywallModal from "@/components/subscription-paywall-modal";
+import { supabase } from "@/app/lib/supabase";
 
 interface ScanRecord {
   id: string;
@@ -48,7 +49,13 @@ export function ScanItemCard({
 
   const handleCrossListClick = async () => {
     try {
-      const res = await fetch("/api/stripe/status");
+      const { data: { session } } = await supabase.auth.getSession();
+      const authHeaders: Record<string, string> = {};
+      if (session?.access_token) {
+        authHeaders["Authorization"] = `Bearer ${session.access_token}`;
+      }
+
+      const res = await fetch("/api/stripe/status", { headers: authHeaders });
       const data = await res.json().catch(() => ({}));
       const isPro = Boolean(data?.active || data?.plan === "Pro");
       if (!isPro && scan.user_id !== "owner") {

@@ -514,7 +514,13 @@ function SpadasLensCameraCore() {
         } = await supabase.auth.getUser();
 
         if (user) {
-          const res = await fetch("/api/stripe/status").catch(() => null);
+          const { data: { session } } = await supabase.auth.getSession();
+          const authHeaders: Record<string, string> = {};
+          if (session?.access_token) {
+            authHeaders["Authorization"] = `Bearer ${session.access_token}`;
+          }
+
+          const res = await fetch("/api/stripe/status", { headers: authHeaders }).catch(() => null);
           if (res && res.ok) {
             const d = await res.json().catch(() => ({}));
             if (d?.active || d?.plan === "Pro") {
@@ -522,7 +528,7 @@ function SpadasLensCameraCore() {
             }
           }
 
-          const usageRes = await fetch("/api/usage").catch(() => null);
+          const usageRes = await fetch("/api/usage", { headers: authHeaders }).catch(() => null);
           if (usageRes && usageRes.ok) {
             const u = await usageRes.json().catch(() => ({}));
             if (u?.isPro) setIsPro(true);

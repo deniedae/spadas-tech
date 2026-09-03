@@ -193,24 +193,28 @@ export default function Dashboard() {
           return;
         }
 
-        // Check eBay token status
-        const { data: ebayToken } = await supabase
-          .from("user_marketplace_tokens")
-          .select("is_connected")
-          .eq("user_id", user.id)
-          .eq("platform", "ebay")
-          .maybeSingle();
-
-        if (!cancelled) {
-          setIsEbayConnected(!!ebayToken?.is_connected);
+        // Check eBay token status via server endpoint
+        const { data: { session } } = await supabase.auth.getSession();
+        const authHeaders: Record<string, string> = {};
+        if (session?.access_token) {
+          authHeaders["Authorization"] = `Bearer ${session.access_token}`;
         }
 
-        // Pro check — always resolved server-side from /api/stripe/status
-        fetch("/api/stripe/status")
-          .then((r) => r.json())
-          .then((d) => {
+        fetch("/api/marketplaces/status", { headers: authHeaders })
+          .then((r) => (r.ok ? r.json() : ({} as any)))
+          .then((d: any) => {
             if (!cancelled) {
-              setIsPro(Boolean(d.active || d.plan === "Pro"));
+              setIsEbayConnected(Boolean(d?.isConnected));
+            }
+          })
+          .catch(() => {});
+
+        // Pro check — always resolved server-side from /api/stripe/status
+        fetch("/api/stripe/status", { headers: authHeaders })
+          .then((r) => (r.ok ? r.json() : ({} as any)))
+          .then((d: any) => {
+            if (!cancelled) {
+              setIsPro(Boolean(d?.active || d?.plan === "Pro"));
               setProLoading(false);
             }
           })
