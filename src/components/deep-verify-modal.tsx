@@ -435,39 +435,47 @@ Verified by Spadas AI Universal Forensic Engine`;
                 </div>
               </div>
 
-              {/* Forensic Sub-Score Radar Matrix */}
+              {/* Universal 5-Pillar Sub-Score Radar Matrix */}
               {result.forensic_breakdown && (
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                  <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 text-center">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                  <div className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800 text-center">
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">
                       Material
                     </span>
                     <span className="text-base font-black text-emerald-400">
                       {result.forensic_breakdown.material}%
                     </span>
                   </div>
-                  <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 text-center">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                  <div className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800 text-center">
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">
                       Typography
                     </span>
                     <span className="text-base font-black text-cyan-400">
                       {result.forensic_breakdown.typography}%
                     </span>
                   </div>
-                  <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 text-center">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                  <div className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800 text-center">
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">
+                      Hardware
+                    </span>
+                    <span className="text-base font-black text-amber-400">
+                      {result.forensic_breakdown.hardware}%
+                    </span>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800 text-center">
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">
                       Craftsmanship
                     </span>
                     <span className="text-base font-black text-purple-400">
                       {result.forensic_breakdown.craftsmanship}%
                     </span>
                   </div>
-                  <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 text-center">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                      Hardware
+                  <div className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800 text-center col-span-2 sm:col-span-1">
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">
+                      Security Tags
                     </span>
-                    <span className="text-base font-black text-amber-400">
-                      {result.forensic_breakdown.hardware}%
+                    <span className="text-base font-black text-teal-400">
+                      {result.forensic_breakdown.security_tags_and_codes ?? 95}%
                     </span>
                   </div>
                 </div>
@@ -485,6 +493,58 @@ Verified by Spadas AI Universal Forensic Engine`;
                   </p>
                 )}
               </div>
+
+              {/* Insufficient Evidence / Required Macro Inputs Alert */}
+              {((result.verdict as string) === "INSUFFICIENT_EVIDENCE" || (result.required_macro_inputs && result.required_macro_inputs.length > 0)) && (
+                <div className="p-4 rounded-2xl bg-amber-500/15 border-2 border-amber-500/50 space-y-2 animate-fade-in">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 text-amber-400" />
+                    <span className="font-black text-amber-300 uppercase tracking-wider text-xs">
+                      Insufficient Evidence • Specific Macro Shots Required
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    Authenticity confidence cannot be finalized due to blur, lighting glare, or distance. Provide these exact macro shots to eliminate uncertainty:
+                  </p>
+                  <ul className="space-y-1.5 pl-1">
+                    {(result.required_macro_inputs || []).map((shot, idx) => (
+                      <li key={idx} className="flex items-center gap-2 text-xs font-bold text-amber-200">
+                        <Camera className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                        <span>{shot}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setResult(null);
+                      setCapturedImages([]);
+                      setCurrentStepIndex(0);
+                      startCamera();
+                    }}
+                    className="w-full mt-1.5 inline-flex items-center justify-center gap-2 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs transition cursor-pointer"
+                  >
+                    <Camera className="h-4 w-4" /> Retake Required Macro Shots
+                  </button>
+                </div>
+              )}
+
+              {/* Decisive Forensic Tells (Universal Protocol) */}
+              {result.decisive_tells && result.decisive_tells.length > 0 && (
+                <div className="p-3.5 rounded-xl bg-slate-900/90 border border-cyan-500/40 space-y-2">
+                  <span className="font-extrabold text-cyan-300 flex items-center gap-1.5 uppercase tracking-wide text-[10px]">
+                    <ShieldCheck className="h-3.5 w-3.5 text-cyan-400" /> Decisive Forensic Tells ({result.decisive_tells.length})
+                  </span>
+                  <ul className="space-y-1.5">
+                    {result.decisive_tells.map((tell, i) => (
+                      <li key={i} className="flex items-start gap-1.5 text-slate-200 text-[11px] leading-tight">
+                        <span className="text-cyan-400 font-bold shrink-0">🔬</span>
+                        <span>{tell}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               {/* Red Flags & Positive Hallmarks Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">

@@ -230,50 +230,76 @@ export default async function CertificatePage({ params }: PageProps) {
             </div>
           </div>
 
-          {/* Forensic Sub-Score Radar Matrix */}
+          {/* Universal 5-Pillar Forensic Breakdown */}
           <div className="py-6 border-b border-slate-800/80 space-y-3">
             <h3 className="text-xs font-black uppercase tracking-wider text-cyan-300">
-              Multi-Vector Forensic Breakdown
+              Universal 5-Pillar Forensic Breakdown
             </h3>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
               <div className="p-3.5 rounded-2xl bg-slate-950/70 border border-slate-800 text-center">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                  Material Assay
+                  1. Material
                 </span>
                 <span className="text-xl font-black text-emerald-400">
                   {cert.forensic_breakdown.material}%
                 </span>
-                <span className="text-[9px] text-slate-400 block mt-0.5">Saffiano / Metal / Inclusions</span>
+                <span className="text-[9px] text-slate-400 block mt-0.5">Substrate / Grain</span>
               </div>
               <div className="p-3.5 rounded-2xl bg-slate-950/70 border border-slate-800 text-center">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                  Typography & Kerning
+                  2. Typography
                 </span>
                 <span className="text-xl font-black text-cyan-400">
                   {cert.forensic_breakdown.typography}%
                 </span>
-                <span className="text-[9px] text-slate-400 block mt-0.5">Notched 'R' / Heat Stamps</span>
+                <span className="text-[9px] text-slate-400 block mt-0.5">Notched 'R' / Fonts</span>
               </div>
               <div className="p-3.5 rounded-2xl bg-slate-950/70 border border-slate-800 text-center">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                  Craftsmanship
-                </span>
-                <span className="text-xl font-black text-purple-400">
-                  {cert.forensic_breakdown.craftsmanship}%
-                </span>
-                <span className="text-[9px] text-slate-400 block mt-0.5">Edge Glazing & Saddle Stitch</span>
-              </div>
-              <div className="p-3.5 rounded-2xl bg-slate-950/70 border border-slate-800 text-center">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                  Hardware & Tags
+                  3. Hardware
                 </span>
                 <span className="text-xl font-black text-amber-400">
                   {cert.forensic_breakdown.hardware}%
                 </span>
-                <span className="text-[9px] text-slate-400 block mt-0.5">Factory Tag / Rivets / Zipper</span>
+                <span className="text-[9px] text-slate-400 block mt-0.5">Lampo / Screws / Plating</span>
+              </div>
+              <div className="p-3.5 rounded-2xl bg-slate-950/70 border border-slate-800 text-center">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                  4. Craftsmanship
+                </span>
+                <span className="text-xl font-black text-purple-400">
+                  {cert.forensic_breakdown.craftsmanship}%
+                </span>
+                <span className="text-[9px] text-slate-400 block mt-0.5">SPI / Edge Glaze</span>
+              </div>
+              <div className="p-3.5 rounded-2xl bg-slate-950/70 border border-slate-800 text-center col-span-2 sm:col-span-1">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                  5. Security Codes
+                </span>
+                <span className="text-xl font-black text-teal-400">
+                  {cert.forensic_breakdown.security_tags_and_codes ?? 95}%
+                </span>
+                <span className="text-[9px] text-slate-400 block mt-0.5">RFID / Factory Seam Tag</span>
               </div>
             </div>
           </div>
+
+          {/* Decisive Forensic Tells (Universal Protocol) */}
+          {cert.decisive_tells && cert.decisive_tells.length > 0 && (
+            <div className="py-5 border-b border-slate-800/80 space-y-2">
+              <span className="font-black text-cyan-300 flex items-center gap-1.5 uppercase tracking-wide text-xs">
+                <ShieldCheck className="h-4 w-4 text-cyan-400" /> Decisive Physical Tells ({cert.decisive_tells.length})
+              </span>
+              <ul className="space-y-1.5">
+                {cert.decisive_tells.map((tell, i) => (
+                  <li key={i} className="flex items-start gap-2 text-slate-200 text-xs leading-snug">
+                    <span className="text-cyan-400 font-bold shrink-0">🔬</span>
+                    <span>{tell}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {/* Verified Positive Hallmarks & Red Flags */}
           <div className="py-6 border-b border-slate-800/80 space-y-4">

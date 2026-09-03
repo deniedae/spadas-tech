@@ -9,7 +9,7 @@ export interface ForensicCertificateData {
   product_name: string;
   brand: string;
   category: ForensicCategory;
-  verdict: "LIKELY_AUTHENTIC" | "SUSPICIOUS" | "COUNTERFEIT_REPLICA" | "CANNOT_DETERMINE";
+  verdict: "LIKELY_AUTHENTIC" | "SUSPICIOUS" | "COUNTERFEIT_REPLICA" | "CANNOT_DETERMINE" | "AUTHENTIC" | "COUNTERFEIT" | "INSUFFICIENT_EVIDENCE";
   authenticity_score: number;
   confidence: "HIGH" | "MEDIUM" | "LOW";
   recommendation: "SAFE_TO_BUY" | "EXERCISE_CAUTION" | "DO_NOT_BUY";
@@ -18,7 +18,25 @@ export interface ForensicCertificateData {
     typography: number;
     craftsmanship: number;
     hardware: number;
+    security_tags_and_codes?: number;
+    material_integrity?: number;
+    typography_and_hallmarks?: number;
+    hardware_and_fasteners?: number;
+    craftsmanship_and_seams?: number;
   };
+  item_identification?: {
+    detected_brand: string;
+    item_category: string;
+    identified_material: string;
+    model_estimate: string;
+  };
+  decisive_tells?: string[];
+  required_macro_inputs?: string[];
+  market_valuation_aud?: {
+    fair_condition: number;
+    excellent_condition: number;
+  };
+  condition_and_maintenance_notes?: string;
   positive_indicators: string[];
   red_flags: string[];
   inconclusive_areas: string[];

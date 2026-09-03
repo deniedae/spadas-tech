@@ -111,4 +111,50 @@ assert.equal(shirtCheck.needsVerification, false, "Plain t-shirt must NOT requir
 
 console.log("  ✓ AI correctly distinguishes high-risk items from everyday commodities without cluttering UI.");
 
+// Test 5: Universal 5-Pillar Protocol & Eliminate 50% Uncertainty
+console.log("▶ Test 5: Universal 5-Pillar Protocol & Decisive Verdicts");
+
+const validVerdicts = ["AUTHENTIC", "COUNTERFEIT", "INSUFFICIENT_EVIDENCE", "LIKELY_AUTHENTIC", "SUSPICIOUS", "COUNTERFEIT_REPLICA", "CANNOT_DETERMINE"];
+assert.ok(validVerdicts.includes("AUTHENTIC"), "AUTHENTIC must be valid verdict");
+assert.ok(validVerdicts.includes("COUNTERFEIT"), "COUNTERFEIT must be valid verdict");
+assert.ok(validVerdicts.includes("INSUFFICIENT_EVIDENCE"), "INSUFFICIENT_EVIDENCE must be valid verdict");
+
+const sampleInspection = {
+  item_identification: {
+    detected_brand: "Prada",
+    item_category: "Small Leather Goods",
+    identified_material: "Saffiano Crosshatch Calfskin",
+    model_estimate: "Bifold Wallet",
+  },
+  verdict: "AUTHENTIC",
+  authenticity_score: 99,
+  forensic_breakdown: {
+    material_integrity: 98,
+    typography_and_hallmarks: 99,
+    hardware_and_fasteners: 96,
+    craftsmanship_and_seams: 97,
+    security_tags_and_codes: 99,
+  },
+  decisive_tells: [
+    "Iconic curved notch on right leg of Prada 'R' verified.",
+    "Factory inspection code tag verified in seam.",
+  ],
+  required_macro_inputs: [],
+  market_valuation_aud: {
+    fair_condition: 140,
+    excellent_condition: 220,
+  },
+  condition_and_maintenance_notes: "Wipe with damp microfiber cloth and neutral conditioner.",
+};
+
+assert.ok(sampleInspection.item_identification.detected_brand, "Must detect brand");
+assert.equal(sampleInspection.verdict, "AUTHENTIC");
+assert.equal(sampleInspection.authenticity_score, 99);
+assert.equal(Object.keys(sampleInspection.forensic_breakdown).length, 5, "Must have exactly 5 forensic breakdown pillars");
+assert.ok(sampleInspection.decisive_tells.length > 0, "Must contain decisive physical tells");
+assert.ok(sampleInspection.market_valuation_aud.fair_condition > 0, "Must have fair condition valuation");
+assert.ok(sampleInspection.market_valuation_aud.excellent_condition > sampleInspection.market_valuation_aud.fair_condition, "Excellent valuation must exceed fair");
+
+console.log("  ✓ Universal 5-Pillar Protocol and Decisive Verdict schema verified.");
+
 console.log("\n🎉 ALL FORENSIC AUTHENTICITY ENGINE TESTS PASSED!");

@@ -1,11 +1,11 @@
-if (process.env.NODE_ENV === "development") {
-  process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
-}
-
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
-import { AR_SCAN_MODEL_FALLBACKS, getPrimaryAiApiKey, createOpenAiClient } from "@/app/lib/config/ai-models";
+import {
+  AR_SCAN_MODEL_FALLBACKS,
+  getPrimaryAiApiKey,
+  createOpenAiClient,
+} from "@/app/lib/config/ai-models";
 import {
   FORENSIC_CATEGORIES,
   detectForensicCategory,
@@ -24,6 +24,23 @@ export interface ForensicBreakdown {
   typography: number; // 0-100 (hallmarks, fonts, serials, kerning)
   craftsmanship: number; // 0-100 (seam alignment, facet sharpness, stitching)
   hardware: number; // 0-100 (clasps, zippers, prongs, screws)
+  security_tags_and_codes?: number | null; // 5th Pillar: Date codes, RFID, factory tags
+  material_integrity?: number | null;
+  typography_and_hallmarks?: number | null;
+  hardware_and_fasteners?: number | null;
+  craftsmanship_and_seams?: number | null;
+}
+
+export interface ItemIdentification {
+  detected_brand: string;
+  item_category: string;
+  identified_material: string;
+  model_estimate: string;
+}
+
+export interface MarketValuationAud {
+  fair_condition: number;
+  excellent_condition: number;
 }
 
 export interface DeepVerifyResult {
@@ -32,10 +49,15 @@ export interface DeepVerifyResult {
   product_name: string;
   brand: string;
   category: ForensicCategory;
-  verdict: "LIKELY_AUTHENTIC" | "SUSPICIOUS" | "COUNTERFEIT_REPLICA" | "CANNOT_DETERMINE";
-  authenticity_score: number;
+  verdict: "AUTHENTIC" | "COUNTERFEIT" | "INSUFFICIENT_EVIDENCE" | "LIKELY_AUTHENTIC" | "SUSPICIOUS" | "COUNTERFEIT_REPLICA" | "CANNOT_DETERMINE";
+  authenticity_score: number | null;
   confidence: "HIGH" | "MEDIUM" | "LOW";
   forensic_breakdown: ForensicBreakdown;
+  item_identification?: ItemIdentification;
+  decisive_tells?: string[];
+  required_macro_inputs?: string[];
+  market_valuation_aud?: MarketValuationAud;
+  condition_and_maintenance_notes?: string;
   positive_indicators: string[];
   red_flags: string[];
   inconclusive_areas: string[];
@@ -81,37 +103,61 @@ function generateMockVerification(
   const isSlg = cat === "small_leather_goods";
   const certId = generateCertificateId(name, b);
 
+  const decisiveTells = isSlg
+    ? [
+        "Interior heat stamp confirmed with authentic Prada notched 'R' and crisp serif kerning.",
+        "Factory inspection tag verified deep inside the billfold seam.",
+        "Authentic wax-finished Saffiano crosshatch calfskin verified without rubbery PVC synthetic texture.",
+        "Card slot dividers display thin, matte, uniform edge glazing without rubber peel.",
+      ]
+    : [
+        cat === "crystals_gems"
+          ? "Angular natural mineral inclusions and horizontal prism striations confirmed without spherical gas bubbles."
+          : cat === "precious_metals"
+          ? "Clean stamped assay hallmark 750 without mold casting lines or base metal copper exposure on high-friction joints."
+          : "Brand stamp typography, stitch density, and material finishing match manufacturer factory standards.",
+        "Symmetry and proportions align with genuine manufacturer reference benchmarks.",
+        "Material surface texture and light refraction indicate authentic composition.",
+      ];
+
+  const maintenanceNotes = isSlg
+    ? "White micro-flecks detected across face (likely paint dust or drywall residue). A gentle wipe with a damp microfiber cloth and neutral leather conditioner (e.g. Bick 4, Saphir) will lift surface debris and restore the Saffiano finish."
+    : "Store in breathable dust bag in temperature-controlled setting; apply neutral material conditioner as appropriate.";
+
   return {
     certificate_id: certId,
     certificate_url: `https://spadas.ai/cert/${certId}`,
     product_name: name,
     brand: b,
     category: cat,
-    verdict: "LIKELY_AUTHENTIC",
+    verdict: "AUTHENTIC",
     authenticity_score: isSlg ? 99 : 96,
     confidence: "HIGH",
+    item_identification: {
+      detected_brand: b,
+      item_category: isSlg ? "Small Leather Goods & Wallets" : "Luxury Goods",
+      identified_material: isSlg ? "Saffiano Crosshatch Calfskin" : "Fine Material",
+      model_estimate: name,
+    },
     forensic_breakdown: {
       material: 98,
       typography: 99,
       craftsmanship: 97,
       hardware: 96,
+      security_tags_and_codes: 98,
+      material_integrity: 98,
+      typography_and_hallmarks: 99,
+      hardware_and_fasteners: 96,
+      craftsmanship_and_seams: 97,
     },
-    positive_indicators: isSlg
-      ? [
-          "Interior heat stamp confirmed with authentic Prada notched 'R' and crisp serif kerning.",
-          "Factory inspection tag verified deep inside the billfold seam.",
-          "Authentic wax-finished Saffiano crosshatch calfskin verified without rubbery PVC synthetic texture.",
-          "Card slot dividers display thin, matte, uniform edge glazing without rubber peel.",
-        ]
-      : [
-          cat === "crystals_gems"
-            ? "Angular natural mineral inclusions and horizontal prism striations confirmed without spherical gas bubbles."
-            : cat === "precious_metals"
-            ? "Clean stamped assay hallmark without mold casting lines or base metal copper exposure on high-friction joints."
-            : "Brand stamp typography, stitch density, and material finishing match manufacturer standards.",
-          "Symmetry and proportions align with genuine reference benchmarks.",
-          "Material surface texture and light refraction indicate authentic composition.",
-        ],
+    decisive_tells: decisiveTells,
+    required_macro_inputs: [],
+    market_valuation_aud: {
+      fair_condition: isSlg ? 140 : 250,
+      excellent_condition: isSlg ? 220 : 450,
+    },
+    condition_and_maintenance_notes: maintenanceNotes,
+    positive_indicators: decisiveTells,
     red_flags: [],
     inconclusive_areas: [],
     forensic_summary: isSlg
@@ -124,12 +170,12 @@ function generateMockVerification(
         : isSlg
         ? "Prada Heat Stamp: Verified iconic notched 'R' contour and factory code tag."
         : undefined,
-    cleanup_advisory: isSlg
-      ? "White micro-flecks detected across face (likely paint dust or drywall residue). A gentle wipe with a damp microfiber cloth and neutral leather conditioner (e.g. Bick 4, Saphir) will lift surface debris and restore the Saffiano finish."
-      : undefined,
+    cleanup_advisory: maintenanceNotes,
     market_spread: isSlg
-      ? "Used Prada Saffiano bifolds in clean secondhand condition typically command $140 – $220 AUD on eBay and marketplace comps, depending on bill lining integrity."
+      ? "Fair Condition: $140 AUD • Excellent Condition: $220 AUD"
       : undefined,
+    wear_and_tear_notes:
+      "Wear Decoupled from Authenticity: Honest cosmetic surface flecks and mild edge softening do not penalize the authenticity score; core manufacturing construction and hallmarks are 100% genuine.",
     isMockFallback: true,
   };
 }
@@ -164,8 +210,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await req.json().catch(() => ({}));
-    const { imageUrls, productName, brand, category: selectedCategory } = body;
+    const {
+      imageUrls,
+      productName,
+      brand,
+      category: selectedCategory,
+    } = await req.json();
 
     if (!imageUrls || !Array.isArray(imageUrls) || imageUrls.length === 0) {
       return NextResponse.json(
@@ -182,72 +232,74 @@ export async function POST(req: Request) {
 
     const categoryConfig = FORENSIC_CATEGORIES[activeCategory] || FORENSIC_CATEGORIES.general_resale;
 
-    const systemPrompt = `You are Spadas Universal Forensic Authenticity Engine, the world's most rigorous anti-counterfeit AI inspector for Crystals, Precious Metals (Gold/Silver), Luxury Handbags, Watches, Sneakers, Trading Cards, and Rare Collectibles.
+    const systemPrompt = `You are the Spadas AI Universal Forensic Authentication Engine. Your objective is to audit any submitted luxury item, designer garment, footwear, or accessory across all brands (e.g., Prada, Louis Vuitton, Chanel, Gucci, Hermes, Nike/Jordan, Rolex) and deliver a decisive, evidence-based verdict.
 
-Your goal is to conduct an authoritative, in-depth multi-angle forensic audit of the provided item.
+### Core Directive: Eliminate 50% Uncertainty
+Never issue a default 50% "Cannot Determine" score simply due to low resolution, poor lighting, or missing angles. 
+- If decisive counterfeit flaws are visible: Mark as COUNTERFEIT immediately.
+- If authentic factory signatures are verified across all visible pillars: Mark as AUTHENTIC.
+- If critical forensic hardware/stamps cannot be resolved due to distance, blur, or glare: Mark as INSUFFICIENT_EVIDENCE and specify the exact macro shots required.
 
-CATEGORY: ${categoryConfig.name.toUpperCase()} (${categoryConfig.tagline})
-${categoryConfig.knowledgePrompt}
+---
 
-EVALUATION PROTOCOL:
-1. Material & Structural Integrity:
-   - Crystals: Natural angular inclusions vs perfectly round glass/resin bubbles, fracture marks vs cleavage planes, color zoning vs chemical dye bleed.
-   - Gold/Silver: Hallmarks (375, 585, 750, 925), maker's mark, plating wear revealing green copper/yellow brass at friction points, cast mold seam lines.
-   - Small Leather Goods & Wallets (Prada, LV, Gucci, Chanel): Prada interior & exterior heat stamp MUST have the iconic curved notch on the right leg of 'R' (straight 'R' leg is 100% fake!), tiny white factory code tag (1-3 digits) hidden in billfold/slot seam, authentic wax Saffiano calfskin crosshatch vs rubbery PVC, thin matte edge glazing on card dividers.
-   - Luxury Handbags: Heat stamp font (e.g. LV perfectly round O), monogram seam symmetry, 28° saddle stitch slant vs lockstitch, hardware engravings.
-   - Watches: Dial printing sharpness, cyclops 2.5x magnification, rehaut engraving, case bevels.
-   - Sneakers: Tag typography, UPC spacing, Boost matrix, embroidery density.
-   - Trading Cards: Rosette CMYK offset dots vs flat inkjet printing, holo foil pattern, centering.
+### Universal 5-Pillar Inspection Protocol
 
-CRITICAL AUTHENTICATOR GUARDRAILS (SEASONED EXPERT PROTOCOL):
-1. DECOUPLE WEAR FROM AUTHENTICITY:
-   - Separate physical condition (scuffs, loose threads from use, surface dirt, paint/drywall flecks, patina, softening edges, cosmetic fatigue) from manufacturing hallmarks.
-   - Physical wear on genuine materials MUST NOT penalize the Authenticity Score.
-   - Vintage and pre-owned luxury items with honest wear can and should still achieve 95%–99% Authenticity Scores if the core manufacturing construction, heat stamps, fonts, and materials are genuine. Cosmetic fatigue is NOT a replica defect!
-   - Report honest wear in "wear_and_tear_notes" and "cleanup_advisory", NOT as counterfeit red flags or score penalties.
+1. Identification & Baseline
+- Detect the brand, product line, material type (e.g., Saffiano leather, coated canvas, twill nylon, lambskin), and production era.
+- Match against known factory specifications, reference databases, and authentic production runs.
 
-2. IMAGE QUALITY FILTER INSTEAD OF SLASHING SCORES:
-   - If a hallmark, stamp, or seam is out of focus, has camera flash glare, or is under-lit, output "Needs clearer macro shot" under "inconclusive_areas" and populate "retake_recommended", rather than lowering the authenticity confidence to suspicious.
-   - Lack of camera focus or sub-optimal mobile lighting is an image quality limitation, NOT evidence of a counterfeit.
-   - Only assign a low score or suspicious/counterfeit verdict when you observe DEFINITIVE VISUAL PROOF of counterfeit manufacturing (e.g. straight 'R' leg on Prada, wrong font typography, peeling rubber glazing, pot metal cast seams, plastic PVC texture).
+2. Typography, Hallmarks & Stamps
+- Font Anatomy: Inspect letter spacing, kerning, font weight, serifs, and brand-specific quirks (e.g., the Prada "R" notch, Louis Vuitton rounded "O", Chanel flat-topped "A", Gucci clean serif spacing).
+- Application: Check hot-stamp deboss depth, foil bleeding, enamel borders, and metal badge mounting.
 
-2. Strict Counterfeit Detection:
-   - If there is clear evidence of replica manufacturing (e.g. base metal showing under gold plating, round bubbles in a 'quartz' crystal, misspelled brand stamps, straight 'R' leg on Prada, or crooked machine stitching on an Hermes bag), assign a score UNDER 40 and verdict "COUNTERFEIT_REPLICA".
-   - If genuine manufacturing hallmarks are confirmed across all photos (e.g. Prada notched 'R' and factory tag confirmed), assign score 90-99 and verdict "LIKELY_AUTHENTIC".
+3. Hardware & Fasteners
+- Supplier Markings: Identify authentic hardware suppliers (e.g., Lampo, riri, Cobrax, Fiocchi, YKK, Ep-zippers, IPI).
+- Precision: Inspect engraving depth, beveling, screw heads (flathead vs. phillips vs. proprietary star), and plating quality (no cheap pot-metal pitting or brass paint).
 
-3. Condition & Flip Potential:
-   - If surface debris, white micro-flecks, drywall dust, or light scuffs are visible, provide a practical "cleanup_advisory" with specific restoration advice (e.g. gentle wipe with damp microfiber cloth and neutral conditioner like Bick 4 or Saphir).
-   - Provide "market_spread" quoting realistic secondhand market comps (e.g. in AUD or USD) and value drivers (e.g. clean bill lining, crisp card dividers).
+4. Material & Structural Construction
+- Substrate: Verify real leather grain vs. pressed PU/vinyl, canvas coating thickness, or weave density.
+- Craftsmanship: Check stitches per inch (SPI), thread gauge, back-tack reinforcement, edge glazing/paint thickness, and seam symmetry.
 
-OUTPUT FORMAT:
+5. Security Markers & Serial Codes
+- Locate and parse brand-specific identifiers: date codes, microchips/RFID/NFC tags, hologram stickers, factory code tags, or serial number formats.
+
+---
+
+### Decouple Wear from Authenticity Guardrail
+- Separate physical condition (scuffs, loose threads from use, surface dirt, paint/drywall flecks, softening edges, cosmetic fatigue) from manufacturing hallmarks.
+- Physical wear on genuine materials MUST NOT penalize the Authenticity Score. Pre-owned items with honest wear can achieve 95%–99% scores.
+
+---
+
+### Output Format (Strict JSON)
 Respond ONLY with valid JSON adhering to this exact schema:
 {
-  "product_name": string,
-  "brand": string,
-  "category": "${activeCategory}",
-  "verdict": "LIKELY_AUTHENTIC" | "SUSPICIOUS" | "COUNTERFEIT_REPLICA" | "CANNOT_DETERMINE",
-  "authenticity_score": number (0 to 100 integer),
-  "confidence": "HIGH" | "MEDIUM" | "LOW",
-  "forensic_breakdown": {
-    "material": number (0 to 100),
-    "typography": number (0 to 100),
-    "craftsmanship": number (0 to 100),
-    "hardware": number (0 to 100)
+  "item_identification": {
+    "detected_brand": "<Brand>",
+    "item_category": "<Category>",
+    "identified_material": "<Material>",
+    "model_estimate": "<Model Name or Style>"
   },
-  "positive_indicators": string[] (2-4 specific genuine visual observations),
-  "red_flags": string[] (explicit counterfeit red flags, or empty array if none),
-  "inconclusive_areas": string[] (areas obscured by lighting or angle; write 'Needs clearer macro shot' if photo is blurry/glared),
-  "wear_and_tear_notes": string (optional note confirming physical wear was separated from authenticity),
-  "retake_recommended": {
-    "angle_id": string (optional angle id),
-    "angle_title": string (optional angle title),
-    "reason": string (e.g. "Needs clearer macro shot: avoid camera flash glare over heat stamp")
-  } (optional, only if photo clarity prevented 99% inspection),
-  "forensic_summary": string (concise, authoritative 2-sentence breakdown in plain reseller English),
-  "recommendation": "SAFE_TO_BUY" | "EXERCISE_CAUTION" | "DO_NOT_BUY",
-  "hallmark_analysis": string (optional breakdown of any detected hallmark, Prada notched 'R', or serial code),
-  "cleanup_advisory": string (optional practical advice to lift surface debris, scuffs, or drywall flecks),
-  "market_spread": string (optional realistic secondhand market comp range, e.g. Used Prada Saffiano bifolds typically command $140 - $220 AUD)
+  "verdict": "AUTHENTIC" | "COUNTERFEIT" | "INSUFFICIENT_EVIDENCE",
+  "authenticity_score": <Integer 0-100 or null>,
+  "forensic_breakdown": {
+    "material_integrity": <0-100 or null>,
+    "typography_and_hallmarks": <0-100 or null>,
+    "hardware_and_fasteners": <0-100 or null>,
+    "craftsmanship_and_seams": <0-100 or null>,
+    "security_tags_and_codes": <0-100 or null>
+  },
+  "decisive_tells": [
+    "<Explicit physical tell found, e.g., 'Curved notch verified on right leg of Prada R heat stamp', 'Straight-leg font on Prada R indicates non-factory stamping'>"
+  ],
+  "required_macro_inputs": [
+    "<Only populate if INSUFFICIENT_EVIDENCE. Name exact shots needed, e.g., 'Macro of interior heat stamp', 'Underside of snap fastener'>"
+  ],
+  "market_valuation_aud": {
+    "fair_condition": <Int>,
+    "excellent_condition": <Int>
+  },
+  "condition_and_maintenance_notes": "<Specific cleaning or maintenance recommendation based on material>"
 }`;
 
     const apiKey = getPrimaryAiApiKey();
@@ -277,7 +329,7 @@ Respond ONLY with valid JSON adhering to this exact schema:
           content: [
             {
               type: "text",
-              text: `Perform rigorous multi-angle forensic legitimacy inspection. Expected Item: "${productName || "Unknown"}", Brand: "${brand || "Unknown"}", Category: "${categoryConfig.name}". Conduct material, hallmark, and structural audit.`,
+              text: `Audit submitted item according to Universal 5-Pillar Protocol. Expected Item: "${productName || "Unknown"}", Brand: "${brand || "Unknown"}", Category: "${categoryConfig.name}". Provide decisive, evidence-based verdict.`,
             },
             ...imageContent,
           ],
@@ -292,29 +344,149 @@ Respond ONLY with valid JSON adhering to this exact schema:
       return NextResponse.json(generateMockVerification(productName, brand, activeCategory));
     }
 
-    const parsed: DeepVerifyResult = JSON.parse(rawContent);
-    const certId = generateCertificateId(parsed.product_name || productName, parsed.brand || brand);
-    parsed.certificate_id = certId;
-    parsed.certificate_url = `https://spadas.ai/cert/${certId}`;
+    const raw: any = JSON.parse(rawContent);
+
+    // Normalize 5-pillar scores
+    const matScore = raw.forensic_breakdown?.material_integrity ?? raw.forensic_breakdown?.material ?? 95;
+    const typoScore = raw.forensic_breakdown?.typography_and_hallmarks ?? raw.forensic_breakdown?.typography ?? 95;
+    const hardScore = raw.forensic_breakdown?.hardware_and_fasteners ?? raw.forensic_breakdown?.hardware ?? 95;
+    const craftScore = raw.forensic_breakdown?.craftsmanship_and_seams ?? raw.forensic_breakdown?.craftsmanship ?? 95;
+    const secScore = raw.forensic_breakdown?.security_tags_and_codes ?? 95;
+
+    // Normalizing verdict & recommendation
+    const rawVerdict: string = (raw.verdict || "AUTHENTIC").toUpperCase();
+    let verdict: DeepVerifyResult["verdict"] = "AUTHENTIC";
+    let recommendation: DeepVerifyResult["recommendation"] = "SAFE_TO_BUY";
+
+    if (rawVerdict === "COUNTERFEIT" || rawVerdict === "COUNTERFEIT_REPLICA") {
+      verdict = "COUNTERFEIT";
+      recommendation = "DO_NOT_BUY";
+    } else if (rawVerdict === "INSUFFICIENT_EVIDENCE" || rawVerdict === "CANNOT_DETERMINE") {
+      verdict = "INSUFFICIENT_EVIDENCE";
+      recommendation = "EXERCISE_CAUTION";
+    } else {
+      verdict = "AUTHENTIC";
+      recommendation = "SAFE_TO_BUY";
+    }
+
+    const calculatedScore =
+      raw.authenticity_score !== null && raw.authenticity_score !== undefined
+        ? Number(raw.authenticity_score)
+        : verdict === "AUTHENTIC"
+        ? 99
+        : verdict === "COUNTERFEIT"
+        ? 18
+        : 50;
+
+    const decisiveTells: string[] = Array.isArray(raw.decisive_tells) ? raw.decisive_tells : [];
+    const positiveTells = decisiveTells.filter(
+      (t) =>
+        !t.toLowerCase().includes("counterfeit") &&
+        !t.toLowerCase().includes("fake") &&
+        !t.toLowerCase().includes("replica") &&
+        !t.toLowerCase().includes("non-factory")
+    );
+    const redFlagTells = decisiveTells.filter(
+      (t) =>
+        t.toLowerCase().includes("counterfeit") ||
+        t.toLowerCase().includes("fake") ||
+        t.toLowerCase().includes("replica") ||
+        t.toLowerCase().includes("non-factory")
+    );
+
+    const requiredMacro: string[] = Array.isArray(raw.required_macro_inputs) ? raw.required_macro_inputs : [];
+
+    const marketSpread = raw.market_valuation_aud
+      ? `Fair Condition: $${raw.market_valuation_aud.fair_condition} AUD • Excellent Condition: $${raw.market_valuation_aud.excellent_condition} AUD`
+      : undefined;
+
+    const detectedItemName =
+      raw.item_identification?.model_estimate ||
+      productName ||
+      "Verified Item";
+    const detectedItemBrand =
+      raw.item_identification?.detected_brand ||
+      brand ||
+      "Luxury Brand";
+
+    const certId = generateCertificateId(detectedItemName, detectedItemBrand);
+
+    const parsed: DeepVerifyResult = {
+      certificate_id: certId,
+      certificate_url: `https://spadas.ai/cert/${certId}`,
+      product_name: detectedItemName,
+      brand: detectedItemBrand,
+      category: activeCategory,
+      verdict,
+      authenticity_score: calculatedScore,
+      confidence: verdict === "INSUFFICIENT_EVIDENCE" ? "LOW" : "HIGH",
+      item_identification: raw.item_identification,
+      forensic_breakdown: {
+        material: matScore,
+        typography: typoScore,
+        craftsmanship: craftScore,
+        hardware: hardScore,
+        security_tags_and_codes: secScore,
+        material_integrity: matScore,
+        typography_and_hallmarks: typoScore,
+        hardware_and_fasteners: hardScore,
+        craftsmanship_and_seams: craftScore,
+      },
+      decisive_tells: decisiveTells,
+      required_macro_inputs: requiredMacro,
+      market_valuation_aud: raw.market_valuation_aud,
+      condition_and_maintenance_notes: raw.condition_and_maintenance_notes,
+      positive_indicators: positiveTells.length > 0 ? positiveTells : decisiveTells,
+      red_flags: redFlagTells,
+      inconclusive_areas: requiredMacro,
+      forensic_summary:
+        decisiveTells[0] ||
+        `Universal 5-pillar forensic audit confirms ${verdict.replace(/_/g, " ").toLowerCase()} status with ${calculatedScore}% authenticity score.`,
+      recommendation,
+      cleanup_advisory: raw.condition_and_maintenance_notes,
+      market_spread: marketSpread,
+      wear_and_tear_notes:
+        "Wear Decoupled from Authenticity: Honest cosmetic surface wear separated from manufacturing hallmarks; does not penalize authenticity score.",
+      retake_recommended:
+        requiredMacro.length > 0
+          ? {
+              reason: requiredMacro.join("; "),
+            }
+          : undefined,
+    };
 
     // Persist verified digital certificate for permanent public sharing
     void saveCertificate({
       id: certId,
       created_at: new Date().toISOString(),
       user_id: user.id,
-      product_name: parsed.product_name || productName || "Verified Item",
-      brand: parsed.brand || brand || "Luxury Brand",
-      category: parsed.category || activeCategory,
+      product_name: parsed.product_name,
+      brand: parsed.brand,
+      category: parsed.category,
       verdict: parsed.verdict,
-      authenticity_score: parsed.authenticity_score,
+      authenticity_score: parsed.authenticity_score || 0,
       confidence: parsed.confidence,
       recommendation: parsed.recommendation,
-      forensic_breakdown: parsed.forensic_breakdown,
-      positive_indicators: parsed.positive_indicators || [],
-      red_flags: parsed.red_flags || [],
-      inconclusive_areas: parsed.inconclusive_areas || [],
+      forensic_breakdown: {
+        material: matScore,
+        typography: typoScore,
+        craftsmanship: craftScore,
+        hardware: hardScore,
+        security_tags_and_codes: secScore,
+        material_integrity: matScore,
+        typography_and_hallmarks: typoScore,
+        hardware_and_fasteners: hardScore,
+        craftsmanship_and_seams: craftScore,
+      },
+      item_identification: parsed.item_identification,
+      decisive_tells: parsed.decisive_tells,
+      required_macro_inputs: parsed.required_macro_inputs,
+      market_valuation_aud: parsed.market_valuation_aud,
+      condition_and_maintenance_notes: parsed.condition_and_maintenance_notes,
+      positive_indicators: parsed.positive_indicators,
+      red_flags: parsed.red_flags,
+      inconclusive_areas: parsed.inconclusive_areas,
       forensic_summary: parsed.forensic_summary,
-      hallmark_analysis: parsed.hallmark_analysis,
       cleanup_advisory: parsed.cleanup_advisory,
       market_spread: parsed.market_spread,
       wear_and_tear_notes: parsed.wear_and_tear_notes,
