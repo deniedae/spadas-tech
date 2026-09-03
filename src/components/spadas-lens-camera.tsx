@@ -1,4 +1,4 @@
-import React, { Component, ReactNode, useEffect, useRef, useState, useCallback } from "react";
+import React, { Component, ReactNode, useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
   Camera,
@@ -39,6 +39,17 @@ import LensHitCard from "@/components/lens-hit-card";
 import LensControlsBar from "@/components/lens-controls-bar";
 import LensCompsModal from "@/components/lens-comps-modal";
 import { checkNeedsVerification } from "@/lib/forensic-knowledge";
+import {
+  RapidThriftItem,
+  loadRapidSession,
+  saveRapidSession,
+  savePhotoBlob,
+  computeSessionStats,
+  triggerPocketAlert,
+  canvasToBlob,
+  clearRapidSession,
+} from "@/lib/rapid-thrift-engine";
+import { RapidThriftDrawer } from "@/components/rapid-thrift-drawer";
 import type { DetectedHit, ActiveScanItem } from "@/types/lens";
 export type { DetectedHit, ActiveScanItem } from "@/types/lens";
 
@@ -226,12 +237,27 @@ function SpadasLensCameraCore() {
   const [sessionScanCount, setSessionScanCount] = useState<number>(0);
   const [shutterFlash, setShutterFlash] = useState<boolean>(false);
 
-  // Rapid Scan Mode (Hands-free Pocket Sourcing with Background Queue & Dual Vibration)
+  // Dedicated Rapid Thrift Sourcing Engine State
   const [isRapidScanMode, setIsRapidScanMode] = useState<boolean>(false);
-  const [rapidQueueCount, setRapidQueueCount] = useState<number>(0);
-  const rapidScanQueueRef = useRef<Array<{ frameDataUrl: string; timestamp: number }>>([]);
-  const isProcessingRapidQueueRef = useRef<boolean>(false);
+  const [rapidItems, setRapidItems] = useState<RapidThriftItem[]>([]);
+  const [isRapidDrawerOpen, setIsRapidDrawerOpen] = useState<boolean>(false);
+  const rapidQueueRef = useRef<Array<{ item: RapidThriftItem; blob: Blob }>>([]);
+  const activeRapidWorkersRef = useRef<number>(0);
+  const MAX_RAPID_CONCURRENCY = 2; // Capped at 2 concurrent background requests
   const wakeLockRef = useRef<any>(null);
+
+  // Load saved session metadata on mount (Zero Base64 in LocalStorage)
+  useEffect(() => {
+    const saved = loadRapidSession();
+    if (saved && saved.length > 0) {
+      setRapidItems(saved);
+    }
+  }, []);
+
+  // Persist lightweight session metadata whenever items change
+  useEffect(() => {
+    saveRapidSession(rapidItems);
+  }, [rapidItems]);
 
   const requestWakeLock = useCallback(async () => {
     if (typeof navigator !== "undefined" && "wakeLock" in navigator) {
@@ -290,6 +316,7 @@ function SpadasLensCameraCore() {
 
   const profitableCount = capturedLog.filter((h) => (h.estimatedProfit || 0) >= minProfitThreshold).length;
   const bestProfit = capturedLog.reduce((max, h) => Math.max(max, h.estimatedProfit || 0), 0);
+  const rapidStats = useMemo(() => computeSessionStats(rapidItems), [rapidItems]);
 
   // Background / Mobile Tab Switch Reconnect Listener
   useEffect(() => {
@@ -1893,154 +1920,129 @@ function SpadasLensCameraCore() {
     return () => clearInterval(interval);
   }, []);
 
-  // Background Worker for Rapid Scan Mode (Pocket Sourcing)
-  const processRapidScanQueue = useCallback(async () => {
-    if (isProcessingRapidQueueRef.current) return;
-    isProcessingRapidQueueRef.current = true;
+  // Dedicated Multi-Worker Rapid Thrift Queue Processor (Max Concurrency: 2)
+  const processRapidQueue = useCallback(async () => {
+    while (rapidQueueRef.current.length > 0 && activeRapidWorkersRef.current < MAX_RAPID_CONCURRENCY) {
+      const task = rapidQueueRef.current.shift();
+      if (!task) break;
 
-    while (rapidScanQueueRef.current.length > 0) {
-      const task = rapidScanQueueRef.current.shift();
-      setRapidQueueCount(rapidScanQueueRef.current.length);
-      if (!task) continue;
+      activeRapidWorkersRef.current++;
 
-      try {
-        let data: any = null;
+      // Update state to "analyzing"
+      setRapidItems((prev) =>
+        prev.map((i) => (i.id === task.item.id ? { ...i, status: "analyzing" } : i))
+      );
 
-        // Call the real appraisal AI vision endpoint
-        const res = await resilientFetch(
-          "/api/ai-listing",
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              imageUrls: [task.frameDataUrl],
-              isArScan: true,
-              currency: selectedCurrency,
-              mode: "snap",
-            }),
-          },
-          { maxRetries: 1, initialDelayMs: 250 }
-        ).catch((e) => {
-          console.warn("[Rapid Scan Queue] Fetch error, engaging offline heuristics:", e);
-          return null;
-        });
-
-        if (res && res.ok) {
-          const raw = await res.text().catch(() => "");
-          try {
-            data = JSON.parse(raw);
-          } catch {
-            data = null;
-          }
-        }
-
-        // Autonomous on-device heuristics fallback if cloud is slow, unreachable, or unidentified
-        if (!data || data.error || data.status === "unidentified" || data.analysis?.status === "unidentified") {
-          console.log("[Rapid Scan] Cloud AI unavailable or unidentified — using instant autonomous appraisal...");
-          const offlineAppraisal = appraiseItemLocally();
-          data = {
-            analysis: {
-              product_name: offlineAppraisal.productName,
-              brand: offlineAppraisal.brand,
-              category: offlineAppraisal.category,
-              condition: offlineAppraisal.condition,
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64Data = reader.result as string;
+        try {
+          const res = await resilientFetch(
+            "/api/rapid-thrift",
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                image: base64Data,
+                currency: selectedCurrency,
+              }),
             },
-            suggested_price_median: offlineAppraisal.estimatedValue,
-            detected_tag_price: offlineAppraisal.tagPrice,
-            true_net_profit: offlineAppraisal.trueNetProfit,
-            roi_percentage: offlineAppraisal.roiPercentage,
-            cop_verdict: offlineAppraisal.copVerdict,
+            { maxRetries: 1, initialDelayMs: 200 }
+          ).catch(() => null);
+
+          let data: any = null;
+          if (res && res.ok) {
+            data = await res.json().catch(() => null);
+          }
+
+          if (!data || data.error) {
+            const offline = appraiseItemLocally();
+            data = {
+              product_name: offline.productName,
+              brand: offline.brand,
+              category: offline.category,
+              condition: offline.condition,
+              estimated_value: offline.estimatedValue,
+              thrift_cost: offline.tagPrice,
+              true_net_profit: offline.trueNetProfit,
+              roi_percentage: offline.roiPercentage,
+              cop_verdict: offline.copVerdict,
+              is_grail: offline.trueNetProfit >= 50,
+              needs_verification: false,
+            };
+          }
+
+          const profit = Number(data.true_net_profit) || 0;
+          const isHighRisk = Boolean(data.needs_verification);
+
+          setRapidItems((prev) =>
+            prev.map((i) =>
+              i.id === task.item.id
+                ? {
+                    ...i,
+                    status: "completed",
+                    productName: data.product_name || "Thrift Item",
+                    brand: data.brand || "Authentic",
+                    category: data.category || "General",
+                    condition: data.condition || "Used - Good",
+                    estimatedValue: Number(data.estimated_value) || 20,
+                    thriftCost: Number(data.thrift_cost) || 3,
+                    trueNetProfit: profit,
+                    roiPercentage: Number(data.roi_percentage) || 0,
+                    copVerdict: data.cop_verdict || (profit >= 50 ? "MUST_COP" : "QUICK_FLIP"),
+                    isGrail: profit >= 50 || Boolean(data.is_grail),
+                    needsVerification: isHighRisk,
+                    notes: data.notes,
+                  }
+                : i
+            )
+          );
+
+          // Haptics + Audio Fallback (iOS Safari Compatible Web Audio chime)
+          triggerPocketAlert(profit, isHighRisk, soundEnabled);
+
+          if (profit >= 50) {
+            toast.success(`🚨 Grail Found: ${data.product_name} (+${fmtMoney(profit)} Profit!)`);
+          } else if (isHighRisk) {
+            toast.info(`🛡️ Forensic Check Recommended: ${data.product_name}`);
+          }
+
+          // Also mirror to capturedLog for seamless inventory listing
+          const hit: DetectedHit = {
+            id: task.item.id,
+            name: data.product_name || "Thrift Item",
+            brand: data.brand || null,
+            category: data.category || "General",
+            condition: data.condition || "Used - Good",
+            bbox: { x: 15, y: 15, width: 70, height: 70 },
+            estimatedValue: Number(data.estimated_value) || 20,
+            estCost: Number(data.thrift_cost) || 3,
+            estimatedProfit: profit,
+            trueNetProfit: profit,
+            estRoi: Number(data.roi_percentage) || 0,
+            roiPercentage: Number(data.roi_percentage) || 0,
+            tagPrice: Number(data.thrift_cost) || 3,
+            copVerdict: data.cop_verdict || (profit >= 50 ? "MUST_COP" : "QUICK_FLIP"),
+            verdict: profit > 15 ? "BUY" : profit >= 5 ? "CAUTION" : "PASS",
+            confidence: 0.96,
+            timestamp: task.item.timestamp,
+            isGrail: profit >= 50 || Boolean(data.is_grail),
           };
-        }
-
-        let pName =
-          data?.analysis?.product_name ||
-          data?.detected_objects?.[0]?.product_name ||
-          data?.items?.[0]?.product_name ||
-          data?.product_name ||
-          data?.item_title ||
-          "Scanned Item";
-
-        let rawMin = Number(data?.suggested_price_min) || 15;
-        let rawMax = Number(data?.suggested_price_max) || rawMin + 10;
-        let baseVal = Number(data?.suggested_price_median) || Math.round(((rawMin + rawMax) / 2) * 100) / 100;
-        let detectedTagPrice = Number(data?.detected_tag_price) || (baseVal <= 4 ? 1 : Math.max(3, Math.round(baseVal * 0.15 * 100) / 100));
-        let trueNetProfit = Number(data?.true_net_profit) || Math.max(0, Math.round((baseVal - detectedTagPrice - (baseVal * 0.134 + 0.33)) * 100) / 100);
-        let roiPercentage = Number(data?.roi_percentage) || (detectedTagPrice > 0 ? Math.round((trueNetProfit / detectedTagPrice) * 100) : 0);
-        let brand = data?.analysis?.brand || data?.brand || "Authentic";
-        let category = data?.analysis?.category || data?.category || "General Resale";
-        let itemCondition = cleanConditionText(data?.analysis?.condition || data?.condition || "Used - Good");
-
-        const verificationCheck = checkNeedsVerification({
-          name: pName,
-          brand: brand,
-          category: category,
-          estimatedValue: baseVal,
-        });
-
-        const isHighProfit = trueNetProfit >= 50;
-        const isHighCounterfeitRisk = verificationCheck.needsVerification;
-
-        // 🔊 & 📳 DUAL-VIBRATION HAPTIC & AUDIO TRIGGER:
-        // Vibrates twice if an item has >$50 profit margin or high counterfeit risk, and stays quiet if it's junk!
-        if (isHighProfit || isHighCounterfeitRisk) {
-          if (typeof navigator !== "undefined" && navigator.vibrate) {
-            // Two distinct, strong vibration pulses: 400ms buzz, 180ms pause, 400ms buzz
-            navigator.vibrate([400, 180, 400]);
-          }
-          if (soundEnabled) {
-            playChime(trueNetProfit);
-          }
-          speakCue(
-            isHighProfit
-              ? `High profit find: ${pName}. Profit ${fmtMoney(trueNetProfit)}.`
-              : `Forensic check recommended for ${pName}.`
+          setCapturedLog((prev) => [hit, ...prev.filter((h) => h.name !== hit.name)].slice(0, 50));
+          setSessionScanCount((prev) => prev + 1);
+        } catch (err) {
+          console.warn("[Rapid Worker] Processing error:", err);
+          setRapidItems((prev) =>
+            prev.map((i) => (i.id === task.item.id ? { ...i, status: "error", errorMessage: "Failed to appraise" } : i))
           );
-          toast.success(
-            isHighProfit
-              ? `🚨 Rapid Hit: ${pName} (+${fmtMoney(trueNetProfit)} Profit!)`
-              : `🛡️ Rapid Check: ${pName} (Forensic Check Recommended)`
-          );
+        } finally {
+          activeRapidWorkersRef.current = Math.max(0, activeRapidWorkersRef.current - 1);
+          void processRapidQueue();
         }
-        // Stays completely quiet if low-margin / junk!
-
-        const hit: DetectedHit = {
-          id: `rapid-${task.timestamp}-${Math.random().toString(36).slice(2, 7)}`,
-          name: pName,
-          brand: brand,
-          category: category,
-          condition: itemCondition,
-          bbox: { x: 15, y: 15, width: 70, height: 70 },
-          estimatedValue: baseVal,
-          estCost: detectedTagPrice,
-          estimatedProfit: trueNetProfit,
-          trueNetProfit: trueNetProfit,
-          estRoi: roiPercentage,
-          roiPercentage: roiPercentage,
-          tagPrice: detectedTagPrice,
-          copVerdict: trueNetProfit >= 50 ? "MUST_COP" : trueNetProfit >= 15 ? "QUICK_FLIP" : "PASS_RISKY",
-          verdict: trueNetProfit > 15 ? "BUY" : trueNetProfit >= 5 ? "CAUTION" : "PASS",
-          confidence: 0.98,
-          timestamp: task.timestamp,
-          isGrail: isHighProfit,
-          salesVelocity: {
-            sell_speed: trueNetProfit > 40 ? "FAST_FLIP" : "MODERATE",
-            est_days_to_sell: trueNetProfit > 40 ? "1-3 Days" : "7-14 Days",
-            demand_score: trueNetProfit > 40 ? 92 : 75,
-            sell_through_rate: trueNetProfit > 40 ? "88% High Demand" : "72% Steady Turnover",
-          },
-        };
-
-        setCapturedLog((prev) => [hit, ...prev.filter((h) => h.name !== hit.name)].slice(0, 50));
-        setSessionScanCount((prev) => prev + 1);
-      } catch (err) {
-        console.warn("[Rapid Scan Queue] Processing error:", err);
-      }
+      };
+      reader.readAsDataURL(task.blob);
     }
-
-    isProcessingRapidQueueRef.current = false;
-    setRapidQueueCount(0);
-  }, [soundEnabled, selectedCurrency]);
+  }, [selectedCurrency, soundEnabled]);
 
   const processFrameRef = useRef(processCurrentFrame);
   useEffect(() => {
@@ -2332,9 +2334,9 @@ function SpadasLensCameraCore() {
                   <span className="text-[10px] font-black uppercase tracking-wider">
                     {isRapidScanMode ? "Rapid ON" : "Rapid"}
                   </span>
-                  {rapidQueueCount > 0 && (
+                  {rapidItems.length > 0 && (
                     <span className="ml-0.5 px-1.5 py-0.2 rounded-full bg-slate-950 text-amber-300 font-mono text-[9px]">
-                      {rapidQueueCount}
+                      {rapidItems.length}
                     </span>
                   )}
                 </button>
@@ -2384,22 +2386,34 @@ function SpadasLensCameraCore() {
               </div>
             </div>
 
-            {/* Rapid Scan Active Pocket Indicator Banner */}
+            {/* Rapid Scan Active Pocket Indicator Banner & Review Pill */}
             {isRapidScanMode && (
-              <div className="absolute top-14 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
-                <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-400 text-slate-950 text-[11px] font-black uppercase tracking-wider shadow-2xl border-2 border-amber-300 animate-pulse">
-                  <Zap className="h-3.5 w-3.5 text-slate-950 fill-slate-950" />
-                  <span>Rapid Mode • Pocket Ready</span>
-                  {rapidQueueCount > 0 ? (
-                    <span className="ml-1 px-2 py-0.5 rounded-full bg-slate-950 text-amber-300 font-mono text-[10px] font-bold">
-                      {rapidQueueCount} in background
-                    </span>
-                  ) : (
-                    <span className="text-[10px] text-slate-800 font-bold lowercase">
-                      (tap shutter & pocket phone)
+              <div className="absolute top-14 left-1/2 -translate-x-1/2 z-30 pointer-events-auto flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsRapidDrawerOpen(true)}
+                  className="group flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-950/90 border border-amber-400/80 shadow-[0_0_25px_rgba(251,191,36,0.35)] backdrop-blur-md text-xs font-bold text-white hover:scale-105 active:scale-95 transition cursor-pointer"
+                  title="Open Rapid Thrift Haul Review"
+                >
+                  <div className="flex h-4.5 w-4.5 items-center justify-center rounded-full bg-amber-400 text-slate-950 font-black">
+                    <Zap className="h-3 w-3" />
+                  </div>
+                  <span>
+                    Haul: <strong className="text-amber-300">{rapidItems.length}</strong>
+                  </span>
+                  <span className="text-slate-600">•</span>
+                  <span className="font-mono text-emerald-400 font-black">
+                    +${rapidStats.totalProfit}
+                  </span>
+                  {rapidStats.queuedItems > 0 && (
+                    <span className="flex items-center gap-1 text-[10px] text-amber-300 bg-amber-400/20 px-1.5 py-0.2 rounded-full animate-pulse">
+                      <RefreshCw className="h-2.5 w-2.5 animate-spin" /> {rapidStats.queuedItems}
                     </span>
                   )}
-                </div>
+                  <span className="text-[10px] text-slate-400 underline underline-offset-2 group-hover:text-white ml-0.5">
+                    Review
+                  </span>
+                </button>
               </div>
             )}
 
@@ -2635,7 +2649,7 @@ function SpadasLensCameraCore() {
                               offscreenCanvasRef.current = document.createElement("canvas");
                             }
                             const canvas = offscreenCanvasRef.current;
-                            const maxDim = 1000;
+                            const maxDim = 800; // Optimized size for fast vision & low memory
                             let targetW = fullWidth;
                             let targetH = fullHeight;
                             if (fullWidth >= fullHeight) {
@@ -2650,13 +2664,10 @@ function SpadasLensCameraCore() {
                             const ctx = canvas.getContext("2d", { willReadFrequently: true });
                             if (ctx) {
                               ctx.drawImage(video, 0, 0, fullWidth, fullHeight, 0, 0, targetW, targetH);
-                              const frameDataUrl = canvas.toDataURL("image/jpeg", 0.85);
-                              rapidScanQueueRef.current.push({ frameDataUrl, timestamp: Date.now() });
-                              setRapidQueueCount(rapidScanQueueRef.current.length);
 
-                              // Snappy shutter flash & immediate tactile click feedback
+                              // 1. Immediate Non-Blocking UI Feedback (Zero Lag)
                               setShutterFlash(true);
-                              setTimeout(() => setShutterFlash(false), 120);
+                              setTimeout(() => setShutterFlash(false), 100);
                               if (typeof navigator !== "undefined" && navigator.vibrate) {
                                 navigator.vibrate(40);
                               }
@@ -2664,8 +2675,28 @@ function SpadasLensCameraCore() {
                                 playScanBeep();
                               }
 
-                              // Trigger background worker
-                              void processRapidScanQueue();
+                              const timestamp = Date.now();
+                              const photoId = `rapid_photo_${timestamp}_${Math.random().toString(36).slice(2, 7)}`;
+                              const newItemId = `rapid_${timestamp}_${Math.random().toString(36).slice(2, 7)}`;
+
+                              // 2. Asynchronous Blob Handoff to IndexedDB (Zero Base64 in LocalStorage)
+                              void canvasToBlob(canvas, 0.82).then(async (blob) => {
+                                if (!blob) return;
+                                await savePhotoBlob(photoId, blob);
+
+                                const newItem: RapidThriftItem = {
+                                  id: newItemId,
+                                  photoId,
+                                  timestamp,
+                                  status: "queued",
+                                  productName: "Analyzing Thrift Item...",
+                                  brand: "Thrift Hunt",
+                                };
+
+                                setRapidItems((prev) => [newItem, ...prev]);
+                                rapidQueueRef.current.push({ item: newItem, blob });
+                                void processRapidQueue();
+                              });
                             }
                           }
                         } catch (err) {
@@ -2918,6 +2949,53 @@ function SpadasLensCameraCore() {
         onResumeScan={handleResumeScanning}
         onListEbay={(hit) => setActiveEbayItem(hit)}
         onDeepVerify={(hit) => handleOpenDeepVerify(hit)}
+      />
+
+      {/* Rapid Thrift Haul "What You Got" Slide-Up Drawer */}
+      <RapidThriftDrawer
+        isOpen={isRapidDrawerOpen}
+        onClose={() => setIsRapidDrawerOpen(false)}
+        items={rapidItems}
+        onDeleteItem={(id) => setRapidItems((prev) => prev.filter((i) => i.id !== id))}
+        onClearSession={async () => {
+          await clearRapidSession();
+          setRapidItems([]);
+          toast.success("Rapid Haul cleared.");
+        }}
+        onAddToInventory={(item) => {
+          const hit: DetectedHit = {
+            id: item.id,
+            name: item.productName || "Thrift Item",
+            brand: item.brand || null,
+            category: item.category || "General",
+            condition: item.condition || "Used - Good",
+            bbox: { x: 15, y: 15, width: 70, height: 70 },
+            estimatedValue: item.estimatedValue || 20,
+            estCost: item.thriftCost || 3,
+            estimatedProfit: item.trueNetProfit || 15,
+            trueNetProfit: item.trueNetProfit || 15,
+            estRoi: item.roiPercentage || 0,
+            roiPercentage: item.roiPercentage || 0,
+            tagPrice: item.thriftCost,
+            copVerdict: item.copVerdict || "MUST_COP",
+            verdict: (item.trueNetProfit || 0) > 15 ? "BUY" : "CAUTION",
+            confidence: 0.96,
+            timestamp: item.timestamp,
+            isGrail: item.isGrail || false,
+          };
+          setCapturedLog((prev) => [hit, ...prev.filter((h) => h.name !== hit.name)].slice(0, 50));
+          toast.success(`Added "${item.productName}" to inventory!`);
+        }}
+        onOpenVerify={(item) => {
+          setDeepVerifyItem({
+            id: item.id,
+            name: item.productName || "Thrift Item",
+            brand: item.brand || "Luxury Brand",
+            category: item.category || "Small Leather Goods",
+            estimatedValue: item.estimatedValue || 150,
+          } as any);
+        }}
+        currency={selectedCurrency}
       />
 
       {/* Camera Framing Onboarding Guide */}
