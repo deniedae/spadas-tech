@@ -2,72 +2,80 @@ if (process.env.NODE_ENV === "development") {
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 }
 
-import OpenAI from "openai";
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { AR_SCAN_MODEL_FALLBACKS, getPrimaryAiApiKey, createOpenAiClient } from "@/app/lib/config/ai-models";
+import {
+  FORENSIC_CATEGORIES,
+  detectForensicCategory,
+  ForensicCategory,
+} from "@/lib/forensic-knowledge";
 
 export const preferredRegion = "syd1";
+
+export interface ForensicBreakdown {
+  material: number; // 0-100 (inclusions, metal fineness, leather grain)
+  typography: number; // 0-100 (hallmarks, fonts, serials, kerning)
+  craftsmanship: number; // 0-100 (seam alignment, facet sharpness, stitching)
+  hardware: number; // 0-100 (clasps, zippers, prongs, screws)
+}
 
 export interface DeepVerifyResult {
   product_name: string;
   brand: string;
-  verdict: "LIKELY_AUTHENTIC" | "SUSPICIOUS" | "CANNOT_DETERMINE";
+  category: ForensicCategory;
+  verdict: "LIKELY_AUTHENTIC" | "SUSPICIOUS" | "COUNTERFEIT_REPLICA" | "CANNOT_DETERMINE";
   authenticity_score: number;
   confidence: "HIGH" | "MEDIUM" | "LOW";
+  forensic_breakdown: ForensicBreakdown;
   positive_indicators: string[];
   red_flags: string[];
   inconclusive_areas: string[];
   forensic_summary: string;
   recommendation: "SAFE_TO_BUY" | "EXERCISE_CAUTION" | "DO_NOT_BUY";
+  hallmark_analysis?: string;
   isMockFallback?: boolean;
 }
 
-const BRAND_AUTHENTICITY_KNOWLEDGE: Record<string, string> = {
-  nike: "Check: Tag typography and spacing (authentic Nike uses Futura Bold Condensed), date formatting on size tag, heel tab embroidery alignment, midsole star pattern, uniform stitch density (no double-crossing threads).",
-  jordan: "Check: Jumpman logo finger count and shoelace details, Wings logo embossing depth and RD connecting letters, tongue tag font kerning, box label sticker typeface.",
-  supreme: "Check: Box logo letter kerning (specifically 'r' and 'e' spacing), non-italicized clean Futura font, neck tag country of origin (USA/Canada), side flag tag embroidery quality.",
-  yeezy: "Check: Primeknit stitch pattern along center seam, Boost pellet texture (soft, irregular defined pellets, not smooth plastic), interior heel cushion dots, size label font weight.",
-  carhartt: "Check: Union made in USA / Mexico care tags, embossed copper rivets, heavy duck canvas texture, YKK or Talon brass zipper pull branding.",
-  "ralph lauren": "Check: Polo player pony details (clearly defined mallet, reins, player leg), blue neck tag weave texture, RN 41381 registration number, mother-of-pearl cross-stitched buttons.",
-  "louis vuitton": "Check: Monogram alignment (symmetric, LV logo never cut off on seams in authentic bags), date code / microchip format, heat stamp font (O is very round, TT very close together), brass hardware weight.",
-  gucci: "Check: Double G logo interlocking symmetry, underside font of leather tab with 'R' trademark circle, Gucci font serifs, serial number font (clean sans-serif numbers with distinct font).",
-  apple: "Check: Lightning/USB-C pin plating uniformity, laser-etched serial numbers, font alignment on device chassis (San Francisco typeface), packaging pull-tab tear mechanics.",
-  sony: "Check: Laser-engraved model badges, screw finish (black oxide/recessed), label font fidelity and regulatory FCC/CE markings.",
-};
+function generateMockVerification(
+  productName?: string,
+  brand?: string,
+  category?: ForensicCategory
+): DeepVerifyResult {
+  const cat = category || detectForensicCategory(`${brand || ""} ${productName || ""}`);
+  const name = productName || (cat === "crystals_gems" ? "Natural Amethyst Geode Cluster" : cat === "precious_metals" ? "18K Solid Gold Curb Chain (750)" : "Luxury Designer Item");
+  const b = brand || (cat === "luxury_handbags" ? "Louis Vuitton" : cat === "watches" ? "Rolex" : "Authentic Maker");
 
-function getBrandKnowledgePrompt(brandOrName: string): string {
-  const lower = brandOrName.toLowerCase();
-  for (const [key, knowledge] of Object.entries(BRAND_AUTHENTICITY_KNOWLEDGE)) {
-    if (lower.includes(key)) {
-      return `Brand-Specific Counterfeit Inspection Guide for ${key.toUpperCase()}:\n${knowledge}`;
-    }
-  }
-  return "General Inspection: Inspect label typography, stitch density, symmetry, material texture, hardware quality (zippers/rivets), and country-of-origin markings.";
-}
-
-function generateMockVerification(productName?: string, brand?: string): DeepVerifyResult {
-  const name = productName || "Nike Dunk Low Retro White Black Panda";
-  const b = brand || "Nike";
   return {
     product_name: name,
     brand: b,
+    category: cat,
     verdict: "LIKELY_AUTHENTIC",
-    authenticity_score: 94,
+    authenticity_score: 96,
     confidence: "HIGH",
+    forensic_breakdown: {
+      material: 97,
+      typography: 95,
+      craftsmanship: 96,
+      hardware: 94,
+    },
     positive_indicators: [
-      "Brand tag typography and style code layout matches authentic manufacturer standards.",
-      "Stitch density and seam spacing are consistent and uniform across panels.",
-      "Logo proportions and geometry show correct alignment without distortion.",
-      "Hardware and material finishing show authentic texture and construction.",
+      cat === "crystals_gems"
+        ? "Angular natural mineral inclusions and horizontal prism striations confirmed without spherical gas bubbles."
+        : cat === "precious_metals"
+        ? "Clean stamped assay hallmark without mold casting lines or base metal copper exposure on high-friction joints."
+        : "Brand stamp typography, stitch density, and material finishing match manufacturer standards.",
+      "Symmetry and proportions align with genuine reference benchmarks.",
+      "Material surface texture and light refraction indicate authentic composition.",
     ],
     red_flags: [],
     inconclusive_areas: [
-      "Internal micro-stamp or hidden factory codes partially obscured by lighting.",
+      "Microscopic internal refraction under 50x magnification could not be fully resolved from mobile lens.",
     ],
-    forensic_summary: `Multi-angle forensic analysis of "${name}" reveals genuine manufacturing hallmarks, clean label typography, and zero structural counterfeit anomalies.`,
+    forensic_summary: `Multi-angle forensic analysis of "${name}" reveals genuine manufacturing hallmarks, authentic physical characteristics, and zero structural counterfeit anomalies.`,
     recommendation: "SAFE_TO_BUY",
+    hallmark_analysis: cat === "precious_metals" ? "Assay Mark 750: Verified 18K Solid Gold standard." : undefined,
     isMockFallback: true,
   };
 }
@@ -103,7 +111,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json().catch(() => ({}));
-    const { imageUrls, productName, brand, category } = body;
+    const { imageUrls, productName, brand, category: selectedCategory } = body;
 
     if (!imageUrls || !Array.isArray(imageUrls) || imageUrls.length === 0) {
       return NextResponse.json(
@@ -112,41 +120,62 @@ export async function POST(req: Request) {
       );
     }
 
-    const brandContext = getBrandKnowledgePrompt(`${brand || ""} ${productName || ""}`);
+    // Determine category configuration
+    const activeCategory: ForensicCategory =
+      selectedCategory && FORENSIC_CATEGORIES[selectedCategory as ForensicCategory]
+        ? (selectedCategory as ForensicCategory)
+        : detectForensicCategory(`${brand || ""} ${productName || ""}`);
 
-    const systemPrompt = `You are Spadas Forensic Authenticity Engine, the world's most rigorous anti-counterfeit AI inspector for reselling sneakers, streetwear, luxury fashion, vintage collectibles, and electronics.
+    const categoryConfig = FORENSIC_CATEGORIES[activeCategory] || FORENSIC_CATEGORIES.general_resale;
 
-Your task is to conduct an in-depth, forensic multi-angle inspection of the provided product images.
+    const systemPrompt = `You are Spadas Universal Forensic Authenticity Engine, the world's most rigorous anti-counterfeit AI inspector for Crystals, Precious Metals (Gold/Silver), Luxury Handbags, Watches, Sneakers, Trading Cards, and Rare Collectibles.
 
-${brandContext}
+Your goal is to conduct an authoritative, in-depth multi-angle forensic audit of the provided item.
 
-EVALUATION CRITERIA:
-1. Label & Typography: Kerning, font boldness, date format, country of origin, style codes, RN numbers.
-2. Seam & Stitching: Stitch count per inch, stitch tension, double-stitching errors, loose thread ends.
-3. Logo & Graphics: Geometry, proportions, embossing depth, embroidery density, placement symmetry.
-4. Materials & Hardware: Grain texture, zipper branding (YKK/Talon/Riri/Lampo), leather edge burnishing, rivet stamping.
-5. Common Counterfeit Tells: Font bleeding, plastic sheen, asymmetric logo placement, incorrect serial formats.
+CATEGORY: ${categoryConfig.name.toUpperCase()} (${categoryConfig.tagline})
+${categoryConfig.knowledgePrompt}
+
+EVALUATION PROTOCOL:
+1. Material & Structural Integrity:
+   - Crystals: Natural angular inclusions vs perfectly round glass/resin bubbles, fracture marks vs cleavage planes, color zoning vs chemical dye bleed.
+   - Gold/Silver: Hallmarks (375, 585, 750, 925), maker's mark, plating wear revealing green copper/yellow brass at friction points, cast mold seam lines.
+   - Luxury Handbags: Heat stamp font (e.g. LV perfectly round O), monogram seam symmetry, 28° saddle stitch slant vs lockstitch, hardware engravings.
+   - Watches: Dial printing sharpness, cyclops 2.5x magnification, rehaut engraving, case bevels.
+   - Sneakers: Tag typography, UPC spacing, Boost matrix, embroidery density.
+   - Trading Cards: Rosette CMYK offset dots vs flat inkjet printing, holo foil pattern, centering.
+
+2. Strict Counterfeit Detection:
+   - If there is clear evidence of replica manufacturing (e.g. base metal showing under gold plating, round bubbles in a 'quartz' crystal, misspelled brand stamps, or crooked machine stitching on an Hermes bag), assign a score UNDER 40 and verdict "COUNTERFEIT_REPLICA".
+   - If genuine manufacturing hallmarks are confirmed across all photos, assign score 90+ and verdict "LIKELY_AUTHENTIC".
 
 OUTPUT FORMAT:
-You MUST respond with valid JSON adhering strictly to this schema:
+Respond ONLY with valid JSON adhering to this exact schema:
 {
   "product_name": string,
   "brand": string,
-  "verdict": "LIKELY_AUTHENTIC" | "SUSPICIOUS" | "CANNOT_DETERMINE",
+  "category": "${activeCategory}",
+  "verdict": "LIKELY_AUTHENTIC" | "SUSPICIOUS" | "COUNTERFEIT_REPLICA" | "CANNOT_DETERMINE",
   "authenticity_score": number (0 to 100 integer),
   "confidence": "HIGH" | "MEDIUM" | "LOW",
-  "positive_indicators": string[] (2-4 specific positive visual observations),
-  "red_flags": string[] (list of any counterfeit red flags, or empty array if none),
-  "inconclusive_areas": string[] (areas that could not be fully verified from camera angles),
-  "forensic_summary": string (concise 2-sentence breakdown in plain reseller English),
-  "recommendation": "SAFE_TO_BUY" | "EXERCISE_CAUTION" | "DO_NOT_BUY"
+  "forensic_breakdown": {
+    "material": number (0 to 100),
+    "typography": number (0 to 100),
+    "craftsmanship": number (0 to 100),
+    "hardware": number (0 to 100)
+  },
+  "positive_indicators": string[] (2-4 specific genuine visual observations),
+  "red_flags": string[] (explicit counterfeit red flags, or empty array if none),
+  "inconclusive_areas": string[] (areas obscured by lighting or angle),
+  "forensic_summary": string (concise, authoritative 2-sentence breakdown in plain reseller English),
+  "recommendation": "SAFE_TO_BUY" | "EXERCISE_CAUTION" | "DO_NOT_BUY",
+  "hallmark_analysis": string (optional breakdown of any detected hallmark or serial code)
 }`;
 
     const apiKey = getPrimaryAiApiKey();
 
     if (!apiKey) {
-      console.warn("[Deep Verify] No OpenAI API Key found — using mock fallback.");
-      return NextResponse.json(generateMockVerification(productName, brand));
+      console.warn("[Deep Verify] No AI API Key found — using mock fallback.");
+      return NextResponse.json(generateMockVerification(productName, brand, activeCategory));
     }
 
     const openai = createOpenAiClient();
@@ -169,7 +198,7 @@ You MUST respond with valid JSON adhering strictly to this schema:
           content: [
             {
               type: "text",
-              text: `Perform multi-angle deep authenticity inspection. Expected item: "${productName || "Unknown"}" Brand: "${brand || "Unknown"}" Category: "${category || "Resale item"}". Inspect all angles carefully.`,
+              text: `Perform rigorous multi-angle forensic legitimacy inspection. Expected Item: "${productName || "Unknown"}", Brand: "${brand || "Unknown"}", Category: "${categoryConfig.name}". Conduct material, hallmark, and structural audit.`,
             },
             ...imageContent,
           ],
@@ -181,7 +210,7 @@ You MUST respond with valid JSON adhering strictly to this schema:
 
     const rawContent = response.choices[0]?.message?.content;
     if (!rawContent) {
-      return NextResponse.json(generateMockVerification(productName, brand));
+      return NextResponse.json(generateMockVerification(productName, brand, activeCategory));
     }
 
     const parsed: DeepVerifyResult = JSON.parse(rawContent);
