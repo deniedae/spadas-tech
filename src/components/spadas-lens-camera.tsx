@@ -2121,6 +2121,7 @@ function SpadasLensCameraCore() {
                     e.stopPropagation();
                     setSoundEnabled(!soundEnabled);
                   }}
+                  aria-label={soundEnabled ? "Mute audio alert for item detection" : "Enable audio alert for item detection"}
                   className={`h-8 w-8 rounded-full border flex items-center justify-center transition backdrop-blur-md shadow-lg cursor-pointer ${
                     soundEnabled
                       ? "bg-cyan-500/20 border-cyan-400 text-cyan-300"
@@ -2138,6 +2139,7 @@ function SpadasLensCameraCore() {
                     e.stopPropagation();
                     handleToggleCameraPower();
                   }}
+                  aria-label={isCameraPoweredOn && stream ? "Turn off live camera scanner" : "Turn on live camera scanner"}
                   className={`h-8 px-2.5 rounded-full border flex items-center gap-1.5 transition backdrop-blur-md shadow-lg cursor-pointer ${
                     isCameraPoweredOn && stream
                       ? "bg-emerald-500/20 border-emerald-400 text-emerald-300 hover:bg-emerald-500/30 shadow-[0_0_12px_rgba(52,211,153,0.3)]"

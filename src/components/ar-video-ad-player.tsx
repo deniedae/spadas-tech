@@ -84,6 +84,7 @@ export default function ARVideoAdPlayer() {
 
             <button
               onClick={() => setIsMuted(!isMuted)}
+              aria-label={isMuted ? "Unmute audio alert for item detection" : "Mute audio alert for item detection"}
               className="h-7 w-7 rounded-full bg-slate-900/80 backdrop-blur-md border border-slate-700 flex items-center justify-center text-slate-300 hover:text-white"
             >
               {isMuted ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
@@ -152,6 +153,7 @@ export default function ARVideoAdPlayer() {
           <div className="flex items-center justify-center gap-3 pt-1">
             <button
               onClick={() => setIsPlaying(!isPlaying)}
+              aria-label={isPlaying ? "Pause simulated video ad" : "Play simulated video ad"}
               className="h-8 w-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition"
             >
               {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4 ml-0.5" />}
@@ -162,6 +164,7 @@ export default function ARVideoAdPlayer() {
                 setAudioTriggered(false);
                 setIsPlaying(true);
               }}
+              aria-label="Restart simulated video ad from beginning"
               className="h-8 w-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition"
             >
               <RotateCcw className="h-3.5 w-3.5" />

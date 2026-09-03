@@ -255,6 +255,7 @@ export default function LandingInteractiveDemo() {
           <button
             type="button"
             onClick={playChime}
+            aria-label="Play audio alert for item detection"
             className="inline-flex items-center gap-1.5 text-xs font-bold text-cyan-400 hover:text-cyan-300 transition cursor-pointer"
             title="Test Audio Chime"
           >

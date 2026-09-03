@@ -19,7 +19,10 @@ export const metadata: Metadata = {
   },
   description:
     "Track inventory, profits, and sales across marketplaces in one dashboard built for resellers.",
-  metadataBase: new URL("https://spadas-tech.vercel.app"),
+  metadataBase: new URL("https://spadas.ai"),
+  alternates: {
+    canonical: "https://spadas.ai",
+  },
   applicationName: "Spadas AI",
   authors: [{ name: "SpadasTechnology" }],
   keywords: [
@@ -30,19 +33,31 @@ export const metadata: Metadata = {
     "vinted",
     "depop",
     "flip",
+    "authenticity check",
+    "forensic audit",
   ],
   openGraph: {
     type: "website",
-    url: "https://spadas-tech.vercel.app",
+    url: "https://spadas.ai",
     title: "Spadas AI — Reseller Inventory & Analytics",
     description:
-      "Track inventory, profits, and sales in one dashboard built for resellers.",
+      "Track inventory, profits, live AR camera sold comps, and forensic authentication in one dashboard built for resellers.",
     siteName: "Spadas AI",
+    images: [
+      {
+        url: "https://spadas.ai/og-preview.jpg",
+        width: 1200,
+        height: 630,
+        alt: "Spadas AI — Reseller Inventory, Live AR Scanner & Forensic Engine",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Spadas AI",
-    description: "Reseller inventory management and analytics.",
+    title: "Spadas AI — Reseller Inventory & Analytics",
+    description:
+      "Track inventory, profits, live AR camera sold comps, and forensic authentication in one dashboard built for resellers.",
+    images: ["https://spadas.ai/og-preview.jpg"],
   },
   icons: {
     icon: "/icon-192.png",
@@ -75,6 +90,8 @@ export default function RootLayout({
   return (
     <html lang="en" className={cn("font-sans", geist.variable)}>
       <head>
+        <link rel="canonical" href="https://spadas.ai" />
+        <meta property="og:image" content="https://spadas.ai/og-preview.jpg" />
         <script
           dangerouslySetInnerHTML={{
             __html: `
