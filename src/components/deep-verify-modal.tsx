@@ -519,6 +519,52 @@ Verified by Spadas AI Universal Forensic Engine`;
                   </p>
                 </div>
               )}
+
+              {/* Wear Decoupled from Authenticity Banner */}
+              {result.wear_and_tear_notes && (
+                <div className="p-3 rounded-xl bg-emerald-950/30 border border-emerald-500/30 flex items-start gap-2.5 text-xs animate-fade-in">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-extrabold text-emerald-300 block text-[10px] uppercase tracking-wider">
+                      Wear Decoupled from Authenticity (Expert Guardrail)
+                    </span>
+                    <p className="text-[11px] text-slate-200 mt-0.5 leading-snug">
+                      {result.wear_and_tear_notes}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Image Quality Filter: Retake Angle Prompt (Instead of Slashing Scores) */}
+              {result.retake_recommended && (
+                <div className="p-3.5 rounded-2xl bg-sky-950/40 border border-sky-500/40 space-y-2 animate-fade-in">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-extrabold text-sky-300 flex items-center gap-1.5 uppercase tracking-wider text-[10px]">
+                      <Camera className="h-3.5 w-3.5 text-sky-400" /> Image Quality Filter (Score Protected)
+                    </span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-500/30">
+                      Clearer Shot Needed
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-200 leading-relaxed font-medium">
+                    {result.retake_recommended.reason}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setResult(null);
+                      const targetIdx = result.retake_recommended?.angle_id
+                        ? activeConfig.angles.findIndex((a) => a.id === result.retake_recommended?.angle_id)
+                        : -1;
+                      setCurrentStepIndex(targetIdx >= 0 ? targetIdx : 0);
+                      startCamera();
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 text-xs font-black transition cursor-pointer active:scale-95 shadow-md shadow-sky-500/20"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" /> Retake Photo for 99% Confidence
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             /* Guided Photo Capture Checklist Flow */

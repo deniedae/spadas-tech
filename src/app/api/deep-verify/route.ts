@@ -37,6 +37,12 @@ export interface DeepVerifyResult {
   hallmark_analysis?: string;
   cleanup_advisory?: string;
   market_spread?: string;
+  wear_and_tear_notes?: string;
+  retake_recommended?: {
+    angle_id?: string;
+    angle_title?: string;
+    reason: string;
+  };
   isMockFallback?: boolean;
 }
 
@@ -183,6 +189,18 @@ EVALUATION PROTOCOL:
    - Sneakers: Tag typography, UPC spacing, Boost matrix, embroidery density.
    - Trading Cards: Rosette CMYK offset dots vs flat inkjet printing, holo foil pattern, centering.
 
+CRITICAL AUTHENTICATOR GUARDRAILS (SEASONED EXPERT PROTOCOL):
+1. DECOUPLE WEAR FROM AUTHENTICITY:
+   - Separate physical condition (scuffs, loose threads from use, surface dirt, paint/drywall flecks, patina, softening edges, cosmetic fatigue) from manufacturing hallmarks.
+   - Physical wear on genuine materials MUST NOT penalize the Authenticity Score.
+   - Vintage and pre-owned luxury items with honest wear can and should still achieve 95%–99% Authenticity Scores if the core manufacturing construction, heat stamps, fonts, and materials are genuine. Cosmetic fatigue is NOT a replica defect!
+   - Report honest wear in "wear_and_tear_notes" and "cleanup_advisory", NOT as counterfeit red flags or score penalties.
+
+2. IMAGE QUALITY FILTER INSTEAD OF SLASHING SCORES:
+   - If a hallmark, stamp, or seam is out of focus, has camera flash glare, or is under-lit, output "Needs clearer macro shot" under "inconclusive_areas" and populate "retake_recommended", rather than lowering the authenticity confidence to suspicious.
+   - Lack of camera focus or sub-optimal mobile lighting is an image quality limitation, NOT evidence of a counterfeit.
+   - Only assign a low score or suspicious/counterfeit verdict when you observe DEFINITIVE VISUAL PROOF of counterfeit manufacturing (e.g. straight 'R' leg on Prada, wrong font typography, peeling rubber glazing, pot metal cast seams, plastic PVC texture).
+
 2. Strict Counterfeit Detection:
    - If there is clear evidence of replica manufacturing (e.g. base metal showing under gold plating, round bubbles in a 'quartz' crystal, misspelled brand stamps, straight 'R' leg on Prada, or crooked machine stitching on an Hermes bag), assign a score UNDER 40 and verdict "COUNTERFEIT_REPLICA".
    - If genuine manufacturing hallmarks are confirmed across all photos (e.g. Prada notched 'R' and factory tag confirmed), assign score 90-99 and verdict "LIKELY_AUTHENTIC".
@@ -208,7 +226,13 @@ Respond ONLY with valid JSON adhering to this exact schema:
   },
   "positive_indicators": string[] (2-4 specific genuine visual observations),
   "red_flags": string[] (explicit counterfeit red flags, or empty array if none),
-  "inconclusive_areas": string[] (areas obscured by lighting or angle),
+  "inconclusive_areas": string[] (areas obscured by lighting or angle; write 'Needs clearer macro shot' if photo is blurry/glared),
+  "wear_and_tear_notes": string (optional note confirming physical wear was separated from authenticity),
+  "retake_recommended": {
+    "angle_id": string (optional angle id),
+    "angle_title": string (optional angle title),
+    "reason": string (e.g. "Needs clearer macro shot: avoid camera flash glare over heat stamp")
+  } (optional, only if photo clarity prevented 99% inspection),
   "forensic_summary": string (concise, authoritative 2-sentence breakdown in plain reseller English),
   "recommendation": "SAFE_TO_BUY" | "EXERCISE_CAUTION" | "DO_NOT_BUY",
   "hallmark_analysis": string (optional breakdown of any detected hallmark, Prada notched 'R', or serial code),
