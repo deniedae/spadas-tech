@@ -18,6 +18,8 @@ import {
   ExternalLink,
   ArrowRight,
   TrendingUp,
+  QrCode,
+  Copy,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { DeepVerifyResult } from "@/app/api/deep-verify/route";
@@ -232,6 +234,8 @@ export function DeepVerifyModal({
     }
   };
 
+  const publicCertUrl = result?.certificate_url || (result?.certificate_id ? `https://spadas.ai/cert/${result.certificate_id}` : "https://spadas.ai/cert/demo");
+
   const handleCopyCertificate = () => {
     if (!result) return;
     const certText = `🛡️ SPADAS AI FORENSIC AUDIT CERTIFICATE
@@ -244,10 +248,17 @@ Forensic Breakdown:
 • Craftsmanship & Seams: ${result.forensic_breakdown?.craftsmanship || 95}%
 • Hardware & Fasteners: ${result.forensic_breakdown?.hardware || 93}%
 Verdict: ${result.recommendation.replace(/_/g, " ")}${result.cleanup_advisory ? `\nCondition Note: ${result.cleanup_advisory}` : ""}${result.market_spread ? `\nMarket Comps: ${result.market_spread}` : ""}
+Public Verification Link: ${publicCertUrl}
 Verified by Spadas AI Universal Forensic Engine`;
 
     navigator.clipboard.writeText(certText);
     toast.success("Authenticity Certificate copied to clipboard! Paste into your listing.");
+  };
+
+  const handleCopyPublicLink = () => {
+    if (!result) return;
+    navigator.clipboard.writeText(publicCertUrl);
+    toast.success("Public Certificate Link copied! Ready to drop into your eBay description.");
   };
 
   if (!isOpen) return null;
@@ -383,11 +394,29 @@ Verified by Spadas AI Universal Forensic Engine`;
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                  <button
+                    type="button"
+                    onClick={handleCopyPublicLink}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-black transition cursor-pointer shadow-md shadow-emerald-500/20 active:scale-95"
+                    title="Copy permanent public link to drop into eBay description"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" /> Public Link
+                  </button>
+                  <a
+                    href={publicCertUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-slate-200 hover:bg-slate-800 transition cursor-pointer"
+                    title="Open public digital certificate in new tab"
+                  >
+                    <QrCode className="h-3.5 w-3.5 text-cyan-400" /> View Cert
+                  </a>
                   <button
                     type="button"
                     onClick={handleCopyCertificate}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-black transition cursor-pointer shadow-md shadow-cyan-500/20 active:scale-95"
+                    title="Copy full certificate markdown text"
                   >
                     <Share2 className="h-3.5 w-3.5" /> Copy Cert
                   </button>

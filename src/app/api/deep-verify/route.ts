@@ -11,6 +11,11 @@ import {
   detectForensicCategory,
   ForensicCategory,
 } from "@/lib/forensic-knowledge";
+import {
+  generateCertificateId,
+  saveCertificate,
+  ForensicCertificateData,
+} from "@/lib/forensic-certificates";
 
 export const preferredRegion = "syd1";
 
@@ -22,6 +27,8 @@ export interface ForensicBreakdown {
 }
 
 export interface DeepVerifyResult {
+  certificate_id?: string;
+  certificate_url?: string;
   product_name: string;
   brand: string;
   category: ForensicCategory;
@@ -72,8 +79,11 @@ function generateMockVerification(
       : "Authentic Maker");
 
   const isSlg = cat === "small_leather_goods";
+  const certId = generateCertificateId(name, b);
 
   return {
+    certificate_id: certId,
+    certificate_url: `https://spadas.ai/cert/${certId}`,
     product_name: name,
     brand: b,
     category: cat,
@@ -283,6 +293,34 @@ Respond ONLY with valid JSON adhering to this exact schema:
     }
 
     const parsed: DeepVerifyResult = JSON.parse(rawContent);
+    const certId = generateCertificateId(parsed.product_name || productName, parsed.brand || brand);
+    parsed.certificate_id = certId;
+    parsed.certificate_url = `https://spadas.ai/cert/${certId}`;
+
+    // Persist verified digital certificate for permanent public sharing
+    void saveCertificate({
+      id: certId,
+      created_at: new Date().toISOString(),
+      user_id: user.id,
+      product_name: parsed.product_name || productName || "Verified Item",
+      brand: parsed.brand || brand || "Luxury Brand",
+      category: parsed.category || activeCategory,
+      verdict: parsed.verdict,
+      authenticity_score: parsed.authenticity_score,
+      confidence: parsed.confidence,
+      recommendation: parsed.recommendation,
+      forensic_breakdown: parsed.forensic_breakdown,
+      positive_indicators: parsed.positive_indicators || [],
+      red_flags: parsed.red_flags || [],
+      inconclusive_areas: parsed.inconclusive_areas || [],
+      forensic_summary: parsed.forensic_summary,
+      hallmark_analysis: parsed.hallmark_analysis,
+      cleanup_advisory: parsed.cleanup_advisory,
+      market_spread: parsed.market_spread,
+      wear_and_tear_notes: parsed.wear_and_tear_notes,
+      image_urls: imageUrls || [],
+    });
+
     return NextResponse.json(parsed);
   } catch (err: any) {
     console.error("[Deep Verify API] Error:", err);

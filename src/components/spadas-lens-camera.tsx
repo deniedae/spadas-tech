@@ -226,6 +226,12 @@ function SpadasLensCameraCore() {
   const [sessionScanCount, setSessionScanCount] = useState<number>(0);
   const [shutterFlash, setShutterFlash] = useState<boolean>(false);
 
+  // Rapid Scan Mode (Hands-free Pocket Sourcing with Background Queue & Dual Vibration)
+  const [isRapidScanMode, setIsRapidScanMode] = useState<boolean>(false);
+  const [rapidQueueCount, setRapidQueueCount] = useState<number>(0);
+  const rapidScanQueueRef = useRef<Array<{ frameDataUrl: string; timestamp: number }>>([]);
+  const isProcessingRapidQueueRef = useRef<boolean>(false);
+
   // Scan Stabilization & Dynamic Confidence State
   const [isScanPaused, setIsScanPaused] = useState<boolean>(false);
   const [frozenFrameUrl, setFrozenFrameUrl] = useState<string | null>(null);
@@ -1857,6 +1863,106 @@ function SpadasLensCameraCore() {
     return () => clearInterval(interval);
   }, []);
 
+  // Background Worker for Rapid Scan Mode (Pocket Sourcing)
+  const processRapidScanQueue = useCallback(async () => {
+    if (isProcessingRapidQueueRef.current) return;
+    isProcessingRapidQueueRef.current = true;
+
+    while (rapidScanQueueRef.current.length > 0) {
+      const task = rapidScanQueueRef.current.shift();
+      setRapidQueueCount(rapidScanQueueRef.current.length);
+      if (!task) continue;
+
+      try {
+        const res = await fetch("/api/price-suggest", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            image: task.frameDataUrl,
+            mode: "auto",
+          }),
+        }).catch(() => null);
+
+        if (res && res.ok) {
+          const data = await res.json().catch(() => null);
+          const itm = data?.item;
+          if (itm && itm.name && itm.name.toLowerCase() !== "unknown item") {
+            const estValue = Number(itm.estimated_value) || 0;
+            const estCost =
+              Number(itm.estimated_cost) ||
+              (estValue <= 5 ? Math.max(1, Math.round(estValue * 0.65 * 100) / 100) : Math.max(2, Math.round(estValue * 0.15)));
+            const ebayFee = estValue * 0.134 + 0.33;
+            const trueNet = Math.max(0, Math.round((estValue - estCost - ebayFee) * 100) / 100);
+            const profit = Number(itm.estimated_profit) || trueNet;
+            const estRoi = estCost > 0 ? Math.round((profit / estCost) * 100) : 0;
+
+            const verificationCheck = checkNeedsVerification({
+              name: itm.name,
+              brand: itm.brand,
+              category: itm.category,
+              estimatedValue: estValue,
+            });
+
+            const isHighProfit = profit >= 50;
+            const isHighCounterfeitRisk = verificationCheck.needsVerification;
+
+            // Dual-Vibration Haptic Trigger: vibrates twice on >$50 profit or verification risk
+            if (isHighProfit || isHighCounterfeitRisk) {
+              if (typeof navigator !== "undefined" && navigator.vibrate) {
+                // Two distinct pulses: 300ms vibration, 150ms pause, 300ms vibration
+                navigator.vibrate([300, 150, 300]);
+              }
+              if (soundEnabled) {
+                playChime(profit);
+              }
+              toast.success(
+                isHighProfit
+                  ? `🚨 Rapid Hit: ${itm.name} (+$${profit} Profit!)`
+                  : `🛡️ Rapid Check: ${itm.name} (Verification Suggested)`
+              );
+            }
+            // If low-margin / junk: Stays completely quiet (no vibration, no sound)
+
+            const hit: DetectedHit = {
+              id: `rapid-${task.timestamp}-${Math.random().toString(36).slice(2, 7)}`,
+              name: itm.name,
+              brand: itm.brand || null,
+              category: itm.category || "General",
+              condition: itm.condition || "Used - Good",
+              bbox: { x: 15, y: 15, width: 70, height: 70 },
+              estimatedValue: estValue,
+              estCost,
+              estimatedProfit: profit,
+              trueNetProfit: trueNet,
+              estRoi,
+              roiPercentage: estRoi,
+              tagPrice: Number(itm.tag_price) || undefined,
+              copVerdict: profit >= 50 ? "MUST_COP" : profit >= 15 ? "QUICK_FLIP" : "PASS_RISKY",
+              verdict: profit > 15 ? "BUY" : profit >= 5 ? "CAUTION" : "PASS",
+              confidence: 0.98,
+              timestamp: task.timestamp,
+              isGrail: isHighProfit,
+              salesVelocity: {
+                sell_speed: profit > 40 ? "FAST_FLIP" : "MODERATE",
+                est_days_to_sell: profit > 40 ? "1-3 Days" : "7-14 Days",
+                demand_score: profit > 40 ? 92 : 75,
+                sell_through_rate: profit > 40 ? "88% High Demand" : "72% Steady Turnover",
+              },
+            };
+
+            setCapturedLog((prev) => [hit, ...prev.filter((h) => h.name !== hit.name)].slice(0, 50));
+            setSessionScanCount((prev) => prev + 1);
+          }
+        }
+      } catch (err) {
+        console.warn("[Rapid Scan Queue] Processing error:", err);
+      }
+    }
+
+    isProcessingRapidQueueRef.current = false;
+    setRapidQueueCount(0);
+  }, [soundEnabled]);
+
   const processFrameRef = useRef(processCurrentFrame);
   useEffect(() => {
     processFrameRef.current = processCurrentFrame;
@@ -2114,6 +2220,38 @@ function SpadasLensCameraCore() {
                   <Zap className="h-3.5 w-3.5" />
                 </button>
 
+                {/* Rapid Scan Pocket Mode Toggle */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const nextMode = !isRapidScanMode;
+                    setIsRapidScanMode(nextMode);
+                    toast.info(
+                      nextMode
+                        ? "⚡ Rapid Scan ON: Tap shutter rapidly & pocket phone. Vibrates twice on >$50 profit or verification risk."
+                        : "Live Continuous AR Scanner Active."
+                    );
+                  }}
+                  aria-label={isRapidScanMode ? "Disable Rapid Scan Mode" : "Enable Rapid Scan Mode"}
+                  className={`h-8 px-2.5 rounded-full border flex items-center gap-1 transition backdrop-blur-md shadow-lg cursor-pointer ${
+                    isRapidScanMode
+                      ? "bg-amber-400 border-amber-300 text-slate-950 font-black shadow-[0_0_15px_rgba(251,191,36,0.6)] animate-pulse"
+                      : "bg-slate-950/80 border-slate-700 text-slate-300 hover:text-white"
+                  }`}
+                  title={isRapidScanMode ? "Rapid Scan ON (Pocket Sourcing Active)" : "Enable Rapid Scan (Tap rapidly & pocket phone)"}
+                >
+                  <Zap className="h-3.5 w-3.5" />
+                  <span className="text-[10px] font-black uppercase tracking-wider">
+                    {isRapidScanMode ? "Rapid ON" : "Rapid"}
+                  </span>
+                  {rapidQueueCount > 0 && (
+                    <span className="ml-0.5 px-1.5 py-0.2 rounded-full bg-slate-950 text-amber-300 font-mono text-[9px]">
+                      {rapidQueueCount}
+                    </span>
+                  )}
+                </button>
+
                 {/* Sound Chime Toggle */}
                 <button
                   type="button"
@@ -2158,6 +2296,25 @@ function SpadasLensCameraCore() {
                 </button>
               </div>
             </div>
+
+            {/* Rapid Scan Active Pocket Indicator Banner */}
+            {isRapidScanMode && (
+              <div className="absolute top-14 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
+                <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-400 text-slate-950 text-[11px] font-black uppercase tracking-wider shadow-2xl border-2 border-amber-300 animate-pulse">
+                  <Zap className="h-3.5 w-3.5 text-slate-950 fill-slate-950" />
+                  <span>Rapid Mode • Pocket Ready</span>
+                  {rapidQueueCount > 0 ? (
+                    <span className="ml-1 px-2 py-0.5 rounded-full bg-slate-950 text-amber-300 font-mono text-[10px] font-bold">
+                      {rapidQueueCount} in background
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-slate-800 font-bold lowercase">
+                      (tap shutter & pocket phone)
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Minimalist Scanning Beam Indicator */}
             {analyzingRealFrame && (
@@ -2379,21 +2536,58 @@ function SpadasLensCameraCore() {
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
+                    if (isRapidScanMode) {
+                      const video = videoRef.current;
+                      if (video && video.videoWidth > 0 && video.videoHeight > 0) {
+                        try {
+                          const canvas = document.createElement("canvas");
+                          canvas.width = Math.min(video.videoWidth, 1200);
+                          canvas.height = Math.round((canvas.width / video.videoWidth) * video.videoHeight);
+                          const ctx = canvas.getContext("2d");
+                          if (ctx) {
+                            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                            const frameDataUrl = canvas.toDataURL("image/jpeg", 0.75);
+                            rapidScanQueueRef.current.push({ frameDataUrl, timestamp: Date.now() });
+                            setRapidQueueCount(rapidScanQueueRef.current.length);
+
+                            // Snappy shutter flash & subtle haptic feedback
+                            setShutterFlash(true);
+                            setTimeout(() => setShutterFlash(false), 120);
+                            if (typeof navigator !== "undefined" && navigator.vibrate) {
+                              navigator.vibrate(35);
+                            }
+
+                            // Trigger background worker
+                            void processRapidScanQueue();
+                          }
+                        } catch (err) {
+                          console.warn("[Rapid Scan] Snap error:", err);
+                        }
+                      }
+                      return;
+                    }
+
                     analyzingRef.current = false;
                     setAnalyzingRealFrame(false);
                     void processCurrentFrame(true);
                   }}
-                  disabled={analyzingRealFrame}
-                  className="group relative flex items-center justify-center h-16 w-16 sm:h-20 sm:w-20 rounded-full bg-gradient-to-tr from-cyan-500 via-blue-500 to-emerald-400 p-1 shadow-[0_0_35px_rgba(6,182,212,0.6)] active:scale-95 transition-all duration-200 cursor-pointer disabled:opacity-50"
-                  title="⚡ Quick Snap & Value"
+                  disabled={!isRapidScanMode && analyzingRealFrame}
+                  className={`group relative flex items-center justify-center h-16 w-16 sm:h-20 sm:w-20 rounded-full p-1 active:scale-95 transition-all duration-200 cursor-pointer disabled:opacity-50 ${
+                    isRapidScanMode
+                      ? "bg-gradient-to-tr from-amber-400 via-yellow-500 to-amber-300 shadow-[0_0_35px_rgba(251,191,36,0.7)]"
+                      : "bg-gradient-to-tr from-cyan-500 via-blue-500 to-emerald-400 shadow-[0_0_35px_rgba(6,182,212,0.6)]"
+                  }`}
+                  title={isRapidScanMode ? "⚡ Rapid Snap (Tap rapidly & pocket phone)" : "⚡ Quick Snap & Value"}
                 >
                   <div className="flex h-full w-full items-center justify-center rounded-full bg-slate-950/90 border-2 border-white/90 group-hover:bg-slate-900 transition">
-                    {analyzingRealFrame ? (
+                    {!isRapidScanMode && analyzingRealFrame ? (
                       <RefreshCw className="h-6 w-6 sm:h-7 sm:w-7 text-cyan-400 animate-spin" />
                     ) : (
                       <div className="flex flex-col items-center justify-center text-center">
-                        <Sparkles className="h-6 w-6 sm:h-7 sm:w-7 text-cyan-300 group-hover:scale-110 transition-transform" />
-                        <span className="text-[8px] sm:text-[9px] font-black text-cyan-300 uppercase tracking-tight -mt-0.5">SNAP</span>
+                        <Zap className={`h-6 w-6 sm:h-7 sm:w-7 group-hover:scale-110 transition-transform ${isRapidScanMode ? "text-amber-300" : "text-cyan-300"}`} />
+                        <span className={`text-[8px] sm:text-[9px] font-black uppercase tracking-tight -mt-0.5 ${isRapidScanMode ? "text-amber-300" : "text-cyan-300"}`}>
+                          {isRapidScanMode ? "RAPID" : "SNAP"}
+                        </span>
                       </div>
                     )}
                   </div>
