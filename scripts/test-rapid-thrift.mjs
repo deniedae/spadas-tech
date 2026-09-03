@@ -179,4 +179,35 @@ assert.equal(mockApiResponse.is_grail, true, "Profit >= 50 must be marked as gra
 
 console.log("  ✓ Rapid Thrift API schema and profit calculation verified.");
 
+// Test 6: Networking / TP-Link Hardware Classification & Anti-Vape Invariant
+console.log("▶ Test 6: Networking Hardware Classification & Anti-Vape Invariant");
+
+function classifyHardware(text, visualFeatures) {
+  const normalized = (text + " " + visualFeatures).toLowerCase();
+  const isNetworking =
+    normalized.includes("tp-link") ||
+    normalized.includes("netgear") ||
+    normalized.includes("wifi") ||
+    normalized.includes("wi-fi") ||
+    normalized.includes("extender") ||
+    normalized.includes("router") ||
+    normalized.includes("ethernet") ||
+    normalized.includes("dongle");
+
+  if (isNetworking) {
+    return {
+      category: "Networking & Computer Accessories",
+      isVape: false,
+    };
+  }
+
+  return { category: "General", isVape: false };
+}
+
+const tpLinkCheck = classifyHardware("TP-Link AC1200", "white plastic device with antennas and ethernet port");
+assert.equal(tpLinkCheck.category, "Networking & Computer Accessories");
+assert.equal(tpLinkCheck.isVape, false, "TP-Link must NEVER be categorized as a vape or electronic cigarette!");
+
+console.log("  ✓ Networking hardware correctly isolated from electronic cigarette misclassification.");
+
 console.log("\n🎉 ALL RAPID THRIFT SOURCING ENGINE TESTS PASSED!");

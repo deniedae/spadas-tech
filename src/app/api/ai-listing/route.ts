@@ -308,6 +308,11 @@ ${modePrompt}
 - VINTAGE DIGICAMS & TECH (Sony Cyber-shot, Canon PowerShot, Olympus, Nintendo):
   - Read visible model badges on the front or top plate (e.g. "Sony Cyber-shot DSC-W350 Digital Camera").
 
+- NETWORKING & ELECTRONIC HARDWARE (TP-Link, Netgear, Linksys, Cisco, Belkin, Anker, Apple, Sony, Nintendo, Logitech):
+  - Read visible brand stamps and model numbers (e.g., "TP-Link", "tp-link", "Archer", "N300", "AC1200", "Deco", "RE305").
+  - Accurately categorize networking equipment (Wi-Fi extender, router, network switch, powerline adapter, USB Wi-Fi dongle, smart plug).
+  - NEVER misidentify networking devices, USB dongles, or electronic plugs as "electronic cigarettes" or "vapes".
+
 - FOR COMMON HOUSEHOLD OR UNBRANDED ITEMS (e.g. coffee mug, water bottle, phone case, generic t-shirt, desk fan):
   - Identify it accurately as what it actually is (e.g. "Ceramic Coffee Mug White 350ml", "Stainless Steel Kitchen Tongs").
   - Do NOT hallucinate high-end collector brands unless clearly visible.

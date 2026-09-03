@@ -80,6 +80,15 @@ export async function POST(req: Request) {
     const systemPrompt = `You are Spadas Ultra-Fast Thrift Vision Engine. Analyze the thrift shelf/rack photo in <1.5s.
 Identify the exact item, brand, category, condition, estimated resale value (eBay sold comps in ${currency}), typical thrift store tag cost ($2-$20 ${currency}), and calculate True Net Profit (Resale Value - Thrift Cost - (Resale Value * 0.134 + 0.33)).
 Assign cop_verdict: "MUST_COP" (profit >= $50), "QUICK_FLIP" (profit >= $15), or "PASS_RISKY" (profit < $15).
+
+CRITICAL ACCURACY & OCR RULES:
+1. READ VISIBLE TEXT & BRAND LOGOS FIRST:
+   Actively inspect printed logos, emblems, badges, and model text (e.g. "TP-Link", "tp-link", "Netgear", "Linksys", "Cisco", "Belkin", "Anker", "Sony", "Nintendo", "Apple", "Logitech", "Carhartt", "Nike", "Patagonia", "Ralph Lauren").
+2. NEVER MISIDENTIFY NETWORKING / COMPUTER TECH AS VAPES:
+   Do NOT guess "electronic cigarette", "vape", or "e-cig" when looking at electronic hardware, Wi-Fi adapters, range extenders, smart plugs, USB dongles, chargers, or network accessories. An item with USB connectors, antennas, Ethernet RJ-45 ports, wall prongs, or status LEDs is networking/computer equipment (e.g. "TP-Link AC1200 Wi-Fi Range Extender" or "TP-Link Nano USB Wi-Fi Adapter"), NEVER an electronic cigarette.
+3. PRECISE TITLES:
+   Formulate accurate title: [Brand] [Model/Type] [Category/Color] (e.g. "TP-Link AC1200 Wi-Fi Range Extender White", "Vintage Carhartt Canvas Work Jacket").
+
 Output ONLY valid JSON adhering strictly to:
 {
   "product_name": string,
@@ -107,12 +116,12 @@ Output ONLY valid JSON adhering strictly to:
         {
           role: "user",
           content: [
-            { type: "text", text: `Appraise thrift item in ${currency}. Be fast and concise.` },
+            { type: "text", text: `Appraise thrift item in ${currency}. Read any visible text or brand logos and be precise.` },
             {
               type: "image_url",
               image_url: {
                 url: image,
-                detail: "low", // Fast low-detail token mode for instant thrift aisle throughput
+                detail: "auto", // Auto resolution enables reading brand names and ports without hallucination
               },
             },
           ],

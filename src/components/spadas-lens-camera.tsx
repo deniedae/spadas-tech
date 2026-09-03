@@ -961,9 +961,11 @@ function SpadasLensCameraCore() {
       video.srcObject = stream;
       video.play().catch(() => {});
 
-      // Trigger immediate initial scan tick 800ms after video attaches
+      // Trigger immediate initial scan tick 800ms after video attaches (only in continuous sweep mode, never in rapid mode)
       const initScanTimer = setTimeout(() => {
-        void processFrameRef.current(true);
+        if (!isRapidScanMode && scanMode === "sweep") {
+          void processFrameRef.current(true);
+        }
       }, 800);
 
       const watchdog = setTimeout(() => {
@@ -2128,6 +2130,11 @@ function SpadasLensCameraCore() {
       }
 
       // Strict Throttling & Cooldowns:
+      // In Rapid Mode, NEVER auto-sample frames — only user shutter taps are processed!
+      if (isRapidScanMode) {
+        return;
+      }
+
       // Mode 1: SWEEP / AUTO AR MODE -> 3500ms min cooldown + settled frame confirmation
       if (scanMode === "sweep") {
         if (!isPanning) {
@@ -2155,7 +2162,7 @@ function SpadasLensCameraCore() {
       isDestroyed = true;
       clearInterval(interval);
     };
-  }, [stream, autoScanActive, scanMode, deepVerifyItem, isScanPaused, activeCompsHit]);
+  }, [stream, autoScanActive, scanMode, deepVerifyItem, isScanPaused, activeCompsHit, isRapidScanMode]);
 
   useEffect(() => {
     return () => {
@@ -2170,6 +2177,9 @@ function SpadasLensCameraCore() {
         onClick={() => {
           if (isScanPaused) {
             handleResumeScanning();
+          } else if (isRapidScanMode) {
+            // In Rapid Mode, taps on viewfinder are ignored to prevent accidental scans in pocket
+            return;
           } else if (!analyzingRealFrame) {
             void processCurrentFrame(true);
           }
@@ -2309,6 +2319,7 @@ function SpadasLensCameraCore() {
                     const nextMode = !isRapidScanMode;
                     setIsRapidScanMode(nextMode);
                     if (nextMode) {
+                      setAutoScanActive(false); // Stop automatic continuous scans
                       void requestWakeLock();
                       if (typeof navigator !== "undefined" && navigator.vibrate) {
                         navigator.vibrate([80, 40, 80]);
@@ -2316,7 +2327,7 @@ function SpadasLensCameraCore() {
                       if (soundEnabled) {
                         playScanBeep();
                       }
-                      toast.info("⚡ Rapid Scan ON: Tap shutter rapidly & pocket phone. Vibrates twice on >$50 profit or verification risk.");
+                      toast.info("⚡ Rapid Scan ON: Tap shutter to snap items. Auto-scanning paused for pocketing.");
                     } else {
                       releaseWakeLock();
                       toast.info("Live Continuous AR Scanner Active.");
@@ -2386,36 +2397,7 @@ function SpadasLensCameraCore() {
               </div>
             </div>
 
-            {/* Rapid Scan Active Pocket Indicator Banner & Review Pill */}
-            {isRapidScanMode && (
-              <div className="absolute top-14 left-1/2 -translate-x-1/2 z-30 pointer-events-auto flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsRapidDrawerOpen(true)}
-                  className="group flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-950/90 border border-amber-400/80 shadow-[0_0_25px_rgba(251,191,36,0.35)] backdrop-blur-md text-xs font-bold text-white hover:scale-105 active:scale-95 transition cursor-pointer"
-                  title="Open Rapid Thrift Haul Review"
-                >
-                  <div className="flex h-4.5 w-4.5 items-center justify-center rounded-full bg-amber-400 text-slate-950 font-black">
-                    <Zap className="h-3 w-3" />
-                  </div>
-                  <span>
-                    Haul: <strong className="text-amber-300">{rapidItems.length}</strong>
-                  </span>
-                  <span className="text-slate-600">•</span>
-                  <span className="font-mono text-emerald-400 font-black">
-                    +${rapidStats.totalProfit}
-                  </span>
-                  {rapidStats.queuedItems > 0 && (
-                    <span className="flex items-center gap-1 text-[10px] text-amber-300 bg-amber-400/20 px-1.5 py-0.2 rounded-full animate-pulse">
-                      <RefreshCw className="h-2.5 w-2.5 animate-spin" /> {rapidStats.queuedItems}
-                    </span>
-                  )}
-                  <span className="text-[10px] text-slate-400 underline underline-offset-2 group-hover:text-white ml-0.5">
-                    Review
-                  </span>
-                </button>
-              </div>
-            )}
+
 
             {/* Minimalist Scanning Beam Indicator */}
             {analyzingRealFrame && (
@@ -2733,6 +2715,40 @@ function SpadasLensCameraCore() {
                 </button>
               )}
             </div>
+
+            {/* Compact Rapid Haul Review Badge (Bottom Right — Clean, Out of Viewfinder & Button Flow) */}
+            {isRapidScanMode && (
+              <div className="absolute bottom-4 right-3 sm:right-5 z-30 pointer-events-auto">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsRapidDrawerOpen(true);
+                  }}
+                  className="group flex items-center gap-1.5 px-3 py-2 rounded-full bg-slate-950/90 border border-amber-400/80 shadow-[0_0_15px_rgba(251,191,36,0.35)] backdrop-blur-md text-xs font-bold text-white hover:scale-105 active:scale-95 transition cursor-pointer"
+                  title="Open Rapid Thrift Haul Review"
+                >
+                  <div className="flex h-4 w-4 items-center justify-center rounded-full bg-amber-400 text-slate-950 font-black shrink-0">
+                    <Zap className="h-2.5 w-2.5" />
+                  </div>
+                  <span className="font-mono text-amber-300 font-black text-xs">
+                    {rapidItems.length}
+                  </span>
+                  {rapidStats.totalProfit > 0 && (
+                    <span className="font-mono text-emerald-400 font-bold text-[11px] hidden xs:inline">
+                      +${rapidStats.totalProfit.toFixed(0)}
+                    </span>
+                  )}
+                  {rapidStats.queuedItems > 0 ? (
+                    <RefreshCw className="h-3 w-3 text-amber-300 animate-spin ml-0.5" />
+                  ) : (
+                    <span className="text-[10px] text-slate-400 group-hover:text-white uppercase font-extrabold tracking-wider ml-0.5">
+                      Haul
+                    </span>
+                  )}
+                </button>
+              </div>
+            )}
           </>
         ) : (
           /* Camera Standby / Hardware Released View */
