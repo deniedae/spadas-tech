@@ -234,7 +234,7 @@ Verified by Spadas AI Universal Forensic Engine`;
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[110] flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
       <div className="fixed inset-0" onClick={onClose} aria-hidden="true" />
 
       <div className="relative w-full max-w-2xl z-10 bg-slate-950 border border-cyan-500/40 rounded-3xl shadow-2xl overflow-hidden max-h-[92vh] flex flex-col text-slate-100">

@@ -200,7 +200,7 @@ export default function LensCompsModal({
   const insights = getCategoryInsights();
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/85 backdrop-blur-md animate-fade-in">
+    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/85 backdrop-blur-md animate-fade-in">
       <div className="relative w-full max-w-lg h-[92vh] sm:h-auto sm:max-h-[88vh] flex flex-col rounded-t-3xl sm:rounded-3xl bg-slate-900 border border-cyan-500/40 shadow-[0_0_50px_rgba(6,182,212,0.25)] text-slate-100 overflow-hidden animate-slide-up">
         
         {/* ── 1. Top Fixed Header ───────────────────────────────────────────── */}
@@ -287,6 +287,21 @@ export default function LensCompsModal({
               )}
             </div>
           </div>
+
+          {/* Quick-Access AI Forensic Legit Check Button */}
+          {onDeepVerify && (
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onDeepVerify(item);
+              }}
+              className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black text-xs transition flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-purple-900/30 active:scale-95 border border-purple-400/40"
+            >
+              <ShieldCheck className="h-4 w-4 text-white" />
+              <span>🔬 AI Forensic Legit Check & Authenticity Audit</span>
+            </button>
+          )}
 
           {/* In-Aisle Interactive Thrift Tag Price & Store Color Discount Calculator */}
           <div className="rounded-2xl bg-slate-950/90 p-3 border border-slate-800 space-y-2">
