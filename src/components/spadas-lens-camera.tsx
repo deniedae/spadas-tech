@@ -245,21 +245,6 @@ function SpadasLensCameraCore() {
     }
   }, []);
 
-  // Hardware Camera Safety: fully stop camera so DeepVerifyModal can claim it without conflict
-  const handleOpenDeepVerify = useCallback((item: DetectedHit | ActiveScanItem) => {
-    stopCamera();
-    setDeepVerifyItem(item);
-  }, []);
-
-  const handleCloseDeepVerify = useCallback(() => {
-    setDeepVerifyItem(null);
-    if (isCameraPoweredOn) {
-      setTimeout(() => {
-        void startCamera();
-      }, 200);
-    }
-  }, [isCameraPoweredOn]);
-
   // Barcode Single-Scan Debounce (1 scan only per barcode item)
   const lastDetectedBarcodeRef = useRef<string | null>(null);
   const lastBarcodeTimeRef = useRef<number>(0);
@@ -1033,6 +1018,48 @@ function SpadasLensCameraCore() {
       toast.success("Camera powering on...", { id: "cam-power" });
     }
   }, [isCameraPoweredOn, stream, stopCamera]);
+
+  // Hardware Camera Safety: fully stop camera and clear all track locks before opening DeepVerifyModal
+  const handleOpenDeepVerify = useCallback((item: DetectedHit | ActiveScanItem) => {
+    // 1. Kill streamRef
+    if (streamRef.current) {
+      try {
+        streamRef.current.getTracks().forEach((track) => {
+          track.stop();
+          track.enabled = false;
+        });
+      } catch {}
+      streamRef.current = null;
+    }
+    // 2. Kill videoRef srcObject
+    if (videoRef.current && videoRef.current.srcObject) {
+      try {
+        (videoRef.current.srcObject as MediaStream).getTracks().forEach((t) => {
+          t.stop();
+          t.enabled = false;
+        });
+      } catch {}
+      videoRef.current.srcObject = null;
+    }
+    // 3. Clear stream state & camera power
+    setStream(null);
+    setIsCameraPoweredOn(false);
+    setScanning(false);
+    analyzingRef.current = false;
+    setAnalyzingRealFrame(false);
+
+    // 4. Open Deep Verify modal
+    setDeepVerifyItem(item);
+  }, []);
+
+  const handleCloseDeepVerify = useCallback(() => {
+    setDeepVerifyItem(null);
+    setIsCameraPoweredOn(true);
+    // Restart camera cleanly after modal unmounts
+    setTimeout(() => {
+      void startCamera();
+    }, 250);
+  }, []);
 
   // Speak Voice Cue
   const speakCue = (text: string) => {
@@ -1956,7 +1983,15 @@ function SpadasLensCameraCore() {
         }}
         className="relative aspect-[4/3] sm:aspect-[16/9] w-full max-w-full box-border overflow-hidden rounded-3xl border border-cyan-500/30 bg-slate-950 shadow-[0_0_50px_rgba(6,182,212,0.15)] backdrop-blur-xl cursor-pointer touch-pan-y"
       >
-        {cameraError ? (
+        {deepVerifyItem ? (
+          <div className="flex h-full min-h-[300px] flex-col items-center justify-center p-6 text-center space-y-3 text-slate-300 bg-slate-950">
+            <ShieldCheck className="h-12 w-12 text-purple-400 animate-pulse" />
+            <h4 className="text-sm font-black text-white">Camera Handed Off to Forensic Audit</h4>
+            <p className="text-xs text-slate-400 max-w-xs">
+              Background camera paused to give Deep Verify exclusive hardware access.
+            </p>
+          </div>
+        ) : cameraError ? (
           <div className="flex h-full flex-col items-center justify-center p-6 text-center space-y-3 text-slate-300">
             <ShieldAlert className="h-12 w-12 text-amber-400" />
             <p className="text-sm font-semibold">{cameraError}</p>

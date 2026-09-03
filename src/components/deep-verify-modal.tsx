@@ -16,6 +16,7 @@ import {
   Flame,
   Award,
   ExternalLink,
+  ArrowRight,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { DeepVerifyResult } from "@/app/api/deep-verify/route";
@@ -582,7 +583,11 @@ Verified by Spadas AI Universal Forensic Engine`;
                   </div>
                 ) : (
                   /* Live Camera View */
-                  <div className="relative w-full h-full flex items-center justify-center">
+                  <div
+                    onClick={handleCapturePhoto}
+                    className="relative w-full h-full flex items-center justify-center cursor-pointer"
+                    title="Tap viewfinder to snap photo"
+                  >
                     <video
                       ref={videoRef}
                       playsInline
@@ -592,6 +597,10 @@ Verified by Spadas AI Universal Forensic Engine`;
                     {/* Crosshair Guide */}
                     <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
                       <div className="w-48 h-48 border-2 border-dashed border-cyan-400/40 rounded-2xl animate-pulse" />
+                    </div>
+                    {/* Tap to Snap Hint */}
+                    <div className="absolute bottom-2.5 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full text-[10px] font-bold text-slate-300 border border-white/10 pointer-events-none flex items-center gap-1.5 shadow-md">
+                      <Camera className="w-3 h-3 text-cyan-400" /> Tap screen or shutter below
                     </div>
                     {!cameraActive && (
                       <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/90 text-center p-4 space-y-2.5 z-20">
@@ -626,60 +635,116 @@ Verified by Spadas AI Universal Forensic Engine`;
                 )}
               </div>
 
-              {/* Shutter / Upload Buttons */}
-              <div className="flex items-center justify-between gap-3 pt-2">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  onChange={handleFileUpload}
-                  className="hidden"
-                />
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-2xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-bold text-slate-300 transition cursor-pointer"
-                >
-                  <Upload className="w-4 h-4" /> Upload Photo
-                </button>
+              {/* Hidden File Input for Native Camera & Uploads */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
 
-                {!capturedImages[currentStepIndex] ? (
+              {/* Native Mobile Camera Controls Console */}
+              <div className="pt-2 flex flex-col items-center gap-3">
+                {/* 3-Point Ergonomic Control Bar */}
+                <div className="flex items-center justify-around w-full max-w-sm mx-auto px-4 py-1">
+                  {/* Left: Upload / Gallery Button */}
                   <button
                     type="button"
-                    onClick={handleCapturePhoto}
-                    className="flex-1 py-3 px-4 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 active:scale-95 text-slate-950 font-black text-sm transition cursor-pointer shadow-lg shadow-cyan-500/25 flex items-center justify-center gap-2"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex flex-col items-center justify-center gap-1 w-16 text-slate-400 hover:text-white transition cursor-pointer group active:scale-95"
+                    title="Upload photo or use native phone camera"
                   >
-                    <Camera className="w-4 h-4" />
-                    Snap {currentStep.title.split(". ")[1] || "Angle"}
+                    <div className="h-12 w-12 rounded-2xl bg-slate-900 border border-slate-700/80 group-hover:border-cyan-500/50 flex items-center justify-center shadow-lg transition">
+                      <Upload className="h-5 w-5 text-cyan-400" />
+                    </div>
+                    <span className="text-[10px] font-bold tracking-tight">Upload</span>
                   </button>
-                ) : (
+
+                  {/* Center: BIG TACTILE CIRCULAR SHUTTER BUTTON */}
+                  {!capturedImages[currentStepIndex] ? (
+                    <div className="flex flex-col items-center justify-center">
+                      <button
+                        type="button"
+                        onClick={handleCapturePhoto}
+                        className="relative h-20 w-20 rounded-full border-4 border-cyan-400/90 bg-slate-950 p-1 flex items-center justify-center shadow-[0_0_35px_rgba(6,182,212,0.6)] active:scale-90 hover:scale-105 transition cursor-pointer group"
+                        title={`Snap ${currentStep.title}`}
+                      >
+                        <div className="h-full w-full rounded-full bg-gradient-to-tr from-cyan-400 via-teal-300 to-blue-500 flex items-center justify-center shadow-inner group-hover:brightness-110">
+                          <Camera className="h-8 w-8 text-slate-950" />
+                        </div>
+                      </button>
+                      <span className="text-[11px] font-black text-cyan-300 mt-1.5 uppercase tracking-wider">
+                        Snap Photo
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (currentStepIndex < activeConfig.angles.length - 1) {
+                            setCurrentStepIndex((prev) => prev + 1);
+                          }
+                        }}
+                        className="relative h-20 w-20 rounded-full border-4 border-emerald-400/90 bg-slate-950 p-1 flex items-center justify-center shadow-[0_0_35px_rgba(16,185,129,0.6)] active:scale-90 hover:scale-105 transition cursor-pointer group"
+                        title="Proceed to Next Angle"
+                      >
+                        <div className="h-full w-full rounded-full bg-gradient-to-tr from-emerald-400 via-teal-300 to-cyan-400 flex items-center justify-center shadow-inner group-hover:brightness-110">
+                          <ArrowRight className="h-8 w-8 text-slate-950" />
+                        </div>
+                      </button>
+                      <span className="text-[11px] font-black text-emerald-300 mt-1.5 uppercase tracking-wider">
+                        Next Angle ➔
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Right: Retake or Angle Progress */}
+                  <div className="w-16 flex flex-col items-center justify-center">
+                    {capturedImages[currentStepIndex] ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const updated = [...capturedImages];
+                          updated.splice(currentStepIndex, 1);
+                          setCapturedImages(updated);
+                          void startCamera();
+                        }}
+                        className="flex flex-col items-center justify-center gap-1 text-slate-400 hover:text-rose-400 transition cursor-pointer group active:scale-95"
+                        title="Retake photo"
+                      >
+                        <div className="h-12 w-12 rounded-2xl bg-slate-900 border border-slate-700/80 group-hover:border-rose-500/50 flex items-center justify-center shadow-lg transition">
+                          <RefreshCw className="h-5 w-5 text-rose-400" />
+                        </div>
+                        <span className="text-[10px] font-bold tracking-tight">Retake</span>
+                      </button>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center gap-1 text-slate-500">
+                        <div className="h-12 w-12 rounded-2xl bg-slate-900/60 border border-slate-800 flex items-center justify-center font-mono font-bold text-xs text-slate-400">
+                          {currentStepIndex + 1}/4
+                        </div>
+                        <span className="text-[10px] font-bold">Angle</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Full-Width Prominent "Run Forensic Audit" Button when at least 1 photo is captured */}
+                {capturedImages.filter(Boolean).length > 0 && (
                   <button
                     type="button"
-                    onClick={() => {
-                      if (currentStepIndex < activeConfig.angles.length - 1) {
-                        setCurrentStepIndex((prev) => prev + 1);
-                      }
-                    }}
-                    className="flex-1 py-3 px-4 rounded-2xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs transition cursor-pointer"
+                    onClick={handleAnalyze}
+                    className="w-full max-w-sm mx-auto py-3.5 px-6 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:brightness-110 active:scale-98 text-slate-950 font-black text-xs sm:text-sm transition cursor-pointer shadow-[0_0_30px_rgba(16,185,129,0.45)] flex items-center justify-center gap-2 border border-emerald-300/40 animate-fade-in"
                   >
-                    Next Angle ➔
+                    <ShieldCheck className="w-4 h-4 text-slate-950 shrink-0" />
+                    <span>
+                      Run AI Forensic Audit ({capturedImages.filter(Boolean).length}/4 Photos)
+                    </span>
+                    <ArrowRight className="w-4 h-4 text-slate-950 shrink-0" />
                   </button>
                 )}
-
-                <button
-                  type="button"
-                  onClick={handleAnalyze}
-                  disabled={capturedImages.length === 0}
-                  className={`py-3 px-5 rounded-2xl font-black text-xs transition flex items-center gap-1.5 cursor-pointer ${
-                    capturedImages.length > 0
-                      ? "bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-lg shadow-emerald-500/25 active:scale-95"
-                      : "bg-slate-800 text-slate-500 cursor-not-allowed"
-                  }`}
-                >
-                  <ShieldCheck className="w-4 h-4" />
-                  Verify Now ({capturedImages.filter(Boolean).length}/4)
-                </button>
               </div>
             </div>
           )}
