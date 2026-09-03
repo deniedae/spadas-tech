@@ -8,9 +8,11 @@ import {
   ShieldCheck,
   ChevronDown,
   ChevronUp,
+  Scale,
 } from "lucide-react";
 import { fmtMoney } from "@/app/lib/listings";
 import type { DetectedHit } from "@/types/lens";
+import { OmniMarketplaceCompareModal } from "@/components/omni-marketplace-compare-card";
 
 interface LensHitCardProps {
   item: DetectedHit;
@@ -32,6 +34,7 @@ export default function LensHitCard({
   onReport,
 }: LensHitCardProps) {
   const [grailExpanded, setGrailExpanded] = useState(false);
+  const [showCompareModal, setShowCompareModal] = useState(false);
 
   // ── Verdict colour ──────────────────────────────────────────────────────────
   const verdictStyle =
@@ -247,15 +250,15 @@ export default function LensHitCard({
           >
             + Save Draft
           </button>
-          <a
-            href={`https://www.ebay.com.au/sch/i.html?_nkw=${encodeURIComponent(`${item.brand || ""} ${item.name}`.trim())}&LH_Sold=1&LH_Complete=1`}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 active:scale-95 text-cyan-300 border border-cyan-500/40 text-[10px] font-black transition cursor-pointer"
-            title="View Real Sold Comps on eBay"
+          <button
+            type="button"
+            onClick={() => setShowCompareModal(true)}
+            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 active:scale-95 text-cyan-300 border border-cyan-500/40 text-[10px] font-black transition cursor-pointer shadow-sm shadow-cyan-500/10"
+            title="Compare The Market: Net payouts & comps on eBay, Depop, Poshmark, Mercari & FB"
           >
-            Solds ↗
-          </a>
+            <Scale className="w-3 h-3 text-cyan-400" />
+            Compare
+          </button>
           <button
             type="button"
             onClick={() => onDeepVerify(item)}
@@ -281,6 +284,15 @@ export default function LensHitCard({
           Report
         </button>
       </div>
+
+      {/* ── Compare The Market Modal ────────────────────────────────────────── */}
+      <OmniMarketplaceCompareModal
+        isOpen={showCompareModal}
+        onClose={() => setShowCompareModal(false)}
+        productName={item.name}
+        brand={item.brand}
+        estimatedPrice={item.estimatedValue}
+      />
     </div>
   );
 }

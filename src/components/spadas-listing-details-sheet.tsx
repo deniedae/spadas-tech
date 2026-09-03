@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { supabase } from "@/app/lib/supabase";
 import { createListing } from "@/app/lib/createlisting";
 import { syncProfitToAndroidWidget, triggerTactileHaptic } from "@/lib/android-bridge";
+import { OmniMarketplaceCompareCard } from "@/components/omni-marketplace-compare-card";
 
 export interface SpadasListingData {
   productName: string;
@@ -298,6 +299,15 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
             </div>
           );
         })()}
+
+        {/* Compare The Market: Omni-Marketplace Comps & Links */}
+        <OmniMarketplaceCompareCard
+          productName={data.productName}
+          brand={data.brand}
+          estimatedPrice={data.priceMedian}
+          costOfGoods={data.buyCost}
+          currency={data.currency as any}
+        />
 
         {/* Size Card */}
         <div
