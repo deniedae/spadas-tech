@@ -9,7 +9,7 @@ export default function UnifiedCameraHub() {
   const [activeTab, setActiveTab] = useState<"lens" | "studio">("lens");
 
   return (
-    <div className="relative min-h-screen w-full bg-black text-white flex flex-col justify-between">
+    <div className="relative w-full bg-black text-white flex flex-col">
       {/* Top Segmented Mode Slider */}
       <div className="sticky top-0 z-40 w-full p-3 bg-slate-950/80 backdrop-blur-md border-b border-slate-800/80 flex items-center justify-center">
         <div className="flex items-center gap-1 p-1 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-xl max-w-sm w-full">

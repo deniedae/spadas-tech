@@ -2177,7 +2177,7 @@ function SpadasLensCameraCore() {
         className="relative aspect-[4/3] sm:aspect-[16/9] w-full max-w-full box-border overflow-hidden rounded-3xl border border-cyan-500/30 bg-slate-950 shadow-[0_0_50px_rgba(6,182,212,0.15)] backdrop-blur-xl cursor-pointer touch-pan-y"
       >
         {deepVerifyItem ? (
-          <div className="flex h-full min-h-[300px] flex-col items-center justify-center p-6 text-center space-y-3 text-slate-300 bg-slate-950">
+          <div className="flex h-full w-full flex-col items-center justify-center p-6 text-center space-y-3 text-slate-300 bg-slate-950">
             <ShieldCheck className="h-12 w-12 text-purple-400 animate-pulse" />
             <h4 className="text-sm font-black text-white">Camera Handed Off to Forensic Audit</h4>
             <p className="text-xs text-slate-400 max-w-xs">
@@ -2736,7 +2736,7 @@ function SpadasLensCameraCore() {
           </>
         ) : (
           /* Camera Standby / Hardware Released View */
-          <div className="relative flex h-full min-h-[300px] flex-col items-center justify-center p-6 text-center space-y-4 text-white bg-slate-950/95">
+          <div className="relative flex h-full w-full flex-col items-center justify-center p-6 text-center space-y-4 text-white bg-slate-950/95">
             {/* Standby Top HUD Bar */}
             <div className="absolute top-3.5 left-3.5 right-3.5 z-30 flex items-center justify-between pointer-events-auto">
               <div className="inline-flex items-center gap-1.5 rounded-full bg-slate-900 border border-slate-700 px-3 py-1 text-[11px] font-bold text-slate-400 shadow-md">
@@ -2781,62 +2781,60 @@ function SpadasLensCameraCore() {
         )}
       </div>
 
-      {/* Pinned Controls Bar */}
-      {stream && (
-        <LensControlsBar
-          scan={{
-            mode: scanMode,
-            setMode: setScanMode,
-            isAnalyzing: analyzingRealFrame,
-            autoActive: autoScanActive,
-            setAutoActive: setAutoScanActive,
-            onScanNow: () => {
-              analyzingRef.current = false;
-              setAnalyzingRealFrame(false);
-              void processCurrentFrame(true);
-            },
-            onStop: stopCamera,
-            cameraMoving,
-            rateLimited,
-          }}
-          hardware={{
-            torchEnabled,
-            torchSupported,
-            onToggleTorch: toggleTorch,
-            zoomLevel,
-            setZoomLevel,
-          }}
-          audio={{
-            soundEnabled,
-            onToggleSound: () => setSoundEnabled(!soundEnabled),
-            voiceListening,
-            voiceSupported: typeof window !== "undefined" && ("SpeechRecognition" in window || "webkitSpeechRecognition" in window),
-            onToggleVoice: toggleVoiceAssistant,
-          }}
-          prefs={{
-            grailMode,
-            setGrailMode,
-            currency: selectedCurrency,
-            setCurrency: (c) => setSelectedCurrency(c),
-            isPro,
-            onUpgrade: () => setIsPaywallOpen(true),
-            minProfitThreshold,
-            updateProfitThreshold,
-          }}
-          nav={{
-            onGuide: () => setIsOnboardingOpen(true),
-            onHistory: () => router.push("/history"),
-          }}
-          debug={{
-            isOwner,
-            showDebugDrawer,
-            setShowDebugDrawer,
-            lastRawApiResponse,
-            latestApiError,
-            isMockFallback,
-          }}
-        />
-      )}
+      {/* Pinned Controls Bar (Always Mounted to Guarantee Zero Cumulative Layout Shift) */}
+      <LensControlsBar
+        scan={{
+          mode: scanMode,
+          setMode: setScanMode,
+          isAnalyzing: analyzingRealFrame,
+          autoActive: autoScanActive,
+          setAutoActive: setAutoScanActive,
+          onScanNow: () => {
+            analyzingRef.current = false;
+            setAnalyzingRealFrame(false);
+            void processCurrentFrame(true);
+          },
+          onStop: stopCamera,
+          cameraMoving,
+          rateLimited,
+        }}
+        hardware={{
+          torchEnabled,
+          torchSupported,
+          onToggleTorch: toggleTorch,
+          zoomLevel,
+          setZoomLevel,
+        }}
+        audio={{
+          soundEnabled,
+          onToggleSound: () => setSoundEnabled(!soundEnabled),
+          voiceListening,
+          voiceSupported: typeof window !== "undefined" && ("SpeechRecognition" in window || "webkitSpeechRecognition" in window),
+          onToggleVoice: toggleVoiceAssistant,
+        }}
+        prefs={{
+          grailMode,
+          setGrailMode,
+          currency: selectedCurrency,
+          setCurrency: (c) => setSelectedCurrency(c),
+          isPro,
+          onUpgrade: () => setIsPaywallOpen(true),
+          minProfitThreshold,
+          updateProfitThreshold,
+        }}
+        nav={{
+          onGuide: () => setIsOnboardingOpen(true),
+          onHistory: () => router.push("/history"),
+        }}
+        debug={{
+          isOwner,
+          showDebugDrawer,
+          setShowDebugDrawer,
+          lastRawApiResponse,
+          latestApiError,
+          isMockFallback,
+        }}
+      />
 
       {/* Real-Time Scanned Hits Feed */}
       <div id="scanned-hits-feed" className="w-full max-w-full overflow-x-hidden box-border rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-lg space-y-4 mx-auto scroll-mt-20">
