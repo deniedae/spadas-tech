@@ -13,6 +13,7 @@ import {
 import { fmtMoney } from "@/app/lib/listings";
 import type { DetectedHit } from "@/types/lens";
 import { OmniMarketplaceCompareModal } from "@/components/omni-marketplace-compare-card";
+import { checkNeedsVerification } from "@/lib/forensic-knowledge";
 
 interface LensHitCardProps {
   item: DetectedHit;
@@ -70,6 +71,14 @@ export default function LensHitCard({
     : "AI Price Estimate";
   const compsStyle = hasRealComps ? "text-emerald-400" : "text-slate-500";
 
+  // ── Intelligent AI Verification Triage ────────────────────────────────────
+  const verificationReq = checkNeedsVerification({
+    name: item.name,
+    brand: item.brand || undefined,
+    category: item.category || undefined,
+    estimatedValue: item.estimatedValue,
+  });
+
   return (
     <div
       onClick={() => onSelect(item.id)}
@@ -119,6 +128,14 @@ export default function LensHitCard({
                 </span>
               )}
             </div>
+
+            {/* AI Verification Requirement Alert (Only for items that actually need it) */}
+            {verificationReq.needsVerification && (
+              <div className="flex items-center gap-1.5 mt-1.5 px-2 py-0.5 rounded-md bg-purple-950/60 border border-purple-500/40 text-[9px] font-extrabold text-purple-300 w-fit">
+                <ShieldCheck className="w-3 h-3 text-purple-400 shrink-0" />
+                <span>⚠️ {verificationReq.reason}</span>
+              </div>
+            )}
 
             {/* OCR Evidence Snippet */}
             {item.visualReasoning?.visible_text_detected && item.visualReasoning.visible_text_detected.length > 0 && (
@@ -259,14 +276,16 @@ export default function LensHitCard({
             <Scale className="w-3 h-3 text-cyan-400" />
             Compare
           </button>
-          <button
-            type="button"
-            onClick={() => onDeepVerify(item)}
-            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-purple-500/15 hover:bg-purple-500/25 active:scale-95 text-purple-300 border border-purple-500/40 text-[10px] font-black transition cursor-pointer"
-          >
-            <ShieldCheck className="w-3 h-3" />
-            Verify
-          </button>
+          {verificationReq.needsVerification && (
+            <button
+              type="button"
+              onClick={() => onDeepVerify(item)}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 active:scale-95 text-white text-[10px] font-black transition cursor-pointer shadow-md shadow-purple-900/30 border border-purple-400/40 animate-pulse"
+            >
+              <ShieldCheck className="w-3 h-3 text-white" />
+              {verificationReq.badgeLabel || "Verify"}
+            </button>
+          )}
           <button
             type="button"
             onClick={() => onListEbay(item)}

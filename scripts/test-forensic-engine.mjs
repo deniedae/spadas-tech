@@ -67,4 +67,32 @@ assert.ok(bagPrompt.includes("Hermes"), "Bag prompt must include Hermes saddle s
 
 console.log("  ✓ Specialized counterfeit rules verified across crystals, gold/silver, and luxury goods.");
 
+// Test 4: Intelligent AI Verification Triage
+console.log("▶ Test 4: Intelligent AI Verification Triage");
+import { checkNeedsVerification } from "../src/lib/forensic-knowledge.ts";
+
+const lvCheck = checkNeedsVerification({ name: "Monogram Wallet", brand: "Louis Vuitton", estimatedValue: 350 });
+assert.equal(lvCheck.needsVerification, true, "Louis Vuitton must require verification");
+assert.equal(lvCheck.category, "luxury_handbags");
+
+const goldCheck = checkNeedsVerification({ name: "18K Gold Chain Necklace", brand: "Generic", estimatedValue: 500 });
+assert.equal(goldCheck.needsVerification, true, "18K Gold must require verification");
+assert.equal(goldCheck.category, "precious_metals");
+
+const crystalCheck = checkNeedsVerification({ name: "Raw Amethyst Crystal Cluster Geode", estimatedValue: 60 });
+assert.equal(crystalCheck.needsVerification, true, "Crystals and geodes must require verification");
+assert.equal(crystalCheck.category, "crystals_gems");
+
+const rolexCheck = checkNeedsVerification({ name: "Submariner Date", brand: "Rolex", estimatedValue: 9000 });
+assert.equal(rolexCheck.needsVerification, true, "Rolex must require verification");
+assert.equal(rolexCheck.category, "watches");
+
+const mugCheck = checkNeedsVerification({ name: "Vintage Ceramic Coffee Mug", brand: "Target", estimatedValue: 4 });
+assert.equal(mugCheck.needsVerification, false, "Everyday coffee mug must NOT require verification");
+
+const shirtCheck = checkNeedsVerification({ name: "Plain Cotton Crewneck T-Shirt", brand: "Gildan", estimatedValue: 8 });
+assert.equal(shirtCheck.needsVerification, false, "Plain t-shirt must NOT require verification");
+
+console.log("  ✓ AI correctly distinguishes high-risk items from everyday commodities without cluttering UI.");
+
 console.log("\n🎉 ALL FORENSIC AUTHENTICITY ENGINE TESTS PASSED!");

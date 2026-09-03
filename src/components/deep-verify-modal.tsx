@@ -63,6 +63,7 @@ export function DeepVerifyModal({
   const currentStep = activeConfig.angles[currentStepIndex] || activeConfig.angles[0];
 
   useEffect(() => {
+    let timer: NodeJS.Timeout;
     if (isOpen) {
       setResult(null);
       setCurrentStepIndex(0);
@@ -73,26 +74,42 @@ export function DeepVerifyModal({
       } else {
         setCapturedImages([]);
       }
-      startCamera();
+      // Delay camera start slightly so any previous camera stream completely releases hardware
+      timer = setTimeout(() => {
+        void startCamera();
+      }, 200);
     } else {
       stopCamera();
     }
+    return () => {
+      clearTimeout(timer);
+      stopCamera();
+    };
   }, [isOpen, initialImage, brand, productName, category]);
 
   async function startCamera() {
     try {
       if (!navigator.mediaDevices?.getUserMedia) return;
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
-        audio: false,
-      });
-      if (videoRef.current) {
+      let stream: MediaStream | null = null;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: false,
+        });
+      } catch {
+        // Fallback for devices where facingMode constraint is rejected or busy
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false,
+        });
+      }
+      if (videoRef.current && stream) {
         videoRef.current.srcObject = stream;
         videoRef.current.play().catch(() => {});
         setCameraActive(true);
       }
-    } catch (err) {
-      console.warn("Camera start warning in modal:", err);
+    } catch (err: any) {
+      console.warn("Camera start in modal:", err?.message || err);
       setCameraActive(false);
     }
   }
@@ -577,16 +594,32 @@ Verified by Spadas AI Universal Forensic Engine`;
                       <div className="w-48 h-48 border-2 border-dashed border-cyan-400/40 rounded-2xl animate-pulse" />
                     </div>
                     {!cameraActive && (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/80 text-center p-4">
-                        <Camera className="h-8 w-8 text-slate-500 mb-2" />
-                        <p className="text-xs text-slate-400 mb-3">Camera is idle or blocked.</p>
-                        <button
-                          type="button"
-                          onClick={startCamera}
-                          className="px-3 py-1.5 rounded-xl bg-cyan-500 text-slate-950 font-bold text-xs"
-                        >
-                          Start Camera
-                        </button>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/90 text-center p-4 space-y-2.5 z-20">
+                        <Camera className="h-8 w-8 text-cyan-400 animate-pulse" />
+                        <div>
+                          <p className="text-xs font-bold text-white">Camera Device Initializing or Busy</p>
+                          <p className="text-[11px] text-slate-400 mt-0.5">
+                            You can snap directly using your phone's camera below:
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 pt-1">
+                          <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold text-xs shadow-md active:scale-95 transition"
+                          >
+                            📸 Snap Photo
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              void startCamera();
+                            }}
+                            className="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-200 font-bold text-xs hover:bg-slate-700"
+                          >
+                            Retry Camera
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -599,6 +632,7 @@ Verified by Spadas AI Universal Forensic Engine`;
                   ref={fileInputRef}
                   type="file"
                   accept="image/*"
+                  capture="environment"
                   onChange={handleFileUpload}
                   className="hidden"
                 />

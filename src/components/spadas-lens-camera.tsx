@@ -38,6 +38,7 @@ import { DeepVerifyModal } from "@/components/deep-verify-modal";
 import LensHitCard from "@/components/lens-hit-card";
 import LensControlsBar from "@/components/lens-controls-bar";
 import LensCompsModal from "@/components/lens-comps-modal";
+import { checkNeedsVerification } from "@/lib/forensic-knowledge";
 import type { DetectedHit, ActiveScanItem } from "@/types/lens";
 export type { DetectedHit, ActiveScanItem } from "@/types/lens";
 
@@ -243,6 +244,21 @@ function SpadasLensCameraCore() {
       videoRef.current.play().catch(() => {});
     }
   }, []);
+
+  // Hardware Camera Safety: fully stop camera so DeepVerifyModal can claim it without conflict
+  const handleOpenDeepVerify = useCallback((item: DetectedHit | ActiveScanItem) => {
+    stopCamera();
+    setDeepVerifyItem(item);
+  }, []);
+
+  const handleCloseDeepVerify = useCallback(() => {
+    setDeepVerifyItem(null);
+    if (isCameraPoweredOn) {
+      setTimeout(() => {
+        void startCamera();
+      }, 200);
+    }
+  }, [isCameraPoweredOn]);
 
   // Barcode Single-Scan Debounce (1 scan only per barcode item)
   const lastDetectedBarcodeRef = useRef<string | null>(null);
@@ -1763,8 +1779,10 @@ function SpadasLensCameraCore() {
           });
 
           setCapturedLog((prev) => [verifiedHit, ...prev]);
-          setActiveCompsHit(verifiedHit);
-          setIsScanPaused(true);
+          if (forceManual || scanMode === "snap") {
+            setActiveCompsHit(verifiedHit);
+            setIsScanPaused(true);
+          }
           setConfidencePercent(98);
 
           // Emit to Reactive Observer Sourcing Bus & Store to Local LRU Cache
@@ -2254,31 +2272,39 @@ function SpadasLensCameraCore() {
 
                   <button
                     type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveCompsHit(scan);
+                    }}
+                    className="ml-0.5 bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 px-2.5 py-0.5 rounded-full text-[10px] font-bold transition cursor-pointer active:scale-95"
+                  >
+                    Comps
+                  </button>
+                  <button
+                    type="button"
                     onClick={(e) => handleQuickAdd(e, scan)}
-                    className="ml-0.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-2.5 py-0.5 rounded-full text-[10px] font-black transition cursor-pointer active:scale-95"
+                    className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-2.5 py-0.5 rounded-full text-[10px] font-black transition cursor-pointer active:scale-95"
                   >
                     +Add
                   </button>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setActiveEbayItem(scan);
-                    }}
-                    className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 px-2.5 py-0.5 rounded-full text-[10px] font-black transition cursor-pointer active:scale-95"
-                  >
-                    ⚡eBay
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setDeepVerifyItem(scan);
-                    }}
-                    className="bg-purple-600 hover:bg-purple-500 text-white px-2 py-0.5 rounded-full text-[10px] font-black transition cursor-pointer"
-                  >
-                    Verify
-                  </button>
+                  {checkNeedsVerification({
+                    name: scan.productName,
+                    brand: scan.brand || undefined,
+                    category: scan.category || undefined,
+                    estimatedValue: scan.estimatedValue,
+                  }).needsVerification && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenDeepVerify(scan);
+                      }}
+                      className="bg-purple-600 hover:bg-purple-500 text-white px-2.5 py-0.5 rounded-full text-[10px] font-black transition cursor-pointer shadow-md shadow-purple-900/40 animate-pulse flex items-center gap-1"
+                    >
+                      <ShieldCheck className="h-3 w-3" />
+                      <span>Verify</span>
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -2436,51 +2462,6 @@ function SpadasLensCameraCore() {
         />
       )}
 
-      {/* Latest Scanned Hit Quick-Access & Direct Verify Bar (Always Accessible Without Scrolling) */}
-      {capturedLog.length > 0 && (
-        <div className="w-full rounded-2xl bg-gradient-to-r from-purple-950/90 via-slate-900/95 to-cyan-950/90 border border-purple-500/40 p-3 shadow-xl backdrop-blur-md flex items-center justify-between gap-3 animate-fade-in">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="h-9 w-9 rounded-xl bg-purple-500/20 border border-purple-400/40 flex items-center justify-center text-purple-300 shrink-0">
-              <ShieldCheck className="h-5 w-5 text-purple-400" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5">
-                <span className="text-[10px] font-black uppercase tracking-wider text-purple-400">Latest Scan</span>
-                <span className="text-[10px] text-slate-500">•</span>
-                <span className="text-[10px] font-bold text-emerald-400">
-                  +{fmtMoney(capturedLog[0].trueNetProfit || capturedLog[0].estimatedProfit || 0)} Net
-                </span>
-              </div>
-              <h4 className="text-xs font-black text-white truncate max-w-[180px] sm:max-w-xs">
-                {capturedLog[0].name}
-              </h4>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              type="button"
-              onClick={() => setDeepVerifyItem(capturedLog[0])}
-              className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-black transition cursor-pointer shadow-lg shadow-purple-900/40 active:scale-95 flex items-center gap-1.5 border border-purple-400/40"
-            >
-              <ShieldCheck className="h-3.5 w-3.5" />
-              <span>Verify</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                const el = document.getElementById("scanned-hits-feed");
-                el?.scrollIntoView({ behavior: "smooth" });
-              }}
-              className="px-2.5 py-2 rounded-xl bg-slate-800/90 text-slate-300 hover:text-white text-xs font-bold transition border border-slate-700"
-              title="Scroll to full hits list"
-            >
-              ↓
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Real-Time Scanned Hits Feed */}
       <div id="scanned-hits-feed" className="w-full max-w-full overflow-x-hidden box-border rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-lg space-y-4 mx-auto scroll-mt-20">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
@@ -2521,7 +2502,7 @@ function SpadasLensCameraCore() {
               isSelected={selectedHitIds.includes(item.id)}
               onSelect={toggleSelectHit}
               onSaveDraft={handleSaveDraftHit}
-              onDeepVerify={(hit) => setDeepVerifyItem(hit)}
+              onDeepVerify={(hit) => handleOpenDeepVerify(hit)}
               onListEbay={(hit) => setActiveEbayItem(hit)}
               onReport={(id, name) => {
                 void fetch("/api/scans/report", {
@@ -2576,7 +2557,7 @@ function SpadasLensCameraCore() {
       {deepVerifyItem && (
         <DeepVerifyModal
           isOpen={!!deepVerifyItem}
-          onClose={() => setDeepVerifyItem(null)}
+          onClose={handleCloseDeepVerify}
           productName={(deepVerifyItem as any).productName || (deepVerifyItem as any).name || "Scanned Item"}
           brand={(deepVerifyItem as any).brand || "Brand"}
           category={(deepVerifyItem as any).category || "Fashion / Collectibles"}
@@ -2591,7 +2572,7 @@ function SpadasLensCameraCore() {
         onClose={() => setActiveCompsHit(null)}
         onResumeScan={handleResumeScanning}
         onListEbay={(hit) => setActiveEbayItem(hit)}
-        onDeepVerify={(hit) => setDeepVerifyItem(hit)}
+        onDeepVerify={(hit) => handleOpenDeepVerify(hit)}
       />
 
       {/* Camera Framing Onboarding Guide */}

@@ -450,3 +450,127 @@ export function detectForensicCategory(text: string): ForensicCategory {
 
   return "general_resale";
 }
+
+export interface VerificationRequirement {
+  needsVerification: boolean;
+  category: ForensicCategory;
+  reason?: string;
+  badgeLabel?: string;
+}
+
+/**
+ * Intelligent AI Triage:
+ * Determines if a scanned item genuinely requires forensic authenticity verification
+ * (e.g. luxury designer brands, precious metals, gemstones/crystals, luxury watches, hype sneakers, grail cards).
+ * Returns needsVerification: false for everyday commodities so the UI remains clean and uncluttered.
+ */
+export function checkNeedsVerification(item: {
+  name?: string;
+  brand?: string;
+  category?: string;
+  estimatedValue?: number;
+}): VerificationRequirement {
+  const title = `${item.brand || ""} ${item.name || ""} ${item.category || ""}`.toLowerCase();
+  const value = Number(item.estimatedValue) || 0;
+  const detectedCategory = detectForensicCategory(title);
+
+  // 1. High-Counterfeit Luxury Designer Handbags & Wallets
+  if (
+    /\b(louis vuitton|lv|chanel|hermes|birkin|kelly|gucci|prada|dior|fendi|balenciaga|goyard|bottega|saint laurent|ysl)\b/i.test(
+      title
+    )
+  ) {
+    return {
+      needsVerification: true,
+      category: "luxury_handbags",
+      reason: "High Counterfeit Risk: Luxury Designer",
+      badgeLabel: "Verify Authenticity",
+    };
+  }
+
+  // 2. Precious Metals, Fine Jewelry & Stamped Gold/Silver
+  if (
+    /\b(gold|silver|925|sterling|10k|14k|18k|24k|375|585|750|999|platinum|diamond|cartier|tiffany)\b/i.test(
+      title
+    )
+  ) {
+    return {
+      needsVerification: true,
+      category: "precious_metals",
+      reason: "Hallmark & Metal Assay Inspection Needed",
+      badgeLabel: "Verify Metal & Assay",
+    };
+  }
+
+  // 3. Natural Crystals, Geodes & Minerals (High Glass/Resin Fake Market)
+  if (
+    /\b(amethyst|quartz|crystal cluster|geode|moldavite|opal|emerald|ruby|sapphire|jade|raw mineral)\b/i.test(
+      title
+    )
+  ) {
+    return {
+      needsVerification: true,
+      category: "crystals_gems",
+      reason: "Check Inclusions vs Glass/Resin Imitation",
+      badgeLabel: "Verify Genuine Crystal",
+    };
+  }
+
+  // 4. Luxury Horology & Watches
+  if (
+    /\b(rolex|omega|cartier|patek|audemars|tag heuer|breitling|tudor)\b/i.test(title) ||
+    (/\b(watch|chronograph|automatic)\b/i.test(title) && value >= 100)
+  ) {
+    return {
+      needsVerification: true,
+      category: "watches",
+      reason: "High Counterfeit Risk: Timepiece Inspection",
+      badgeLabel: "Verify Watch Authenticity",
+    };
+  }
+
+  // 5. Grail Collectibles & High-Value Trading Cards
+  if (
+    /\b(pokemon|charizard|mtg|magic the gathering|psa|bgs|cgc|1st edition|shadowless)\b/i.test(
+      title
+    ) &&
+    value >= 40
+  ) {
+    return {
+      needsVerification: true,
+      category: "trading_cards",
+      reason: "Card Print Rosette & Holo Pattern Audit",
+      badgeLabel: "Verify Card Authenticity",
+    };
+  }
+
+  // 6. High-Heat Hype Streetwear & Sneakers
+  if (
+    /\b(travis scott|yeezy|jordan 1|jordan 4|dunk low|off-white|bape)\b/i.test(title) &&
+    value >= 80
+  ) {
+    return {
+      needsVerification: true,
+      category: "sneakers_streetwear",
+      reason: "Counterfeit-Prone Hype Silhouette",
+      badgeLabel: "Verify Sneaker",
+    };
+  }
+
+  // 7. High-Dollar Items ($150+)
+  if (value >= 150) {
+    return {
+      needsVerification: true,
+      category: detectedCategory !== "general_resale" ? detectedCategory : "general_resale",
+      reason: "High-Value Transaction Protection",
+      badgeLabel: "Verify High Value",
+    };
+  }
+
+  // All everyday items (e.g. coffee mugs, plain clothes, books, toys, kitchenware):
+  return {
+    needsVerification: false,
+    category: detectedCategory,
+  };
+}
+

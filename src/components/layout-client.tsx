@@ -315,7 +315,7 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
         </header>
 
         {/* Page content */}
-        <main className="flex-1 p-3 sm:p-4 md:p-8 overflow-y-auto overscroll-y-contain touch-pan-y pb-32 md:pb-8">
+        <main className="flex-1 p-3 sm:p-4 md:p-8 pb-32 md:pb-8">
           {children}
         </main>
 
