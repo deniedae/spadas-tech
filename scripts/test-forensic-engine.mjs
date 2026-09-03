@@ -21,6 +21,9 @@ assert.equal(silverTest, "precious_metals", "Should detect 925 silver as preciou
 const bagTest = detectForensicCategory("Louis Vuitton Speedy 25 Monogram Handbag");
 assert.equal(bagTest, "luxury_handbags", "Should detect luxury handbags");
 
+const walletTest = detectForensicCategory("Prada Saffiano Leather Bifold Wallet");
+assert.equal(walletTest, "small_leather_goods", "Should detect SLG and wallets without category drift into handbags");
+
 const watchTest = detectForensicCategory("Rolex Datejust 36mm Automatic Watch");
 assert.equal(watchTest, "watches", "Should detect watches and horology");
 
@@ -30,7 +33,7 @@ assert.equal(shoeTest, "sneakers_streetwear", "Should detect sneakers");
 const cardTest = detectForensicCategory("Pokemon 1999 Base Set Charizard Holographic Rare");
 assert.equal(cardTest, "trading_cards", "Should detect trading cards");
 
-console.log("  ✓ All 7 material categories auto-detected with 100% accuracy.");
+console.log("  ✓ All 8 material categories auto-detected with 100% accuracy (no category drift).");
 
 // Test 2: Angle Configuration Integrity
 console.log("▶ Test 2: Multi-Angle Macro Guidance Integrity");
@@ -47,7 +50,7 @@ for (const [catKey, config] of Object.entries(FORENSIC_CATEGORIES)) {
     assert.ok(angle.macroTip, `Angle in ${catKey} must have an expert macro tip`);
   }
 }
-console.log("  ✓ All 28 guided macro photography angles verified with instructions & tips.");
+console.log("  ✓ All 32 guided macro photography angles verified with instructions & tips.");
 
 // Test 3: Specific Counterfeit Rules Verification
 console.log("▶ Test 3: Counterfeit Tell Rules & Hallmarks");
@@ -65,15 +68,28 @@ const bagPrompt = FORENSIC_CATEGORIES.luxury_handbags.knowledgePrompt;
 assert.ok(bagPrompt.includes("Louis Vuitton"), "Bag prompt must include Louis Vuitton specifics");
 assert.ok(bagPrompt.includes("Hermes"), "Bag prompt must include Hermes saddle stitch rules");
 
-console.log("  ✓ Specialized counterfeit rules verified across crystals, gold/silver, and luxury goods.");
+const slgPrompt = FORENSIC_CATEGORIES.small_leather_goods.knowledgePrompt;
+assert.ok(slgPrompt.includes("Notched 'R'"), "SLG prompt must verify Prada notched 'R' tell");
+assert.ok(slgPrompt.includes("Factory Inspection Tag"), "SLG prompt must verify factory tag tell");
+assert.ok(slgPrompt.includes("Saffiano"), "SLG prompt must check Saffiano leather vs plastic");
+
+console.log("  ✓ Specialized counterfeit rules verified across crystals, gold/silver, luxury bags, and Prada SLGs.");
 
 // Test 4: Intelligent AI Verification Triage
 console.log("▶ Test 4: Intelligent AI Verification Triage");
 import { checkNeedsVerification } from "../src/lib/forensic-knowledge.ts";
 
 const lvCheck = checkNeedsVerification({ name: "Monogram Wallet", brand: "Louis Vuitton", estimatedValue: 350 });
-assert.equal(lvCheck.needsVerification, true, "Louis Vuitton must require verification");
-assert.equal(lvCheck.category, "luxury_handbags");
+assert.equal(lvCheck.needsVerification, true, "Louis Vuitton wallet must require verification");
+assert.equal(lvCheck.category, "small_leather_goods", "Wallets must route to small_leather_goods");
+
+const pradaCheck = checkNeedsVerification({ name: "Saffiano Bifold Wallet", brand: "Prada", estimatedValue: 180 });
+assert.equal(pradaCheck.needsVerification, true, "Prada bifold wallet must require verification");
+assert.equal(pradaCheck.category, "small_leather_goods", "Prada wallet must route to small_leather_goods");
+
+const lvBagCheck = checkNeedsVerification({ name: "Speedy 30 Monogram", brand: "Louis Vuitton", estimatedValue: 800 });
+assert.equal(lvBagCheck.needsVerification, true, "Louis Vuitton Speedy must require verification");
+assert.equal(lvBagCheck.category, "luxury_handbags", "Handbags must route to luxury_handbags");
 
 const goldCheck = checkNeedsVerification({ name: "18K Gold Chain Necklace", brand: "Generic", estimatedValue: 500 });
 assert.equal(goldCheck.needsVerification, true, "18K Gold must require verification");

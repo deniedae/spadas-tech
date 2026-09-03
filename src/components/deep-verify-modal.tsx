@@ -17,6 +17,7 @@ import {
   Award,
   ExternalLink,
   ArrowRight,
+  TrendingUp,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { DeepVerifyResult } from "@/app/api/deep-verify/route";
@@ -242,7 +243,7 @@ Forensic Breakdown:
 • Typography & Hallmarks: ${result.forensic_breakdown?.typography || 94}%
 • Craftsmanship & Seams: ${result.forensic_breakdown?.craftsmanship || 95}%
 • Hardware & Fasteners: ${result.forensic_breakdown?.hardware || 93}%
-Verdict: ${result.recommendation.replace(/_/g, " ")}
+Verdict: ${result.recommendation.replace(/_/g, " ")}${result.cleanup_advisory ? `\nCondition Note: ${result.cleanup_advisory}` : ""}${result.market_spread ? `\nMarket Comps: ${result.market_spread}` : ""}
 Verified by Spadas AI Universal Forensic Engine`;
 
     navigator.clipboard.writeText(certText);
@@ -494,6 +495,30 @@ Verified by Spadas AI Universal Forensic Engine`;
                   )}
                 </div>
               </div>
+
+              {/* Condition & Flip Optimization Advisory */}
+              {result.cleanup_advisory && (
+                <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-1.5 animate-fade-in">
+                  <span className="font-extrabold text-amber-300 flex items-center gap-1.5 uppercase tracking-wider text-[10px]">
+                    <Sparkles className="h-3.5 w-3.5 text-amber-400" /> Condition & Flip Potential (Cleanup Advisory)
+                  </span>
+                  <p className="text-xs text-slate-200 leading-relaxed font-medium">
+                    {result.cleanup_advisory}
+                  </p>
+                </div>
+              )}
+
+              {/* Secondary Market Spread & Resale Range */}
+              {result.market_spread && (
+                <div className="p-3.5 rounded-2xl bg-cyan-950/40 border border-cyan-500/30 space-y-1.5 animate-fade-in">
+                  <span className="font-extrabold text-cyan-300 flex items-center gap-1.5 uppercase tracking-wider text-[10px]">
+                    <TrendingUp className="h-3.5 w-3.5 text-cyan-400" /> Secondary Market Spread & Comps
+                  </span>
+                  <p className="text-xs text-slate-200 leading-relaxed font-medium">
+                    {result.market_spread}
+                  </p>
+                </div>
+              )}
             </div>
           ) : (
             /* Guided Photo Capture Checklist Flow */

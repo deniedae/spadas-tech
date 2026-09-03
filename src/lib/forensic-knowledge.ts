@@ -7,6 +7,7 @@ export type ForensicCategory =
   | "crystals_gems"
   | "precious_metals"
   | "luxury_handbags"
+  | "small_leather_goods"
   | "watches"
   | "sneakers_streetwear"
   | "trading_cards"
@@ -187,6 +188,63 @@ export const FORENSIC_CATEGORIES: Record<ForensicCategory, CategoryForensicConfi
         instruction: "Capture the zipper pull engraving, base studs, or interior serial/date code tab.",
         icon: "🔐",
         macroTip: "Focus on the manufacturer stamp on the underside of zipper sliders.",
+      },
+    ],
+  },
+
+  small_leather_goods: {
+    id: "small_leather_goods",
+    name: "Small Leather Goods & Wallets",
+    emoji: "👛",
+    tagline: "Wallets, Cardholders & SLGs (Prada, LV, Gucci, Chanel)",
+    knowledgePrompt: `CRITICAL FORENSIC RULES FOR SMALL LEATHER GOODS (SLG) & WALLETS:
+1. Prada Saffiano & Leather Wallets:
+   - The Notched 'R': In both the exterior triangle plaque and interior heat stamp ('PRADA / MILANO / MADE IN ITALY'), the right leg of the letter 'R' MUST have an intentional curved notch/indent where the loop joins the leg. A straight standard 'R' is an IMMEDIATE 100% COUNTERFEIT tell.
+   - Factory Inspection Tag (Clim Code): Hidden deep inside the interior billfold seam, card slot corner, or coin pocket is a tiny white fabric tag with a 1, 2, or 3-digit factory inspection number (e.g. '12', '175', '107'). Fakes almost always omit this tag or use cheap printed paper.
+   - Saffiano Crosshatch Grain: Authentic Saffiano is wax-finished calfskin with a diagonal crosshatch texture that is rigid, durable, and scratch-resistant with a subtle satin sheen. Cheap fakes use soft, rubbery PVC, stamped faux leather, or petroleum-smelling plastic.
+   - Triangle Plaque & Hardware: Enameled triangle plaques must have four clean corner rivets or secure prongs; lettering 'PRADA / MILANO / DAL 1913' must be crisp and centered. Zipper pulls on authentic Prada wallets are typically Lampo, IPI, or riri.
+   - Edge Glazing: Card slot divider edges must have thin, smooth, matte edge paint. Thick, goopy, shiny rubber paint that peels or cracks easily is a clear counterfeit tell.
+2. Louis Vuitton Wallets & SLGs:
+   - Heat Stamp: Perfectly round 'O' in Louis Vuitton, sharp pointed 'V', and the two 'T's in Vuitton almost touch.
+   - Date Codes / Microchips: Foil or blind stamped date code in bill compartment seam (pre-2021) or embedded RFID chip (post-2021).
+   - Glazing & Grain: Edges along the main fold must be cleanly burnished without tacky melted resin.
+3. Chanel & Gucci SLGs:
+   - Micro-serial numbers, foil heat stamps, and clean symmetry across card dividers.
+4. Condition & Flip Guidance:
+   - Surface Micro-flecks: White micro-flecks across the face are often paint dust, drywall spray, or light scuffs. A gentle wipe with a damp microfiber cloth and neutral leather conditioner (e.g. Bick 4, Saphir Renovateur) will lift surface debris, upgrading condition and resale appeal.
+   - Market Comps: Used Prada Saffiano bifolds in clean secondhand condition typically command $140 – $220 AUD depending on bill lining integrity.`,
+    angles: [
+      {
+        id: "exterior_plaque",
+        title: "1. Exterior Face & Logo Plaque",
+        subtitle: "Plaque enamel, lettering and Saffiano grain",
+        instruction: "Capture the front face of the wallet showing the full logo plaque or monogram.",
+        icon: "👛",
+        macroTip: "Inspect the Saffiano crosshatch grain — it should be wax-treated calfskin with a subtle satin sheen, not soft rubbery plastic.",
+      },
+      {
+        id: "interior_heat_stamp",
+        title: "2. Interior Heat Stamp & Font",
+        subtitle: "Foil/blind deboss and Prada notched 'R'",
+        instruction: "Macro close-up of the interior brand heat stamp (e.g. PRADA MILANO / MADE IN ITALY).",
+        icon: "🏷️",
+        macroTip: "CRITICAL: On Prada, inspect the letter 'R' — authentic Prada ALWAYS has a distinctive curved notch in the right leg.",
+      },
+      {
+        id: "factory_tag_seam",
+        title: "3. Factory Tag / Deep Seam",
+        subtitle: "Tiny white inspection number in billfold seam",
+        instruction: "Peel open the billfold compartment or card slot seam to reveal the tiny white factory number tag or serial code.",
+        icon: "🔢",
+        macroTip: "Authentic Prada wallets feature a tiny white fabric tag deep in the seam with a 1-3 digit factory code (e.g. 12, 175).",
+      },
+      {
+        id: "card_slots_glazing",
+        title: "4. Card Slots, Glazing & Stitching",
+        subtitle: "Edge paint thickness and saddle stitching",
+        instruction: "Close-up of the folded card dividers, edge glazing burnish, and perimeter stitching.",
+        icon: "🪡",
+        macroTip: "Edge glazing along card slots must be thin and matte. Thick, gooey, peelable rubber paint indicates a low-tier fake.",
       },
     ],
   },
@@ -412,16 +470,25 @@ export function detectForensicCategory(text: string): ForensicCategory {
     return "precious_metals";
   }
 
-  // 3. Luxury Handbags
+  // 3. Small Leather Goods & Wallets (SLG)
   if (
-    /\b(handbag|purse|tote|wallet|bag|crossbody|clutch|louis vuitton|lv|chanel|hermes|birkin|kelly|gucci|prada|dior|fendi|balenciaga|goyard|bottega|saint laurent|ysl)\b/i.test(
+    /\b(wallet|bifold|trifold|cardholder|card holder|coin purse|pouch|money clip|passport cover|slg|key pouch|long wallet|zippy|sarah)\b/i.test(
+      lower
+    )
+  ) {
+    return "small_leather_goods";
+  }
+
+  // 4. Luxury Handbags
+  if (
+    /\b(handbag|purse|tote|bag|crossbody|clutch|satchel|backpack|louis vuitton|lv|chanel|hermes|birkin|kelly|gucci|prada|dior|fendi|balenciaga|goyard|bottega|saint laurent|ysl)\b/i.test(
       lower
     )
   ) {
     return "luxury_handbags";
   }
 
-  // 4. Watches & Horology
+  // 5. Watches & Horology
   if (
     /\b(watch|timepiece|rolex|omega|cartier|seiko|patek|audemars|tag heuer|breitling|tudor|casio|g-shock|chronograph|automatic)\b/i.test(
       lower
@@ -430,7 +497,7 @@ export function detectForensicCategory(text: string): ForensicCategory {
     return "watches";
   }
 
-  // 5. Sneakers & Streetwear
+  // 6. Sneakers & Streetwear
   if (
     /\b(sneaker|shoe|jordan|nike|yeezy|dunk|travis scott|supreme|bape|stussy|palace|off-white|kith|hoodie|jacket|tee)\b/i.test(
       lower
@@ -439,7 +506,7 @@ export function detectForensicCategory(text: string): ForensicCategory {
     return "sneakers_streetwear";
   }
 
-  // 6. Trading Cards
+  // 7. Trading Cards
   if (
     /\b(pokemon|charizard|pikachu|mtg|magic the gathering|yugioh|sports card|psa|bgs|cgc|booster|holographic|tcg)\b/i.test(
       lower
@@ -474,7 +541,20 @@ export function checkNeedsVerification(item: {
   const value = Number(item.estimatedValue) || 0;
   const detectedCategory = detectForensicCategory(title);
 
-  // 1. High-Counterfeit Luxury Designer Handbags & Wallets
+  // 1. Small Leather Goods & Wallets (Prada, LV, Gucci, Chanel, etc.)
+  if (
+    /\b(wallet|bifold|trifold|cardholder|card holder|coin purse|pouch|money clip|passport cover|slg|key pouch|long wallet|zippy)\b/i.test(title) &&
+    (/\b(louis vuitton|lv|chanel|hermes|gucci|prada|dior|fendi|balenciaga|goyard|bottega|saint laurent|ysl|coach|burberry|celine|loewe)\b/i.test(title) || value >= 70)
+  ) {
+    return {
+      needsVerification: true,
+      category: "small_leather_goods",
+      reason: "High Counterfeit Risk: Small Leather Goods & Wallets",
+      badgeLabel: "Verify Wallet / SLG",
+    };
+  }
+
+  // 2. High-Counterfeit Luxury Designer Handbags
   if (
     /\b(louis vuitton|lv|chanel|hermes|birkin|kelly|gucci|prada|dior|fendi|balenciaga|goyard|bottega|saint laurent|ysl)\b/i.test(
       title
