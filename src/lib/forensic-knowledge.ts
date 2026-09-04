@@ -148,14 +148,15 @@ export const FORENSIC_CATEGORIES: Record<ForensicCategory, CategoryForensicConfi
 1. Louis Vuitton:
    - Monogram Alignment: LV logos are never cut off in seam stitching on authentic Speedy/Neverfull bags; monogram is continuous canvas (upside down on back of Speedy).
    - Heat Stamp: The 'O' in Louis Vuitton is very round (almost a perfect circle). The two 'T's in Vuitton almost touch.
-   - Date Codes / Microchips: Pre-2021 date code format: 2 letters + 4 digits (e.g. SD2148: SD = factory, weeks 2&4, year 1&8 = 24th week of 2018). Post-2021 uses embedded RFID microchips.
+   - Date Codes / Microchips: Pre-2021 date code format: 2 letters + 4 digits (e.g. SD2148: SD = factory, weeks 2&4, year 1&8 = 24th week of 2018). Post-2021 uses embedded RFID microchips. Pre-1980s vintage bags naturally lack date codes entirely; evaluate via canvas grain, hardware patina, and French cowhide leather.
 2. Chanel:
    - Quilt Diamond Alignment: Quilted diamonds must align perfectly across the front flap and bag body when closed, and across the back slip pocket.
    - CC Lock: Right C overlaps left C at the top; left C overlaps right C at the bottom.
 3. Hermes:
    - Stitching: Hand-sewn saddle stitch has an intentional ~28-degree slant; machine-sewn straight lockstitch is an immediate COUNTERFEIT tell.
-4. Hardware:
-   - Premium brass hardware with crisp laser engraving (Lampo, Riri, YKK, or branded pulls); no lightweight plated pot metal.`,
+4. Hardware & Era Reality:
+   - Premium brass hardware with crisp laser engraving (Lampo, Riri, YKK, or branded pulls); no lightweight plated pot metal.
+   - ERA EXEMPTION: Pre-microchip items or vintage models lacking internal tags must be verified decisively on material grain, stitch tension, and hardware finish without demanding non-existent microchips.`,
     angles: [
       {
         id: "exterior",
@@ -184,10 +185,10 @@ export const FORENSIC_CATEGORIES: Record<ForensicCategory, CategoryForensicConfi
       {
         id: "hardware_code",
         title: "4. Hardware & Date Code",
-        subtitle: "Zipper engraving, rivets and serial",
-        instruction: "Capture the zipper pull engraving, base studs, or interior serial/date code tab.",
+        subtitle: "Zipper engraving, rivets, or serial",
+        instruction: "Capture zipper pull engraving, studs, or date code. (Skip if vintage pre-serial)",
         icon: "🔐",
-        macroTip: "Focus on the manufacturer stamp on the underside of zipper sliders.",
+        macroTip: "Focus on zipper manufacturer stamps or date tabs. Vintage items without serials can be verified via hardware.",
       },
     ],
   },
@@ -200,17 +201,19 @@ export const FORENSIC_CATEGORIES: Record<ForensicCategory, CategoryForensicConfi
     knowledgePrompt: `CRITICAL FORENSIC RULES FOR SMALL LEATHER GOODS (SLG) & WALLETS:
 1. Prada Saffiano & Leather Wallets:
    - The Notched 'R': In both the exterior triangle plaque and interior heat stamp ('PRADA / MILANO / MADE IN ITALY'), the right leg of the letter 'R' MUST have an intentional curved notch/indent where the loop joins the leg. A straight standard 'R' is an IMMEDIATE 100% COUNTERFEIT tell.
-   - Factory Inspection Tag (Clim Code): Hidden deep inside the interior billfold seam, card slot corner, or coin pocket is a tiny white fabric tag with a 1, 2, or 3-digit factory inspection number (e.g. '12', '175', '107'). Fakes almost always omit this tag or use cheap printed paper.
+   - Factory Inspection Tag (Clim Code): Inside many modern Prada items is a tiny white fabric tag with a 1-3 digit factory number (e.g. '12', '175', '107'). Fakes use paper or omit it. However, vintage Prada pieces or specific unlined cardholders naturally lack this tag; evaluate these via the notched 'R', Saffiano wax-treatment, and Lampo/riri hardware.
    - Saffiano Crosshatch Grain: Authentic Saffiano is wax-finished calfskin with a diagonal crosshatch texture that is rigid, durable, and scratch-resistant with a subtle satin sheen. Cheap fakes use soft, rubbery PVC, stamped faux leather, or petroleum-smelling plastic.
    - Triangle Plaque & Hardware: Enameled triangle plaques must have four clean corner rivets or secure prongs; lettering 'PRADA / MILANO / DAL 1913' must be crisp and centered. Zipper pulls on authentic Prada wallets are typically Lampo, IPI, or riri.
    - Edge Glazing: Card slot divider edges must have thin, smooth, matte edge paint. Thick, goopy, shiny rubber paint that peels or cracks easily is a clear counterfeit tell.
 2. Louis Vuitton Wallets & SLGs:
    - Heat Stamp: Perfectly round 'O' in Louis Vuitton, sharp pointed 'V', and the two 'T's in Vuitton almost touch.
-   - Date Codes / Microchips: Foil or blind stamped date code in bill compartment seam (pre-2021) or embedded RFID chip (post-2021).
+   - Date Codes / Microchips: Foil or blind stamped date code in bill compartment seam (pre-2021) or embedded RFID chip (post-2021). Vintage pre-1980s items lack date codes.
    - Glazing & Grain: Edges along the main fold must be cleanly burnished without tacky melted resin.
 3. Chanel & Gucci SLGs:
    - Micro-serial numbers, foil heat stamps, and clean symmetry across card dividers.
-4. Condition & Flip Guidance:
+4. Era & Model Exemption Reality:
+   - Many authentic small wallets, cardholders, and vintage SLGs do NOT have date codes or factory inspection tags. Never penalize a genuine item or demand non-existent tags if visible leather, typography, and edge finishing are factory authentic.
+5. Condition & Flip Guidance:
    - Surface Micro-flecks: White micro-flecks across the face are often paint dust, drywall spray, or light scuffs. A gentle wipe with a damp microfiber cloth and neutral leather conditioner (e.g. Bick 4, Saphir Renovateur) will lift surface debris, upgrading condition and resale appeal.
    - Market Comps: Used Prada Saffiano bifolds in clean secondhand condition typically command $140 – $220 AUD depending on bill lining integrity.`,
     angles: [
@@ -234,9 +237,9 @@ export const FORENSIC_CATEGORIES: Record<ForensicCategory, CategoryForensicConfi
         id: "factory_tag_seam",
         title: "3. Factory Tag / Deep Seam",
         subtitle: "Tiny white inspection number in billfold seam",
-        instruction: "Peel open the billfold compartment or card slot seam to reveal the tiny white factory number tag or serial code.",
+        instruction: "Check billfold seam or card slot for factory tag or date code. (Skip if vintage or not present on your model)",
         icon: "🔢",
-        macroTip: "Authentic Prada wallets feature a tiny white fabric tag deep in the seam with a 1-3 digit factory code (e.g. 12, 175).",
+        macroTip: "Many Prada wallets have a 1-3 digit factory number tag in the seam. If your item is vintage or unlined, tap 'Skip Angle'.",
       },
       {
         id: "card_slots_glazing",
@@ -262,7 +265,9 @@ export const FORENSIC_CATEGORIES: Record<ForensicCategory, CategoryForensicConfi
    - Laser-Etched Coronet: Micro-etched Rolex crown at the 6 o'clock position on sapphire crystal (difficult to see with naked eye, subtle dashed dots).
    - Rehaut: 'ROLEXROLEXROLEX' engraved on the inner bezel ring, perfectly aligning with hour markers.
 3. Movement & Case Finishing:
-   - Crisp chamfered bevels on lugs, uniform directional satin brushing, crisp laser/stamped serial numbers between lugs or on caseback.`,
+   - Crisp chamfered bevels on lugs, uniform directional satin brushing, crisp laser/stamped serial numbers between lugs or on caseback.
+4. No-Date Complication Exemption:
+   - For time-only models without date displays (e.g. Submariner No-Date, Oyster Perpetual, Daytona, Explorer 1), evaluate dial coronet pad printing, handset beveling, and lug brushing without demanding a cyclops shot.`,
     angles: [
       {
         id: "dial_front",
@@ -274,11 +279,11 @@ export const FORENSIC_CATEGORIES: Record<ForensicCategory, CategoryForensicConfi
       },
       {
         id: "cyclops_date",
-        title: "2. Date Window / Logo",
-        subtitle: "Magnification and laser etching",
-        instruction: "Macro close-up of the date cyclops lens or brand coronet.",
+        title: "2. Date Window / Dial Logo",
+        subtitle: "Magnification or dial emblem",
+        instruction: "Close-up of the date cyclops lens or brand coronet / logo. (Skip if no-date model)",
         icon: "🔎",
-        macroTip: "Inspect date numeral alignment and crispness inside the cyclops.",
+        macroTip: "On no-date watches, focus directly on the dial brand emblem and typography.",
       },
       {
         id: "crown_case",
@@ -312,13 +317,15 @@ export const FORENSIC_CATEGORIES: Record<ForensicCategory, CategoryForensicConfi
    - Seams must maintain uniform stitch-per-inch density; no double-stitching errors or loose nylon tails.
    - Jordan Wings Logo: The 'R' and 'D' in JORDAN must connect at the bottom.
 3. Materials:
-   - Yeezy Boost: Soft, textured irregular pellet matrix with distinct 3-dot or 7-dot cluster patterns, never smooth hard molded plastic.`,
+   - Yeezy Boost: Soft, textured irregular pellet matrix with distinct 3-dot or 7-dot cluster patterns, never smooth hard molded plastic.
+4. Tag-Exempt / Vintage Streetwear:
+   - On vintage tees, cut tags, or sample garments lacking barcodes, determine authenticity through single-stitch hem construction, neckline ribbing, embroidery backing, and fabric GSM.`,
     angles: [
       {
         id: "full_profile",
         title: "1. Full Lateral Profile",
         subtitle: "Toe box curvature and silhouette",
-        instruction: "Capture the full side profile of the shoe on a flat surface.",
+        instruction: "Capture the full side profile of the shoe or garment on a flat surface.",
         icon: "👟",
         macroTip: "Check toe box height and heel tab angle.",
       },
@@ -326,9 +333,9 @@ export const FORENSIC_CATEGORIES: Record<ForensicCategory, CategoryForensicConfi
         id: "size_tag",
         title: "2. Size Label / Neck Tag",
         subtitle: "Barcode, font kerning and dates",
-        instruction: "Direct macro shot of the interior size label or neck tag.",
+        instruction: "Direct macro shot of the interior size label or neck tag. (Skip if missing or cut)",
         icon: "🏷️",
-        macroTip: "Ensure barcode numbers and factory country markings are completely in focus.",
+        macroTip: "Ensure barcode numbers are clear. If vintage/cut, tap Skip and capture stitching.",
       },
       {
         id: "stitching_logo",

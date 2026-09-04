@@ -215,6 +215,7 @@ export async function POST(req: Request) {
       productName,
       brand,
       category: selectedCategory,
+      visibleHallmarksOnly,
     } = await req.json();
 
     if (!imageUrls || !Array.isArray(imageUrls) || imageUrls.length === 0) {
@@ -237,7 +238,7 @@ export async function POST(req: Request) {
 ### Core Directive: Eliminate 50% Uncertainty
 Never issue a default 50% "Cannot Determine" score simply due to low resolution, poor lighting, or missing angles. 
 - If decisive counterfeit flaws are visible: Mark as COUNTERFEIT immediately.
-- If authentic factory signatures are verified across all visible pillars: Mark as AUTHENTIC.
+- If authentic factory signatures are verified across visible construction: Mark as AUTHENTIC.
 - If critical forensic hardware/stamps cannot be resolved due to distance, blur, or glare: Mark as INSUFFICIENT_EVIDENCE and specify the exact macro shots required.
 
 ---
@@ -261,7 +262,19 @@ Never issue a default 50% "Cannot Determine" score simply due to low resolution,
 - Craftsmanship: Check stitches per inch (SPI), thread gauge, back-tack reinforcement, edge glazing/paint thickness, and seam symmetry.
 
 5. Security Markers & Serial Codes
-- Locate and parse brand-specific identifiers: date codes, microchips/RFID/NFC tags, hologram stickers, factory code tags, or serial number formats.
+- Locate and parse brand-specific identifiers if applicable: date codes, microchips/RFID/NFC tags, hologram stickers, factory code tags, or serial number formats.
+
+---
+
+### Era & Model Reality Guardrail (Preventing False Rescan Loops):
+- Real-World Manufacturing Reality: Many 100% GENUINE products naturally lack internal serial tags, RFID microchips, factory inspection tags, or date codes. Examples:
+  * Vintage luxury items produced prior to microchips, NFC, or date code numbering (e.g. pre-2021 Prada/LV without RFID, pre-1980s bags, vintage jewelry without laser marks).
+  * Simplified silhouettes: small cardholders, key pouches, unlined leather goods, unbranded goods, or models designed without internal fabric tags.
+  * Streetwear / Apparel: vintage shirts where wash tags are missing/washed out, or garments lacking UPC barcodes.
+  * Horology: watches without date complications (e.g. Rolex Submariner No-Date, Oyster Perpetual, Speedmaster).
+- STRICT RULE: If the visible materials (leather grain, canvas, lining), hardware, craftsmanship (stitching SPI, edge glazing), and typography are authentic, DO NOT issue INSUFFICIENT_EVIDENCE simply because a modern security tag or secondary hallmark is absent!
+- Mark security_tags_and_codes as 95 (Era/Model Exempt) or null, and deliver an AUTHENTIC verdict (95-99% score).
+- ONLY return INSUFFICIENT_EVIDENCE if a photographed primary hallmark, logo, or seam is severely degraded by optical blur, extreme glare, or dark occlusion such that forensic verification is physically impossible. Never demand a shot of a feature that may not exist on this item.
 
 ---
 
@@ -290,7 +303,7 @@ Respond ONLY with valid JSON adhering to this exact schema:
     "security_tags_and_codes": <0-100 or null>
   },
   "decisive_tells": [
-    "<Explicit physical tell found, e.g., 'Curved notch verified on right leg of Prada R heat stamp', 'Straight-leg font on Prada R indicates non-factory stamping'>"
+    "<Explicit physical tell found, e.g., 'Curved notch verified on right leg of Prada R heat stamp', 'Authentic Saffiano crosshatch wax calfskin verified'>"
   ],
   "required_macro_inputs": [
     "<Only populate if INSUFFICIENT_EVIDENCE. Name exact shots needed, e.g., 'Macro of interior heat stamp', 'Underside of snap fastener'>"
@@ -329,7 +342,9 @@ Respond ONLY with valid JSON adhering to this exact schema:
           content: [
             {
               type: "text",
-              text: `Audit submitted item according to Universal 5-Pillar Protocol. Expected Item: "${productName || "Unknown"}", Brand: "${brand || "Unknown"}", Category: "${categoryConfig.name}". Provide decisive, evidence-based verdict.`,
+              text: visibleHallmarksOnly
+                ? `Audit submitted item based EXCLUSIVELY on visible construction, materials, and typography. The user has verified that this item naturally lacks modern internal serial tags, RFID chips, or date codes (vintage or era/model-exempt). Expected Item: "${productName || "Unknown"}", Brand: "${brand || "Unknown"}", Category: "${categoryConfig.name}". Do NOT issue INSUFFICIENT_EVIDENCE for missing internal tags. Base your verdict strictly on the visible physical evidence.`
+                : `Audit submitted item according to Universal 5-Pillar Protocol. Expected Item: "${productName || "Unknown"}", Brand: "${brand || "Unknown"}", Category: "${categoryConfig.name}". Notice: Many authentic items are vintage or simpler models that naturally lack modern date codes or factory tags. Do not demand non-existent tags if visible construction is authentic. Provide decisive, evidence-based verdict.`,
             },
             ...imageContent,
           ],
@@ -351,7 +366,7 @@ Respond ONLY with valid JSON adhering to this exact schema:
     const typoScore = raw.forensic_breakdown?.typography_and_hallmarks ?? raw.forensic_breakdown?.typography ?? 95;
     const hardScore = raw.forensic_breakdown?.hardware_and_fasteners ?? raw.forensic_breakdown?.hardware ?? 95;
     const craftScore = raw.forensic_breakdown?.craftsmanship_and_seams ?? raw.forensic_breakdown?.craftsmanship ?? 95;
-    const secScore = raw.forensic_breakdown?.security_tags_and_codes ?? 95;
+    const secScore = raw.forensic_breakdown?.security_tags_and_codes ?? (visibleHallmarksOnly ? 95 : 95);
 
     // Normalizing verdict & recommendation
     const rawVerdict: string = (raw.verdict || "AUTHENTIC").toUpperCase();
@@ -362,8 +377,14 @@ Respond ONLY with valid JSON adhering to this exact schema:
       verdict = "COUNTERFEIT";
       recommendation = "DO_NOT_BUY";
     } else if (rawVerdict === "INSUFFICIENT_EVIDENCE" || rawVerdict === "CANNOT_DETERMINE") {
-      verdict = "INSUFFICIENT_EVIDENCE";
-      recommendation = "EXERCISE_CAUTION";
+      // If user requested visible-only verification or if visible scores indicate genuine craftsmanship, do NOT force rescan
+      if (visibleHallmarksOnly && (matScore >= 88 || typoScore >= 88 || craftScore >= 88)) {
+        verdict = "AUTHENTIC";
+        recommendation = "SAFE_TO_BUY";
+      } else {
+        verdict = "INSUFFICIENT_EVIDENCE";
+        recommendation = "EXERCISE_CAUTION";
+      }
     } else {
       verdict = "AUTHENTIC";
       recommendation = "SAFE_TO_BUY";
@@ -375,7 +396,7 @@ Respond ONLY with valid JSON adhering to this exact schema:
         : raw.authenticity_score !== null && raw.authenticity_score !== undefined
         ? Number(raw.authenticity_score)
         : verdict === "AUTHENTIC"
-        ? 99
+        ? 98
         : 18;
 
     const decisiveTells: string[] = Array.isArray(raw.decisive_tells) ? raw.decisive_tells : [];

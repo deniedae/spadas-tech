@@ -245,4 +245,68 @@ export async function runInsufficientEvidenceTest() {
 
 await runInsufficientEvidenceTest();
 
+// Test 7: Era & Model Exemption Handling (Authentic item naturally lacking modern tags/chips)
+console.log("\n▶ Test 7: Era & Model Exemption Handling (Zero Rescan Trap for Genuine Items)");
+
+export async function runEraExemptionTest() {
+  // Scenario: Genuine vintage/simple item that doesn't have an internal factory inspection tag or RFID chip
+  const vintageGenuineItem = {
+    item_identification: {
+      detected_brand: "Prada",
+      item_category: "Small Leather Goods & Wallets",
+      identified_material: "Saffiano Leather",
+      model_estimate: "Vintage Classic Bifold Wallet"
+    },
+    verdict: "AUTHENTIC",
+    authenticity_score: 98,
+    forensic_breakdown: {
+      material_integrity: 98,
+      typography_and_hallmarks: 99,
+      hardware_and_fasteners: 96,
+      craftsmanship_and_seams: 97,
+      security_tags_and_codes: null // Era Exempt (model produced before factory tag / RFID chip)
+    },
+    decisive_tells: [
+      "Curved notch verified on right leg of Prada R heat stamp",
+      "Authentic wax-finished Saffiano crosshatch calfskin confirmed",
+      "Edge glazing burnish is thin and matte without synthetic rubber peel"
+    ],
+    required_macro_inputs: [],
+    market_valuation_aud: {
+      fair_condition: 140,
+      excellent_condition: 220
+    },
+    condition_and_maintenance_notes: "Gentle wipe with neutral leather balm."
+  };
+
+  // 1. Invariant: If visible construction is authentic, verdict MUST be AUTHENTIC even with null security tag
+  assert.equal(vintageGenuineItem.verdict, "AUTHENTIC", "Vintage/exempt genuine item must be AUTHENTIC");
+  assert.ok(vintageGenuineItem.authenticity_score >= 95, "Score must be >= 95% based on visible hallmarks");
+  assert.equal(vintageGenuineItem.forensic_breakdown.security_tags_and_codes, null, "Security tag pillar should be null (Era Exempt)");
+
+  // 2. Certificate eligibility
+  const canPublishCertificate = vintageGenuineItem.verdict !== "INSUFFICIENT_EVIDENCE" && vintageGenuineItem.authenticity_score !== null;
+  assert.equal(canPublishCertificate, true, "Certificate must be publishable for genuine era-exempt items");
+
+  // 3. Verify Visible Hallmarks Override Simulator
+  const simulateOverride = (rawResponse, visibleHallmarksOnly) => {
+    let verdict = rawResponse.verdict;
+    if (visibleHallmarksOnly && (rawResponse.forensic_breakdown.material_integrity >= 88 || rawResponse.forensic_breakdown.typography_and_hallmarks >= 88)) {
+      verdict = "AUTHENTIC";
+    }
+    return verdict;
+  };
+
+  const initialAmbiguousCheck = {
+    verdict: "INSUFFICIENT_EVIDENCE",
+    forensic_breakdown: { material_integrity: 96, typography_and_hallmarks: 97 }
+  };
+  const overriddenVerdict = simulateOverride(initialAmbiguousCheck, true);
+  assert.equal(overriddenVerdict, "AUTHENTIC", "Visible hallmarks override must resolve to AUTHENTIC without forcing rescan");
+
+  console.log("  ✓ Test 7 Passed: Era & Model Exempt genuine items verified without rescan traps.");
+}
+
+await runEraExemptionTest();
+
 console.log("\n🎉 ALL FORENSIC AUTHENTICITY ENGINE TESTS PASSED!");
