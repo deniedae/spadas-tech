@@ -8,6 +8,7 @@ import { supabase } from "@/app/lib/supabase";
 import { createListing } from "@/app/lib/createlisting";
 import { syncProfitToAndroidWidget, triggerTactileHaptic } from "@/lib/android-bridge";
 import { OmniMarketplaceCompareCard } from "@/components/omni-marketplace-compare-card";
+import { generateEbayPrefillUrl } from "@/app/lib/marketplaces/ebay-prefill";
 
 export interface SpadasListingData {
   productName: string;
@@ -101,6 +102,21 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
     toast.success("📋 Copied formatted listing for Depop & Facebook Marketplace!");
   };
 
+  const handleFastListEbay = () => {
+    const formattedDesc = `${data.description}\n\nSize: ${data.size || "N/A"}\nCondition: ${data.condition || "Pre-owned"}\nWeight: ${data.weight || "N/A"}\nDimensions: ${data.dimensions || "N/A"}`;
+    const copyPayload = `Title: ${data.productName}\nPrice: $${data.priceMedian} AUD\nCondition: ${data.condition || "Used - Good"}\nBrand: ${data.brand || "Unbranded"}\n\nDescription:\n${formattedDesc}`;
+    navigator.clipboard.writeText(copyPayload);
+
+    const prefillUrl = generateEbayPrefillUrl({
+      title: data.productName,
+      priceAud: data.priceMedian,
+      brand: data.brand,
+    });
+
+    toast.success("📋 Listing details copied! Opening eBay AU...", { duration: 4000 });
+    window.open(prefillUrl, "_blank");
+  };
+
   const handlePublishEbay = async () => {
     setIsSaving(true);
     try {
@@ -114,7 +130,7 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
       }
 
       const cost = Math.max(3, Math.round(data.priceMedian * 0.35));
-      const res = await createListing({
+      await createListing({
         userId,
         product: data.productName,
         description: `${data.description}\n\nSize: ${data.size || "N/A"}\nCondition: ${data.condition || "Pre-owned"}\nWeight: ${data.weight || "N/A"}\nDimensions: ${data.dimensions || "N/A"}`,
@@ -140,10 +156,22 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
       const pubData = await publishRes?.json().catch(() => null);
       if (pubData?.isDemoMode) {
         toast.success(`🚀 ${pubData.message}`);
-      } else if (pubData?.success) {
-        toast.success("🚀 Live on eBay AU! Listing published successfully.");
+      } else if (publishRes?.ok && pubData?.success) {
+        if (pubData.isLive) {
+          toast.success("🚀 Live on eBay AU! Listing published successfully.");
+        } else {
+          toast.success("📋 Draft saved in your eBay Seller Hub! Review shipping to activate.", {
+            duration: 6000,
+            action: {
+              label: "Open Seller Hub",
+              onClick: () => window.open(pubData.listingUrl || "https://www.ebay.com.au/sh/lst/drafts", "_blank"),
+            },
+          });
+        }
       } else {
-        toast.success("🚀 Listing created and queued for eBay AU!");
+        const errorMsg = pubData?.error || "Direct eBay sync failed. Opening 1-Tap Fast-List...";
+        toast.error(errorMsg, { duration: 5000 });
+        handleFastListEbay();
       }
 
       if (onSaved) onSaved();
@@ -401,10 +429,10 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
           <button
             type="button"
             disabled={isSaving}
-            onClick={handleCopyCrossList}
-            className="py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-cyan-300 font-bold text-[11px] border border-cyan-500/30 transition active:scale-95 disabled:opacity-50 cursor-pointer"
+            onClick={handleFastListEbay}
+            className="py-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 font-bold text-[11px] border border-amber-500/30 transition active:scale-95 disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1"
           >
-            📋 Depop / FB
+            <span>⚡ 1-Tap eBay</span>
           </button>
 
           <button
@@ -413,7 +441,7 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
             onClick={handlePublishEbay}
             className="py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-[11px] shadow-[0_0_20px_rgba(37,99,235,0.5)] transition active:scale-95 disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1"
           >
-            <span>🚀 List to eBay</span>
+            <span>🚀 Sync eBay</span>
           </button>
         </div>
       </div>

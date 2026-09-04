@@ -1,4 +1,3 @@
-import { supabase } from "@/app/lib/supabase";
 
 export interface EbayOAuthTokens {
   access_token: string;
@@ -38,6 +37,8 @@ const SCOPES = [
   "https://api.ebay.com/oauth/api_scope",
   "https://api.ebay.com/oauth/api_scope/sell.inventory",
   "https://api.ebay.com/oauth/api_scope/sell.fulfillment",
+  "https://api.ebay.com/oauth/api_scope/sell.account",
+  "https://api.ebay.com/oauth/api_scope/sell.account.readonly",
 ].join(" ");
 
 export function resolveRuName(): string {
@@ -128,7 +129,6 @@ export async function refreshEbayToken(refreshToken: string): Promise<EbayOAuthT
   const bodyParams = new URLSearchParams({
     grant_type: "refresh_token",
     refresh_token: refreshToken,
-    scope: SCOPES,
   });
 
   const apiHost = getApiHost();
@@ -154,12 +154,12 @@ export async function refreshEbayToken(refreshToken: string): Promise<EbayOAuthT
  */
 export function mapToEbayCondition(cond: string): EbayInventoryItemPayload["condition"] {
   const lower = (cond || "").toLowerCase();
-  if (lower.includes("new")) return "NEW";
+  if (lower.includes("brand new") || lower === "new") return "NEW";
   if (lower.includes("like new") || lower.includes("mint")) return "LIKE_NEW";
-  if (lower.includes("excellent")) return "USED_EXCELLENT";
-  if (lower.includes("very good")) return "USED_VERY_GOOD";
+  if (lower.includes("fair") || lower.includes("acceptable")) return "USED_ACCEPTABLE";
+  if (lower.includes("very good") || lower.includes("good")) return "USED_VERY_GOOD";
   if (lower.includes("parts") || lower.includes("untested") || lower.includes("faulty")) return "FOR_PARTS_OR_NOT_WORKING";
-  return "USED_GOOD";
+  return "USED_EXCELLENT";
 }
 
 /**
@@ -253,8 +253,20 @@ export async function fetchUserDefaultPolicies(
   return policies;
 }
 
-import { resolveEbayCategoryId } from "./ebay-prefill";
-export { resolveEbayCategoryId };
+/**
+ * Maps item category and title to eBay AU leaf category IDs
+ */
+export function resolveEbayCategoryId(category?: string, title?: string): string {
+  const text = `${category || ""} ${title || ""}`.toLowerCase();
+  if (text.includes("watch") || text.includes("timepiece") || text.includes("rolex") || text.includes("omega")) return "31387";
+  if (text.includes("wallet") || text.includes("cardholder") || text.includes("purse")) return "45258";
+  if (text.includes("sneaker") || text.includes("shoe") || text.includes("athletic") || text.includes("jordan") || text.includes("nike") || text.includes("dunk")) return "15709";
+  if (text.includes("ring") || text.includes("necklace") || text.includes("pendant") || text.includes("jewelry") || text.includes("jewellery") || text.includes("bracelet") || text.includes("earring") || text.includes("chain") || text.includes("precious_metals") || text.includes("gold") || text.includes("silver") || text.includes("brooch")) return "164344";
+  if (text.includes("crystal") || text.includes("mineral") || text.includes("gemstone") || text.includes("quartz") || text.includes("geode") || text.includes("crystals_gems")) return "3225";
+  if (text.includes("card") || text.includes("pokemon") || text.includes("tcg") || text.includes("magic") || text.includes("yugioh") || text.includes("charizard") || text.includes("trading_cards")) return "183454";
+  if (text.includes("men") && (text.includes("bag") || text.includes("briefcase") || text.includes("backpack"))) return "52357";
+  return "169291"; // Default to Women's Bags & Handbags
+}
 
 /**
  * Publish Spadas AI Listing to eBay Inventory & Offer REST API
@@ -309,7 +321,7 @@ export async function publishToEbayInventory(
       "Content-Type": "application/json",
       "Content-Language": "en-AU",
       "Accept": "application/json",
-      "Accept-Language": "en-AU",
+      "Accept-Language": "en-US",
       Authorization: `Bearer ${accessToken}`,
     },
     body: JSON.stringify(itemPayload),
@@ -368,7 +380,7 @@ export async function publishToEbayInventory(
         "Content-Type": "application/json",
         "Content-Language": "en-AU",
         "Accept": "application/json",
-        "Accept-Language": "en-AU",
+        "Accept-Language": "en-US",
       },
       body: JSON.stringify(offerPayload),
     });
@@ -401,7 +413,7 @@ export async function publishToEbayInventory(
           "Content-Type": "application/json",
           "Content-Language": "en-AU",
           "Accept": "application/json",
-          "Accept-Language": "en-AU",
+          "Accept-Language": "en-US",
         },
       });
 
@@ -411,7 +423,7 @@ export async function publishToEbayInventory(
         isLive = !!listingId;
       } else {
         const pubErrJson = await pubRes.json().catch(() => null);
-        console.warn("eBay publish warning (item stays as draft):", pubErrJson);
+        console.warn("eBay publish warning (item stays as draft in Seller Hub):", pubErrJson);
       }
     }
   } catch (offerErr: any) {
@@ -442,7 +454,7 @@ export async function publishToEbayInventory(
     environment: isProduction ? "production" : "sandbox",
     listingUrl,
     message: isLive
-      ? "Listing is LIVE on eBay!"
-      : "Inventory draft and offer created in your eBay Seller Hub!",
+      ? "Listing is LIVE on eBay AU!"
+      : "Draft saved in your eBay Seller Hub! Review shipping details to activate.",
   };
 }

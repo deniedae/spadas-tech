@@ -42,7 +42,18 @@ export async function GET(req: NextRequest) {
     }
 
     // Query marketplace connection server-side strictly for the authenticated user ID
-    const { data: ebayToken, error: dbError } = await supabase
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    const { createClient: createAdminClient } = await import("@supabase/supabase-js");
+    const dbClient =
+      supabaseUrl && serviceRoleKey
+        ? createAdminClient(supabaseUrl, serviceRoleKey, {
+            auth: { persistSession: false, autoRefreshToken: false },
+          })
+        : supabase;
+
+    const { data: ebayToken, error: dbError } = await dbClient
       .from("user_marketplace_tokens")
       .select("is_connected")
       .eq("user_id", user.id)

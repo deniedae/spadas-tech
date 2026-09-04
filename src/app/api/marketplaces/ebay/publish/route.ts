@@ -53,21 +53,11 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
 
     let accessToken = tokenRow?.access_token;
-    let refreshToken = tokenRow?.refresh_token || process.env.EBAY_USER_REFRESH_TOKEN;
+    let refreshToken = tokenRow?.refresh_token;
 
     if (!accessToken && !refreshToken) {
-      if (process.env.NODE_ENV === "development" || !process.env.EBAY_CLIENT_ID) {
-        return NextResponse.json({
-          success: true,
-          isDemoMode: true,
-          sku: `SPADAS-DEMO-${Date.now()}`,
-          message: "Published to eBay Demo Sandbox (Connect real eBay account in Settings for live seller Hub sync).",
-          listingUrl: "https://sandbox.ebay.com/itm/SPADAS-DEMO-ITEM",
-        });
-      }
-
       return NextResponse.json(
-        { error: "Please connect your eBay seller account in Settings first." },
+        { error: "Please connect your eBay seller account in Settings first, or use 1-Tap Fast-List." },
         { status: 400 }
       );
     }
