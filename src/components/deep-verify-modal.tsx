@@ -22,6 +22,10 @@ import {
   Copy,
   Fingerprint,
   ZoomIn,
+  WifiOff,
+  DollarSign,
+  Check,
+  ImageIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { DeepVerifyResult } from "@/app/api/deep-verify/route";
@@ -30,6 +34,19 @@ import {
   ForensicCategory,
   detectForensicCategory,
 } from "@/lib/forensic-knowledge";
+import {
+  saveToVault,
+  getPendingVaultItems,
+  initVaultNetworkListener,
+} from "@/lib/offline-vault";
+import {
+  downloadCoaImageCard,
+  generateMarketplaceListingMarkdown,
+  type CoaData,
+} from "@/lib/coa-generator";
+import {
+  calculateMarketplaceArbitrage,
+} from "@/lib/arbitrage-calc";
 
 interface DeepVerifyModalProps {
   isOpen: boolean;
@@ -63,10 +80,34 @@ export function DeepVerifyModal({
   const [macroZoom, setMacroZoom] = useState<boolean>(false);
   const [targetedTell, setTargetedTell] = useState<{ tell_name: string; rule: string } | null>(null);
   const [opticalWarning, setOpticalWarning] = useState<string | null>(null);
+  const [offlineQueueCount, setOfflineQueueCount] = useState<number>(0);
+  const [isOnline, setIsOnline] = useState<boolean>(true);
+  const [thriftCostInput, setThriftCostInput] = useState<string>("25");
+  const [isExportingCoa, setIsExportingCoa] = useState<boolean>(false);
+  const [copiedListingMarkdown, setCopiedListingMarkdown] = useState<boolean>(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const [cameraActive, setCameraActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setIsOnline(navigator.onLine);
+      void getPendingVaultItems()
+        .then((items) => setOfflineQueueCount(items.length))
+        .catch(() => {});
+      const unsubscribe = initVaultNetworkListener(({ successful }) => {
+        setIsOnline(true);
+        void getPendingVaultItems()
+          .then((items) => setOfflineQueueCount(items.length))
+          .catch(() => {});
+        if (successful > 0) {
+          toast.success(`📶 Network restored: Synced ${successful} queued items from Thrift Vault!`);
+        }
+      });
+      return unsubscribe;
+    }
+  }, []);
 
   // Auto-engage 2.0x macro zoom on close-up detail steps (step 2, 3, 4)
   useEffect(() => {
@@ -398,6 +439,29 @@ export function DeepVerifyModal({
     if (validImages.length === 0) {
       toast.error("Please capture at least 1 macro photo before verifying.");
       return;
+    }
+
+    // Offline Thrift Vault Fallback: If disconnected, save capture to IndexedDB and queue auto-sync
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      try {
+        await saveToVault({
+          product_name: productName,
+          brand,
+          category: selectedCategory,
+          captured_images: validImages,
+          thrift_cost_aud: parseFloat(thriftCostInput) || 0,
+        });
+        const pending = await getPendingVaultItems();
+        setOfflineQueueCount(pending.length);
+        toast.info("📶 Offline: Saved to Thrift Vault! Will auto-verify once connection returns.", {
+          duration: 5000,
+        });
+        stopCamera();
+        onClose();
+        return;
+      } catch (err: any) {
+        console.error("Failed to save to vault:", err);
+      }
     }
 
     setAnalyzing(true);
@@ -1032,6 +1096,190 @@ Verified by Spadas AI Forensic Pre-Screening Assistant`;
                 </div>
               )}
 
+              {/* Marketplace Arbitrage Engine Card */}
+              {(() => {
+                const fairVal = result.market_valuation_aud?.fair_condition ?? 120;
+                const isFake = result.verdict === "COUNTERFEIT";
+                const costNum = parseFloat(thriftCostInput) || 0;
+                const arbitrage = calculateMarketplaceArbitrage({
+                  thriftCostAud: costNum,
+                  fairResaleAud: fairVal,
+                  isCounterfeit: isFake,
+                });
+
+                return (
+                  <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-700/80 space-y-3.5 animate-fade-in shadow-xl shadow-black/40">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div className="flex items-center gap-2">
+                        <div className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                          <DollarSign className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <span className="font-extrabold text-white block uppercase tracking-wider text-[11px]">
+                            Marketplace Arbitrage & Net Take-Home
+                          </span>
+                          <span className="text-[10px] text-slate-400">
+                            Live commission deduction & net profit across platforms
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Quick Thrift Cost Input */}
+                      <div className="flex items-center gap-1.5 bg-slate-950 px-2.5 py-1 rounded-xl border border-slate-700">
+                        <span className="text-[11px] font-bold text-slate-400">Thrift Cost:</span>
+                        <span className="text-xs font-bold text-cyan-400">$</span>
+                        <input
+                          type="number"
+                          min="0"
+                          step="1"
+                          value={thriftCostInput}
+                          onChange={(e) => setThriftCostInput(e.target.value)}
+                          className="w-14 bg-transparent text-xs font-black text-white focus:outline-none text-right"
+                          placeholder="25"
+                        />
+                        <span className="text-[10px] text-slate-400 font-bold">AUD</span>
+                      </div>
+                    </div>
+
+                    {/* Counterfeit Zero-Value Clamp Warning */}
+                    {isFake ? (
+                      <div className="p-3 rounded-xl bg-red-950/30 border border-red-500/50 flex items-start gap-2 text-xs text-rose-200">
+                        <ShieldAlert className="h-4 w-4 text-rose-400 shrink-0 mt-0.5" />
+                        <div>
+                          <strong className="text-rose-400 block font-black">
+                            Counterfeit Zero-Value Clamp: -100% Capital Risk
+                          </strong>
+                          <span>
+                            Item failed authentic manufacturer standards ($0 resale value). Buying at ${costNum} AUD is a total net loss of -${costNum} AUD.
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      /* Platform Fee Grid */
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {Object.values(arbitrage.platforms).map((plat) => {
+                          const isBest = plat.platformId === arbitrage.bestPlatform.platformId;
+                          const isProfitPositive = plat.netProfitAud > 0;
+
+                          return (
+                            <div
+                              key={plat.platformId}
+                              className={`p-2.5 rounded-xl border relative transition ${
+                                isBest
+                                  ? "bg-emerald-950/30 border-emerald-500/50 shadow-md shadow-emerald-950/20"
+                                  : "bg-slate-950/60 border-slate-800"
+                              }`}
+                            >
+                              {isBest && (
+                                <span className="absolute -top-2 right-2 text-[8px] font-black uppercase px-1.5 py-0.2 rounded bg-emerald-500 text-slate-950 font-mono">
+                                  Top Net
+                                </span>
+                              )}
+                              <span className="text-[10px] font-bold text-slate-400 block truncate">
+                                {plat.platformName}
+                              </span>
+                              <span
+                                className={`text-sm font-black block mt-0.5 ${
+                                  isProfitPositive ? "text-emerald-400" : "text-rose-400"
+                                }`}
+                              >
+                                {plat.netProfitAud >= 0 ? `+$${plat.netProfitAud}` : `-$${Math.abs(plat.netProfitAud)}`} AUD
+                              </span>
+                              <div className="flex items-center justify-between text-[9px] text-slate-400 mt-1 pt-1 border-t border-slate-800/80 font-mono">
+                                <span>{plat.roiPercentage}% ROI</span>
+                                <span>Fee: -${plat.platformFeesAud}</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* Forensic COA & Social Proof Export Card */}
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-950/40 via-slate-900 to-cyan-950/40 border border-emerald-500/40 space-y-3 shadow-xl shadow-black/40 animate-fade-in">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Award className="h-5 w-5 text-emerald-400 shrink-0" />
+                    <div>
+                      <h4 className="text-xs font-black uppercase tracking-wider text-white">
+                        Buyer Trust & Marketplace Proof
+                      </h4>
+                      <p className="text-[10px] text-slate-400">
+                        Export verified forensic credentials for eBay, Grailed & Depop listings
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                    SHA-256 Verified
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                  <button
+                    type="button"
+                    disabled={isExportingCoa}
+                    onClick={async () => {
+                      try {
+                        setIsExportingCoa(true);
+                        const coaPayload: CoaData = {
+                          certId: result.certificate_id || `spd_${Date.now()}`,
+                          productName: result.product_name,
+                          brand: result.brand,
+                          category: result.category,
+                          verdict: result.verdict,
+                          authenticityScore: result.authenticity_score,
+                          confidenceTier: result.confidence_tier || "HIGH_CONFIDENCE",
+                          checks: result.brand_dna_checklist || [],
+                          images: capturedImages.filter(Boolean),
+                          createdAt: new Date().toISOString(),
+                        };
+                        await downloadCoaImageCard(coaPayload);
+                        toast.success("Downloaded 1200x1200px COA photo card for your listing gallery!");
+                      } catch (err: any) {
+                        toast.error("Failed to export COA image: " + (err?.message || err));
+                      } finally {
+                        setIsExportingCoa(false);
+                      }
+                    }}
+                    className="flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs transition shadow-md shadow-emerald-500/20 active:scale-95 cursor-pointer disabled:opacity-50"
+                  >
+                    <ImageIcon className="h-4 w-4" />
+                    <span>{isExportingCoa ? "Rendering..." : "Export COA Card (1200px PNG)"}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const coaPayload: CoaData = {
+                        certId: result.certificate_id || `spd_${Date.now()}`,
+                        productName: result.product_name,
+                        brand: result.brand,
+                        category: result.category,
+                        verdict: result.verdict,
+                        authenticityScore: result.authenticity_score,
+                        confidenceTier: result.confidence_tier || "HIGH_CONFIDENCE",
+                        checks: result.brand_dna_checklist || [],
+                        images: capturedImages.filter(Boolean),
+                        createdAt: new Date().toISOString(),
+                      };
+                      const md = generateMarketplaceListingMarkdown(coaPayload);
+                      void navigator.clipboard.writeText(md).then(() => {
+                        setCopiedListingMarkdown(true);
+                        toast.success("Copied forensic description with SHA-256 hash to clipboard!");
+                        setTimeout(() => setCopiedListingMarkdown(false), 3000);
+                      });
+                    }}
+                    className="flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold text-xs transition active:scale-95 cursor-pointer"
+                  >
+                    {copiedListingMarkdown ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4 text-cyan-400" />}
+                    <span>{copiedListingMarkdown ? "Copied to Clipboard!" : "Copy Listing Markdown Proof"}</span>
+                  </button>
+                </div>
+              </div>
+
               {/* Image Quality Filter: Retake Angle Prompt (Instead of Slashing Scores) */}
               {result.retake_recommended && (
                 <div className="p-3.5 rounded-2xl bg-sky-950/40 border border-sky-500/40 space-y-2 animate-fade-in">
@@ -1187,7 +1435,7 @@ Verified by Spadas AI Forensic Pre-Screening Assistant`;
                       className="w-full h-full object-cover"
                     />
 
-                    {/* Macro Zoom / Wide Angle Mode Toggle */}
+                    {/* Macro Zoom / Wide Angle Mode Toggle & Offline Vault Indicator */}
                     <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5">
                       <button
                         type="button"
@@ -1205,6 +1453,16 @@ Verified by Spadas AI Forensic Pre-Screening Assistant`;
                         <ZoomIn className="h-3 w-3" />
                         {macroZoom ? "2.0x Macro Sharpen ON" : "1.0x Full Frame"}
                       </button>
+
+                      {(!isOnline || offlineQueueCount > 0) && (
+                        <div
+                          className="px-2.5 py-1 rounded-full text-[10px] font-black tracking-wide border flex items-center gap-1.5 shadow-lg bg-amber-500/20 text-amber-300 border-amber-500/40 animate-pulse"
+                          title="Captures persist locally in IndexedDB until internet is restored"
+                        >
+                          <WifiOff className="h-3 w-3" />
+                          <span>Vault: {offlineQueueCount} queued</span>
+                        </div>
+                      )}
                     </div>
 
                     {/* Targeted Reshoot Banner */}

@@ -150,11 +150,16 @@ export const FORENSIC_CATEGORIES: Record<ForensicCategory, CategoryForensicConfi
    - Heat Stamp: The 'O' in Louis Vuitton is very round (almost a perfect circle). The two 'T's in Vuitton almost touch.
    - Date Codes / Microchips: Pre-2021 date code format: 2 letters + 4 digits (e.g. SD2148: SD = factory, weeks 2&4, year 1&8 = 24th week of 2018). Post-2021 uses embedded RFID microchips. Pre-1980s vintage bags naturally lack date codes entirely; evaluate via canvas grain, hardware patina, and French cowhide leather.
 2. Chanel:
-   - Quilt Diamond Alignment: Quilted diamonds must align perfectly across the front flap and bag body when closed, and across the back slip pocket.
+   - Quilt Diamond Alignment: Quilted diamonds must align perfectly across the front flap and body when closed, and across the back slip pocket.
    - CC Lock: Right C overlaps left C at the top; left C overlaps right C at the bottom.
-3. Hermes:
+3. Christian Dior:
+   - Oblique Jacquard Canvas: The letter 'D' leans forward with a thin top-left curve and thick right curve; the top serif of the 'r' tucks neatly under the next 'D'. Fakes feature upright letters and bleeding borders.
+   - Cannage Quilting: Lady Dior and Caro bags feature 12-strand intersecting arched cushions with uniform geometric symmetry.
+   - D.I.O.R. Charms: Solid weighted metal with embossed 'CD' oval connecting loop; zero porous casting seams or tinny hollow feel.
+   - Date Code: ##-AA-#### format on reverse of tag (e.g. 01-RU-0118). Vintage pre-1990 items are exempt.
+4. Hermes:
    - Stitching: Hand-sewn saddle stitch has an intentional ~28-degree slant; machine-sewn straight lockstitch is an immediate COUNTERFEIT tell.
-4. Hardware & Era Reality:
+5. Hardware & Era Reality:
    - Premium brass hardware with crisp laser engraving (Lampo, Riri, YKK, or branded pulls); no lightweight plated pot metal.
    - ERA EXEMPTION: Pre-microchip items or vintage models lacking internal tags must be verified decisively on material grain, stitch tension, and hardware finish without demanding non-existent microchips.`,
     angles: [
@@ -831,6 +836,50 @@ export const BRAND_DNA_REGISTRY: Record<string, BrandDnaRule[]> = {
     },
   ],
 
+  christian_dior: [
+    {
+      tell_id: "dior_oblique_canvas",
+      tell_name: "Dior Oblique Jacquard Canvas Precision",
+      brand_key: "christian_dior",
+      category: "luxury_handbags",
+      authenticity_rule: "The letter 'D' in the Oblique motif must lean at a forward slant with a thin top-left arc and thick right curve; the top serif of the 'r' must tuck neatly under the subsequent 'D'. Fakes feature upright letters or bleeding borders.",
+      macro_focus: "Exterior Oblique canvas monogram motif",
+    },
+    {
+      tell_id: "dior_cannage_quilting",
+      tell_name: "Cannage Arch Stitching & Cushion Symmetry",
+      brand_key: "christian_dior",
+      category: "luxury_handbags",
+      authenticity_rule: "On Lady Dior and Caro styles, the 12-strand Cannage quilting features intersecting curved arches creating geometric cushions with uniform stitch tension and perfect alignment.",
+      macro_focus: "Front quilted Cannage panel and arch seams",
+    },
+    {
+      tell_id: "dior_dior_charms",
+      tell_name: "D.I.O.R. Letter Charms & CD Oval Ring",
+      brand_key: "christian_dior",
+      category: "luxury_handbags",
+      authenticity_rule: "Dangling 'D.I.O.R.' metal charms have substantial heft with smooth edges and zero porous casting flash. The leather attachment loop is anchored by an embossed 'CD' oval ring with centered debossing.",
+      macro_focus: "Charm connection ring and letter edges",
+    },
+    {
+      tell_id: "dior_heat_stamp",
+      tell_name: "Interior Heat Stamp Typography & Serifs",
+      brand_key: "christian_dior",
+      category: "luxury_handbags",
+      authenticity_rule: "Interior leather tag features crisp hot-stamp foil or deboss reading 'Christian Dior / PARIS / MADE IN ITALY' (or 'MADE IN SPAIN'). The capital 'C' and 'D' are taller than other letters, with fine serifs and balanced spacing.",
+      macro_focus: "Interior leather tag brand heat stamp",
+    },
+    {
+      tell_id: "dior_date_code",
+      tell_name: "Factory Date Code Formatting (##-AA-####)",
+      brand_key: "christian_dior",
+      category: "luxury_handbags",
+      authenticity_rule: "On the reverse of the leather tag, modern Dior items feature a date code formatted as 2 digits, 2 letters, 4 digits (e.g. '01-RU-0118'). Vintage pre-1990 pieces naturally lack date tabs.",
+      macro_focus: "Reverse underside of interior leather tag",
+      is_vintage_exemptible: true,
+    },
+  ],
+
   nike_jordan: [
     {
       tell_id: "nike_swoosh_needlework",
@@ -969,6 +1018,7 @@ export function getBrandDnaRules(brandName?: string, category?: ForensicCategory
   if (/\b(louis vuitton|lv)\b/i.test(b)) return BRAND_DNA_REGISTRY.louis_vuitton;
   if (/\b(gucci)\b/i.test(b)) return BRAND_DNA_REGISTRY.gucci;
   if (/\b(chanel)\b/i.test(b)) return BRAND_DNA_REGISTRY.chanel;
+  if (/\b(christian dior|dior)\b/i.test(b)) return BRAND_DNA_REGISTRY.christian_dior;
   if (/\b(nike|jordan)\b/i.test(b)) return BRAND_DNA_REGISTRY.nike_jordan;
   if (/\b(rolex)\b/i.test(b)) return BRAND_DNA_REGISTRY.rolex;
 

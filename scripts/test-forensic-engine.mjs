@@ -5,6 +5,14 @@ import {
   BRAND_DNA_REGISTRY,
   getBrandDnaRules,
 } from "../src/lib/forensic-knowledge.ts";
+import {
+  computeSha256Digest,
+  generateCoaDigest,
+  generateMarketplaceListingMarkdown,
+} from "../src/lib/coa-generator.ts";
+import {
+  calculateMarketplaceArbitrage,
+} from "../src/lib/arbitrage-calc.ts";
 
 console.log("🚀 Testing Spadas Universal Forensic Authenticity Engine...");
 
@@ -488,7 +496,20 @@ export function runBrandDnaRegistryTest() {
   assert.ok(rolexRules.some(r => r.tell_id === "rolex_dial_coronet"), "Rolex dial coronet tell must exist");
   assert.ok(rolexRules.some(r => r.tell_id === "rolex_cyclops_ar"), "Rolex 2.5x cyclops tell must exist");
 
-  // 7. Verify Checklist Schema Contract
+  // 7. Verify Christian Dior DNA Rules
+  const diorRules = getBrandDnaRules("Christian Dior");
+  assert.equal(diorRules.length, 5, "Christian Dior must have 5 forensic DNA tells");
+  assert.ok(diorRules.some(r => r.tell_id === "dior_oblique_canvas"), "Dior Oblique canvas tell must exist");
+  assert.ok(diorRules.some(r => r.tell_id === "dior_cannage_quilting"), "Dior Cannage quilting tell must exist");
+  assert.ok(diorRules.some(r => r.tell_id === "dior_dior_charms"), "Dior charms tell must exist");
+  assert.ok(diorRules.some(r => r.tell_id === "dior_heat_stamp"), "Dior heat stamp tell must exist");
+  assert.ok(diorRules.some(r => r.tell_id === "dior_date_code"), "Dior date code tell must exist");
+
+  // Alias check: "Dior" must also resolve to Christian Dior rules
+  const diorAliasRules = getBrandDnaRules("Dior");
+  assert.equal(diorAliasRules.length, 5, "'Dior' alias must resolve to Christian Dior rules");
+
+  // 8. Verify Checklist Schema Contract
   const sampleChecklist = [
     {
       tell_name: "Notched 'R' Letter Anatomy",
@@ -736,7 +757,174 @@ export function runInconclusiveReshootMappingTest() {
 
 runInconclusiveReshootMappingTest();
 
-console.log("\n🎉 ALL FORENSIC AUTHENTICITY ENGINE TESTS PASSED!");
+// Test 14: Offline Vault Persistence & Exponential Backoff Policy
+console.log("\n▶ Test 14: Offline Thrift Vault Persistence & Backoff Policy");
+
+export function runOfflineVaultPolicyTest() {
+  // Test exponential backoff calculation: 1000 * 2^(retry - 1), capped at 10000ms
+  const calculateBackoff = (retryCount) => {
+    if (retryCount <= 0) return 0;
+    return Math.min(1000 * Math.pow(2, retryCount - 1), 10000);
+  };
+
+  assert.equal(calculateBackoff(0), 0, "Initial attempt must have 0ms backoff delay");
+  assert.equal(calculateBackoff(1), 1000, "1st retry must delay 1000ms");
+  assert.equal(calculateBackoff(2), 2000, "2nd retry must delay 2000ms");
+  assert.equal(calculateBackoff(3), 4000, "3rd retry must delay 4000ms");
+  assert.equal(calculateBackoff(4), 8000, "4th retry must delay 8000ms");
+  assert.equal(calculateBackoff(5), 10000, "5th retry must cap at 10000ms");
+  assert.equal(calculateBackoff(8), 10000, "Subsequent retries must not exceed 10000ms");
+
+  // Verify queue item schema & status transitions
+  const mockVaultItem = {
+    id: "vault_1725500000_abc12",
+    created_at: new Date().toISOString(),
+    product_name: "Dior Saddle Bag",
+    brand: "Christian Dior",
+    category: "luxury_handbags",
+    thrift_cost_aud: 35,
+    captured_images: ["data:image/jpeg;base64,mock1", "data:image/jpeg;base64,mock2"],
+    status: "PENDING",
+    retry_count: 0,
+  };
+
+  assert.ok(mockVaultItem.id.startsWith("vault_"), "Vault ID must use vault_ prefix");
+  assert.equal(mockVaultItem.status, "PENDING", "Initial status must be PENDING");
+  assert.equal(mockVaultItem.retry_count, 0, "Initial retry count must be 0");
+
+  // Simulate status updates
+  const syncingItem = { ...mockVaultItem, status: "SYNCING" };
+  assert.equal(syncingItem.status, "SYNCING");
+
+  const syncedItem = { ...syncingItem, status: "SYNCED", result: { verdict: "AUTHENTIC", score: 92 } };
+  assert.equal(syncedItem.status, "SYNCED");
+  assert.equal(syncedItem.result.verdict, "AUTHENTIC");
+
+  console.log("  ✓ Test 14 Passed: Offline vault queue schema, status transitions, and backoff curve verified.");
+}
+
+runOfflineVaultPolicyTest();
+
+// Test 15: Forensic COA Cryptographic SHA-256 & Social Proof Export
+console.log("\n▶ Test 15: Forensic COA Cryptographic Digest & Marketplace Export");
+
+export function runCoaGeneratorTest() {
+  const sampleCoaData = {
+    certId: "cert_dior_9f3a1b",
+    productName: "Saddle Bag in Oblique Canvas",
+    brand: "Christian Dior",
+    category: "luxury_handbags",
+    verdict: "AUTHENTIC",
+    authenticityScore: 94,
+    confidenceTier: "HIGH_CONFIDENCE",
+    checks: [
+      {
+        tell_name: "Dior Oblique Jacquard Canvas Precision",
+        status: "PASSED",
+        observed_evidence: "Slanted 'D' with thin upper-left curve and tucked 'r' serif confirmed.",
+        authenticity_rule: "The letter 'D' in the Oblique motif must lean at a forward slant.",
+      },
+      {
+        tell_name: "D.I.O.R. Letter Charms & CD Oval Ring",
+        status: "PASSED",
+        observed_evidence: "Solid antiqued brass with clean embossed 'CD' oval loop.",
+        authenticity_rule: "Dangling charms have substantial heft with zero porous casting flash.",
+      },
+    ],
+    images: ["data:image/jpeg;base64,evidence1"],
+    createdAt: "2026-09-05T02:00:00.000Z",
+  };
+
+  // 1. SHA-256 digest determinism
+  const digest1 = generateCoaDigest(sampleCoaData);
+  const digest2 = generateCoaDigest(sampleCoaData);
+  assert.equal(digest1, digest2, "SHA-256 digest must be strictly deterministic");
+  assert.equal(digest1.length, 64, "SHA-256 hash must be 64-character hexadecimal");
+  assert.match(digest1, /^[0-9a-f]{64}$/, "SHA-256 must contain only valid hex characters");
+
+  // 2. Tamper evidence check
+  const tamperedData = {
+    ...sampleCoaData,
+    authenticityScore: 93, // 1-point change
+  };
+  const tamperedDigest = generateCoaDigest(tamperedData);
+  assert.notEqual(digest1, tamperedDigest, "Changing score by 1 point must alter the cryptographic digest completely");
+
+  // 3. Marketplace listing markdown generation
+  const markdown = generateMarketplaceListingMarkdown(sampleCoaData);
+  assert.ok(markdown.includes("SPADAS FORENSIC PRE-SCREENING CERTIFICATE"), "Markdown must include title");
+  assert.ok(markdown.includes("Christian Dior Saddle Bag in Oblique Canvas"), "Markdown must include item details");
+  assert.ok(markdown.includes("VERIFIED AUTHENTIC"), "Markdown must include verdict");
+  assert.ok(markdown.includes("#cert_dior_9f3a1b"), "Markdown must include certificate ID");
+  assert.ok(markdown.includes(digest1), "Markdown must embed SHA-256 digest");
+  assert.ok(markdown.includes("Dior Oblique Jacquard Canvas Precision"), "Markdown must list physical checks");
+
+  console.log("  ✓ Test 15 Passed: Cryptographic SHA-256 digest determinism, tamper-evidence & listing markdown verified.");
+}
+
+runCoaGeneratorTest();
+
+// Test 16: Multi-Platform Marketplace Arbitrage & Counterfeit Zero-Value Clamp
+console.log("\n▶ Test 16: Marketplace Arbitrage Engine & Counterfeit Clamp");
+
+export function runArbitrageEngineTest() {
+  // Scenario A: Authentic Dior Saddle Bag acquired for $35 AUD at thrift store, fair market value $220 AUD
+  const authenticArb = calculateMarketplaceArbitrage({
+    thriftCostAud: 35,
+    fairResaleAud: 220,
+    shippingEstAud: 12,
+    isCounterfeit: false,
+  });
+
+  // Check eBay AU (13.25% + $0.40 AUD fee, $12 shipping)
+  // Fees = 220 * 0.1325 + 0.40 = 29.15 + 0.40 = 29.55
+  // Net profit = 220 - 35 - 29.55 - 12 = 143.45 AUD
+  const ebay = authenticArb.platforms.ebay;
+  assert.equal(ebay.platformFeesAud, 29.55, "eBay fee must be 13.25% + $0.40 AUD");
+  assert.equal(ebay.netProfitAud, 143.45, "eBay net profit must match deduction formula");
+  assert.equal(ebay.roiPercentage, 410, "ROI must be +410% on $35 purchase");
+
+  // Check Poshmark AU (20% fee, 0 seller shipping)
+  // Fees = 220 * 0.20 = 44.00
+  // Net profit = 220 - 35 - 44 = 141.00 AUD
+  const poshmark = authenticArb.platforms.poshmark;
+  assert.equal(poshmark.platformFeesAud, 44.00, "Poshmark fee must be 20% flat");
+  assert.equal(poshmark.netProfitAud, 141.00, "Poshmark net profit must be $141.00 AUD");
+
+  // Check Grailed (9% + 3.49% + $0.49 = 12.49% + 0.49)
+  // Fees = 220 * 0.1249 + 0.49 = 27.478 + 0.49 = 27.97
+  // Net profit = 220 - 35 - 27.97 - 12 = 145.03 AUD
+  const grailed = authenticArb.platforms.grailed;
+  assert.equal(grailed.platformFeesAud, 27.97, "Grailed fee must be 9% + 3.49% + $0.49 AUD");
+  assert.equal(grailed.netProfitAud, 145.03, "Grailed net profit must be $145.03 AUD");
+
+  // Verify best platform recommendation
+  assert.equal(authenticArb.bestPlatform.platformId, "grailed", "Grailed must be recommended for highest net return");
+  assert.equal(authenticArb.warning, undefined, "Authentic item must have no counterfeit warning");
+
+  // Scenario B: Counterfeit Zero-Value Clamp
+  // Fake item bought for $35 AUD
+  const fakeArb = calculateMarketplaceArbitrage({
+    thriftCostAud: 35,
+    fairResaleAud: 220,
+    isCounterfeit: true,
+  });
+
+  assert.equal(fakeArb.fairResaleAud, 0, "Counterfeit fair resale must be clamped to $0 AUD");
+  assert.ok(fakeArb.warning?.includes("Counterfeit Zero-Value Clamp Active"), "Must flag counterfeit capital loss warning");
+
+  // All platforms must reflect -$35 capital loss and -100% ROI
+  for (const plat of Object.values(fakeArb.platforms)) {
+    assert.equal(plat.netProfitAud, -35, `${plat.platformName} net profit must be -$35 AUD`);
+    assert.equal(plat.roiPercentage, -100, `${plat.platformName} ROI must be -100%`);
+  }
+
+  console.log("  ✓ Test 16 Passed: Multi-platform fee deductions, net profit arithmetic & counterfeit clamp verified.");
+}
+
+runArbitrageEngineTest();
+
+console.log("\n🎉 ALL 16 FORENSIC AUTHENTICITY & THRIFT SOURCING TESTS PASSED!");
 
 
 

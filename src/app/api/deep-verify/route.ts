@@ -495,7 +495,7 @@ Respond ONLY with valid JSON adhering to this exact schema:
         : applicableRules.map((r) => ({
             tell_name: r.tell_name,
             status: (verdict === "COUNTERFEIT"
-              ? (r.tell_id.includes("notched_r") || r.tell_id.includes("circular_o") ? "FAILED" : "PASSED")
+              ? (r.tell_id.includes("notched_r") || r.tell_id.includes("circular_o") || r.tell_id.includes("oblique") || r.tell_id.includes("cannage") ? "FAILED" : "PASSED")
               : verdict === "INSUFFICIENT_EVIDENCE"
               ? "INCONCLUSIVE"
               : "PASSED") as BrandDnaCheck["status"],
@@ -517,7 +517,10 @@ Respond ONLY with valid JSON adhering to this exact schema:
             c.tell_name.toLowerCase().includes("circular 'o'") ||
             c.tell_name.toLowerCase().includes("turnlock") ||
             c.tell_name.toLowerCase().includes("assay") ||
-            c.tell_name.toLowerCase().includes("interlocking gg")))
+            c.tell_name.toLowerCase().includes("interlocking gg") ||
+            c.tell_name.toLowerCase().includes("oblique") ||
+            c.tell_name.toLowerCase().includes("cannage") ||
+            c.tell_name.toLowerCase().includes("d.i.o.r")))
     );
 
     let finalVerdict = verdict;
