@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/app/lib/server";
 import { publishToEbayInventory, refreshEbayToken } from "@/app/lib/marketplaces/ebay";
+import { convertBase64ToPublicUrls } from "@/app/lib/marketplaces/ebay-storage";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 
 export async function POST(req: NextRequest) {
@@ -15,14 +16,23 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { listing, product, description, price, condition, brand, imageUrls } = body;
+    const { listing, product, description, price, condition, brand, category, imageUrls } = body;
 
     const targetProduct = product || listing?.product || "AI Scanned Item";
     const targetDesc = description || listing?.seo_description || listing?.detailed_description || "";
     const targetPrice = Number(price || listing?.suggested_price_max || listing?.suggested_price_min || 25);
     const targetCondition = condition || listing?.analysis?.condition || "Used";
     const targetBrand = brand || listing?.analysis?.brand || "Unbranded";
+    const targetCategory = category || listing?.category || listing?.analysis?.category || "Accessories";
     const targetImages = imageUrls || listing?.imageUrls || [];
+
+    // Convert Base64 image payloads to public Supabase Storage URLs so eBay can ingest them
+    let publicImages: string[] = targetImages;
+    try {
+      publicImages = await convertBase64ToPublicUrls(targetImages, user.id, `ebay_${Date.now()}`);
+    } catch (storageErr) {
+      console.warn("Could not convert Base64 images to Supabase Storage URLs:", storageErr);
+    }
 
     // Fetch user's eBay tokens from Supabase using admin client or SSR client
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -94,8 +104,13 @@ export async function POST(req: NextRequest) {
       price: targetPrice,
       condition: targetCondition,
       brand: targetBrand,
-      imageUrls: targetImages,
+      category: targetCategory,
+      imageUrls: publicImages,
     });
+
+    if (!result.success) {
+      return NextResponse.json(result, { status: 400 });
+    }
 
     return NextResponse.json(result);
   } catch (err: unknown) {

@@ -47,6 +47,10 @@ import {
 import {
   calculateMarketplaceArbitrage,
 } from "@/lib/arbitrage-calc";
+import {
+  generateOptimizedEbayTitle,
+  generateEbayPrefillUrl,
+} from "@/app/lib/marketplaces/ebay-prefill";
 
 interface DeepVerifyModalProps {
   isOpen: boolean;
@@ -85,6 +89,13 @@ export function DeepVerifyModal({
   const [thriftCostInput, setThriftCostInput] = useState<string>("25");
   const [isExportingCoa, setIsExportingCoa] = useState<boolean>(false);
   const [copiedListingMarkdown, setCopiedListingMarkdown] = useState<boolean>(false);
+  const [isPublishingEbay, setIsPublishingEbay] = useState<boolean>(false);
+  const [ebayPublishResult, setEbayPublishResult] = useState<{
+    success: boolean;
+    listingUrl?: string;
+    message?: string;
+    error?: string;
+  } | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const [cameraActive, setCameraActive] = useState(false);
@@ -556,6 +567,139 @@ Verified by Spadas AI Forensic Pre-Screening Assistant`;
     if (!result) return;
     navigator.clipboard.writeText(publicCertUrl);
     toast.success("Public Certificate Link copied! Ready to drop into your eBay description.");
+  };
+
+  const handleEbayFastList = async () => {
+    if (!result) return;
+
+    // 1. Generate optimized title strictly <= 80 characters
+    const passingHallmarks = (result.brand_dna_checklist || [])
+      .filter((c) => c.status === "PASSED")
+      .map((c) => c.tell_name);
+
+    const optimizedTitle = generateOptimizedEbayTitle({
+      brand: result.brand,
+      productName: result.product_name,
+      category: result.category,
+      verifiedHallmarks: passingHallmarks,
+      isAuthentic: result.verdict === "AUTHENTIC" || result.verdict === "LIKELY_AUTHENTIC",
+    });
+
+    // 2. Build verified listing markdown package
+    const coaPayload: CoaData = {
+      certId: result.certificate_id || `spd_${Date.now()}`,
+      productName: result.product_name,
+      brand: result.brand,
+      category: result.category,
+      verdict: result.verdict,
+      authenticityScore: result.authenticity_score,
+      confidenceTier: result.confidence_tier || "HIGH_CONFIDENCE",
+      checks: result.brand_dna_checklist || [],
+      images: capturedImages.filter(Boolean),
+      createdAt: new Date().toISOString(),
+    };
+
+    const listingMarkdown = generateMarketplaceListingMarkdown(coaPayload);
+
+    // 3. Copy title + description to clipboard
+    try {
+      await navigator.clipboard.writeText(`${optimizedTitle}\n\n${listingMarkdown}`);
+      toast.success("Copied 80-char SEO Title & Forensic Provenance description to clipboard!");
+    } catch {
+      // Ignore clipboard permission errors
+    }
+
+    // 4. Auto-download COA card so seller can upload to eBay image gallery
+    try {
+      await downloadCoaImageCard(coaPayload);
+      toast.success("COA photo card downloaded for your listing gallery!");
+    } catch (coaErr) {
+      console.warn("Could not download COA card:", coaErr);
+    }
+
+    // 5. Open eBay AU Pre-Fill wizard
+    const prefillUrl = generateEbayPrefillUrl({
+      title: optimizedTitle,
+      brand: result.brand,
+      category: result.category,
+    });
+
+    window.open(prefillUrl, "_blank", "noopener,noreferrer");
+  };
+
+  const handleDirectPushEbayDraft = async () => {
+    if (!result) return;
+    setIsPublishingEbay(true);
+    setEbayPublishResult(null);
+
+    try {
+      const passingHallmarks = (result.brand_dna_checklist || [])
+        .filter((c) => c.status === "PASSED")
+        .map((c) => c.tell_name);
+
+      const optimizedTitle = generateOptimizedEbayTitle({
+        brand: result.brand,
+        productName: result.product_name,
+        category: result.category,
+        verifiedHallmarks: passingHallmarks,
+        isAuthentic: result.verdict === "AUTHENTIC" || result.verdict === "LIKELY_AUTHENTIC",
+      });
+
+      const coaPayload: CoaData = {
+        certId: result.certificate_id || `spd_${Date.now()}`,
+        productName: result.product_name,
+        brand: result.brand,
+        category: result.category,
+        verdict: result.verdict,
+        authenticityScore: result.authenticity_score,
+        confidenceTier: result.confidence_tier || "HIGH_CONFIDENCE",
+        checks: result.brand_dna_checklist || [],
+        images: capturedImages.filter(Boolean),
+        createdAt: new Date().toISOString(),
+      };
+      const listingMarkdown = generateMarketplaceListingMarkdown(coaPayload);
+      const suggestedPrice = parseFloat(result.market_spread?.match(/\$(\d+)/)?.[1] || "50");
+
+      const res = await fetch("/api/marketplaces/ebay/publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          product: optimizedTitle,
+          description: listingMarkdown,
+          price: suggestedPrice,
+          brand: result.brand,
+          category: result.category,
+          condition: result.cleanup_advisory || "Pre-owned",
+          imageUrls: capturedImages.filter(Boolean),
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setEbayPublishResult({
+          success: true,
+          listingUrl: data.listingUrl,
+          message: data.message || "Draft created in your eBay account!",
+        });
+        toast.success(data.message || "Pushed to eBay draft successfully!");
+      } else {
+        const errMsg = data.error || data.message || "Failed to publish to eBay";
+        setEbayPublishResult({
+          success: false,
+          error: errMsg,
+        });
+        toast.error(errMsg);
+      }
+    } catch (err: any) {
+      const errMsg = err?.message || "Network error while connecting to eBay API";
+      setEbayPublishResult({
+        success: false,
+        error: errMsg,
+      });
+      toast.error(errMsg);
+    } finally {
+      setIsPublishingEbay(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -1278,6 +1422,103 @@ Verified by Spadas AI Forensic Pre-Screening Assistant`;
                     <span>{copiedListingMarkdown ? "Copied to Clipboard!" : "Copy Listing Markdown Proof"}</span>
                   </button>
                 </div>
+              </div>
+
+              {/* Phase 5: One-Tap Marketplace Listing & eBay Draft Exporter */}
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-950/40 via-slate-900 to-indigo-950/40 border border-blue-500/40 space-y-3 shadow-xl shadow-black/40 animate-fade-in">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 rounded-lg bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                      <Sparkles className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-black uppercase tracking-wider text-white flex items-center gap-1.5">
+                        Marketplace Publisher & Fast-List
+                      </h4>
+                      <p className="text-[10px] text-slate-400">
+                        Zero-friction 1-tap listing pre-fill or direct API draft push to eBay
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                    eBay AU
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                  {/* 1-Tap Fast List (No Setup / No Developer Login Required) */}
+                  <button
+                    type="button"
+                    onClick={handleEbayFastList}
+                    className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs transition shadow-md shadow-amber-500/20 active:scale-95 cursor-pointer"
+                    title="Pre-fills 80-char title & comps, downloads COA card, copies full provenance description, opens eBay wizard"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    <span>⚡ 1-Tap Fast-List on eBay</span>
+                  </button>
+
+                  {/* Direct Push to eBay Draft via API */}
+                  <button
+                    type="button"
+                    disabled={isPublishingEbay}
+                    onClick={handleDirectPushEbayDraft}
+                    className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black text-xs transition shadow-md shadow-blue-600/20 active:scale-95 cursor-pointer disabled:opacity-50"
+                  >
+                    {isPublishingEbay ? (
+                      <RefreshCw className="h-4 w-4 animate-spin text-blue-200" />
+                    ) : (
+                      <Upload className="h-4 w-4 text-blue-200" />
+                    )}
+                    <span>{isPublishingEbay ? "Exporting to eBay..." : "Push Direct to eBay Draft"}</span>
+                  </button>
+                </div>
+
+                {/* Status & Fallback Notification */}
+                {ebayPublishResult && (
+                  <div
+                    className={`p-2.5 rounded-xl text-xs flex items-start justify-between gap-2 border ${
+                      ebayPublishResult.success
+                        ? "bg-emerald-950/40 border-emerald-500/40 text-emerald-200"
+                        : "bg-amber-950/40 border-amber-500/40 text-amber-200"
+                    }`}
+                  >
+                    <div className="space-y-1">
+                      <p className="font-bold flex items-center gap-1.5">
+                        {ebayPublishResult.success ? (
+                          <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                        ) : (
+                          <AlertTriangle className="h-4 w-4 text-amber-400" />
+                        )}
+                        <span>{ebayPublishResult.success ? "eBay Draft Ready" : "Notice / Fallback Available"}</span>
+                      </p>
+                      <p className="text-[11px] text-slate-300 leading-snug">
+                        {ebayPublishResult.message || ebayPublishResult.error}
+                      </p>
+                    </div>
+
+                    {ebayPublishResult.listingUrl && (
+                      <a
+                        href={ebayPublishResult.listingUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="shrink-0 px-2.5 py-1 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-[10px] font-black flex items-center gap-1 transition"
+                      >
+                        <span>Open Draft</span>
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                    )}
+                    {!ebayPublishResult.success && (
+                      <button
+                        type="button"
+                        onClick={handleEbayFastList}
+                        className="shrink-0 px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-[10px] font-black flex items-center gap-1 transition cursor-pointer"
+                      >
+                        <span>Use 1-Tap</span>
+                        <ExternalLink className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Image Quality Filter: Retake Angle Prompt (Instead of Slashing Scores) */}

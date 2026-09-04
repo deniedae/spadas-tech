@@ -195,6 +195,67 @@ async function ensureMerchantLocation(apiHost: string, accessToken: string, loca
   }
 }
 
+export interface EbayListingPolicies {
+  fulfillmentPolicyId?: string;
+  returnPolicyId?: string;
+  paymentPolicyId?: string;
+}
+
+/**
+ * Fetch seller's configured default business policies from eBay Account API
+ */
+export async function fetchUserDefaultPolicies(
+  apiHost: string,
+  accessToken: string,
+  marketplaceId = "EBAY_AU"
+): Promise<EbayListingPolicies> {
+  const headers = {
+    Authorization: `Bearer ${accessToken}`,
+    Accept: "application/json",
+  };
+
+  const policies: EbayListingPolicies = {};
+
+  try {
+    const [fRes, rRes, pRes] = await Promise.all([
+      fetch(`https://${apiHost}/sell/account/v1/fulfillment_policy?marketplace_id=${marketplaceId}`, { headers }).catch(() => null),
+      fetch(`https://${apiHost}/sell/account/v1/return_policy?marketplace_id=${marketplaceId}`, { headers }).catch(() => null),
+      fetch(`https://${apiHost}/sell/account/v1/payment_policy?marketplace_id=${marketplaceId}`, { headers }).catch(() => null),
+    ]);
+
+    if (fRes && fRes.ok) {
+      const fData = await fRes.json();
+      const list = fData.fulfillmentPolicies || [];
+      if (list.length > 0) {
+        policies.fulfillmentPolicyId = list[0].fulfillmentPolicyId;
+      }
+    }
+
+    if (rRes && rRes.ok) {
+      const rData = await rRes.json();
+      const list = rData.returnPolicies || [];
+      if (list.length > 0) {
+        policies.returnPolicyId = list[0].returnPolicyId;
+      }
+    }
+
+    if (pRes && pRes.ok) {
+      const pData = await pRes.json();
+      const list = pData.paymentPolicies || [];
+      if (list.length > 0) {
+        policies.paymentPolicyId = list[0].paymentPolicyId;
+      }
+    }
+  } catch (err) {
+    console.warn("Could not fetch user eBay business policies:", err);
+  }
+
+  return policies;
+}
+
+import { resolveEbayCategoryId } from "./ebay-prefill";
+export { resolveEbayCategoryId };
+
 /**
  * Publish Spadas AI Listing to eBay Inventory & Offer REST API
  */
@@ -206,6 +267,7 @@ export async function publishToEbayInventory(
     price: number;
     condition?: string;
     brand?: string;
+    category?: string;
     imageUrls?: string[];
   }
 ) {
@@ -255,20 +317,32 @@ export async function publishToEbayInventory(
 
   if (!res.ok && res.status !== 204) {
     const errText = await res.text();
-    throw new Error(`eBay Inventory API error (${res.status}): ${errText}`);
+    let parsedMsg = errText;
+    try {
+      const parsed = JSON.parse(errText);
+      if (parsed.errors?.[0]?.message) {
+        parsedMsg = parsed.errors[0].message;
+      }
+    } catch {}
+    throw new Error(`eBay Inventory API error (${res.status}): ${parsedMsg}`);
   }
 
-  // 4. Create an Offer for this inventory item
+  // 4. Resolve default business policies and category ID
+  const categoryId = resolveEbayCategoryId(listing.category, listing.product);
+  const policies = await fetchUserDefaultPolicies(apiHost, accessToken, "EBAY_AU");
+
+  // 5. Create an Offer for this inventory item
   let offerId: string | null = null;
   let isLive = false;
   let listingId: string | null = null;
 
   try {
-    const offerPayload = {
+    const offerPayload: Record<string, unknown> = {
       sku: sku,
       marketplaceId: "EBAY_AU",
       format: "FIXED_PRICE",
       availableQuantity: 1,
+      categoryId: categoryId,
       merchantLocationKey: merchantLocationKey,
       pricingSummary: {
         price: {
@@ -278,6 +352,14 @@ export async function publishToEbayInventory(
       },
       listingDescription: listing.description || `Listed via Spadas Technology AI Platform. ${listing.product}`,
     };
+
+    if (policies.fulfillmentPolicyId) {
+      offerPayload.listingPolicies = {
+        fulfillmentPolicyId: policies.fulfillmentPolicyId,
+        ...(policies.returnPolicyId ? { returnPolicyId: policies.returnPolicyId } : {}),
+        ...(policies.paymentPolicyId ? { paymentPolicyId: policies.paymentPolicyId } : {}),
+      };
+    }
 
     const offerRes = await fetch(`https://${apiHost}/sell/inventory/v1/offer`, {
       method: "POST",
@@ -291,32 +373,59 @@ export async function publishToEbayInventory(
       body: JSON.stringify(offerPayload),
     });
 
-    if (offerRes.ok) {
-      const offerData = await offerRes.json();
-      offerId = offerData.offerId || null;
+    if (!offerRes.ok) {
+      const errJson = await offerRes.json().catch(() => null);
+      const errMsg = errJson?.errors?.[0]?.message || `eBay Offer API returned ${offerRes.status}`;
+      console.warn("eBay Offer creation warning:", errMsg, errJson);
+      return {
+        success: false,
+        sku,
+        offerId: null,
+        isLive: false,
+        listingId: null,
+        error: errMsg,
+        message: `Inventory item created (SKU: ${sku}), but Offer could not be finalized: ${errMsg}. Use 1-Tap Fast-List to complete your listing instantly on eBay!`,
+        listingUrl: `https://${apiHost === "api.ebay.com" ? "www" : "sandbox"}.ebay.com.au/sh/lst/drafts`,
+      };
+    }
 
-      // 5. If offer created, attempt to publish it live
-      if (offerId) {
-        const pubRes = await fetch(`https://${apiHost}/sell/inventory/v1/offer/${offerId}/publish`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-            "Content-Language": "en-AU",
-            "Accept": "application/json",
-            "Accept-Language": "en-AU",
-          },
-        });
+    const offerData = await offerRes.json();
+    offerId = offerData.offerId || null;
 
-        if (pubRes.ok) {
-          const pubData = await pubRes.json();
-          listingId = pubData.listingId || null;
-          isLive = !!listingId;
-        }
+    // 6. If offer created, attempt to publish it live
+    if (offerId) {
+      const pubRes = await fetch(`https://${apiHost}/sell/inventory/v1/offer/${offerId}/publish`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+          "Content-Language": "en-AU",
+          "Accept": "application/json",
+          "Accept-Language": "en-AU",
+        },
+      });
+
+      if (pubRes.ok) {
+        const pubData = await pubRes.json();
+        listingId = pubData.listingId || null;
+        isLive = !!listingId;
+      } else {
+        const pubErrJson = await pubRes.json().catch(() => null);
+        console.warn("eBay publish warning (item stays as draft):", pubErrJson);
       }
     }
-  } catch (offerErr) {
+  } catch (offerErr: any) {
     console.warn("Offer creation/publish warning:", offerErr);
+    return {
+      success: false,
+      sku,
+      offerId: null,
+      isLive: false,
+      listingId: null,
+      error: offerErr?.message || "Failed to create offer",
+      message: `Inventory created, but offer failed: ${offerErr?.message || "Error"}. Use 1-Tap Fast-List to publish.`,
+      listingUrl: `https://${apiHost === "api.ebay.com" ? "www" : "sandbox"}.ebay.com.au/sh/lst/drafts`,
+    };
   }
 
   const isProduction = apiHost === "api.ebay.com";

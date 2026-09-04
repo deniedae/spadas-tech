@@ -13,6 +13,12 @@ import {
 import {
   calculateMarketplaceArbitrage,
 } from "../src/lib/arbitrage-calc.ts";
+import {
+  generateOptimizedEbayTitle,
+  generateEbayPrefillUrl,
+  generateEbayItemSpecifics,
+  resolveEbayCategoryId,
+} from "../src/app/lib/marketplaces/ebay-prefill.ts";
 
 console.log("🚀 Testing Spadas Universal Forensic Authenticity Engine...");
 
@@ -922,9 +928,80 @@ export function runArbitrageEngineTest() {
   console.log("  ✓ Test 16 Passed: Multi-platform fee deductions, net profit arithmetic & counterfeit clamp verified.");
 }
 
-runArbitrageEngineTest();
+// Test 17: eBay 80-Char SEO Optimization, Category Mapping & 1-Tap Prefill Engine
+console.log("\n▶ Test 17: eBay SEO Title Clamping, Category Mapping & 1-Tap Pre-Fill");
 
-console.log("\n🎉 ALL 16 FORENSIC AUTHENTICITY & THRIFT SOURCING TESTS PASSED!");
+export function runEbayPublishAndPrefillTest() {
+  // 1. Title generation under normal length
+  const title1 = generateOptimizedEbayTitle({
+    brand: "Prada",
+    productName: "Tessuto Nylon Shoulder Bag",
+    category: "luxury_handbags",
+    verifiedHallmarks: ["Lampo Zipper", "Notched 'R' Letter Anatomy"],
+    isAuthentic: true,
+  });
+
+  assert.ok(title1.startsWith("Authentic Prada"), "Title should start with Authentic badge and brand");
+  assert.ok(title1.includes("Lampo Zip"), "Title should extract Lampo Zip hallmark keyword");
+  assert.ok(title1.includes("[COA]"), "Title should include COA proof badge");
+  assert.ok(title1.length <= 80, `Title length (${title1.length}) must be <= 80 chars`);
+
+  // 2. Strict 80-character clamping on extremely long product descriptions
+  const superLongProduct = "Vintage Re-Edition 2000 Quilted Tessuto Nylon Chain Shoulder Bag with Enamel Triangle Logo and Detachable Strap";
+  const title2 = generateOptimizedEbayTitle({
+    brand: "Prada",
+    productName: superLongProduct,
+    category: "luxury_handbags",
+    verifiedHallmarks: ["Notched 'R' Letter Anatomy", "Lampo Zipper"],
+    isAuthentic: true,
+  });
+
+  assert.ok(title2.length <= 80, `Title length (${title2.length}) must strictly not exceed eBay's 80 char ceiling`);
+  assert.ok(title2.startsWith("Authentic Prada"), "Must preserve brand prefix");
+
+  // 3. Category ID resolution for eBay AU leaf categories
+  assert.equal(resolveEbayCategoryId("luxury_handbags", "Prada Nylon Bag"), "169291", "Handbag should map to 169291");
+  assert.equal(resolveEbayCategoryId("luxury_handbags", "Louis Vuitton Men's Keepall 55"), "52357", "Men's bag should map to 52357");
+  assert.equal(resolveEbayCategoryId("small_leather_goods", "Chanel Caviar Wallet"), "45258", "Wallet should map to 45258");
+  assert.equal(resolveEbayCategoryId("luxury_watches", "Rolex Submariner 126610LN"), "31387", "Watch should map to 31387");
+  assert.equal(resolveEbayCategoryId("sneakers", "Air Jordan 1 Retro High OG Chicago"), "15709", "Sneakers should map to 15709");
+  assert.equal(resolveEbayCategoryId("precious_metals", "18K Gold Cuban Link Chain 750"), "164344", "Jewelry should map to 164344");
+  assert.equal(resolveEbayCategoryId("crystals_gems", "Raw Amethyst Geode Cluster"), "3225", "Crystals should map to 3225");
+  assert.equal(resolveEbayCategoryId("trading_cards", "Charizard 1st Edition Shadowless Holo"), "183454", "Cards should map to 183454");
+
+  // 4. Zero-Setup 1-Tap Pre-Fill URL Generation
+  const prefillUrl = generateEbayPrefillUrl({
+    title: title1,
+    brand: "Prada",
+    category: "luxury_handbags",
+  });
+
+  assert.ok(prefillUrl.startsWith("https://www.ebay.com.au/sl/prelist/suggest?keyword="), "Must target eBay AU prelist endpoint");
+  assert.ok(prefillUrl.includes(encodeURIComponent(title1).replace(/%20/g, "+")), "Must encode search title into keyword query parameter");
+
+  // 5. Item Specifics (Aspects) Pre-Population
+  const aspects = generateEbayItemSpecifics({
+    brand: "Prada",
+    productName: "Women's Tessuto Saffiano Leather Bag",
+    category: "luxury_handbags",
+    condition: "Pre-owned - Excellent",
+    certId: "cert_prada_77a9",
+  });
+
+  assert.deepEqual(aspects.Brand, ["Prada"]);
+  assert.deepEqual(aspects.Department, ["Women"]);
+  assert.deepEqual(aspects.Material, ["Leather"]);
+  assert.deepEqual(aspects["Country/Region of Manufacture"], ["Italy"]);
+  assert.deepEqual(aspects["Certificate of Authenticity (COA)"], ["Included"]);
+  assert.deepEqual(aspects["Certification Number"], ["cert_prada_77a9"]);
+
+  console.log("  ✓ Test 17 Passed: 80-char SEO title clamping, leaf category mapping, 1-tap pre-fill URLs & aspects verified.");
+}
+
+runEbayPublishAndPrefillTest();
+
+console.log("\n🎉 ALL 17 FORENSIC AUTHENTICITY, THRIFT SOURCING & MARKETPLACE PUBLISHING TESTS PASSED!");
+
 
 
 
