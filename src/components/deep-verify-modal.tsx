@@ -61,6 +61,8 @@ export function DeepVerifyModal({
   const [analysisStage, setAnalysisStage] = useState(0);
   const [result, setResult] = useState<DeepVerifyResult | null>(null);
   const [macroZoom, setMacroZoom] = useState<boolean>(false);
+  const [targetedTell, setTargetedTell] = useState<{ tell_name: string; rule: string } | null>(null);
+  const [opticalWarning, setOpticalWarning] = useState<string | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const [cameraActive, setCameraActive] = useState(false);
@@ -206,6 +208,114 @@ export function DeepVerifyModal({
     }
   };
 
+  const inspectFrameQuality = (canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) => {
+    try {
+      const width = canvas.width;
+      const height = canvas.height;
+
+      // Sample central 256x256 region
+      const sSize = 256;
+      const sX = Math.floor((width - sSize) / 2);
+      const sY = Math.floor((height - sSize) / 2);
+
+      const imgData = ctx.getImageData(sX, sY, sSize, sSize);
+      const d = imgData.data;
+      const totalPixels = sSize * sSize;
+
+      let specularCount = 0;
+      const gray = new Float32Array(totalPixels);
+
+      for (let i = 0; i < totalPixels; i++) {
+        const idx = i * 4;
+        const r = d[idx];
+        const g = d[idx + 1];
+        const b = d[idx + 2];
+
+        // Specular highlight clipping check
+        if (r > 246 && g > 246 && b > 246) {
+          specularCount++;
+        }
+        gray[i] = 0.299 * r + 0.587 * g + 0.114 * b;
+      }
+
+      const specularRatio = specularCount / totalPixels;
+
+      // Glare alert if more than 16% of the central region is blown out specular highlight
+      if (specularRatio > 0.16) {
+        return {
+          isGlare: true,
+          isBlur: false,
+          message: "💡 High glare reflection on hardware. Tilt phone slightly away from fluorescent light.",
+        };
+      }
+
+      // Laplacian variance for blur detection
+      let lapSum = 0;
+      let lapSumSq = 0;
+      let count = 0;
+
+      for (let y = 1; y < sSize - 1; y += 2) {
+        for (let x = 1; x < sSize - 1; x += 2) {
+          const c = gray[y * sSize + x];
+          const up = gray[(y - 1) * sSize + x];
+          const down = gray[(y + 1) * sSize + x];
+          const left = gray[y * sSize + (x - 1)];
+          const right = gray[y * sSize + (x + 1)];
+
+          const lap = 4 * c - (up + down + left + right);
+          lapSum += lap;
+          lapSumSq += lap * lap;
+          count++;
+        }
+      }
+
+      const mean = lapSum / count;
+      const variance = lapSumSq / count - mean * mean;
+
+      // If Laplacian variance is very low, the frame lacks high-frequency edges (blurry)
+      if (variance < 40) {
+        return {
+          isGlare: false,
+          isBlur: true,
+          message: "⚠️ Shot appears blurry (camera shake). Hold phone steady and tap to refocus.",
+        };
+      }
+
+      return { isGlare: false, isBlur: false, message: null };
+    } catch {
+      return { isGlare: false, isBlur: false, message: null };
+    }
+  };
+
+  const handleTargetedTellReshoot = (check: { tell_name: string; authenticity_rule: string }) => {
+    setTargetedTell({ tell_name: check.tell_name, rule: check.authenticity_rule });
+    setResult(null);
+    setMacroZoom(true);
+
+    const tellLower = check.tell_name.toLowerCase();
+    if (tellLower.includes("zipper") || tellLower.includes("hardware") || tellLower.includes("clasp") || tellLower.includes("date code")) {
+      setCurrentStepIndex(activeConfig.angles.length > 3 ? 3 : activeConfig.angles.length - 1);
+    } else if (
+      tellLower.includes("stamp") ||
+      tellLower.includes("notched") ||
+      tellLower.includes("coronet") ||
+      tellLower.includes("cyclops") ||
+      tellLower.includes("hallmark") ||
+      tellLower.includes("circular") ||
+      tellLower.includes("font") ||
+      tellLower.includes("kerning") ||
+      tellLower.includes("typography") ||
+      tellLower.includes("logo")
+    ) {
+      setCurrentStepIndex(1);
+    } else if (tellLower.includes("stitch") || tellLower.includes("seam") || tellLower.includes("glazing")) {
+      setCurrentStepIndex(2);
+    }
+
+    startCamera();
+    toast.info(`Targeting: ${check.tell_name} (2.0x Macro Focus engaged)`);
+  };
+
   const handleCapturePhoto = () => {
     if (!videoRef.current) return;
     const video = videoRef.current;
@@ -235,13 +345,27 @@ export function DeepVerifyModal({
       sharpenCanvasConvolution(canvas, ctx);
     }
 
+    // Optical Pre-Check Gate: test frame quality before saving
+    const quality = inspectFrameQuality(canvas, ctx);
+    if (quality.message) {
+      setOpticalWarning(quality.message);
+      toast.warning(quality.message, { duration: 4000 });
+    } else {
+      setOpticalWarning(null);
+    }
+
     const dataUrl = canvas.toDataURL("image/jpeg", 0.90);
 
     const updated = [...capturedImages];
     updated[currentStepIndex] = dataUrl;
     setCapturedImages(updated);
 
-    toast.success(`Captured ${currentStep.title}${macroZoom ? " (2.0x Macro Sharpened)" : ""}!`);
+    if (targetedTell) {
+      toast.success(`Targeted shot captured for ${targetedTell.tell_name}!`);
+      setTargetedTell(null);
+    } else {
+      toast.success(`Captured ${currentStep.title}${macroZoom ? " (2.0x Macro Sharpened)" : ""}!`);
+    }
 
     if (currentStepIndex < activeConfig.angles.length - 1) {
       setCurrentStepIndex((prev) => prev + 1);
@@ -726,6 +850,22 @@ Verified by Spadas AI Forensic Pre-Screening Assistant`;
                               {check.authenticity_rule}
                             </p>
                           )}
+
+                          {isInconclusive && (
+                            <div className="mt-2.5 pt-2 border-t border-amber-500/20 flex items-center justify-between">
+                              <span className="text-[10px] text-amber-300/80 font-medium">
+                                Unresolved due to framing/glare
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleTargetedTellReshoot(check)}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-[11px] transition shadow-md shadow-amber-500/20 active:scale-95 cursor-pointer"
+                              >
+                                <Camera className="h-3 w-3" />
+                                Reshoot Hallmark (2.0x Focus)
+                              </button>
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -1066,6 +1206,43 @@ Verified by Spadas AI Forensic Pre-Screening Assistant`;
                         {macroZoom ? "2.0x Macro Sharpen ON" : "1.0x Full Frame"}
                       </button>
                     </div>
+
+                    {/* Targeted Reshoot Banner */}
+                    {targetedTell && (
+                      <div className="absolute top-12 left-3 right-3 bg-amber-500 text-slate-950 px-3 py-1.5 rounded-xl text-xs font-black shadow-lg flex items-center justify-between z-20 animate-fade-in border border-amber-300">
+                        <span className="flex items-center gap-1.5 truncate">
+                          <Camera className="h-3.5 w-3.5 shrink-0" />
+                          Targeting: {targetedTell.tell_name}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setTargetedTell(null);
+                          }}
+                          className="text-[10px] font-bold underline ml-2 cursor-pointer"
+                        >
+                          Clear
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Live Optical Quality Feedback */}
+                    {opticalWarning && (
+                      <div className="absolute bottom-10 left-3 right-3 bg-slate-900/95 text-amber-300 px-3 py-1.5 rounded-xl text-[11px] font-bold border border-amber-500/40 shadow-xl flex items-center justify-between z-20 animate-fade-in">
+                        <span className="truncate">{opticalWarning}</span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOpticalWarning(null);
+                          }}
+                          className="text-[10px] text-slate-400 hover:text-white ml-2 underline cursor-pointer"
+                        >
+                          Dismiss
+                        </button>
+                      </div>
+                    )}
 
                     {/* Crosshair Guide */}
                     <div className="absolute inset-0 pointer-events-none flex items-center justify-center">

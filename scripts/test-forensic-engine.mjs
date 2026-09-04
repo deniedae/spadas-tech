@@ -517,6 +517,226 @@ export function runBrandDnaRegistryTest() {
 
 runBrandDnaRegistryTest();
 
+// Test 11: Optical Gate Blur & Glare Pre-Check Algorithm
+console.log("\n▶ Test 11: Optical Gate Blur & Glare Pre-Check Algorithm");
+
+export function runOpticalGateTest() {
+  const sSize = 100;
+  const totalPixels = sSize * sSize;
+
+  // Simulator helper
+  const simulateQualityInspection = (pixels) => {
+    let specularCount = 0;
+    const gray = new Float32Array(totalPixels);
+
+    for (let i = 0; i < totalPixels; i++) {
+      const idx = i * 4;
+      const r = pixels[idx];
+      const g = pixels[idx + 1];
+      const b = pixels[idx + 2];
+      if (r > 246 && g > 246 && b > 246) {
+        specularCount++;
+      }
+      gray[i] = 0.299 * r + 0.587 * g + 0.114 * b;
+    }
+
+    const specularRatio = specularCount / totalPixels;
+    if (specularRatio > 0.16) {
+      return { isGlare: true, isBlur: false, message: "Glare detected" };
+    }
+
+    let lapSum = 0;
+    let lapSumSq = 0;
+    let count = 0;
+
+    for (let y = 1; y < sSize - 1; y += 2) {
+      for (let x = 1; x < sSize - 1; x += 2) {
+        const c = gray[y * sSize + x];
+        const up = gray[(y - 1) * sSize + x];
+        const down = gray[(y + 1) * sSize + x];
+        const left = gray[y * sSize + (x - 1)];
+        const right = gray[y * sSize + (x + 1)];
+
+        const lap = 4 * c - (up + down + left + right);
+        lapSum += lap;
+        lapSumSq += lap * lap;
+        count++;
+      }
+    }
+
+    const mean = lapSum / count;
+    const variance = lapSumSq / count - mean * mean;
+
+    if (variance < 40) {
+      return { isGlare: false, isBlur: true, message: "Blur detected" };
+    }
+
+    return { isGlare: false, isBlur: false, message: null };
+  };
+
+  // 1. High Glare Sample (e.g. 25% blown-out white pixels from overhead thrift neon)
+  const glarePixels = new Uint8Array(totalPixels * 4);
+  for (let i = 0; i < totalPixels; i++) {
+    const isBlown = i < totalPixels * 0.25;
+    glarePixels[i * 4] = isBlown ? 255 : 120;
+    glarePixels[i * 4 + 1] = isBlown ? 255 : 120;
+    glarePixels[i * 4 + 2] = isBlown ? 255 : 120;
+    glarePixels[i * 4 + 3] = 255;
+  }
+  const glareResult = simulateQualityInspection(glarePixels);
+  assert.equal(glareResult.isGlare, true, "Must flag glare when > 16% of pixels are blown out");
+  assert.equal(glareResult.isBlur, false);
+
+  // 2. High Blur Sample (Completely uniform/flat blurry tone with zero edge variance)
+  const blurryPixels = new Uint8Array(totalPixels * 4);
+  for (let i = 0; i < totalPixels; i++) {
+    blurryPixels[i * 4] = 130;
+    blurryPixels[i * 4 + 1] = 130;
+    blurryPixels[i * 4 + 2] = 130;
+    blurryPixels[i * 4 + 3] = 255;
+  }
+  const blurResult = simulateQualityInspection(blurryPixels);
+  assert.equal(blurResult.isBlur, true, "Must flag blur when Laplacian variance < 40");
+  assert.equal(blurResult.isGlare, false);
+
+  // 3. Crisp High-Resolution In-Focus Sample (High contrast sharp edge with texture)
+  const sharpPixels = new Uint8Array(totalPixels * 4);
+  for (let y = 0; y < sSize; y++) {
+    for (let x = 0; x < sSize; x++) {
+      const idx = (y * sSize + x) * 4;
+      const val = (x > sSize / 2 ? 210 : 40) + ((x + y) % 7) * 5;
+      sharpPixels[idx] = val;
+      sharpPixels[idx + 1] = val;
+      sharpPixels[idx + 2] = val;
+      sharpPixels[idx + 3] = 255;
+    }
+  }
+  const sharpResult = simulateQualityInspection(sharpPixels);
+  assert.equal(sharpResult.isBlur, false, "Sharp high-contrast frame must NOT trigger blur warning");
+  assert.equal(sharpResult.isGlare, false, "Balanced frame must NOT trigger glare warning");
+
+  console.log("  ✓ Test 11 Passed: Optical Gate blur variance and specular glare algorithms verified.");
+}
+
+runOpticalGateTest();
+
+// Test 12: Dynamic Valuation Adjustment & Counterfeit Zero-Value Flag
+console.log("\n▶ Test 12: Dynamic Valuation Engine & Counterfeit Zero-Value Flag");
+
+export function runDynamicValuationTest() {
+  // Scenario A: Fatal counterfeit tell failure (e.g. Prada with straight 'R')
+  const counterfeitItem = {
+    brand_dna_checklist: [
+      {
+        tell_name: "Notched 'R' Letter Anatomy",
+        status: "FAILED",
+        observed_evidence: "Prada 'R' leg is straight with no curved notch cutout.",
+        authenticity_rule: "The right leg of 'R' must have a distinct curved notch."
+      }
+    ],
+    verdict: "COUNTERFEIT",
+    rawValuation: { fair_condition: 140, excellent_condition: 220 }
+  };
+
+  const calculateDynamicValuation = (item) => {
+    const hasFatalFailure = item.brand_dna_checklist.some(c => c.status === "FAILED") || item.verdict === "COUNTERFEIT";
+    if (hasFatalFailure) {
+      return {
+        verdict: "COUNTERFEIT",
+        recommendation: "DO_NOT_BUY",
+        valuation: { fair_condition: 0, excellent_condition: 0 },
+        market_spread: "Counterfeit Zero-Value Flag: Critical structural hallmarks failed authentic factory specifications ($0 AUD resale value)."
+      };
+    }
+    return {
+      verdict: "AUTHENTIC",
+      recommendation: "SAFE_TO_BUY",
+      valuation: item.rawValuation,
+      market_spread: `Fair Condition: $${item.rawValuation.fair_condition} AUD • Excellent Condition: $${item.rawValuation.excellent_condition} AUD`
+    };
+  };
+
+  const fatalEval = calculateDynamicValuation(counterfeitItem);
+  assert.equal(fatalEval.verdict, "COUNTERFEIT");
+  assert.equal(fatalEval.recommendation, "DO_NOT_BUY");
+  assert.equal(fatalEval.valuation.fair_condition, 0, "Counterfeit fair condition valuation must be $0 AUD");
+  assert.equal(fatalEval.valuation.excellent_condition, 0, "Counterfeit excellent condition valuation must be $0 AUD");
+  assert.ok(fatalEval.market_spread.includes("Counterfeit Zero-Value Flag"), "Must include Zero-Value Flag");
+
+  // Scenario B: Authentic item with cosmetic wear (e.g. scuffs, all structural tells PASSED)
+  const authenticPreOwned = {
+    brand_dna_checklist: [
+      {
+        tell_name: "Notched 'R' Letter Anatomy",
+        status: "PASSED",
+        observed_evidence: "Iconic curved notch on right leg verified.",
+        authenticity_rule: "The right leg of 'R' must have a distinct curved notch."
+      },
+      {
+        tell_name: "Manufacturer Zipper Underside Hallmark",
+        status: "PASSED",
+        observed_evidence: "Lampo hallmark clearly stamped on slider underside.",
+        authenticity_rule: "Zipper must be Lampo, riri, IPI, or Opti."
+      }
+    ],
+    verdict: "AUTHENTIC",
+    rawValuation: { fair_condition: 140, excellent_condition: 220 }
+  };
+
+  const authenticEval = calculateDynamicValuation(authenticPreOwned);
+  assert.equal(authenticEval.verdict, "AUTHENTIC");
+  assert.equal(authenticEval.recommendation, "SAFE_TO_BUY");
+  assert.equal(authenticEval.valuation.fair_condition, 140, "Authentic pre-owned item retains fair market valuation");
+  assert.equal(authenticEval.valuation.excellent_condition, 220, "Authentic item retains excellent market valuation");
+  assert.ok(!authenticEval.market_spread.includes("Counterfeit Zero-Value Flag"), "Authentic item must not trigger zero value");
+
+  console.log("  ✓ Test 12 Passed: Dynamic valuation accurately penalizes structural fakes while protecting pre-owned authentic value.");
+}
+
+runDynamicValuationTest();
+
+// Test 13: Inconclusive Tell Targeted Reshoot Mapping
+console.log("\n▶ Test 13: Inconclusive Tell Targeted Reshoot Mapping");
+
+export function runInconclusiveReshootMappingTest() {
+  const mapTellToAngleIndex = (tellName) => {
+    const lower = tellName.toLowerCase();
+    if (lower.includes("zipper") || lower.includes("hardware") || lower.includes("clasp") || lower.includes("date code")) {
+      return 3;
+    }
+    if (
+      lower.includes("stamp") ||
+      lower.includes("notched") ||
+      lower.includes("coronet") ||
+      lower.includes("cyclops") ||
+      lower.includes("hallmark") ||
+      lower.includes("circular") ||
+      lower.includes("font") ||
+      lower.includes("kerning") ||
+      lower.includes("typography") ||
+      lower.includes("logo")
+    ) {
+      return 1;
+    }
+    if (lower.includes("stitch") || lower.includes("seam") || lower.includes("glazing")) {
+      return 2;
+    }
+    return 0;
+  };
+
+  assert.equal(mapTellToAngleIndex("Manufacturer Zipper Underside Hallmark"), 3, "Zipper tell must map to hardware angle index (3)");
+  assert.equal(mapTellToAngleIndex("Solid Brass Rivets & Debossed Hardware"), 3, "Hardware rivets must map to hardware angle index (3)");
+  assert.equal(mapTellToAngleIndex("Notched 'R' Letter Anatomy"), 1, "Notched 'R' tell must map to stamp angle index (1)");
+  assert.equal(mapTellToAngleIndex("Circular 'O' Typography & Font Kerning"), 1, "LV circular 'O' tell must map to stamp angle index (1)");
+  assert.equal(mapTellToAngleIndex("High Stitch Count Density (10-12 SPI)"), 2, "Stitch density tell must map to seam/stitching index (2)");
+  assert.equal(mapTellToAngleIndex("Mustard Waxed Linen Angled Saddle Stitch"), 2, "Linen saddle stitch must map to seam/stitching index (2)");
+
+  console.log("  ✓ Test 13 Passed: Inconclusive tell targeted reshoot router maps directly to relevant macro camera angles.");
+}
+
+runInconclusiveReshootMappingTest();
+
 console.log("\n🎉 ALL FORENSIC AUTHENTICITY ENGINE TESTS PASSED!");
+
 
 

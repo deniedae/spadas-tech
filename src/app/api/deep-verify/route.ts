@@ -481,11 +481,6 @@ Respond ONLY with valid JSON adhering to this exact schema:
       confidenceTier = "HIGH_CONFIDENCE";
     }
 
-    const highValueAdvisory =
-      raw.market_valuation_aud?.excellent_condition && raw.market_valuation_aud.excellent_condition >= 400
-        ? "High-Value Acquisition Notice: For items valued over $400 AUD, we advise obtaining an in-person physical inspection before high-dollar resale listing or major capital commitment."
-        : undefined;
-
     const rawChecklist: any[] = Array.isArray(raw.brand_dna_checklist) ? raw.brand_dna_checklist : [];
     const brandDnaChecklist: BrandDnaCheck[] =
       rawChecklist.length > 0
@@ -511,16 +506,47 @@ Respond ONLY with valid JSON adhering to this exact schema:
             authenticity_rule: r.authenticity_rule,
           }));
 
+    // Dynamic Valuation Adjustment Based on Tell Severity:
+    // Structural Counterfeits trigger an immediate $0 AUD zero-value flag;
+    // Cosmetic surface wear maintains full authentic secondhand valuation.
+    const hasFatalFailure = brandDnaChecklist.some(
+      (c) =>
+        c.status === "FAILED" ||
+        (verdict === "COUNTERFEIT" &&
+          (c.tell_name.toLowerCase().includes("notched 'r'") ||
+            c.tell_name.toLowerCase().includes("circular 'o'") ||
+            c.tell_name.toLowerCase().includes("turnlock") ||
+            c.tell_name.toLowerCase().includes("assay") ||
+            c.tell_name.toLowerCase().includes("interlocking gg")))
+    );
+
+    let finalVerdict = verdict;
+    let finalRecommendation = recommendation;
+    let finalValuation: MarketValuationAud | undefined = raw.market_valuation_aud;
+    let finalMarketSpread = marketSpread;
+
+    if (hasFatalFailure || verdict === "COUNTERFEIT") {
+      finalVerdict = "COUNTERFEIT";
+      finalRecommendation = "DO_NOT_BUY";
+      finalValuation = { fair_condition: 0, excellent_condition: 0 };
+      finalMarketSpread = "Counterfeit Zero-Value Flag: Critical structural hallmarks failed authentic factory specifications ($0 AUD resale value).";
+    }
+
+    const highValueAdvisory =
+      finalValuation?.excellent_condition && finalValuation.excellent_condition >= 400
+        ? "High-Value Acquisition Notice: For items valued over $400 AUD, we advise obtaining an in-person physical inspection before high-dollar resale listing or major capital commitment."
+        : undefined;
+
     const parsed: DeepVerifyResult = {
       certificate_id: certId,
       certificate_url: certId ? `https://spadas.ai/cert/${certId}` : undefined,
       product_name: detectedItemName,
       brand: detectedItemBrand,
       category: activeCategory,
-      verdict,
-      authenticity_score: calculatedScore,
-      confidence: verdict === "INSUFFICIENT_EVIDENCE" ? "LOW" : calculatedScore && calculatedScore < 85 ? "MEDIUM" : "HIGH",
-      confidence_tier: confidenceTier,
+      verdict: finalVerdict,
+      authenticity_score: finalVerdict === "COUNTERFEIT" && (calculatedScore === null || calculatedScore > 40) ? 18 : calculatedScore,
+      confidence: finalVerdict === "INSUFFICIENT_EVIDENCE" ? "LOW" : calculatedScore && calculatedScore < 85 ? "MEDIUM" : "HIGH",
+      confidence_tier: finalVerdict === "COUNTERFEIT" ? "HIGH_REPLICA_RISK" : confidenceTier,
       high_value_advisory: highValueAdvisory,
       item_identification: raw.item_identification,
       forensic_breakdown: {
@@ -537,7 +563,7 @@ Respond ONLY with valid JSON adhering to this exact schema:
       decisive_tells: decisiveTells,
       brand_dna_checklist: brandDnaChecklist,
       required_macro_inputs: requiredMacro,
-      market_valuation_aud: raw.market_valuation_aud,
+      market_valuation_aud: finalValuation,
       condition_and_maintenance_notes: raw.condition_and_maintenance_notes,
       positive_indicators: positiveTells.length > 0 ? positiveTells : decisiveTells,
       red_flags: redFlagTells,
@@ -545,12 +571,12 @@ Respond ONLY with valid JSON adhering to this exact schema:
       forensic_summary:
         raw.forensic_summary ||
         decisiveTells[0] ||
-        (verdict === "INSUFFICIENT_EVIDENCE"
+        (finalVerdict === "INSUFFICIENT_EVIDENCE"
           ? `Pre-screening requires additional macro inputs to confirm fine factory signatures before issuing certification.`
-          : `AI forensic pre-screen confirms ${verdict === "AUTHENTIC" ? "likely authentic" : "counterfeit"} status with ${calculatedScore}% confidence based on visible construction.`),
-      recommendation,
+          : `AI forensic pre-screen confirms ${finalVerdict === "AUTHENTIC" ? "likely authentic" : "counterfeit"} status based on visible construction.`),
+      recommendation: finalRecommendation,
       cleanup_advisory: raw.condition_and_maintenance_notes,
-      market_spread: marketSpread,
+      market_spread: finalMarketSpread,
       wear_and_tear_notes:
         "Wear Decoupled from Authenticity: Honest cosmetic surface wear separated from manufacturing hallmarks; does not penalize authenticity score.",
       retake_recommended:
