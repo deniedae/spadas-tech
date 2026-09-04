@@ -52,6 +52,8 @@ export interface DeepVerifyResult {
   verdict: "AUTHENTIC" | "COUNTERFEIT" | "INSUFFICIENT_EVIDENCE" | "LIKELY_AUTHENTIC" | "SUSPICIOUS" | "COUNTERFEIT_REPLICA" | "CANNOT_DETERMINE";
   authenticity_score: number | null;
   confidence: "HIGH" | "MEDIUM" | "LOW";
+  confidence_tier?: "HIGH_CONFIDENCE" | "MODERATE_CONFIDENCE" | "INCONCLUSIVE" | "HIGH_REPLICA_RISK";
+  high_value_advisory?: string;
   forensic_breakdown: ForensicBreakdown;
   item_identification?: ItemIdentification;
   decisive_tells?: string[];
@@ -131,8 +133,13 @@ function generateMockVerification(
     brand: b,
     category: cat,
     verdict: "AUTHENTIC",
-    authenticity_score: isSlg ? 99 : 96,
+    authenticity_score: isSlg ? 98 : 95,
     confidence: "HIGH",
+    confidence_tier: "HIGH_CONFIDENCE",
+    high_value_advisory:
+      (isSlg ? 220 : 450) >= 400
+        ? "High-Value Acquisition Notice: For items exceeding $400 AUD, we advise obtaining an in-person physical inspection before high-dollar resale listing or major capital commitment."
+        : undefined,
     item_identification: {
       detected_brand: b,
       item_category: isSlg ? "Small Leather Goods & Wallets" : "Luxury Goods",
@@ -161,8 +168,8 @@ function generateMockVerification(
     red_flags: [],
     inconclusive_areas: [],
     forensic_summary: isSlg
-      ? `Forensic inspection of "${name}" confirms authentic Prada notched 'R' typography, genuine Saffiano calfskin, and verified factory inspection seam tag.`
-      : `Multi-angle forensic analysis of "${name}" reveals genuine manufacturing hallmarks, authentic physical characteristics, and zero structural counterfeit anomalies.`,
+      ? `Forensic pre-screen of "${name}" confirms authentic Prada notched 'R' typography, genuine Saffiano calfskin, and period-correct hardware.`
+      : `Multi-angle forensic pre-screen of "${name}" reveals genuine manufacturing hallmarks, authentic physical characteristics, and zero structural counterfeit anomalies.`,
     recommendation: "SAFE_TO_BUY",
     hallmark_analysis:
       cat === "precious_metals"
@@ -233,13 +240,14 @@ export async function POST(req: Request) {
 
     const categoryConfig = FORENSIC_CATEGORIES[activeCategory] || FORENSIC_CATEGORIES.general_resale;
 
-    const systemPrompt = `You are the Spadas AI Universal Forensic Authentication Engine. Your objective is to audit any submitted luxury item, designer garment, footwear, or accessory across all brands (e.g., Prada, Louis Vuitton, Chanel, Gucci, Hermes, Nike/Jordan, Rolex) and deliver a decisive, evidence-based verdict.
+    const systemPrompt = `You are the Spadas AI Forensic Pre-Screening Assistant. Your objective is to audit submitted resale items, designer garments, footwear, and luxury goods across all brands (e.g., Prada, Louis Vuitton, Chanel, Gucci, Hermes, Nike/Jordan, Rolex) and deliver an honest, evidence-based pre-screening confidence assessment.
 
-### Core Directive: Eliminate 50% Uncertainty
-Never issue a default 50% "Cannot Determine" score simply due to low resolution, poor lighting, or missing angles. 
-- If decisive counterfeit flaws are visible: Mark as COUNTERFEIT immediately.
-- If authentic factory signatures are verified across visible construction: Mark as AUTHENTIC.
-- If critical forensic hardware/stamps cannot be resolved due to distance, blur, or glare: Mark as INSUFFICIENT_EVIDENCE and specify the exact macro shots required.
+### Core Directive: Honest Evidence-Based Probability (No False 100% Certainty)
+- Return an evidence-based authenticity confidence score (0 to 100) reflecting visible manufacturing hallmarks.
+- Never issue an arbitrary 50% cop-out score. Base your evaluation strictly on visible physical evidence.
+- If decisive counterfeit flaws or replica tells are visible: Mark as COUNTERFEIT with a low score (under 40) and cite the exact physical tells (e.g. "Prada R-leg is straight without factory curved notch", "Zipper pull is electroplated pot-metal with visible casting seams", "Stitching gauge is 4 SPI instead of factory 8 SPI").
+- If authentic factory signatures are verified across visible construction: Mark as AUTHENTIC with calibrated confidence (typically 85–98%) and cite the exact verified factory markers.
+- If critical forensic hardware or stamps cannot be resolved due to distance, extreme glare, or optical blur: Mark as INSUFFICIENT_EVIDENCE with score null, and specify the exact macro shots needed.
 
 ---
 
@@ -273,14 +281,14 @@ Never issue a default 50% "Cannot Determine" score simply due to low resolution,
   * Streetwear / Apparel: vintage shirts where wash tags are missing/washed out, or garments lacking UPC barcodes.
   * Horology: watches without date complications (e.g. Rolex Submariner No-Date, Oyster Perpetual, Speedmaster).
 - STRICT RULE: If the visible materials (leather grain, canvas, lining), hardware, craftsmanship (stitching SPI, edge glazing), and typography are authentic, DO NOT issue INSUFFICIENT_EVIDENCE simply because a modern security tag or secondary hallmark is absent!
-- Mark security_tags_and_codes as 95 (Era/Model Exempt) or null, and deliver an AUTHENTIC verdict (95-99% score).
+- Mark security_tags_and_codes as 95 (Era/Model Exempt) or null, and deliver an AUTHENTIC verdict (85-98% score).
 - ONLY return INSUFFICIENT_EVIDENCE if a photographed primary hallmark, logo, or seam is severely degraded by optical blur, extreme glare, or dark occlusion such that forensic verification is physically impossible. Never demand a shot of a feature that may not exist on this item.
 
 ---
 
 ### Decouple Wear from Authenticity Guardrail
 - Separate physical condition (scuffs, loose threads from use, surface dirt, paint/drywall flecks, softening edges, cosmetic fatigue) from manufacturing hallmarks.
-- Physical wear on genuine materials MUST NOT penalize the Authenticity Score. Pre-owned items with honest wear can achieve 95%–99% scores.
+- Physical wear on genuine materials MUST NOT penalize the Authenticity Score. Pre-owned items with honest wear can achieve 90%–98% scores.
 
 ---
 
@@ -303,7 +311,7 @@ Respond ONLY with valid JSON adhering to this exact schema:
     "security_tags_and_codes": <0-100 or null>
   },
   "decisive_tells": [
-    "<Explicit physical tell found, e.g., 'Curved notch verified on right leg of Prada R heat stamp', 'Authentic Saffiano crosshatch wax calfskin verified'>"
+    "<Explicit physical tell found, citing the exact evidence, e.g., 'Curved notch verified on right leg of Prada R heat stamp', 'Authentic Saffiano crosshatch wax calfskin verified', 'Lampo supplier mark engraved cleanly on zipper underside'>"
   ],
   "required_macro_inputs": [
     "<Only populate if INSUFFICIENT_EVIDENCE. Name exact shots needed, e.g., 'Macro of interior heat stamp', 'Underside of snap fastener'>"
@@ -433,6 +441,22 @@ Respond ONLY with valid JSON adhering to this exact schema:
     const canPublishCertificate = verdict !== "INSUFFICIENT_EVIDENCE" && calculatedScore !== null;
     const certId = canPublishCertificate ? generateCertificateId(detectedItemName, detectedItemBrand) : undefined;
 
+    let confidenceTier: DeepVerifyResult["confidence_tier"] = "HIGH_CONFIDENCE";
+    if (verdict === "COUNTERFEIT") {
+      confidenceTier = "HIGH_REPLICA_RISK";
+    } else if (verdict === "INSUFFICIENT_EVIDENCE") {
+      confidenceTier = "INCONCLUSIVE";
+    } else if (calculatedScore !== null && calculatedScore < 85) {
+      confidenceTier = "MODERATE_CONFIDENCE";
+    } else {
+      confidenceTier = "HIGH_CONFIDENCE";
+    }
+
+    const highValueAdvisory =
+      raw.market_valuation_aud?.excellent_condition && raw.market_valuation_aud.excellent_condition >= 400
+        ? "High-Value Acquisition Notice: For items valued over $400 AUD, we advise obtaining an in-person physical inspection before high-dollar resale listing or major capital commitment."
+        : undefined;
+
     const parsed: DeepVerifyResult = {
       certificate_id: certId,
       certificate_url: certId ? `https://spadas.ai/cert/${certId}` : undefined,
@@ -441,7 +465,9 @@ Respond ONLY with valid JSON adhering to this exact schema:
       category: activeCategory,
       verdict,
       authenticity_score: calculatedScore,
-      confidence: verdict === "INSUFFICIENT_EVIDENCE" ? "LOW" : "HIGH",
+      confidence: verdict === "INSUFFICIENT_EVIDENCE" ? "LOW" : calculatedScore && calculatedScore < 85 ? "MEDIUM" : "HIGH",
+      confidence_tier: confidenceTier,
+      high_value_advisory: highValueAdvisory,
       item_identification: raw.item_identification,
       forensic_breakdown: {
         material: matScore,
@@ -462,10 +488,11 @@ Respond ONLY with valid JSON adhering to this exact schema:
       red_flags: redFlagTells,
       inconclusive_areas: requiredMacro,
       forensic_summary:
+        raw.forensic_summary ||
         decisiveTells[0] ||
         (verdict === "INSUFFICIENT_EVIDENCE"
-          ? `Forensic inspection requires additional macro inputs to eliminate uncertainty before issuing authenticity certificate.`
-          : `Universal 5-pillar forensic audit confirms ${verdict.replace(/_/g, " ").toLowerCase()} status with ${calculatedScore}% authenticity score.`),
+          ? `Pre-screening requires additional macro inputs to confirm fine factory signatures before issuing certification.`
+          : `AI forensic pre-screen confirms ${verdict === "AUTHENTIC" ? "likely authentic" : "counterfeit"} status with ${calculatedScore}% confidence based on visible construction.`),
       recommendation,
       cleanup_advisory: raw.condition_and_maintenance_notes,
       market_spread: marketSpread,

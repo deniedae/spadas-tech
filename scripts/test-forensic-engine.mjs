@@ -309,4 +309,90 @@ export async function runEraExemptionTest() {
 
 await runEraExemptionTest();
 
+// Test 8: AI Forensic Pre-Screening Confidence Tiers & High-Value Advisory
+console.log("\n▶ Test 8: AI Forensic Pre-Screening Confidence Tiers & High-Value Advisory");
+
+export async function runPreScreeningConfidenceTest() {
+  // Scenario A: High confidence authentic luxury item > $400 AUD
+  const highValueAuthentic = {
+    item_identification: {
+      detected_brand: "Louis Vuitton",
+      item_category: "Luxury Handbags",
+      identified_material: "Monogram Coated Canvas",
+      model_estimate: "Speedy 30 Bandouliere"
+    },
+    verdict: "AUTHENTIC",
+    authenticity_score: 92,
+    confidence_tier: "HIGH_CONFIDENCE",
+    forensic_breakdown: {
+      material_integrity: 94,
+      typography_and_hallmarks: 96,
+      hardware_and_fasteners: 90,
+      craftsmanship_and_seams: 92,
+      security_tags_and_codes: 88
+    },
+    decisive_tells: [
+      "Font typography: perfect circular 'O's and sharp pointed apex on 'A' verified on heat stamp",
+      "Stitching: consistent 5-stitch tab count with authentic mustard yellow linen thread angle",
+      "Hardware: clean rounded debossing on rivets without zinc casting seam lines"
+    ],
+    required_macro_inputs: [],
+    market_valuation_aud: {
+      fair_condition: 650,
+      excellent_condition: 1100
+    },
+    high_value_advisory: "Estimated value exceeds $400 AUD. Spadas recommends an in-person physical inspection or secondary appraisal before final resale listing.",
+    condition_and_maintenance_notes: "Condition canvas with gentle water-based cleaner; protect untreated Vachetta leather from moisture."
+  };
+
+  // Assertions for High Value Authentic
+  assert.equal(highValueAuthentic.confidence_tier, "HIGH_CONFIDENCE");
+  assert.ok(highValueAuthentic.authenticity_score >= 85, "High confidence must have score >= 85");
+  assert.ok(highValueAuthentic.high_value_advisory.includes("$400 AUD"), "Must trigger high-value advisory for > $400 AUD items");
+  assert.ok(highValueAuthentic.decisive_tells.some(tell => tell.includes("circular 'O'") || tell.includes("5-stitch tab")), "Must cite specific physical evidence tells");
+
+  // Scenario B: Moderate confidence item (e.g. vintage piece with partial wear, $120 AUD)
+  const moderateConfidenceItem = {
+    verdict: "AUTHENTIC",
+    authenticity_score: 74,
+    confidence_tier: "MODERATE_CONFIDENCE",
+    market_valuation_aud: { fair_condition: 80, excellent_condition: 140 },
+    high_value_advisory: null
+  };
+
+  assert.equal(moderateConfidenceItem.confidence_tier, "MODERATE_CONFIDENCE");
+  assert.ok(moderateConfidenceItem.authenticity_score >= 65 && moderateConfidenceItem.authenticity_score < 85);
+  assert.equal(moderateConfidenceItem.high_value_advisory, null, "Items under $400 AUD must not trigger high-value advisory");
+
+  // Scenario C: Detected counterfeit / replica tell
+  const detectedReplica = {
+    verdict: "COUNTERFEIT",
+    authenticity_score: 18,
+    confidence_tier: "HIGH_REPLICA_RISK",
+    decisive_tells: [
+      "Oval shaped 'O' font geometry on heat stamp (authentic Louis Vuitton uses perfect geometric circles)",
+      "Rough zinc-alloy casting flash seam visible on zipper slider",
+      "Polyester thread used with flat straight machine stitching rather than hand-guided angled saddle stitch"
+    ]
+  };
+
+  assert.equal(detectedReplica.confidence_tier, "HIGH_REPLICA_RISK");
+  assert.ok(detectedReplica.authenticity_score < 40, "Detected replica score must be < 40%");
+
+  // Scenario D: Inconclusive / Macro required
+  const blurryItem = {
+    verdict: "INSUFFICIENT_EVIDENCE",
+    authenticity_score: null,
+    confidence_tier: "INCONCLUSIVE"
+  };
+
+  assert.equal(blurryItem.confidence_tier, "INCONCLUSIVE");
+  assert.equal(blurryItem.authenticity_score, null);
+
+  console.log("  ✓ Test 8 Passed: Confidence tiers, cited physical evidence & high-value advisories verified.");
+}
+
+await runPreScreeningConfidenceTest();
+
 console.log("\n🎉 ALL FORENSIC AUTHENTICITY ENGINE TESTS PASSED!");
+

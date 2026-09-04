@@ -137,6 +137,29 @@ export function DeepVerifyModal({
     }
   };
 
+  const enhanceCanvasForForensics = (canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) => {
+    try {
+      const width = canvas.width;
+      const height = canvas.height;
+      const imgData = ctx.getImageData(0, 0, width, height);
+      const d = imgData.data;
+
+      // Optical Enhancement: +12% micro-contrast boost for stamped deboss, stitching & hallmark engravings
+      const contrast = 1.12;
+      const factor = (259 * (contrast + 255)) / (255 * (259 - contrast));
+
+      for (let i = 0; i < d.length; i += 4) {
+        d[i] = factor * (d[i] - 128) + 128;
+        d[i + 1] = factor * (d[i + 1] - 128) + 128;
+        d[i + 2] = factor * (d[i + 2] - 128) + 128;
+      }
+
+      ctx.putImageData(imgData, 0, 0);
+    } catch {
+      // Gracefully continue with raw frame if browser restricts pixel inspection
+    }
+  };
+
   const handleCapturePhoto = () => {
     if (!videoRef.current) return;
     const canvas = document.createElement("canvas");
@@ -145,7 +168,8 @@ export function DeepVerifyModal({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-    const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+    enhanceCanvasForForensics(canvas, ctx);
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.88);
 
     const updated = [...capturedImages];
     updated[currentStepIndex] = dataUrl;
@@ -268,7 +292,7 @@ Forensic Breakdown:
 • Hardware & Fasteners: ${result.forensic_breakdown?.hardware || 93}%
 Verdict: ${result.recommendation.replace(/_/g, " ")}${result.cleanup_advisory ? `\nCondition Note: ${result.cleanup_advisory}` : ""}${result.market_spread ? `\nMarket Comps: ${result.market_spread}` : ""}
 Public Verification Link: ${publicCertUrl}
-Verified by Spadas AI Universal Forensic Engine`;
+Verified by Spadas AI Forensic Pre-Screening Assistant`;
 
     navigator.clipboard.writeText(certText);
     toast.success("Authenticity Certificate copied to clipboard! Paste into your listing.");
@@ -295,9 +319,9 @@ Verified by Spadas AI Universal Forensic Engine`;
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-sm sm:text-base font-black text-white">AI Forensic Legit Check</h3>
-                <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                  Universal Multi-Material
+                <h3 className="text-sm sm:text-base font-black text-white">AI Forensic Pre-Screening Assistant</h3>
+                <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                  Thrift & Resale Triage
                 </span>
               </div>
               <p className="text-xs text-slate-400 line-clamp-1">
@@ -370,101 +394,142 @@ Verified by Spadas AI Universal Forensic Engine`;
             /* Authenticity Certificate & Results View */
             <div className="space-y-4 animate-fade-in">
               {/* Verdict Banner */}
-              <div
-                className={`p-4 rounded-2xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${
-                  result.verdict === "LIKELY_AUTHENTIC"
-                    ? "bg-emerald-950/50 border-emerald-500/50 shadow-[0_0_30px_rgba(16,185,129,0.2)]"
-                    : result.verdict === "SUSPICIOUS"
-                    ? "bg-amber-950/50 border-amber-500/50 shadow-[0_0_30px_rgba(245,158,11,0.2)]"
-                    : "bg-red-950/50 border-red-500/50 shadow-[0_0_30px_rgba(239,68,68,0.2)]"
-                }`}
-              >
-                <div className="flex items-center gap-3.5">
-                  {result.verdict === "LIKELY_AUTHENTIC" ? (
-                    <div className="h-12 w-12 rounded-2xl bg-emerald-500/20 border border-emerald-400 flex items-center justify-center shrink-0">
-                      <CheckCircle2 className="h-7 w-7 text-emerald-400" />
+              {(() => {
+                const isAuthentic = result.verdict === "AUTHENTIC" || result.verdict === "LIKELY_AUTHENTIC";
+                const isCounterfeit = result.verdict === "COUNTERFEIT" || result.verdict === "COUNTERFEIT_REPLICA";
+                const isInconclusive = result.verdict === "INSUFFICIENT_EVIDENCE" || result.verdict === "CANNOT_DETERMINE";
+                const score = result.authenticity_score;
+                const isHighConfidence = isAuthentic && score !== null && score >= 85;
+
+                const bannerBg = isHighConfidence
+                  ? "bg-emerald-950/60 border-emerald-500/50 shadow-[0_0_30px_rgba(16,185,129,0.2)]"
+                  : isAuthentic
+                  ? "bg-teal-950/60 border-teal-500/50 shadow-[0_0_30px_rgba(20,184,166,0.2)]"
+                  : isInconclusive
+                  ? "bg-amber-950/60 border-amber-500/50 shadow-[0_0_30px_rgba(245,158,11,0.2)]"
+                  : "bg-red-950/60 border-red-500/50 shadow-[0_0_30px_rgba(239,68,68,0.2)]";
+
+                return (
+                  <div
+                    className={`p-4 rounded-2xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${bannerBg}`}
+                  >
+                    <div className="flex items-center gap-3.5">
+                      <div
+                        className={`h-12 w-12 rounded-2xl flex items-center justify-center shrink-0 border ${
+                          isAuthentic
+                            ? "bg-emerald-500/20 border-emerald-400"
+                            : isInconclusive
+                            ? "bg-amber-500/20 border-amber-400"
+                            : "bg-red-500/20 border-red-400"
+                        }`}
+                      >
+                        {isAuthentic ? (
+                          <CheckCircle2 className="h-7 w-7 text-emerald-400" />
+                        ) : isInconclusive ? (
+                          <AlertTriangle className="h-7 w-7 text-amber-400" />
+                        ) : (
+                          <ShieldAlert className="h-7 w-7 text-red-400" />
+                        )}
+                      </div>
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-base sm:text-lg font-black text-white">
+                            {isHighConfidence
+                              ? "🟢 LIKELY AUTHENTIC (HIGH CONFIDENCE)"
+                              : isAuthentic
+                              ? "🟡 POTENTIAL AUTHENTIC (MODERATE CONFIDENCE)"
+                              : isInconclusive
+                              ? "🔍 INCONCLUSIVE (MACRO DETAILS RECOMMENDED)"
+                              : "🔴 HIGH REPLICA RISK (TELLS DETECTED)"}
+                          </span>
+                          {score !== null && score !== undefined ? (
+                            <span className="text-xs font-mono font-black px-2.5 py-0.5 rounded-full bg-slate-900 border border-white/20 text-cyan-300">
+                              {score}% Confidence
+                            </span>
+                          ) : (
+                            <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-slate-900/80 border border-slate-700 text-amber-300">
+                              Macro Needed
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-300 mt-0.5 flex flex-wrap items-center gap-2">
+                          <span>
+                            Triage Recommendation:{" "}
+                            <strong className="text-white uppercase">{result.recommendation.replace(/_/g, " ")}</strong>
+                          </span>
+                          <span className="inline-flex items-center gap-1 text-[10px] text-slate-400 bg-slate-900/80 px-2 py-0.5 rounded border border-slate-700/60 font-semibold">
+                            🛡️ AI Pre-Screening
+                          </span>
+                        </p>
+                      </div>
                     </div>
-                  ) : result.verdict === "SUSPICIOUS" ? (
-                    <div className="h-12 w-12 rounded-2xl bg-amber-500/20 border border-amber-400 flex items-center justify-center shrink-0">
-                      <AlertTriangle className="h-7 w-7 text-amber-400" />
+
+                    <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                      {result.authenticity_score !== null && (result.verdict as string) !== "INSUFFICIENT_EVIDENCE" ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={handleCopyPublicLink}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-black transition cursor-pointer shadow-md shadow-emerald-500/20 active:scale-95"
+                            title="Copy permanent public link to drop into eBay description"
+                          >
+                            <ExternalLink className="h-3.5 w-3.5" /> Public Link
+                          </button>
+                          <a
+                            href={publicCertUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-slate-200 hover:bg-slate-800 transition cursor-pointer"
+                            title="Open public digital certificate in new tab"
+                          >
+                            <QrCode className="h-3.5 w-3.5 text-cyan-400" /> View Cert
+                          </a>
+                          <button
+                            type="button"
+                            onClick={handleCopyCertificate}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-black transition cursor-pointer shadow-md shadow-cyan-500/20 active:scale-95"
+                            title="Copy full certificate markdown text"
+                          >
+                            <Share2 className="h-3.5 w-3.5" /> Copy Cert
+                          </button>
+                        </>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-bold">
+                          <AlertTriangle className="h-3.5 w-3.5 text-amber-400" /> Certificate Publishing Blocked
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setResult(null);
+                          setCapturedImages([]);
+                          setCurrentStepIndex(0);
+                          startCamera();
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition cursor-pointer border border-slate-700 active:scale-95"
+                        title="Start over with new photos"
+                      >
+                        <RefreshCw className="h-3.5 w-3.5" /> New Check
+                      </button>
                     </div>
-                  ) : (
-                    <div className="h-12 w-12 rounded-2xl bg-red-500/20 border border-red-400 flex items-center justify-center shrink-0">
-                      <ShieldAlert className="h-7 w-7 text-red-400" />
-                    </div>
-                  )}
+                  </div>
+                );
+              })()}
+
+              {/* High-Value Asset Advisory Banner */}
+              {result.high_value_advisory && (
+                <div className="p-3.5 rounded-2xl bg-purple-950/40 border border-purple-500/40 text-xs text-purple-200 flex items-start gap-2.5 animate-fade-in">
+                  <Sparkles className="h-4 w-4 text-purple-400 shrink-0 mt-0.5" />
                   <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg font-black text-white">
-                        {result.verdict === "AUTHENTIC" || result.verdict === "LIKELY_AUTHENTIC"
-                          ? "✅ AUTHENTIC FACTORY SPEC"
-                          : result.verdict === "INSUFFICIENT_EVIDENCE" || result.verdict === "CANNOT_DETERMINE"
-                          ? "🔍 INSUFFICIENT EVIDENCE (RETAKE REQUIRED)"
-                          : result.verdict === "SUSPICIOUS"
-                          ? "⚠️ SUSPICIOUS ANOMALIES"
-                          : "❌ COUNTERFEIT / REPLICA DETECTED"}
-                      </span>
-                      <span className="text-xs font-mono font-black px-2.5 py-0.5 rounded-full bg-slate-900 border border-white/20 text-cyan-300">
-                        {result.authenticity_score !== null && result.authenticity_score !== undefined
-                          ? `${result.authenticity_score}% Score`
-                          : "Score Pending Retake"}
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-300 mt-0.5">
-                      Recommendation:{" "}
-                      <strong className="text-white uppercase">{result.recommendation.replace(/_/g, " ")}</strong>
+                    <span className="font-extrabold uppercase text-[10px] text-purple-300 block tracking-wider">
+                      High-Value Item Pre-Screen Advisory
+                    </span>
+                    <p className="text-[11px] text-slate-300 leading-snug mt-0.5">
+                      {result.high_value_advisory}
                     </p>
                   </div>
                 </div>
-
-                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                  {result.authenticity_score !== null && (result.verdict as string) !== "INSUFFICIENT_EVIDENCE" ? (
-                    <>
-                      <button
-                        type="button"
-                        onClick={handleCopyPublicLink}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-black transition cursor-pointer shadow-md shadow-emerald-500/20 active:scale-95"
-                        title="Copy permanent public link to drop into eBay description"
-                      >
-                        <ExternalLink className="h-3.5 w-3.5" /> Public Link
-                      </button>
-                      <a
-                        href={publicCertUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-slate-200 hover:bg-slate-800 transition cursor-pointer"
-                        title="Open public digital certificate in new tab"
-                      >
-                        <QrCode className="h-3.5 w-3.5 text-cyan-400" /> View Cert
-                      </a>
-                      <button
-                        type="button"
-                        onClick={handleCopyCertificate}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-black transition cursor-pointer shadow-md shadow-cyan-500/20 active:scale-95"
-                        title="Copy full certificate markdown text"
-                      >
-                        <Share2 className="h-3.5 w-3.5" /> Copy Cert
-                      </button>
-                    </>
-                  ) : (
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-bold">
-                      <AlertTriangle className="h-3.5 w-3.5 text-amber-400" /> Certificate Publishing Blocked
-                    </span>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setResult(null);
-                      setCapturedImages([]);
-                      setCurrentStepIndex(0);
-                      startCamera();
-                    }}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-slate-200 hover:bg-slate-800 transition cursor-pointer"
-                  >
-                    <RefreshCw className="h-3.5 w-3.5" /> Re-Scan
-                  </button>
-                </div>
-              </div>
+              )}
 
               {/* Universal 5-Pillar Sub-Score Radar Matrix */}
               {result.forensic_breakdown && (
