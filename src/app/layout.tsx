@@ -90,6 +90,21 @@ export default function RootLayout({
   return (
     <html lang="en" className={cn("font-sans", geist.variable)}>
       <head>
+        {/* Google tag (gtag.js) */}
+        <script
+          async
+          src="https://www.googletagmanager.com/gtag/js?id=AW-18430569894"
+        />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+              gtag('config', 'AW-18430569894');
+            `,
+          }}
+        />
         <link rel="canonical" href="https://spadas.ai" />
         <meta property="og:image" content="https://spadas.ai/og-preview.jpg" />
         <script
