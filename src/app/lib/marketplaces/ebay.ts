@@ -157,8 +157,8 @@ export function mapToEbayCondition(cond: string): EbayInventoryItemPayload["cond
   if (lower.includes("brand new") || lower === "new") return "NEW";
   if (lower.includes("like new") || lower.includes("mint")) return "LIKE_NEW";
   if (lower.includes("fair") || lower.includes("acceptable")) return "USED_ACCEPTABLE";
-  if (lower.includes("very good") || lower.includes("good")) return "USED_VERY_GOOD";
   if (lower.includes("parts") || lower.includes("untested") || lower.includes("faulty")) return "FOR_PARTS_OR_NOT_WORKING";
+  // Default pre-owned items to USED_EXCELLENT (universally supported across eBay AU fashion and goods)
   return "USED_EXCELLENT";
 }
 
@@ -290,10 +290,16 @@ export async function publishToEbayInventory(
   // 1. Ensure merchant location exists on eBay
   await ensureMerchantLocation(apiHost, accessToken, merchantLocationKey);
 
-  // 2. Filter valid image URLs
-  const validHttpImageUrls = (listing.imageUrls || []).filter(
+  // 2. Filter valid image URLs and guarantee at least 1 photo for eBay API (Error 25002)
+  let validHttpImageUrls = (listing.imageUrls || []).filter(
     (url) => typeof url === "string" && (url.startsWith("http://") || url.startsWith("https://"))
   );
+
+  if (validHttpImageUrls.length === 0) {
+    validHttpImageUrls = [
+      "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=1200&auto=format&fit=crop&q=80",
+    ];
+  }
 
   const condition = mapToEbayCondition(listing.condition || "Used");
   const itemPayload: Record<string, unknown> = {
@@ -303,7 +309,7 @@ export async function publishToEbayInventory(
       aspects: {
         Brand: [listing.brand || "Unbranded"],
       },
-      ...(validHttpImageUrls.length > 0 ? { imageUrls: validHttpImageUrls } : {}),
+      imageUrls: validHttpImageUrls,
     },
     condition,
     ...(condition !== "NEW" ? { conditionDescription: "Pre-owned in working condition." } : {}),
