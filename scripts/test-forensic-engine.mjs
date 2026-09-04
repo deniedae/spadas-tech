@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import {
   FORENSIC_CATEGORIES,
   detectForensicCategory,
+  BRAND_DNA_REGISTRY,
+  getBrandDnaRules,
 } from "../src/lib/forensic-knowledge.ts";
 
 console.log("🚀 Testing Spadas Universal Forensic Authenticity Engine...");
@@ -394,5 +396,127 @@ export async function runPreScreeningConfidenceTest() {
 
 await runPreScreeningConfidenceTest();
 
+// Test 9: Client-Side Macro Auto-Crop & Convolution Sharpening Algorithm
+console.log("\n▶ Test 9: Macro Auto-Crop & 3x3 Convolution Sharpening Algorithm");
+
+export function runMacroAutoCropAndSharpenTest() {
+  // 1. Center-crop geometry math validation
+  const vWidth = 1280;
+  const vHeight = 720;
+  const cropFactor = 0.55;
+
+  const cropW = Math.round(vWidth * cropFactor);
+  const cropH = Math.round(vHeight * cropFactor);
+  const cropX = Math.round((vWidth - cropW) / 2);
+  const cropY = Math.round((vHeight - cropH) / 2);
+
+  assert.equal(cropW, 704, "Crop width must be exactly 55% of video width");
+  assert.equal(cropH, 396, "Crop height must be exactly 55% of video height");
+  assert.equal(cropX, 288, "Crop X must be centered horizontally");
+  assert.equal(cropY, 162, "Crop Y must be centered vertically");
+  assert.equal(cropX + cropW + cropX, vWidth, "Crop box must be perfectly symmetric horizontally");
+  assert.equal(cropY + cropH + cropY, vHeight, "Crop box must be perfectly symmetric vertically");
+
+  // 2. Convolution sharpening kernel simulation
+  // Kernel: [0, -0.5, 0; -0.5, 3.0, -0.5; 0, -0.5, 0]
+  const kCenter = 3.0;
+  const kEdge = -0.5;
+
+  const applyKernel = (center, up, down, left, right) => {
+    const val = center * kCenter + (up + down + left + right) * kEdge;
+    return Math.min(255, Math.max(0, val));
+  };
+
+  // Uniform area test (no gradient): 120 surrounded by 120
+  // Result: 120 * 3.0 + 4 * (120 * -0.5) = 360 - 240 = 120 (Flat tone is preserved!)
+  const flatResult = applyKernel(120, 120, 120, 120, 120);
+  assert.equal(flatResult, 120, "Sharpening kernel must preserve flat neutral tones without clipping");
+
+  // High-contrast edge step test (e.g. dark debossed letter on lighter leather):
+  // Center is a dark debossed groove (60) surrounded by lighter leather (180):
+  // Result: 60 * 3.0 + 4 * (180 * -0.5) = 180 - 360 = -180 -> clamped to 0 (groove gets darker!)
+  const edgeResult = applyKernel(60, 180, 180, 180, 180);
+  assert.ok(edgeResult < 60, "Groove edge must be enhanced / deepened for vision contrast");
+
+  console.log("  ✓ Test 9 Passed: Auto-crop geometry & 3x3 unsharp convolution kernel verified.");
+}
+
+runMacroAutoCropAndSharpenTest();
+
+// Test 10: Brand DNA Tell Matrix Registry & Verification Schema
+console.log("\n▶ Test 10: Brand DNA Tell Matrix Registry & Checklist Verification");
+
+export function runBrandDnaRegistryTest() {
+  // 1. Verify Prada DNA Rules
+  const pradaRules = getBrandDnaRules("Prada");
+  assert.equal(pradaRules.length, 5, "Prada must have 5 forensic DNA tells");
+  const pradaNotch = pradaRules.find(r => r.tell_id === "prada_notched_r");
+  assert.ok(pradaNotch, "Prada notched 'R' tell must exist");
+  assert.ok(pradaNotch.authenticity_rule.includes("curved notch"), "Must verify curved notch rule");
+  assert.ok(pradaRules.some(r => r.tell_id === "prada_zipper_hallmark"), "Prada zipper hallmark tell must exist");
+
+  // 2. Verify Louis Vuitton DNA Rules
+  const lvRules = getBrandDnaRules("Louis Vuitton");
+  assert.equal(lvRules.length, 5, "Louis Vuitton must have 5 forensic DNA tells");
+  const lvCircleO = lvRules.find(r => r.tell_id === "lv_circular_o");
+  assert.ok(lvCircleO, "LV circular 'O' tell must exist");
+  assert.ok(lvCircleO.authenticity_rule.includes("exact geometric circle"), "Must verify circular 'O' rule");
+  assert.ok(lvRules.some(r => r.tell_id === "lv_linen_stitching"), "LV mustard linen saddle stitch tell must exist");
+
+  // 3. Verify Gucci DNA Rules
+  const gucciRules = getBrandDnaRules("Gucci");
+  assert.ok(gucciRules.length >= 4, "Gucci must have at least 4 forensic DNA tells");
+  assert.ok(gucciRules.some(r => r.tell_id === "gucci_interlocking_gg"), "Gucci interlocking GG tell must exist");
+  assert.ok(gucciRules.some(r => r.tell_id === "gucci_dual_row_serial"), "Gucci dual row serial tell must exist");
+
+  // 4. Verify Chanel DNA Rules
+  const chanelRules = getBrandDnaRules("Chanel");
+  assert.equal(chanelRules.length, 4, "Chanel must have 4 forensic DNA tells");
+  const ccTurnlock = chanelRules.find(r => r.tell_id === "chanel_cc_turnlock");
+  assert.ok(ccTurnlock.authenticity_rule.toLowerCase().includes("right 'c' must overlap"), "CC turnlock overlap rule must be verified");
+  assert.ok(chanelRules.some(r => r.tell_id === "chanel_stitch_count" && r.authenticity_rule.includes("10 to 12 precise stitches")), "Stitch count rule must be verified");
+
+  // 5. Verify Nike / Streetwear DNA Rules
+  const nikeRules = getBrandDnaRules("Nike");
+  assert.equal(nikeRules.length, 4, "Nike must have 4 forensic DNA tells");
+  assert.ok(nikeRules.some(r => r.tell_id === "nike_swoosh_needlework"), "Swoosh needlework tell must exist");
+  assert.ok(nikeRules.some(r => r.tell_id === "nike_strobel_footbed"), "Strobel footbed tell must exist");
+
+  // 6. Verify Rolex DNA Rules
+  const rolexRules = getBrandDnaRules("Rolex");
+  assert.equal(rolexRules.length, 4, "Rolex must have 4 forensic DNA tells");
+  assert.ok(rolexRules.some(r => r.tell_id === "rolex_dial_coronet"), "Rolex dial coronet tell must exist");
+  assert.ok(rolexRules.some(r => r.tell_id === "rolex_cyclops_ar"), "Rolex 2.5x cyclops tell must exist");
+
+  // 7. Verify Checklist Schema Contract
+  const sampleChecklist = [
+    {
+      tell_name: "Notched 'R' Letter Anatomy",
+      status: "PASSED",
+      observed_evidence: "Interior heat stamp shows clear curved notch on the right leg of 'R'.",
+      authenticity_rule: pradaNotch.authenticity_rule
+    },
+    {
+      tell_name: "Internal Factory Inspection Tag (Clim Code)",
+      status: "NOT_APPLICABLE",
+      observed_evidence: "Vintage item verified via visible craftsmanship (Era Exempt).",
+      authenticity_rule: pradaRules[4].authenticity_rule
+    }
+  ];
+
+  const validStatuses = ["PASSED", "FAILED", "INCONCLUSIVE", "NOT_APPLICABLE"];
+  for (const item of sampleChecklist) {
+    assert.ok(item.tell_name, "Checklist item must have tell_name");
+    assert.ok(validStatuses.includes(item.status), `Invalid checklist status: ${item.status}`);
+    assert.ok(item.observed_evidence, "Checklist item must have observed_evidence");
+    assert.ok(item.authenticity_rule, "Checklist item must have authenticity_rule");
+  }
+
+  console.log("  ✓ Test 10 Passed: Brand DNA tell registry & checklist schema verified across all top brands.");
+}
+
+runBrandDnaRegistryTest();
+
 console.log("\n🎉 ALL FORENSIC AUTHENTICITY ENGINE TESTS PASSED!");
+
 

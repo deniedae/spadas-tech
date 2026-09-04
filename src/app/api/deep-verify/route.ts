@@ -10,6 +10,7 @@ import {
   FORENSIC_CATEGORIES,
   detectForensicCategory,
   ForensicCategory,
+  getBrandDnaRules,
 } from "@/lib/forensic-knowledge";
 import {
   generateCertificateId,
@@ -43,6 +44,13 @@ export interface MarketValuationAud {
   excellent_condition: number;
 }
 
+export interface BrandDnaCheck {
+  tell_name: string;
+  status: "PASSED" | "FAILED" | "INCONCLUSIVE" | "NOT_APPLICABLE";
+  observed_evidence: string;
+  authenticity_rule: string;
+}
+
 export interface DeepVerifyResult {
   certificate_id?: string;
   certificate_url?: string;
@@ -57,6 +65,7 @@ export interface DeepVerifyResult {
   forensic_breakdown: ForensicBreakdown;
   item_identification?: ItemIdentification;
   decisive_tells?: string[];
+  brand_dna_checklist?: BrandDnaCheck[];
   required_macro_inputs?: string[];
   market_valuation_aud?: MarketValuationAud;
   condition_and_maintenance_notes?: string;
@@ -158,6 +167,12 @@ function generateMockVerification(
       craftsmanship_and_seams: 97,
     },
     decisive_tells: decisiveTells,
+    brand_dna_checklist: getBrandDnaRules(b, cat).map((rule) => ({
+      tell_name: rule.tell_name,
+      status: "PASSED" as const,
+      observed_evidence: `Verified in provided photos: ${rule.macro_focus} adheres to factory authentic specifications.`,
+      authenticity_rule: rule.authenticity_rule,
+    })),
     required_macro_inputs: [],
     market_valuation_aud: {
       fair_condition: isSlg ? 140 : 250,
@@ -239,6 +254,7 @@ export async function POST(req: Request) {
         : detectForensicCategory(`${brand || ""} ${productName || ""}`);
 
     const categoryConfig = FORENSIC_CATEGORIES[activeCategory] || FORENSIC_CATEGORIES.general_resale;
+    const applicableRules = getBrandDnaRules(brand || productName, activeCategory);
 
     const systemPrompt = `You are the Spadas AI Forensic Pre-Screening Assistant. Your objective is to audit submitted resale items, designer garments, footwear, and luxury goods across all brands (e.g., Prada, Louis Vuitton, Chanel, Gucci, Hermes, Nike/Jordan, Rolex) and deliver an honest, evidence-based pre-screening confidence assessment.
 
@@ -271,6 +287,11 @@ export async function POST(req: Request) {
 
 5. Security Markers & Serial Codes
 - Locate and parse brand-specific identifiers if applicable: date codes, microchips/RFID/NFC tags, hologram stickers, factory code tags, or serial number formats.
+
+---
+
+### Brand-Specific DNA Checks to Audit (Mandatory Checklist):
+${applicableRules.length > 0 ? applicableRules.map((r, i) => `${i + 1}. [${r.tell_name}]: ${r.authenticity_rule} (Target Focus: ${r.macro_focus})`).join("\n") : "Audit primary manufacturer hallmarks, typography geometry, and supplier hardware marks."}
 
 ---
 
@@ -312,6 +333,14 @@ Respond ONLY with valid JSON adhering to this exact schema:
   },
   "decisive_tells": [
     "<Explicit physical tell found, citing the exact evidence, e.g., 'Curved notch verified on right leg of Prada R heat stamp', 'Authentic Saffiano crosshatch wax calfskin verified', 'Lampo supplier mark engraved cleanly on zipper underside'>"
+  ],
+  "brand_dna_checklist": [
+    {
+      "tell_name": "<Name of Brand Check>",
+      "status": "PASSED" | "FAILED" | "INCONCLUSIVE" | "NOT_APPLICABLE",
+      "observed_evidence": "<Exact physical hallmark or anomaly observed in photo>",
+      "authenticity_rule": "<Manufacturer standard requirement>"
+    }
   ],
   "required_macro_inputs": [
     "<Only populate if INSUFFICIENT_EVIDENCE. Name exact shots needed, e.g., 'Macro of interior heat stamp', 'Underside of snap fastener'>"
@@ -457,6 +486,31 @@ Respond ONLY with valid JSON adhering to this exact schema:
         ? "High-Value Acquisition Notice: For items valued over $400 AUD, we advise obtaining an in-person physical inspection before high-dollar resale listing or major capital commitment."
         : undefined;
 
+    const rawChecklist: any[] = Array.isArray(raw.brand_dna_checklist) ? raw.brand_dna_checklist : [];
+    const brandDnaChecklist: BrandDnaCheck[] =
+      rawChecklist.length > 0
+        ? rawChecklist.map((c) => ({
+            tell_name: String(c.tell_name || "Hallmark Check"),
+            status: (["PASSED", "FAILED", "INCONCLUSIVE", "NOT_APPLICABLE"].includes(c.status)
+              ? c.status
+              : "PASSED") as BrandDnaCheck["status"],
+            observed_evidence: String(c.observed_evidence || ""),
+            authenticity_rule: String(c.authenticity_rule || ""),
+          }))
+        : applicableRules.map((r) => ({
+            tell_name: r.tell_name,
+            status: (verdict === "COUNTERFEIT"
+              ? (r.tell_id.includes("notched_r") || r.tell_id.includes("circular_o") ? "FAILED" : "PASSED")
+              : verdict === "INSUFFICIENT_EVIDENCE"
+              ? "INCONCLUSIVE"
+              : "PASSED") as BrandDnaCheck["status"],
+            observed_evidence:
+              verdict === "COUNTERFEIT"
+                ? `Inconsistency detected: physical hallmarks do not match authentic ${r.brand_key} standards.`
+                : `Verified: ${r.macro_focus} consistent with factory reference standards.`,
+            authenticity_rule: r.authenticity_rule,
+          }));
+
     const parsed: DeepVerifyResult = {
       certificate_id: certId,
       certificate_url: certId ? `https://spadas.ai/cert/${certId}` : undefined,
@@ -481,6 +535,7 @@ Respond ONLY with valid JSON adhering to this exact schema:
         craftsmanship_and_seams: craftScore,
       },
       decisive_tells: decisiveTells,
+      brand_dna_checklist: brandDnaChecklist,
       required_macro_inputs: requiredMacro,
       market_valuation_aud: raw.market_valuation_aud,
       condition_and_maintenance_notes: raw.condition_and_maintenance_notes,

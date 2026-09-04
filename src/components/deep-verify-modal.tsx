@@ -20,6 +20,8 @@ import {
   TrendingUp,
   QrCode,
   Copy,
+  Fingerprint,
+  ZoomIn,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { DeepVerifyResult } from "@/app/api/deep-verify/route";
@@ -58,10 +60,16 @@ export function DeepVerifyModal({
   const [analyzing, setAnalyzing] = useState(false);
   const [analysisStage, setAnalysisStage] = useState(0);
   const [result, setResult] = useState<DeepVerifyResult | null>(null);
+  const [macroZoom, setMacroZoom] = useState<boolean>(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const [cameraActive, setCameraActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Auto-engage 2.0x macro zoom on close-up detail steps (step 2, 3, 4)
+  useEffect(() => {
+    setMacroZoom(currentStepIndex > 0);
+  }, [currentStepIndex]);
 
   // Active category configuration
   const activeConfig = FORENSIC_CATEGORIES[selectedCategory] || FORENSIC_CATEGORIES.general_resale;
@@ -160,22 +168,80 @@ export function DeepVerifyModal({
     }
   };
 
+  const sharpenCanvasConvolution = (canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) => {
+    try {
+      const width = canvas.width;
+      const height = canvas.height;
+      const imgData = ctx.getImageData(0, 0, width, height);
+      const src = imgData.data;
+      const output = ctx.createImageData(width, height);
+      const dst = output.data;
+
+      // 3x3 Unsharp Sharpening Kernel:
+      // [  0,   -0.5,   0  ]
+      // [ -0.5,  3.0, -0.5 ]
+      // [  0,   -0.5,   0  ]
+      const kCenter = 3.0;
+      const kEdge = -0.5;
+
+      for (let y = 1; y < height - 1; y++) {
+        for (let x = 1; x < width - 1; x++) {
+          const idx = (y * width + x) * 4;
+          for (let c = 0; c < 3; c++) {
+            const up = ((y - 1) * width + x) * 4 + c;
+            const down = ((y + 1) * width + x) * 4 + c;
+            const left = (y * width + (x - 1)) * 4 + c;
+            const right = (y * width + (x + 1)) * 4 + c;
+            const center = idx + c;
+
+            const val = src[center] * kCenter + (src[up] + src[down] + src[left] + src[right]) * kEdge;
+            dst[center] = Math.min(255, Math.max(0, val));
+          }
+          dst[idx + 3] = src[idx + 3]; // Preserve alpha channel
+        }
+      }
+      ctx.putImageData(output, 0, 0);
+    } catch {
+      // Gracefully continue if browser restricts canvas image data manipulation
+    }
+  };
+
   const handleCapturePhoto = () => {
     if (!videoRef.current) return;
+    const video = videoRef.current;
+    const vWidth = video.videoWidth || 640;
+    const vHeight = video.videoHeight || 480;
+
+    // Macro Auto-Crop: Center 55% crop of the frame where hardware/hallmarks are focused
+    const cropFactor = macroZoom ? 0.55 : 1.0;
+    const cropW = vWidth * cropFactor;
+    const cropH = vHeight * cropFactor;
+    const cropX = (vWidth - cropW) / 2;
+    const cropY = (vHeight - cropH) / 2;
+
     const canvas = document.createElement("canvas");
-    canvas.width = videoRef.current.videoWidth || 640;
-    canvas.height = videoRef.current.videoHeight || 480;
+    canvas.width = 1024;
+    canvas.height = 1024;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+
+    ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, canvas.width, canvas.height);
     enhanceCanvasForForensics(canvas, ctx);
-    const dataUrl = canvas.toDataURL("image/jpeg", 0.88);
+
+    if (macroZoom) {
+      sharpenCanvasConvolution(canvas, ctx);
+    }
+
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.90);
 
     const updated = [...capturedImages];
     updated[currentStepIndex] = dataUrl;
     setCapturedImages(updated);
 
-    toast.success(`Captured ${currentStep.title}!`);
+    toast.success(`Captured ${currentStep.title}${macroZoom ? " (2.0x Macro Sharpened)" : ""}!`);
 
     if (currentStepIndex < activeConfig.angles.length - 1) {
       setCurrentStepIndex((prev) => prev + 1);
@@ -579,6 +645,94 @@ Verified by Spadas AI Forensic Pre-Screening Assistant`;
                 </div>
               )}
 
+              {/* Brand DNA Forensic Checklist Matrix */}
+              {result.brand_dna_checklist && result.brand_dna_checklist.length > 0 && (
+                <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-700/80 space-y-3 animate-fade-in shadow-xl shadow-black/40">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 rounded-lg bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                        <Fingerprint className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <span className="font-extrabold text-cyan-300 block uppercase tracking-wider text-[11px]">
+                          Brand DNA Tell Matrix ({result.brand_dna_checklist.length})
+                        </span>
+                        <span className="text-[10px] text-slate-400">
+                          Specific factory hallmarks audited against uploaded photos
+                        </span>
+                      </div>
+                    </div>
+                    <span className="text-[11px] font-mono font-black px-2.5 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-cyan-300">
+                      {result.brand_dna_checklist.filter((c) => c.status === "PASSED").length}/{result.brand_dna_checklist.length} Passed
+                    </span>
+                  </div>
+
+                  <div className="space-y-2">
+                    {result.brand_dna_checklist.map((check, idx) => {
+                      const isPassed = check.status === "PASSED";
+                      const isFailed = check.status === "FAILED";
+                      const isInconclusive = check.status === "INCONCLUSIVE";
+
+                      return (
+                        <div
+                          key={idx}
+                          className={`p-3 rounded-xl border transition ${
+                            isPassed
+                              ? "bg-emerald-950/20 border-emerald-500/30"
+                              : isFailed
+                              ? "bg-red-950/25 border-red-500/40"
+                              : isInconclusive
+                              ? "bg-amber-950/20 border-amber-500/30"
+                              : "bg-slate-800/40 border-slate-700/60"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <span className="font-bold text-white text-xs flex items-center gap-1.5">
+                              {isPassed ? (
+                                <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+                              ) : isFailed ? (
+                                <ShieldAlert className="h-4 w-4 text-red-400 shrink-0" />
+                              ) : isInconclusive ? (
+                                <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0" />
+                              ) : (
+                                <span className="h-2 w-2 rounded-full bg-slate-500 shrink-0" />
+                              )}
+                              <span>{check.tell_name}</span>
+                            </span>
+                            <span
+                              className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full border shrink-0 ${
+                                isPassed
+                                  ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+                                  : isFailed
+                                  ? "bg-red-500/20 text-red-300 border-red-500/40"
+                                  : isInconclusive
+                                  ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
+                                  : "bg-slate-800 text-slate-400 border-slate-700"
+                              }`}
+                            >
+                              {check.status.replace(/_/g, " ")}
+                            </span>
+                          </div>
+
+                          {check.observed_evidence && (
+                            <p className="text-[11px] text-slate-200 mt-1.5 pl-5 leading-snug">
+                              <strong className="text-cyan-300 font-semibold">Observed Evidence: </strong>
+                              {check.observed_evidence}
+                            </p>
+                          )}
+                          {check.authenticity_rule && (
+                            <p className="text-[10px] text-slate-400 mt-1 pl-5 italic leading-tight">
+                              <strong className="text-slate-300 not-italic font-medium">Factory Rule: </strong>
+                              {check.authenticity_rule}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {/* Forensic Summary */}
               <div className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 text-xs text-slate-200 leading-relaxed space-y-1">
                 <span className="font-extrabold text-cyan-300 block uppercase tracking-wide text-[10px]">
@@ -879,18 +1033,49 @@ Verified by Spadas AI Forensic Pre-Screening Assistant`;
                   /* Live Camera View */
                   <div
                     onClick={handleCapturePhoto}
-                    className="relative w-full h-full flex items-center justify-center cursor-pointer"
+                    className="relative w-full h-full flex items-center justify-center cursor-pointer overflow-hidden"
                     title="Tap viewfinder to snap photo"
                   >
                     <video
                       ref={videoRef}
                       playsInline
                       muted
+                      style={{
+                        transform: macroZoom ? "scale(1.35)" : "scale(1)",
+                        transition: "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                      }}
                       className="w-full h-full object-cover"
                     />
+
+                    {/* Macro Zoom / Wide Angle Mode Toggle */}
+                    <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setMacroZoom(!macroZoom);
+                        }}
+                        className={`px-2.5 py-1 rounded-full text-[10px] font-black tracking-wide border transition flex items-center gap-1.5 shadow-lg active:scale-95 ${
+                          macroZoom
+                            ? "bg-cyan-500 text-slate-950 border-cyan-300 shadow-cyan-500/30"
+                            : "bg-slate-950/80 text-slate-300 border-slate-700 hover:bg-slate-800"
+                        }`}
+                        title="Toggle Macro Optical Auto-Crop & Sharpening"
+                      >
+                        <ZoomIn className="h-3 w-3" />
+                        {macroZoom ? "2.0x Macro Sharpen ON" : "1.0x Full Frame"}
+                      </button>
+                    </div>
+
                     {/* Crosshair Guide */}
                     <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                      <div className="w-48 h-48 border-2 border-dashed border-cyan-400/40 rounded-2xl animate-pulse" />
+                      <div className="relative w-48 h-48 border-2 border-dashed border-cyan-400/40 rounded-2xl animate-pulse flex items-center justify-center">
+                        {macroZoom && (
+                          <span className="absolute -top-7 text-[9px] font-mono font-bold text-cyan-300 bg-black/75 px-2.5 py-0.5 rounded-full border border-cyan-500/30 shadow-sm">
+                            Auto-Crop & Sharpen Target
+                          </span>
+                        )}
+                      </div>
                     </div>
                     {/* Tap to Snap Hint */}
                     <div className="absolute bottom-2.5 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full text-[10px] font-bold text-slate-300 border border-white/10 pointer-events-none flex items-center gap-1.5 shadow-md">
