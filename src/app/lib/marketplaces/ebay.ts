@@ -214,17 +214,31 @@ export interface EbayListingPolicies {
 }
 
 /**
- * Fetch seller's configured default business policies from eBay Account API
+ * Ensure seller has compliant eBay business policies configured.
+ * Automatically opts into Business Policies (SELLING_POLICY_MANAGEMENT)
+ * and provisions standard Fulfillment, Return, and Payment policies if missing.
  */
-export async function fetchUserDefaultPolicies(
+export async function ensureUserDefaultPolicies(
   apiHost: string,
   accessToken: string,
   marketplaceId = "EBAY_AU"
 ): Promise<EbayListingPolicies> {
   const headers = {
     Authorization: `Bearer ${accessToken}`,
+    "Content-Type": "application/json",
     Accept: "application/json",
   };
+
+  // 1. Opt-in seller account to Business Policies if needed
+  try {
+    await fetch(`https://${apiHost}/sell/account/v1/program/opt_in`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ programType: "SELLING_POLICY_MANAGEMENT" }),
+    });
+  } catch (optErr) {
+    console.warn("Opt-in to SELLING_POLICY_MANAGEMENT notice:", optErr);
+  }
 
   const policies: EbayListingPolicies = {};
 
@@ -258,11 +272,158 @@ export async function fetchUserDefaultPolicies(
         policies.paymentPolicyId = list[0].paymentPolicyId;
       }
     }
+
+    const isUsd = marketplaceId === "EBAY_US";
+
+    // 2. Create default Fulfillment Policy if missing
+    if (!policies.fulfillmentPolicyId) {
+      const fpPayload = {
+        name: isUsd ? "Spadas Standard US Shipping" : "Spadas Standard AU Shipping",
+        description: isUsd ? "Standard shipping via USPS with tracking." : "Standard delivery via Australia Post with tracking.",
+        marketplaceId,
+        categoryTypes: [{ name: "ALL_EXCLUDING_MOTORS_VEHICLES", default: true }],
+        handlingTime: { value: 1, unit: "DAY" },
+        shippingOptions: [
+          {
+            costType: "FLAT_RATE",
+            optionType: "DOMESTIC",
+            shippingServices: [
+              {
+                shippingCarrierCode: isUsd ? "USPS" : "GENERIC",
+                shippingServiceCode: isUsd ? "USPSPriority" : "AU_StandardDelivery",
+                shippingCost: { value: isUsd ? "5.00" : "10.00", currency: isUsd ? "USD" : "AUD" },
+                freeShipping: false,
+              },
+            ],
+          },
+        ],
+      };
+      const newFpRes = await fetch(`https://${apiHost}/sell/account/v1/fulfillment_policy`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(fpPayload),
+      }).catch(() => null);
+
+      if (newFpRes && (newFpRes.ok || newFpRes.status === 201)) {
+        const fpJson = await newFpRes.json().catch(() => null);
+        if (fpJson?.fulfillmentPolicyId) policies.fulfillmentPolicyId = fpJson.fulfillmentPolicyId;
+      }
+    }
+
+    // 3. Create default Return Policy if missing
+    if (!policies.returnPolicyId) {
+      const rpPayload = {
+        name: "Spadas Default 30 Day Returns",
+        description: "Buyer pays return postage, 30-day return period.",
+        marketplaceId,
+        categoryTypes: [{ name: "ALL_EXCLUDING_MOTORS_VEHICLES", default: true }],
+        returnsAccepted: true,
+        returnPeriod: { value: 30, unit: "DAY" },
+        returnShippingCostPayer: "BUYER",
+      };
+      const newRpRes = await fetch(`https://${apiHost}/sell/account/v1/return_policy`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(rpPayload),
+      }).catch(() => null);
+
+      if (newRpRes && (newRpRes.ok || newRpRes.status === 201)) {
+        const rpJson = await newRpRes.json().catch(() => null);
+        if (rpJson?.returnPolicyId) policies.returnPolicyId = rpJson.returnPolicyId;
+      }
+    }
+
+    // 4. Create default Payment Policy if missing
+    if (!policies.paymentPolicyId) {
+      const ppPayload = {
+        name: "Spadas Managed Payments",
+        description: "eBay Managed Payments with Immediate Pay.",
+        marketplaceId,
+        categoryTypes: [{ name: "ALL_EXCLUDING_MOTORS_VEHICLES", default: true }],
+        immediatePay: true,
+      };
+      const newPpRes = await fetch(`https://${apiHost}/sell/account/v1/payment_policy`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(ppPayload),
+      }).catch(() => null);
+
+      if (newPpRes && (newPpRes.ok || newPpRes.status === 201)) {
+        const ppJson = await newPpRes.json().catch(() => null);
+        if (ppJson?.paymentPolicyId) policies.paymentPolicyId = ppJson.paymentPolicyId;
+      }
+    }
   } catch (err) {
-    console.warn("Could not fetch user eBay business policies:", err);
+    console.warn("Could not ensure user eBay business policies:", err);
   }
 
   return policies;
+}
+
+export const fetchUserDefaultPolicies = ensureUserDefaultPolicies;
+
+/**
+ * Construct compliant item aspects (Item Specifics) to satisfy eBay category requirements
+ */
+export function buildEbayAspects(listing: {
+  product: string;
+  brand?: string;
+  category?: string;
+  description?: string;
+}): Record<string, string[]> {
+  const brand = (listing.brand || "Unbranded").trim();
+  const text = `${listing.product || ""} ${listing.description || ""}`.toLowerCase();
+
+  // Department
+  let department = "Unisex Adults";
+  if (text.includes("men's") || text.includes("mens") || text.includes(" men ")) department = "Men";
+  else if (text.includes("women's") || text.includes("womens") || text.includes(" women ") || text.includes("ladies")) department = "Women";
+  else if (text.includes("kid") || text.includes("boy") || text.includes("girl") || text.includes("youth")) department = "Kids";
+
+  // Material
+  let material = "Leather";
+  if (text.includes("leather")) material = "Leather";
+  else if (text.includes("cotton") || text.includes("denim")) material = "Cotton";
+  else if (text.includes("canvas")) material = "Canvas";
+  else if (text.includes("nylon") || text.includes("polyester")) material = "Synthetic";
+  else if (text.includes("wool") || text.includes("cashmere")) material = "Wool";
+  else if (text.includes("gold")) material = "Gold";
+  else if (text.includes("silver")) material = "Silver";
+  else material = "Mixed Materials";
+
+  // Colour
+  let colour = "Multicoloured";
+  const knownColours = ["black", "white", "blue", "red", "green", "brown", "grey", "gray", "pink", "purple", "yellow", "orange", "gold", "silver", "beige", "navy", "cream", "tan"];
+  for (const c of knownColours) {
+    if (text.includes(c)) {
+      colour = c.charAt(0).toUpperCase() + c.slice(1);
+      break;
+    }
+  }
+
+  // Style / Type
+  let style = "Classic";
+  if (text.includes("tote")) style = "Tote";
+  else if (text.includes("shoulder")) style = "Shoulder Bag";
+  else if (text.includes("crossbody")) style = "Crossbody";
+  else if (text.includes("backpack")) style = "Backpack";
+  else if (text.includes("clutch") || text.includes("pouch")) style = "Clutch";
+  else if (text.includes("wallet") || text.includes("cardholder")) style = "Wallet";
+  else if (text.includes("sneaker") || text.includes("shoe")) style = "Sneaker";
+  else if (text.includes("jacket") || text.includes("coat")) style = "Jacket";
+  else if (text.includes("hoodie") || text.includes("sweatshirt")) style = "Hoodie";
+  else if (text.includes("t-shirt") || text.includes("shirt")) style = "T-Shirt";
+
+  return {
+    Brand: [brand],
+    Department: [department],
+    Colour: [colour],
+    "Exterior Colour": [colour],
+    Material: [material],
+    "Exterior Material": [material],
+    Style: [style],
+    Type: [style],
+  };
 }
 
 /**
@@ -320,13 +481,18 @@ export async function publishToEbayInventory(
   }
 
   const condition = mapToEbayCondition(listing.condition || "Used");
+  const aspects = buildEbayAspects({
+    product: listing.product,
+    brand: listing.brand,
+    category: listing.category,
+    description: listing.description,
+  });
+
   const itemPayload: Record<string, unknown> = {
     product: {
       title: listing.product.slice(0, 80),
       description: listing.description || `Listed via Spadas Technology AI Platform. ${listing.product}`,
-      aspects: {
-        Brand: [listing.brand || "Unbranded"],
-      },
+      aspects,
       imageUrls: validHttpImageUrls,
     },
     condition,
@@ -345,7 +511,7 @@ export async function publishToEbayInventory(
       "Content-Type": "application/json",
       "Content-Language": contentLanguage,
       "Accept": "application/json",
-      "Accept-Language": "en-US",
+      "Accept-Language": contentLanguage,
       Authorization: `Bearer ${accessToken}`,
     },
     body: JSON.stringify(itemPayload),
@@ -365,12 +531,11 @@ export async function publishToEbayInventory(
 
   // 4. Resolve default business policies and category ID
   const categoryId = resolveEbayCategoryId(listing.category, listing.product);
-  const policies = await fetchUserDefaultPolicies(apiHost, accessToken, marketplaceId);
+  const policies = await ensureUserDefaultPolicies(apiHost, accessToken, marketplaceId);
 
   // 5. Create an Offer for this inventory item
   let offerId: string | null = null;
-  let isLive = false;
-  let listingId: string | null = null;
+  const isProduction = apiHost === "api.ebay.com";
 
   try {
     const offerPayload: Record<string, unknown> = {
@@ -404,7 +569,7 @@ export async function publishToEbayInventory(
         "Content-Type": "application/json",
         "Content-Language": contentLanguage,
         "Accept": "application/json",
-        "Accept-Language": "en-US",
+        "Accept-Language": contentLanguage,
       },
       body: JSON.stringify(offerPayload),
     });
@@ -420,15 +585,15 @@ export async function publishToEbayInventory(
         isLive: false,
         listingId: null,
         error: errMsg,
-        message: `Inventory item created (SKU: ${sku}), but Offer could not be finalized: ${errMsg}. Use 1-Tap Fast-List to complete your listing instantly on eBay!`,
-        listingUrl: `https://${apiHost === "api.ebay.com" ? "www" : "sandbox"}.${ebayDomain}/sh/lst/drafts`,
+        message: `Could not create offer: ${errMsg}. Use 1-Tap Fast-List to publish directly on eBay!`,
+        listingUrl: `https://${isProduction ? "www" : "sandbox"}.${ebayDomain}/sl/prelist/suggest?keyword=${encodeURIComponent(listing.product)}`,
       };
     }
 
     const offerData = await offerRes.json();
     offerId = offerData.offerId || null;
 
-    // 6. If offer created, attempt to publish it live
+    // 6. If offer created, publish it live
     if (offerId) {
       const pubRes = await fetch(`https://${apiHost}/sell/inventory/v1/offer/${offerId}/publish`, {
         method: "POST",
@@ -437,17 +602,43 @@ export async function publishToEbayInventory(
           "Content-Type": "application/json",
           "Content-Language": contentLanguage,
           "Accept": "application/json",
-          "Accept-Language": "en-US",
+          "Accept-Language": contentLanguage,
         },
       });
 
       if (pubRes.ok) {
         const pubData = await pubRes.json();
-        listingId = pubData.listingId || null;
-        isLive = !!listingId;
+        const listingId = pubData.listingId || null;
+        const isLive = !!listingId;
+        const liveUrl = isLive
+          ? `https://${isProduction ? "www" : "sandbox"}.${ebayDomain}/itm/${listingId}`
+          : `https://${isProduction ? "www" : "sandbox"}.${ebayDomain}/sh/lst/active`;
+
+        return {
+          success: true,
+          sku,
+          offerId,
+          isLive: true,
+          listingId,
+          environment: isProduction ? "production" : "sandbox",
+          listingUrl: liveUrl,
+          message: `Listing is LIVE on eBay (${currencyCode})! Item ID: ${listingId}`,
+        };
       } else {
         const pubErrJson = await pubRes.json().catch(() => null);
-        console.warn("eBay publish warning (item stays as draft in Seller Hub):", pubErrJson);
+        const errMsg = pubErrJson?.errors?.[0]?.message || `eBay publish returned status ${pubRes.status}`;
+        console.warn("eBay publish warning:", errMsg, pubErrJson);
+
+        return {
+          success: false,
+          sku,
+          offerId,
+          isLive: false,
+          listingId: null,
+          error: errMsg,
+          message: `Could not publish directly: ${errMsg}. Use 1-Tap Fast-List to complete your listing on eBay!`,
+          listingUrl: `https://${isProduction ? "www" : "sandbox"}.${ebayDomain}/sl/prelist/suggest?keyword=${encodeURIComponent(listing.product)}`,
+        };
       }
     }
   } catch (offerErr: any) {
@@ -455,30 +646,26 @@ export async function publishToEbayInventory(
     return {
       success: false,
       sku,
-      offerId: null,
+      offerId,
       isLive: false,
       listingId: null,
       error: offerErr?.message || "Failed to create offer",
-      message: `Inventory created, but offer failed: ${offerErr?.message || "Error"}. Use 1-Tap Fast-List to publish.`,
-      listingUrl: `https://${apiHost === "api.ebay.com" ? "www" : "sandbox"}.${ebayDomain}/sh/lst/drafts`,
+      message: `Error: ${offerErr?.message || "Offer failed"}. Use 1-Tap Fast-List to publish.`,
+      listingUrl: `https://${isProduction ? "www" : "sandbox"}.${ebayDomain}/sl/prelist/suggest?keyword=${encodeURIComponent(listing.product)}`,
     };
   }
 
-  const isProduction = apiHost === "api.ebay.com";
-  const listingUrl = isLive && listingId
-    ? `https://${isProduction ? "www" : "sandbox"}.${ebayDomain}/itm/${listingId}`
-    : `https://${isProduction ? "www" : "sandbox"}.${ebayDomain}/sh/lst/drafts`;
-
   return {
-    success: true,
+    success: false,
     sku,
     offerId,
-    isLive,
-    listingId,
-    environment: isProduction ? "production" : "sandbox",
-    listingUrl,
-    message: isLive
-      ? `Listing is LIVE on eBay (${currencyCode})!`
-      : `Draft saved in your eBay Seller Hub (${currencyCode})! Review shipping details to activate.`,
+    isLive: false,
+    listingId: null,
+    error: "No offer ID created",
+    message: "Could not create offer. Use 1-Tap Fast-List to publish.",
+    listingUrl: `https://${isProduction ? "www" : "sandbox"}.${ebayDomain}/sl/prelist/suggest?keyword=${encodeURIComponent(listing.product)}`,
   };
 }
+
+
+

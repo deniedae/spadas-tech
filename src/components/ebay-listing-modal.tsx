@@ -131,20 +131,26 @@ export default function EbayListingModal({
     };
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (session?.access_token) {
+        headers["Authorization"] = `Bearer ${session.access_token}`;
+      }
+
       const res = await fetch("/api/marketplaces/ebay/publish", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(payload),
       });
 
       const data = await res.json().catch(() => ({}));
 
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to publish listing to eBay.");
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || data.message || "Failed to publish listing to eBay.");
       }
 
       if (data.success) {
-        setPublishedUrl(data.listingUrl || "https://www.ebay.com.au/sh/lst/drafts");
+        setPublishedUrl(data.listingUrl || "https://www.ebay.com.au/sh/lst/active");
         setPublishedSku(data.sku || null);
         setIsDemo(!!data.isDemoMode);
         setIsLiveListing(!!data.isLive);
@@ -170,7 +176,7 @@ export default function EbayListingModal({
         if (data.isLive) {
           toast.success("🚀 Live on eBay AU! Listing published successfully.");
         } else {
-          toast.success("📋 Saved to your eBay Seller Hub Drafts!");
+          toast.success("📋 Item saved and pre-filled for eBay!");
         }
       }
     } catch (err: unknown) {

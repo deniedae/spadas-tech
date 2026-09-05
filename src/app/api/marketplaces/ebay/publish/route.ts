@@ -4,12 +4,23 @@ import { publishToEbayInventory, refreshEbayToken } from "@/app/lib/marketplaces
 import { convertBase64ToPublicUrls } from "@/app/lib/marketplaces/ebay-storage";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function POST(req: NextRequest) {
   try {
     const supabase = await createClient();
-    const {
+    let {
       data: { user },
     } = await supabase.auth.getUser();
+
+    // Support Bearer token authentication from client app
+    const authHeader = req.headers.get("authorization");
+    if (!user && authHeader && authHeader.startsWith("Bearer ")) {
+      const token = authHeader.replace("Bearer ", "").trim();
+      const { data } = await supabase.auth.getUser(token);
+      user = data?.user || null;
+    }
 
     if (!user) {
       return NextResponse.json({ error: "Please log in to publish to eBay." }, { status: 401 });
