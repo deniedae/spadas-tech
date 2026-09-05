@@ -1,4 +1,4 @@
-const CACHE_NAME = "spadas-ai-v3";
+const CACHE_NAME = "spadas-ai-v4";
 const OFFLINE_URL = "/offline.html";
 
 const PRECACHE_ASSETS = [
@@ -44,6 +44,25 @@ self.addEventListener("activate", (event) => {
 
 // Fetch Event - Offline-first with network fallback
 self.addEventListener("fetch", (event) => {
+  // Only handle GET and HEAD requests. Pass all POST/PUT/PATCH/DELETE directly to network
+  if (event.request.method !== "GET" && event.request.method !== "HEAD") {
+    return;
+  }
+
+  // Never cache API routes, auth routes, or dynamic mutations
+  try {
+    const url = new URL(event.request.url);
+    if (
+      url.pathname.startsWith("/api/") ||
+      url.pathname.startsWith("/auth/") ||
+      url.hostname.includes("supabase.co") ||
+      url.hostname.includes("ebay.com") ||
+      url.hostname.includes("googleapis.com")
+    ) {
+      return;
+    }
+  } catch (e) {}
+
   if (event.request.mode === "navigate") {
     event.respondWith(
       fetch(event.request).catch(() => {
@@ -63,10 +82,13 @@ self.addEventListener("fetch", (event) => {
           if (!response || response.status !== 200 || response.type !== "basic") {
             return response;
           }
-          const responseToCache = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache);
-          });
+          // Only cache successful GET/HEAD responses
+          if (event.request.method === "GET" || event.request.method === "HEAD") {
+            const responseToCache = response.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseToCache).catch(() => {});
+            });
+          }
           return response;
         })
         .catch(() => {
