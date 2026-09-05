@@ -21,6 +21,7 @@ import {
   ShoppingBag,
   CheckCircle2,
   LinkIcon,
+  Unlink,
   Zap,
   ShieldCheck,
   Layers,
@@ -49,6 +50,9 @@ export default function SettingsPage() {
   const [confirmUpgrade, setConfirmUpgrade] = useState(false);
   const [ebayConnected, setEbayConnected] = useState(false);
   const [ebayConnecting, setEbayConnecting] = useState(false);
+  const [confirmDisconnectEbay, setConfirmDisconnectEbay] = useState(false);
+  const [ebayDisconnecting, setEbayDisconnecting] = useState(false);
+  const [ebayHasDisconnected, setEbayHasDisconnected] = useState(false);
   const [isPaywallOpen, setIsPaywallOpen] = useState(false);
   const [defaultMarketplace, setDefaultMarketplace] = useState("eBay");
   const [defaultCurrency, setDefaultCurrency] = useState<SupportedCurrency>("AUD");
@@ -101,6 +105,37 @@ export default function SettingsPage() {
     } catch {
       toast.error("Failed to start eBay connection. Try again.");
       setEbayConnecting(false);
+    }
+  }
+
+  async function handleDisconnectEbay() {
+    setEbayDisconnecting(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = {};
+      if (session?.access_token) {
+        headers["Authorization"] = `Bearer ${session.access_token}`;
+      }
+
+      const res = await fetch("/api/disconnect-ebay", {
+        method: "POST",
+        headers,
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data?.error || "Failed to disconnect eBay account");
+      }
+
+      setEbayConnected(false);
+      setEbayHasDisconnected(true);
+      setConfirmDisconnectEbay(false);
+      toast.success("eBay disconnected. Click 'Reconnect eBay' to authorize");
+    } catch (err: any) {
+      console.error("Disconnect eBay error:", err);
+      toast.error(err?.message || "Failed to disconnect eBay");
+    } finally {
+      setEbayDisconnecting(false);
     }
   }
 
@@ -504,31 +539,52 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          <button
-            type="button"
-            id="ebay-connect-btn"
-            onClick={connectEbay}
-            disabled={ebayConnecting}
-            className={`inline-flex w-full sm:w-auto shrink-0 items-center justify-center gap-2 rounded-xl px-5 py-3 text-xs font-black transition active:scale-95 cursor-pointer disabled:opacity-50 ${
-              ebayConnected
-                ? "border border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700"
-                : "bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/20 hover:opacity-90"
-            }`}
-          >
-            {ebayConnecting ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : ebayConnected ? (
-              <>
-                <LinkIcon className="h-4 w-4" />
-                <span>Reconnect eBay</span>
-              </>
-            ) : (
-              <>
-                <ShoppingBag className="h-4 w-4" />
-                <span>Connect eBay Account</span>
-              </>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto shrink-0">
+            <button
+              type="button"
+              id="ebay-connect-btn"
+              onClick={connectEbay}
+              disabled={ebayConnecting || ebayDisconnecting}
+              className={`inline-flex w-full sm:w-auto shrink-0 items-center justify-center gap-2 rounded-xl px-5 py-3 text-xs font-black transition active:scale-95 cursor-pointer disabled:opacity-50 ${
+                ebayConnected
+                  ? "border border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700"
+                  : "bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/20 hover:opacity-90"
+              }`}
+            >
+              {ebayConnecting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : ebayConnected || ebayHasDisconnected ? (
+                <>
+                  <LinkIcon className="h-4 w-4" />
+                  <span>Reconnect eBay</span>
+                </>
+              ) : (
+                <>
+                  <ShoppingBag className="h-4 w-4" />
+                  <span>Connect eBay Account</span>
+                </>
+              )}
+            </button>
+
+            {ebayConnected && (
+              <button
+                type="button"
+                id="ebay-disconnect-btn"
+                onClick={() => setConfirmDisconnectEbay(true)}
+                disabled={ebayConnecting || ebayDisconnecting}
+                className="inline-flex w-full sm:w-auto shrink-0 items-center justify-center gap-2 rounded-xl border border-rose-500/40 bg-rose-500/10 px-5 py-3 text-xs font-black text-rose-400 hover:bg-rose-500/20 hover:text-rose-300 active:scale-95 transition cursor-pointer disabled:opacity-50"
+              >
+                {ebayDisconnecting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <Unlink className="h-4 w-4" />
+                    <span>Disconnect eBay</span>
+                  </>
+                )}
+              </button>
             )}
-          </button>
+          </div>
         </div>
       </section>
 
@@ -846,6 +902,40 @@ export default function SettingsPage() {
           <span>Send Direct Feedback</span>
         </a>
       </section>
+
+      {/* eBay Disconnect Confirmation Modal */}
+      {confirmDisconnectEbay && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl max-w-sm w-full text-center space-y-4">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-rose-500/30 bg-rose-500/10 text-rose-400">
+              <AlertCircle className="h-6 w-6" />
+            </div>
+            <h3 className="text-xl font-black text-white">Disconnect eBay?</h3>
+            <p className="text-xs text-slate-300 leading-relaxed">
+              Are you sure? This will disconnect your eBay account and you&apos;ll need to re-authorize to list items.
+            </p>
+            <div className="flex justify-center gap-3 pt-2">
+              <button
+                type="button"
+                id="confirm-disconnect-ebay-btn"
+                onClick={handleDisconnectEbay}
+                disabled={ebayDisconnecting}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 py-2.5 text-xs font-black text-white shadow-md hover:bg-rose-500 active:scale-95 transition cursor-pointer disabled:opacity-50"
+              >
+                {ebayDisconnecting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Disconnect"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmDisconnectEbay(false)}
+                disabled={ebayDisconnecting}
+                className="w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-2.5 text-xs font-bold text-slate-300 hover:bg-slate-800 transition cursor-pointer disabled:opacity-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Paywall Modal Fallback */}
       <SubscriptionPaywallModal isOpen={isPaywallOpen} onClose={() => setIsPaywallOpen(false)} />
