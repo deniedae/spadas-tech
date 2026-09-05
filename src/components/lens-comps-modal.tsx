@@ -28,6 +28,7 @@ import { createListing } from "@/app/lib/createlisting";
 import { supabase } from "@/app/lib/supabase";
 import { toast } from "sonner";
 import { triggerTactileHaptic, syncProfitToAndroidWidget } from "@/lib/android-bridge";
+import { estimateCategoryShippingCost, detectThriftTrap } from "@/lib/thrift-cop-engine";
 import type { DetectedHit, ActiveScanItem } from "@/types/lens";
 
 interface LensCompsModalProps {
@@ -72,17 +73,24 @@ export default function LensCompsModal({
   // Effective tag cost after store color tag discounts
   const effectiveTagCost = Math.max(0, Math.round(customTagCost * (1 - discountPercent / 100) * 100) / 100);
   
-  // Resale economics (13.4% eBay AU fee + $0.33 transaction + estimated parcel shipping allowance)
+  const estShipping = estimateCategoryShippingCost(category, title);
+  const trap = detectThriftTrap(title, estValue, brand);
+
+  // Resale economics (13.4% eBay AU fee + $0.33 transaction + real parcel shipping allowance)
   const platformFee = Math.round((estValue * 0.134 + 0.33) * 100) / 100;
-  const netProfit = Math.max(0, Math.round((estValue - effectiveTagCost - platformFee) * 100) / 100);
-  const roi = effectiveTagCost > 0 ? Math.round((netProfit / effectiveTagCost) * 100) : 999;
+  const netProfit = Math.max(0, Math.round((estValue - effectiveTagCost - platformFee - estShipping) * 100) / 100);
+  const roi = effectiveTagCost > 0 ? Math.round((netProfit / effectiveTagCost) * 100) : 0;
   
-  const copVerdict = roi >= 300 && netProfit >= 25 
+  const copVerdict = trap.isTrap
+    ? "PASS_RISKY"
+    : netProfit <= 0 || (estValue < 14 && category.toLowerCase().includes("media"))
+    ? "PASS_RISKY"
+    : netProfit < 8 || roi < 40
+    ? "PASS_RISKY"
+    : (roi >= 250 && netProfit >= 25) || netProfit >= 35
     ? "MUST_COP" 
-    : roi >= 100 && netProfit >= 15 
+    : netProfit >= 15 || roi >= 100
     ? "QUICK_FLIP" 
-    : netProfit < 10 
-    ? "PASS_RISKY" 
     : "FAIR_MARGIN";
 
   const compsCount = item.ebayCompsCount || 8;
@@ -415,19 +423,34 @@ export default function LensCompsModal({
               </div>
             </div>
 
+            {/* Thrift Trap Warning Alert */}
+            {trap.isTrap && (
+              <div className="p-2.5 rounded-xl bg-rose-950/70 border border-rose-500/50 text-rose-300 text-xs font-bold flex items-start gap-2">
+                <span className="text-base leading-none">🛑</span>
+                <div className="min-w-0">
+                  <span className="font-black text-rose-200 block text-[11px] uppercase tracking-wider">Thrift Trap Detected</span>
+                  <span className="text-[10px] text-rose-300/90 leading-tight block mt-0.5">{trap.reason}</span>
+                </div>
+              </div>
+            )}
+
             {/* Financial Ledger Details */}
-            <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-800/80 text-center">
-              <div className="p-2 rounded-xl bg-slate-950/80 border border-slate-800/60">
-                <span className="text-[9px] uppercase font-bold text-slate-400 block">Sold Comps</span>
+            <div className="grid grid-cols-4 gap-1.5 pt-2 border-t border-slate-800/80 text-center">
+              <div className="p-1.5 rounded-xl bg-slate-950/80 border border-slate-800/60">
+                <span className="text-[8px] uppercase font-bold text-slate-400 block truncate">Sold Comps</span>
                 <span className="text-xs font-black text-cyan-300">{fmtMoney(estValue)}</span>
               </div>
-              <div className="p-2 rounded-xl bg-slate-950/80 border border-slate-800/60">
-                <span className="text-[9px] uppercase font-bold text-slate-400 block">Thrift Cost</span>
+              <div className="p-1.5 rounded-xl bg-slate-950/80 border border-slate-800/60">
+                <span className="text-[8px] uppercase font-bold text-slate-400 block truncate">Thrift Cost</span>
                 <span className="text-xs font-black text-amber-300">{fmtMoney(effectiveTagCost)}</span>
               </div>
-              <div className="p-2 rounded-xl bg-slate-950/80 border border-slate-800/60">
-                <span className="text-[9px] uppercase font-bold text-slate-400 block">eBay Fees</span>
+              <div className="p-1.5 rounded-xl bg-slate-950/80 border border-slate-800/60">
+                <span className="text-[8px] uppercase font-bold text-slate-400 block truncate">eBay Fees</span>
                 <span className="text-xs font-bold text-slate-400">-{fmtMoney(platformFee)}</span>
+              </div>
+              <div className="p-1.5 rounded-xl bg-slate-950/80 border border-slate-800/60">
+                <span className="text-[8px] uppercase font-bold text-slate-400 block truncate">Est. Postage</span>
+                <span className="text-xs font-bold text-rose-400">-{fmtMoney(estShipping)}</span>
               </div>
             </div>
           </div>

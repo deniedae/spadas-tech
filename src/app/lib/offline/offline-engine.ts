@@ -87,7 +87,7 @@ export const OFFLINE_RESALE_KNOWLEDGE_BASE: Record<string, OfflineCategoryModel>
   },
   general_homewares: {
     category: "Mid-Century & Vintage Homewares",
-    subcategories: ["Enamel Cast Iron Cookware", "Mid-Century Amber Glassware", "Retro Atomic Desk Lamp", "Ceramic Coffee Mug"],
+    subcategories: ["Enamel Cast Iron Cookware Dutch Oven", "Mid-Century Amber Glassware Set", "Retro Atomic Desk Lamp", "Vintage Fire-King Jadeite Dish"],
     medianPriceAUD: 38,
     minPriceAUD: 15,
     maxPriceAUD: 85,
@@ -123,16 +123,54 @@ export function appraiseItemLocally(inputHint?: string): {
   }
 
   const sub = matchedModel.subcategories[Math.floor(Math.random() * matchedModel.subcategories.length)];
-  const estVal = matchedModel.medianPriceAUD;
-  const tagCost = matchedModel.typicalTagCostAUD;
+  const pName = inputHint ? inputHint : sub;
+  let estVal = matchedModel.medianPriceAUD;
+  let tagCost = matchedModel.typicalTagCostAUD;
+
+  // Ruthless trap check on offline hints
+  if (query.includes("dvd") || query.includes("cd") || query.includes("vhs")) {
+    estVal = 5;
+    tagCost = 1.5;
+  } else if (query.includes("amazon basics") || query.includes("onn") || query.includes("insignia")) {
+    estVal = 6;
+    tagCost = 2.0;
+  } else if (query.includes("mug") && !query.includes("fire-king") && !query.includes("starbucks")) {
+    estVal = 8;
+    tagCost = 2.5;
+  }
+
+  // Realistic category parcel shipping estimate
+  const text = `${matchedModel.category} ${pName}`.toLowerCase();
+  let shipping = 6.50;
+  if (text.includes("dvd") || text.includes("cd") || text.includes("book")) shipping = 4.20;
+  else if (text.includes("keyboard") || text.includes("hardware") || text.includes("peripherals")) shipping = 9.50;
+  else if (text.includes("mug") || text.includes("cup") || text.includes("glass")) shipping = 8.50;
+  else if (text.includes("jacket") || text.includes("coat")) shipping = 10.50;
+  else if (text.includes("shoe") || text.includes("sneaker")) shipping = 11.00;
+  else if (text.includes("t-shirt") || text.includes("tee")) shipping = 5.50;
+
   const ebayFee = (estVal * 0.134) + 0.33; // Australian eBay 13.4% + $0.33
-  const netProfit = Math.max(0, Math.round((estVal - tagCost - ebayFee) * 100) / 100);
+  const netProfit = Math.max(0, Math.round((estVal - tagCost - ebayFee - shipping) * 100) / 100);
   const roi = tagCost > 0 ? Math.round((netProfit / tagCost) * 100) : 0;
 
-  const copVerdict = roi >= 300 && netProfit >= 30 ? "MUST_COP" : roi >= 100 ? "QUICK_FLIP" : "FAIR_MARGIN";
+  // Reseller Cop Verdict
+  const isTrap = (estVal <= 14 && (text.includes("dvd") || text.includes("cd"))) ||
+    text.includes("amazon basics") ||
+    (text.includes("mug") && estVal <= 15);
+
+  let copVerdict: "MUST_COP" | "QUICK_FLIP" | "FAIR_MARGIN" | "PASS_RISKY" = "FAIR_MARGIN";
+  if (isTrap || netProfit <= 0) {
+    copVerdict = "PASS_RISKY";
+  } else if (netProfit < 8 || roi < 40) {
+    copVerdict = "PASS_RISKY";
+  } else if (roi >= 250 && netProfit >= 25) {
+    copVerdict = "MUST_COP";
+  } else if (roi >= 100 && netProfit >= 15) {
+    copVerdict = "QUICK_FLIP";
+  }
 
   return {
-    productName: inputHint ? inputHint : sub,
+    productName: pName,
     brand: "Authentic Thrift Find",
     category: matchedModel.category,
     condition: "Used - Good",

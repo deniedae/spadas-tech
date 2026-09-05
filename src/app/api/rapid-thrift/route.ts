@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createOpenAiClient, getPrimaryAiApiKey } from "@/app/lib/config/ai-models";
 import { checkNeedsVerification } from "@/lib/forensic-knowledge";
+import { estimateCategoryShippingCost, detectThriftTrap } from "@/lib/thrift-cop-engine";
 
 export const preferredRegion = "syd1";
 
@@ -77,17 +78,30 @@ export async function POST(req: Request) {
 
     const openai = createOpenAiClient();
 
-    const systemPrompt = `You are Spadas Ultra-Fast Thrift Vision Engine. Analyze the thrift shelf/rack photo in <1.5s.
-Identify the exact item, brand, category, condition, estimated resale value (eBay sold comps in ${currency}), typical thrift store tag cost ($2-$20 ${currency}), and calculate True Net Profit (Resale Value - Thrift Cost - (Resale Value * 0.134 + 0.33)).
-Assign cop_verdict: "MUST_COP" (profit >= $50), "QUICK_FLIP" (profit >= $15), or "PASS_RISKY" (profit < $15).
+    const systemPrompt = `You are Spadas Ultra-Fast Thrift Vision Engine. Analyze the thrift shelf/rack photo in <1.5s with RUTHLESS RESELLER ACCURACY.
+Identify the exact item, brand, category, condition, realistic secondary market resale value (cleared eBay sold comps in ${currency}), typical thrift store tag cost ($2-$20 ${currency}), and calculate True Net Profit:
+True Net Profit = Resale Value - Thrift Cost - Platform Fees (13.4% + $0.33) - Real Parcel Shipping ($4.20 - $11.00).
 
-CRITICAL ACCURACY & OCR RULES:
-1. READ VISIBLE TEXT & BRAND LOGOS FIRST:
-   Actively inspect printed logos, emblems, badges, and model text (e.g. "TP-Link", "tp-link", "Netgear", "Linksys", "Cisco", "Belkin", "Anker", "Sony", "Nintendo", "Apple", "Logitech", "Carhartt", "Nike", "Patagonia", "Ralph Lauren").
-2. NEVER MISIDENTIFY NETWORKING / COMPUTER TECH AS VAPES:
-   Do NOT guess "electronic cigarette", "vape", or "e-cig" when looking at electronic hardware, Wi-Fi adapters, range extenders, smart plugs, USB dongles, chargers, or network accessories. An item with USB connectors, antennas, Ethernet RJ-45 ports, wall prongs, or status LEDs is networking/computer equipment (e.g. "TP-Link AC1200 Wi-Fi Range Extender" or "TP-Link Nano USB Wi-Fi Adapter"), NEVER an electronic cigarette.
-3. PRECISE TITLES:
+RUTHLESS RESELLER RULES & AVOID AMATEUR TRAPS:
+1. NEVER OVERVALUE PENNY ARBITRAGE / LOW-DOLLAR MEDIA:
+   Common mass-market DVDs, Blu-rays, and CDs (e.g. Wolverine, Twilight, Dark Knight, Avatar, standard movies) sell on eBay for $3 - $5 gross with free shipping by mega-warehouses. Tracked parcel postage ($4.20) + eBay fees ($1.00) means an individual seller loses money or nets $0.
+   -> Estimated Value: $4-$6. Cop Verdict: "PASS_RISKY". Notes: "Common media. Tracked postage ($4.20) eats 100% of profit."
+2. NEVER OVERVALUE BUDGET COMMODITY TECH:
+   Brands like Amazon Basics, Insignia, Onn, Mainstays, and Blackweb retail for $10-$14 BRAND NEW on Amazon Prime with next-day delivery. A used Amazon Basics keyboard or mouse has near-zero resale demand ($5-$8 at best) and shipping costs $9.50.
+   -> Cop Verdict: "PASS_RISKY". Notes: "Budget commodity tech. Cheaper new on Amazon Prime."
+3. BE REALISTIC ON NOVELTY CERAMIC MUGS & GLASSWARE:
+   Mass-market novelty coffee mugs (standard Nintendo, Disney, Star Wars from Target/Walmart) sell for $6-$9, NOT $20. Shipping is $8.50 due to 1.5 lb fragile bubble-wrap packaging. Unless it is a rare 1980s/1990s collector grail, net profit is negative.
+   -> Cop Verdict: "PASS_RISKY". Notes: "Fragile ceramic novelty. Shipping ($8.50) eliminates margin."
+4. READ VISIBLE TEXT & BRAND LOGOS FIRST:
+   Inspect logos and badges (e.g. TP-Link, Netgear, Linksys, Cisco, Belkin, Anker, Sony, Nintendo, Apple, Logitech, Carhartt, Nike, Patagonia, Ralph Lauren).
+5. NEVER MISIDENTIFY COMPUTER/NETWORKING GEAR AS VAPES.
+6. PRECISE TITLES:
    Formulate accurate title: [Brand] [Model/Type] [Category/Color] (e.g. "TP-Link AC1200 Wi-Fi Range Extender White", "Vintage Carhartt Canvas Work Jacket").
+
+Cop Verdict Criteria:
+- "MUST_COP": Net profit >= $40 after shipping & fees.
+- "QUICK_FLIP": Net profit >= $15 after shipping & fees with fast sell-through.
+- "PASS_RISKY": Net profit < $8 or flagged as a thrift trap (common DVD, Amazon Basics, novelty mug).
 
 Output ONLY valid JSON adhering strictly to:
 {
@@ -116,12 +130,12 @@ Output ONLY valid JSON adhering strictly to:
         {
           role: "user",
           content: [
-            { type: "text", text: `Appraise thrift item in ${currency}. Read any visible text or brand logos and be precise.` },
+            { type: "text", text: `Appraise thrift item in ${currency}. Apply ruthless reseller math with real shipping costs.` },
             {
               type: "image_url",
               image_url: {
                 url: image,
-                detail: "auto", // Auto resolution enables reading brand names and ports without hallucination
+                detail: "auto",
               },
             },
           ],
@@ -139,14 +153,41 @@ Output ONLY valid JSON adhering strictly to:
     const estVal = Number(parsed.estimated_value) || 20;
     const estCost = Number(parsed.thrift_cost) || (estVal <= 5 ? 1 : Math.max(2, Math.round(estVal * 0.15)));
     const ebayFee = estVal * 0.134 + 0.33;
-    const netProfit =
-      Number(parsed.true_net_profit) ||
-      Math.max(0, Math.round((estVal - estCost - ebayFee) * 100) / 100);
-    const roi = Number(parsed.roi_percentage) || (estCost > 0 ? Math.round((netProfit / estCost) * 100) : 0);
 
     const pName = parsed.product_name || "Thrift Item";
     const pBrand = parsed.brand || "Authentic";
     const pCategory = parsed.category || "General";
+
+    // Deduct realistic category parcel shipping
+    const shippingCost = estimateCategoryShippingCost(pCategory, pName);
+    const calculatedNetProfit = Math.max(0, Math.round((estVal - estCost - ebayFee - shippingCost) * 100) / 100);
+    const netProfit = typeof parsed.true_net_profit === "number" && parsed.true_net_profit < calculatedNetProfit
+      ? parsed.true_net_profit
+      : calculatedNetProfit;
+    const roi = estCost > 0 ? Math.round((netProfit / estCost) * 100) : 0;
+
+    // Check for thrift traps (Common DVDs, Amazon Basics, Novelty Mugs)
+    const trap = detectThriftTrap(pName, estVal, pBrand);
+
+    let copVerdict: "MUST_COP" | "QUICK_FLIP" | "PASS_RISKY" = "PASS_RISKY";
+    let notes = parsed.notes || "";
+
+    if (trap.isTrap) {
+      copVerdict = "PASS_RISKY";
+      notes = trap.reason || "Postage & fees exceed item resale value. Leave on shelf.";
+    } else if (netProfit <= 0 || (estVal < 14 && pCategory.toLowerCase().includes("media"))) {
+      copVerdict = "PASS_RISKY";
+      notes = `Negative profit (-$${(estCost + ebayFee + shippingCost - estVal).toFixed(2)}) after $${shippingCost.toFixed(2)} shipping. Leave on shelf.`;
+    } else if (netProfit < 8 || roi < 40) {
+      copVerdict = "PASS_RISKY";
+      notes = `Thin profit ($${netProfit.toFixed(2)}) after postage. High effort for low reward.`;
+    } else if (netProfit >= 40 || (roi >= 250 && netProfit >= 25)) {
+      copVerdict = "MUST_COP";
+      notes = notes || "High profit thrift find!";
+    } else if (netProfit >= 15 || roi >= 100) {
+      copVerdict = "QUICK_FLIP";
+      notes = notes || "Good fast flip potential!";
+    }
 
     const verificationCheck = checkNeedsVerification({
       name: pName,
@@ -164,10 +205,10 @@ Output ONLY valid JSON adhering strictly to:
       thrift_cost: estCost,
       true_net_profit: netProfit,
       roi_percentage: roi,
-      cop_verdict: netProfit >= 50 ? "MUST_COP" : netProfit >= 15 ? "QUICK_FLIP" : "PASS_RISKY",
-      is_grail: netProfit >= 50,
+      cop_verdict: copVerdict,
+      is_grail: copVerdict === "MUST_COP",
       needs_verification: Boolean(parsed.needs_verification || verificationCheck.needsVerification),
-      notes: parsed.notes || (netProfit >= 50 ? "High profit thrift find!" : "Good flip potential"),
+      notes,
     };
 
     return NextResponse.json(result);

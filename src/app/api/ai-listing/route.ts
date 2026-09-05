@@ -16,6 +16,7 @@ import { fetchEbayAustraliaSoldComps } from "@/app/lib/ebay-australia-comps";
 import { detectGeoCurrency, SupportedCurrency } from "@/app/lib/currency-routing";
 import { saveProductToCache, getCachedProductScan } from "@/app/lib/cache/product-cache";
 import { appraiseItemLocally } from "@/app/lib/offline/offline-engine";
+import { estimateCategoryShippingCost, detectThriftTrap } from "@/lib/thrift-cop-engine";
 import type { AiListingResult } from "@/types/ai-listing";
 
 export const preferredRegion = "syd1";
@@ -529,6 +530,57 @@ ${modePrompt}
         result.suggested_price_median = cappedMedian;
       }
 
+      // Common Media DVDs / CDs (Prevent $5 DVD illusions where shipping eats 100% of profit)
+      const isMediaDvd = (lowerTitle.includes("dvd") || lowerTitle.includes("cd") || lowerTitle.includes("vhs") || lowerTitle.includes("blu-ray")) &&
+        !lowerTitle.includes("criterion") && !lowerTitle.includes("sealed") && !lowerTitle.includes("box set") && !lowerTitle.includes("steelbook") && !lowerTitle.includes("anime");
+      if (isMediaDvd) {
+        result.suggested_price_min = 3;
+        result.suggested_price_max = 6;
+        result.suggested_price_median = 4.5;
+        if (result.sales_velocity) {
+          result.sales_velocity.sell_speed = "SLOW_BURNER";
+          result.sales_velocity.est_days_to_sell = "Penny Trap / Negative Margin";
+          result.sales_velocity.demand_score = 15;
+        }
+      }
+
+      // Budget Commodity Brands (Amazon Basics, Onn, Insignia, etc.)
+      const isCommodityBrand =
+        lowerTitle.includes("amazon basics") ||
+        lowerTitle.includes("amazonbasics") ||
+        lowerTitle.includes("insignia") ||
+        lowerTitle.includes("onn.") ||
+        lowerTitle.includes("onn ") ||
+        lowerTitle.includes("blackweb") ||
+        lowerTitle.includes("mainstays") ||
+        lowerTitle.includes("anko");
+      if (isCommodityBrand) {
+        if (lowerTitle.includes("keyboard") || lowerTitle.includes("mouse") || lowerTitle.includes("cable") || lowerTitle.includes("adapter") || lowerTitle.includes("hub")) {
+          result.suggested_price_min = 4;
+          result.suggested_price_max = 8;
+          result.suggested_price_median = 6;
+          if (result.sales_velocity) {
+            result.sales_velocity.sell_speed = "SLOW_BURNER";
+            result.sales_velocity.est_days_to_sell = "Zero Arbitrage / E-Waste";
+            result.sales_velocity.demand_score = 10;
+          }
+        }
+      }
+
+      // Mass-Market Ceramic Coffee Mugs (prevent $20 hallucinated comps on fragile novelty cups)
+      const isNoveltyMug = (lowerTitle.includes("mug") || lowerTitle.includes("coffee cup")) &&
+        !lowerTitle.includes("vintage 198") && !lowerTitle.includes("vintage 197") && !lowerTitle.includes("starbucks been there") && !lowerTitle.includes("fire-king") && !lowerTitle.includes("pyrex");
+      if (isNoveltyMug) {
+        result.suggested_price_min = 5;
+        result.suggested_price_max = 10;
+        result.suggested_price_median = 8;
+        if (result.sales_velocity) {
+          result.sales_velocity.sell_speed = "SLOW_BURNER";
+          result.sales_velocity.est_days_to_sell = "Fragile Packaging / Thin Margin";
+          result.sales_velocity.demand_score = 25;
+        }
+      }
+
       // Single Disposable Lighter Sanity Guard (prevent multi-pack eBay listings from overvaluing a single $2 lighter)
       if (
         lowerTitle.includes("lighter") &&
@@ -657,21 +709,33 @@ ${modePrompt}
     }
 
     // THRIFT STORE PRICE TAG OCR & INSTANT NET PROFIT / ROI COP VERDICT
+    const pCategory = result.analysis?.category || "General";
+    const pName = result.analysis?.product_name || "";
+    const pBrand = result.analysis?.brand || "";
+    const shippingCost = estimateCategoryShippingCost(pCategory, pName);
+
     const tagPrice = Number(result.detected_tag_price) || (result.analysis?.product_name && result.analysis.product_name !== "NO_CENTER_ITEM" ? Math.max(3, Math.round((result.suggested_price_median || 45) * 0.15)) : null);
     const sellPrice = Number(result.suggested_price_median) || 45;
 
     if (tagPrice && sellPrice > 0) {
       const ebayFee = (sellPrice * 0.134) + 0.33; // Standard Australian eBay 13.4% + $0.33
-      const netProfit = Math.max(0, sellPrice - tagPrice - ebayFee);
-      const roi = (netProfit / tagPrice) * 100;
+      // Real Reseller Net Profit: Resale - Tag Cost - eBay Fees - Parcel Shipping
+      const netProfit = Math.max(0, sellPrice - tagPrice - ebayFee - shippingCost);
+      const roi = tagPrice > 0 ? (netProfit / tagPrice) * 100 : 0;
+
+      const trap = detectThriftTrap(pName, sellPrice, pBrand);
 
       let verdict: "MUST_COP" | "QUICK_FLIP" | "FAIR_MARGIN" | "PASS_RISKY" = "FAIR_MARGIN";
-      if (roi >= 300 && netProfit >= 30) {
-        verdict = "MUST_COP"; // 👑 High profit grail
-      } else if (roi >= 100 && netProfit >= 15) {
-        verdict = "QUICK_FLIP"; // ⚡ Solid fast turnover
-      } else if (netProfit < 10 || roi < 40) {
+      if (trap.isTrap) {
+        verdict = "PASS_RISKY";
+      } else if (netProfit <= 0 || (sellPrice < 14 && pCategory.toLowerCase().includes("media"))) {
+        verdict = "PASS_RISKY";
+      } else if (netProfit < 8 || roi < 40) {
         verdict = "PASS_RISKY"; // ⛔ Low margin / pass
+      } else if (netProfit >= 35 || (roi >= 250 && netProfit >= 25)) {
+        verdict = "MUST_COP"; // 👑 High profit grail
+      } else if (netProfit >= 15 || roi >= 100) {
+        verdict = "QUICK_FLIP"; // ⚡ Solid fast turnover
       }
 
       result.detected_tag_price = tagPrice;
