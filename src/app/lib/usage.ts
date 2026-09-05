@@ -9,41 +9,59 @@ export interface UsageStatus {
   maxFreeUses: number;
 }
 
-export const MAX_FREE_USES = 5;
+export const MAX_FREE_USES = 10;
 
-export async function checkUserUsage(userId: string): Promise<UsageStatus> {
-  const cookieStore = await cookies();
+export async function checkUserUsage(userId: string, userEmail?: string): Promise<UsageStatus> {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
+  let dbClient: any;
+  if (supabaseUrl && serviceRoleKey) {
+    const { createClient: createAdminClient } = await import("@supabase/supabase-js");
+    dbClient = createAdminClient(supabaseUrl, serviceRoleKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+  } else {
+    const cookieStore = await cookies();
+    dbClient = createServerClient(
+      supabaseUrl,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll();
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            );
+          },
         },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            cookieStore.set(name, value, options)
-          );
-        },
-      },
-    }
-  );
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+      }
+    );
+  }
 
   // Admin & Owner Account Lifetime Pro Grant
-  const isOwner = user?.email?.toLowerCase() === "deniedae@gmail.com";
+  let isOwner = userEmail?.toLowerCase() === "deniedae@gmail.com";
+  if (!isOwner) {
+    try {
+      const { data: authUserData } = await dbClient.auth.admin.getUserById(userId);
+      if (authUserData?.user?.email?.toLowerCase() === "deniedae@gmail.com") {
+        isOwner = true;
+      }
+    } catch {}
+  }
 
   // 1. Check if user is an active Pro subscriber in Stripe / Supabase
-  const { data: sub } = await supabase
+  const { data: sub, error: subError } = await dbClient
     .from("user_subscriptions")
-    .select("status")
+    .select("status, current_period_end")
     .eq("user_id", userId)
     .maybeSingle();
+
+  if (subError && subError.code !== "PGRST116") {
+    console.warn("[Usage] Subscription lookup warning:", subError.message);
+  }
 
   const status = sub?.status as string | undefined;
   const isPro = isOwner || status === "active" || status === "trialing" || status === "past_due";
@@ -51,14 +69,18 @@ export async function checkUserUsage(userId: string): Promise<UsageStatus> {
   if (isPro) {
     // Upsert subscription record if owner
     if (isOwner && status !== "active") {
-      await supabase.from("user_subscriptions").upsert([
-        {
-          user_id: userId,
-          status: "active",
-          price_id: "pro_owner_grant",
-          current_period_end: "2099-12-31T23:59:59Z",
-        },
-      ]);
+      await dbClient.from("user_subscriptions").upsert(
+        [
+          {
+            user_id: userId,
+            status: "active",
+            price_id: "pro_owner_grant",
+            current_period_end: "2099-12-31T23:59:59Z",
+            updated_at: new Date().toISOString(),
+          },
+        ],
+        { onConflict: "user_id" }
+      );
     }
 
     return {
@@ -70,11 +92,20 @@ export async function checkUserUsage(userId: string): Promise<UsageStatus> {
     };
   }
 
-  // 2. Count scans used on Free Plan from scans and analyses tables
-  const { count: scanCount } = await supabase
+  // 2. Count scans used TODAY on Free Plan (since UTC midnight)
+  const startOfDay = new Date();
+  startOfDay.setUTCHours(0, 0, 0, 0);
+  const startIso = startOfDay.toISOString();
+
+  const { count: scanCount, error: countErr } = await dbClient
     .from("scans")
     .select("*", { count: "exact", head: true })
-    .eq("user_id", userId);
+    .eq("user_id", userId)
+    .gte("created_at", startIso);
+
+  if (countErr) {
+    console.warn("[Usage] Daily scans count query warning:", countErr.message);
+  }
 
   const usesCount = scanCount ?? 0;
   const usesLeft = Math.max(0, MAX_FREE_USES - usesCount);

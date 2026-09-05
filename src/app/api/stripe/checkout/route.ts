@@ -32,9 +32,21 @@ export async function POST(request: Request) {
 
     // Get authenticated user server-side so we can pass user_id to the webhook
     const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const authHeader = request.headers.get("authorization");
+    let user: any = null;
+
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      const token = authHeader.replace("Bearer ", "").trim();
+      const { data } = await supabase.auth.getUser(token);
+      user = data?.user;
+    }
+
+    if (!user) {
+      const {
+        data: { user: sessionUser },
+      } = await supabase.auth.getUser();
+      user = sessionUser;
+    }
 
     if (!user) {
       return NextResponse.json({ message: "You must be logged in to upgrade." }, { status: 401 });

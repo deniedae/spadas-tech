@@ -171,13 +171,16 @@ export async function POST(req: Request) {
 
     // Usage Limit Check if logged in
     if (user) {
-      const usage = await checkUserUsage(user.id);
-      if (usage.limitReached) {
+      const usage = await checkUserUsage(user.id, user.email);
+      if (!usage.isPro && usage.limitReached) {
         return NextResponse.json(
           {
             error:
-              "Free plan limit reached (10/10 uses). Upgrade to Pro for unlimited sourcing checks.",
+              "Daily free scan limit reached (10/10 scans used today). Upgrade to Pro for unlimited sourcing checks.",
             limitReached: true,
+            isPro: false,
+            maxFreeUses: usage.maxFreeUses,
+            usesCount: usage.usesCount,
           },
           { status: 403 }
         );

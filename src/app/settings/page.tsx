@@ -308,10 +308,16 @@ export default function SettingsPage() {
   async function upgradeToPro() {
     setUpgrading(true);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (session?.access_token) {
+        headers["Authorization"] = `Bearer ${session.access_token}`;
+      }
+
       const response = await fetch("/api/stripe/checkout", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: user?.email ?? "" }),
+        headers,
+        body: JSON.stringify({ planId: "starter", email: user?.email ?? "" }),
       });
 
       const data = await response.json();

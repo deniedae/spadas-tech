@@ -16,6 +16,7 @@ import {
   Crosshair,
   Power,
   ShieldCheck,
+  Crown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { fmtMoney } from "@/app/lib/listings";
@@ -233,6 +234,7 @@ function SpadasLensCameraCore() {
   const [deepVerifyItem, setDeepVerifyItem] = useState<DetectedHit | ActiveScanItem | null>(null);
   const [isOwner, setIsOwner] = useState<boolean>(false);
   const [isPro, setIsPro] = useState<boolean>(false);
+  const [isLimitReached, setIsLimitReached] = useState<boolean>(false);
   const [scanFeedback, setScanFeedback] = useState<"HIT" | "MISS" | null>(null);
   const [sessionScanCount, setSessionScanCount] = useState<number>(0);
   const [shutterFlash, setShutterFlash] = useState<boolean>(false);
@@ -293,6 +295,14 @@ function SpadasLensCameraCore() {
 
   // Resume camera scanning handler
   const handleResumeScanning = useCallback(() => {
+    if (!isPro && isLimitReached) {
+      setIsScanPaused(true);
+      setIsPaywallOpen(true);
+      toast.error("You've used all 10 free daily scans! Upgrade to Pro for unlimited scans.", {
+        id: "daily-limit-toast",
+      });
+      return;
+    }
     setIsScanPaused(false);
     setFrozenFrameUrl(null);
     setActiveCompsHit(null);
@@ -302,7 +312,7 @@ function SpadasLensCameraCore() {
     if (videoRef.current && videoRef.current.paused) {
       videoRef.current.play().catch(() => {});
     }
-  }, []);
+  }, [isPro, isLimitReached]);
 
   // Barcode Single-Scan Debounce (1 scan only per barcode item)
   const lastDetectedBarcodeRef = useRef<string | null>(null);
@@ -594,7 +604,12 @@ function SpadasLensCameraCore() {
           const usageRes = await fetch("/api/usage", { headers: authHeaders }).catch(() => null);
           if (usageRes && usageRes.ok) {
             const u = await usageRes.json().catch(() => ({}));
-            if (u?.isPro) setIsPro(true);
+            if (u?.isPro) {
+              setIsPro(true);
+              setIsLimitReached(false);
+            } else if (u?.limitReached) {
+              setIsLimitReached(true);
+            }
           }
         }
       } catch {}
@@ -1456,6 +1471,17 @@ function SpadasLensCameraCore() {
         }
       }
 
+      if (!isPro && isLimitReached) {
+        setIsScanPaused(true);
+        setIsPaywallOpen(true);
+        setAnalyzingRealFrame(false);
+        toast.error("You've used all 10 free daily scans! Upgrade to Pro for unlimited scans.", {
+          id: "daily-limit-toast",
+          duration: 5000,
+        });
+        return;
+      }
+
       if (!frameDataUrl || !frameDataUrl.startsWith("data:image/jpeg;base64,") || frameDataUrl.length < 1000) {
         console.warn("[Spadas Lens]", cycleId, "Frame snapshot uninitialized, retrying frame...");
         setAnalyzingRealFrame(false);
@@ -1476,9 +1502,15 @@ function SpadasLensCameraCore() {
       console.log('[Spadas Lens]', cycleId, 'Starting resilient fetch for frame with analyzingRealFrame:', analyzingRealFrame);
       trace.markRequestDispatched();
 
+      const { data: sessionData } = await supabase.auth.getSession();
+      const requestHeaders: Record<string, string> = { "Content-Type": "application/json" };
+      if (sessionData?.session?.access_token) {
+        requestHeaders["Authorization"] = `Bearer ${sessionData.session.access_token}`;
+      }
+
       res = await resilientFetch("/api/ai-listing", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: requestHeaders,
         body: JSON.stringify({ imageUrls: imagePayloads, isArScan: true, currency: selectedCurrency, mode: scanMode }),
       }, { maxRetries: 2, initialDelayMs: 300 }).catch((e) => {
         console.error('[Spadas Lens]', cycleId, 'Fetch error:', e);
@@ -1507,6 +1539,19 @@ function SpadasLensCameraCore() {
       setLastRawApiResponse(data);
 
       // ── Phase 4: Non-Alarming HTTP Error State Handling ──────────────────────
+      if (res?.status === 403 || data?.limitReached) {
+        setIsScanPaused(true);
+        setIsLimitReached(true);
+        setIsPaywallOpen(true);
+        setLatestApiError("Daily free scan limit reached (10/10).");
+        toast.error("You've used all 10 free daily scans! Upgrade to Pro for unlimited scans.", {
+          id: "daily-limit-toast",
+          duration: 6000,
+        });
+        setAnalyzingRealFrame(false);
+        return;
+      }
+
       if (res?.status === 401) {
         setScanErrorState({ type: "unauthorized" });
         setLatestApiError("401 Unauthorized — session expired");
@@ -1924,6 +1969,15 @@ function SpadasLensCameraCore() {
 
   // Dedicated Multi-Worker Rapid Thrift Queue Processor (Max Concurrency: 2)
   const processRapidQueue = useCallback(async () => {
+    if (!isPro && isLimitReached) {
+      setIsScanPaused(true);
+      setIsPaywallOpen(true);
+      toast.error("You've used all 10 free daily scans! Upgrade to Pro for unlimited scans.", {
+        id: "daily-limit-toast",
+      });
+      return;
+    }
+
     while (rapidQueueRef.current.length > 0 && activeRapidWorkersRef.current < MAX_RAPID_CONCURRENCY) {
       const task = rapidQueueRef.current.shift();
       if (!task) break;
@@ -1939,11 +1993,17 @@ function SpadasLensCameraCore() {
       reader.onloadend = async () => {
         const base64Data = reader.result as string;
         try {
+          const { data: sessionData } = await supabase.auth.getSession();
+          const requestHeaders: Record<string, string> = { "Content-Type": "application/json" };
+          if (sessionData?.session?.access_token) {
+            requestHeaders["Authorization"] = `Bearer ${sessionData.session.access_token}`;
+          }
+
           const res = await resilientFetch(
             "/api/rapid-thrift",
             {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
+              headers: requestHeaders,
               body: JSON.stringify({
                 image: base64Data,
                 currency: selectedCurrency,
@@ -1951,6 +2011,20 @@ function SpadasLensCameraCore() {
             },
             { maxRetries: 1, initialDelayMs: 200 }
           ).catch(() => null);
+
+          if (res?.status === 403) {
+            setIsLimitReached(true);
+            setIsScanPaused(true);
+            setIsPaywallOpen(true);
+            toast.error("You've used all 10 free daily scans! Upgrade to Pro for unlimited scans.", {
+              id: "daily-limit-toast",
+            });
+            setRapidItems((prev) =>
+              prev.map((i) => (i.id === task.item.id ? { ...i, status: "error" } : i))
+            );
+            activeRapidWorkersRef.current = Math.max(0, activeRapidWorkersRef.current - 1);
+            return;
+          }
 
           let data: any = null;
           if (res && res.ok) {
@@ -2601,7 +2675,23 @@ function SpadasLensCameraCore() {
 
             {/* Quick Snap & Value Tactile Shutter / Resume Button (Center Floating) */}
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 pointer-events-auto flex items-center justify-center">
-              {isScanPaused ? (
+              {!isPro && isLimitReached ? (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsPaywallOpen(true);
+                    toast.error("Daily free scan limit reached (10/10). Upgrade to Pro to continue scanning.", {
+                      id: "daily-limit-toast",
+                    });
+                  }}
+                  className="group relative flex items-center gap-2 rounded-full bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500 px-6 py-3 text-xs sm:text-sm font-black text-slate-950 shadow-[0_0_30px_rgba(245,158,11,0.7)] active:scale-95 transition-all duration-200 cursor-pointer animate-pulse"
+                  title="Daily limit reached — Upgrade to Spadas Pro"
+                >
+                  <Crown className="h-4 w-4 shrink-0 text-slate-950" />
+                  <span>Daily Limit Reached (10/10) • Get Pro</span>
+                </button>
+              ) : isScanPaused ? (
                 <button
                   type="button"
                   onClick={(e) => {
@@ -2619,6 +2709,14 @@ function SpadasLensCameraCore() {
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
+                    if (!isPro && isLimitReached) {
+                      setIsScanPaused(true);
+                      setIsPaywallOpen(true);
+                      toast.error("You've used all 10 free daily scans! Upgrade to Pro for unlimited scans.", {
+                        id: "daily-limit-toast",
+                      });
+                      return;
+                    }
                     if (isRapidScanMode) {
                       const video = videoRef.current;
                       if (video) {

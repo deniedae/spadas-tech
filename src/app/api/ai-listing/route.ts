@@ -147,20 +147,31 @@ export async function POST(request: Request) {
       return NextResponse.json(createEmptyScanResult());
     }
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const authHeader = request.headers.get("authorization");
+    let user: any = null;
+
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      const token = authHeader.replace("Bearer ", "").trim();
+      const { data } = await supabase.auth.getUser(token);
+      user = data?.user;
+    }
+
+    if (!user) {
+      const { data, error } = await supabase.auth.getUser();
+      if (!error) user = data?.user;
+    }
 
     if (!user && !isArScan) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const clientIp = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "guest";
-    userIdentifier = user ? user.id : `guest-${clientIp}`;
+    const activeIdentifier = user ? user.id : `guest-${clientIp}`;
+    userIdentifier = activeIdentifier;
     userId = user?.id || null;
 
     const now = Date.now();
-    const userLimiter = userRateLimitMap.get(userIdentifier) || { minuteWindow: [], dayWindow: [], inFlight: false };
+    const userLimiter = userRateLimitMap.get(activeIdentifier) || { minuteWindow: [], dayWindow: [], inFlight: false };
 
     userLimiter.minuteWindow = userLimiter.minuteWindow.filter((t) => now - t < 60000);
     userLimiter.dayWindow = userLimiter.dayWindow.filter((t) => now - t < 86400000);
@@ -222,17 +233,33 @@ export async function POST(request: Request) {
     userLimiter.inFlight = true;
     userLimiter.minuteWindow.push(now);
     userLimiter.dayWindow.push(now);
-    userRateLimitMap.set(userIdentifier, userLimiter);
+    userRateLimitMap.set(activeIdentifier, userLimiter);
 
-    // Usage Limit Check (Free Scans total for Non-Pro accounts across studio generators)
-    if (user && !body.isArScan) {
-      const usage = await checkUserUsage(user.id);
+    // Usage Limit Check (10 Free Daily Scans for Non-Pro accounts across AR Lens and Studio)
+    if (user) {
+      const usage = await checkUserUsage(user.id, user.email);
       if (!usage.isPro && usage.limitReached) {
         return NextResponse.json(
           {
-            error: `Free plan limit reached (${usage.maxFreeUses}/${usage.maxFreeUses} free AI scans used). Upgrade to Spadas Pro for unlimited AR scans and 1-click eBay publishing.`,
+            error: `Daily free scan limit reached (${usage.usesCount}/${usage.maxFreeUses} scans used today). Upgrade to Spadas Pro for unlimited scans.`,
             limitReached: true,
             isPro: false,
+            maxFreeUses: usage.maxFreeUses,
+            usesCount: usage.usesCount,
+          },
+          { status: 403 }
+        );
+      }
+    } else {
+      // For anonymous/guest scans: cap at 10 scans per day per IP
+      if (userLimiter.dayWindow.length > 10) {
+        return NextResponse.json(
+          {
+            error: "Daily free scan limit reached (10/10 scans used today). Please sign in and upgrade to Spadas Pro for unlimited scans.",
+            limitReached: true,
+            isPro: false,
+            maxFreeUses: 10,
+            usesCount: 10,
           },
           { status: 403 }
         );
@@ -780,7 +807,16 @@ ${modePrompt}
           status: "completed"
         });
 
-        await supabase.from("scans").insert([
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        const dbClient =
+          supabaseUrl && serviceRoleKey
+            ? (await import("@supabase/supabase-js")).createClient(supabaseUrl, serviceRoleKey, {
+                auth: { persistSession: false, autoRefreshToken: false },
+              })
+            : supabase;
+
+        await dbClient.from("scans").insert([
           {
             user_id: user.id,
             image_url: sanitizedUrl,

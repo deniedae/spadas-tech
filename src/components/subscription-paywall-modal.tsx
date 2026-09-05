@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { Check, Sparkles, Zap, ShieldCheck, Crown, X, Loader2, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/app/lib/supabase";
 
 export interface PlanTier {
   id: string;
@@ -62,16 +63,22 @@ export default function SubscriptionPaywallModal({
   if (!isOpen) return null;
 
   const handleCheckout = async (plan: PlanTier) => {
-    if (plan.id === "free" || isAppStoreClient) {
+    if (plan.id === "free") {
       onClose();
       return;
     }
 
     setLoadingPlan(plan.id);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (session?.access_token) {
+        headers["Authorization"] = `Bearer ${session.access_token}`;
+      }
+
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({ planId: plan.id }),
       });
 
@@ -116,7 +123,7 @@ export default function SubscriptionPaywallModal({
             Unlock Unlimited Reseller Profit
           </h2>
           <p className="text-xs text-slate-300">
-            You have used <strong className="text-cyan-400 font-black">{currentScans}/15 Free Beta Scans</strong> this month. Upgrade to Pro for unlimited AR scanning and 1-click cross-listing.
+            You have reached the limit of <strong className="text-cyan-400 font-black">10 Free Daily Scans</strong>. Upgrade to Spadas Pro for unlimited 60FPS AR scanning, live sold comps, and 1-click cross-listing.
           </p>
         </div>
 
@@ -170,7 +177,7 @@ export default function SubscriptionPaywallModal({
                   <Loader2 className="h-4 w-4 animate-spin text-white" />
                 ) : (
                   <>
-                    <span>{isAppStoreClient ? "Continue with Spadas Access" : plan.ctaText}</span>
+                    <span>{plan.ctaText}</span>
                     <ArrowRight className="h-4 w-4" />
                   </>
                 )}

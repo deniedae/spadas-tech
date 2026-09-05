@@ -43,14 +43,16 @@ export default function UsageBadge({
   async function handleUpgrade() {
     setUpgrading(true);
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (session?.access_token) {
+        headers["Authorization"] = `Bearer ${session.access_token}`;
+      }
 
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: user?.email || "" }),
+        headers,
+        body: JSON.stringify({ planId: "starter", email: session?.user?.email || "" }),
       });
 
       const data = await res.json();
@@ -85,8 +87,8 @@ export default function UsageBadge({
             <Zap className="h-3.5 w-3.5" />
             <span>
               {usage.limitReached
-                ? `0 / ${usage.maxFreeUses} Free Scans (Limit Reached)`
-                : `${usage.usesLeft} / ${usage.maxFreeUses} Free Scans Left`}
+                ? `0 / ${usage.maxFreeUses} Free Scans Today (Limit Reached)`
+                : `${usage.usesLeft} / ${usage.maxFreeUses} Free Scans Today`}
             </span>
           </button>
         </div>
@@ -103,12 +105,12 @@ export default function UsageBadge({
             <div className="space-y-1">
               <h3 className="text-xl font-black text-white">
                 {usage.limitReached
-                  ? "Free Scan Limit Reached"
+                  ? "Daily Free Scan Limit Reached"
                   : "Upgrade to Spadas Pro"}
               </h3>
               <p className="text-xs text-slate-300">
                 {usage.limitReached
-                  ? `You've used all ${usage.maxFreeUses} free AI scans. Upgrade to Spadas Pro for unlimited 60FPS AR camera scans, live sold comps, and 1-click eBay publishing.`
+                  ? `You've used all ${usage.maxFreeUses} free scans for today. Upgrade to Spadas Pro for unlimited 60FPS AR camera scans, live sold comps, and 1-click eBay publishing.`
                   : "Unlock unlimited AI generations, 60FPS continuous camera scanner, and 1-click publishing."}
               </p>
             </div>

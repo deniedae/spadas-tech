@@ -1,4 +1,7 @@
 import { NextResponse } from "next/server";
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
+import { checkUserUsage } from "@/app/lib/usage";
 import { createOpenAiClient, getPrimaryAiApiKey } from "@/app/lib/config/ai-models";
 import { checkNeedsVerification } from "@/lib/forensic-knowledge";
 import { estimateCategoryShippingCost, detectThriftTrap } from "@/lib/thrift-cop-engine";
@@ -68,6 +71,48 @@ export async function POST(req: Request) {
         { error: "Image data URL or URL is required." },
         { status: 400 }
       );
+    }
+
+    // Authenticate user via Bearer header or cookies
+    const cookieStore = await cookies();
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll: () => cookieStore.getAll(),
+          setAll: (c) => c.forEach(({ name, value, options }) => cookieStore.set(name, value, options)),
+        },
+      }
+    );
+
+    const authHeader = req.headers.get("authorization");
+    let user: any = null;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      const token = authHeader.replace("Bearer ", "").trim();
+      const { data } = await supabase.auth.getUser(token);
+      user = data?.user;
+    }
+    if (!user) {
+      const { data, error } = await supabase.auth.getUser();
+      if (!error) user = data?.user;
+    }
+
+    // Daily Scan Limit Check
+    if (user) {
+      const usage = await checkUserUsage(user.id, user.email);
+      if (!usage.isPro && usage.limitReached) {
+        return NextResponse.json(
+          {
+            error: `Daily free scan limit reached (${usage.usesCount}/${usage.maxFreeUses} scans used today). Upgrade to Spadas Pro for unlimited scans.`,
+            limitReached: true,
+            isPro: false,
+            maxFreeUses: usage.maxFreeUses,
+            usesCount: usage.usesCount,
+          },
+          { status: 403 }
+        );
+      }
     }
 
     const apiKey = getPrimaryAiApiKey();
@@ -210,6 +255,31 @@ Output ONLY valid JSON adhering strictly to:
       needs_verification: Boolean(parsed.needs_verification || verificationCheck.needsVerification),
       notes,
     };
+
+    if (user) {
+      try {
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        const dbClient =
+          supabaseUrl && serviceRoleKey
+            ? (await import("@supabase/supabase-js")).createClient(supabaseUrl, serviceRoleKey, {
+                auth: { persistSession: false, autoRefreshToken: false },
+              })
+            : supabase;
+
+        await dbClient.from("scans").insert([
+          {
+            user_id: user.id,
+            image_url: image.startsWith("data:") ? `data:image/jpeg;base64,...(${image.length} bytes)` : image,
+            result_json: result,
+            token_count: 500,
+            status: "completed",
+          },
+        ]);
+      } catch (logErr) {
+        console.warn("[rapid-thrift] Failed to log scan record:", logErr);
+      }
+    }
 
     return NextResponse.json(result);
   } catch (err) {
