@@ -281,7 +281,7 @@ export default function EbayListingModal({
                     <span>Open in 1-Tap Fast-List instead</span>
                   </button>
                   <a
-                    href="/api/auth/ebay/connect"
+                    href="/api/auth/ebay/connect?prompt=login"
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-cyan-300 font-bold rounded-lg text-xs transition cursor-pointer border border-cyan-500/30"
                   >
                     <Link2 className="w-3.5 h-3.5" />

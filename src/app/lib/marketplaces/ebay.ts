@@ -65,8 +65,11 @@ export function resolveClientSecret(): string {
 
 /**
  * Generate official eBay OAuth 2.0 Authorization URL
+ * Setting prompt="login" forces eBay to present credentials sign-in screen,
+ * ensuring the user can authenticate as a new/desired account rather than
+ * silently auto-authorizing using existing browser cookies.
  */
-export function getEbayAuthUrl(state: string): string {
+export function getEbayAuthUrl(state: string, promptLogin: boolean = true): string {
   const clientId = resolveClientId();
   const ruName = resolveRuName();
 
@@ -78,6 +81,7 @@ export function getEbayAuthUrl(state: string): string {
     redirect_uri: ruName,
     scope: SCOPES,
     state: state,
+    ...(promptLogin ? { prompt: "login" } : {}),
   });
 
   return `https://${host}/oauth2/authorize?${params.toString()}`;

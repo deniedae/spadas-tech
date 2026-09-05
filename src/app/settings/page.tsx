@@ -100,8 +100,8 @@ export default function SettingsPage() {
   async function connectEbay() {
     setEbayConnecting(true);
     try {
-      // Redirect to eBay OAuth — browser follows the redirect chain
-      window.location.href = "/api/auth/ebay/connect";
+      // Redirect to eBay OAuth with prompt=login to force fresh sign-in
+      window.location.href = `/api/auth/ebay/connect?prompt=login&t=${Date.now()}`;
     } catch {
       toast.error("Failed to start eBay connection. Try again.");
       setEbayConnecting(false);

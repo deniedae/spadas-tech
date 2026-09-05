@@ -362,7 +362,7 @@ export default function Dashboard() {
               </div>
             </div>
             <Link
-              href="/api/auth/ebay/connect"
+              href="/api/auth/ebay/connect?prompt=login"
               className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-4 py-2 text-xs font-black text-slate-950 shadow-md shadow-cyan-500/20 hover:scale-105 transition shrink-0 cursor-pointer"
             >
               <span>⚡ Connect eBay</span>
