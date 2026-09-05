@@ -17,11 +17,10 @@ const PUBLIC_PATHS = [
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
-  // Allow next.js internal assets, static media files, and public APIs
+  // Allow next.js internal assets, static media files, and APIs (APIs perform their own auth & return JSON 401s)
   if (
     pathname.startsWith("/_next") ||
-    pathname.startsWith("/api/stripe/webhook") ||
-    pathname.startsWith("/api/marketplaces/ebay/webhook") ||
+    pathname.startsWith("/api/") ||
     pathname.includes(".") // Static files like .png, .jpg, .svg, .ico, .apk
   ) {
     return NextResponse.next();
