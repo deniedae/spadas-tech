@@ -16,11 +16,12 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { listing, product, description, price, condition, brand, category, imageUrls } = body;
+    const { listing, product, description, price, currency, condition, brand, category, imageUrls } = body;
 
     const targetProduct = product || listing?.product || "AI Scanned Item";
     const targetDesc = description || listing?.seo_description || listing?.detailed_description || "";
     const targetPrice = Number(price || listing?.suggested_price_max || listing?.suggested_price_min || 25);
+    const targetCurrency = currency || listing?.currency || "AUD";
     const targetCondition = condition || listing?.analysis?.condition || "Used";
     const targetBrand = brand || listing?.analysis?.brand || "Unbranded";
     const targetCategory = category || listing?.category || listing?.analysis?.category || "Accessories";
@@ -92,6 +93,7 @@ export async function POST(req: NextRequest) {
       product: targetProduct,
       description: targetDesc,
       price: targetPrice,
+      currency: targetCurrency,
       condition: targetCondition,
       brand: targetBrand,
       category: targetCategory,

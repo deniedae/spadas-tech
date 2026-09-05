@@ -70,11 +70,14 @@ export function generateOptimizedEbayTitle(params: TitleOptimizationParams): str
 }
 
 /**
- * Builds eBay AU Direct Pre-Fill Listing URL (Opens listing wizard pre-populated)
+ * Builds eBay Direct Pre-Fill Listing URL (Opens listing wizard pre-populated)
+ * Dynamically routes to ebay.com (USD) or ebay.com.au (AUD) based on selected currency.
  */
 export function generateEbayPrefillUrl(params: {
   title: string;
+  price?: number;
   priceAud?: number;
+  currency?: string;
   brand?: string;
   category?: string;
 }): string {
@@ -82,7 +85,10 @@ export function generateEbayPrefillUrl(params: {
     keyword: params.title.trim(),
   });
 
-  return `https://www.ebay.com.au/sl/prelist/suggest?${queryParams.toString()}`;
+  const isUsd = (params.currency || "").toUpperCase() === "USD";
+  const domain = isUsd ? "www.ebay.com" : "www.ebay.com.au";
+
+  return `https://${domain}/sl/prelist/suggest?${queryParams.toString()}`;
 }
 
 /**

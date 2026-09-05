@@ -104,16 +104,17 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
 
   const handleFastListEbay = () => {
     const formattedDesc = `${data.description}\n\nSize: ${data.size || "N/A"}\nCondition: ${data.condition || "Pre-owned"}\nWeight: ${data.weight || "N/A"}\nDimensions: ${data.dimensions || "N/A"}`;
-    const copyPayload = `Title: ${data.productName}\nPrice: $${data.priceMedian} AUD\nCondition: ${data.condition || "Used - Good"}\nBrand: ${data.brand || "Unbranded"}\n\nDescription:\n${formattedDesc}`;
+    const copyPayload = `Title: ${data.productName}\nPrice: $${data.priceMedian} ${data.currency || "AUD"}\nCondition: ${data.condition || "Used - Good"}\nBrand: ${data.brand || "Unbranded"}\n\nDescription:\n${formattedDesc}`;
     navigator.clipboard.writeText(copyPayload);
 
     const prefillUrl = generateEbayPrefillUrl({
       title: data.productName,
       priceAud: data.priceMedian,
+      currency: data.currency,
       brand: data.brand,
     });
 
-    toast.success("📋 Listing details copied! Opening eBay AU...", { duration: 4000 });
+    toast.success(`📋 Listing details copied! Opening ${data.currency === "USD" ? "eBay US" : "eBay AU"}...`, { duration: 4000 });
     window.open(prefillUrl, "_blank");
   };
 
@@ -139,7 +140,7 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
         status: "Active",
       });
 
-      // 1-Tap Direct Live Publish to eBay AU
+      // 1-Tap Direct Live Publish to eBay
       const publishRes = await fetch("/api/marketplaces/ebay/publish", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -147,6 +148,7 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
           product: data.productName,
           description: `${data.description}\n\nSize: ${data.size || "N/A"}\nCondition: ${data.condition || "Pre-owned"}\nWeight: ${data.weight || "N/A"}\nDimensions: ${data.dimensions || "N/A"}`,
           price: data.priceMedian,
+          currency: data.currency || "AUD",
           condition: data.condition,
           brand: data.brand,
           imageUrls: data.photos,
@@ -158,13 +160,13 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
         toast.success(`🚀 ${pubData.message}`);
       } else if (publishRes?.ok && pubData?.success) {
         if (pubData.isLive) {
-          toast.success("🚀 Live on eBay AU! Listing published successfully.");
+          toast.success(`🚀 Live on eBay (${data.currency || "AUD"})! Listing published successfully.`);
         } else {
-          toast.success("📋 Draft saved in your eBay Seller Hub! Review shipping to activate.", {
+          toast.success(`📋 Draft saved in your eBay Seller Hub (${data.currency || "AUD"})! Review shipping to activate.`, {
             duration: 6000,
             action: {
               label: "Open Seller Hub",
-              onClick: () => window.open(pubData.listingUrl || "https://www.ebay.com.au/sh/lst/drafts", "_blank"),
+              onClick: () => window.open(pubData.listingUrl || (data.currency === "USD" ? "https://www.ebay.com/sh/lst/drafts" : "https://www.ebay.com.au/sh/lst/drafts"), "_blank"),
             },
           });
         }

@@ -165,19 +165,27 @@ export function mapToEbayCondition(cond: string): EbayInventoryItemPayload["cond
 /**
  * Ensure an inventory location exists on the seller's account
  */
-async function ensureMerchantLocation(apiHost: string, accessToken: string, locationKey: string) {
+async function ensureMerchantLocation(apiHost: string, accessToken: string, locationKey: string, isUsd = false) {
   try {
     const locPayload = {
       location: {
-        address: {
-          addressLine1: "123 Reseller St",
-          city: "Melbourne",
-          stateOrProvince: "VIC",
-          postalCode: "3000",
-          country: "AU",
-        },
+        address: isUsd
+          ? {
+              addressLine1: "100 Reseller Way",
+              city: "Los Angeles",
+              stateOrProvince: "CA",
+              postalCode: "90001",
+              country: "US",
+            }
+          : {
+              addressLine1: "123 Reseller St",
+              city: "Melbourne",
+              stateOrProvince: "VIC",
+              postalCode: "3000",
+              country: "AU",
+            },
       },
-      name: "Spadas Main Warehouse",
+      name: isUsd ? "Spadas US Warehouse" : "Spadas AU Warehouse",
       merchantLocationStatus: "ENABLED",
       locationTypes: ["WAREHOUSE"],
     };
@@ -277,6 +285,7 @@ export async function publishToEbayInventory(
     product: string;
     description: string;
     price: number;
+    currency?: string;
     condition?: string;
     brand?: string;
     category?: string;
@@ -284,11 +293,16 @@ export async function publishToEbayInventory(
   }
 ) {
   const apiHost = getApiHost();
-  const merchantLocationKey = "spadas_store_au";
-  const sku = `SPADAS_AU_${Date.now()}`;
+  const isUsd = (listing.currency || "").toUpperCase() === "USD";
+  const currencyCode = isUsd ? "USD" : "AUD";
+  const marketplaceId = isUsd ? "EBAY_US" : "EBAY_AU";
+  const contentLanguage = isUsd ? "en-US" : "en-AU";
+  const ebayDomain = isUsd ? "ebay.com" : "ebay.com.au";
+  const merchantLocationKey = isUsd ? "spadas_store_us" : "spadas_store_au";
+  const sku = `SPADAS_${currencyCode}_${Date.now()}`;
 
   // 1. Ensure merchant location exists on eBay
-  await ensureMerchantLocation(apiHost, accessToken, merchantLocationKey);
+  await ensureMerchantLocation(apiHost, accessToken, merchantLocationKey, isUsd);
 
   // 2. Filter valid image URLs and guarantee at least 1 photo for eBay API (Error 25002)
   let validHttpImageUrls = (listing.imageUrls || []).filter(
@@ -325,7 +339,7 @@ export async function publishToEbayInventory(
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
-      "Content-Language": "en-AU",
+      "Content-Language": contentLanguage,
       "Accept": "application/json",
       "Accept-Language": "en-US",
       Authorization: `Bearer ${accessToken}`,
@@ -347,7 +361,7 @@ export async function publishToEbayInventory(
 
   // 4. Resolve default business policies and category ID
   const categoryId = resolveEbayCategoryId(listing.category, listing.product);
-  const policies = await fetchUserDefaultPolicies(apiHost, accessToken, "EBAY_AU");
+  const policies = await fetchUserDefaultPolicies(apiHost, accessToken, marketplaceId);
 
   // 5. Create an Offer for this inventory item
   let offerId: string | null = null;
@@ -357,7 +371,7 @@ export async function publishToEbayInventory(
   try {
     const offerPayload: Record<string, unknown> = {
       sku: sku,
-      marketplaceId: "EBAY_AU",
+      marketplaceId: marketplaceId,
       format: "FIXED_PRICE",
       availableQuantity: 1,
       categoryId: categoryId,
@@ -365,7 +379,7 @@ export async function publishToEbayInventory(
       pricingSummary: {
         price: {
           value: Number(listing.price || 25).toFixed(2),
-          currency: "AUD",
+          currency: currencyCode,
         },
       },
       listingDescription: listing.description || `Listed via Spadas Technology AI Platform. ${listing.product}`,
@@ -384,7 +398,7 @@ export async function publishToEbayInventory(
       headers: {
         Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",
-        "Content-Language": "en-AU",
+        "Content-Language": contentLanguage,
         "Accept": "application/json",
         "Accept-Language": "en-US",
       },
@@ -403,7 +417,7 @@ export async function publishToEbayInventory(
         listingId: null,
         error: errMsg,
         message: `Inventory item created (SKU: ${sku}), but Offer could not be finalized: ${errMsg}. Use 1-Tap Fast-List to complete your listing instantly on eBay!`,
-        listingUrl: `https://${apiHost === "api.ebay.com" ? "www" : "sandbox"}.ebay.com.au/sh/lst/drafts`,
+        listingUrl: `https://${apiHost === "api.ebay.com" ? "www" : "sandbox"}.${ebayDomain}/sh/lst/drafts`,
       };
     }
 
@@ -417,7 +431,7 @@ export async function publishToEbayInventory(
         headers: {
           Authorization: `Bearer ${accessToken}`,
           "Content-Type": "application/json",
-          "Content-Language": "en-AU",
+          "Content-Language": contentLanguage,
           "Accept": "application/json",
           "Accept-Language": "en-US",
         },
@@ -442,14 +456,14 @@ export async function publishToEbayInventory(
       listingId: null,
       error: offerErr?.message || "Failed to create offer",
       message: `Inventory created, but offer failed: ${offerErr?.message || "Error"}. Use 1-Tap Fast-List to publish.`,
-      listingUrl: `https://${apiHost === "api.ebay.com" ? "www" : "sandbox"}.ebay.com.au/sh/lst/drafts`,
+      listingUrl: `https://${apiHost === "api.ebay.com" ? "www" : "sandbox"}.${ebayDomain}/sh/lst/drafts`,
     };
   }
 
   const isProduction = apiHost === "api.ebay.com";
   const listingUrl = isLive && listingId
-    ? `https://${isProduction ? "www" : "sandbox"}.ebay.com.au/itm/${listingId}`
-    : `https://${isProduction ? "www" : "sandbox"}.ebay.com.au/sh/lst/drafts`;
+    ? `https://${isProduction ? "www" : "sandbox"}.${ebayDomain}/itm/${listingId}`
+    : `https://${isProduction ? "www" : "sandbox"}.${ebayDomain}/sh/lst/drafts`;
 
   return {
     success: true,
@@ -460,7 +474,7 @@ export async function publishToEbayInventory(
     environment: isProduction ? "production" : "sandbox",
     listingUrl,
     message: isLive
-      ? "Listing is LIVE on eBay AU!"
-      : "Draft saved in your eBay Seller Hub! Review shipping details to activate.",
+      ? `Listing is LIVE on eBay (${currencyCode})!`
+      : `Draft saved in your eBay Seller Hub (${currencyCode})! Review shipping details to activate.`,
   };
 }
