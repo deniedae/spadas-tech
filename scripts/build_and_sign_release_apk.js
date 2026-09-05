@@ -2,7 +2,9 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
-const javaExe = '"C:\\Program Files\\Java\\jre1.8.0_491\\bin\\java.exe"';
+const javaExe = fs.existsSync('C:\\Program Files\\Eclipse Adoptium\\jdk-17.0.20.101-hotspot\\bin\\java.exe')
+  ? '"C:\\Program Files\\Eclipse Adoptium\\jdk-17.0.20.101-hotspot\\bin\\java.exe"'
+  : (fs.existsSync('C:\\Program Files\\Java\\jre1.8.0_491\\bin\\java.exe') ? '"C:\\Program Files\\Java\\jre1.8.0_491\\bin\\java.exe"' : 'java');
 const jarPath = path.join(__dirname, 'uber-apk-signer.jar');
 const ksPath = path.join(__dirname, 'spadas-release.keystore');
 const publicApk = path.join(__dirname, '..', 'public', 'spadas-ai.apk');
