@@ -65,8 +65,10 @@ PERFORM THOROUGH VISUAL IDENTIFICATION & SECONDARY MARKET RESEARCH:
 - "market_titles.ebay": Max 80 characters. High-SEO keyword density format: [Brand] [Model/Style] [Key Color/Material] [Size/Edition] [Condition]. NO punctuation clutter, no fake emojis.
 - "market_titles.facebook_marketplace": Clean, friendly local title (e.g. "Prada Saffiano Leather Bifold Wallet - Great Condition").
 - "market_titles.depop": Trendy lowercase style with 3-4 viral hashtags (e.g. "prada saffiano leather triangle logo bifold wallet #prada #luxury #designer #vintage").
-- "seo_description": 1 concise SEO summary paragraph for search engines.
-- "detailed_description": 3 professional, human-sounding paragraphs (1: Overview & specs, 2: Honest condition & flaws, 3: Shipping & tracking notice). Plain text only, NO robotic buzzwords.
+- "seo_description" & "detailed_description": You are a professional, high-volume eBay seller. Output a clean, buyer-facing description starting with one brief introductory sentence, followed by 3 to 4 bullet points covering Brand, Model, Material/Color, and exact Condition:
+  • STRICT RULE 1 (CONDITION IS KING): Never state an item is 'brand new' unless explicitly marked as 'New'. If data suggests liquidation, faulty, or untested, state 'Condition: Untested/Faulty - Please review all photos' immediately in the first line.
+  • STRICT RULE 2 (FILTER SENSITIVE DATA): Completely remove any internal analytics from the output. Do NOT include 'ROI', 'True Net Profit', 'Cost', 'Sourced via', 'Spadas Lens', or thrift buy costs.
+  • STRICT RULE 3 (NO FLUFF): Zero generic AI marketing buzzwords ('Elevate', 'Exquisite', 'Must-have'). Keep strictly factual. Plain text only.
 
 Return ONLY a valid JSON object matching this structure (no markdown formatting, no code block backticks):
 {

@@ -64,7 +64,7 @@ export default function EbayListingModal({
   const [inputCondition, setInputCondition] = useState(initialCondition);
   const [inputDescription, setInputDescription] = useState(
     initialDescription ||
-      `Authentic ${initialBrand} ${initialTitle}. Clean pre-owned condition, tested & working.`
+      `Authentic ${initialBrand} ${initialTitle}.\n\n• Brand: ${initialBrand}\n• Model: ${initialTitle}\n• Material/Color: Standard finish\n• Condition: ${initialCondition}. Tested and operating as intended.\n\nPlease review all photos for exact details.`
   );
 
   useEffect(() => {
@@ -84,7 +84,9 @@ export default function EbayListingModal({
       setInputCondition(initialCondition || "Used - Good");
       setInputDescription(
         initialDescription ||
-          (initialTitle ? `Authentic ${initialBrand} ${initialTitle}. Clean pre-owned condition, tested & working.` : "")
+          (initialTitle
+            ? `Authentic ${initialBrand} ${initialTitle}.\n\n• Brand: ${initialBrand}\n• Model: ${initialTitle}\n• Material/Color: Standard finish\n• Condition: ${initialCondition || "Used - Good"}. Tested and operating as intended.\n\nPlease review all photos for exact details.`
+            : "")
       );
       setError(null);
       setPublishedUrl(null);

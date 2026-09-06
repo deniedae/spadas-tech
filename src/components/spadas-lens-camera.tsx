@@ -3038,7 +3038,10 @@ function SpadasLensCameraCore() {
           price={activeEbayItem.estimatedValue || 25}
           currency={activeEbayItem.currency}
           condition={activeEbayItem.condition || "Used - Good"}
-          description={`Authentic ${activeEbayItem.brand || ""} ${activeEbayItem.productName || activeEbayItem.name || "Scanned Item"}. Clean pre-owned condition, tested & fully functional. Fast dispatch.`}
+          description={
+            activeEbayItem.description ||
+            `Authentic ${activeEbayItem.brand || ""} ${activeEbayItem.productName || activeEbayItem.name || "Scanned Item"} in clean condition.\n\n• Brand: ${activeEbayItem.brand || "Authentic"}\n• Model: ${activeEbayItem.productName || activeEbayItem.name || "Item"}\n• Material/Color: Standard finish\n• Condition: ${activeEbayItem.condition || "Used - Good"}. Tested and operating as intended.\n\nPlease review all photos for exact details.`
+          }
         />
       )}
 

@@ -347,18 +347,23 @@ ${modePrompt}
   - Price realistically ($3 - $20 AUD for generic goods).
 - If the item is blurry, empty, or genuinely unidentifiable, mark "status": "unidentified" rather than making a wild guess.
 
-2. PROFESSIONAL RESELLER COPYWRITING (MUST SOUND 100% HUMAN):
-- "market_titles.ebay": Max 80 characters. Use high-converting reseller structure:
+2. PROFESSIONAL HIGH-VOLUME EBAY SELLER COPYWRITING (STRICT EDITORIAL FILTER):
+- "market_titles.ebay": Max 80 characters. High-converting reseller structure:
   Format: [Brand] [Model/Style] [Key Color/Material] [Size/Attribute] [Condition]
   Example: "Prada Saffiano Leather Triangle Logo Bifold Wallet Black Authentic"
   NEVER repeat words. NO punctuation clutter, no fake emojis.
-- "market_titles.facebook_marketplace": Clean, friendly, and local-buyer readable (e.g. "Prada Saffiano Leather Bifold Wallet - Great Condition").
-- "market_titles.depop": Trendy lowercase aesthetic with 3-4 relevant hashtags (e.g. "prada saffiano leather triangle logo bifold wallet #prada #luxury #designer").
-- "seo_description" & "detailed_description": Write a concise, professional 2-3 paragraph listing description written by an experienced human seller:
-  - Paragraph 1: Overview of the item, brand, silhouette, and primary features.
-  - Paragraph 2: Honest condition report (noting any visible wear, scuffs, or clean pre-owned status).
-  - Paragraph 3: Fast shipping and careful packaging notice.
-  - Plain clean text only. NO robotic buzzwords ("Introducing the ultimate...", "Look no further...").`,
+- "market_titles.facebook_marketplace": Clean, friendly, and local-buyer readable.
+- "market_titles.depop": Trendy lowercase aesthetic with 3-4 relevant hashtags.
+- "seo_description" & "detailed_description": You are a professional, high-volume eBay seller. Write a short, punchy, buyer-facing product description based on the provided raw data adhering strictly to these rules:
+  • STRICT RULE 1 (CONDITION IS KING): Never state an item is 'brand new' unless it is explicitly marked as 'New' (sealed/with tags). If the data suggests the item is from liquidation, faulty, or untested, state 'Condition: Untested/Faulty - Please review all photos' immediately in the first line.
+  • STRICT RULE 2 (FILTER SENSITIVE DATA): You MUST completely remove any internal analytics from the final output. Do NOT include 'ROI', 'True Net Profit', 'Cost', 'Sourced via', 'Spadas Lens', or thrift store buy costs.
+  • STRICT RULE 3 (NO FLUFF): Do not use generic AI marketing buzzwords like 'Elevate', 'Exquisite', or 'Must-have'. Keep it strictly factual.
+  • FORMAT INSTRUCTIONS: Output a clean, buyer-facing description starting with one brief introductory sentence, followed by 3 to 4 bullet points covering:
+    - Brand: [Exact Brand]
+    - Model: [Model / Style Name or Code]
+    - Material / Color: [Material and/or Colorway]
+    - Condition: [Exact honest Condition, operational status, or callout]
+  Plain clean text only.`,
                   },
                   ...imageContent,
                 ],
@@ -433,8 +438,8 @@ ${modePrompt}
           vinted: `${fallbackAppraisal.productName} - Great Condition`,
           depop: `${fallbackAppraisal.productName.toLowerCase()} #vintage #resale #thrift`,
         },
-        seo_description: `Authentic ${fallbackAppraisal.productName} sourced in great condition. Checked and verified for immediate resale.`,
-        detailed_description: `Authentic ${fallbackAppraisal.productName}. Pre-owned in good condition with minor natural wear. Ships carefully packaged with tracking.`,
+        seo_description: `Authentic ${fallbackAppraisal.brand || ""} ${fallbackAppraisal.productName} in clean condition.\n\n• Brand: ${fallbackAppraisal.brand || "Authentic"}\n• Model: ${fallbackAppraisal.productName}\n• Material/Color: Standard finish\n• Condition: Pre-owned - Good. Tested and functional.`,
+        detailed_description: `Authentic ${fallbackAppraisal.brand || ""} ${fallbackAppraisal.productName} in clean condition.\n\n• Brand: ${fallbackAppraisal.brand || "Authentic"}\n• Model: ${fallbackAppraisal.productName}\n• Material/Color: Standard finish\n• Condition: Pre-owned - Good. Tested, inspected, and operating as intended.\n\nPlease review all photos for exact condition details.`,
         detected_tag_price: fallbackAppraisal.tagPrice,
         true_net_profit: fallbackAppraisal.trueNetProfit,
         roi_percentage: fallbackAppraisal.roiPercentage,
