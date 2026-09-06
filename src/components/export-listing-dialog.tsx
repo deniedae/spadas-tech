@@ -195,10 +195,11 @@ export default function ExportListingDialog({
       <DialogTrigger>
         <button
           type="button"
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs border border-slate-700 transition cursor-pointer"
+          className="inline-flex items-center gap-1 px-2 py-1 rounded bg-[#12151E] hover:bg-[#1A1F2C] text-zinc-300 hover:text-white text-[10px] font-mono font-bold border border-zinc-700/80 hover:border-cyan-500/40 transition cursor-pointer active:scale-95 shadow-sm"
+          title={`Cross-list ${listing.product}`}
         >
-          <Share2 className="h-3.5 w-3.5 text-cyan-400" />
-          <span>Cross-List</span>
+          <Share2 className="w-2.5 h-2.5 text-cyan-400" />
+          <span>CROSS-LIST</span>
         </button>
       </DialogTrigger>
 
