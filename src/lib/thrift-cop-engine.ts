@@ -4,7 +4,7 @@
  * platform fee deductions, and algorithmic BUY / PASS / MUST COP recommendations.
  */
 
-import { calculateSalesVelocity, SalesVelocityProfile } from "./turnover-velocity-engine";
+import { calculateSalesVelocity, type SalesVelocityProfile } from "./turnover-velocity-engine";
 
 export interface ThriftPricingEstimate {
   estimatedResalePrice: number;
