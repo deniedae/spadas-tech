@@ -20,37 +20,38 @@ export default function DashboardCards({
   inventoryValue,
 }: Props) {
   return (
-    <div className="grid grid-cols-2 gap-3 sm:gap-6 md:grid-cols-2 xl:grid-cols-4">
+    <div className="grid grid-cols-2 gap-2.5 sm:gap-3.5 md:grid-cols-2 xl:grid-cols-4">
       <Card
-        title="Total Listings"
+        title="Total Units"
         value={totalListings}
-        subtitle="Items in inventory"
-        icon={<Package className="h-5 w-5 sm:h-7 sm:w-7 text-blue-600" />}
-        iconBg="bg-gradient-to-tr from-blue-200 to-blue-100"
+        subtitle="Catalog inventory"
+        icon={<Package className="h-4 w-4 text-[#F97316]" />}
+        iconBg="bg-[#161922] border border-zinc-800"
       />
 
       <Card
-        title="Total Profit"
+        title="Realized Profit"
         value={fmtMoney(totalProfit)}
-        subtitle="Profit from sales"
-        icon={<TrendingUp className="h-5 w-5 sm:h-7 sm:w-7 text-green-600" />}
-        iconBg="bg-gradient-to-tr from-green-200 to-green-100"
+        subtitle="Net after fees"
+        valueColor="text-[#22C55E]"
+        icon={<TrendingUp className="h-4 w-4 text-[#22C55E]" />}
+        iconBg="bg-[#22C55E]/10 border border-[#22C55E]/30"
       />
 
       <Card
-        title="Inventory Value"
+        title="Inventory Worth"
         value={fmtMoney(inventoryValue)}
-        subtitle="Inventory worth"
-        icon={<DollarSign className="h-5 w-5 sm:h-7 sm:w-7 text-amber-600" />}
-        iconBg="bg-gradient-to-tr from-amber-200 to-amber-100"
+        subtitle="Current valuation"
+        icon={<DollarSign className="h-4 w-4 text-[#F97316]" />}
+        iconBg="bg-[#161922] border border-zinc-800"
       />
 
       <Card
-        title="Sold Listings"
+        title="Units Dispatched"
         value={soldListings}
-        subtitle="Completed sales"
-        icon={<ShoppingCart className="h-5 w-5 sm:h-7 sm:w-7 text-purple-600" />}
-        iconBg="bg-gradient-to-tr from-purple-200 to-purple-100"
+        subtitle="Settled sales"
+        icon={<ShoppingCart className="h-4 w-4 text-[#22C55E]" />}
+        iconBg="bg-[#161922] border border-zinc-800"
       />
     </div>
   );
@@ -62,30 +63,32 @@ function Card({
   subtitle,
   icon,
   iconBg,
+  valueColor = "text-zinc-100",
 }: {
   title: string;
   value: string | number;
   subtitle: string;
   icon: React.ReactNode;
   iconBg: string;
+  valueColor?: string;
 }) {
   return (
     <div
       tabIndex={0}
       role="region"
       aria-label={`${title}: ${value}`}
-      className="group rounded-2xl border border-gray-200 bg-white p-4 sm:p-6 shadow-sm transition-transform duration-300 hover:-translate-y-1 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+      className="specimen-card bg-[#0E1118] border border-zinc-800 p-3 sm:p-4 rounded-lg relative overflow-hidden focus:outline-none focus:border-[#F97316] transition-colors"
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <p className="text-xs sm:text-base font-semibold text-gray-600 truncate">{title}</p>
-          <h2 className="mt-1 sm:mt-3 text-xl sm:text-4xl font-extrabold text-gray-900 tabular-nums truncate">
+          <p className="font-mono text-[10px] uppercase font-bold text-zinc-400 truncate tracking-wider">{title}</p>
+          <h2 className={`mt-1 sm:mt-2 text-xl sm:text-2xl font-mono font-black tabular-nums tracking-tight data-readout truncate ${valueColor}`}>
             {value}
           </h2>
-          <p className="mt-1 text-[11px] sm:text-sm text-gray-400 truncate">{subtitle}</p>
+          <p className="mt-0.5 font-mono text-[10px] text-zinc-500 truncate">{subtitle}</p>
         </div>
         <div
-          className={`${iconBg} rounded-xl p-2.5 sm:p-4 flex items-center justify-center shadow-md flex-shrink-0`}
+          className={`${iconBg} rounded-md p-1.5 sm:p-2 flex items-center justify-center shrink-0`}
           aria-hidden="true"
         >
           {icon}
