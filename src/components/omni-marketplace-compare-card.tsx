@@ -23,6 +23,7 @@ interface Props {
   estimatedPrice: number;
   costOfGoods?: number;
   currency?: SupportedCurrency;
+  onCurrencyChange?: (currency: SupportedCurrency) => void;
   onClose?: () => void;
   compact?: boolean;
 }
@@ -33,19 +34,23 @@ export function OmniMarketplaceCompareCard({
   estimatedPrice,
   costOfGoods = 0,
   currency,
+  onCurrencyChange,
   onClose,
   compact = false,
 }: Props) {
-  // Use passed currency or saved localStorage currency or fallback to AUD
-  const activeCurrency: SupportedCurrency = useMemo(() => {
+  const [currentCurrency, setCurrentCurrency] = React.useState<SupportedCurrency>(() => {
     if (currency) return currency;
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("spadas_selected_currency");
       if (saved && (saved === "AUD" || saved === "USD" || saved === "GBP" || saved === "EUR")) {
-        return saved;
+        return saved as SupportedCurrency;
       }
     }
-    return detectGeoCurrency().currency;
+    return "AUD";
+  });
+
+  React.useEffect(() => {
+    if (currency) setCurrentCurrency(currency);
   }, [currency]);
 
   const compsData = useMemo(() => {
@@ -53,16 +58,17 @@ export function OmniMarketplaceCompareCard({
       productName,
       brand,
       basePrice: estimatedPrice,
-      currency: activeCurrency,
+      baseCurrency: currency || "AUD",
+      currency: currentCurrency,
       customCost: costOfGoods,
     });
-  }, [productName, brand, estimatedPrice, costOfGoods, activeCurrency]);
+  }, [productName, brand, estimatedPrice, costOfGoods, currency, currentCurrency]);
 
   const { currencySymbol, marketplaces, bestPlatform, spread } = compsData;
 
   const googleShopUrl = useMemo(() => {
-    return buildMarketplaceCompUrl("google_shopping", `${brand || ""} ${productName}`, activeCurrency);
-  }, [brand, productName, activeCurrency]);
+    return buildMarketplaceCompUrl("google_shopping", `${brand || ""} ${productName}`, currentCurrency);
+  }, [brand, productName, currentCurrency]);
 
   return (
     <div className="w-full bg-slate-900/95 border border-slate-800 backdrop-blur-xl rounded-2xl p-4 sm:p-5 text-slate-100 shadow-2xl relative overflow-hidden">
@@ -71,7 +77,7 @@ export function OmniMarketplaceCompareCard({
       <div className="absolute bottom-0 left-0 -mb-8 -ml-8 w-40 h-40 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
 
       {/* Header */}
-      <div className="flex items-start justify-between gap-3 border-b border-slate-800 pb-3.5 mb-4 relative z-10">
+      <div className="flex flex-wrap items-center justify-between gap-2.5 border-b border-slate-800 pb-3.5 mb-4 relative z-10">
         <div>
           <div className="flex items-center gap-2">
             <div className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
@@ -84,20 +90,55 @@ export function OmniMarketplaceCompareCard({
               </span>
             </h3>
           </div>
-          <p className="text-xs text-slate-400 mt-1 line-clamp-1 font-medium">
+          <p className="text-xs text-slate-400 mt-0.5 line-clamp-1 font-medium">
             {brand ? `${brand} · ` : ""}
             {productName}
           </p>
         </div>
 
-        {onClose && (
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition"
-          >
-            ✕
-          </button>
-        )}
+        {/* Currency Switcher Pills */}
+        <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-0.5 bg-slate-950/80 border border-slate-800 p-0.5 rounded-xl">
+            {(["AUD", "USD", "GBP"] as const).map((curr) => {
+              const isSelected = currentCurrency === curr;
+              return (
+                <button
+                  key={curr}
+                  type="button"
+                  onClick={() => {
+                    setCurrentCurrency(curr);
+                    if (typeof window !== "undefined") {
+                      try {
+                        localStorage.setItem("spadas_selected_currency", curr);
+                      } catch {}
+                    }
+                    if (onCurrencyChange) {
+                      onCurrencyChange(curr);
+                    }
+                  }}
+                  className={`px-2 py-1 rounded-lg text-[10px] font-black transition cursor-pointer flex items-center gap-1 ${
+                    isSelected
+                      ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 shadow-sm"
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                  title={`View comps in ${curr}`}
+                >
+                  <span>{curr === "AUD" ? "🇦🇺" : curr === "USD" ? "🇺🇸" : "🇬🇧"}</span>
+                  <span>{curr}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 transition cursor-pointer"
+            >
+              ✕
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Highlight Best Margin Banner */}

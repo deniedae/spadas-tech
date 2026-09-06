@@ -9,6 +9,7 @@ import { createListing } from "@/app/lib/createlisting";
 import { syncProfitToAndroidWidget, triggerTactileHaptic } from "@/lib/android-bridge";
 import { OmniMarketplaceCompareCard } from "@/components/omni-marketplace-compare-card";
 import { generateEbayPrefillUrl } from "@/app/lib/marketplaces/ebay-prefill";
+import { convertCurrency, CURRENCY_CONFIGS, SupportedCurrency } from "@/app/lib/currency-routing";
 
 export interface SpadasListingData {
   productName: string;
@@ -42,6 +43,33 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
   const [isSaving, setIsSaving] = useState(false);
   const [editingField, setEditingField] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
+
+  const handleCurrencyChange = (newCurrency: SupportedCurrency) => {
+    const currentCurr = ((data.currency || "AUD").toUpperCase()) as SupportedCurrency;
+    if (newCurrency === currentCurr) return;
+
+    const newMedian = Number(convertCurrency(data.priceMedian, currentCurr, newCurrency).toFixed(2));
+    const newMin = Number(convertCurrency(data.priceMin, currentCurr, newCurrency).toFixed(2));
+    const newMax = Number(convertCurrency(data.priceMax, currentCurr, newCurrency).toFixed(2));
+    const newBuyCost = data.buyCost ? Number(convertCurrency(data.buyCost, currentCurr, newCurrency).toFixed(2)) : undefined;
+
+    setData((prev) => ({
+      ...prev,
+      currency: newCurrency,
+      priceMedian: newMedian,
+      priceMin: newMin,
+      priceMax: newMax,
+      buyCost: newBuyCost,
+    }));
+
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("spadas_selected_currency", newCurrency);
+      } catch {}
+    }
+    const symbol = CURRENCY_CONFIGS[newCurrency]?.symbol || "$";
+    toast.success(`Switched to ${newCurrency} (${symbol}) · Resale price: ${symbol}${newMedian}`);
+  };
 
   const openEditor = (field: keyof SpadasListingData, label: string) => {
     setEditingField(field);
@@ -96,25 +124,29 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
     }
   };
 
+  const activeCurrency = ((data.currency || "AUD").toUpperCase()) as SupportedCurrency;
+  const currConfig = CURRENCY_CONFIGS[activeCurrency] || CURRENCY_CONFIGS.AUD;
+
   const handleCopyCrossList = () => {
-    const formattedText = `🏷️ ${data.productName}\n💰 Price: $${data.priceMedian} AUD\n📏 Size: ${data.size || "One Size"}\n✨ Condition: ${data.condition || "Used - Good"}\n\n${data.description}\n\n📦 Fast dispatch from Australia. Message with any questions!`;
+    const formattedText = `🏷️ ${data.productName}\n💰 Price: ${currConfig.symbol}${data.priceMedian.toFixed(2)} ${activeCurrency}\n📏 Size: ${data.size || "One Size"}\n✨ Condition: ${data.condition || "Used - Good"}\n\n${data.description}\n\n📦 Fast dispatch. Message with any questions!`;
     navigator.clipboard.writeText(formattedText);
     toast.success("📋 Copied formatted listing for Depop & Facebook Marketplace!");
   };
 
   const handleFastListEbay = () => {
     const formattedDesc = `${data.description}\n\nSize: ${data.size || "N/A"}\nCondition: ${data.condition || "Pre-owned"}\nWeight: ${data.weight || "N/A"}\nDimensions: ${data.dimensions || "N/A"}`;
-    const copyPayload = `Title: ${data.productName}\nPrice: $${data.priceMedian} ${data.currency || "AUD"}\nCondition: ${data.condition || "Used - Good"}\nBrand: ${data.brand || "Unbranded"}\n\nDescription:\n${formattedDesc}`;
+    const copyPayload = `Title: ${data.productName}\nPrice: ${currConfig.symbol}${data.priceMedian.toFixed(2)} ${activeCurrency}\nCondition: ${data.condition || "Used - Good"}\nBrand: ${data.brand || "Unbranded"}\n\nDescription:\n${formattedDesc}`;
     navigator.clipboard.writeText(copyPayload);
 
     const prefillUrl = generateEbayPrefillUrl({
       title: data.productName,
       priceAud: data.priceMedian,
-      currency: data.currency,
+      currency: activeCurrency,
       brand: data.brand,
     });
 
-    toast.success(`📋 Listing details copied! Opening ${data.currency === "USD" ? "eBay US" : "eBay AU"}...`, { duration: 4000 });
+    const marketLabel = activeCurrency === "USD" ? "eBay US" : activeCurrency === "GBP" ? "eBay UK" : "eBay AU";
+    toast.success(`📋 Listing details copied! Opening ${marketLabel}...`, { duration: 4000 });
     window.open(prefillUrl, "_blank");
   };
 
@@ -148,7 +180,7 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
           product: data.productName,
           description: `${data.description}\n\nSize: ${data.size || "N/A"}\nCondition: ${data.condition || "Pre-owned"}\nWeight: ${data.weight || "N/A"}\nDimensions: ${data.dimensions || "N/A"}`,
           price: data.priceMedian,
-          currency: data.currency || "AUD",
+          currency: activeCurrency,
           condition: data.condition,
           brand: data.brand,
           imageUrls: data.photos,
@@ -156,22 +188,25 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
       }).catch(() => null);
 
       const pubData = await publishRes?.json().catch(() => null);
+      const marketLabel = activeCurrency === "USD" ? "eBay US" : activeCurrency === "GBP" ? "eBay UK" : "eBay AU";
+      const draftsUrl = activeCurrency === "USD" ? "https://www.ebay.com/sh/lst/drafts" : activeCurrency === "GBP" ? "https://www.ebay.co.uk/sh/lst/drafts" : "https://www.ebay.com.au/sh/lst/drafts";
+
       if (pubData?.isDemoMode) {
         toast.success(`🚀 ${pubData.message}`);
       } else if (publishRes?.ok && pubData?.success) {
         if (pubData.isLive) {
-          toast.success(`🚀 Live on eBay (${data.currency || "AUD"})! Listing published successfully.`);
+          toast.success(`🚀 Live on ${marketLabel} (${activeCurrency})! Listing published successfully.`);
         } else {
-          toast.success(`📋 Draft saved in your eBay Seller Hub (${data.currency || "AUD"})! Review shipping to activate.`, {
+          toast.success(`📋 Draft saved in your ${marketLabel} Seller Hub (${activeCurrency})! Review shipping to activate.`, {
             duration: 6000,
             action: {
               label: "Open Seller Hub",
-              onClick: () => window.open(pubData.listingUrl || (data.currency === "USD" ? "https://www.ebay.com/sh/lst/drafts" : "https://www.ebay.com.au/sh/lst/drafts"), "_blank"),
+              onClick: () => window.open(pubData.listingUrl || draftsUrl, "_blank"),
             },
           });
         }
       } else {
-        const errorMsg = pubData?.error || "Direct eBay sync failed. Opening 1-Tap Fast-List...";
+        const errorMsg = pubData?.error || `Direct eBay sync failed. Opening 1-Tap Fast-List for ${marketLabel}...`;
         toast.error(errorMsg, { duration: 5000 });
         handleFastListEbay();
       }
@@ -234,8 +269,10 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
 
         {/* Resale Price Card with Transparent Profit Math */}
         {(() => {
+          const sym = currConfig.symbol;
           const currentBuyCost = data.buyCost || Math.max(3, Math.round(data.priceMedian * 0.15));
-          const currentEbayFee = (data.priceMedian * 0.134) + 0.33;
+          const fixedFee = activeCurrency === "GBP" ? 0.25 : activeCurrency === "USD" ? 0.30 : 0.33;
+          const currentEbayFee = (data.priceMedian * 0.134) + fixedFee;
           const currentNetProfit = Math.max(0, data.priceMedian - currentBuyCost - currentEbayFee);
           const currentRoi = currentBuyCost > 0 ? Math.round((currentNetProfit / currentBuyCost) * 100) : 0;
 
@@ -246,6 +283,35 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
                   <span className="text-xs font-black uppercase tracking-wider text-cyan-300">
                     💰 Suggested Resale Price
                   </span>
+                </div>
+                {/* Direct Currency Switcher Pills in Suggested Resale Price Card */}
+                <div className="flex items-center gap-1 bg-slate-950/80 border border-slate-800 p-0.5 rounded-xl">
+                  {(["AUD", "USD", "GBP"] as const).map((currCode) => {
+                    const isSelected = activeCurrency === currCode;
+                    return (
+                      <button
+                        key={currCode}
+                        type="button"
+                        onClick={() => handleCurrencyChange(currCode)}
+                        className={`px-2 py-0.5 rounded-lg text-[10px] font-black transition cursor-pointer flex items-center gap-1 ${
+                          isSelected
+                            ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 shadow-sm"
+                            : "text-slate-400 hover:text-white"
+                        }`}
+                        title={`View comps in ${currCode}`}
+                      >
+                        <span>{currCode === "AUD" ? "🇦🇺" : currCode === "USD" ? "🇺🇸" : "🇬🇧"}</span>
+                        <span>{currCode}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-3xl font-black text-white">{sym}{data.priceMedian.toFixed(2)}</span>
+                  <span className="text-xs text-slate-400 font-bold">{activeCurrency}</span>
                 </div>
                 <div className="flex items-center gap-1">
                   {data.copVerdict && (
@@ -260,33 +326,27 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
                     </span>
                   )}
                   <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full text-[10px] font-black">
-                    +${currentNetProfit.toFixed(2)} AUD Profit
+                    +{sym}{currentNetProfit.toFixed(2)} {activeCurrency} Profit
                   </span>
                 </div>
               </div>
 
-              <div className="flex items-baseline justify-between">
-                <div>
-                  <span className="text-3xl font-black text-white">${data.priceMedian.toFixed(2)}</span>
-                  <span className="text-xs text-slate-400 font-bold ml-1.5">{data.currency}</span>
-                </div>
-                <div className="text-right">
-                  <span className="text-[11px] text-slate-400 block font-semibold">
-                    Range: ${data.priceMin.toFixed(0)} - ${data.priceMax.toFixed(0)} {data.currency}
-                  </span>
-                </div>
+              <div className="text-right">
+                <span className="text-[11px] text-slate-400 block font-semibold">
+                  Range: {sym}{data.priceMin.toFixed(0)} - {sym}{data.priceMax.toFixed(0)} {activeCurrency}
+                </span>
               </div>
 
               {/* Transparent Profit Math */}
               <div className="flex items-center gap-2 pt-1 border-t border-slate-800/80 text-xs font-bold text-slate-300 flex-wrap">
                 <span className="bg-cyan-500/10 text-cyan-300 px-2 py-0.5 rounded border border-cyan-500/20">
-                  Sell: ${data.priceMedian.toFixed(2)}
+                  Sell: {sym}{data.priceMedian.toFixed(2)}
                 </span>
                 <span className="bg-amber-500/10 text-amber-300 px-2 py-0.5 rounded border border-amber-500/30">
-                  {data.buyCost ? "🏷️ Tag Buy: " : "Est Buy: "}${currentBuyCost.toFixed(2)}
+                  {data.buyCost ? "🏷️ Tag Buy: " : "Est Buy: "}{sym}{currentBuyCost.toFixed(2)}
                 </span>
                 <span className="bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded border border-emerald-500/30">
-                  Net Profit: +${currentNetProfit.toFixed(2)} ({currentRoi}% ROI)
+                  Net Profit: +{sym}{currentNetProfit.toFixed(2)} ({currentRoi}% ROI)
                 </span>
               </div>
 
@@ -294,25 +354,30 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
               <div className="grid grid-cols-3 gap-2 pt-1">
                 <button
                   type="button"
-                  onClick={() => setData(prev => ({ ...prev, priceMedian: Math.max(10, Math.round(prev.priceMin || prev.priceMedian * 0.85)) }))}
+                  onClick={() => setData(prev => ({ ...prev, priceMedian: Math.max(5, Math.round(prev.priceMin || prev.priceMedian * 0.85)) }))}
                   className={`py-2 px-2 rounded-xl text-[10px] font-black border transition cursor-pointer ${
                     data.priceMedian <= data.priceMin
                       ? "bg-amber-400 text-slate-950 border-amber-300 shadow-md"
                       : "bg-slate-800/90 text-slate-300 border-slate-700 hover:text-white"
                   }`}
                 >
-                  ⚡ Fast Flip (${Math.max(10, Math.round(data.priceMin || data.priceMedian * 0.85))})
+                  ⚡ Fast Flip ({sym}{Math.max(5, Math.round(data.priceMin || data.priceMedian * 0.85))})
                 </button>
                 <button
                   type="button"
-                  onClick={() => setData(prev => ({ ...prev, priceMedian: initialData.priceMedian }))}
+                  onClick={() => {
+                    const origBase = initialData.priceMedian;
+                    const origCurr = ((initialData.currency || "AUD").toUpperCase()) as SupportedCurrency;
+                    const convertedMedian = convertCurrency(origBase, origCurr, activeCurrency);
+                    setData(prev => ({ ...prev, priceMedian: Number(convertedMedian.toFixed(2)) }));
+                  }}
                   className={`py-2 px-2 rounded-xl text-[10px] font-black border transition cursor-pointer ${
-                    data.priceMedian === initialData.priceMedian
+                    Math.abs(data.priceMedian - convertCurrency(initialData.priceMedian, ((initialData.currency || "AUD").toUpperCase()) as SupportedCurrency, activeCurrency)) < 0.5
                       ? "bg-cyan-500 text-slate-950 border-cyan-400 shadow-md"
                       : "bg-slate-800/90 text-slate-300 border-slate-700 hover:text-white"
                   }`}
                 >
-                  🎯 Median (${initialData.priceMedian.toFixed(0)})
+                  🎯 Median ({sym}{convertCurrency(initialData.priceMedian, ((initialData.currency || "AUD").toUpperCase()) as SupportedCurrency, activeCurrency).toFixed(0)})
                 </button>
                 <button
                   type="button"
@@ -323,7 +388,7 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
                       : "bg-slate-800/90 text-slate-300 border-slate-700 hover:text-white"
                   }`}
                 >
-                  👑 Top Dollar (${Math.round(data.priceMax || data.priceMedian * 1.2)})
+                  👑 Top Dollar ({sym}{Math.round(data.priceMax || data.priceMedian * 1.2)})
                 </button>
               </div>
             </div>
@@ -336,7 +401,8 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
           brand={data.brand}
           estimatedPrice={data.priceMedian}
           costOfGoods={data.buyCost}
-          currency={data.currency as any}
+          currency={activeCurrency}
+          onCurrencyChange={handleCurrencyChange}
         />
 
         {/* Size Card */}
@@ -409,11 +475,11 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
           <div className="flex items-center gap-1.5">
             <span>Estimated earning:</span>
             <span className="text-emerald-400 font-black text-sm">
-              +${(data.priceMedian - Math.max(3, Math.round(data.priceMedian * 0.35))).toFixed(2)} {data.currency}
+              +{currConfig.symbol}{(data.priceMedian - Math.max(3, Math.round(data.priceMedian * 0.35))).toFixed(2)} {activeCurrency}
             </span>
           </div>
           <span className="text-white font-extrabold text-xs">
-            List Price: ${data.priceMedian.toFixed(2)}
+            List Price: {currConfig.symbol}{data.priceMedian.toFixed(2)}
           </span>
         </div>
 

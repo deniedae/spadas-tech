@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { supabase } from "@/app/lib/supabase";
 import { createListing } from "@/app/lib/createlisting";
 import { generateEbayPrefillUrl } from "@/app/lib/marketplaces/ebay-prefill";
+import { convertCurrency, SupportedCurrency } from "@/app/lib/currency-routing";
 
 export const REGION_OPTIONS = [
   { id: "AUD", label: "eBay AU", country: "Australia", flag: "🇦🇺", code: "AUD", symbol: "$", site: "ebay.com.au" },
@@ -78,9 +79,18 @@ export default function EbayListingModal({
           }
         }
       }
-      setSelectedCurrency(initialCurr && ["AUD", "USD", "GBP"].includes(initialCurr) ? initialCurr : "AUD");
+      const targetCurr = (initialCurr && ["AUD", "USD", "GBP"].includes(initialCurr) ? initialCurr : "AUD") as SupportedCurrency;
+      setSelectedCurrency(targetCurr);
       setInputTitle((initialTitle || "").slice(0, 80));
-      setInputPrice(Number(initialPrice) || 25);
+
+      // Accurately convert base price to selected currency
+      const rawPrice = Number(initialPrice) || 25;
+      const baseCurr = (initialCurrency && ["AUD", "USD", "GBP"].includes(initialCurrency.toUpperCase())
+        ? initialCurrency.toUpperCase()
+        : "AUD") as SupportedCurrency;
+      const convertedPrice = convertCurrency(rawPrice, baseCurr, targetCurr);
+      setInputPrice(Number(convertedPrice.toFixed(2)));
+
       setInputCondition(initialCondition || "Used - Good");
       setInputDescription(
         initialDescription ||
@@ -100,11 +110,22 @@ export default function EbayListingModal({
   const activeRegion = REGION_OPTIONS.find((r) => r.id === selectedCurrency) || REGION_OPTIONS[0];
 
   const handleRegionChange = (newCurrency: string) => {
-    setSelectedCurrency(newCurrency);
-    if (typeof window !== "undefined") {
-      try {
-        localStorage.setItem("spadas_selected_currency", newCurrency);
-      } catch {}
+    if (newCurrency !== selectedCurrency) {
+      const currentPriceNum = Number(inputPrice) || 0;
+      if (currentPriceNum > 0) {
+        const converted = convertCurrency(
+          currentPriceNum,
+          selectedCurrency as SupportedCurrency,
+          newCurrency as SupportedCurrency
+        );
+        setInputPrice(Number(converted.toFixed(2)));
+      }
+      setSelectedCurrency(newCurrency);
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem("spadas_selected_currency", newCurrency);
+        } catch {}
+      }
     }
   };
 
@@ -225,18 +246,18 @@ export default function EbayListingModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in">
-      <div className="relative w-full max-w-lg overflow-hidden rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl space-y-5 p-6 text-slate-100 max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-          <div className="flex items-center gap-2 text-cyan-400 font-bold text-base">
-            <ShoppingBag className="w-5 h-5" />
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/85 backdrop-blur-md p-2 sm:p-4 flex min-h-full items-center justify-center overscroll-contain animate-fade-in">
+      <div className="relative w-full max-w-lg rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl flex flex-col max-h-[92dvh] sm:max-h-[88vh] overflow-hidden text-slate-100">
+        {/* Pinned Header */}
+        <div className="shrink-0 flex items-center justify-between border-b border-slate-800 px-4 sm:px-6 py-3.5 sm:py-4 bg-slate-900/95 backdrop-blur">
+          <div className="flex items-center gap-2 text-cyan-400 font-bold text-sm sm:text-base">
+            <ShoppingBag className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
             <span>List Item on {activeRegion.label}</span>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-1 text-slate-400 hover:text-slate-200 rounded-lg hover:bg-slate-800 transition cursor-pointer"
+            className="p-1.5 text-slate-400 hover:text-slate-200 rounded-lg hover:bg-slate-800 transition cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -244,29 +265,31 @@ export default function EbayListingModal({
 
         {publishedUrl ? (
           /* Success Screen */
-          <div className="text-center py-6 space-y-4 animate-fade-in">
-            <div className={`w-14 h-14 ${isLiveListing ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : "bg-cyan-500/20 text-cyan-400 border-cyan-500/30"} rounded-full flex items-center justify-center mx-auto border`}>
-              <CheckCircle2 className="w-8 h-8" />
-            </div>
-            <div className="space-y-1">
-              <h3 className="text-xl font-bold text-slate-100">
-                {isLiveListing
-                  ? `🚀 Live on ${activeRegion.label}!`
-                  : `📋 Draft Saved in ${activeRegion.label} Seller Hub!`}
-              </h3>
-              <p className="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
-                {publishedSku ? (
-                  <span className="font-mono text-cyan-400 block mb-1 text-[11px]">
-                    SKU: {publishedSku}
-                  </span>
-                ) : null}
-                {isLiveListing
-                  ? `Your item has been published live and is now visible to buyers across ${activeRegion.country}.`
-                  : `Your item details, price, and photos are saved in your ${activeRegion.label} Seller Hub account. Open Seller Hub drafts to review and activate it live.`}
-              </p>
+          <div className="flex flex-col flex-1 min-h-0">
+            <div className="flex-1 overflow-y-auto overscroll-contain p-6 space-y-4 text-center">
+              <div className={`w-14 h-14 ${isLiveListing ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : "bg-cyan-500/20 text-cyan-400 border-cyan-500/30"} rounded-full flex items-center justify-center mx-auto border`}>
+                <CheckCircle2 className="w-8 h-8" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-xl font-bold text-slate-100">
+                  {isLiveListing
+                    ? `🚀 Live on ${activeRegion.label}!`
+                    : `📋 Draft Saved in ${activeRegion.label} Seller Hub!`}
+                </h3>
+                <p className="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
+                  {publishedSku ? (
+                    <span className="font-mono text-cyan-400 block mb-1 text-[11px]">
+                      SKU: {publishedSku}
+                    </span>
+                  ) : null}
+                  {isLiveListing
+                    ? `Your item has been published live and is now visible to buyers across ${activeRegion.country}.`
+                    : `Your item details, price, and photos are saved in your ${activeRegion.label} Seller Hub account. Open Seller Hub drafts to review and activate it live.`}
+                </p>
+              </div>
             </div>
 
-            <div className="pt-3 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <div className="shrink-0 p-3.5 sm:p-4 border-t border-slate-800 bg-slate-900/95 backdrop-blur flex flex-col sm:flex-row items-center justify-center gap-3">
               <a
                 href={publishedUrl}
                 target="_blank"
@@ -288,172 +311,178 @@ export default function EbayListingModal({
           </div>
         ) : (
           /* Pre-filled Listing Form */
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Target Marketplace Switcher */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-300 block">
-                Target eBay Marketplace
-              </label>
-              <div className="grid grid-cols-3 gap-2 p-1 bg-slate-950/80 border border-slate-800 rounded-xl">
-                {REGION_OPTIONS.map((region) => {
-                  const isSelected = selectedCurrency === region.id;
-                  return (
-                    <button
-                      key={region.id}
-                      type="button"
-                      onClick={() => handleRegionChange(region.id)}
-                      className={`flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                        isSelected
-                          ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 shadow-md shadow-cyan-500/20"
-                          : "text-slate-400 hover:text-slate-200 hover:bg-slate-900"
-                      }`}
-                    >
-                      <span className="text-sm">{region.flag}</span>
-                      <span className="truncate">{region.id} ({region.symbol})</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Quick 1-Tap Fast-List Option Banner */}
-            <div className="p-3.5 bg-gradient-to-r from-amber-500/10 via-cyan-500/10 to-blue-500/10 border border-amber-500/30 rounded-xl text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-amber-200">
-              <div className="flex items-center gap-2">
-                <Zap className="w-4 h-4 shrink-0 text-amber-400" />
-                <span className="text-slate-200 text-xs">
-                  Zero setup needed: opens official {activeRegion.label} listing form pre-filled.
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={handleFastList}
-                className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-lg text-xs shrink-0 flex items-center justify-center gap-1.5 transition cursor-pointer shadow-md shadow-amber-500/20 active:scale-95"
-              >
-                <Zap className="w-3.5 h-3.5" />
-                <span>⚡ 1-Tap Fast-List ({activeRegion.id})</span>
-              </button>
-            </div>
-
-            {error && (
-              <div className="p-3.5 bg-rose-500/10 border border-rose-500/30 rounded-xl text-xs space-y-2">
-                <div className="flex items-center gap-2 text-rose-300 font-bold">
-                  <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
-                  <span>{error}</span>
-                </div>
-                <div className="flex flex-wrap gap-2 pt-1">
-                  <button
-                    type="button"
-                    onClick={handleFastList}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-lg text-xs transition cursor-pointer"
-                  >
-                    <Zap className="w-3.5 h-3.5" />
-                    <span>Open in 1-Tap Fast-List ({activeRegion.id})</span>
-                  </button>
-                  <a
-                    href="/api/auth/ebay/connect?prompt=login"
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-cyan-300 font-bold rounded-lg text-xs transition cursor-pointer border border-cyan-500/30"
-                  >
-                    <Link2 className="w-3.5 h-3.5" />
-                    <span>Connect eBay Account</span>
-                  </a>
-                </div>
-              </div>
-            )}
-
-            {/* eBay Title */}
-            <div className="space-y-1">
-              <div className="flex items-center justify-between text-xs font-semibold text-slate-300">
-                <label htmlFor="ebay-title">eBay Item Title (Max 80 Chars)</label>
-                <span
-                  className={`text-[11px] font-mono ${
-                    inputTitle.length > 80 ? "text-rose-400 font-bold" : "text-slate-500"
-                  }`}
-                >
-                  {inputTitle.length}/80
-                </span>
-              </div>
-              <input
-                id="ebay-title"
-                type="text"
-                maxLength={80}
-                value={inputTitle}
-                onChange={(e) => setInputTitle(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-100 focus:outline-none focus:border-cyan-500 font-medium"
-                required
-              />
-            </div>
-
-            {/* Price & Condition */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <label htmlFor="ebay-price" className="text-xs font-semibold text-slate-300 block">
-                  Buy It Now ({activeRegion.code})
+          <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+            {/* Scrollable Form Body */}
+            <div className="flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6 space-y-4 touch-pan-y">
+              {/* Target Marketplace Switcher */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-300 block">
+                  Target eBay Marketplace
                 </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-2 text-xs font-bold text-slate-400">
-                    {activeRegion.symbol}
+                <div className="grid grid-cols-3 gap-2 p-1 bg-slate-950/80 border border-slate-800 rounded-xl">
+                  {REGION_OPTIONS.map((region) => {
+                    const isSelected = selectedCurrency === region.id;
+                    return (
+                      <button
+                        key={region.id}
+                        type="button"
+                        onClick={() => handleRegionChange(region.id)}
+                        className={`flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                          isSelected
+                            ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 shadow-md shadow-cyan-500/20"
+                            : "text-slate-400 hover:text-slate-200 hover:bg-slate-900"
+                        }`}
+                      >
+                        <span className="text-sm">{region.flag}</span>
+                        <span className="truncate">{region.id} ({region.symbol})</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Quick 1-Tap Fast-List Option Banner */}
+              <div className="p-3.5 bg-gradient-to-r from-amber-500/10 via-cyan-500/10 to-blue-500/10 border border-amber-500/30 rounded-xl text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-amber-200">
+                <div className="flex items-center gap-2">
+                  <Zap className="w-4 h-4 shrink-0 text-amber-400" />
+                  <span className="text-slate-200 text-xs">
+                    Zero setup needed: opens official {activeRegion.label} listing form pre-filled in {activeRegion.code}.
                   </span>
-                  <input
-                    id="ebay-price"
-                    type="number"
-                    step="0.01"
-                    min="1"
-                    value={inputPrice}
-                    onChange={(e) => setInputPrice(Number(e.target.value))}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-7 pr-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-cyan-500 font-bold"
-                    required
-                  />
                 </div>
-              </div>
-
-              <div className="space-y-1">
-                <label
-                  htmlFor="ebay-condition"
-                  className="text-xs font-semibold text-slate-300 block"
-                >
-                  Condition
-                </label>
-                <select
-                  id="ebay-condition"
-                  value={inputCondition}
-                  onChange={(e) => setInputCondition(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-cyan-500 font-medium"
-                >
-                  <option value="Used - Good">Used - Good</option>
-                  <option value="Pre-owned - Excellent">Pre-owned - Excellent</option>
-                  <option value="Brand New">Brand New</option>
-                  <option value="For Parts / Repair">For Parts / Repair</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Description */}
-            <div className="space-y-1">
-              <div className="flex items-center justify-between text-xs font-semibold text-slate-300">
-                <label htmlFor="ebay-description">Item Description</label>
                 <button
                   type="button"
-                  onClick={() => {
-                    navigator.clipboard.writeText(inputDescription);
-                    toast.success("Description copied to clipboard!");
-                  }}
-                  className="text-[11px] text-cyan-400 hover:text-cyan-300 flex items-center gap-1 cursor-pointer font-normal"
+                  onClick={handleFastList}
+                  className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-lg text-xs shrink-0 flex items-center justify-center gap-1.5 transition cursor-pointer shadow-md shadow-amber-500/20 active:scale-95"
                 >
-                  <Copy className="w-3 h-3" />
-                  <span>Copy text</span>
+                  <Zap className="w-3.5 h-3.5" />
+                  <span>⚡ 1-Tap Fast-List ({activeRegion.id})</span>
                 </button>
               </div>
-              <textarea
-                id="ebay-description"
-                rows={3}
-                value={inputDescription}
-                onChange={(e) => setInputDescription(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-300 focus:outline-none focus:border-cyan-500 resize-none font-sans"
-              />
+
+              {error && (
+                <div className="p-3.5 bg-rose-500/10 border border-rose-500/30 rounded-xl text-xs space-y-2">
+                  <div className="flex items-center gap-2 text-rose-300 font-bold">
+                    <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+                    <span>{error}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={handleFastList}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-lg text-xs transition cursor-pointer"
+                    >
+                      <Zap className="w-3.5 h-3.5" />
+                      <span>Open in 1-Tap Fast-List ({activeRegion.id})</span>
+                    </button>
+                    <a
+                      href="/api/auth/ebay/connect?prompt=login"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-cyan-300 font-bold rounded-lg text-xs transition cursor-pointer border border-cyan-500/30"
+                    >
+                      <Link2 className="w-3.5 h-3.5" />
+                      <span>Connect eBay Account</span>
+                    </a>
+                  </div>
+                </div>
+              )}
+
+              {/* eBay Title */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-xs font-semibold text-slate-300">
+                  <label htmlFor="ebay-title">eBay Item Title (Max 80 Chars)</label>
+                  <span
+                    className={`text-[11px] font-mono ${
+                      inputTitle.length > 80 ? "text-rose-400 font-bold" : "text-slate-500"
+                    }`}
+                  >
+                    {inputTitle.length}/80
+                  </span>
+                </div>
+                <input
+                  id="ebay-title"
+                  type="text"
+                  maxLength={80}
+                  value={inputTitle}
+                  onChange={(e) => setInputTitle(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-100 focus:outline-none focus:border-cyan-500 font-medium"
+                  required
+                />
+              </div>
+
+              {/* Price & Condition */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label htmlFor="ebay-price" className="text-xs font-semibold text-slate-300 block">
+                    Buy It Now ({activeRegion.code})
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-2 text-xs font-bold text-slate-400">
+                      {activeRegion.symbol}
+                    </span>
+                    <input
+                      id="ebay-price"
+                      type="number"
+                      step="0.01"
+                      min="1"
+                      value={inputPrice}
+                      onChange={(e) => setInputPrice(Number(e.target.value))}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-7 pr-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-cyan-500 font-bold"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label
+                    htmlFor="ebay-condition"
+                    className="text-xs font-semibold text-slate-300 block"
+                  >
+                    Condition
+                  </label>
+                  <select
+                    id="ebay-condition"
+                    value={inputCondition}
+                    onChange={(e) => setInputCondition(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-cyan-500 font-medium"
+                  >
+                    <option value="Used - Good">Used - Good</option>
+                    <option value="Pre-owned - Excellent">Pre-owned - Excellent</option>
+                    <option value="Brand New">Brand New</option>
+                    <option value="For Parts / Repair">For Parts / Repair</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Description */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-xs font-semibold text-slate-300">
+                  <label htmlFor="ebay-description">Item Description</label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(inputDescription);
+                      toast.success("Description copied to clipboard!");
+                    }}
+                    className="text-[11px] text-cyan-400 hover:text-cyan-300 flex items-center gap-1 cursor-pointer font-normal"
+                  >
+                    <Copy className="w-3 h-3" />
+                    <span>Copy text</span>
+                  </button>
+                </div>
+                <textarea
+                  id="ebay-description"
+                  rows={3}
+                  value={inputDescription}
+                  onChange={(e) => setInputDescription(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-300 focus:outline-none focus:border-cyan-500 resize-none font-sans"
+                />
+              </div>
+
+              {/* Safe padding spacer at bottom of scrollable content */}
+              <div className="h-2" />
             </div>
 
-            {/* Actions */}
-            <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            {/* Pinned Sticky Actions Footer */}
+            <div className="shrink-0 p-3 sm:p-4 border-t border-slate-800 bg-slate-900/95 backdrop-blur flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
               <button
                 type="button"
                 onClick={handleSaveDraftLocal}
@@ -473,14 +502,14 @@ export default function EbayListingModal({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl text-xs transition cursor-pointer"
+                  className="flex-1 sm:flex-initial px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl text-xs transition cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={loading || inputTitle.length === 0}
-                  className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:opacity-90 text-slate-950 font-black rounded-xl text-xs shadow-lg shadow-cyan-500/20 transition disabled:opacity-50 cursor-pointer"
+                  className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:opacity-90 text-slate-950 font-black rounded-xl text-xs shadow-lg shadow-cyan-500/20 transition disabled:opacity-50 cursor-pointer"
                 >
                   {loading ? (
                     <>

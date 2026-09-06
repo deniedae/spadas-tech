@@ -64,3 +64,25 @@ export function detectGeoCurrency(countryHeader?: string | null): GeoCurrencyInf
 
   return CURRENCY_CONFIGS.AUD;
 }
+
+/**
+ * Converts currency amounts between supported currencies (AUD, USD, EUR, GBP)
+ */
+export function convertCurrency(
+  amount: number,
+  from: SupportedCurrency | string = "AUD",
+  to: SupportedCurrency | string = "AUD"
+): number {
+  const fromCurr = (from || "AUD").toUpperCase() as SupportedCurrency;
+  const toCurr = (to || "AUD").toUpperCase() as SupportedCurrency;
+  if (fromCurr === toCurr || !amount) return amount;
+
+  const fromRate = CURRENCY_CONFIGS[fromCurr]?.conversionFromAud || 1.0;
+  const toRate = CURRENCY_CONFIGS[toCurr]?.conversionFromAud || 1.0;
+
+  const amountAud = amount / fromRate;
+  const converted = amountAud * toRate;
+
+  return Math.max(1, Math.round(converted * 100) / 100);
+}
+

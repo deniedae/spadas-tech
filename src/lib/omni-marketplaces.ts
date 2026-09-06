@@ -1,4 +1,4 @@
-import { CURRENCY_CONFIGS, SupportedCurrency } from "@/app/lib/currency-routing";
+import { CURRENCY_CONFIGS, SupportedCurrency, convertCurrency } from "@/app/lib/currency-routing";
 
 export interface MarketplaceComparison {
   platformId: "ebay" | "depop" | "poshmark" | "mercari" | "facebook" | "google_shopping";
@@ -34,29 +34,33 @@ export interface OmniComparisonResult {
  * Builds direct search URLs with "Sold / Completed" filters where supported
  */
 export function buildMarketplaceCompUrl(
-  platformId: MarketplaceComparison["platformId"],
+  platformId: "ebay" | "depop" | "poshmark" | "mercari" | "facebook" | "google_shopping",
   query: string,
   currency: SupportedCurrency = "AUD"
 ): string {
   const encoded = encodeURIComponent(query.trim());
-  const config = CURRENCY_CONFIGS[currency] || CURRENCY_CONFIGS.AUD;
 
   switch (platformId) {
-    case "ebay":
-      // Direct link to Sold & Completed items on the region-specific eBay site
-      return `https://www.${config.ebaySite}/sch/i.html?_nkw=${encoded}&LH_Sold=1&LH_Complete=1`;
+    case "ebay": {
+      // Dynamic eBay marketplace routing based on currency
+      let domain = "www.ebay.com.au";
+      if (currency === "USD") domain = "www.ebay.com";
+      else if (currency === "GBP") domain = "www.ebay.co.uk";
+      else if (currency === "EUR") domain = "www.ebay.de";
+      return `https://${domain}/sch/i.html?_nkw=${encoded}&LH_Sold=1&LH_Complete=1`;
+    }
 
     case "depop":
-      // Depop global search
+      // Depop search query
       return `https://www.depop.com/search/?q=${encoded}`;
 
     case "poshmark":
       // Poshmark sold comps filter
-      return `https://poshmark.com/search?query=${encoded}&type=sold`;
+      return `https://poshmark.com/search?query=${encoded}&type=listings&condition=all&availability=sold`;
 
     case "mercari":
-      // Mercari search with items
-      return `https://www.mercari.com/search/?keyword=${encoded}`;
+      // Mercari sold comps
+      return `https://www.mercari.com/search/?keyword=${encoded}&status=sold_out`;
 
     case "facebook":
       // Facebook Marketplace search
@@ -78,13 +82,24 @@ export function calculateOmniMarketplaceComps(params: {
   productName: string;
   brand?: string | null;
   basePrice: number;
+  baseCurrency?: SupportedCurrency | string;
   currency?: SupportedCurrency;
   customCost?: number;
 }): OmniComparisonResult {
-  const { productName, brand, basePrice, customCost = 0 } = params;
+  const { productName, brand, customCost = 0 } = params;
   const currency = params.currency || "AUD";
+  const baseCurrency = (params.baseCurrency || "AUD") as SupportedCurrency;
   const config = CURRENCY_CONFIGS[currency] || CURRENCY_CONFIGS.AUD;
   const sym = config.symbol;
+
+  // Accurately convert basePrice to target currency if different
+  const basePrice = baseCurrency !== currency
+    ? convertCurrency(params.basePrice, baseCurrency, currency)
+    : params.basePrice;
+
+  const effectiveCost = baseCurrency !== currency && customCost > 0
+    ? convertCurrency(customCost, baseCurrency, currency)
+    : customCost;
 
   const fullQuery = [brand, productName].filter(Boolean).join(" ").trim() || "Item";
 
@@ -97,9 +112,11 @@ export function calculateOmniMarketplaceComps(params: {
   const priceMercari = isElectronics ? Math.round(basePrice * 0.98) : Math.round(basePrice * 0.92);
   const priceFacebook = Math.round(basePrice * 0.88); // Local deals typically move slightly lower for quick cash
 
-  // 1. eBay: 13.25% + $0.30 fixed fee + standard shipping deduction
-  const ebayShipping = basePrice > 50 ? 12 : 9.5;
-  const ebayFee = Math.round((basePrice * 0.1325 + 0.3) * 100) / 100;
+  // 1. eBay: 13.25% + fixed fee + standard shipping deduction scaled to currency
+  const rawEbayShipping = basePrice > 50 ? 12 : 9.5;
+  const ebayShipping = currency === "AUD" ? rawEbayShipping : convertCurrency(rawEbayShipping, "AUD", currency);
+  const fixedFee = currency === "GBP" ? 0.25 : currency === "USD" ? 0.30 : 0.33;
+  const ebayFee = Math.round((basePrice * 0.1325 + fixedFee) * 100) / 100;
   const ebayNet = Math.max(0, Math.round((basePrice - ebayFee - ebayShipping) * 100) / 100);
 
   // 2. Depop: ~10% marketplace fee + ~3% transaction fee, buyer often covers shipping on lightweight items
