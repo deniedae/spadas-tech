@@ -4,6 +4,7 @@
  */
 
 import type { DetectedHit, ActiveScanItem } from "@/types/lens";
+import { calculateSalesVelocity, SalesVelocityProfile } from "@/lib/turnover-velocity-engine";
 
 export interface OfflineCategoryModel {
   category: string;
@@ -17,6 +18,23 @@ export interface OfflineCategoryModel {
 }
 
 export const OFFLINE_RESALE_KNOWLEDGE_BASE: Record<string, OfflineCategoryModel> = {
+  auto_salvage_modules: {
+    category: "Auto Salvage & Electronic Modules",
+    subcategories: [
+      "OEM Engine Control Module (ECM/ECU)",
+      "OEM Tail Light Assembly (Clean Lenses & Tabs)",
+      "Master Power Window Switch Unit",
+      "Power Heated Side Mirror Assembly",
+      "Instrument Speedometer Gauge Cluster",
+      "OEM Headlight Lamp Assembly"
+    ],
+    medianPriceAUD: 145,
+    minPriceAUD: 65,
+    maxPriceAUD: 350,
+    typicalTagCostAUD: 18,
+    demandRating: "FAST_FLIP",
+    highValueKeywords: ["ecm", "ecu", "pcm", "module", "tail light", "headlight", "window switch", "mirror", "cluster", "speedometer", "actuator", "salvage", "oem"],
+  },
   vintage_streetwear: {
     category: "Vintage Streetwear & Apparel",
     subcategories: ["Vintage 90s Graphic T-Shirt", "Heavyweight Boxy Hoodie", "Nylon Colorblock Windbreaker", "Denim Jacket", "Workwear Duck Canvas Jacket"],
@@ -110,6 +128,7 @@ export function appraiseItemLocally(inputHint?: string): {
   trueNetProfit: number;
   roiPercentage: number;
   copVerdict: "MUST_COP" | "QUICK_FLIP" | "FAIR_MARGIN" | "PASS_RISKY";
+  salesVelocity: SalesVelocityProfile;
 } {
   const query = (inputHint || "").toLowerCase();
   
@@ -153,13 +172,21 @@ export function appraiseItemLocally(inputHint?: string): {
   const netProfit = Math.max(0, Math.round((estVal - tagCost - ebayFee - shipping) * 100) / 100);
   const roi = tagCost > 0 ? Math.round((netProfit / tagCost) * 100) : 0;
 
-  // Reseller Cop Verdict
-  const isTrap = (estVal <= 14 && (text.includes("dvd") || text.includes("cd"))) ||
+  const velocity = calculateSalesVelocity({
+    productName: pName,
+    category: matchedModel.category,
+  });
+
+  const isTrap =
+    (estVal <= 14 && (text.includes("dvd") || text.includes("cd"))) ||
     text.includes("amazon basics") ||
     (text.includes("mug") && estVal <= 15);
 
   let copVerdict: "MUST_COP" | "QUICK_FLIP" | "FAIR_MARGIN" | "PASS_RISKY" = "FAIR_MARGIN";
-  if (isTrap || netProfit <= 0) {
+
+  if (velocity.isHoarderRisk) {
+    copVerdict = "PASS_RISKY";
+  } else if (isTrap || netProfit <= 0) {
     copVerdict = "PASS_RISKY";
   } else if (netProfit < 8 || roi < 40) {
     copVerdict = "PASS_RISKY";
@@ -179,6 +206,7 @@ export function appraiseItemLocally(inputHint?: string): {
     trueNetProfit: netProfit,
     roiPercentage: roi,
     copVerdict,
+    salesVelocity: velocity,
   };
 }
 

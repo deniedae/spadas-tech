@@ -51,6 +51,7 @@ import {
   clearRapidSession,
 } from "@/lib/rapid-thrift-engine";
 import { RapidThriftDrawer } from "@/components/rapid-thrift-drawer";
+import { calculateSalesVelocity } from "@/lib/turnover-velocity-engine";
 import type { DetectedHit, ActiveScanItem } from "@/types/lens";
 export type { DetectedHit, ActiveScanItem } from "@/types/lens";
 
@@ -1888,12 +1889,19 @@ function SpadasLensCameraCore() {
             bbox: obj.bbox,
             timestamp: now,
             isGrail: isGrailHit,
-            salesVelocity: data?.sales_velocity || {
-              sell_speed: estimatedProfit > 40 ? "FAST_FLIP" : "MODERATE",
-              est_days_to_sell: estimatedProfit > 40 ? "1-3 Days" : "7-14 Days",
-              demand_score: estimatedProfit > 40 ? 92 : 75,
-              sell_through_rate: estimatedProfit > 40 ? "88% High Demand" : "72% Steady Turnover",
-            },
+            salesVelocity: data?.sales_velocity || (() => {
+              const v = calculateSalesVelocity({
+                productName: obj.productName,
+                category: obj.category,
+                brand: obj.brand,
+              });
+              return {
+                sell_speed: v.turnoverTier === "RAPID_FIRE" ? "FAST_FLIP" : v.turnoverTier === "STEADY_TURN" ? "MODERATE" : "SLOW_BURNER",
+                est_days_to_sell: v.estDaysToSell,
+                demand_score: v.demandScore,
+                sell_through_rate: `${v.sellThroughRate}% STR`,
+              };
+            })(),
             futureGrail: data?.future_grail || (
               obj.productName.toLowerCase().includes("camera") ||
               obj.productName.toLowerCase().includes("cyber-shot") ||
@@ -2103,6 +2111,19 @@ function SpadasLensCameraCore() {
             confidence: 0.96,
             timestamp: task.item.timestamp,
             isGrail: profit >= 50 || Boolean(data.is_grail),
+            salesVelocity: data.sales_velocity || (() => {
+              const v = calculateSalesVelocity({
+                productName: data.product_name,
+                category: data.category,
+                brand: data.brand,
+              });
+              return {
+                sell_speed: v.turnoverTier === "RAPID_FIRE" ? "FAST_FLIP" : v.turnoverTier === "STEADY_TURN" ? "MODERATE" : "SLOW_BURNER",
+                est_days_to_sell: v.estDaysToSell,
+                demand_score: v.demandScore,
+                sell_through_rate: `${v.sellThroughRate}% STR`,
+              };
+            })(),
           };
           setCapturedLog((prev) => [hit, ...prev.filter((h) => h.name !== hit.name)].slice(0, 50));
           setSessionScanCount((prev) => prev + 1);
@@ -2297,7 +2318,8 @@ function SpadasLensCameraCore() {
                 <img
                   src={frozenFrameUrl}
                   alt="Frozen Scanned Frame"
-                  className="h-full w-full object-cover"
+                  style={{ width: "100%", height: "100%", backgroundColor: "red" }}
+                  className="object-cover"
                 />
                 {analyzingRealFrame && (
                   <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-slate-950/60 backdrop-blur-sm space-y-3">

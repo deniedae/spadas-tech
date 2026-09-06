@@ -203,8 +203,15 @@ export default function LensHitCard({
           >
             {speedLabel}
             {item.salesVelocity?.est_days_to_sell && (
-              <span className="opacity-60">
+              <span className="opacity-75">
                 · {item.salesVelocity.est_days_to_sell}
+              </span>
+            )}
+            {item.salesVelocity?.sell_through_rate && (
+              <span className="opacity-90 font-mono text-[8.5px] bg-black/20 px-1 rounded">
+                {item.salesVelocity.sell_through_rate.includes("%")
+                  ? item.salesVelocity.sell_through_rate
+                  : `${item.salesVelocity.sell_through_rate}% STR`}
               </span>
             )}
           </span>

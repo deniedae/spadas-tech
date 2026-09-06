@@ -4,6 +4,8 @@
  * platform fee deductions, and algorithmic BUY / PASS / MUST COP recommendations.
  */
 
+import { calculateSalesVelocity, SalesVelocityProfile } from "./turnover-velocity-engine";
+
 export interface ThriftPricingEstimate {
   estimatedResalePrice: number;
   estimatedThriftCost: number;
@@ -21,6 +23,7 @@ export interface ThriftPricingEstimate {
     border: string;
   };
   sourcingTip?: string;
+  salesVelocity: SalesVelocityProfile;
 }
 
 // Typical benchmark thrift / garage sale purchase prices by category
@@ -221,9 +224,16 @@ export function calculateThriftCopVerdict(options: {
   // Check for Thrift Traps (Common DVDs, Amazon Basics, Novelty Mugs, Fast Fashion)
   const trap = detectThriftTrap(productName, resalePrice, brand);
 
+  // Calculate Empirical Sell-Through Rate (STR) and Turnover Days
+  const salesVelocity = calculateSalesVelocity({
+    productName,
+    category,
+    brand,
+  });
+
   let copVerdict: ThriftPricingEstimate["copVerdict"] = "FAIR_MARGIN";
   let verdictLabel = "⚖️ Fair Margin";
-  let verdictDescription = "Moderate margin. Good if you need inventory volume.";
+  let verdictDescription = `Moderate margin. Turnover speed: ${salesVelocity.estDaysToSell} (${salesVelocity.sellThroughRate}% STR).`;
   let badgeStyle = {
     bg: "bg-blue-500/20",
     text: "text-blue-400",
@@ -235,6 +245,18 @@ export function calculateThriftCopVerdict(options: {
     copVerdict = "PASS_RISKY";
     verdictLabel = "🛑 HARD PASS (Thrift Trap)";
     verdictDescription = trap.reason || "Postage & fees exceed market value. Leave on shelf.";
+    badgeStyle = {
+      bg: "bg-rose-500/20",
+      text: "text-rose-400",
+      border: "border-rose-500/40",
+    };
+  } else if (salesVelocity.isHoarderRisk) {
+    // Ruthless Hoarder Trap Filter: Low STR, sitting 45-180+ days tying up cash and shelf space
+    copVerdict = "PASS_RISKY";
+    verdictLabel = "🛑 HARD PASS (Hoarder / Space Trap)";
+    verdictDescription =
+      salesVelocity.warning ||
+      `Sluggish turnover (${salesVelocity.sellThroughRate}% STR, ${salesVelocity.estDaysToSell}). Ties up cash and shelf space.`;
     badgeStyle = {
       bg: "bg-rose-500/20",
       text: "text-rose-400",
@@ -261,7 +283,7 @@ export function calculateThriftCopVerdict(options: {
   } else if (netProfit >= 35 || (roiPercentage >= 250 && netProfit >= 25)) {
     copVerdict = "MUST_COP";
     verdictLabel = "🔥 MUST COP (High Profit)";
-    verdictDescription = `Outstanding return! Projected +$${netProfit.toFixed(0)} profit (${roiPercentage}% ROI) after shipping.`;
+    verdictDescription = `Outstanding return! Projected +$${netProfit.toFixed(0)} profit (${roiPercentage}% ROI, ${salesVelocity.estDaysToSell} turnover).`;
     badgeStyle = {
       bg: "bg-emerald-500/20",
       text: "text-emerald-400",
@@ -269,8 +291,8 @@ export function calculateThriftCopVerdict(options: {
     };
   } else if (netProfit >= 15 || roiPercentage >= 100) {
     copVerdict = "QUICK_FLIP";
-    verdictLabel = "⚡ Quick Flip";
-    verdictDescription = `Solid net profit ($${netProfit.toFixed(0)}) with fast sell-through turnaround.`;
+    verdictLabel = `⚡ Quick Flip (~${salesVelocity.estDaysToSell})`;
+    verdictDescription = `Solid net profit ($${netProfit.toFixed(0)}) with rapid turnaround (${salesVelocity.sellThroughRate}% STR).`;
     badgeStyle = {
       bg: "bg-cyan-500/20",
       text: "text-cyan-300",
@@ -304,5 +326,6 @@ export function calculateThriftCopVerdict(options: {
     verdictDescription,
     badgeStyle,
     sourcingTip,
+    salesVelocity,
   };
 }

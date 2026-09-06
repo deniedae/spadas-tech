@@ -23,6 +23,7 @@ import {
   getPhotoBlob,
   computeSessionStats,
 } from "@/lib/rapid-thrift-engine";
+import { calculateSalesVelocity } from "@/lib/turnover-velocity-engine";
 import { toast } from "sonner";
 
 interface RapidThriftDrawerProps {
@@ -315,21 +316,39 @@ export const RapidThriftDrawer: React.FC<RapidThriftDrawerProps> = ({
                       {item.productName || "Analyzing thrift item..."}
                     </h4>
 
-                    {/* Financial Rollup */}
+                    {/* Financial Rollup & Turnover Velocity */}
                     {item.status === "completed" ? (
-                      <div className="flex items-center gap-2 mt-1 text-xs">
-                        <span className="text-emerald-400 font-black font-mono">
-                          +${item.trueNetProfit || 0} Profit
-                        </span>
-                        <span className="text-slate-600">•</span>
-                        <span className="text-slate-400 text-[11px]">
-                          Est ${item.estimatedValue}
-                        </span>
-                        <span className="text-slate-600">•</span>
-                        <span className="text-slate-400 text-[11px]">
-                          Cost ${item.thriftCost}
-                        </span>
-                      </div>
+                      (() => {
+                        const velocity = calculateSalesVelocity({
+                          productName: item.productName,
+                          category: item.category,
+                          brand: item.brand,
+                        });
+                        return (
+                          <div className="flex items-center gap-1.5 flex-wrap mt-1 text-xs">
+                            <span className="text-emerald-400 font-black font-mono">
+                              +${item.trueNetProfit || 0} Profit
+                            </span>
+                            <span className="text-slate-600">•</span>
+                            <span className="text-slate-400 text-[11px]">
+                              Est ${item.estimatedValue}
+                            </span>
+                            <span className="text-slate-600">•</span>
+                            <span
+                              className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded border ${
+                                velocity.turnoverTier === "RAPID_FIRE"
+                                  ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+                                  : velocity.turnoverTier === "HOARDER_RISK"
+                                  ? "bg-rose-500/15 text-rose-300 border-rose-500/30"
+                                  : "bg-cyan-500/15 text-cyan-300 border-cyan-500/30"
+                              }`}
+                              title={velocity.warning || `${velocity.sellThroughRate}% Sell-Through Rate`}
+                            >
+                              {velocity.velocityLabel} ({velocity.sellThroughRate}% STR)
+                            </span>
+                          </div>
+                        );
+                      })()
                     ) : (
                       <p className="text-xs text-amber-300/80 italic mt-0.5">
                         Evaluating comps & thrift margin...
