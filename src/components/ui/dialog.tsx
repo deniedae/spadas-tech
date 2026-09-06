@@ -71,7 +71,7 @@ export function DialogContent({
   if (!ctx?.open || !mounted) return null;
 
   const content = (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#090A0F]/85 backdrop-blur-md animate-fade-in">
       {/* Backdrop click to close */}
       <div
         className="fixed inset-0"
@@ -80,17 +80,17 @@ export function DialogContent({
 
       <div
         className={cn(
-          "relative z-10 w-full max-w-lg rounded-2xl bg-slate-900 border border-slate-800 p-6 shadow-2xl text-slate-100 max-h-[90vh] overflow-y-auto",
+          "relative z-10 w-full max-w-lg rounded-xl bg-[#0E1118] border border-zinc-800 p-5 sm:p-6 shadow-2xl text-zinc-100 max-h-[90vh] overflow-y-auto",
           className
         )}
       >
         <button
           type="button"
           onClick={() => ctx.setOpen(false)}
-          className="absolute right-4 top-4 p-1.5 rounded-xl text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition cursor-pointer"
+          className="absolute right-4 top-4 p-1.5 rounded-md text-zinc-400 hover:text-white hover:bg-zinc-800 transition cursor-pointer"
           aria-label="Close dialog"
         >
-          <X className="w-5 h-5" />
+          <X className="w-4 h-4" />
         </button>
 
         {children}
