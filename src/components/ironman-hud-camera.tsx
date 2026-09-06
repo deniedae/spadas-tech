@@ -18,13 +18,16 @@ import {
   ChevronRight,
   AlertTriangle,
   RotateCcw,
+  Power,
+  Loader2,
+  CheckCircle2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { calculateSalesVelocity, SalesVelocityProfile } from "@/lib/turnover-velocity-engine";
 import { calculateThriftCopVerdict } from "@/lib/thrift-cop-engine";
-import { appraiseItemLocally } from "@/app/lib/offline/offline-engine";
 import { triggerTactileHaptic } from "@/lib/android-bridge";
 import { supabase } from "@/app/lib/supabase";
+import { createListing } from "@/app/lib/createlisting";
 
 export interface HolographicBeacon {
   id: string;
@@ -41,6 +44,51 @@ export interface HolographicBeacon {
   x: number; // percentage (15 - 85)
   y: number; // percentage (20 - 75)
   timestamp: number;
+  imageUrl?: string;
+  publishedUrl?: string;
+  isPublished?: boolean;
+}
+
+// Stop-words list for debouncer filtering
+const STOP_WORDS = new Set([
+  "with", "in", "the", "and", "a", "an", "of", "for", "to", "on", "at", "by",
+  "mens", "womens", "original", "box", "item", "used", "new", "style", "type",
+  "authentic", "vintage", "retro", "brand", "edition", "set", "pack", "lot"
+]);
+
+// Strict Vague / Partial Read Detector (Matches Spadas Lens AR)
+function isVagueOrPartialRead(productName?: string | null): boolean {
+  if (!productName || typeof productName !== "string") return true;
+  const trimmed = productName.trim();
+  if (trimmed.length < 3) return true;
+  if (/^[.\/_\-–—:;,#@!$%^&*()+=~`\s]+$/.test(trimmed)) return true;
+  const alphanumeric = trimmed.replace(/[^a-zA-Z0-9]/g, "");
+  if (alphanumeric.length < 2) return true;
+
+  const lower = trimmed.toLowerCase();
+  const explicitFailures = [
+    "no_center_item",
+    "scanned item",
+    "scanned reseller item",
+    "resale item",
+    "unknown item",
+    "unidentified item",
+    "unidentified",
+    "unknown product",
+    "unknown title",
+    "could not be identified",
+    "cannot be determined",
+    "exact card details unclear",
+    "vintage electronics / resale item",
+    "null",
+    "undefined",
+    "object",
+    "item",
+    "thrift item",
+    "product",
+  ];
+
+  return explicitFailures.some((phrase) => lower === phrase || lower === `.${phrase}` || lower.startsWith(`${phrase} `));
 }
 
 // Web Audio Sci-Fi Synthesizer (100% Offline, Zero Network Lag)
@@ -100,8 +148,10 @@ export function IronmanHudCamera() {
   const streamRef = useRef<MediaStream | null>(null);
   const inFlightRef = useRef<boolean>(false);
   const recentScannedNamesRef = useRef<Set<string>>(new Set());
+  const isMountedRef = useRef<boolean>(true);
 
   const [stream, setStream] = useState<MediaStream | null>(null);
+  const [isCameraActive, setIsCameraActive] = useState<boolean>(false);
   const [facingMode, setFacingMode] = useState<"environment" | "user">("environment");
   const [isScanning, setIsScanning] = useState<boolean>(true);
   const [isAudioEnabled, setIsAudioEnabled] = useState<boolean>(true);
@@ -109,6 +159,7 @@ export function IronmanHudCamera() {
   const [isVoiceEnabled, setIsVoiceEnabled] = useState<boolean>(false);
   const [activeBeacons, setActiveBeacons] = useState<HolographicBeacon[]>([]);
   const [selectedBeacon, setSelectedBeacon] = useState<HolographicBeacon | null>(null);
+  const [publishingBeaconId, setPublishingBeaconId] = useState<string | null>(null);
   const [fpsCounter, setFpsCounter] = useState<number>(60);
   const [headingAngle, setHeadingAngle] = useState<number>(342);
 
@@ -117,7 +168,10 @@ export function IronmanHudCamera() {
     try {
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
       }
+      setIsCameraActive(false);
+
       const newStream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: { ideal: mode },
@@ -126,17 +180,28 @@ export function IronmanHudCamera() {
         },
         audio: false,
       });
+
+      if (!isMountedRef.current) {
+        newStream.getTracks().forEach((t) => t.stop());
+        return;
+      }
+
       streamRef.current = newStream;
       setStream(newStream);
+      setIsCameraActive(true);
     } catch (err) {
       console.warn("Iron Man HUD Camera error:", err);
+      setIsCameraActive(false);
       toast.error("Camera access failed or permission denied.");
     }
   }, [facingMode]);
 
   useEffect(() => {
+    isMountedRef.current = true;
     void startCamera();
     return () => {
+      isMountedRef.current = false;
+      setIsCameraActive(false);
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((t) => t.stop());
         streamRef.current = null;
@@ -145,20 +210,31 @@ export function IronmanHudCamera() {
   }, [startCamera]);
 
   useEffect(() => {
+    const handleVisibility = () => {
+      if (document.hidden) {
+        inFlightRef.current = false;
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, []);
+
+  useEffect(() => {
     if (videoRef.current && stream) {
       videoRef.current.srcObject = stream;
       videoRef.current.play().catch(() => {});
     }
   }, [stream]);
 
-  // Compass Heading & Gyro Simulator
+  // Compass Heading & Gyro Simulator (only active when camera is live)
   useEffect(() => {
     const interval = setInterval(() => {
+      if (!isCameraActive || (typeof document !== "undefined" && document.hidden)) return;
       setHeadingAngle((prev) => (prev + (Math.random() * 2 - 1) + 360) % 360);
       setFpsCounter(Math.floor(58 + Math.random() * 3));
     }, 400);
     return () => clearInterval(interval);
-  }, []);
+  }, [isCameraActive]);
 
   // Voice Synthesizer
   const speakVerdict = useCallback((text: string) => {
@@ -174,21 +250,60 @@ export function IronmanHudCamera() {
 
   // Continuous Spatial Vision Scanner Loop
   useEffect(() => {
-    if (!isScanning) return;
+    if (!isScanning || !isCameraActive) return;
 
     const interval = setInterval(async () => {
+      // 1. Lifecycle and Visibility Guards: NEVER process AI if camera is closed or tab is backgrounded
+      if (!isMountedRef.current) return;
+      if (!isScanning || !isCameraActive) return;
+      if (typeof document !== "undefined" && document.hidden) return;
+
+      // 2. Active MediaStream Guard: Ensure camera track is alive and sending data
+      const currentStream = streamRef.current;
+      if (!currentStream || !currentStream.active) return;
+      const tracks = currentStream.getVideoTracks();
+      if (!tracks.length || tracks[0].readyState !== "live" || tracks[0].muted) return;
+
+      // 3. Video Element Guard: Ensure video has non-zero frame dimensions
       const video = videoRef.current;
-      if (!video || video.readyState < 2) return;
+      if (!video || video.paused || video.ended || video.readyState < 2) return;
+      const fullWidth = video.videoWidth;
+      const fullHeight = video.videoHeight;
+      if (fullWidth === 0 || fullHeight === 0) return;
+
       if (inFlightRef.current) return;
 
-      // Extract image frame
+      // 4. High-Detail Center Reticle Laser Crop (Center 65% x 65% targeting the reticle)
+      const cropW = Math.round(fullWidth * 0.65);
+      const cropH = Math.round(fullHeight * 0.65);
+      const cropX = Math.round((fullWidth - cropW) / 2);
+      const cropY = Math.round((fullHeight - cropH) / 2);
+
       const canvas = document.createElement("canvas");
-      canvas.width = 480;
-      canvas.height = 360;
-      const ctx = canvas.getContext("2d");
+      canvas.width = 800;
+      canvas.height = 800;
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
       if (!ctx) return;
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const base64 = canvas.toDataURL("image/jpeg", 0.75);
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+      ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, 800, 800);
+
+      // 5. Luminance Guard: Reject pitch black or covered camera (in pocket, table surface, or dark room)
+      const imgData = ctx.getImageData(0, 0, 800, 800);
+      let totalLuminance = 0;
+      let samples = 0;
+      const step = 4 * 160; // sample ~1000 pixels
+      for (let i = 0; i < imgData.data.length; i += step) {
+        totalLuminance += imgData.data[i] * 0.299 + imgData.data[i + 1] * 0.587 + imgData.data[i + 2] * 0.114;
+        samples++;
+      }
+      const avgLuminance = samples > 0 ? totalLuminance / samples : 0;
+      if (avgLuminance < 14) {
+        // Frame is dark/covered — do NOT shoot random guesses
+        return;
+      }
+
+      const base64 = canvas.toDataURL("image/jpeg", 0.90);
 
       inFlightRef.current = true;
       let hitData: any = null;
@@ -212,27 +327,52 @@ export function IronmanHudCamera() {
 
         if (res && res.ok) {
           const raw = await res.json().catch(() => null);
-          if (raw && (raw.status === "identified" || raw.analysis?.product_name)) {
-            const pName = (raw.analysis?.product_name || raw.product_name || raw.detected_objects?.[0]?.product_name || "").trim();
-            if (pName && pName.toLowerCase() !== "unidentified" && pName.toLowerCase() !== "unknown item" && pName !== "NO_CENTER_ITEM") {
-              const brand = raw.analysis?.brand || raw.brand || "Authentic";
-              const category = raw.analysis?.category || raw.category || "General";
-              const estVal = Number(raw.suggested_price_median) || Number(raw.estimated_value) || 35;
-              const net = Number(raw.true_net_profit) || Math.max(0, Math.round((estVal * 0.7 - 8) * 100) / 100);
-              const cost = Number(raw.detected_tag_price) || Number(raw.thrift_cost) || Math.max(2, Math.round(estVal * 0.15));
-              const roi = Number(raw.roi_percentage) || (cost > 0 ? Math.round((net / cost) * 100) : 0);
+          // STRICT RULE (matches Spadas Lens AR):
+          // If the AI does not know what it's seeing, DO NOT shoot random guesses or synthetic mock fallbacks!
+          if (raw && !raw.error && !raw.isMockFallback && raw.status !== "unidentified") {
+            if (raw.analysis?.status !== "unidentified") {
+              let pName = (
+                raw.analysis?.product_name ||
+                raw.product_name ||
+                raw.detected_objects?.[0]?.product_name ||
+                ""
+              ).trim();
 
-              hitData = {
-                product_name: pName,
-                brand,
-                category,
-                estimated_value: estVal,
-                thrift_cost: cost,
-                true_net_profit: net,
-                roi_percentage: roi,
-                cop_verdict: raw.cop_verdict || (net >= 40 ? "MUST_COP" : net >= 15 ? "QUICK_FLIP" : "PASS_RISKY"),
-                is_grail: net >= 50 || raw.cop_verdict === "MUST_COP",
-              };
+              // Clean internal reasoning notes
+              pName = pName
+                .replace(/\(.*?unclear.*?\)/gi, "")
+                .replace(/\(.*?unknown.*?\)/gi, "")
+                .replace(/exact card details unclear/gi, "")
+                .replace(/not fully readable/gi, "")
+                .replace(/cannot be determined/gi, "")
+                .replace(/could not be identified/gi, "")
+                .trim();
+
+              const confidence =
+                Number(raw.analysis?.confidence_score) ||
+                (raw.analysis?.confidence === "high" ? 0.95 : raw.analysis?.confidence === "medium" ? 0.75 : 0.4);
+
+              if (!isVagueOrPartialRead(pName) && confidence >= 0.65) {
+                const brand = raw.analysis?.brand || raw.brand || "Authentic";
+                const category = raw.analysis?.category || raw.category || "General";
+                const estVal = Number(raw.suggested_price_median) || Number(raw.estimated_value) || 35;
+                const net = Number(raw.true_net_profit) || Math.max(0, Math.round((estVal * 0.7 - 8) * 100) / 100);
+                const cost = Number(raw.detected_tag_price) || Number(raw.thrift_cost) || Math.max(2, Math.round(estVal * 0.15));
+                const roi = Number(raw.roi_percentage) || (cost > 0 ? Math.round((net / cost) * 100) : 0);
+
+                hitData = {
+                  product_name: pName,
+                  brand,
+                  category,
+                  estimated_value: estVal,
+                  thrift_cost: cost,
+                  true_net_profit: net,
+                  roi_percentage: roi,
+                  cop_verdict: raw.cop_verdict || (net >= 40 ? "MUST_COP" : net >= 15 ? "QUICK_FLIP" : "PASS_RISKY"),
+                  is_grail: net >= 50 || raw.cop_verdict === "MUST_COP",
+                  image_url: base64,
+                };
+              }
             }
           }
         }
@@ -242,24 +382,15 @@ export function IronmanHudCamera() {
         inFlightRef.current = false;
       }
 
-      // Hard check: only show beacons for actual recognized physical items, NEVER mock data
-      const pName = (hitData?.product_name || "").trim();
-      if (
-        !hitData ||
-        hitData.error ||
-        !pName ||
-        pName.toLowerCase() === "unknown item" ||
-        pName.toLowerCase() === "unidentified" ||
-        pName.toLowerCase() === "thrift item"
-      ) {
-        return;
-      }
+      // Hard check: only show beacons for recognized physical items
+      if (!hitData || !hitData.product_name) return;
+
+      const pName = hitData.product_name.trim();
+      if (isVagueOrPartialRead(pName)) return;
 
       // Prevent duplicate beacon for same item within 6 seconds
       const nameKey = pName.toLowerCase();
-      if (recentScannedNamesRef.current.has(nameKey)) {
-        return;
-      }
+      if (recentScannedNamesRef.current.has(nameKey)) return;
       recentScannedNamesRef.current.add(nameKey);
       setTimeout(() => recentScannedNamesRef.current.delete(nameKey), 6000);
 
@@ -281,19 +412,20 @@ export function IronmanHudCamera() {
 
       const beacon: HolographicBeacon = {
         id: `hud-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-        name: hitData.product_name || "Thrift Item",
-        brand: hitData.brand || "Authentic",
-        category: hitData.category || "General",
+        name: hitData.product_name,
+        brand: hitData.brand,
+        category: hitData.category,
         estimatedResale: resalePrice,
         estCost: thriftCost,
         netProfit,
         roi,
-        copVerdict: hitData.cop_verdict || (isGrail ? "MUST_COP" : netProfit >= 15 ? "QUICK_FLIP" : "PASS_RISKY"),
+        copVerdict: hitData.cop_verdict,
         velocity,
         isGrail,
         x: xPos,
         y: yPos,
         timestamp: Date.now(),
+        imageUrl: hitData.image_url,
       };
 
       // Sound & Tactile feedback
@@ -317,7 +449,7 @@ export function IronmanHudCamera() {
     }, 2800);
 
     return () => clearInterval(interval);
-  }, [isScanning, isAudioEnabled, speakVerdict]);
+  }, [isScanning, isCameraActive, isAudioEnabled, speakVerdict]);
 
   // Clean old beacons after 8 seconds
   useEffect(() => {
@@ -327,6 +459,96 @@ export function IronmanHudCamera() {
     }, 1500);
     return () => clearInterval(timer);
   }, []);
+
+  // 1-Tap Direct Publish to eBay Action
+  const handlePublishToEbay = async (beacon: HolographicBeacon) => {
+    if (publishingBeaconId) return;
+    setPublishingBeaconId(beacon.id);
+
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (sessionData?.session?.access_token) {
+        headers["Authorization"] = `Bearer ${sessionData.session.access_token}`;
+      }
+
+      const payload = {
+        product: beacon.name,
+        brand: beacon.brand !== "Authentic" ? beacon.brand : "Unbranded",
+        category: beacon.category,
+        price: beacon.estimatedResale,
+        currency: "AUD",
+        condition: "Used",
+        description: `Authentic ${beacon.name}. Pre-owned resale find inspected via Spadas Iron Man HUD.\n\n• Brand: ${beacon.brand}\n• Estimated Value: $${beacon.estimatedResale} AUD\n• Turn Velocity: ${beacon.velocity.sellThroughRate}% Sell-Through Rate`,
+        imageUrls: beacon.imageUrl ? [beacon.imageUrl] : [],
+      };
+
+      const res = await fetch("/api/marketplaces/ebay/publish", {
+        method: "POST",
+        headers,
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || !data.success) {
+        const errMsg = data.error || data.message || "Failed to publish listing to eBay.";
+        if (res.status === 401 || errMsg.toLowerCase().includes("connect") || errMsg.toLowerCase().includes("token")) {
+          toast.error("eBay seller account not linked.", {
+            description: "Please connect your eBay account in Settings or tap Connect.",
+            action: {
+              label: "Connect eBay",
+              onClick: () => window.open("/api/auth/ebay/connect?prompt=login", "_blank"),
+            },
+          });
+          return;
+        }
+        throw new Error(errMsg);
+      }
+
+      const listingUrl = data.listingUrl || "https://www.ebay.com.au/sh/lst/active";
+      const updatedBeacon: HolographicBeacon = {
+        ...beacon,
+        isPublished: true,
+        publishedUrl: listingUrl,
+      };
+
+      setSelectedBeacon(updatedBeacon);
+      setActiveBeacons((prev) =>
+        prev.map((b) => (b.id === beacon.id ? updatedBeacon : b))
+      );
+
+      // Save to Spadas DB as Active Inventory
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await createListing({
+            userId: user.id,
+            product: beacon.name,
+            price: beacon.estimatedResale,
+            cost: beacon.estCost,
+            description: `Directly published to eBay AU via Iron Man HUD`,
+            status: "Active",
+            image: beacon.imageUrl,
+          });
+        }
+      } catch (dbErr) {
+        console.warn("Failed to record published listing in local DB:", dbErr);
+      }
+
+      playSciFiSound("grail");
+      triggerTactileHaptic("grail");
+      toast.success(
+        data.isLive ? "🚀 Live on eBay AU! Listing published successfully." : "📋 Saved directly to eBay Seller Hub!",
+        { duration: 5000 }
+      );
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Publish request failed";
+      toast.error(msg);
+    } finally {
+      setPublishingBeaconId(null);
+    }
+  };
 
   const displayedBeacons = isHideTraps
     ? activeBeacons.filter((b) => !b.velocity.isHoarderRisk && b.netProfit > 0)
@@ -353,16 +575,33 @@ export function IronmanHudCamera() {
         <div className="absolute top-3 inset-x-3 flex items-center justify-between pointer-events-auto z-30">
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-950/80 backdrop-blur-md border border-cyan-500/50 shadow-lg shadow-cyan-500/20">
             <span className="flex h-2.5 w-2.5 relative">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-cyan-500" />
+              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${isCameraActive && isScanning ? "bg-cyan-400" : "bg-zinc-600"} opacity-75`} />
+              <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${isCameraActive && isScanning ? "bg-cyan-500" : "bg-zinc-500"}`} />
             </span>
             <span className="text-[11px] font-black tracking-widest text-cyan-400 font-mono">
-              JARVIS HUD · {fpsCounter} FPS · HDG {Math.round(headingAngle)}°
+              JARVIS HUD · {isCameraActive ? `${fpsCounter} FPS` : "STANDBY"} · HDG {Math.round(headingAngle)}°
             </span>
           </div>
 
           {/* Quick HUD Controls */}
           <div className="flex items-center gap-1.5 bg-slate-950/80 backdrop-blur-md p-1 rounded-xl border border-cyan-500/40">
+            {/* Scan Power Toggle */}
+            <button
+              type="button"
+              onClick={() => setIsScanning((v) => !v)}
+              className={`p-2 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1 ${
+                isScanning && isCameraActive
+                  ? "bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/40"
+                  : "bg-slate-800 text-slate-400 hover:text-white"
+              }`}
+              title={isScanning ? "Pause AR Scanner" : "Resume AR Scanner"}
+            >
+              <Power className="h-4 w-4" />
+              <span className="text-[10px] font-mono font-bold uppercase hidden sm:inline">
+                {isScanning && isCameraActive ? "SCANNING" : "PAUSED"}
+              </span>
+            </button>
+
             <button
               type="button"
               onClick={() => setIsAudioEnabled((v) => !v)}
@@ -453,7 +692,9 @@ export function IronmanHudCamera() {
               {/* Holographic Glowing Badge */}
               <div
                 className={`relative px-3.5 py-2 rounded-2xl backdrop-blur-xl border-2 shadow-2xl flex flex-col gap-0.5 min-w-[190px] ${
-                  isGrail
+                  beacon.isPublished
+                    ? "bg-emerald-950/90 border-emerald-400 text-white shadow-[0_0_30px_rgba(52,211,153,0.6)]"
+                    : isGrail
                     ? "bg-amber-950/85 border-amber-400 text-white shadow-[0_0_30px_rgba(251,191,36,0.6)] animate-bounce"
                     : isTrap
                     ? "bg-rose-950/85 border-rose-500 text-rose-200 shadow-[0_0_25px_rgba(244,63,94,0.5)]"
@@ -463,14 +704,22 @@ export function IronmanHudCamera() {
                 {/* Header Tag */}
                 <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-wider">
                   <span className="flex items-center gap-1">
-                    {isGrail ? (
+                    {beacon.isPublished ? (
+                      <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+                    ) : isGrail ? (
                       <Flame className="h-3 w-3 text-amber-400 animate-pulse" />
                     ) : isTrap ? (
                       <AlertTriangle className="h-3 w-3 text-rose-400" />
                     ) : (
                       <Zap className="h-3 w-3 text-cyan-400" />
                     )}
-                    {isGrail ? "👑 GRAIL DETECTED" : isTrap ? "🛑 HOARDER TRAP" : "⚡ LOCKED COMP"}
+                    {beacon.isPublished
+                      ? "✓ LIVE ON EBAY"
+                      : isGrail
+                      ? "👑 GRAIL DETECTED"
+                      : isTrap
+                      ? "🛑 HOARDER TRAP"
+                      : "⚡ LOCKED COMP"}
                   </span>
                   <span className="font-mono text-[9px] opacity-75">
                     {beacon.velocity.estDaysToSell}
@@ -486,7 +735,9 @@ export function IronmanHudCamera() {
                 <div className="flex items-center justify-between mt-1 pt-1 border-t border-white/15 text-[11px] font-black">
                   <span
                     className={`font-mono text-xs ${
-                      isGrail
+                      beacon.isPublished
+                        ? "text-emerald-300"
+                        : isGrail
                         ? "text-amber-300 drop-shadow-[0_0_8px_#fbbf24]"
                         : isTrap
                         ? "text-rose-400"
@@ -498,7 +749,9 @@ export function IronmanHudCamera() {
 
                   <span
                     className={`text-[9.5px] px-1.5 py-0.5 rounded font-mono ${
-                      isGrail
+                      beacon.isPublished
+                        ? "bg-emerald-400/20 text-emerald-300"
+                        : isGrail
                         ? "bg-amber-400/20 text-amber-300"
                         : isTrap
                         ? "bg-rose-500/20 text-rose-300"
@@ -519,7 +772,7 @@ export function IronmanHudCamera() {
             SYSTEM: SPATIAL SLAM LOCK · ACTIVE TARGETS: {displayedBeacons.length}
           </div>
           <div className="bg-slate-950/75 backdrop-blur-md px-2.5 py-1 rounded-lg border border-cyan-500/30">
-            RADAR: CONTINUOUS VISION
+            RADAR: {isScanning && isCameraActive ? "CONTINUOUS VISION" : "PAUSED"}
           </div>
         </div>
       </div>
@@ -531,14 +784,16 @@ export function IronmanHudCamera() {
             <div className="flex items-center gap-2">
               <span
                 className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider ${
-                  selectedBeacon.isGrail
+                  selectedBeacon.isPublished
+                    ? "bg-emerald-400 text-slate-950"
+                    : selectedBeacon.isGrail
                     ? "bg-amber-400 text-slate-950"
                     : selectedBeacon.velocity.isHoarderRisk
                     ? "bg-rose-500 text-white"
                     : "bg-cyan-500 text-slate-950"
                 }`}
               >
-                {selectedBeacon.copVerdict.replace(/_/g, " ")}
+                {selectedBeacon.isPublished ? "PUBLISHED TO EBAY" : selectedBeacon.copVerdict.replace(/_/g, " ")}
               </span>
               <span className="text-xs font-extrabold text-cyan-400 font-mono">
                 {selectedBeacon.velocity.estDaysToSell} Turnaround ({selectedBeacon.velocity.sellThroughRate}% STR)
@@ -567,17 +822,37 @@ export function IronmanHudCamera() {
           </div>
 
           <div className="flex items-center gap-2 w-full sm:w-auto">
-            <a
-              href={`https://www.ebay.com.au/sl/prelist/suggest?keyword=${encodeURIComponent(
-                selectedBeacon.name
-              )}&q=${selectedBeacon.estimatedResale}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-black transition cursor-pointer shadow-lg shadow-cyan-500/30"
-            >
-              <ExternalLink className="h-3.5 w-3.5" />
-              <span>1-Tap eBay Draft</span>
-            </a>
+            {selectedBeacon.isPublished ? (
+              <a
+                href={selectedBeacon.publishedUrl || "https://www.ebay.com.au/sh/lst/active"}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-black transition cursor-pointer shadow-lg shadow-emerald-500/30"
+              >
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                <span>View on eBay</span>
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            ) : (
+              <button
+                type="button"
+                disabled={publishingBeaconId === selectedBeacon.id}
+                onClick={() => handlePublishToEbay(selectedBeacon)}
+                className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 text-xs font-black transition cursor-pointer shadow-lg shadow-amber-500/30 disabled:opacity-50"
+              >
+                {publishingBeaconId === selectedBeacon.id ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <span>Publishing to eBay...</span>
+                  </>
+                ) : (
+                  <>
+                    <Zap className="h-3.5 w-3.5 fill-current" />
+                    <span>1-Tap Publish to eBay</span>
+                  </>
+                )}
+              </button>
+            )}
 
             <button
               type="button"
@@ -594,3 +869,4 @@ export function IronmanHudCamera() {
 }
 
 export default IronmanHudCamera;
+

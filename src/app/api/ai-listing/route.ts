@@ -414,6 +414,9 @@ ${modePrompt}
     }
 
     if (!result) {
+      if (isArScan) {
+        return NextResponse.json(createEmptyScanResult());
+      }
       const fallbackAppraisal = appraiseItemLocally(body.productName || body.query);
       result = {
         status: "identified",
