@@ -75,24 +75,24 @@ function StatCard({
   loading: boolean;
 }) {
   return (
-    <div className="specimen-card p-4 sm:p-5 border border-zinc-800 bg-[#0E1118] relative overflow-hidden rounded-lg">
-      <div className="flex items-center justify-between">
-        <p className="font-mono text-[11px] font-bold uppercase tracking-wider text-zinc-400">{label}</p>
+    <div className="specimen-card p-2.5 sm:p-3.5 border border-zinc-800 bg-[#0E1118] relative overflow-hidden rounded-lg">
+      <div className="flex items-center justify-between gap-1">
+        <p className="font-mono text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-zinc-400 truncate">{label}</p>
         {Icon && (
-          <div className="flex h-7 w-7 items-center justify-center rounded bg-[#161922] border border-zinc-800 text-[#F97316]">
-            <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+          <div className="flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded bg-[#161922] border border-zinc-800 text-[#F97316] shrink-0">
+            <Icon className="h-3 w-3 sm:h-3.5 sm:w-3.5" aria-hidden="true" />
           </div>
         )}
       </div>
       {loading ? (
-        <div className="mt-3 h-8 w-24 animate-pulse rounded bg-zinc-800/80" />
+        <div className="mt-2 h-6 sm:h-7 w-16 sm:w-20 animate-pulse rounded bg-zinc-800/80" />
       ) : (
-        <div className="mt-3 flex items-baseline justify-between">
-          <h2 className={`text-2xl sm:text-3xl font-mono font-black tabular-nums tracking-tight data-readout ${valueClassName}`}>
+        <div className="mt-1.5 flex items-baseline justify-between gap-1">
+          <h2 className={`text-lg sm:text-2xl font-mono font-black tabular-nums tracking-tight data-readout truncate ${valueClassName}`}>
             {value}
           </h2>
           <span
-            className={`font-mono text-[10px] font-bold px-1.5 py-0.5 rounded border tabular-nums ${
+            className={`font-mono text-[9px] sm:text-[10px] font-bold px-1 sm:px-1.5 py-0.5 rounded border tabular-nums shrink-0 ${
               trendPositive
                 ? "bg-[#22C55E]/10 text-[#22C55E] border-[#22C55E]/20"
                 : "bg-[#DC2626]/10 text-[#DC2626] border-[#DC2626]/20"
@@ -327,117 +327,87 @@ export default function DashboardPage() {
 
   return (
     <PullToRefresh onRefresh={handleRefresh}>
-      <div className="space-y-6 max-w-7xl mx-auto pb-14 text-zinc-100">
-        {/* Hardware Command Terminal Header */}
-        <div className="specimen-card p-5 sm:p-6 border border-zinc-800 bg-[#0E1118] relative rounded-xl">
-          {/* Subtle Corner Markers */}
-          <div className="absolute top-2 left-2 w-2 h-2 border-t-2 border-l-2 border-[#F97316]" />
-          <div className="absolute top-2 right-2 w-2 h-2 border-t-2 border-r-2 border-[#F97316]" />
+      <div className="space-y-3 sm:space-y-4 max-w-7xl mx-auto pb-12 text-zinc-100">
+        {/* Compact Industrial Command Header */}
+        <div className="specimen-card p-3 sm:p-4 border border-zinc-800 bg-[#0E1118] relative rounded-xl">
+          <div className="absolute top-1.5 left-1.5 w-1.5 h-1.5 border-t-2 border-l-2 border-[#F97316]" />
+          <div className="absolute top-1.5 right-1.5 w-1.5 h-1.5 border-t-2 border-r-2 border-[#F97316]" />
 
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <div className="inline-flex items-center gap-2 rounded bg-[#161922] border border-zinc-800 px-2.5 py-0.5 font-mono text-[11px] font-semibold text-zinc-400">
-                <span className="h-2 w-2 rounded-full bg-[#22C55E] animate-pulse" />
-                <span>COMMAND TERMINAL // RESELLER OPERATIONS</span>
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="inline-flex items-center gap-1.5 rounded bg-[#161922] border border-zinc-800 px-2 py-0.5 font-mono text-[10px] sm:text-[11px] font-semibold text-zinc-400">
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#22C55E] animate-pulse" />
+                  <span>OPERATIONS TERMINAL</span>
+                </div>
+
+                {isEbayConnected ? (
+                  <span className="inline-flex items-center gap-1 rounded bg-[#22C55E]/10 border border-[#22C55E]/30 px-2 py-0.5 font-mono text-[10px] font-bold text-[#22C55E]">
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#22C55E]" />
+                    <span>EBAY LINKED</span>
+                  </span>
+                ) : (
+                  <Link
+                    href="/api/auth/ebay/connect?prompt=login"
+                    className="inline-flex items-center gap-1 rounded bg-[#F97316]/10 hover:bg-[#F97316]/20 border border-[#F97316]/30 px-2 py-0.5 font-mono text-[10px] font-bold text-[#F97316] transition"
+                  >
+                    <ShoppingCart className="h-2.5 w-2.5" />
+                    <span>LINK EBAY</span>
+                  </Link>
+                )}
+
+                {proLoading ? (
+                  <span className="h-5 w-16 rounded bg-zinc-800/80 animate-pulse" />
+                ) : isPro ? (
+                  <span className="inline-flex items-center gap-1 rounded bg-[#161922] border border-[#22C55E]/40 px-2 py-0.5 font-mono text-[10px] font-bold text-[#22C55E]">
+                    [PRO]
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setIsPaywallOpen(true)}
+                    className="inline-flex items-center gap-1 rounded bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 px-2 py-0.5 font-mono text-[10px] font-bold text-amber-400 transition cursor-pointer"
+                  >
+                    [UPGRADE]
+                  </button>
+                )}
               </div>
-              <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white mt-2">
-                Inventory & Sales Telemetry
-              </h1>
-              <p className="text-xs text-zinc-400 mt-1 max-w-xl">
-                Track margin velocity, eliminate hoarder inventory, and dispatch offers directly to eBay AU.
-              </p>
+
+              <div className="flex items-baseline gap-2 mt-1.5">
+                <h1 className="text-lg sm:text-2xl font-black tracking-tight text-white">
+                  Inventory & Telemetry
+                </h1>
+                <span className="font-mono text-[11px] text-zinc-400">
+                  // {allListings.length} units
+                </span>
+              </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-              {proLoading ? (
-                <div className="h-10 w-36 rounded bg-zinc-800/80 animate-pulse border border-zinc-700/50" />
-              ) : isPro ? (
-                <div className="inline-flex h-10 items-center justify-center gap-2 rounded bg-[#161922] border border-[#22C55E]/40 px-4 font-mono text-xs font-bold text-[#22C55E]">
-                  <span className="h-2 w-2 rounded-full bg-[#22C55E]" />
-                  <span>[PRO TIER ACTIVE]</span>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setIsPaywallOpen(true)}
-                  className="btn-primary h-10 px-4 text-xs font-mono font-bold cursor-pointer"
-                >
-                  <span>UPGRADE TIER</span>
-                </button>
-              )}
-
+            <div className="flex items-center gap-2 shrink-0">
               <Link
                 href="/lens"
-                className="btn-primary h-10 px-4 text-xs font-bold gap-1.5"
+                className="btn-primary h-8 sm:h-9 px-3 text-xs font-bold gap-1.5 shadow-sm"
               >
                 <Camera className="h-3.5 w-3.5" />
-                <span>LAUNCH LENS AR</span>
+                <span>SCAN AR</span>
               </Link>
 
-              <Link
-                href="/history"
-                className="btn-secondary h-10 px-4 text-xs font-mono font-bold"
-              >
-                <span>SCAN LOGS</span>
-              </Link>
+              <NewListingDialog
+                trigger={
+                  <button className="btn-secondary h-8 sm:h-9 px-3 text-xs font-mono font-bold cursor-pointer">
+                    <span>+ LOG ITEM</span>
+                  </button>
+                }
+              />
             </div>
           </div>
         </div>
-
-        {/* Live Marketplace Integration Status */}
-        {isEbayConnected ? (
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-lg bg-[#0E1118] border border-[#22C55E]/30 p-3.5 sm:p-4 font-mono text-xs">
-            <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded bg-[#22C55E]/10 border border-[#22C55E]/30 text-[#22C55E] shrink-0">
-                <ShoppingCart className="h-4 w-4" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-xs font-bold text-white uppercase">eBay Merchant Link: CONNECTED</h3>
-                  <span className="h-1.5 w-1.5 rounded-full bg-[#22C55E]" />
-                </div>
-                <p className="text-[11px] text-zinc-400">
-                  Direct background publishing authenticated for Australian marketplace.
-                </p>
-              </div>
-            </div>
-            <Link
-              href="/settings"
-              className="btn-secondary h-8 px-3 text-[11px] font-mono text-zinc-300 shrink-0"
-            >
-              <span>MANAGE LINK</span>
-            </Link>
-          </div>
-        ) : (
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-lg bg-[#0E1118] border border-[#F97316]/30 p-3.5 sm:p-4 font-mono text-xs">
-            <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded bg-[#F97316]/10 border border-[#F97316]/30 text-[#F97316] shrink-0">
-                <ShoppingCart className="h-4 w-4" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-xs font-bold text-white uppercase">eBay Merchant Link: NOT CONNECTED</h3>
-                  <span className="text-[10px] text-[#F97316]">[ACTION REQUIRED]</span>
-                </div>
-                <p className="text-[11px] text-zinc-400">
-                  Connect seller account to enable 1-tap drafting directly from scanner.
-                </p>
-              </div>
-            </div>
-            <Link
-              href="/api/auth/ebay/connect?prompt=login"
-              className="btn-primary h-8 px-3 text-[11px] font-mono shrink-0"
-            >
-              <span>CONNECT EBAY</span>
-            </Link>
-          </div>
-        )}
 
         {/* Error Banner */}
         {error && (
           <div
             role="alert"
-            className="flex items-center justify-between rounded-lg border border-[#DC2626]/40 bg-[#DC2626]/10 p-3 text-xs font-mono text-[#DC2626]"
+            className="flex items-center justify-between rounded-lg border border-[#DC2626]/40 bg-[#DC2626]/10 p-2.5 text-xs font-mono text-[#DC2626]"
           >
             <div className="flex items-center gap-2">
               <AlertCircle className="h-4 w-4 shrink-0" />
@@ -453,8 +423,8 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Core Stat Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5">
+        {/* Compact 4-Metric Grid (2x2 on mobile, 4-col on tablet/desktop) */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
           {(() => {
             const listingsTrend = calcWeeklyTrend(allListings, () => 1);
             const inventoryTrend = calcWeeklyTrend(
@@ -474,7 +444,7 @@ export default function DashboardPage() {
             return (
               <>
                 <StatCard
-                  label="Total Inventory"
+                  label="Total Units"
                   value={String(stats.listings)}
                   icon={Package}
                   trend={listingsTrend.label}
@@ -482,7 +452,7 @@ export default function DashboardPage() {
                   loading={loading}
                 />
                 <StatCard
-                  label="Stock Valuation"
+                  label="Valuation"
                   value={fmtMoney(stats.inventory)}
                   icon={DollarSign}
                   trend={inventoryTrend.label}
@@ -499,7 +469,7 @@ export default function DashboardPage() {
                   loading={loading}
                 />
                 <StatCard
-                  label="Items Dispatched"
+                  label="Dispatched"
                   value={String(stats.sold)}
                   icon={ShoppingCart}
                   trend={soldTrend.label}
@@ -511,170 +481,142 @@ export default function DashboardPage() {
           })()}
         </div>
 
-        {/* Quick Action Hardware Panels */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5 font-mono text-xs">
+        {/* Streamlined Quick Action Launcher Row */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono text-xs">
           <Link
             href="/lens"
-            className="specimen-card p-4 hover:border-zinc-700 transition flex flex-col justify-between group cursor-pointer"
+            className="specimen-card p-2 sm:p-2.5 hover:border-zinc-700 transition flex items-center justify-between group cursor-pointer"
           >
-            <div>
-              <div className="flex items-center justify-between text-zinc-500 text-[10px]">
-                <span>[01] OPTICAL SENSOR</span>
-                <span className="text-[#22C55E] flex items-center gap-1">
-                  <span className="h-1.5 w-1.5 rounded-full bg-[#22C55E]" /> 60 FPS
-                </span>
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="flex h-7 w-7 items-center justify-center rounded bg-[#161922] border border-zinc-800 text-[#22C55E] shrink-0">
+                <Camera className="h-3.5 w-3.5" />
               </div>
-              <h3 className="mt-2 text-sm font-black font-sans text-white group-hover:text-[#F97316] transition">
-                Spadas Lens AR
-              </h3>
-              <p className="mt-1 text-[11px] text-zinc-400 font-sans">
-                Continuous walk-and-pan camera comps.
-              </p>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-white group-hover:text-[#F97316] transition truncate">Lens AR</p>
+                <p className="text-[10px] text-zinc-500 truncate">Optical Comps</p>
+              </div>
             </div>
-            <div className="mt-3 pt-2 border-t border-zinc-800/80 flex items-center justify-between text-[11px] text-zinc-500">
-              <span>SCANNER</span>
-              <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition" />
-            </div>
+            <ArrowRight className="h-3 w-3 text-zinc-600 group-hover:text-zinc-300 group-hover:translate-x-0.5 transition shrink-0" />
           </Link>
 
           <Link
             href="/ironman"
-            className="specimen-card p-4 hover:border-zinc-700 transition flex flex-col justify-between group cursor-pointer"
+            className="specimen-card p-2 sm:p-2.5 hover:border-zinc-700 transition flex items-center justify-between group cursor-pointer"
           >
-            <div>
-              <div className="flex items-center justify-between text-zinc-500 text-[10px]">
-                <span>[02] SPATIAL HUD</span>
-                <span className="text-[#F97316]">[3D BEACONS]</span>
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="flex h-7 w-7 items-center justify-center rounded bg-[#161922] border border-zinc-800 text-[#F97316] shrink-0">
+                <Crosshair className="h-3.5 w-3.5" />
               </div>
-              <h3 className="mt-2 text-sm font-black font-sans text-white group-hover:text-[#F97316] transition">
-                Iron Man AR HUD
-              </h3>
-              <p className="mt-1 text-[11px] text-zinc-400 font-sans">
-                Holographic floating profit pins in 3D.
-              </p>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-white group-hover:text-[#F97316] transition truncate">Iron Man HUD</p>
+                <p className="text-[10px] text-zinc-500 truncate">3D Spatial Pins</p>
+              </div>
             </div>
-            <div className="mt-3 pt-2 border-t border-zinc-800/80 flex items-center justify-between text-[11px] text-zinc-500">
-              <span>LAUNCH HUD</span>
-              <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition" />
-            </div>
+            <ArrowRight className="h-3 w-3 text-zinc-600 group-hover:text-zinc-300 group-hover:translate-x-0.5 transition shrink-0" />
           </Link>
 
           <Link
             href="/sourcing"
-            className="specimen-card p-4 hover:border-zinc-700 transition flex flex-col justify-between group cursor-pointer"
+            className="specimen-card p-2 sm:p-2.5 hover:border-zinc-700 transition flex items-center justify-between group cursor-pointer"
           >
-            <div>
-              <div className="flex items-center justify-between text-zinc-500 text-[10px]">
-                <span>[03] VERDICT ENGINE</span>
-                <span className="text-zinc-400">[STR AUDIT]</span>
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="flex h-7 w-7 items-center justify-center rounded bg-[#161922] border border-zinc-800 text-amber-400 shrink-0">
+                <Zap className="h-3.5 w-3.5" />
               </div>
-              <h3 className="mt-2 text-sm font-black font-sans text-white group-hover:text-[#22C55E] transition">
-                Sourcing Verdict
-              </h3>
-              <p className="mt-1 text-[11px] text-zinc-400 font-sans">
-                Buy vs pass margin evaluation.
-              </p>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-white group-hover:text-amber-400 transition truncate">Verdict Engine</p>
+                <p className="text-[10px] text-zinc-500 truncate">STR Audit</p>
+              </div>
             </div>
-            <div className="mt-3 pt-2 border-t border-zinc-800/80 flex items-center justify-between text-[11px] text-zinc-500">
-              <span>EVALUATE</span>
-              <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition" />
-            </div>
+            <ArrowRight className="h-3 w-3 text-zinc-600 group-hover:text-zinc-300 group-hover:translate-x-0.5 transition shrink-0" />
           </Link>
 
-          <div className="specimen-card p-4 flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between text-zinc-500 text-[10px]">
-                <span>[04] MANUAL ENTRY</span>
-                <span className="text-zinc-500">[ADD]</span>
+          <Link
+            href="/history"
+            className="specimen-card p-2 sm:p-2.5 hover:border-zinc-700 transition flex items-center justify-between group cursor-pointer"
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="flex h-7 w-7 items-center justify-center rounded bg-[#161922] border border-zinc-800 text-sky-400 shrink-0">
+                <ListPlus className="h-3.5 w-3.5" />
               </div>
-              <h3 className="mt-2 text-sm font-black font-sans text-white">
-                New Inventory Unit
-              </h3>
-              <p className="mt-1 text-[11px] text-zinc-400 font-sans">
-                Log freshly acquired lot directly.
-              </p>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-white group-hover:text-sky-400 transition truncate">Scan Logs</p>
+                <p className="text-[10px] text-zinc-500 truncate">Session History</p>
+              </div>
             </div>
-            <div className="mt-3 pt-2 border-t border-zinc-800/80">
-              <NewListingDialog
-                trigger={
-                  <button className="btn-secondary w-full h-8 text-[11px] font-mono">
-                    <span>+ LOG SPECIMEN</span>
-                  </button>
-                }
-              />
-            </div>
-          </div>
+            <ArrowRight className="h-3 w-3 text-zinc-600 group-hover:text-zinc-300 group-hover:translate-x-0.5 transition shrink-0" />
+          </Link>
         </div>
 
         {/* ====================================================================
             THE HIGH-DENSITY INVENTORY DATA GRID
             ==================================================================== */}
-        <div className="specimen-card p-4 sm:p-5 border border-zinc-800 bg-[#0E1118] rounded-xl space-y-4">
+        <div className="specimen-card p-3 sm:p-5 border border-zinc-800 bg-[#0E1118] rounded-xl space-y-3 sm:space-y-4">
           {/* Header & Controls */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-3 border-b border-zinc-800">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-zinc-800">
             <div>
               <div className="flex items-center gap-2 font-mono text-[11px] text-zinc-400">
                 <span className="text-[#F97316]">■</span>
-                <span className="uppercase font-bold">SPECIMEN INVENTORY TELEMETRY</span>
+                <span className="uppercase font-bold">SPECIMEN TELEMETRY</span>
                 <span className="text-zinc-600">//</span>
                 <span>{allListings.length} TOTAL UNITS</span>
               </div>
               <p className="text-xs text-zinc-400 mt-0.5">
-                Dense telemetry grid with turnover velocity and real-time margin math.
+                Turnover velocity, margin math, and 1-tap dispatch.
               </p>
             </div>
 
-            {/* Step 3: Tactile Hardware Segmented Filter Buttons */}
-            <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-lg bg-[#090A0F] border border-zinc-800 overflow-x-auto select-none">
+            {/* Tactile Hardware Segmented Filter Buttons */}
+            <div className="flex items-center gap-1 p-1 rounded-lg bg-[#090A0F] border border-zinc-800 overflow-x-auto select-none no-scrollbar">
               <button
                 type="button"
                 onClick={() => setGridFilter("ALL")}
-                className={`px-3 py-1.5 rounded-md font-mono text-xs transition-all flex items-center gap-1.5 cursor-pointer ${
+                className={`px-2.5 py-1 rounded-md font-mono text-xs transition-all flex items-center gap-1 cursor-pointer shrink-0 ${
                   gridFilter === "ALL"
                     ? "bg-[#161922] text-[#F97316] font-black border border-zinc-700 shadow-[inset_0_2px_4px_rgba(0,0,0,0.6)]"
                     : "text-zinc-400 hover:text-zinc-200 border border-transparent font-medium"
                 }`}
               >
-                <span>[All Inventory: {allListings.length}]</span>
+                <span>All [{allListings.length}]</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setGridFilter("FAST_FLIPS")}
-                className={`px-3 py-1.5 rounded-md font-mono text-xs transition-all flex items-center gap-1.5 cursor-pointer ${
+                className={`px-2.5 py-1 rounded-md font-mono text-xs transition-all flex items-center gap-1 cursor-pointer shrink-0 ${
                   gridFilter === "FAST_FLIPS"
                     ? "bg-[#161922] text-[#22C55E] font-black border border-[#22C55E]/40 shadow-[inset_0_2px_4px_rgba(0,0,0,0.6)]"
                     : "text-zinc-400 hover:text-[#22C55E] border border-transparent font-medium"
                 }`}
               >
                 <Zap className="h-3 w-3 text-[#22C55E]" />
-                <span>[⚡ Fast Flips: {fastFlipsCount}]</span>
+                <span>⚡ Flips [{fastFlipsCount}]</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setGridFilter("TRAPS")}
-                className={`px-3 py-1.5 rounded-md font-mono text-xs transition-all flex items-center gap-1.5 cursor-pointer ${
+                className={`px-2.5 py-1 rounded-md font-mono text-xs transition-all flex items-center gap-1 cursor-pointer shrink-0 ${
                   gridFilter === "TRAPS"
                     ? "bg-[#161922] text-[#DC2626] font-black border border-[#DC2626]/40 shadow-[inset_0_2px_4px_rgba(0,0,0,0.6)]"
                     : "text-zinc-400 hover:text-[#DC2626] border border-transparent font-medium"
                 }`}
               >
                 <ShieldAlert className="h-3 w-3 text-[#DC2626]" />
-                <span>[🛑 Traps: {trapsCount}]</span>
+                <span>🛑 Traps [{trapsCount}]</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setGridFilter("SOLD")}
-                className={`px-3 py-1.5 rounded-md font-mono text-xs transition-all flex items-center gap-1.5 cursor-pointer ${
+                className={`px-2.5 py-1 rounded-md font-mono text-xs transition-all flex items-center gap-1 cursor-pointer shrink-0 ${
                   gridFilter === "SOLD"
                     ? "bg-[#161922] text-zinc-100 font-black border border-zinc-700 shadow-[inset_0_2px_4px_rgba(0,0,0,0.6)]"
                     : "text-zinc-400 hover:text-zinc-200 border border-transparent font-medium"
                 }`}
               >
                 <CheckCircle2 className="h-3 w-3 text-[#22C55E]" />
-                <span>[Sold: {soldCount}]</span>
+                <span>Sold [{soldCount}]</span>
               </button>
             </div>
           </div>
@@ -701,13 +643,138 @@ export default function DashboardPage() {
               )}
             </div>
 
-            <div className="text-[11px] font-mono text-zinc-500 ml-auto hidden sm:block">
-              SHOWING: <strong className="text-zinc-200">{displayedItems.length}</strong> / {allListings.length} UNITS
+            <div className="text-[11px] font-mono text-zinc-500 ml-auto">
+              SHOWING: <strong className="text-zinc-200">{displayedItems.length}</strong> / {allListings.length}
             </div>
           </div>
 
-          {/* High-Density Data Grid Table */}
-          <div className="overflow-x-auto rounded border border-zinc-800/90 bg-[#090A0F]">
+          {/* Mobile View: High-Density Card List (No heavy horizontal scrolling struggle on low-end phones) */}
+          <div className="block sm:hidden divide-y divide-zinc-800/70 border border-zinc-800 rounded-lg bg-[#090A0F] overflow-hidden">
+            {loading &&
+              Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="p-3 animate-pulse flex items-center gap-3">
+                  <div className="h-10 w-10 rounded bg-zinc-800 shrink-0" />
+                  <div className="flex-1 space-y-1.5">
+                    <div className="h-3.5 w-3/4 rounded bg-zinc-800" />
+                    <div className="h-3 w-1/2 rounded bg-zinc-800" />
+                  </div>
+                </div>
+              ))}
+
+            {!loading && displayedItems.length === 0 && (
+              <div className="p-6 text-center text-zinc-500 font-mono text-xs">
+                {allListings.length === 0
+                  ? "NO INVENTORY LOGGED YET. USE SCAN AR TO LOG YOUR FIRST SPECIMEN."
+                  : "NO SPECIMENS MATCH CURRENT VELOCITY FILTER."}
+              </div>
+            )}
+
+            {!loading &&
+              displayedItems.map((item) => {
+                const isFastFlip = item.velocity.sellThroughRate > 90;
+                const isTrap =
+                  item.velocity.sellThroughRate < 25 || item.velocity.isHoarderRisk;
+
+                return (
+                  <div key={item.id} className="p-2.5 hover:bg-[#12151E] transition-colors">
+                    <div className="flex items-start gap-2.5">
+                      {item.image_url ? (
+                        <Image
+                          src={item.image_url}
+                          alt={item.product}
+                          width={40}
+                          height={40}
+                          className="h-10 w-10 rounded object-cover border border-zinc-800 shrink-0 mt-0.5"
+                        />
+                      ) : (
+                        <div className="flex h-10 w-10 items-center justify-center rounded bg-zinc-900 border border-zinc-800 text-zinc-500 shrink-0 mt-0.5">
+                          <Package className="h-4 w-4" />
+                        </div>
+                      )}
+
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-1">
+                          <p className="truncate text-xs font-bold text-zinc-100 font-sans">
+                            {item.product}
+                          </p>
+                          <a
+                            href={`https://www.ebay.com.au/sl/prelist/suggest?keyword=${encodeURIComponent(
+                              item.product
+                            )}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[#12151E] hover:bg-[#181C28] text-zinc-300 border border-zinc-700 text-[10px] font-mono font-bold transition shrink-0"
+                          >
+                            <span>DRAFT</span>
+                            <ExternalLink className="h-2.5 w-2.5" />
+                          </a>
+                        </div>
+
+                        {/* Price & Profit Row */}
+                        <div className="flex items-center justify-between mt-1 font-mono text-[11px]">
+                          <div className="text-zinc-400">
+                            <span className="text-zinc-500">Cost:</span> {fmtMoney(item.calculatedCost)}
+                            <span className="text-zinc-600 mx-1">→</span>
+                            <span className="text-zinc-200 font-bold">{fmtMoney(item.calculatedPrice)}</span>
+                          </div>
+                          <div
+                            className={`font-black tabular-nums ${
+                              item.calculatedProfit > 0
+                                ? "text-[#22C55E]"
+                                : item.calculatedProfit < 0
+                                ? "text-[#DC2626]"
+                                : "text-zinc-400"
+                            }`}
+                          >
+                            {item.calculatedProfit > 0
+                              ? `+${fmtMoney(item.calculatedProfit)}`
+                              : fmtMoney(item.calculatedProfit)}
+                          </div>
+                        </div>
+
+                        {/* Tags & Velocity Row */}
+                        <div className="flex items-center justify-between mt-1.5 gap-1 font-mono text-[10px]">
+                          <div className="flex items-center gap-1.5">
+                            <span
+                              className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded font-black border tabular-nums ${
+                                isFastFlip
+                                  ? "bg-[#22C55E]/15 text-[#22C55E] border-[#22C55E]/30"
+                                  : isTrap
+                                  ? "bg-[#DC2626]/15 text-[#DC2626] border-[#DC2626]/30"
+                                  : "bg-zinc-900 text-zinc-400 border-zinc-800"
+                              }`}
+                            >
+                              {isFastFlip && "⚡"}
+                              {isTrap && "🛑"}
+                              {item.velocity.sellThroughRate}% STR
+                            </span>
+
+                            <span className="text-zinc-500">
+                              ~{item.velocity.estDaysToSell}d turn
+                            </span>
+                          </div>
+
+                          <span
+                            className={`px-1.5 py-0.5 rounded font-bold border ${
+                              item.status === "Sold"
+                                ? "bg-[#22C55E]/10 text-[#22C55E] border-[#22C55E]/20"
+                                : item.status === "Active"
+                                ? "bg-sky-500/10 text-sky-400 border-sky-500/20"
+                                : "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                            }`}
+                          >
+                            {item.status}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+
+          {/* Desktop/Tablet View: High-Density Monospace Data Grid Table */}
+          <div className="hidden sm:block overflow-x-auto rounded border border-zinc-800/90 bg-[#090A0F]">
             <table className="w-full text-left border-collapse text-xs">
               <thead>
                 <tr className="border-b border-zinc-800 bg-[#0D1017] font-mono text-[10px] text-zinc-400 uppercase tracking-wider">
@@ -814,7 +881,7 @@ export default function DashboardPage() {
                             : fmtMoney(item.calculatedProfit)}
                         </td>
 
-                        {/* Step 2: STR% Velocity (Strictly Color-Coded) */}
+                        {/* STR% Velocity */}
                         <td className="py-2 px-3 text-center">
                           <span
                             className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-black border tabular-nums data-readout ${
@@ -831,7 +898,7 @@ export default function DashboardPage() {
                           </span>
                         </td>
 
-                        {/* Days to Turn (Tabular Monospace) */}
+                        {/* Days to Turn */}
                         <td className="py-2 px-3 text-center text-[11px] tabular-nums font-semibold text-zinc-400 data-readout">
                           {item.velocity.estDaysToSell}
                         </td>
