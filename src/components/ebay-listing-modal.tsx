@@ -18,12 +18,21 @@ import { supabase } from "@/app/lib/supabase";
 import { createListing } from "@/app/lib/createlisting";
 import { generateEbayPrefillUrl } from "@/app/lib/marketplaces/ebay-prefill";
 
+export const REGION_OPTIONS = [
+  { id: "AUD", label: "eBay AU", country: "Australia", flag: "🇦🇺", code: "AUD", symbol: "$", site: "ebay.com.au" },
+  { id: "USD", label: "eBay US", country: "United States", flag: "🇺🇸", code: "USD", symbol: "$", site: "ebay.com" },
+  { id: "GBP", label: "eBay UK", country: "United Kingdom", flag: "🇬🇧", code: "GBP", symbol: "£", site: "ebay.co.uk" },
+] as const;
+
+export type EbayRegionCode = (typeof REGION_OPTIONS)[number]["id"];
+
 interface EbayListingModalProps {
   isOpen: boolean;
   onClose: () => void;
   title: string;
   brand?: string;
   price?: number;
+  currency?: string;
   condition?: string;
   description?: string;
   imageUrls?: string[];
@@ -36,6 +45,7 @@ export default function EbayListingModal({
   title: initialTitle,
   brand: initialBrand = "Authentic",
   price: initialPrice = 25,
+  currency: initialCurrency,
   condition: initialCondition = "Used - Good",
   description: initialDescription = "",
   imageUrls = [],
@@ -48,6 +58,7 @@ export default function EbayListingModal({
   const [isDemo, setIsDemo] = useState<boolean>(false);
   const [isLiveListing, setIsLiveListing] = useState<boolean>(false);
 
+  const [selectedCurrency, setSelectedCurrency] = useState<string>("AUD");
   const [inputTitle, setInputTitle] = useState(initialTitle.slice(0, 80));
   const [inputPrice, setInputPrice] = useState(initialPrice);
   const [inputCondition, setInputCondition] = useState(initialCondition);
@@ -58,6 +69,16 @@ export default function EbayListingModal({
 
   useEffect(() => {
     if (isOpen) {
+      let initialCurr = (initialCurrency || "").toUpperCase();
+      if (!["AUD", "USD", "GBP"].includes(initialCurr)) {
+        if (typeof window !== "undefined") {
+          const stored = localStorage.getItem("spadas_selected_currency");
+          if (stored && ["AUD", "USD", "GBP"].includes(stored.toUpperCase())) {
+            initialCurr = stored.toUpperCase();
+          }
+        }
+      }
+      setSelectedCurrency(initialCurr && ["AUD", "USD", "GBP"].includes(initialCurr) ? initialCurr : "AUD");
       setInputTitle((initialTitle || "").slice(0, 80));
       setInputPrice(Number(initialPrice) || 25);
       setInputCondition(initialCondition || "Used - Good");
@@ -70,21 +91,33 @@ export default function EbayListingModal({
       setPublishedSku(null);
       setIsLiveListing(false);
     }
-  }, [isOpen, initialTitle, initialPrice, initialCondition, initialDescription, initialBrand]);
+  }, [isOpen, initialTitle, initialPrice, initialCondition, initialDescription, initialBrand, initialCurrency]);
 
   if (!isOpen) return null;
 
+  const activeRegion = REGION_OPTIONS.find((r) => r.id === selectedCurrency) || REGION_OPTIONS[0];
+
+  const handleRegionChange = (newCurrency: string) => {
+    setSelectedCurrency(newCurrency);
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("spadas_selected_currency", newCurrency);
+      } catch {}
+    }
+  };
+
   const handleFastList = () => {
-    const copyPayload = `Title: ${inputTitle}\nPrice: $${Number(inputPrice).toFixed(2)} AUD\nCondition: ${inputCondition}\nBrand: ${initialBrand}\n\nDescription:\n${inputDescription}`;
+    const copyPayload = `Title: ${inputTitle}\nPrice: ${activeRegion.symbol}${Number(inputPrice).toFixed(2)} ${activeRegion.code}\nCondition: ${inputCondition}\nBrand: ${initialBrand}\n\nDescription:\n${inputDescription}`;
     navigator.clipboard.writeText(copyPayload);
 
     const prefillUrl = generateEbayPrefillUrl({
       title: inputTitle,
       priceAud: Number(inputPrice),
       brand: initialBrand,
+      currency: activeRegion.code,
     });
 
-    toast.success("📋 Listing details copied! Opening eBay AU Sell wizard...", { duration: 4500 });
+    toast.success(`📋 Listing details copied! Opening ${activeRegion.label} Sell wizard...`, { duration: 4500 });
     window.open(prefillUrl, "_blank");
   };
 
@@ -125,6 +158,7 @@ export default function EbayListingModal({
       product: inputTitle,
       brand: initialBrand,
       price: Number(inputPrice),
+      currency: selectedCurrency,
       condition: inputCondition,
       description: inputDescription,
       imageUrls,
@@ -150,7 +184,7 @@ export default function EbayListingModal({
       }
 
       if (data.success) {
-        setPublishedUrl(data.listingUrl || "https://www.ebay.com.au/sh/lst/active");
+        setPublishedUrl(data.listingUrl || `https://www.${activeRegion.site}/sh/lst/active`);
         setPublishedSku(data.sku || null);
         setIsDemo(!!data.isDemoMode);
         setIsLiveListing(!!data.isLive);
@@ -174,9 +208,9 @@ export default function EbayListingModal({
         }
 
         if (data.isLive) {
-          toast.success("🚀 Live on eBay AU! Listing published successfully.");
+          toast.success(`🚀 Live on ${activeRegion.label}! Listing published successfully.`);
         } else {
-          toast.success("📋 Item saved and pre-filled for eBay!");
+          toast.success(`📋 Draft saved in ${activeRegion.label} Seller Hub!`);
         }
       }
     } catch (err: unknown) {
@@ -195,7 +229,7 @@ export default function EbayListingModal({
         <div className="flex items-center justify-between border-b border-slate-800 pb-4">
           <div className="flex items-center gap-2 text-cyan-400 font-bold text-base">
             <ShoppingBag className="w-5 h-5" />
-            <span>List Item on eBay</span>
+            <span>List Item on {activeRegion.label}</span>
           </div>
           <button
             type="button"
@@ -215,8 +249,8 @@ export default function EbayListingModal({
             <div className="space-y-1">
               <h3 className="text-xl font-bold text-slate-100">
                 {isLiveListing
-                  ? "🚀 Live on eBay AU!"
-                  : "📋 Draft Saved in eBay Seller Hub!"}
+                  ? `🚀 Live on ${activeRegion.label}!`
+                  : `📋 Draft Saved in ${activeRegion.label} Seller Hub!`}
               </h3>
               <p className="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
                 {publishedSku ? (
@@ -225,8 +259,8 @@ export default function EbayListingModal({
                   </span>
                 ) : null}
                 {isLiveListing
-                  ? "Your item has been published live and is now visible to buyers across eBay Australia."
-                  : "Your item details, price, and photos are saved in your eBay account. Open Seller Hub drafts to review your postage options and activate it live."}
+                  ? `Your item has been published live and is now visible to buyers across ${activeRegion.country}.`
+                  : `Your item details, price, and photos are saved in your ${activeRegion.label} Seller Hub account. Open Seller Hub drafts to review and activate it live.`}
               </p>
             </div>
 
@@ -237,7 +271,7 @@ export default function EbayListingModal({
                 rel="noopener noreferrer"
                 className={`inline-flex items-center justify-center gap-2 px-5 py-2.5 ${isLiveListing ? "bg-emerald-500 hover:bg-emerald-400" : "bg-cyan-500 hover:bg-cyan-400"} text-slate-950 font-extrabold rounded-xl text-xs shadow-lg transition cursor-pointer w-full sm:w-auto`}
               >
-                <span>{isLiveListing ? "View Live on eBay" : "Open eBay Seller Hub Drafts"}</span>
+                <span>{isLiveListing ? `View Live on ${activeRegion.label}` : `Open ${activeRegion.label} Drafts`}</span>
                 <ExternalLink className="w-4 h-4" />
               </a>
 
@@ -253,12 +287,39 @@ export default function EbayListingModal({
         ) : (
           /* Pre-filled Listing Form */
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Target Marketplace Switcher */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-300 block">
+                Target eBay Marketplace
+              </label>
+              <div className="grid grid-cols-3 gap-2 p-1 bg-slate-950/80 border border-slate-800 rounded-xl">
+                {REGION_OPTIONS.map((region) => {
+                  const isSelected = selectedCurrency === region.id;
+                  return (
+                    <button
+                      key={region.id}
+                      type="button"
+                      onClick={() => handleRegionChange(region.id)}
+                      className={`flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        isSelected
+                          ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 shadow-md shadow-cyan-500/20"
+                          : "text-slate-400 hover:text-slate-200 hover:bg-slate-900"
+                      }`}
+                    >
+                      <span className="text-sm">{region.flag}</span>
+                      <span className="truncate">{region.id} ({region.symbol})</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             {/* Quick 1-Tap Fast-List Option Banner */}
             <div className="p-3.5 bg-gradient-to-r from-amber-500/10 via-cyan-500/10 to-blue-500/10 border border-amber-500/30 rounded-xl text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-amber-200">
               <div className="flex items-center gap-2">
                 <Zap className="w-4 h-4 shrink-0 text-amber-400" />
                 <span className="text-slate-200 text-xs">
-                  Zero setup needed: opens official eBay AU listing form pre-filled.
+                  Zero setup needed: opens official {activeRegion.label} listing form pre-filled.
                 </span>
               </div>
               <button
@@ -267,7 +328,7 @@ export default function EbayListingModal({
                 className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-lg text-xs shrink-0 flex items-center justify-center gap-1.5 transition cursor-pointer shadow-md shadow-amber-500/20 active:scale-95"
               >
                 <Zap className="w-3.5 h-3.5" />
-                <span>⚡ 1-Tap Fast-List</span>
+                <span>⚡ 1-Tap Fast-List ({activeRegion.id})</span>
               </button>
             </div>
 
@@ -284,7 +345,7 @@ export default function EbayListingModal({
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-lg text-xs transition cursor-pointer"
                   >
                     <Zap className="w-3.5 h-3.5" />
-                    <span>Open in 1-Tap Fast-List instead</span>
+                    <span>Open in 1-Tap Fast-List ({activeRegion.id})</span>
                   </button>
                   <a
                     href="/api/auth/ebay/connect?prompt=login"
@@ -324,10 +385,12 @@ export default function EbayListingModal({
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <label htmlFor="ebay-price" className="text-xs font-semibold text-slate-300 block">
-                  Buy It Now (AUD)
+                  Buy It Now ({activeRegion.code})
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-2 text-xs font-bold text-slate-400">$</span>
+                  <span className="absolute left-3 top-2 text-xs font-bold text-slate-400">
+                    {activeRegion.symbol}
+                  </span>
                   <input
                     id="ebay-price"
                     type="number"
@@ -420,12 +483,12 @@ export default function EbayListingModal({
                   {loading ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
-                      <span>Syncing eBay...</span>
+                      <span>Syncing {activeRegion.label}...</span>
                     </>
                   ) : (
                     <>
                       <ShoppingBag className="w-4 h-4" />
-                      <span>Sync to eBay</span>
+                      <span>Sync to {activeRegion.label}</span>
                     </>
                   )}
                 </button>

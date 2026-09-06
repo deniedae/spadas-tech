@@ -214,6 +214,7 @@ export function ScanItemCard({
         title={title}
         brand={brand}
         price={maxPrice || minPrice || 25}
+        currency={res?.currency}
         condition={res?.analysis?.condition || "Used - Good"}
         description={res?.seo_description || res?.detailed_description || ""}
         imageUrls={scan.image_url ? [scan.image_url] : []}

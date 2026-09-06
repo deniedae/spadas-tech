@@ -294,6 +294,7 @@ export function HistoryFeedView({
           title={activeEbayItem.name}
           brand={activeEbayItem.brand}
           price={activeEbayItem.estimatedValue}
+          currency={(activeEbayItem as any).currency}
           condition={activeEbayItem.condition}
           description={`Authentic ${activeEbayItem.brand || ""} ${activeEbayItem.name}. Clean pre-owned condition, tested & working.`}
           imageUrls={activeEbayItem.imageUrl ? [activeEbayItem.imageUrl] : []}

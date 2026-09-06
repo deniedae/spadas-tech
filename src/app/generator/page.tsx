@@ -561,6 +561,7 @@ export default function AiNewListingPage() {
         title={form.ebay_title || form.product}
         brand={form.brand || "Authentic"}
         price={Number(form.price) || 25}
+        currency={(form as any).currency}
         condition={form.condition || "Used - Good"}
         description={form.detailed_description || form.seo_description}
         imageUrls={imageUrls}

@@ -190,25 +190,29 @@ export default function CrossListModal({
         </button>
 
         {/* 1-Tap Direct Fast-List on eBay */}
-        {activePlatform === "ebay" && (
-          <button
-            type="button"
-            onClick={() => {
-              const url = generateEbayPrefillUrl({
-                title: ebayTitle,
-                priceAud: itemPrice,
-                brand: itemBrand,
-                category,
-              });
-              handleCopyAllBundle();
-              window.open(url, "_blank", "noopener,noreferrer");
-            }}
-            className="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs flex items-center justify-center gap-1.5 shadow-md cursor-pointer transition active:scale-95"
-          >
-            <ExternalLink className="w-3.5 h-3.5" />
-            <span>⚡ 1-Tap Fast-List on eBay AU (Opens Pre-Filled Wizard)</span>
-          </button>
-        )}
+        {activePlatform === "ebay" && (() => {
+          const userCurrency = typeof window !== "undefined" ? localStorage.getItem("spadas_selected_currency") || "AUD" : "AUD";
+          return (
+            <button
+              type="button"
+              onClick={() => {
+                const url = generateEbayPrefillUrl({
+                  title: ebayTitle,
+                  priceAud: itemPrice,
+                  brand: itemBrand,
+                  category,
+                  currency: userCurrency,
+                });
+                handleCopyAllBundle();
+                window.open(url, "_blank", "noopener,noreferrer");
+              }}
+              className="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs flex items-center justify-center gap-1.5 shadow-md cursor-pointer transition active:scale-95"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              <span>⚡ 1-Tap Fast-List on eBay ({userCurrency}) (Opens Pre-Filled Wizard)</span>
+            </button>
+          );
+        })()}
 
         {/* Title Copy Box */}
         <div className="space-y-1.5">

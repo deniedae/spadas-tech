@@ -3036,8 +3036,9 @@ function SpadasLensCameraCore() {
           title={activeEbayItem.productName || activeEbayItem.name || "Scanned Item"}
           brand={activeEbayItem.brand || "Authentic"}
           price={activeEbayItem.estimatedValue || 25}
+          currency={activeEbayItem.currency}
           condition={activeEbayItem.condition || "Used - Good"}
-          description={`Authentic ${activeEbayItem.brand || ""} ${activeEbayItem.productName || activeEbayItem.name || "Scanned Item"}. Clean pre-owned condition, tested & fully functional. Fast dispatch from Australia.`}
+          description={`Authentic ${activeEbayItem.brand || ""} ${activeEbayItem.productName || activeEbayItem.name || "Scanned Item"}. Clean pre-owned condition, tested & fully functional. Fast dispatch.`}
         />
       )}
 

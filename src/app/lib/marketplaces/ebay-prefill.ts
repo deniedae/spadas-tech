@@ -71,7 +71,7 @@ export function generateOptimizedEbayTitle(params: TitleOptimizationParams): str
 
 /**
  * Builds eBay Direct Pre-Fill Listing URL (Opens listing wizard pre-populated)
- * Dynamically routes to ebay.com (USD) or ebay.com.au (AUD) based on selected currency.
+ * Dynamically routes to ebay.com (USD), ebay.co.uk (GBP), ebay.de (EUR), or ebay.com.au (AUD).
  */
 export function generateEbayPrefillUrl(params: {
   title: string;
@@ -85,8 +85,15 @@ export function generateEbayPrefillUrl(params: {
     keyword: params.title.trim(),
   });
 
-  const isUsd = (params.currency || "").toUpperCase() === "USD";
-  const domain = isUsd ? "www.ebay.com" : "www.ebay.com.au";
+  const curr = (params.currency || "").toUpperCase().trim();
+  let domain = "www.ebay.com.au";
+  if (curr === "USD") {
+    domain = "www.ebay.com";
+  } else if (curr === "GBP") {
+    domain = "www.ebay.co.uk";
+  } else if (curr === "EUR") {
+    domain = "www.ebay.de";
+  }
 
   return `https://${domain}/sl/prelist/suggest?${queryParams.toString()}`;
 }

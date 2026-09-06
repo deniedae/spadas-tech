@@ -763,6 +763,7 @@ export default function ListingsPage() {
           }}
           title={ebayPublishItem.product}
           price={Number(ebayPublishItem.price) || 25}
+          currency={(ebayPublishItem as any).currency}
           description={ebayPublishItem.description || ""}
           imageUrls={ebayPublishItem.image_url ? [ebayPublishItem.image_url] : []}
         />

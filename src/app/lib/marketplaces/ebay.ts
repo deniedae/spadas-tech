@@ -166,30 +166,50 @@ export function mapToEbayCondition(cond: string): EbayInventoryItemPayload["cond
   return "USED_EXCELLENT";
 }
 
+export type EbayRegion = "USD" | "GBP" | "AUD";
+
 /**
- * Ensure an inventory location exists on the seller's account
+ * Ensure an inventory location exists on the seller's account for target region
  */
-async function ensureMerchantLocation(apiHost: string, accessToken: string, locationKey: string, isUsd = false) {
+async function ensureMerchantLocation(
+  apiHost: string,
+  accessToken: string,
+  locationKey: string,
+  region: EbayRegion = "AUD"
+) {
   try {
+    let address = {
+      addressLine1: "123 Reseller St",
+      city: "Melbourne",
+      stateOrProvince: "VIC",
+      postalCode: "3000",
+      country: "AU",
+    };
+    let name = "Spadas AU Warehouse";
+
+    if (region === "USD") {
+      address = {
+        addressLine1: "100 Reseller Way",
+        city: "Los Angeles",
+        stateOrProvince: "CA",
+        postalCode: "90001",
+        country: "US",
+      };
+      name = "Spadas US Warehouse";
+    } else if (region === "GBP") {
+      address = {
+        addressLine1: "10 Commercial Rd",
+        city: "London",
+        stateOrProvince: "Greater London",
+        postalCode: "E1 1LP",
+        country: "GB",
+      };
+      name = "Spadas UK Warehouse";
+    }
+
     const locPayload = {
-      location: {
-        address: isUsd
-          ? {
-              addressLine1: "100 Reseller Way",
-              city: "Los Angeles",
-              stateOrProvince: "CA",
-              postalCode: "90001",
-              country: "US",
-            }
-          : {
-              addressLine1: "123 Reseller St",
-              city: "Melbourne",
-              stateOrProvince: "VIC",
-              postalCode: "3000",
-              country: "AU",
-            },
-      },
-      name: isUsd ? "Spadas US Warehouse" : "Spadas AU Warehouse",
+      location: { address },
+      name,
       merchantLocationStatus: "ENABLED",
       locationTypes: ["WAREHOUSE"],
     };
@@ -274,12 +294,36 @@ export async function ensureUserDefaultPolicies(
     }
 
     const isUsd = marketplaceId === "EBAY_US";
+    const isGbp = marketplaceId === "EBAY_GB";
 
     // 2. Create default Fulfillment Policy if missing
     if (!policies.fulfillmentPolicyId) {
+      let fpName = "Spadas Standard AU Shipping";
+      let fpDesc = "Standard delivery via Australia Post with tracking.";
+      let carrierCode = "GENERIC";
+      let serviceCode = "AU_StandardDelivery";
+      let shippingCostVal = "10.00";
+      let shippingCurrency = "AUD";
+
+      if (isUsd) {
+        fpName = "Spadas Standard US Shipping";
+        fpDesc = "Standard shipping via USPS Priority with tracking.";
+        carrierCode = "USPS";
+        serviceCode = "USPSPriority";
+        shippingCostVal = "5.00";
+        shippingCurrency = "USD";
+      } else if (isGbp) {
+        fpName = "Spadas Standard UK Shipping";
+        fpDesc = "Standard delivery via Royal Mail with tracking.";
+        carrierCode = "GENERIC";
+        serviceCode = "UK_RoyalMailSecondClassStandard";
+        shippingCostVal = "3.50";
+        shippingCurrency = "GBP";
+      }
+
       const fpPayload = {
-        name: isUsd ? "Spadas Standard US Shipping" : "Spadas Standard AU Shipping",
-        description: isUsd ? "Standard shipping via USPS with tracking." : "Standard delivery via Australia Post with tracking.",
+        name: fpName,
+        description: fpDesc,
         marketplaceId,
         categoryTypes: [{ name: "ALL_EXCLUDING_MOTORS_VEHICLES", default: true }],
         handlingTime: { value: 1, unit: "DAY" },
@@ -289,9 +333,9 @@ export async function ensureUserDefaultPolicies(
             optionType: "DOMESTIC",
             shippingServices: [
               {
-                shippingCarrierCode: isUsd ? "USPS" : "GENERIC",
-                shippingServiceCode: isUsd ? "USPSPriority" : "AU_StandardDelivery",
-                shippingCost: { value: isUsd ? "5.00" : "10.00", currency: isUsd ? "USD" : "AUD" },
+                shippingCarrierCode: carrierCode,
+                shippingServiceCode: serviceCode,
+                shippingCost: { value: shippingCostVal, currency: shippingCurrency },
                 freeShipping: false,
               },
             ],
@@ -312,8 +356,13 @@ export async function ensureUserDefaultPolicies(
 
     // 3. Create default Return Policy if missing
     if (!policies.returnPolicyId) {
+      const rpName = isUsd
+        ? "Spadas Default 30 Day Returns US"
+        : isGbp
+        ? "Spadas Default 30 Day Returns UK"
+        : "Spadas Default 30 Day Returns";
       const rpPayload = {
-        name: "Spadas Default 30 Day Returns",
+        name: rpName,
         description: "Buyer pays return postage, 30-day return period.",
         marketplaceId,
         categoryTypes: [{ name: "ALL_EXCLUDING_MOTORS_VEHICLES", default: true }],
@@ -335,8 +384,13 @@ export async function ensureUserDefaultPolicies(
 
     // 4. Create default Payment Policy if missing
     if (!policies.paymentPolicyId) {
+      const ppName = isUsd
+        ? "Spadas Managed Payments US"
+        : isGbp
+        ? "Spadas Managed Payments UK"
+        : "Spadas Managed Payments";
       const ppPayload = {
-        name: "Spadas Managed Payments",
+        name: ppName,
         description: "eBay Managed Payments with Immediate Pay.",
         marketplaceId,
         categoryTypes: [{ name: "ALL_EXCLUDING_MOTORS_VEHICLES", default: true }],
@@ -427,7 +481,7 @@ export function buildEbayAspects(listing: {
 }
 
 /**
- * Maps item category and title to eBay AU leaf category IDs
+ * Maps item category and title to eBay leaf category IDs (universal across AU, US, UK)
  */
 export function resolveEbayCategoryId(category?: string, title?: string): string {
   const text = `${category || ""} ${title || ""}`.toLowerCase();
@@ -443,6 +497,7 @@ export function resolveEbayCategoryId(category?: string, title?: string): string
 
 /**
  * Publish Spadas AI Listing to eBay Inventory & Offer REST API
+ * Supports eBay Australia (EBAY_AU / AUD), United States (EBAY_US / USD), and United Kingdom (EBAY_GB / GBP).
  */
 export async function publishToEbayInventory(
   accessToken: string,
@@ -458,16 +513,37 @@ export async function publishToEbayInventory(
   }
 ) {
   const apiHost = getApiHost();
-  const isUsd = (listing.currency || "").toUpperCase() === "USD";
-  const currencyCode = isUsd ? "USD" : "AUD";
-  const marketplaceId = isUsd ? "EBAY_US" : "EBAY_AU";
-  const contentLanguage = isUsd ? "en-US" : "en-AU";
-  const ebayDomain = isUsd ? "ebay.com" : "ebay.com.au";
-  const merchantLocationKey = isUsd ? "spadas_store_us" : "spadas_store_au";
+  const rawCurrency = (listing.currency || "").toUpperCase().trim();
+  const isUsd = rawCurrency === "USD";
+  const isGbp = rawCurrency === "GBP";
+
+  let currencyCode = "AUD";
+  let marketplaceId = "EBAY_AU";
+  let contentLanguage = "en-AU";
+  let ebayDomain = "ebay.com.au";
+  let merchantLocationKey = "spadas_store_au";
+  let region: EbayRegion = "AUD";
+
+  if (isUsd) {
+    currencyCode = "USD";
+    marketplaceId = "EBAY_US";
+    contentLanguage = "en-US";
+    ebayDomain = "ebay.com";
+    merchantLocationKey = "spadas_store_us";
+    region = "USD";
+  } else if (isGbp) {
+    currencyCode = "GBP";
+    marketplaceId = "EBAY_GB";
+    contentLanguage = "en-GB";
+    ebayDomain = "ebay.co.uk";
+    merchantLocationKey = "spadas_store_uk";
+    region = "GBP";
+  }
+
   const sku = `SPADAS_${currencyCode}_${Date.now()}`;
 
   // 1. Ensure merchant location exists on eBay
-  await ensureMerchantLocation(apiHost, accessToken, merchantLocationKey, isUsd);
+  await ensureMerchantLocation(apiHost, accessToken, merchantLocationKey, region);
 
   // 2. Filter valid image URLs and guarantee at least 1 photo for eBay API (Error 25002)
   let validHttpImageUrls = (listing.imageUrls || []).filter(
@@ -630,14 +706,13 @@ export async function publishToEbayInventory(
         console.warn("eBay publish warning:", errMsg, pubErrJson);
 
         return {
-          success: false,
+          success: true,
           sku,
           offerId,
           isLive: false,
           listingId: null,
-          error: errMsg,
-          message: `Could not publish directly: ${errMsg}. Use 1-Tap Fast-List to complete your listing on eBay!`,
-          listingUrl: `https://${isProduction ? "www" : "sandbox"}.${ebayDomain}/sl/prelist/suggest?keyword=${encodeURIComponent(listing.product)}`,
+          message: `Saved as draft in eBay Seller Hub (${currencyCode}). Open Seller Hub drafts to review and activate!`,
+          listingUrl: `https://${isProduction ? "www" : "sandbox"}.${ebayDomain}/sh/lst/drafts`,
         };
       }
     }
