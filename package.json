@@ -18,12 +18,14 @@
     "build:windows": "npx @pwabuilder/cli"
   },
   "dependencies": {
+    "@ai-sdk/google": "^4.0.64",
     "@base-ui/react": "^1.6.0",
     "@stripe/stripe-js": "^9.12.0",
     "@supabase/ssr": "^0.12.3",
     "@supabase/supabase-js": "^2.110.7",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^1.3.1",
+    "ai": "^7.0.93",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "firebase": "^12.18.0",
@@ -42,7 +44,7 @@
     "stripe": "^22.3.2",
     "tailwind-merge": "^3.6.0",
     "tw-animate-css": "^1.4.0",
-    "zod": "^3.24.2"
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
