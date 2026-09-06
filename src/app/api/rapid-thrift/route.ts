@@ -125,8 +125,12 @@ export async function POST(req: Request) {
     const apiKey = getPrimaryAiApiKey();
     if (!apiKey) {
       console.log("[Rapid Thrift API] No AI Key configured, returning local appraisal.");
-      return NextResponse.json(generateLocalThriftFallback(currency));
+      return NextResponse.json({
+        ...generateLocalThriftFallback(currency),
+        _debug_error: "NO_API_KEY_FOUND_ON_SERVER",
+      });
     }
+
 
     const openai = createOpenAiClient();
 
@@ -171,12 +175,14 @@ Output ONLY valid JSON adhering strictly to:
   "notes": string
 }`;
 
-    // Fast completion with strict token limit for low latency
+    const cleanImage = image.trim().replace(/[\r\n]/g, "");
+
+    // Fast completion with safe token limit to prevent JSON truncation
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-2024-08-06",
       response_format: { type: "json_object" },
       temperature: 0.1,
-      max_tokens: 300,
+      max_tokens: 600,
       messages: [
         { role: "system", content: systemPrompt },
         {
@@ -186,7 +192,7 @@ Output ONLY valid JSON adhering strictly to:
             {
               type: "image_url",
               image_url: {
-                url: image,
+                url: cleanImage,
                 detail: "auto",
               },
             },
@@ -197,8 +203,12 @@ Output ONLY valid JSON adhering strictly to:
 
     const rawContent = completion.choices[0]?.message?.content;
     if (!rawContent) {
-      return NextResponse.json(generateLocalThriftFallback(currency));
+      return NextResponse.json({
+        ...generateLocalThriftFallback(currency),
+        _debug_error: "NO_RAW_CONTENT_FROM_OPENAI",
+      });
     }
+
 
     const parsed = JSON.parse(rawContent);
 
@@ -311,8 +321,13 @@ Output ONLY valid JSON adhering strictly to:
     }
 
     return NextResponse.json(result);
-  } catch (err) {
-    console.warn("[Rapid Thrift API] Error, returning local fallback:", err);
-    return NextResponse.json(generateLocalThriftFallback());
+  } catch (err: any) {
+    console.error("[Rapid Thrift API] Error, returning local fallback:", err);
+    return NextResponse.json({
+      ...generateLocalThriftFallback(),
+      _debug_error: err?.message || String(err),
+      _debug_code: err?.code || err?.status || null,
+    });
   }
 }
+
