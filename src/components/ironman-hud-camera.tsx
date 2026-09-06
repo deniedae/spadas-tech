@@ -24,6 +24,7 @@ import { calculateSalesVelocity, SalesVelocityProfile } from "@/lib/turnover-vel
 import { calculateThriftCopVerdict } from "@/lib/thrift-cop-engine";
 import { appraiseItemLocally } from "@/app/lib/offline/offline-engine";
 import { triggerTactileHaptic } from "@/lib/android-bridge";
+import { supabase } from "@/app/lib/supabase";
 
 export interface HolographicBeacon {
   id: string;
@@ -97,6 +98,8 @@ function playSciFiSound(type: "lock" | "grail" | "trap") {
 export function IronmanHudCamera() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const inFlightRef = useRef<boolean>(false);
+  const recentScannedNamesRef = useRef<Set<string>>(new Set());
 
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [facingMode, setFacingMode] = useState<"environment" | "user">("environment");
@@ -176,6 +179,7 @@ export function IronmanHudCamera() {
     const interval = setInterval(async () => {
       const video = videoRef.current;
       if (!video || video.readyState < 2) return;
+      if (inFlightRef.current) return;
 
       // Extract image frame
       const canvas = document.createElement("canvas");
@@ -184,37 +188,52 @@ export function IronmanHudCamera() {
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const base64 = canvas.toDataURL("image/jpeg", 0.7);
+      const base64 = canvas.toDataURL("image/jpeg", 0.75);
 
-      // Analyze via Rapid API or local heuristic fallback
+      inFlightRef.current = true;
       let hitData: any = null;
       try {
+        const { data: sessionData } = await supabase.auth.getSession().catch(() => ({ data: null }));
+        const requestHeaders: Record<string, string> = { "Content-Type": "application/json" };
+        if (sessionData?.session?.access_token) {
+          requestHeaders["Authorization"] = `Bearer ${sessionData.session.access_token}`;
+        }
+
         const res = await fetch("/api/rapid-thrift", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: requestHeaders,
           body: JSON.stringify({ image: base64, currency: "AUD" }),
         }).catch(() => null);
 
         if (res && res.ok) {
           hitData = await res.json().catch(() => null);
         }
-      } catch {}
-
-      if (!hitData || hitData.error) {
-        // High-speed offline appraisal fallback
-        const offline = appraiseItemLocally();
-        hitData = {
-          product_name: offline.productName,
-          brand: offline.brand,
-          category: offline.category,
-          estimated_value: offline.estimatedValue,
-          thrift_cost: offline.tagPrice,
-          true_net_profit: offline.trueNetProfit,
-          roi_percentage: offline.roiPercentage,
-          cop_verdict: offline.copVerdict,
-          is_grail: offline.trueNetProfit >= 50,
-        };
+      } catch (err) {
+        console.warn("[Ironman HUD] Scan error:", err);
+      } finally {
+        inFlightRef.current = false;
       }
+
+      // Hard check: only show beacons for actual recognized physical items, NEVER mock data
+      const pName = (hitData?.product_name || "").trim();
+      if (
+        !hitData ||
+        hitData.error ||
+        !pName ||
+        pName.toLowerCase() === "unknown item" ||
+        pName.toLowerCase() === "unidentified" ||
+        pName.toLowerCase() === "thrift item"
+      ) {
+        return;
+      }
+
+      // Prevent duplicate beacon for same item within 6 seconds
+      const nameKey = pName.toLowerCase();
+      if (recentScannedNamesRef.current.has(nameKey)) {
+        return;
+      }
+      recentScannedNamesRef.current.add(nameKey);
+      setTimeout(() => recentScannedNamesRef.current.delete(nameKey), 6000);
 
       const netProfit = Number(hitData.true_net_profit) || 25;
       const resalePrice = Number(hitData.estimated_value) || 45;

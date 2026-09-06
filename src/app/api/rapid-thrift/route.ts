@@ -125,29 +125,26 @@ export async function POST(req: Request) {
     const apiKey = getPrimaryAiApiKey();
     if (!apiKey) {
       console.log("[Rapid Thrift API] No AI Key configured, returning local appraisal.");
-      return NextResponse.json({
-        ...generateLocalThriftFallback(currency),
-        _debug_error: "NO_API_KEY_FOUND_ON_SERVER",
-      });
+      return NextResponse.json(generateLocalThriftFallback(currency));
     }
 
 
     const openai = createOpenAiClient();
 
-    const systemPrompt = `You are Spadas Ultra-Fast Thrift Vision Engine. Analyze the thrift shelf/rack photo in <1.5s with RUTHLESS RESELLER ACCURACY.
+    const systemPrompt = `You are an expert reseller appraiser and secondary market sourcing specialist. Analyze the photo with high accuracy.
 Identify the exact item, brand, category, condition, realistic secondary market resale value (cleared eBay sold comps in ${currency}), typical thrift store tag cost ($2-$20 ${currency}), and calculate True Net Profit:
 True Net Profit = Resale Value - Thrift Cost - Platform Fees (13.4% + $0.33) - Real Parcel Shipping ($4.20 - $11.00).
 
-RUTHLESS RESELLER RULES & AVOID AMATEUR TRAPS:
-1. NEVER OVERVALUE PENNY ARBITRAGE / LOW-DOLLAR MEDIA:
-   Common mass-market DVDs, Blu-rays, and CDs (e.g. Wolverine, Twilight, Dark Knight, Avatar, standard movies) sell on eBay for $3 - $5 gross with free shipping by mega-warehouses. Tracked parcel postage ($4.20) + eBay fees ($1.00) means an individual seller loses money or nets $0.
-   -> Estimated Value: $4-$6. Cop Verdict: "PASS_RISKY". Notes: "Common media. Tracked postage ($4.20) eats 100% of profit."
-2. NEVER OVERVALUE BUDGET COMMODITY TECH:
-   Brands like Amazon Basics, Insignia, Onn, Mainstays, and Blackweb retail for $10-$14 BRAND NEW on Amazon Prime with next-day delivery. A used Amazon Basics keyboard or mouse has near-zero resale demand ($5-$8 at best) and shipping costs $9.50.
-   -> Cop Verdict: "PASS_RISKY". Notes: "Budget commodity tech. Cheaper new on Amazon Prime."
-3. BE REALISTIC ON NOVELTY CERAMIC MUGS & GLASSWARE:
-   Mass-market novelty coffee mugs (standard Nintendo, Disney, Star Wars from Target/Walmart) sell for $6-$9, NOT $20. Shipping is $8.50 due to 1.5 lb fragile bubble-wrap packaging. Unless it is a rare 1980s/1990s collector grail, net profit is negative.
-   -> Cop Verdict: "PASS_RISKY". Notes: "Fragile ceramic novelty. Shipping ($8.50) eliminates margin."
+RESELLER MARKET RULES & TRAP DETECTION:
+1. LOW-DOLLAR MEDIA & PENNY ARBITRAGE:
+   Common mass-market DVDs, Blu-rays, and CDs sell on eBay for $3 - $5 gross. Tracked parcel postage ($4.20) + eBay fees means an individual seller loses money or nets $0.
+   -> Estimated Value: $4-$6. Cop Verdict: "PASS_RISKY". Notes: "Common media. Tracked postage eats profit."
+2. BUDGET COMMODITY TECH:
+   Brands like Amazon Basics, Insignia, Onn, Mainstays retail cheap brand new. Used items have near-zero resale demand ($5-$8) and shipping costs $9.50.
+   -> Cop Verdict: "PASS_RISKY". Notes: "Budget tech. Lower than shipping cost."
+3. NOVELTY CERAMIC MUGS & GLASSWARE:
+   Mass-market novelty coffee mugs sell for $6-$9, not $20. Shipping is $8.50 due to fragile packaging. Net profit is negative.
+   -> Cop Verdict: "PASS_RISKY". Notes: "Fragile ceramic novelty. Shipping exceeds margin."
 4. READ VISIBLE TEXT & BRAND LOGOS FIRST:
    Inspect logos and badges (e.g. TP-Link, Netgear, Linksys, Cisco, Belkin, Anker, Sony, Nintendo, Apple, Logitech, Carhartt, Nike, Patagonia, Ralph Lauren).
 5. NEVER MISIDENTIFY COMPUTER/NETWORKING GEAR AS VAPES.
@@ -188,7 +185,7 @@ Output ONLY valid JSON adhering strictly to:
         {
           role: "user",
           content: [
-            { type: "text", text: `Appraise thrift item in ${currency}. Apply ruthless reseller math with real shipping costs.` },
+            { type: "text", text: `Appraise the item in the image for resale in ${currency}.` },
             {
               type: "image_url",
               image_url: {
@@ -203,10 +200,7 @@ Output ONLY valid JSON adhering strictly to:
 
     const rawContent = completion.choices[0]?.message?.content;
     if (!rawContent) {
-      return NextResponse.json({
-        ...generateLocalThriftFallback(currency),
-        _debug_error: "NO_RAW_CONTENT_FROM_OPENAI",
-      });
+      return NextResponse.json(generateLocalThriftFallback(currency));
     }
 
 
@@ -323,11 +317,7 @@ Output ONLY valid JSON adhering strictly to:
     return NextResponse.json(result);
   } catch (err: any) {
     console.error("[Rapid Thrift API] Error, returning local fallback:", err);
-    return NextResponse.json({
-      ...generateLocalThriftFallback(),
-      _debug_error: err?.message || String(err),
-      _debug_code: err?.code || err?.status || null,
-    });
+    return NextResponse.json(generateLocalThriftFallback());
   }
 }
 
