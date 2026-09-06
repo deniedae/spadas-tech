@@ -199,14 +199,42 @@ export function IronmanHudCamera() {
           requestHeaders["Authorization"] = `Bearer ${sessionData.session.access_token}`;
         }
 
-        const res = await fetch("/api/rapid-thrift", {
+        const res = await fetch("/api/ai-listing", {
           method: "POST",
           headers: requestHeaders,
-          body: JSON.stringify({ image: base64, currency: "AUD" }),
+          body: JSON.stringify({
+            imageUrls: [base64],
+            isArScan: true,
+            currency: "AUD",
+            mode: "targeted",
+          }),
         }).catch(() => null);
 
         if (res && res.ok) {
-          hitData = await res.json().catch(() => null);
+          const raw = await res.json().catch(() => null);
+          if (raw && (raw.status === "identified" || raw.analysis?.product_name)) {
+            const pName = (raw.analysis?.product_name || raw.product_name || raw.detected_objects?.[0]?.product_name || "").trim();
+            if (pName && pName.toLowerCase() !== "unidentified" && pName.toLowerCase() !== "unknown item" && pName !== "NO_CENTER_ITEM") {
+              const brand = raw.analysis?.brand || raw.brand || "Authentic";
+              const category = raw.analysis?.category || raw.category || "General";
+              const estVal = Number(raw.suggested_price_median) || Number(raw.estimated_value) || 35;
+              const net = Number(raw.true_net_profit) || Math.max(0, Math.round((estVal * 0.7 - 8) * 100) / 100);
+              const cost = Number(raw.detected_tag_price) || Number(raw.thrift_cost) || Math.max(2, Math.round(estVal * 0.15));
+              const roi = Number(raw.roi_percentage) || (cost > 0 ? Math.round((net / cost) * 100) : 0);
+
+              hitData = {
+                product_name: pName,
+                brand,
+                category,
+                estimated_value: estVal,
+                thrift_cost: cost,
+                true_net_profit: net,
+                roi_percentage: roi,
+                cop_verdict: raw.cop_verdict || (net >= 40 ? "MUST_COP" : net >= 15 ? "QUICK_FLIP" : "PASS_RISKY"),
+                is_grail: net >= 50 || raw.cop_verdict === "MUST_COP",
+              };
+            }
+          }
         }
       } catch (err) {
         console.warn("[Ironman HUD] Scan error:", err);
