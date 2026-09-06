@@ -12,7 +12,7 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-        source: "/spadas-ai.apk",
+        source: "/:path*(apk|xapk)",
         headers: [
           {
             key: "Content-Type",
