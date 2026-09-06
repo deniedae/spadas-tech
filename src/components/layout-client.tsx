@@ -118,6 +118,7 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
   // Streamlined Navigation items for sidebar (Spadas Studio added for direct multi-angle studio workflow)
   const navItems = [
     { href: "/lens", label: "🔮 Spadas Lens AR" },
+    { href: "/ironman", label: "🥽 Iron Man HUD" },
     { href: "/studio", label: "📸 Spadas Studio" },
     { href: "/history", label: "📜 Scan History" },
     { href: "/dashboard", label: "🏠 Dashboard" },
@@ -134,6 +135,7 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
   // Dynamic page titles for header
   const pageTitleMap: Record<string, string> = {
     "/lens": "Spadas Lens AR Sourcing",
+    "/ironman": "Iron Man AR Spatial HUD",
     "/studio": "Spadas Snap Studio",
     "/snap": "Spadas Snap Studio",
     "/history": "Scan History Feed",
