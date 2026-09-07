@@ -17,12 +17,15 @@ import {
 import { supabase } from "@/app/lib/supabase";
 import { toast } from "sonner";
 import { getGuestScannedItems, MAX_GUEST_SCANS } from "@/lib/guest-scan-tracker";
+import { isOwnerEmail } from "@/app/lib/auth-admin";
 
 interface GuestScanLimitModalProps {
   isOpen: boolean;
   onClose?: () => void;
   scannedCount?: number;
   lastScannedItem?: any;
+  isAuthenticated?: boolean;
+  isPro?: boolean;
 }
 
 export function GuestScanLimitModal({
@@ -30,6 +33,8 @@ export function GuestScanLimitModal({
   onClose,
   scannedCount = MAX_GUEST_SCANS,
   lastScannedItem,
+  isAuthenticated = false,
+  isPro = false,
 }: GuestScanLimitModalProps) {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -38,8 +43,39 @@ export function GuestScanLimitModal({
   const [googleLoading, setGoogleLoading] = useState(false);
   const [upgradingToPro, setUpgradingToPro] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [activeUser, setActiveUser] = useState<any>(null);
 
-  if (!isOpen) return null;
+  React.useEffect(() => {
+    // Non-blocking check against Supabase session and user metadata on mount
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setActiveUser(session.user);
+        if (onClose) onClose();
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setActiveUser(session.user);
+        if (onClose) onClose();
+      } else {
+        setActiveUser(null);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [onClose]);
+
+  // CRITICAL EARLY RETURN GUARD: Never render or pop up the scan limit modal
+  // if the user is authenticated, has active pro status, or matches owner/admin email
+  const isAuthedUser = Boolean(isAuthenticated || activeUser);
+  const isProOrOwner = Boolean(isPro || isOwnerEmail(activeUser?.email));
+
+  if (!isOpen || isAuthedUser || isProOrOwner) {
+    return null;
+  }
 
   const savedItems = getGuestScannedItems();
   const displayItem = lastScannedItem || (savedItems.length > 0 ? savedItems[0] : null);

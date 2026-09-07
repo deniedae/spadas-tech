@@ -18,6 +18,7 @@ import {
   type GuestScanState,
 } from "@/lib/guest-scan-tracker";
 import { processFrameForVision } from "@/lib/image-preprocessor";
+import { isOwnerEmail } from "@/app/lib/auth-admin";
 
 export function SpadasSnapStudio() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -36,31 +37,115 @@ export function SpadasSnapStudio() {
     promptLabel: string;
   } | null>(null);
 
-  // Guest Scan State
-  const [isGuestUser, setIsGuestUser] = useState<boolean>(true);
+  // User Auth & Subscription State
+  const [isOwner, setIsOwner] = useState<boolean>(false);
+  const [isPro, setIsPro] = useState<boolean>(false);
+  const [isGuestUser, setIsGuestUser] = useState<boolean>(false); // Default false: never flash paid/logged-in users as guests
   const [sessionScanCount, setSessionScanCount] = useState<number>(0);
   const [guestScanState, setGuestScanState] = useState<GuestScanState>(() => getGuestScanState());
   const [isGuestModalOpen, setIsGuestModalOpen] = useState<boolean>(false);
   const [lastScannedItem, setLastScannedItem] = useState<any>(null);
 
+  // Reliable Non-Blocking Supabase Auth & Subscription Check on Mount
   useEffect(() => {
+    let isMounted = true;
+
     async function checkAuth() {
-      const { data: { user } } = await supabase.auth.getUser();
-      setIsGuestUser(!user);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const user = session?.user;
+
+        if (user) {
+          const isUserAdmin = isOwnerEmail(user.email);
+          if (isMounted) {
+            setIsGuestUser(false);
+            if (isUserAdmin) {
+              setIsOwner(true);
+              setIsPro(true);
+              setIsGuestModalOpen(false);
+            }
+          }
+
+          const token = session.access_token;
+          const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+
+          const [usageRes, stripeRes] = await Promise.all([
+            fetch("/api/usage", { headers }).catch(() => null),
+            fetch("/api/stripe/status", { headers }).catch(() => null),
+          ]);
+
+          let proStatus = isUserAdmin;
+
+          if (stripeRes && stripeRes.ok) {
+            const stripeData = await stripeRes.json().catch(() => ({}));
+            if (stripeData.active || stripeData.plan === "Pro" || stripeData.status === "active") {
+              proStatus = true;
+            }
+          }
+
+          if (usageRes && usageRes.ok) {
+            const usage = await usageRes.json().catch(() => ({}));
+            if (usage.isPro) {
+              proStatus = true;
+            }
+          }
+
+          if (isMounted) {
+            setIsGuestUser(false);
+            setIsPro(proStatus);
+            if (proStatus) {
+              setIsGuestModalOpen(false);
+            }
+          }
+        } else {
+          if (isMounted) {
+            setIsGuestUser(true);
+            setIsPro(false);
+            setIsOwner(false);
+          }
+        }
+      } catch (err) {
+        console.warn("[Snap Studio] Auth check error:", err);
+      }
     }
+
     void checkAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!isMounted) return;
+      if (session?.user) {
+        const isUserAdmin = isOwnerEmail(session.user.email);
+        setIsGuestUser(false);
+        if (isUserAdmin) {
+          setIsOwner(true);
+          setIsPro(true);
+          setIsGuestModalOpen(false);
+        }
+      } else {
+        setIsGuestUser(true);
+        setIsPro(false);
+        setIsOwner(false);
+      }
+    });
 
     if (typeof window !== "undefined") {
       const urlParams = new URLSearchParams(window.location.search);
       if (urlParams.get("checkout") === "success") {
         toast.success("🚀 Welcome to Spadas Pro! Unlimited scans unlocked.", { duration: 6000 });
         setIsGuestUser(false);
+        setIsPro(true);
+        setIsGuestModalOpen(false);
         window.history.replaceState({}, "", "/snap");
       } else if (urlParams.get("checkout") === "canceled") {
         toast.info("Checkout was canceled. Your photos and drafts are saved.", { duration: 4000 });
         window.history.replaceState({}, "", "/snap");
       }
     }
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   // Stop Camera Stream (Releases all hardware locks immediately)
@@ -230,7 +315,20 @@ export function SpadasSnapStudio() {
       return;
     }
 
-    if (isGuestUser && sessionScanCount >= MAX_GUEST_SCANS) {
+    // Live session check to prevent authenticated users from ever triggering guest limit
+    const { data: { session } } = await supabase.auth.getSession();
+    const currentUser = session?.user;
+    const isAuthed = Boolean(currentUser);
+    const isUserAdmin = isOwnerEmail(currentUser?.email);
+
+    if (isAuthed) {
+      setIsGuestUser(false);
+      if (isUserAdmin || isPro) {
+        setIsGuestModalOpen(false);
+      }
+    }
+
+    if (!isAuthed && isGuestUser && sessionScanCount >= MAX_GUEST_SCANS) {
       setIsGuestModalOpen(true);
       toast.info("You've used all 3 free instant guest scans! Create a free account to unlock 10 daily scans.");
       return;
@@ -244,15 +342,20 @@ export function SpadasSnapStudio() {
         (typeof window !== "undefined" && localStorage.getItem("spadas_selected_currency")) ||
         detectGeoCurrency().currency;
 
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (session?.access_token) {
+        headers["Authorization"] = `Bearer ${session.access_token}`;
+      }
+
       const res = await fetch("/api/ai-listing", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({
           imageUrls: capturedPhotos,
           currency: activeCurrency,
           mode: "deep",
           isArScan: true,
-          isGuestScan: isGuestUser,
+          isGuestScan: !isAuthed && isGuestUser,
         }),
       });
 
@@ -590,10 +693,12 @@ export function SpadasSnapStudio() {
 
       {/* Instant Guest Scan Limit & Conversion Modal */}
       <GuestScanLimitModal
-        isOpen={isGuestModalOpen}
+        isOpen={isGuestModalOpen && isGuestUser && !isPro && !isOwner}
         onClose={() => setIsGuestModalOpen(false)}
         scannedCount={guestScanState.count}
         lastScannedItem={lastScannedItem}
+        isAuthenticated={!isGuestUser || isOwner}
+        isPro={isPro || isOwner}
       />
     </div>
   );

@@ -23,6 +23,7 @@ import { fmtMoney } from "@/app/lib/listings";
 import { createListing } from "@/app/lib/createlisting";
 import { supabase } from "@/app/lib/supabase";
 import { detectGeoCurrency, CURRENCY_CONFIGS, SupportedCurrency } from "@/app/lib/currency-routing";
+import { isOwnerEmail } from "@/app/lib/auth-admin";
 import { resilientFetch } from "@/app/lib/resilient-fetch";
 import { playScanBeep, triggerScanHaptic, createNativeBarcodeScanner, isNativeBarcodeDetectorSupported } from "@/lib/barcode-detector";
 import { syncProfitToAndroidWidget, triggerTactileHaptic } from "@/lib/android-bridge";
@@ -253,7 +254,7 @@ function SpadasLensCameraCore() {
   const [isOwner, setIsOwner] = useState<boolean>(false);
   const [isPro, setIsPro] = useState<boolean>(false);
   const [isLimitReached, setIsLimitReached] = useState<boolean>(false);
-  const [isGuestUser, setIsGuestUser] = useState<boolean>(true);
+  const [isGuestUser, setIsGuestUser] = useState<boolean>(false); // Default false: never flash paid/logged-in users as guests
   const [guestScanState, setGuestScanState] = useState<GuestScanState>(() => getGuestScanState());
   const [isGuestLimitModalOpen, setIsGuestLimitModalOpen] = useState<boolean>(false);
   const [lastGuestScannedItem, setLastGuestScannedItem] = useState<any>(null);
@@ -283,27 +284,105 @@ function SpadasLensCameraCore() {
     saveRapidSession(rapidItems);
   }, [rapidItems]);
 
-  // Verify User Authentication & Subscription Tier on Mount
+  // Reliable Non-Blocking Supabase Auth & Subscription Check on Mount
   useEffect(() => {
+    let isMounted = true;
+
     async function checkAuthAndSubscription() {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          setIsGuestUser(false);
-          const res = await fetch("/api/usage").catch(() => null);
-          if (res && res.ok) {
-            const usage = await res.json().catch(() => ({}));
-            setIsPro(Boolean(usage.isPro));
-            setIsLimitReached(Boolean(usage.limitReached));
+        // 1. Instant non-blocking session check from Supabase client storage
+        const { data: { session } } = await supabase.auth.getSession();
+        const currentUser = session?.user;
+
+        if (currentUser) {
+          const isUserAdmin = isOwnerEmail(currentUser.email);
+          if (isMounted) {
+            setIsGuestUser(false);
+            if (isUserAdmin) {
+              setIsOwner(true);
+              setIsPro(true);
+              setIsLimitReached(false);
+              setIsGuestLimitModalOpen(false);
+              setIsPaywallOpen(false);
+            }
+          }
+
+          // 2. Fetch subscription & usage data passing Bearer token for server-side auth
+          const token = session.access_token;
+          const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+
+          const [usageRes, stripeRes] = await Promise.all([
+            fetch("/api/usage", { headers }).catch(() => null),
+            fetch("/api/stripe/status", { headers }).catch(() => null),
+          ]);
+
+          let proStatus = isUserAdmin;
+          let limitStatus = false;
+
+          if (stripeRes && stripeRes.ok) {
+            const stripeData = await stripeRes.json().catch(() => ({}));
+            if (stripeData.active || stripeData.plan === "Pro" || stripeData.status === "active") {
+              proStatus = true;
+            }
+          }
+
+          if (usageRes && usageRes.ok) {
+            const usage = await usageRes.json().catch(() => ({}));
+            if (usage.isPro) {
+              proStatus = true;
+            }
+            limitStatus = Boolean(usage.limitReached && !proStatus);
+          }
+
+          if (isMounted) {
+            setIsGuestUser(false);
+            setIsPro(proStatus);
+            setIsLimitReached(limitStatus);
+            if (proStatus) {
+              setIsLimitReached(false);
+              setIsGuestLimitModalOpen(false);
+              setIsPaywallOpen(false);
+            }
           }
         } else {
-          setIsGuestUser(true);
+          // Genuinely unauthenticated guest
+          if (isMounted) {
+            setIsGuestUser(true);
+            setIsPro(false);
+            setIsOwner(false);
+          }
         }
       } catch (err) {
         console.warn("[Spadas Lens] Auth check notice:", err);
       }
     }
+
     void checkAuthAndSubscription();
+
+    // 3. Reactive listener for auth state changes (login, logout, token refresh)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!isMounted) return;
+      if (session?.user) {
+        const isUserAdmin = isOwnerEmail(session.user.email);
+        setIsGuestUser(false);
+        if (isUserAdmin) {
+          setIsOwner(true);
+          setIsPro(true);
+          setIsLimitReached(false);
+          setIsGuestLimitModalOpen(false);
+          setIsPaywallOpen(false);
+        }
+      } else {
+        setIsGuestUser(true);
+        setIsPro(false);
+        setIsOwner(false);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   // Handle Stripe Checkout Return on /lens
@@ -315,6 +394,8 @@ function SpadasLensCameraCore() {
         setIsPro(true);
         setIsLimitReached(false);
         setIsGuestUser(false);
+        setIsGuestLimitModalOpen(false);
+        setIsPaywallOpen(false);
         window.history.replaceState({}, "", "/lens");
       } else if (urlParams.get("checkout") === "canceled") {
         toast.info("Checkout was canceled. Your scans and drafts are saved.", { duration: 4000 });
@@ -1521,7 +1602,23 @@ function SpadasLensCameraCore() {
         }
       }
 
-      if (isGuestUser && sessionScanCount >= MAX_GUEST_SCANS) {
+      // 1. Live Session & Admin Verification prior to scan limit evaluation
+      const { data: sessionData } = await supabase.auth.getSession();
+      const sessionUser = sessionData?.session?.user;
+      const isAuthed = Boolean(sessionUser);
+      const isUserAdmin = isOwnerEmail(sessionUser?.email);
+
+      if (isAuthed) {
+        setIsGuestUser(false);
+        if (isUserAdmin || isPro) {
+          setIsLimitReached(false);
+          setIsGuestLimitModalOpen(false);
+          setIsPaywallOpen(false);
+        }
+      }
+
+      // 2. Scan limits strictly apply ONLY to genuine unauthenticated guests
+      if (!isAuthed && isGuestUser && sessionScanCount >= MAX_GUEST_SCANS) {
         setIsScanPaused(true);
         setIsGuestLimitModalOpen(true);
         setAnalyzingRealFrame(false);
@@ -1529,7 +1626,8 @@ function SpadasLensCameraCore() {
         return;
       }
 
-      if (!isPro && isLimitReached) {
+      // 3. Daily 10-scan free tier limit applies strictly to non-pro, non-admin users
+      if (!isPro && !isUserAdmin && isLimitReached) {
         setIsScanPaused(true);
         setIsPaywallOpen(true);
         setAnalyzingRealFrame(false);
@@ -1563,7 +1661,6 @@ function SpadasLensCameraCore() {
       console.log('[Spadas Lens]', cycleId, 'Starting resilient fetch for frame with analyzingRealFrame:', analyzingRealFrame);
       trace.markRequestDispatched();
 
-      const { data: sessionData } = await supabase.auth.getSession();
       const requestHeaders: Record<string, string> = { "Content-Type": "application/json" };
       if (sessionData?.session?.access_token) {
         requestHeaders["Authorization"] = `Bearer ${sessionData.session.access_token}`;
@@ -1601,20 +1698,22 @@ function SpadasLensCameraCore() {
 
       // ── Phase 4: Non-Alarming HTTP Error State Handling ──────────────────────
       if (res?.status === 403 || data?.limitReached) {
-        setIsScanPaused(true);
-        setIsLimitReached(true);
-        setIsPaywallOpen(true);
-        setLatestApiError("Daily free scan limit reached (10/10).");
-        toast.error("You've used all 10 free daily scans! Upgrade to Pro for unlimited scans.", {
-          id: "daily-limit-toast",
-          duration: 6000,
-        });
+        if (!isPro && !isUserAdmin) {
+          setIsScanPaused(true);
+          setIsLimitReached(true);
+          setIsPaywallOpen(true);
+          setLatestApiError("Daily free scan limit reached (10/10).");
+          toast.error("You've used all 10 free daily scans! Upgrade to Pro for unlimited scans.", {
+            id: "daily-limit-toast",
+            duration: 6000,
+          });
+        }
         setAnalyzingRealFrame(false);
         return;
       }
 
       if (res?.status === 401) {
-        if (isGuestUser) {
+        if (!isAuthed && isGuestUser) {
           setIsGuestLimitModalOpen(true);
           setIsScanPaused(true);
         } else {
@@ -3152,17 +3251,19 @@ function SpadasLensCameraCore() {
 
       {/* Subscription Paywall Tier Modal */}
       <SubscriptionPaywallModal
-        isOpen={isPaywallOpen}
+        isOpen={isPaywallOpen && !isPro && !isOwner}
         onClose={() => setIsPaywallOpen(false)}
         currentScans={capturedLog.length}
       />
 
       {/* Instant Guest Scan Limit & Conversion Modal */}
       <GuestScanLimitModal
-        isOpen={isGuestLimitModalOpen}
+        isOpen={isGuestLimitModalOpen && isGuestUser && !isPro && !isOwner}
         onClose={() => setIsGuestLimitModalOpen(false)}
         scannedCount={guestScanState.count}
         lastScannedItem={lastGuestScannedItem}
+        isAuthenticated={!isGuestUser || isOwner}
+        isPro={isPro || isOwner}
       />
 
       {/* Ebay Listing Automation Modal */}
