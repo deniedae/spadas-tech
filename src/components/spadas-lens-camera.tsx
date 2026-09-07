@@ -1635,7 +1635,7 @@ function SpadasLensCameraCore() {
     autoScanActiveRef.current = autoScanActive;
   }, [autoScanActive]);
 
-  // Frame Scanner with Resilient Lock & 1200px High-Detail Processing
+  // Frame Scanner with Instantaneous Shutter Trigger & Responsive Viewfinder State
   const processCurrentFrame = useCallback(async (forceManual = false) => {
     // 1. Immediate State Flush on Manual Scan (via "Scan Next Item" or the shutter button)
     if (forceManual) {
@@ -1651,24 +1651,22 @@ function SpadasLensCameraCore() {
     const cycleId = ++cycleSeq;
     activeCycleIdRef.current = cycleId;
 
+    // 3. Instantaneous Shutter Trigger & Responsive Viewfinder State (0ms dead air):
+    // Instantly transition UI to active scanning & progressive loader in the vision stage
     analyzingRef.current = true;
     setAnalyzingRealFrame(true);
+    setScanStage("vision");
     setScanErrorState({ type: null });
+    setActiveValuationHit(null);
+    setScanRetryPrompt(null);
+    setPendingIdentifiedItem(null);
 
     const currentTime = Date.now();
     lastScanTimeRef.current = currentTime;
 
-    // If camera stream is not active yet when user taps Scan Now, auto-start camera stream first
-    if (!stream && forceManual) {
-      await startCamera();
-      await new Promise((resolve) => setTimeout(resolve, 400));
-    }
-
-    if (abortController.signal.aborted || cycleId !== activeCycleIdRef.current) return;
-
     if (forceManual) {
       setShutterFlash(true);
-      setTimeout(() => setShutterFlash(false), 180);
+      setTimeout(() => setShutterFlash(false), 140);
       if (typeof navigator !== "undefined" && navigator.vibrate) {
         navigator.vibrate([40, 20, 50]);
       }
@@ -1676,19 +1674,97 @@ function SpadasLensCameraCore() {
 
     setCameraMoving(false);
 
+    // 4. Instantaneous Frame Capture: Grab frame snapshot synchronously from video to immediately freeze the live viewfinder
+    const video = videoRef.current;
+    let instantCanvas: HTMLCanvasElement | null = null;
+    let instantSnapshotUrl: string | null = null;
+
+    if (video && video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0) {
+      try {
+        if (!offscreenCanvasRef.current) {
+          offscreenCanvasRef.current = document.createElement("canvas");
+        }
+        instantCanvas = offscreenCanvasRef.current;
+        const maxDim = 800;
+        const fullW = video.videoWidth;
+        const fullH = video.videoHeight;
+        let tw = fullW;
+        let th = fullH;
+        if (fullW >= fullH) {
+          tw = Math.min(maxDim, fullW);
+          th = Math.round((fullH * tw) / fullW);
+        } else {
+          th = Math.min(maxDim, fullH);
+          tw = Math.round((fullW * th) / fullH);
+        }
+        instantCanvas.width = tw;
+        instantCanvas.height = th;
+        const ctx = instantCanvas.getContext("2d", { willReadFrequently: true });
+        if (ctx) {
+          ctx.drawImage(video, 0, 0, fullW, fullH, 0, 0, tw, th);
+          instantSnapshotUrl = instantCanvas.toDataURL("image/jpeg", 0.74);
+        }
+      } catch (err) {
+        console.warn("[Spadas Lens] Instantaneous snapshot capture warning:", err);
+      }
+    }
+
+    // Instantly freeze the live viewfinder with the captured frame (0ms transition to progressive loader)
+    if (instantSnapshotUrl && (forceManual || scanMode === "snap")) {
+      setFrozenFrameUrl(instantSnapshotUrl);
+      setIsScanPaused(true);
+    }
+
+    // If camera stream is not active yet when user taps Scan Now, auto-start camera stream first
+    if (!stream && forceManual) {
+      await startCamera();
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      const postVideo = videoRef.current;
+      if (postVideo && postVideo.readyState >= 2 && postVideo.videoWidth > 0 && !instantSnapshotUrl) {
+        try {
+          if (!offscreenCanvasRef.current) {
+            offscreenCanvasRef.current = document.createElement("canvas");
+          }
+          instantCanvas = offscreenCanvasRef.current;
+          const maxDim = 800;
+          const fullW = postVideo.videoWidth;
+          const fullH = postVideo.videoHeight;
+          let tw = fullW;
+          let th = fullH;
+          if (fullW >= fullH) {
+            tw = Math.min(maxDim, fullW);
+            th = Math.round((fullH * tw) / fullW);
+          } else {
+            th = Math.min(maxDim, fullH);
+            tw = Math.round((fullW * th) / fullH);
+          }
+          instantCanvas.width = tw;
+          instantCanvas.height = th;
+          const ctx = instantCanvas.getContext("2d", { willReadFrequently: true });
+          if (ctx) {
+            ctx.drawImage(postVideo, 0, 0, fullW, fullH, 0, 0, tw, th);
+            instantSnapshotUrl = instantCanvas.toDataURL("image/jpeg", 0.74);
+            setFrozenFrameUrl(instantSnapshotUrl);
+            setIsScanPaused(true);
+          }
+        } catch {}
+      }
+    }
+
+    if (abortController.signal.aborted || cycleId !== activeCycleIdRef.current) return;
+
     const trace = new ScanTrace(scanMode);
 
     try {
-      const video = videoRef.current;
-      let frameDataUrl = "";
+      let frameDataUrl = instantSnapshotUrl || "";
 
       // SUB-100MS LOCAL WASM BARCODE PRE-PASS: Scan live video frame for barcodes locally (0ms cloud latency)
-      if (video && typeof window !== "undefined" && "BarcodeDetector" in window) {
+      if ((instantCanvas || video) && typeof window !== "undefined" && "BarcodeDetector" in window) {
         try {
           const detector = new (window as any).BarcodeDetector({
             formats: ["ean_13", "ean_8", "upc_a", "upc_e", "qr_code", "code_128", "code_39"],
           });
-          const detectedBarcodes = await detector.detect(video).catch(() => []);
+          const detectedBarcodes = await detector.detect(instantCanvas || video).catch(() => []);
           if (detectedBarcodes && detectedBarcodes.length > 0) {
             const codeVal = detectedBarcodes[0]?.rawValue;
             const nowTime = Date.now();
@@ -1733,22 +1809,7 @@ function SpadasLensCameraCore() {
                       : "FAIR_MARGIN";
 
                   // Capture frame snapshot for preview
-                  let snapshotUrl: string | null = null;
-                  if (video && video.videoWidth > 0) {
-                    try {
-                      const canvas = document.createElement("canvas");
-                      canvas.width = video.videoWidth;
-                      canvas.height = video.videoHeight;
-                      const ctx = canvas.getContext("2d");
-                      if (ctx) {
-                        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                        snapshotUrl = canvas.toDataURL("image/jpeg", 0.85);
-                      }
-                    } catch (e) {
-                      console.warn("[Spadas Lens] Barcode snapshot capture skipped:", e);
-                    }
-                  }
-
+                  const snapshotUrl = instantSnapshotUrl || null;
                   const productImg = bData.product.image || snapshotUrl || null;
 
                   const scanObj: ActiveScanItem = {
@@ -1834,9 +1895,9 @@ function SpadasLensCameraCore() {
 
       let centerCropDataUrl = "";
 
-      if (video) {
+      if (instantCanvas || video) {
         try {
-          const preprocessed = processFrameForVision(video, {
+          const preprocessed = processFrameForVision(instantCanvas || video!, {
             cropFactor: 0.65,
             boostContrast: true,
             maxDimension: 800,
@@ -1846,30 +1907,38 @@ function SpadasLensCameraCore() {
           centerCropDataUrl = preprocessed.enhancedCropDataUrl;
         } catch (prepErr) {
           console.warn("[Spadas Lens] Preprocessing fallback:", prepErr);
-          const fullWidth = video.videoWidth || video.clientWidth || 640;
-          const fullHeight = video.videoHeight || video.clientHeight || 480;
-          if (!offscreenCanvasRef.current) {
-            offscreenCanvasRef.current = document.createElement("canvas");
-          }
-          const canvas = offscreenCanvasRef.current;
-          const maxDim = 800;
-          let targetW = fullWidth;
-          let targetH = fullHeight;
-          if (fullWidth > fullHeight) {
-            targetW = Math.min(maxDim, fullWidth);
-            targetH = Math.round((fullHeight * targetW) / fullWidth);
-          } else {
-            targetH = Math.min(maxDim, fullHeight);
-            targetW = Math.round((fullWidth * targetH) / fullHeight);
-          }
-          canvas.width = targetW;
-          canvas.height = targetH;
-          const ctx = canvas.getContext("2d");
-          if (ctx) {
-            ctx.drawImage(video, 0, 0, fullWidth, fullHeight, 0, 0, targetW, targetH);
-            frameDataUrl = canvas.toDataURL("image/jpeg", 0.74);
+          if (instantSnapshotUrl) {
+            frameDataUrl = instantSnapshotUrl;
+          } else if (video) {
+            const fullWidth = video.videoWidth || video.clientWidth || 640;
+            const fullHeight = video.videoHeight || video.clientHeight || 480;
+            if (!offscreenCanvasRef.current) {
+              offscreenCanvasRef.current = document.createElement("canvas");
+            }
+            const canvas = offscreenCanvasRef.current;
+            const maxDim = 800;
+            let targetW = fullWidth;
+            let targetH = fullHeight;
+            if (fullWidth > fullHeight) {
+              targetW = Math.min(maxDim, fullWidth);
+              targetH = Math.round((fullHeight * targetW) / fullWidth);
+            } else {
+              targetH = Math.min(maxDim, fullHeight);
+              targetW = Math.round((fullWidth * targetH) / fullHeight);
+            }
+            canvas.width = targetW;
+            canvas.height = targetH;
+            const ctx = canvas.getContext("2d");
+            if (ctx) {
+              ctx.drawImage(video, 0, 0, fullWidth, fullHeight, 0, 0, targetW, targetH);
+              frameDataUrl = canvas.toDataURL("image/jpeg", 0.74);
+            }
           }
         }
+      }
+
+      if (!frameDataUrl && instantSnapshotUrl) {
+        frameDataUrl = instantSnapshotUrl;
       }
 
       // 1. Live Session & Admin Verification prior to scan limit evaluation
@@ -3002,7 +3071,7 @@ function SpadasLensCameraCore() {
 
             {/* Frozen Frame Snapshot when Scan is Paused / Valued (Eliminates all Camera Flutter) */}
             {frozenFrameUrl && isScanPaused && (
-              <div className="absolute inset-0 z-10 bg-slate-950">
+              <div className="absolute inset-0 z-10 bg-slate-950 animate-in fade-in duration-150">
                 <img
                   src={frozenFrameUrl}
                   alt="Frozen Scanned Frame"
