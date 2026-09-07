@@ -391,8 +391,9 @@ export function SpadasSnapStudio() {
             const reader = res.body.getReader();
             const decoder = new TextDecoder();
             let buffer = "";
+            let isStreamFinished = false;
 
-            while (true) {
+            while (!isStreamFinished) {
               const { done, value } = await reader.read();
               if (done) break;
 
@@ -414,20 +415,28 @@ export function SpadasSnapStudio() {
                     }
                   } else if (chunk.event === "complete") {
                     data = chunk.data;
+                    isStreamFinished = true;
+                    break;
                   } else if (!chunk.event) {
                     data = chunk;
+                    isStreamFinished = true;
+                    break;
                   }
                 } catch {}
               }
             }
 
-            if (buffer.trim()) {
+            if (!data && buffer.trim()) {
               try {
                 const chunk = JSON.parse(buffer.trim());
                 if (chunk.event === "complete") data = chunk.data;
                 else if (!chunk.event) data = chunk;
               } catch {}
             }
+
+            try {
+              void reader.cancel();
+            } catch {}
           } catch (streamErr) {
             console.warn("[Snap Studio] Error reading stream:", streamErr);
           }

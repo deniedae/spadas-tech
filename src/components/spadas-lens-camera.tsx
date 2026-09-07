@@ -1768,8 +1768,9 @@ function SpadasLensCameraCore() {
             const reader = res.body.getReader();
             const decoder = new TextDecoder();
             let buffer = "";
+            let isStreamFinished = false;
 
-            while (true) {
+            while (!isStreamFinished) {
               const { done, value } = await reader.read();
               if (done) break;
 
@@ -1815,8 +1816,12 @@ function SpadasLensCameraCore() {
                     }
                   } else if (chunk.event === "complete") {
                     data = chunk.data;
+                    isStreamFinished = true;
+                    break;
                   } else if (!chunk.event) {
                     data = chunk;
+                    isStreamFinished = true;
+                    break;
                   }
                 } catch (parseErr) {
                   console.warn("[Spadas Lens] NDJSON stream parse warning:", parseErr);
@@ -1824,7 +1829,7 @@ function SpadasLensCameraCore() {
               }
             }
 
-            if (buffer.trim()) {
+            if (!data && buffer.trim()) {
               try {
                 const chunk = JSON.parse(buffer.trim());
                 if (chunk.event === "complete") {
@@ -1834,6 +1839,11 @@ function SpadasLensCameraCore() {
                 }
               } catch {}
             }
+
+            // Immediately cancel reader to free HTTP connection without waiting for keepalive timeout
+            try {
+              void reader.cancel();
+            } catch {}
           } catch (streamErr) {
             console.warn("[Spadas Lens] Error reading NDJSON stream, falling back:", streamErr);
           }
@@ -2865,15 +2875,15 @@ function SpadasLensCameraCore() {
 
 
 
-            {/* Dynamic Progressive Step Indicator during Live Continuous Scan */}
+            {/* Unified Sleek Frosted-Glass Interim Loading & Progressive Comps Container */}
             {analyzingRealFrame && !frozenFrameUrl && (
-              <div className="absolute top-20 left-1/2 -translate-x-1/2 z-25 pointer-events-none flex flex-col items-center justify-center w-[90%] max-w-xs">
+              <div className="absolute bottom-20 sm:bottom-24 left-1/2 -translate-x-1/2 z-25 pointer-events-none flex flex-col items-center justify-center w-[92%] max-w-sm animate-in fade-in slide-in-from-bottom-2 duration-300">
                 <ScanProgressiveLoader
                   isActive={analyzingRealFrame}
                   stage={scanStage}
                   detectedTitle={pendingIdentifiedItem?.productName}
                   detectedBrand={pendingIdentifiedItem?.brand}
-                  variant="hud"
+                  variant="skeleton"
                 />
               </div>
             )}
@@ -2999,13 +3009,19 @@ function SpadasLensCameraCore() {
                 }`}
               >
                 {/* Thrift Price Tag OCR & Instant Net Profit Holographic Floating Pill */}
-                <div className="absolute -top-12 left-0 flex flex-wrap items-center gap-1.5 bg-slate-950/95 text-white border border-cyan-400/50 rounded-2xl px-3 py-1.5 text-xs font-bold shadow-2xl backdrop-blur-md z-30 pointer-events-auto max-w-[94vw] animate-fade-in">
+                <div
+                  className={`absolute -top-12 left-0 flex flex-wrap items-center gap-1.5 bg-slate-950/95 text-white border rounded-2xl px-3 py-1.5 text-xs font-bold shadow-2xl backdrop-blur-md z-30 pointer-events-auto max-w-[94vw] transition-all duration-300 ease-out animate-in fade-in zoom-in-95 ${
+                    scan.status === "valued"
+                      ? "border-emerald-400/60 shadow-[0_4px_25px_rgba(52,211,153,0.35)]"
+                      : "border-cyan-400/50 shadow-[0_4px_20px_rgba(34,211,238,0.25)]"
+                  }`}
+                >
                   <span className="text-white font-black truncate max-w-[100px] sm:max-w-[140px] text-[11px]">
                     {scan.productName}
                   </span>
 
                   {scan.status === "pending" ? (
-                    <>
+                    <div className="inline-flex items-center gap-1.5 animate-in fade-in duration-200">
                       <span className="text-[10px] font-bold text-slate-300 bg-slate-800/80 px-2 py-0.5 rounded border border-slate-700/80">
                         {scan.brand || "Authentic"}
                       </span>
@@ -3016,9 +3032,9 @@ function SpadasLensCameraCore() {
                       <span className="text-[10px] font-mono text-slate-400 bg-slate-900/80 px-2 py-0.5 rounded border border-slate-800 animate-pulse">
                         $--- profit
                       </span>
-                    </>
+                    </div>
                   ) : (
-                    <>
+                    <div className="inline-flex items-center gap-1.5 animate-in fade-in duration-300">
                       {scan.tagPrice ? (
                         <span className="text-amber-300 font-extrabold text-[10px] bg-amber-500/20 px-1.5 py-0.5 rounded border border-amber-500/30">
                           🏷️ ${scan.tagPrice.toFixed(2)}
@@ -3064,7 +3080,7 @@ function SpadasLensCameraCore() {
                       >
                         +Add
                       </button>
-                    </>
+                    </div>
                   )}
                   {checkNeedsVerification({
                     name: scan.productName,
@@ -3405,32 +3421,6 @@ function SpadasLensCameraCore() {
         </div>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 w-full box-border">
-          {/* Instant Structural Skeleton Placeholder while live comps resolve */}
-          {analyzingRealFrame && (
-            <div className="rounded-3xl border border-cyan-500/40 bg-slate-950/90 p-4 shadow-xl backdrop-blur-md animate-pulse">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-black text-cyan-300 truncate max-w-[200px]">
-                  {pendingIdentifiedItem?.productName || "Analyzing Find..."}
-                </span>
-                <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold text-cyan-400 bg-cyan-500/10 px-2.5 py-0.5 rounded-full border border-cyan-500/30">
-                  <TrendingUp className="h-3 w-3 animate-spin text-cyan-400" /> Querying comps...
-                </span>
-              </div>
-              <div className="flex items-center gap-2 mb-3">
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-300">
-                  {pendingIdentifiedItem?.brand || "Authentic"}
-                </span>
-                <span className="text-[10px] text-slate-400">
-                  {pendingIdentifiedItem?.category || "General Resale"}
-                </span>
-              </div>
-              <div className="flex items-center justify-between pt-2 border-t border-slate-800/60">
-                <div className="h-5 w-20 rounded bg-slate-800/60 animate-pulse" />
-                <div className="h-5 w-24 rounded bg-emerald-500/20 border border-emerald-500/30 animate-pulse" />
-              </div>
-            </div>
-          )}
-
           {capturedLog.map((item) => (
             <LensHitCard
               key={item.id}
