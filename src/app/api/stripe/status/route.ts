@@ -40,8 +40,13 @@ export async function GET(req: NextRequest) {
     }
 
     const isOwner = isOwnerEmail(user.email);
+    const hasMetadataPro = Boolean(
+      user.app_metadata?.is_pro ||
+      user.user_metadata?.is_pro ||
+      user.app_metadata?.plan === "pro"
+    );
     const status = (data?.status as string | undefined) || "inactive";
-    const isActive = isOwner || status === "active" || status === "trialing" || status === "past_due";
+    const isActive = isOwner || hasMetadataPro || status === "active" || status === "trialing" || status === "past_due";
 
     if (isOwner && status !== "active") {
       await supabase.from("user_subscriptions").upsert([
