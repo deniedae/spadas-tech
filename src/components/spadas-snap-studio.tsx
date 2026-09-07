@@ -29,6 +29,9 @@ export function SpadasSnapStudio() {
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [capturedPhotos, setCapturedPhotos] = useState<string[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisStage, setAnalysisStage] = useState<"vision" | "comps" | "profit" | "complete">("vision");
+  const [detectedTitle, setDetectedTitle] = useState<string | undefined>(undefined);
+  const [detectedBrand, setDetectedBrand] = useState<string | undefined>(undefined);
   const [facingMode, setFacingMode] = useState<"environment" | "user">("environment");
   const [listingResult, setListingResult] = useState<SpadasListingData | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -351,6 +354,9 @@ export function SpadasSnapStudio() {
       return;
     }
 
+    setAnalysisStage("vision");
+    setDetectedTitle(undefined);
+    setDetectedBrand(undefined);
     setIsAnalyzing(true);
     toast.info("🔍 AI identifying item, extracting tags, and finding eBay comps...", { duration: 3000 });
 
@@ -373,10 +379,64 @@ export function SpadasSnapStudio() {
           mode: "deep",
           isArScan: true,
           isGuestScan: !isAuthed && isGuestUser,
+          stream: true,
         }),
       });
 
-      const data = await res.json().catch(() => null);
+      let data: any = null;
+      if (res.ok) {
+        const contentType = res.headers.get("content-type") || "";
+        if (contentType.includes("application/x-ndjson") && res.body) {
+          try {
+            const reader = res.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = "";
+
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+
+              buffer += decoder.decode(value, { stream: true });
+              const lines = buffer.split("\n");
+              buffer = lines.pop() || "";
+
+              for (const line of lines) {
+                const trimmed = line.trim();
+                if (!trimmed) continue;
+                try {
+                  const chunk = JSON.parse(trimmed);
+                  if (chunk.event === "vision_complete") {
+                    const rawPName = chunk.product_name || chunk.analysis?.product_name || "";
+                    if (rawPName) {
+                      setAnalysisStage("comps");
+                      setDetectedTitle(rawPName);
+                      setDetectedBrand(chunk.brand || chunk.analysis?.brand || "Authentic");
+                    }
+                  } else if (chunk.event === "complete") {
+                    data = chunk.data;
+                  } else if (!chunk.event) {
+                    data = chunk;
+                  }
+                } catch {}
+              }
+            }
+
+            if (buffer.trim()) {
+              try {
+                const chunk = JSON.parse(buffer.trim());
+                if (chunk.event === "complete") data = chunk.data;
+                else if (!chunk.event) data = chunk;
+              } catch {}
+            }
+          } catch (streamErr) {
+            console.warn("[Snap Studio] Error reading stream:", streamErr);
+          }
+        }
+
+        if (!data) {
+          data = await res.json().catch(() => null);
+        }
+      }
 
       if (data) {
         const rec = data?.retake_recommended || data?.analysis?.retake_recommended;
@@ -456,6 +516,9 @@ export function SpadasSnapStudio() {
       toast.error(err?.message || "Failed to analyze photos.");
     } finally {
       setIsAnalyzing(false);
+      setAnalysisStage("vision");
+      setDetectedTitle(undefined);
+      setDetectedBrand(undefined);
     }
   };
 
@@ -618,7 +681,14 @@ export function SpadasSnapStudio() {
         {/* Progressive Loading Skeleton & Step Indicator */}
         {isAnalyzing && (
           <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-slate-950/75 backdrop-blur-md p-4 animate-in fade-in duration-200">
-            <ScanProgressiveLoader isActive={isAnalyzing} variant="skeleton" customLabel="Valuing Find..." />
+            <ScanProgressiveLoader
+              isActive={isAnalyzing}
+              stage={analysisStage}
+              detectedTitle={detectedTitle}
+              detectedBrand={detectedBrand}
+              variant="skeleton"
+              customLabel={detectedTitle ? `Valuing ${detectedTitle}...` : "Valuing Find..."}
+            />
           </div>
         )}
       </div>

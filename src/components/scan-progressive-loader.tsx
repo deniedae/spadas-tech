@@ -10,6 +10,8 @@ export interface ScanStep {
   progress: number;
 }
 
+export type ScanStage = "vision" | "comps" | "profit" | "complete";
+
 const DEFAULT_STEPS: ScanStep[] = [
   {
     label: "Analyzing image...",
@@ -24,56 +26,89 @@ const DEFAULT_STEPS: ScanStep[] = [
     progress: 55,
   },
   {
-    label: "Checking market comps...",
-    sublabel: "Querying eBay cleared sold sales",
+    label: "Querying marketplace sold comps...",
+    sublabel: "Querying live eBay cleared sold listings",
     icon: TrendingUp,
-    progress: 80,
+    progress: 82,
   },
   {
-    label: "Calculating net profit...",
-    sublabel: "Fees, postage & cop verdict",
+    label: "Calculating net profit & verdict...",
+    sublabel: "Platform fees, shipping & cop rating",
     icon: Zap,
-    progress: 92,
+    progress: 95,
   },
 ];
 
 interface ScanProgressiveLoaderProps {
   isActive: boolean;
+  stage?: ScanStage;
   variant?: "hud" | "skeleton" | "minimal";
   customLabel?: string;
   className?: string;
+  detectedTitle?: string;
+  detectedBrand?: string;
 }
 
 export function ScanProgressiveLoader({
   isActive,
+  stage,
   variant = "hud",
   customLabel,
   className = "",
+  detectedTitle,
+  detectedBrand,
 }: ScanProgressiveLoaderProps) {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
 
+  // Synchronize immediately if explicit stage is provided
   useEffect(() => {
     if (!isActive) {
       setCurrentStepIndex(0);
       return;
     }
 
-    // Progression timeline based on real-world vision model round-trip latency
-    const t1 = setTimeout(() => setCurrentStepIndex(1), 900);
-    const t2 = setTimeout(() => setCurrentStepIndex(2), 2100);
-    const t3 = setTimeout(() => setCurrentStepIndex(3), 3600);
+    if (stage === "comps") {
+      setCurrentStepIndex(2); // Immediately jump to "Querying marketplace sold comps..."
+      return;
+    }
+
+    if (stage === "profit") {
+      setCurrentStepIndex(3);
+      return;
+    }
+
+    // Default timeline progression if no explicit stage is forced
+    const t1 = setTimeout(() => {
+      setCurrentStepIndex((prev) => Math.max(prev, 1));
+    }, 850);
+
+    const t2 = setTimeout(() => {
+      setCurrentStepIndex((prev) => Math.max(prev, 2));
+    }, 1800);
+
+    const t3 = setTimeout(() => {
+      setCurrentStepIndex((prev) => Math.max(prev, 3));
+    }, 3200);
 
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
       clearTimeout(t3);
     };
-  }, [isActive]);
+  }, [isActive, stage]);
 
   if (!isActive) return null;
 
   const currentStep = DEFAULT_STEPS[currentStepIndex] || DEFAULT_STEPS[0];
   const StepIcon = currentStep.icon;
+
+  const displayLabel = customLabel || (currentStepIndex === 2 && detectedTitle
+    ? "Querying marketplace sold comps..."
+    : currentStep.label);
+
+  const displaySublabel = detectedTitle
+    ? `Live eBay comps: "${detectedTitle}"`
+    : currentStep.sublabel;
 
   if (variant === "minimal") {
     return (
@@ -81,7 +116,7 @@ export function ScanProgressiveLoader({
         className={`inline-flex items-center gap-2 rounded-full bg-slate-950/90 border border-cyan-500/40 px-3.5 py-1.5 shadow-xl backdrop-blur-md text-xs font-bold text-cyan-300 animate-in fade-in duration-200 ${className}`}
       >
         <Loader2 className="h-3.5 w-3.5 animate-spin text-cyan-400 shrink-0" />
-        <span className="truncate">{customLabel || currentStep.label}</span>
+        <span className="truncate">{displayLabel}</span>
       </div>
     );
   }
@@ -93,16 +128,16 @@ export function ScanProgressiveLoader({
       >
         {/* Step Indicator Header */}
         <div className="flex items-center justify-between gap-3 mb-3">
-          <div className="flex items-center gap-2 min-w-0">
+          <div className="flex items-center gap-2.5 min-w-0">
             <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 shrink-0">
               <StepIcon className="h-4 w-4 animate-pulse" />
             </div>
             <div className="flex flex-col min-w-0">
               <span className="text-xs font-black text-cyan-300 truncate">
-                {customLabel || currentStep.label}
+                {displayLabel}
               </span>
               <span className="text-[10px] text-slate-400 truncate">
-                {currentStep.sublabel}
+                {displaySublabel}
               </span>
             </div>
           </div>
@@ -114,24 +149,52 @@ export function ScanProgressiveLoader({
         {/* Dynamic Progress Bar */}
         <div className="h-1.5 w-full rounded-full bg-slate-900 overflow-hidden mb-3.5 border border-slate-800">
           <div
-            className="h-full bg-gradient-to-r from-cyan-500 via-teal-400 to-emerald-400 transition-all duration-700 ease-out"
+            className="h-full bg-gradient-to-r from-cyan-500 via-teal-400 to-emerald-400 transition-all duration-500 ease-out"
             style={{ width: `${currentStep.progress}%` }}
           />
         </div>
 
-        {/* Lightweight Shimmering Skeleton Hit Card Placeholder */}
+        {/* Structural Card Skeleton Placeholder */}
         <div className="space-y-2.5 pt-1">
-          {/* Title Skeleton */}
-          <div className="h-4 w-3/4 rounded-md bg-slate-800/60 animate-pulse" />
+          {/* Title Area: Displays real detected title if vision completed, or shimmer bar */}
+          {detectedTitle ? (
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-3.5 w-3.5 text-cyan-400 shrink-0 animate-pulse" />
+              <span className="text-sm font-black text-white truncate">
+                {detectedTitle}
+              </span>
+            </div>
+          ) : (
+            <div className="h-4 w-3/4 rounded-md bg-slate-800/60 animate-pulse" />
+          )}
+
           {/* Brand/Category Tag Skeleton */}
-          <div className="flex gap-2">
-            <div className="h-3 w-16 rounded-full bg-slate-800/40 animate-pulse" />
-            <div className="h-3 w-20 rounded-full bg-slate-800/40 animate-pulse" />
+          <div className="flex items-center gap-2">
+            {detectedBrand ? (
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                {detectedBrand}
+              </span>
+            ) : (
+              <div className="h-3 w-16 rounded-full bg-slate-800/40 animate-pulse" />
+            )}
+            <div className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-300/90 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20 animate-pulse">
+              <TrendingUp className="h-3 w-3 animate-spin text-amber-400 shrink-0" />
+              <span>Querying eBay sold comps...</span>
+            </div>
           </div>
+
           {/* Price & Profit Badges Skeleton */}
           <div className="flex items-center justify-between pt-1">
-            <div className="h-6 w-24 rounded-lg bg-slate-800/50 animate-pulse" />
-            <div className="h-6 w-20 rounded-lg bg-emerald-500/20 border border-emerald-500/20 animate-pulse" />
+            <div className="h-6 px-3 rounded-lg bg-slate-800/60 border border-slate-700/60 flex items-center justify-center animate-pulse">
+              <span className="text-[10px] font-mono font-bold text-slate-400">
+                $--- comps
+              </span>
+            </div>
+            <div className="h-6 px-2.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center animate-pulse">
+              <span className="text-[10px] font-black text-emerald-400 flex items-center gap-1">
+                <Zap className="h-3 w-3" /> Calculating profit...
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -151,14 +214,14 @@ export function ScanProgressiveLoader({
         <div className="flex flex-col min-w-0 flex-1">
           <div className="flex items-center justify-between gap-1">
             <span className="text-xs font-black text-white truncate">
-              {customLabel || currentStep.label}
+              {displayLabel}
             </span>
             <span className="text-[10px] font-mono font-extrabold text-cyan-400 shrink-0">
               {currentStep.progress}%
             </span>
           </div>
           <span className="text-[10px] font-medium text-slate-400 truncate">
-            {currentStep.sublabel}
+            {displaySublabel}
           </span>
         </div>
       </div>
@@ -166,7 +229,7 @@ export function ScanProgressiveLoader({
       {/* Progress Bar Track */}
       <div className="h-1.5 w-full rounded-full bg-slate-900 overflow-hidden border border-slate-800/80">
         <div
-          className="h-full bg-gradient-to-r from-cyan-500 via-teal-400 to-emerald-400 transition-all duration-700 ease-out"
+          className="h-full bg-gradient-to-r from-cyan-500 via-teal-400 to-emerald-400 transition-all duration-500 ease-out"
           style={{ width: `${currentStep.progress}%` }}
         />
       </div>

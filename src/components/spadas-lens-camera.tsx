@@ -18,6 +18,7 @@ import {
   ShieldCheck,
   Crown,
   X,
+  TrendingUp,
 } from "lucide-react";
 import { toast } from "sonner";
 import { fmtMoney } from "@/app/lib/listings";
@@ -226,6 +227,14 @@ function SpadasLensCameraCore() {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [autoScanActive, setAutoScanActive] = useState(false);
   const [analyzingRealFrame, setAnalyzingRealFrame] = useState(false);
+  const [scanStage, setScanStage] = useState<"vision" | "comps" | "profit" | "complete">("vision");
+  const [pendingIdentifiedItem, setPendingIdentifiedItem] = useState<{
+    productName: string;
+    brand?: string;
+    category?: string;
+    condition?: string;
+    bbox?: any;
+  } | null>(null);
   const [rateLimited, setRateLimited] = useState(false);
   const [activeScans, setActiveScans] = useState<ActiveScanItem[]>([]);
   const [capturedLog, setCapturedLog] = useState<DetectedHit[]>([]);
@@ -1725,6 +1734,9 @@ function SpadasLensCameraCore() {
       console.log('[Spadas Lens]', cycleId, 'Starting resilient fetch for frame with analyzingRealFrame:', analyzingRealFrame);
       trace.markRequestDispatched();
 
+      setScanStage("vision");
+      setPendingIdentifiedItem(null);
+
       const requestHeaders: Record<string, string> = { "Content-Type": "application/json" };
       if (sessionData?.session?.access_token) {
         requestHeaders["Authorization"] = `Bearer ${sessionData.session.access_token}`;
@@ -1733,7 +1745,13 @@ function SpadasLensCameraCore() {
       res = await resilientFetch("/api/ai-listing", {
         method: "POST",
         headers: requestHeaders,
-        body: JSON.stringify({ imageUrls: imagePayloads, isArScan: true, currency: selectedCurrency, mode: scanMode }),
+        body: JSON.stringify({
+          imageUrls: imagePayloads,
+          isArScan: true,
+          currency: selectedCurrency,
+          mode: scanMode,
+          stream: true,
+        }),
       }, { maxRetries: 2, initialDelayMs: 300 }).catch((e) => {
         console.error('[Spadas Lens]', cycleId, 'Fetch error:', e);
         return null;
@@ -1744,15 +1762,93 @@ function SpadasLensCameraCore() {
       let data: any = null;
       let raw = "";
       if (res) {
-        raw = await res.text();
-        console.log('[Spadas Lens]', cycleId, 'Fetch completed with status:', res.status, 'and length:', raw.length);
-        console.log('[Spadas Lens]', cycleId, 'http', res.status, res.headers.get('content-type'), 'len', raw.length);
-        try {
-          data = JSON.parse(raw);
-        } catch (e: any) {
-          console.log('[Spadas Lens]', cycleId, 'fetch threw:', String(e));
-          console.error('[Spadas Lens]', cycleId, 'parse failed:', e.message, raw.slice(0, 300));
-          data = null;
+        const contentType = res.headers.get("content-type") || "";
+        if (contentType.includes("application/x-ndjson") && res.body) {
+          try {
+            const reader = res.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = "";
+
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+
+              buffer += decoder.decode(value, { stream: true });
+              const lines = buffer.split("\n");
+              buffer = lines.pop() || "";
+
+              for (const line of lines) {
+                const trimmed = line.trim();
+                if (!trimmed) continue;
+                try {
+                  const chunk = JSON.parse(trimmed);
+                  if (chunk.event === "vision_complete") {
+                    // Vision processing finished! Immediately transition progressive loader to comps and render card skeleton
+                    const rawPName = chunk.product_name || chunk.analysis?.product_name || "";
+                    if (rawPName && !isVagueOrPartialRead(rawPName)) {
+                      setScanStage("comps");
+                      const pendingObj = {
+                        productName: rawPName,
+                        brand: chunk.brand || chunk.analysis?.brand || "Authentic",
+                        category: chunk.category || chunk.analysis?.category || "General Resale",
+                        condition: chunk.condition || chunk.analysis?.condition || "Used",
+                        bbox: chunk.detected_objects?.[0]?.bbox || { x: 20, y: 20, width: 60, height: 60 },
+                      };
+                      setPendingIdentifiedItem(pendingObj);
+
+                      // Instantly render lightweight pending card skeleton on camera HUD
+                      const pendingScan: ActiveScanItem = {
+                        id: `pending-${Date.now()}`,
+                        productName: rawPName,
+                        brand: pendingObj.brand,
+                        category: pendingObj.category,
+                        condition: cleanConditionText(pendingObj.condition),
+                        inventoryCondition: "used_working",
+                        defectNotes: [],
+                        asIsDisclaimer: "",
+                        bbox: pendingObj.bbox,
+                        status: "pending",
+                        confidenceScore: 0.95,
+                        timestamp: Date.now(),
+                      };
+                      setActiveScans([pendingScan]);
+                    }
+                  } else if (chunk.event === "complete") {
+                    data = chunk.data;
+                  } else if (!chunk.event) {
+                    data = chunk;
+                  }
+                } catch (parseErr) {
+                  console.warn("[Spadas Lens] NDJSON stream parse warning:", parseErr);
+                }
+              }
+            }
+
+            if (buffer.trim()) {
+              try {
+                const chunk = JSON.parse(buffer.trim());
+                if (chunk.event === "complete") {
+                  data = chunk.data;
+                } else if (!chunk.event) {
+                  data = chunk;
+                }
+              } catch {}
+            }
+          } catch (streamErr) {
+            console.warn("[Spadas Lens] Error reading NDJSON stream, falling back:", streamErr);
+          }
+        }
+
+        if (!data) {
+          raw = await res.text().catch(() => "");
+          console.log('[Spadas Lens]', cycleId, 'Fetch completed with status:', res.status, 'and length:', raw.length);
+          try {
+            data = JSON.parse(raw);
+          } catch (e: any) {
+            console.log('[Spadas Lens]', cycleId, 'fetch threw:', String(e));
+            console.error('[Spadas Lens]', cycleId, 'parse failed:', e.message, raw.slice(0, 300));
+            data = null;
+          }
         }
       }
 
@@ -2217,6 +2313,8 @@ function SpadasLensCameraCore() {
       // GUARANTEED ALWAYS-RELEASE STATE RESET
       analyzingRef.current = false;
       setAnalyzingRealFrame(false);
+      setPendingIdentifiedItem(null);
+      setScanStage("complete");
     }
   }, [soundEnabled]);
 
@@ -2585,7 +2683,13 @@ function SpadasLensCameraCore() {
                 />
                 {analyzingRealFrame && (
                   <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-slate-950/70 backdrop-blur-md p-4">
-                    <ScanProgressiveLoader isActive={analyzingRealFrame} variant="skeleton" />
+                    <ScanProgressiveLoader
+                      isActive={analyzingRealFrame}
+                      stage={scanStage}
+                      detectedTitle={pendingIdentifiedItem?.productName}
+                      detectedBrand={pendingIdentifiedItem?.brand}
+                      variant="skeleton"
+                    />
                   </div>
                 )}
               </div>
@@ -2764,7 +2868,13 @@ function SpadasLensCameraCore() {
             {/* Dynamic Progressive Step Indicator during Live Continuous Scan */}
             {analyzingRealFrame && !frozenFrameUrl && (
               <div className="absolute top-20 left-1/2 -translate-x-1/2 z-25 pointer-events-none flex flex-col items-center justify-center w-[90%] max-w-xs">
-                <ScanProgressiveLoader isActive={analyzingRealFrame} variant="hud" />
+                <ScanProgressiveLoader
+                  isActive={analyzingRealFrame}
+                  stage={scanStage}
+                  detectedTitle={pendingIdentifiedItem?.productName}
+                  detectedBrand={pendingIdentifiedItem?.brand}
+                  variant="hud"
+                />
               </div>
             )}
 
@@ -2894,51 +3004,68 @@ function SpadasLensCameraCore() {
                     {scan.productName}
                   </span>
 
-                  {scan.tagPrice ? (
-                    <span className="text-amber-300 font-extrabold text-[10px] bg-amber-500/20 px-1.5 py-0.5 rounded border border-amber-500/30">
-                      🏷️ ${scan.tagPrice.toFixed(2)}
-                    </span>
-                  ) : null}
+                  {scan.status === "pending" ? (
+                    <>
+                      <span className="text-[10px] font-bold text-slate-300 bg-slate-800/80 px-2 py-0.5 rounded border border-slate-700/80">
+                        {scan.brand || "Authentic"}
+                      </span>
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-cyan-300 bg-cyan-500/20 px-2 py-0.5 rounded border border-cyan-500/30 animate-pulse">
+                        <TrendingUp className="h-3 w-3 animate-spin text-cyan-400 shrink-0" />
+                        <span>Querying comps...</span>
+                      </span>
+                      <span className="text-[10px] font-mono text-slate-400 bg-slate-900/80 px-2 py-0.5 rounded border border-slate-800 animate-pulse">
+                        $--- profit
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      {scan.tagPrice ? (
+                        <span className="text-amber-300 font-extrabold text-[10px] bg-amber-500/20 px-1.5 py-0.5 rounded border border-amber-500/30">
+                          🏷️ ${scan.tagPrice.toFixed(2)}
+                        </span>
+                      ) : null}
 
-                  <span className="text-cyan-300 font-extrabold text-[10px] bg-cyan-500/20 px-1.5 py-0.5 rounded border border-cyan-500/30">
-                    💰 {fmtMoney(scan.estimatedValue || 0)}
-                  </span>
+                      <span className="text-cyan-300 font-extrabold text-[10px] bg-cyan-500/20 px-1.5 py-0.5 rounded border border-cyan-500/30">
+                        💰 {fmtMoney(scan.estimatedValue || 0)}
+                      </span>
 
-                  <span className="text-emerald-400 font-black text-[10px] bg-emerald-500/20 px-1.5 py-0.5 rounded border border-emerald-500/30">
-                    +{fmtMoney(scan.trueNetProfit || scan.estimatedProfit || 0)}
-                  </span>
+                      <span className="text-emerald-400 font-black text-[10px] bg-emerald-500/20 px-1.5 py-0.5 rounded border border-emerald-500/30">
+                        +{fmtMoney(scan.trueNetProfit || scan.estimatedProfit || 0)}
+                      </span>
 
-                  {scan.copVerdict && (
-                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
-                      scan.copVerdict === "MUST_COP"
-                        ? "bg-emerald-500 text-slate-950 font-black shadow-md shadow-emerald-500/40"
-                        : scan.copVerdict === "QUICK_FLIP"
-                        ? "bg-cyan-500 text-slate-950 font-black"
-                        : scan.copVerdict === "PASS_RISKY"
-                        ? "bg-rose-500/20 text-rose-300 border border-rose-500/30"
-                        : "bg-slate-800 text-slate-300"
-                    }`}>
-                      {scan.copVerdict === "MUST_COP" ? "👑 COP" : scan.copVerdict === "QUICK_FLIP" ? "⚡ FLIP" : "⛔ PASS"}
-                    </span>
+                      {scan.copVerdict && (
+                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
+                          scan.copVerdict === "MUST_COP"
+                            ? "bg-emerald-500 text-slate-950 font-black shadow-md shadow-emerald-500/40"
+                            : scan.copVerdict === "QUICK_FLIP"
+                            ? "bg-cyan-500 text-slate-950 font-black"
+                            : scan.copVerdict === "PASS_RISKY"
+                            ? "bg-rose-500/20 text-rose-300 border border-rose-500/30"
+                            : "bg-slate-800 text-slate-300"
+                        }`}>
+                          {scan.copVerdict === "MUST_COP" ? "👑 COP" : scan.copVerdict === "QUICK_FLIP" ? "⚡ FLIP" : "⛔ PASS"}
+                        </span>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveCompsHit(scan);
+                        }}
+                        className="ml-0.5 bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 px-2.5 py-0.5 rounded-full text-[10px] font-bold transition cursor-pointer active:scale-95"
+                      >
+                        Comps
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => handleQuickAdd(e, scan)}
+                        className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-2.5 py-0.5 rounded-full text-[10px] font-black transition cursor-pointer active:scale-95"
+                      >
+                        +Add
+                      </button>
+                    </>
                   )}
-
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setActiveCompsHit(scan);
-                    }}
-                    className="ml-0.5 bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 px-2.5 py-0.5 rounded-full text-[10px] font-bold transition cursor-pointer active:scale-95"
-                  >
-                    Comps
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => handleQuickAdd(e, scan)}
-                    className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-2.5 py-0.5 rounded-full text-[10px] font-black transition cursor-pointer active:scale-95"
-                  >
-                    +Add
-                  </button>
                   {checkNeedsVerification({
                     name: scan.productName,
                     brand: scan.brand || undefined,
@@ -3278,6 +3405,32 @@ function SpadasLensCameraCore() {
         </div>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 w-full box-border">
+          {/* Instant Structural Skeleton Placeholder while live comps resolve */}
+          {analyzingRealFrame && (
+            <div className="rounded-3xl border border-cyan-500/40 bg-slate-950/90 p-4 shadow-xl backdrop-blur-md animate-pulse">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-black text-cyan-300 truncate max-w-[200px]">
+                  {pendingIdentifiedItem?.productName || "Analyzing Find..."}
+                </span>
+                <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold text-cyan-400 bg-cyan-500/10 px-2.5 py-0.5 rounded-full border border-cyan-500/30">
+                  <TrendingUp className="h-3 w-3 animate-spin text-cyan-400" /> Querying comps...
+                </span>
+              </div>
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-300">
+                  {pendingIdentifiedItem?.brand || "Authentic"}
+                </span>
+                <span className="text-[10px] text-slate-400">
+                  {pendingIdentifiedItem?.category || "General Resale"}
+                </span>
+              </div>
+              <div className="flex items-center justify-between pt-2 border-t border-slate-800/60">
+                <div className="h-5 w-20 rounded bg-slate-800/60 animate-pulse" />
+                <div className="h-5 w-24 rounded bg-emerald-500/20 border border-emerald-500/30 animate-pulse" />
+              </div>
+            </div>
+          )}
+
           {capturedLog.map((item) => (
             <LensHitCard
               key={item.id}

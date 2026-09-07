@@ -161,10 +161,11 @@ export async function POST(request: Request) {
     supabaseClient = supabase;
 
     const body = await request.json().catch(() => ({}));
-    const { imageUrls, isArScan, mode } = body as {
+    const { imageUrls, isArScan, mode, stream: isStreamRequested } = body as {
       imageUrls?: string[];
       isArScan?: boolean;
       mode?: "sweep" | "deep" | "live" | "focus" | "standard" | "snap";
+      stream?: boolean;
     };
     rawImageUrls = imageUrls || [];
 
@@ -638,7 +639,8 @@ MANDATORY STRUCTURED EXTRACTION REQUIREMENTS (STRICT SCHEMA):
     console.log(`[Spadas Vision Diagnostic] userId: ${userId || "guest"} | provider: ${activeProvider} | product_name: "${result.analysis?.product_name}" | brand: "${result.analysis?.brand}" | category: "${result.analysis?.category}" | currency: ${targetCurrency}`);
 
     // Fetch REAL-TIME regional eBay Comps in target currency via Browse API ONLY for verified identified products
-    if (result.analysis?.product_name && result.status === "identified") {
+    const runCompsAndFinalizeResult = async () => {
+      if (result.analysis?.product_name && result.status === "identified") {
       try {
         const ebayComps = await fetchEbayAustraliaSoldComps(result.analysis.product_name, targetCurrency);
         if (ebayComps && ebayComps.count > 0) {
@@ -950,7 +952,60 @@ MANDATORY STRUCTURED EXTRACTION REQUIREMENTS (STRICT SCHEMA):
         console.error('[Spadas Lens] Error inserting scan record:', dbErr);
       }
     }
+  };
 
+    if (isStreamRequested) {
+      const encoder = new TextEncoder();
+      const stream = new ReadableStream({
+        async start(controller) {
+          try {
+            // 1. Send vision completion event immediately so client transitions to "Querying marketplace sold comps..."
+            const visionEvent = {
+              event: "vision_complete",
+              status: result.status,
+              analysis: result.analysis,
+              product_name: result.analysis?.product_name || rawProdName,
+              brand: result.analysis?.brand || "Authentic",
+              category: result.analysis?.category || "General Resale",
+              condition: result.analysis?.condition || "Used",
+              detected_objects: result.detected_objects,
+            };
+            controller.enqueue(encoder.encode(JSON.stringify(visionEvent) + "\n"));
+
+            // 2. Fetch live eBay comps and calculate final metrics
+            await runCompsAndFinalizeResult();
+
+            // 3. Emit final completed payload
+            const completeEvent = {
+              event: "complete",
+              data: result,
+            };
+            controller.enqueue(encoder.encode(JSON.stringify(completeEvent) + "\n"));
+          } catch (streamErr: any) {
+            console.error("[ai-listing] Streaming error:", streamErr);
+            controller.enqueue(encoder.encode(JSON.stringify({ event: "complete", data: result }) + "\n"));
+          } finally {
+            controller.close();
+            if (userIdentifier) {
+              const currentLimiter = userRateLimitMap.get(userIdentifier);
+              if (currentLimiter) {
+                currentLimiter.inFlight = false;
+              }
+            }
+          }
+        },
+      });
+
+      return new Response(stream, {
+        headers: {
+          "Content-Type": "application/x-ndjson; charset=utf-8",
+          "Cache-Control": "no-cache, no-transform",
+          "X-Accel-Buffering": "no",
+        },
+      });
+    }
+
+    await runCompsAndFinalizeResult();
     return NextResponse.json(result);
   } catch (err: any) {
     console.error("[ai-listing] Primary AI call encountered error:", err?.message);
