@@ -485,8 +485,8 @@ function SpadasLensCameraCore() {
     };
   }, []);
 
-  // Dedicated Rapid Thrift Sourcing Engine State
-  const [isRapidScanMode, setIsRapidScanMode] = useState<boolean>(false);
+  // Dedicated Rapid Thrift Sourcing Engine State (Locked Permanently Enabled)
+  const isRapidScanMode = true;
   const [rapidItems, setRapidItems] = useState<RapidThriftItem[]>([]);
   const [isRapidDrawerOpen, setIsRapidDrawerOpen] = useState<boolean>(false);
   const rapidQueueRef = useRef<Array<{ item: RapidThriftItem; blob: Blob }>>([]);
@@ -3408,21 +3408,6 @@ function SpadasLensCameraCore() {
                   <span className="text-emerald-400">💰 {profitableCount} Flips</span>
                 </div>
 
-                {/* 1x / 2x Digital Zoom Toggle */}
-                {zoomSupported && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setZoomLevel(zoomLevel === 1 ? 2 : 1);
-                    }}
-                    className="h-8 px-2.5 rounded-full border border-slate-700 bg-slate-950/80 text-[11px] font-black text-cyan-300 hover:border-cyan-400 transition shadow-lg backdrop-blur-md cursor-pointer"
-                    title="Toggle Camera Zoom"
-                  >
-                    {zoomLevel}x
-                  </button>
-                )}
-
                 {/* Torch / Flashlight Toggle */}
                 <button
                   type="button"
@@ -3438,47 +3423,6 @@ function SpadasLensCameraCore() {
                   title={torchEnabled ? "Flashlight ON" : "Turn Flashlight ON"}
                 >
                   <Zap className="h-3.5 w-3.5" />
-                </button>
-
-                {/* Rapid Scan Pocket Mode Toggle */}
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const nextMode = !isRapidScanMode;
-                    setIsRapidScanMode(nextMode);
-                    if (nextMode) {
-                      setAutoScanActive(false); // Stop automatic continuous scans
-                      void requestWakeLock();
-                      if (typeof navigator !== "undefined" && navigator.vibrate) {
-                        navigator.vibrate([80, 40, 80]);
-                      }
-                      if (soundEnabled) {
-                        playScanBeep();
-                      }
-                      toast.info("⚡ Rapid Scan ON: Tap shutter to snap items. Auto-scanning paused for pocketing.");
-                    } else {
-                      releaseWakeLock();
-                      toast.info("Live Continuous AR Scanner Active.");
-                    }
-                  }}
-                  aria-label={isRapidScanMode ? "Disable Rapid Scan Mode" : "Enable Rapid Scan Mode"}
-                  className={`h-8 px-2.5 rounded-full border flex items-center gap-1 transition backdrop-blur-md shadow-lg cursor-pointer ${
-                    isRapidScanMode
-                      ? "bg-amber-400 border-amber-300 text-slate-950 font-black shadow-[0_0_15px_rgba(251,191,36,0.6)] animate-pulse"
-                      : "bg-slate-950/80 border-slate-700 text-slate-300 hover:text-white"
-                  }`}
-                  title={isRapidScanMode ? "Rapid Scan ON (Pocket Sourcing Active)" : "Enable Rapid Scan (Tap rapidly & pocket phone)"}
-                >
-                  <Zap className="h-3.5 w-3.5" />
-                  <span className="text-[10px] font-black uppercase tracking-wider">
-                    {isRapidScanMode ? "Rapid ON" : "Rapid"}
-                  </span>
-                  {rapidItems.length > 0 && (
-                    <span className="ml-0.5 px-1.5 py-0.2 rounded-full bg-slate-950 text-amber-300 font-mono text-[9px]">
-                      {rapidItems.length}
-                    </span>
-                  )}
                 </button>
 
                 {/* Sound Chime Toggle */}
@@ -3893,6 +3837,30 @@ function SpadasLensCameraCore() {
             {shutterFlash && (
               <div className="absolute inset-0 z-40 flex items-center justify-center pointer-events-none bg-slate-950/20 backdrop-blur-[2px] transition-opacity duration-150">
                 <div className="h-24 w-24 rounded-full border-4 border-cyan-400/80 animate-ping shadow-[0_0_35px_rgba(6,182,212,0.8)]" />
+              </div>
+            )}
+
+            {/* Primary Viewfinder Zoom Controls (1x, 2x, 3x) — Instantly Tappable Framing HUD */}
+            {stream && !activeValuationHit && (
+              <div className="absolute bottom-24 sm:bottom-28 left-1/2 -translate-x-1/2 z-30 pointer-events-auto flex items-center gap-1.5 bg-slate-950/85 border border-slate-700/80 backdrop-blur-md rounded-full px-2 py-1 shadow-[0_4px_20px_rgba(0,0,0,0.6)]">
+                {[1, 2, 3].map((z) => (
+                  <button
+                    key={z}
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setZoomLevel(z);
+                    }}
+                    className={`h-7 w-7 sm:h-8 sm:w-8 rounded-full text-xs font-black transition cursor-pointer flex items-center justify-center ${
+                      zoomLevel === z
+                        ? "bg-cyan-400 text-slate-950 shadow-md font-black scale-105"
+                        : "text-slate-300 hover:text-white hover:bg-white/10"
+                    }`}
+                    title={`Set Zoom to ${z}x`}
+                  >
+                    {z}x
+                  </button>
+                ))}
               </div>
             )}
 

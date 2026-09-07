@@ -41,8 +41,8 @@ export interface LensControlsBarProps {
     torchEnabled: boolean;
     torchSupported: boolean;
     onToggleTorch: () => void;
-    zoomLevel: number;
-    setZoomLevel: (z: number) => void;
+    zoomLevel?: number;
+    setZoomLevel?: (z: number) => void;
   };
   audio: {
     soundEnabled: boolean;
@@ -89,79 +89,21 @@ export default function LensControlsBar({
     <div className="w-full box-border rounded-2xl bg-slate-950/95 backdrop-blur-md p-3 sm:p-4 border border-slate-800/80 shadow-2xl space-y-3">
       {/* ── ROW 1: Focused Primary Controls (Always Visible) ────────────────── */}
       <div className="flex flex-wrap items-center justify-between gap-2.5">
-        {/* Mode Selector Pill */}
-        <div className="flex items-center gap-1 bg-slate-900/90 border border-slate-800 rounded-xl p-1 shrink-0">
-          <button
-            type="button"
-            onClick={() => {
-              scan.setMode("snap");
-              scan.setAutoActive(false);
-              toast.success("📸 1-Tap Snap Mode Active (Single Scan on Shutter)");
-            }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-black transition cursor-pointer ${
-              scan.mode === "snap"
-                ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-slate-950 shadow-md shadow-cyan-500/20"
-                : "text-slate-400 hover:text-white"
-            }`}
-          >
-            📸 1-Tap Snap
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              scan.setMode("sweep");
-              scan.setAutoActive(true);
-              toast.success("⚡ Continuous AR Active (Hands-Free)");
-            }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-black transition cursor-pointer ${
-              scan.mode === "sweep"
-                ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 shadow-md shadow-emerald-500/20"
-                : "text-slate-400 hover:text-white"
-            }`}
-          >
-            ⚡ Auto AR
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              scan.setMode("barcode");
-              toast.success("🏷️ Barcode & Tag Scanner Active");
-            }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-black transition cursor-pointer ${
-              scan.mode === "barcode"
-                ? "bg-purple-500 text-white shadow-md shadow-purple-500/30"
-                : "text-slate-400 hover:text-white"
-            }`}
-          >
-            🏷️ Barcode
-          </button>
-        </div>
-
-        {/* Scan Now & Auto-Scan Buttons */}
-        <div className="flex items-center gap-2 flex-wrap">
+        {/* Left: Scan Frame Primary Action */}
+        <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={scan.onScanNow}
             disabled={scan.isAnalyzing}
-            className="inline-flex h-9 items-center gap-1.5 rounded-xl px-4 text-xs sm:text-sm font-black bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white shadow-md shadow-indigo-600/30 transition cursor-pointer disabled:opacity-70"
+            className="inline-flex h-9 items-center gap-2 rounded-xl px-4 sm:px-5 text-xs sm:text-sm font-black bg-gradient-to-r from-indigo-600 via-indigo-500 to-cyan-600 hover:brightness-110 active:scale-95 text-white shadow-md shadow-indigo-600/30 transition cursor-pointer disabled:opacity-70"
           >
-            <RefreshCw className={`h-3.5 w-3.5 ${scan.isAnalyzing ? "animate-spin" : ""}`} />
-            <span>{scan.isAnalyzing ? "Scanning..." : "Scan Now"}</span>
+            <RefreshCw className={`h-4 w-4 ${scan.isAnalyzing ? "animate-spin text-cyan-200" : "text-white"}`} />
+            <span>{scan.isAnalyzing ? "Analyzing Frame..." : "Scan Frame"}</span>
           </button>
+        </div>
 
-          <button
-            type="button"
-            onClick={() => scan.setAutoActive(!scan.autoActive)}
-            className={`inline-flex h-9 items-center gap-1.5 rounded-xl px-3 text-xs font-bold transition cursor-pointer ${
-              scan.autoActive
-                ? "bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20 font-black"
-                : "bg-white/10 text-white border border-white/20 hover:bg-white/20"
-            }`}
-          >
-            <Zap className="h-3.5 w-3.5" />
-            <span>{scan.autoActive ? "Auto: ON" : "Auto: OFF"}</span>
-          </button>
-
+        {/* Right: Grail Mode, Options & Stop */}
+        <div className="flex items-center gap-2 flex-wrap ml-auto">
           {/* Grail Mode Icon-Only Toggle */}
           <button
             type="button"
@@ -212,9 +154,9 @@ export default function LensControlsBar({
       {/* ── ROW 2: Collapsed Options & Tools Tray (Toggled via "Options") ───── */}
       {isMoreOpen && (
         <div className="pt-3 border-t border-slate-800/80 space-y-3 animate-fade-in">
-          {/* Secondary Controls Grid */}
+          {/* Secondary Controls Grid: Tight, High-Performance Layout */}
           <div className="flex flex-wrap items-center justify-between gap-2.5">
-            {/* Left group: Hardware & Audio */}
+            {/* Left group: Hardware & Audio (Torch, Sound, Voice) */}
             <div className="flex flex-wrap items-center gap-2">
               {/* Torch / Flashlight */}
               <button
@@ -230,25 +172,6 @@ export default function LensControlsBar({
                 <Sun className={`h-3.5 w-3.5 ${hardware.torchEnabled ? "text-slate-950 animate-pulse" : "text-amber-400"}`} />
                 <span>{hardware.torchEnabled ? "Torch ON" : "Torch"}</span>
               </button>
-
-              {/* Zoom Buttons (1x, 2x, 3x) */}
-              <div className="flex items-center gap-0.5 bg-slate-900 border border-slate-700 rounded-xl p-0.5">
-                <Search className="h-3 w-3 text-cyan-400 ml-1.5 mr-0.5 shrink-0" />
-                {[1, 2, 3].map((z) => (
-                  <button
-                    key={z}
-                    type="button"
-                    onClick={() => hardware.setZoomLevel(z)}
-                    className={`px-2 py-0.5 rounded-lg text-xs font-black transition cursor-pointer ${
-                      hardware.zoomLevel === z
-                        ? "bg-cyan-400 text-slate-950 shadow-sm"
-                        : "text-slate-400 hover:text-white"
-                    }`}
-                  >
-                    {z}x
-                  </button>
-                ))}
-              </div>
 
               {/* Sound Cues Toggle */}
               <button
