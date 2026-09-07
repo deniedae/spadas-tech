@@ -695,15 +695,22 @@ function SpadasLensCameraCore() {
   const handleQuickAdd = async (e: React.MouseEvent, item: ActiveScanItem) => {
     e.stopPropagation();
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const { data: { session } } = await supabase.auth.getSession();
+      let user: any = session?.user;
+      if (!user) {
+        const { data: userData } = await supabase.auth.getUser();
+        user = userData?.user;
+      }
 
       if (!user) {
-        saveGuestScannedItem(item);
-        setLastGuestScannedItem(item);
-        setIsGuestLimitModalOpen(true);
-        toast.info("Create a free account in 5 seconds to save drafts & sync inventory!");
+        if (isGuestUser && !isPro && !isOwner) {
+          saveGuestScannedItem(item);
+          setLastGuestScannedItem(item);
+          setIsGuestLimitModalOpen(true);
+          toast.info("Create a free account in 5 seconds to save drafts & sync inventory!");
+        } else {
+          toast.error("Please sign in to save inventory drafts.");
+        }
         return;
       }
 
@@ -727,15 +734,22 @@ function SpadasLensCameraCore() {
 
   const handleSaveDraftHit = async (hit: DetectedHit) => {
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const { data: { session } } = await supabase.auth.getSession();
+      let user: any = session?.user;
+      if (!user) {
+        const { data: userData } = await supabase.auth.getUser();
+        user = userData?.user;
+      }
 
       if (!user) {
-        saveGuestScannedItem(hit);
-        setLastGuestScannedItem(hit);
-        setIsGuestLimitModalOpen(true);
-        toast.info("Create a free account in 5 seconds to save drafts & sync inventory!");
+        if (isGuestUser && !isPro && !isOwner) {
+          saveGuestScannedItem(hit);
+          setLastGuestScannedItem(hit);
+          setIsGuestLimitModalOpen(true);
+          toast.info("Create a free account in 5 seconds to save drafts & sync inventory!");
+        } else {
+          toast.error("Please sign in to save inventory drafts.");
+        }
         return;
       }
 
@@ -2210,7 +2224,7 @@ function SpadasLensCameraCore() {
 
   // Dedicated Multi-Worker Rapid Thrift Queue Processor (Max Concurrency: 2)
   const processRapidQueue = useCallback(async () => {
-    if (!isPro && isLimitReached) {
+    if (!isPro && !isOwner && isLimitReached) {
       setIsScanPaused(true);
       setIsPaywallOpen(true);
       toast.error("You've used all 10 free daily scans! Upgrade to Pro for unlimited scans.", {
@@ -2254,12 +2268,14 @@ function SpadasLensCameraCore() {
           ).catch(() => null);
 
           if (res?.status === 403) {
-            setIsLimitReached(true);
-            setIsScanPaused(true);
-            setIsPaywallOpen(true);
-            toast.error("You've used all 10 free daily scans! Upgrade to Pro for unlimited scans.", {
-              id: "daily-limit-toast",
-            });
+            if (!isPro && !isOwner) {
+              setIsLimitReached(true);
+              setIsScanPaused(true);
+              setIsPaywallOpen(true);
+              toast.error("You've used all 10 free daily scans! Upgrade to Pro for unlimited scans.", {
+                id: "daily-limit-toast",
+              });
+            }
             setRapidItems((prev) =>
               prev.map((i) => (i.id === task.item.id ? { ...i, status: "error" } : i))
             );
@@ -2940,7 +2956,7 @@ function SpadasLensCameraCore() {
 
             {/* Quick Snap & Value Tactile Shutter / Resume Button (Center Floating) */}
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 pointer-events-auto flex items-center justify-center">
-              {!isPro && isLimitReached ? (
+              {!isPro && !isOwner && isLimitReached ? (
                 <button
                   type="button"
                   onClick={(e) => {
@@ -2974,7 +2990,7 @@ function SpadasLensCameraCore() {
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (!isPro && isLimitReached) {
+                    if (!isPro && !isOwner && isLimitReached) {
                       setIsScanPaused(true);
                       setIsPaywallOpen(true);
                       toast.error("You've used all 10 free daily scans! Upgrade to Pro for unlimited scans.", {
