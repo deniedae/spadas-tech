@@ -370,6 +370,10 @@ function SpadasLensCameraCore() {
   const [activeScans, setActiveScans] = useState<ActiveScanItem[]>([]);
   const [activeValuationHit, setActiveValuationHit] = useState<DetectedHit | null>(null);
   const valuationExpiryTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const scanExpiryTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const activeAbortControllerRef = useRef<AbortController | null>(null);
+  const activeCycleIdRef = useRef<number>(0);
+  const analyzingRef = useRef(false);
   const [scanRetryPrompt, setScanRetryPrompt] = useState<{ message: string; canRetry: boolean } | null>(null);
   const [capturedLog, setCapturedLog] = useState<DetectedHit[]>([]);
   const [selectedHitIds, setSelectedHitIds] = useState<string[]>([]);
@@ -407,6 +411,60 @@ function SpadasLensCameraCore() {
   const [scanFeedback, setScanFeedback] = useState<"HIT" | "MISS" | null>(null);
   const [sessionScanCount, setSessionScanCount] = useState<number>(0);
   const [shutterFlash, setShutterFlash] = useState<boolean>(false);
+
+  // 1. Immediate State Flush on New Scan: Instantly wipes valuation states, active stream tokens, and progressive loader flags to zero
+  const flushScanState = useCallback(() => {
+    // Abort active in-flight NDJSON stream / fetch request
+    if (activeAbortControllerRef.current) {
+      try {
+        activeAbortControllerRef.current.abort();
+      } catch {}
+      activeAbortControllerRef.current = null;
+    }
+
+    // Advance cycle counter to invalidate any pending asynchronous callbacks from previous scans
+    activeCycleIdRef.current = ++cycleSeq;
+
+    // Clear active expiration timers
+    if (valuationExpiryTimerRef.current) {
+      clearTimeout(valuationExpiryTimerRef.current);
+      valuationExpiryTimerRef.current = null;
+    }
+    if (scanExpiryTimerRef.current) {
+      clearTimeout(scanExpiryTimerRef.current);
+      scanExpiryTimerRef.current = null;
+    }
+
+    // Instantly wipe all valuation states, stream tokens, and progressive loader flags to zero
+    setActiveValuationHit(null);
+    setActiveScans([]);
+    setPendingIdentifiedItem(null);
+    setActiveCompsHit(null);
+    setScanStage("vision");
+    setScanRetryPrompt(null);
+    setScanFeedback(null);
+    setFrozenFrameUrl(null);
+    setLatestApiError(null);
+    setLastRawApiResponse(null);
+    setRetakeRecommendation(null);
+    setSecondaryImagePayload(null);
+    setConfidencePercent(94);
+    setIsScanPaused(false);
+    setAnalyzingRealFrame(false);
+    analyzingRef.current = false;
+  }, []);
+
+  // Cleanup abort controller on component unmount
+  useEffect(() => {
+    return () => {
+      if (activeAbortControllerRef.current) {
+        try {
+          activeAbortControllerRef.current.abort();
+        } catch {}
+        activeAbortControllerRef.current = null;
+      }
+    };
+  }, []);
 
   // Dedicated Rapid Thrift Sourcing Engine State
   const [isRapidScanMode, setIsRapidScanMode] = useState<boolean>(false);
@@ -634,20 +692,13 @@ function SpadasLensCameraCore() {
       });
       return;
     }
-    setIsScanPaused(false);
-    setFrozenFrameUrl(null);
-    setActiveCompsHit(null);
-    analyzingRef.current = false;
-    setAnalyzingRealFrame(false);
-    setActiveScans([]);
-    if (valuationExpiryTimerRef.current) {
-      clearTimeout(valuationExpiryTimerRef.current);
-    }
-    setActiveValuationHit(null);
+    // 1. Immediate State Flush on "Scan Next Item": Wipe all valuation states, active stream tokens & progressive loader flags
+    flushScanState();
+
     if (videoRef.current && videoRef.current.paused) {
       videoRef.current.play().catch(() => {});
     }
-  }, [isPro, isLimitReached, isGuestUser, isOwner, sessionScanCount]);
+  }, [isPro, isLimitReached, isGuestUser, isOwner, sessionScanCount, flushScanState]);
 
   // Barcode Single-Scan Debounce (1 scan only per barcode item)
   const lastDetectedBarcodeRef = useRef<string | null>(null);
@@ -657,7 +708,6 @@ function SpadasLensCameraCore() {
   const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const cropCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const isAnalyzingRef = useRef<boolean>(false);
-  const scanExpiryTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const profitableCount = capturedLog.filter((h) => (h.estimatedProfit || 0) >= minProfitThreshold).length;
   const bestProfit = capturedLog.reduce((max, h) => Math.max(max, h.estimatedProfit || 0), 0);
@@ -1585,17 +1635,21 @@ function SpadasLensCameraCore() {
     autoScanActiveRef.current = autoScanActive;
   }, [autoScanActive]);
 
-  const analyzingRef = useRef(false);
-
   // Frame Scanner with Resilient Lock & 1200px High-Detail Processing
   const processCurrentFrame = useCallback(async (forceManual = false) => {
-    const cycleId = ++cycleSeq;
-
-    // Fast ref-based lock to prevent concurrent overlapping fetches
-    if (analyzingRef.current) {
-      console.log('[Spadas Lens]', cycleId, 'blocked re-entry (analyzing in progress)');
+    // 1. Immediate State Flush on Manual Scan (via "Scan Next Item" or the shutter button)
+    if (forceManual) {
+      flushScanState();
+    } else if (analyzingRef.current) {
+      // In automatic mode, prevent concurrent overlapping fetches
       return;
     }
+
+    // 2. AbortController for Stale Streams: Instantiate dedicated controller for this scan cycle
+    const abortController = new AbortController();
+    activeAbortControllerRef.current = abortController;
+    const cycleId = ++cycleSeq;
+    activeCycleIdRef.current = cycleId;
 
     analyzingRef.current = true;
     setAnalyzingRealFrame(true);
@@ -1609,6 +1663,8 @@ function SpadasLensCameraCore() {
       await startCamera();
       await new Promise((resolve) => setTimeout(resolve, 400));
     }
+
+    if (abortController.signal.aborted || cycleId !== activeCycleIdRef.current) return;
 
     if (forceManual) {
       setShutterFlash(true);
@@ -1652,7 +1708,10 @@ function SpadasLensCameraCore() {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ barcode: codeVal }),
+                signal: abortController.signal,
               }).catch(() => null);
+
+              if (abortController.signal.aborted || cycleId !== activeCycleIdRef.current) return;
 
               if (bRes && bRes.ok) {
                 const bData = await bRes.json().catch(() => null);
@@ -1886,9 +1945,12 @@ function SpadasLensCameraCore() {
         requestHeaders["Authorization"] = `Bearer ${sessionData.session.access_token}`;
       }
 
+      if (abortController.signal.aborted || cycleId !== activeCycleIdRef.current) return;
+
       res = await resilientFetch("/api/ai-listing", {
         method: "POST",
         headers: requestHeaders,
+        signal: abortController.signal,
         body: JSON.stringify({
           imageUrls: imagePayloads,
           isArScan: true,
@@ -1897,9 +1959,15 @@ function SpadasLensCameraCore() {
           stream: true,
         }),
       }, { maxRetries: 2, initialDelayMs: 300 }).catch((e) => {
+        if (e?.name === "AbortError" || abortController.signal.aborted) {
+          console.log('[Spadas Lens]', cycleId, 'Fetch aborted by new scan cycle');
+          return null;
+        }
         console.error('[Spadas Lens]', cycleId, 'Fetch error:', e);
         return null;
       });
+
+      if (abortController.signal.aborted || cycleId !== activeCycleIdRef.current) return;
 
       trace.markResponseReceived();
 
@@ -1915,19 +1983,35 @@ function SpadasLensCameraCore() {
             let isStreamFinished = false;
 
             while (!isStreamFinished) {
+              if (abortController.signal.aborted || cycleId !== activeCycleIdRef.current) {
+                try { void reader.cancel(); } catch {}
+                return;
+              }
+
               const { done, value } = await reader.read();
               if (done) break;
+
+              if (abortController.signal.aborted || cycleId !== activeCycleIdRef.current) {
+                try { void reader.cancel(); } catch {}
+                return;
+              }
 
               buffer += decoder.decode(value, { stream: true });
               const lines = buffer.split("\n");
               buffer = lines.pop() || "";
 
               for (const line of lines) {
+                if (abortController.signal.aborted || cycleId !== activeCycleIdRef.current) {
+                  try { void reader.cancel(); } catch {}
+                  return;
+                }
+
                 const trimmed = line.trim();
                 if (!trimmed) continue;
                 try {
                   const chunk = JSON.parse(trimmed);
                   if (chunk.event === "vision_complete") {
+                    if (abortController.signal.aborted || cycleId !== activeCycleIdRef.current) return;
                     // Vision processing finished! Immediately transition progressive loader to comps and render card skeleton
                     const rawPName = chunk.product_name || chunk.analysis?.product_name || "";
                     if (rawPName && !isVagueOrPartialRead(rawPName)) {
@@ -1959,10 +2043,12 @@ function SpadasLensCameraCore() {
                       setActiveScans([pendingScan]);
                     }
                   } else if (chunk.event === "complete") {
+                    if (abortController.signal.aborted || cycleId !== activeCycleIdRef.current) return;
                     data = chunk.data;
                     isStreamFinished = true;
                     break;
                   } else if (!chunk.event) {
+                    if (abortController.signal.aborted || cycleId !== activeCycleIdRef.current) return;
                     data = chunk;
                     isStreamFinished = true;
                     break;
@@ -1988,10 +2074,15 @@ function SpadasLensCameraCore() {
             try {
               void reader.cancel();
             } catch {}
-          } catch (streamErr) {
+          } catch (streamErr: any) {
+            if (streamErr?.name === "AbortError" || abortController.signal.aborted || cycleId !== activeCycleIdRef.current) {
+              return;
+            }
             console.warn("[Spadas Lens] Error reading NDJSON stream, falling back:", streamErr);
           }
         }
+
+        if (abortController.signal.aborted || cycleId !== activeCycleIdRef.current) return;
 
         if (!data) {
           raw = await res.text().catch(() => "");
@@ -2007,6 +2098,11 @@ function SpadasLensCameraCore() {
       }
 
       trace.markParseCompleted();
+
+      if (abortController.signal.aborted || cycleId !== activeCycleIdRef.current) {
+        console.log('[Spadas Lens]', cycleId, 'discarding stale response (superseded or aborted)');
+        return;
+      }
 
       setLastRawApiResponse(data);
 
@@ -2533,16 +2629,21 @@ function SpadasLensCameraCore() {
         }
       }
     } catch (err: any) {
+      if (err?.name === "AbortError" || abortController.signal.aborted || cycleId !== activeCycleIdRef.current) {
+        return;
+      }
       console.log('[Spadas Lens] fetch threw:', String(err));
       console.warn("Live camera Vision scan warning:", err?.message);
     } finally {
-      // GUARANTEED ALWAYS-RELEASE STATE RESET
-      analyzingRef.current = false;
-      setAnalyzingRealFrame(false);
-      setPendingIdentifiedItem(null);
-      setScanStage("complete");
+      // GUARANTEED ALWAYS-RELEASE STATE RESET (only if current cycle has not been superseded)
+      if (activeCycleIdRef.current === cycleId) {
+        analyzingRef.current = false;
+        setAnalyzingRealFrame(false);
+        setPendingIdentifiedItem(null);
+        setScanStage("complete");
+      }
     }
-  }, [soundEnabled]);
+  }, [soundEnabled, flushScanState]);
 
   // HUD STATE MACHINE: Keep recognized item cards visible for 12 seconds
   useEffect(() => {
@@ -3523,12 +3624,10 @@ function SpadasLensCameraCore() {
                       return;
                     }
 
-                    analyzingRef.current = false;
-                    setAnalyzingRealFrame(false);
+                    flushScanState();
                     void processCurrentFrame(true);
                   }}
-                  disabled={!isRapidScanMode && analyzingRealFrame}
-                  className={`group relative flex items-center justify-center h-16 w-16 sm:h-20 sm:w-20 rounded-full p-1 active:scale-95 transition-all duration-200 cursor-pointer disabled:opacity-50 ${
+                  className={`group relative flex items-center justify-center h-16 w-16 sm:h-20 sm:w-20 rounded-full p-1 active:scale-95 transition-all duration-200 cursor-pointer ${
                     isRapidScanMode
                       ? "bg-gradient-to-tr from-amber-400 via-yellow-500 to-amber-300 shadow-[0_0_35px_rgba(251,191,36,0.7)]"
                       : "bg-gradient-to-tr from-cyan-500 via-blue-500 to-emerald-400 shadow-[0_0_35px_rgba(6,182,212,0.6)]"

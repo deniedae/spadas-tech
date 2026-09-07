@@ -966,6 +966,8 @@ MANDATORY STRUCTURED EXTRACTION REQUIREMENTS (STRICT SCHEMA):
       const stream = new ReadableStream({
         async start(controller) {
           try {
+            if (request.signal?.aborted) return;
+
             // 1. Send vision completion event immediately so client transitions to "Querying marketplace sold comps..."
             const visionEvent = {
               event: "vision_complete",
@@ -979,8 +981,12 @@ MANDATORY STRUCTURED EXTRACTION REQUIREMENTS (STRICT SCHEMA):
             };
             controller.enqueue(encoder.encode(JSON.stringify(visionEvent) + "\n"));
 
+            if (request.signal?.aborted) return;
+
             // 2. Fetch live eBay comps and calculate final metrics
             await runCompsAndFinalizeResult();
+
+            if (request.signal?.aborted) return;
 
             // 3. Emit final completed payload
             const completeEvent = {
@@ -989,15 +995,28 @@ MANDATORY STRUCTURED EXTRACTION REQUIREMENTS (STRICT SCHEMA):
             };
             controller.enqueue(encoder.encode(JSON.stringify(completeEvent) + "\n"));
           } catch (streamErr: any) {
+            if (request.signal?.aborted) return;
             console.error("[ai-listing] Streaming error:", streamErr);
-            controller.enqueue(encoder.encode(JSON.stringify({ event: "complete", data: result }) + "\n"));
+            try {
+              controller.enqueue(encoder.encode(JSON.stringify({ event: "complete", data: result }) + "\n"));
+            } catch {}
           } finally {
-            controller.close();
+            try {
+              controller.close();
+            } catch {}
             if (userIdentifier) {
               const currentLimiter = userRateLimitMap.get(userIdentifier);
               if (currentLimiter) {
                 currentLimiter.inFlight = false;
               }
+            }
+          }
+        },
+        cancel() {
+          if (userIdentifier) {
+            const currentLimiter = userRateLimitMap.get(userIdentifier);
+            if (currentLimiter) {
+              currentLimiter.inFlight = false;
             }
           }
         },
