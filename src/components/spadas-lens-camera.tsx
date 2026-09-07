@@ -674,6 +674,23 @@ function SpadasLensCameraCore() {
   const [frozenFrameUrl, setFrozenFrameUrl] = useState<string | null>(null);
   const [activeCompsHit, setActiveCompsHit] = useState<DetectedHit | ActiveScanItem | null>(null);
   const [confidencePercent, setConfidencePercent] = useState<number>(94);
+  const [isLoaderTransitioning, setIsLoaderTransitioning] = useState<boolean>(false);
+  const [isValuationCardMounted, setIsValuationCardMounted] = useState<boolean>(false);
+
+  // Immediate crossfade handoff coordinator between progressive loader and valuation card
+  useEffect(() => {
+    if (activeValuationHit) {
+      // Begin crossfade handoff; keep loader mounted behind card briefly to prevent any blank screen flash
+      setIsLoaderTransitioning(true);
+      const timer = setTimeout(() => {
+        setIsLoaderTransitioning(false);
+      }, 250);
+      return () => clearTimeout(timer);
+    } else if (analyzingRealFrame) {
+      setIsLoaderTransitioning(true);
+      setIsValuationCardMounted(false);
+    }
+  }, [activeValuationHit, analyzingRealFrame]);
 
   // Resume camera scanning handler
   const handleResumeScanning = useCallback(async () => {
@@ -2850,6 +2867,7 @@ function SpadasLensCameraCore() {
                   }
                 : undefined
             ),
+            image: snapshotImage || frozenFrameUrl || (obj as any).image || undefined,
           };
 
           trace.markStateDecision("ACCEPTED_NEW_HIT", "High confidence identification committed to state", {
@@ -2868,6 +2886,7 @@ function SpadasLensCameraCore() {
           }
           valuationExpiryTimerRef.current = setTimeout(() => {
             setActiveValuationHit(null);
+            setFrozenFrameUrl(null);
           }, 6500);
 
           if (forceManual || scanMode === "snap") {
@@ -3278,9 +3297,9 @@ function SpadasLensCameraCore() {
               className="h-full w-full object-cover"
             />
 
-            {/* Continuous Visual Anchor: Captured item snapshot remains continuously visible beneath progressive loader and valuation steps with ZERO black flashes */}
-            {frozenFrameUrl && (analyzingRealFrame || activeValuationHit || isScanPaused) && (
-              <div className="absolute inset-0 z-10 animate-in fade-in duration-200 pointer-events-none select-none">
+            {/* Continuous Visual Anchor: Captured item snapshot remains continuously visible beneath progressive loader, handoff, and valuation steps with ZERO black flashes */}
+            {frozenFrameUrl && (analyzingRealFrame || isLoaderTransitioning || activeValuationHit || isScanPaused) && (
+              <div className="absolute inset-0 z-10 transition-opacity duration-300 pointer-events-none select-none animate-in fade-in duration-150">
                 <img
                   src={frozenFrameUrl}
                   alt="Captured Scanned Frame"
@@ -3509,194 +3528,231 @@ function SpadasLensCameraCore() {
 
 
 
-            {/* Unified Sleek Frosted-Glass Shared Layout Container for Progressive Loader, Final Valuation Card & Retry Fallback */}
-            {(analyzingRealFrame || activeValuationHit || scanRetryPrompt) && (
+            {/* Unified Sleek Frosted-Glass Shared Layout Container with Immediate Crossfade Handoff */}
+            {(analyzingRealFrame || isLoaderTransitioning || activeValuationHit || scanRetryPrompt) && (
               <div className="absolute bottom-20 sm:bottom-24 left-1/2 -translate-x-1/2 z-25 w-[92%] max-w-sm mx-auto pointer-events-auto transition-all duration-300 ease-out">
-                {analyzingRealFrame ? (
-                  <div
-                    key="lens-loader-interim"
-                    className="w-full transition-all duration-300 ease-out animate-in fade-in zoom-in-95"
-                  >
-                    <ScanProgressiveLoader
-                      isActive={analyzingRealFrame}
-                      stage={scanStage}
-                      detectedTitle={pendingIdentifiedItem?.productName}
-                      detectedBrand={pendingIdentifiedItem?.brand}
-                      previewImage={frozenFrameUrl}
-                      variant="skeleton"
-                    />
-                  </div>
-                ) : scanRetryPrompt ? (
-                  <div
-                    key="lens-retry-prompt"
-                    className="w-full rounded-2xl bg-slate-950/95 border border-amber-500/50 p-3 shadow-xl backdrop-blur-xl flex items-center justify-between gap-2.5 animate-in fade-in zoom-in-95 select-none"
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <WifiOff className="h-4 w-4 text-amber-400 shrink-0" />
-                      <div className="flex flex-col min-w-0">
-                        <span className="text-xs font-bold text-slate-100 truncate">
-                          {scanRetryPrompt.message}
-                        </span>
-                        <span className="text-[10px] text-slate-400">
-                          Active session preserved • Tap retry
-                        </span>
+                <div className="grid grid-cols-1 grid-rows-1 w-full items-end">
+                  {/* Immediate Crossfade Handoff: Progressive loader stays mounted in same frame during handoff */}
+                  {(analyzingRealFrame || isLoaderTransitioning) && (
+                    <div
+                      key="lens-loader-interim"
+                      className={`col-start-1 row-start-1 w-full transition-opacity duration-200 ease-out z-10 ${
+                        activeValuationHit ? "opacity-0 pointer-events-none" : "opacity-100"
+                      }`}
+                    >
+                      <ScanProgressiveLoader
+                        isActive={true}
+                        stage={scanStage}
+                        detectedTitle={pendingIdentifiedItem?.productName || activeValuationHit?.name}
+                        detectedBrand={(pendingIdentifiedItem?.brand || activeValuationHit?.brand) ?? undefined}
+                        previewImage={frozenFrameUrl}
+                        variant="skeleton"
+                      />
+                    </div>
+                  )}
+
+                  {/* Retry Prompt Layer */}
+                  {scanRetryPrompt && !activeValuationHit && (
+                    <div
+                      key="lens-retry-prompt"
+                      className="col-start-1 row-start-1 w-full rounded-2xl bg-slate-950/95 border border-amber-500/50 p-3 shadow-xl backdrop-blur-xl flex items-center justify-between gap-2.5 animate-in fade-in zoom-in-95 select-none z-20"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <WifiOff className="h-4 w-4 text-amber-400 shrink-0" />
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-xs font-bold text-slate-100 truncate">
+                            {scanRetryPrompt.message}
+                          </span>
+                          <span className="text-[10px] text-slate-400">
+                            Active session preserved • Tap retry
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setScanRetryPrompt(null);
+                            void processCurrentFrame(true);
+                          }}
+                          className="inline-flex items-center gap-1 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black px-3 py-1.5 rounded-xl text-[11px] transition cursor-pointer active:scale-95 shadow-md shadow-cyan-500/20"
+                        >
+                          <RefreshCw className="h-3 w-3" />
+                          <span>Retry</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setScanRetryPrompt(null)}
+                          className="text-slate-400 hover:text-white p-1 rounded-lg transition cursor-pointer"
+                          title="Dismiss"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setScanRetryPrompt(null);
-                          void processCurrentFrame(true);
-                        }}
-                        className="inline-flex items-center gap-1 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black px-3 py-1.5 rounded-xl text-[11px] transition cursor-pointer active:scale-95 shadow-md shadow-cyan-500/20"
-                      >
-                        <RefreshCw className="h-3 w-3" />
-                        <span>Retry</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setScanRetryPrompt(null)}
-                        className="text-slate-400 hover:text-white p-1 rounded-lg transition cursor-pointer"
-                        title="Dismiss"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                ) : activeValuationHit ? (
-                  <ValuationCardErrorBoundary
-                    onRetry={() => void processCurrentFrame(true)}
-                    onDismiss={() => setActiveValuationHit(null)}
-                  >
+                  )}
+
+                  {/* Final Valuation Card Layer: Instant Mount & Crossfade within Same Container */}
+                  {activeValuationHit && (
                     <div
                       key={`lens-valuation-${activeValuationHit.id || activeValuationHit.name}`}
-                      className="w-full rounded-3xl bg-slate-950/95 border border-emerald-500/60 p-4 shadow-[0_10px_35px_rgba(16,185,129,0.3)] backdrop-blur-xl transition-all duration-300 ease-out animate-in fade-in zoom-in-95 select-none"
+                      ref={(node) => {
+                        if (node) setIsValuationCardMounted(true);
+                      }}
+                      className="col-start-1 row-start-1 w-full transition-opacity duration-200 ease-in z-20 animate-in fade-in"
                     >
-                      {/* Top Header: Title, Brand & Cop Verdict */}
-                      <div className="flex items-start justify-between gap-2.5 mb-2.5">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/30">
-                              <Sparkles className="h-3 w-3" /> Live Comps Valued
-                            </span>
-                            {activeValuationHit.brand && (
-                              <span className="text-[10px] font-bold text-slate-300 bg-slate-800/80 px-2 py-0.5 rounded border border-slate-700/80 truncate max-w-[120px]">
-                                {activeValuationHit.brand}
+                      <ValuationCardErrorBoundary
+                        onRetry={() => void processCurrentFrame(true)}
+                        onDismiss={() => {
+                          setActiveValuationHit(null);
+                          setFrozenFrameUrl(null);
+                        }}
+                      >
+                        <div
+                          className="w-full rounded-3xl bg-slate-950/95 border border-emerald-500/60 p-4 shadow-[0_10px_35px_rgba(16,185,129,0.3)] backdrop-blur-xl select-none"
+                        >
+                          {/* Top Header: Thumbnail Anchor, Title, Brand & Cop Verdict */}
+                          <div className="flex items-start justify-between gap-2.5 mb-2.5">
+                            <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                              {(frozenFrameUrl || activeValuationHit.image) && (
+                                <div className="relative h-8 w-8 rounded-xl overflow-hidden border border-emerald-400/50 shadow-md shrink-0 bg-slate-900">
+                                  <img
+                                    src={frozenFrameUrl || activeValuationHit.image || ""}
+                                    alt={activeValuationHit.name}
+                                    className="h-full w-full object-cover"
+                                  />
+                                  <div className="absolute inset-0 ring-1 ring-inset ring-white/20" />
+                                </div>
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/30">
+                                    <Sparkles className="h-3 w-3" /> Live Comps Valued
+                                  </span>
+                                  {activeValuationHit.brand && (
+                                    <span className="text-[10px] font-bold text-slate-300 bg-slate-800/80 px-2 py-0.5 rounded border border-slate-700/80 truncate max-w-[120px]">
+                                      {activeValuationHit.brand}
+                                    </span>
+                                  )}
+                                </div>
+                                <h4 className="text-sm font-black text-white truncate leading-tight">
+                                  {activeValuationHit.name}
+                                </h4>
+                              </div>
+                            </div>
+
+                            {activeValuationHit.copVerdict && (
+                              <span
+                                className={`shrink-0 px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider shadow-md ${
+                                  activeValuationHit.copVerdict === "MUST_COP"
+                                    ? "bg-emerald-500 text-slate-950 shadow-emerald-500/40"
+                                    : activeValuationHit.copVerdict === "QUICK_FLIP"
+                                    ? "bg-cyan-500 text-slate-950 shadow-cyan-500/30"
+                                    : activeValuationHit.copVerdict === "PASS_RISKY"
+                                    ? "bg-rose-500/20 text-rose-300 border border-rose-500/40"
+                                    : "bg-slate-800 text-slate-300"
+                                }`}
+                              >
+                                {activeValuationHit.copVerdict === "MUST_COP"
+                                  ? "👑 MUST COP"
+                                  : activeValuationHit.copVerdict === "QUICK_FLIP"
+                                  ? "⚡ QUICK FLIP"
+                                  : "⛔ PASS"}
                               </span>
                             )}
                           </div>
-                          <h4 className="text-sm font-black text-white truncate leading-tight">
-                            {activeValuationHit.name}
-                          </h4>
+
+                          {/* Pricing & Net Profit Section */}
+                          <div className="grid grid-cols-3 gap-2 py-2 border-y border-slate-800/80 my-2.5">
+                            <div className="flex flex-col">
+                              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Est Value</span>
+                              <span className="text-xs font-black text-cyan-300 font-mono">
+                                {fmtMoney(activeValuationHit.estimatedValue || 0)}
+                              </span>
+                            </div>
+
+                            <div className="flex flex-col">
+                              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Thrift Tag</span>
+                              <span className="text-xs font-bold text-amber-300 font-mono">
+                                {activeValuationHit.tagPrice
+                                  ? fmtMoney(activeValuationHit.tagPrice)
+                                  : activeValuationHit.estCost
+                                  ? fmtMoney(activeValuationHit.estCost)
+                                  : "N/A"}
+                              </span>
+                            </div>
+
+                            <div className="flex flex-col text-right">
+                              <span className="text-[9px] font-bold text-emerald-400 uppercase tracking-wider">Net Profit</span>
+                              <span className="text-xs sm:text-sm font-black text-emerald-400 font-mono">
+                                +{fmtMoney(activeValuationHit.trueNetProfit || activeValuationHit.estimatedProfit || 0)}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Interactive Action Buttons */}
+                          <div className="flex items-center justify-between gap-2 pt-1">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActiveCompsHit(activeValuationHit);
+                                  setActiveValuationHit(null);
+                                }}
+                                className="inline-flex items-center gap-1 bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 px-3 py-1.5 rounded-xl text-[11px] font-bold transition cursor-pointer active:scale-95"
+                              >
+                                <TrendingUp className="h-3.5 w-3.5 text-cyan-400" />
+                                <span>Comps</span>
+                              </button>
+
+                              {checkNeedsVerification({
+                                name: activeValuationHit.name,
+                                brand: activeValuationHit.brand || undefined,
+                                category: activeValuationHit.category || undefined,
+                                estimatedValue: activeValuationHit.estimatedValue,
+                              }).needsVerification && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenDeepVerify(activeValuationHit)}
+                                  className="inline-flex items-center gap-1 bg-purple-600 hover:bg-purple-500 text-white px-2.5 py-1.5 rounded-xl text-[11px] font-black transition cursor-pointer shadow-md shadow-purple-900/40 animate-pulse"
+                                >
+                                  <ShieldCheck className="h-3.5 w-3.5" />
+                                  <span>Verify</span>
+                                </button>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  void handleSaveDraftHit(activeValuationHit);
+                                  setActiveValuationHit(null);
+                                  setFrozenFrameUrl(null);
+                                }}
+                                className="inline-flex items-center gap-1 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black px-3.5 py-1.5 rounded-xl text-[11px] shadow-lg shadow-emerald-500/20 transition cursor-pointer active:scale-95"
+                              >
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                                <span>+Add Find</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActiveValuationHit(null);
+                                  setFrozenFrameUrl(null);
+                                }}
+                                className="text-slate-400 hover:text-white p-1 rounded-lg transition cursor-pointer"
+                                title="Dismiss"
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </div>
                         </div>
-
-                        {activeValuationHit.copVerdict && (
-                          <span
-                            className={`shrink-0 px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider shadow-md ${
-                              activeValuationHit.copVerdict === "MUST_COP"
-                                ? "bg-emerald-500 text-slate-950 shadow-emerald-500/40"
-                                : activeValuationHit.copVerdict === "QUICK_FLIP"
-                                ? "bg-cyan-500 text-slate-950 shadow-cyan-500/30"
-                                : activeValuationHit.copVerdict === "PASS_RISKY"
-                                ? "bg-rose-500/20 text-rose-300 border border-rose-500/40"
-                                : "bg-slate-800 text-slate-300"
-                            }`}
-                          >
-                            {activeValuationHit.copVerdict === "MUST_COP"
-                              ? "👑 MUST COP"
-                              : activeValuationHit.copVerdict === "QUICK_FLIP"
-                              ? "⚡ QUICK FLIP"
-                              : "⛔ PASS"}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Pricing & Net Profit Section */}
-                      <div className="grid grid-cols-3 gap-2 py-2 border-y border-slate-800/80 my-2.5">
-                        <div className="flex flex-col">
-                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Est Value</span>
-                          <span className="text-xs font-black text-cyan-300 font-mono">
-                            {fmtMoney(activeValuationHit.estimatedValue || 0)}
-                          </span>
-                        </div>
-
-                        <div className="flex flex-col">
-                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Thrift Tag</span>
-                          <span className="text-xs font-bold text-amber-300 font-mono">
-                            {activeValuationHit.tagPrice
-                              ? fmtMoney(activeValuationHit.tagPrice)
-                              : activeValuationHit.estCost
-                              ? fmtMoney(activeValuationHit.estCost)
-                              : "N/A"}
-                          </span>
-                        </div>
-
-                        <div className="flex flex-col text-right">
-                          <span className="text-[9px] font-bold text-emerald-400 uppercase tracking-wider">Net Profit</span>
-                          <span className="text-xs sm:text-sm font-black text-emerald-400 font-mono">
-                            +{fmtMoney(activeValuationHit.trueNetProfit || activeValuationHit.estimatedProfit || 0)}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Interactive Action Buttons */}
-                      <div className="flex items-center justify-between gap-2 pt-1">
-                        <div className="flex items-center gap-1.5 min-w-0">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setActiveCompsHit(activeValuationHit);
-                              setActiveValuationHit(null);
-                            }}
-                            className="inline-flex items-center gap-1 bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 px-3 py-1.5 rounded-xl text-[11px] font-bold transition cursor-pointer active:scale-95"
-                          >
-                            <TrendingUp className="h-3.5 w-3.5 text-cyan-400" />
-                            <span>Comps</span>
-                          </button>
-
-                          {checkNeedsVerification({
-                            name: activeValuationHit.name,
-                            brand: activeValuationHit.brand || undefined,
-                            category: activeValuationHit.category || undefined,
-                            estimatedValue: activeValuationHit.estimatedValue,
-                          }).needsVerification && (
-                            <button
-                              type="button"
-                              onClick={() => handleOpenDeepVerify(activeValuationHit)}
-                              className="inline-flex items-center gap-1 bg-purple-600 hover:bg-purple-500 text-white px-2.5 py-1.5 rounded-xl text-[11px] font-black transition cursor-pointer shadow-md shadow-purple-900/40 animate-pulse"
-                            >
-                              <ShieldCheck className="h-3.5 w-3.5" />
-                              <span>Verify</span>
-                            </button>
-                          )}
-                        </div>
-
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              void handleSaveDraftHit(activeValuationHit);
-                              setActiveValuationHit(null);
-                            }}
-                            className="inline-flex items-center gap-1 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black px-3.5 py-1.5 rounded-xl text-[11px] shadow-lg shadow-emerald-500/20 transition cursor-pointer active:scale-95"
-                          >
-                            <CheckCircle2 className="h-3.5 w-3.5" />
-                            <span>+Add Find</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setActiveValuationHit(null)}
-                            className="text-slate-400 hover:text-white p-1 rounded-lg transition cursor-pointer"
-                            title="Dismiss"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </div>
+                      </ValuationCardErrorBoundary>
                     </div>
-                  </ValuationCardErrorBoundary>
-                ) : null}
+                  )}
+                </div>
               </div>
             )}
 

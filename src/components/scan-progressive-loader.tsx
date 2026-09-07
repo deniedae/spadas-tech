@@ -79,6 +79,11 @@ export function ScanProgressiveLoader({
       return;
     }
 
+    if (stage === "complete") {
+      setCurrentStepIndex(3);
+      return;
+    }
+
     // Default timeline progression if no explicit stage is forced
     const t1 = setTimeout(() => {
       setCurrentStepIndex((prev) => Math.max(prev, 1));
@@ -104,11 +109,18 @@ export function ScanProgressiveLoader({
   const currentStep = DEFAULT_STEPS[currentStepIndex] || DEFAULT_STEPS[0];
   const StepIcon = currentStep.icon;
 
-  const displayLabel = customLabel || (currentStepIndex === 2 && detectedTitle
-    ? "Querying marketplace sold comps..."
-    : currentStep.label);
+  const isComplete = stage === "complete";
+  const displayProgress = isComplete ? 100 : currentStep.progress;
 
-  const displaySublabel = detectedTitle
+  const displayLabel = isComplete
+    ? "Comps Valued & Verified"
+    : customLabel || (currentStepIndex === 2 && detectedTitle
+      ? "Querying marketplace sold comps..."
+      : currentStep.label);
+
+  const displaySublabel = isComplete
+    ? (detectedTitle ? `Verified: ${detectedTitle}` : "Ready for pricing & profit analysis")
+    : detectedTitle
     ? `Live eBay comps: "${detectedTitle}"`
     : currentStep.sublabel;
 
@@ -155,7 +167,7 @@ export function ScanProgressiveLoader({
             </div>
           </div>
           <span className="text-[10px] font-mono font-bold text-cyan-400 shrink-0">
-            {currentStep.progress}%
+            {displayProgress}%
           </span>
         </div>
 
@@ -163,7 +175,7 @@ export function ScanProgressiveLoader({
         <div className="h-1.5 w-full rounded-full bg-black/40 overflow-hidden mb-3.5 border border-white/10">
           <div
             className="h-full bg-gradient-to-r from-cyan-500 via-teal-400 to-emerald-400 transition-all duration-500 ease-out"
-            style={{ width: `${currentStep.progress}%` }}
+            style={{ width: `${displayProgress}%` }}
           />
         </div>
 
@@ -240,7 +252,7 @@ export function ScanProgressiveLoader({
               {displayLabel}
             </span>
             <span className="text-[10px] font-mono font-extrabold text-cyan-400 shrink-0">
-              {currentStep.progress}%
+              {displayProgress}%
             </span>
           </div>
           <span className="text-[10px] font-medium text-slate-400 truncate">
@@ -253,7 +265,7 @@ export function ScanProgressiveLoader({
       <div className="h-1.5 w-full rounded-full bg-slate-900 overflow-hidden border border-slate-800/80">
         <div
           className="h-full bg-gradient-to-r from-cyan-500 via-teal-400 to-emerald-400 transition-all duration-500 ease-out"
-          style={{ width: `${currentStep.progress}%` }}
+          style={{ width: `${displayProgress}%` }}
         />
       </div>
     </div>
