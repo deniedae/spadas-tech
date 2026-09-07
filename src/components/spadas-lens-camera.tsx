@@ -70,6 +70,14 @@ import type { DetectedHit, ActiveScanItem } from "@/types/lens";
 export type { DetectedHit, ActiveScanItem } from "@/types/lens";
 import { processFrameForVision, poolConsecutiveFrames, createMultiFrameComposite } from "@/lib/image-preprocessor";
 import { ScanProgressiveLoader } from "@/components/scan-progressive-loader";
+import {
+  resolveSpatialMetadata,
+  getPredictiveQueryForCategory,
+  fireParallelCompsQuery,
+  recordCategoryTemplateQuery,
+  type CategoryBiasOption,
+  type SpatialMetadata,
+} from "@/lib/comps-prefetch-engine";
 
 // Catch-All React Error Boundary for Live Camera & Hit List Stability
 interface ErrorBoundaryProps {
@@ -414,6 +422,14 @@ function SpadasLensCameraCore() {
   const [scanFeedback, setScanFeedback] = useState<"HIT" | "MISS" | null>(null);
   const [sessionScanCount, setSessionScanCount] = useState<number>(0);
   const [shutterFlash, setShutterFlash] = useState<boolean>(false);
+
+  // Category Biasing via Geolocation & Spatial Metadata
+  const [categoryBias, setCategoryBias] = useState<CategoryBiasOption>("auto");
+  const [spatialMetadata, setSpatialMetadata] = useState<SpatialMetadata | null>(null);
+
+  useEffect(() => {
+    void resolveSpatialMetadata(categoryBias).then(setSpatialMetadata);
+  }, [categoryBias]);
 
   // 1. Immediate State Flush on New Scan: Instantly wipes valuation states, active stream tokens, and progressive loader flags to zero
   const flushScanState = useCallback(() => {
@@ -2167,15 +2183,21 @@ function SpadasLensCameraCore() {
         opticalStitchedPayloads.push(snapshotImage);
       }
 
-      // If viewfinder was frozen on manual snap, update to the sharpest de-blurred frame
-      if (compositeResult.bestFrameDataUrl && (forceManual || scanMode === "snap")) {
+      // Continuous Visual Anchor: Always preserve the sharpest frame snapshot throughout progressive loading and comps
+      if (compositeResult.bestFrameDataUrl) {
         setFrozenFrameUrl(compositeResult.bestFrameDataUrl);
+      } else if (snapshotImage) {
+        setFrozenFrameUrl(snapshotImage);
       }
 
       let imagePayloads = opticalStitchedPayloads;
       if (secondaryImagePayload && !imagePayloads.includes(secondaryImagePayload)) {
         imagePayloads = [secondaryImagePayload, ...imagePayloads];
       }
+
+      // Intelligent Prefetch Queue: Retrieve cached category query template and fire parallel comps query
+      const predictiveQuery = getPredictiveQueryForCategory(categoryBias);
+      void fireParallelCompsQuery(predictiveQuery, selectedCurrency);
 
       let res: Response | null = null;
       console.log('[Spadas Lens]', cycleId, 'Starting resilient fetch for frame with analyzingRealFrame:', analyzingRealFrame);
@@ -2201,6 +2223,9 @@ function SpadasLensCameraCore() {
           currency: selectedCurrency,
           mode: scanMode,
           stream: true,
+          spatialMetadata,
+          categoryBias,
+          predictedQuery: predictiveQuery,
         }),
       }, { maxRetries: 2, initialDelayMs: 300 }).catch((e) => {
         if (e?.name === "AbortError" || abortController.signal.aborted) {
@@ -2836,6 +2861,7 @@ function SpadasLensCameraCore() {
 
           setCapturedLog((prev) => [verifiedHit, ...prev]);
           void persistHitAndSyncToSupabase(verifiedHit, data);
+          recordCategoryTemplateQuery(verifiedHit.name, verifiedHit.category, categoryBias);
           setActiveValuationHit(verifiedHit);
           if (valuationExpiryTimerRef.current) {
             clearTimeout(valuationExpiryTimerRef.current);
@@ -3252,14 +3278,16 @@ function SpadasLensCameraCore() {
               className="h-full w-full object-cover"
             />
 
-            {/* Frozen Frame Snapshot when Scan is Paused / Valued (Eliminates all Camera Flutter) */}
-            {frozenFrameUrl && isScanPaused && (
-              <div className="absolute inset-0 z-10 bg-slate-950 animate-in fade-in duration-150">
+            {/* Continuous Visual Anchor: Captured item snapshot remains continuously visible beneath progressive loader and valuation steps with ZERO black flashes */}
+            {frozenFrameUrl && (analyzingRealFrame || activeValuationHit || isScanPaused) && (
+              <div className="absolute inset-0 z-10 animate-in fade-in duration-200 pointer-events-none select-none">
                 <img
                   src={frozenFrameUrl}
-                  alt="Frozen Scanned Frame"
+                  alt="Captured Scanned Frame"
                   className="object-cover w-full h-full"
                 />
+                {/* Subtle frosted vignette to preserve complete visual context while making translucent UI overlay pop */}
+                <div className="absolute inset-0 bg-black/25 backdrop-blur-[1px]" />
               </div>
             )}
 
@@ -3293,6 +3321,54 @@ function SpadasLensCameraCore() {
                   {isScanPaused ? "🎯 Locked" : cameraMoving ? "Panning..." : "Steady"}
                 </span>
               </div>
+
+              {/* Geolocation & Category Biasing Prior Badge */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const options: CategoryBiasOption[] = [
+                    "auto",
+                    "vintage_clothing",
+                    "digicams_tech",
+                    "designer_luxury",
+                    "collectibles_toys",
+                    "general_thrift",
+                  ];
+                  const currIdx = options.indexOf(categoryBias);
+                  const next = options[(currIdx + 1) % options.length];
+                  setCategoryBias(next);
+                  toast.success(
+                    next === "auto"
+                      ? `🌐 Auto Location Bias: ${spatialMetadata?.storeName || "Thrift Hub"}`
+                      : next === "vintage_clothing"
+                      ? "👕 Category Bias: Vintage & Streetwear Apparel"
+                      : next === "digicams_tech"
+                      ? "📷 Category Bias: Y2K Digicams & Electronics"
+                      : next === "designer_luxury"
+                      ? "💎 Category Bias: Luxury Designer & Leather"
+                      : next === "collectibles_toys"
+                      ? "👾 Category Bias: Collectibles & Cards"
+                      : "🏺 Category Bias: General Thrift & Homewares"
+                  );
+                }}
+                className="hidden md:inline-flex items-center gap-1.5 rounded-full bg-slate-950/90 border border-purple-500/40 px-3 py-1 text-[11px] font-bold text-purple-300 shadow-xl backdrop-blur-md pointer-events-auto hover:border-purple-400 transition cursor-pointer"
+                title="Click to toggle Category Biasing Priors"
+              >
+                <span className="text-[10px]">
+                  {categoryBias === "auto"
+                    ? `📍 ${spatialMetadata?.storeName || "Op-Shop Mode"}`
+                    : categoryBias === "vintage_clothing"
+                    ? "👕 Vintage Apparel"
+                    : categoryBias === "digicams_tech"
+                    ? "📷 Digicams & Tech"
+                    : categoryBias === "designer_luxury"
+                    ? "💎 Luxury / Leather"
+                    : categoryBias === "collectibles_toys"
+                    ? "👾 Collectibles"
+                    : "🏺 General Thrift"}
+                </span>
+              </button>
 
               {/* Guest Scan Mode Real-Time Indicator */}
               {isGuestUser && !isPro && !isOwner && (
@@ -3446,6 +3522,7 @@ function SpadasLensCameraCore() {
                       stage={scanStage}
                       detectedTitle={pendingIdentifiedItem?.productName}
                       detectedBrand={pendingIdentifiedItem?.brand}
+                      previewImage={frozenFrameUrl}
                       variant="skeleton"
                     />
                   </div>

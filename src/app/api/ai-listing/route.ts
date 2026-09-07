@@ -161,16 +161,47 @@ export async function POST(request: Request) {
     supabaseClient = supabase;
 
     const body = await request.json().catch(() => ({}));
-    const { imageUrls, isArScan, mode, stream: isStreamRequested } = body as {
+    const {
+      imageUrls,
+      isArScan,
+      mode,
+      stream: isStreamRequested,
+      spatialMetadata,
+      categoryBias,
+      predictedQuery,
+    } = body as {
       imageUrls?: string[];
       isArScan?: boolean;
       mode?: "sweep" | "deep" | "live" | "focus" | "standard" | "snap";
       stream?: boolean;
+      spatialMetadata?: {
+        latitude?: number;
+        longitude?: number;
+        storeName?: string;
+        venueType?: string;
+        categoryBias?: string;
+      };
+      categoryBias?: string;
+      predictedQuery?: string;
     };
     rawImageUrls = imageUrls || [];
 
     if (!imageUrls || imageUrls.length === 0) {
       return NextResponse.json(createEmptyScanResult());
+    }
+
+    const countryHeader = request.headers.get("x-vercel-ip-country");
+    const geoInfo = detectGeoCurrency(countryHeader);
+    const initialTargetCurrency: SupportedCurrency = (body.currency as SupportedCurrency) || geoInfo.currency;
+
+    // ── INTELLIGENT PREFETCH: Fire parallel eBay sold comps query the instant optical composite is received ──
+    let parallelCompsPromise: Promise<any> | null = null;
+    const initialPrefetchQuery = (predictedQuery || (body as any).query || "").trim();
+    if (initialPrefetchQuery.length >= 3) {
+      parallelCompsPromise = fetchEbayAustraliaSoldComps(initialPrefetchQuery, initialTargetCurrency).catch((err) => {
+        console.warn("[ai-listing] Parallel comps prefetch warning:", err);
+        return null;
+      });
     }
 
     const authHeader = request.headers.get("authorization");
@@ -351,6 +382,14 @@ Identify ONLY the single primary physical item positioned in the center target r
 ${modePrompt}
 
 MANDATORY STRUCTURED EXTRACTION REQUIREMENTS (STRICT SCHEMA):
+${spatialMetadata || categoryBias ? `LOCATION-AWARE CATEGORY BIASING & SPATIAL PRIORS:
+- Sourcing Location / Venue: ${spatialMetadata?.storeName || "Thrift Store / Op-Shop"} (${spatialMetadata?.venueType || "secondhand_thrift"})
+${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat ${spatialMetadata.latitude.toFixed(4)}, Lon ${spatialMetadata.longitude.toFixed(4)}\n` : ""}- Active Category Prior Bias: ${categoryBias || spatialMetadata?.categoryBias || "Secondhand Resale / Op-Shop Finds"}
+- GROUNDING IN REAL SECONDHAND / OP-SHOP FINDS:
+  • Heavily bias visual priors toward authentic secondhand inventory: vintage tags (single-stitch, sportswear, workwear), streetwear, retro digicams, analog electronics, luxury leather accessories, and collectibles.
+  • Never misidentify thrift clothing as generic industrial uniforms, medical wear, or commercial packaging.
+  • Use regional marketplace naming conventions and local marketplace terminology.
+` : ""}
 0. MULTI-FRAME OPTICAL COMPOSITE & MOTION BLUR ELIMINATION:
 - The input images feature an optical composite synthesized from rapid consecutive frames pooled when movement was detected, accompanied by focused macro center-crops.
 - Cross-reference the overview and macro insets across consecutive frames to resolve small text, care labels, serial codes, hallmarks, fabric texture, and condition flaws with 100% confidence, completely eliminating motion blur or misidentification.
@@ -605,9 +644,7 @@ MANDATORY STRUCTURED EXTRACTION REQUIREMENTS (STRICT SCHEMA):
       activeProvider = "offline-heuristics";
     }
 
-    const countryHeader = request.headers.get("x-vercel-ip-country");
-    const geoInfo = detectGeoCurrency(countryHeader);
-    const targetCurrency: SupportedCurrency = (body.currency as SupportedCurrency) || geoInfo.currency;
+    const targetCurrency: SupportedCurrency = initialTargetCurrency;
 
     (result as any).provider = activeProvider;
     (result as any).suggested_price_currency = targetCurrency;
@@ -657,7 +694,27 @@ MANDATORY STRUCTURED EXTRACTION REQUIREMENTS (STRICT SCHEMA):
     const runCompsAndFinalizeResult = async () => {
       if (result.analysis?.product_name && result.status === "identified") {
         try {
-          const ebayComps = await fetchEbayAustraliaSoldComps(result.analysis.product_name, targetCurrency);
+          const verifiedName = result.analysis.product_name;
+          let ebayComps: any = null;
+
+          // 1. INTELLIGENT PREFETCH: Check if parallel background comps query finished and matches verified product
+          if (parallelCompsPromise && initialPrefetchQuery) {
+            try {
+              const precomputed = await parallelCompsPromise;
+              const cleanInitial = initialPrefetchQuery.toLowerCase();
+              const cleanVerified = verifiedName.toLowerCase();
+              const wordsMatch = cleanInitial.split(/\s+/).some((w: string) => w.length > 2 && cleanVerified.includes(w));
+              if (precomputed && precomputed.count > 0 && (wordsMatch || cleanVerified.includes(cleanInitial))) {
+                ebayComps = precomputed;
+                console.log(`[ai-listing] Parallel comps prefetch hit (0ms latency): "${initialPrefetchQuery}" for "${verifiedName}"`);
+              }
+            } catch {}
+          }
+
+          // 2. Fallback fetch if parallel comps differed or yielded 0 comps
+          if (!ebayComps) {
+            ebayComps = await fetchEbayAustraliaSoldComps(verifiedName, targetCurrency);
+          }
           if (
             ebayComps &&
             typeof ebayComps.median === "number" &&
