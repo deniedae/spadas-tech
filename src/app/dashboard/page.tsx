@@ -5,6 +5,7 @@ import {
   DollarSign,
   TrendingUp,
   ShoppingCart,
+  ShoppingBag,
   AlertCircle,
   X,
   Camera,
@@ -23,6 +24,7 @@ import { supabase } from "@/app/lib/supabase";
 import Link from "next/link";
 import Image from "next/image";
 import NewListingDialog from "@/components/new-listing-dialog";
+import EbayListingModal from "@/components/ebay-listing-modal";
 import { fmtMoney, calcProfit } from "@/app/lib/listings";
 import PullToRefresh from "@/components/pull-to-refresh";
 import SubscriptionPaywallModal from "@/components/subscription-paywall-modal";
@@ -31,6 +33,8 @@ import { calculateSalesVelocity } from "@/lib/turnover-velocity-engine";
 interface Listing {
   id: string;
   product: string;
+  description?: string;
+  currency?: string;
   price: number | string | null;
   purchase_price: number | string | null;
   sold_price: number | string | null;
@@ -164,6 +168,7 @@ export default function DashboardPage() {
   const [isPaywallOpen, setIsPaywallOpen] = useState(false);
   const [isPro, setIsPro] = useState(false);
   const [isEbayConnected, setIsEbayConnected] = useState(false);
+  const [ebayPublishItem, setEbayPublishItem] = useState<Listing | null>(null);
 
   // High-Density Grid Filters
   const [gridFilter, setGridFilter] = useState<"ALL" | "FAST_FLIPS" | "TRAPS" | "SOLD">("ALL");
@@ -327,7 +332,7 @@ export default function DashboardPage() {
 
   return (
     <PullToRefresh onRefresh={handleRefresh}>
-      <div className="space-y-3 sm:space-y-4 max-w-7xl mx-auto pb-12 text-zinc-100">
+      <div className="space-y-3 sm:space-y-4 max-w-7xl mx-auto pb-32 sm:pb-36 pb-[calc(env(safe-area-inset-bottom,0px)+8rem)] text-zinc-100">
         {/* Compact Industrial Command Header */}
         <div className="specimen-card p-3 sm:p-4 border border-zinc-800 bg-[#0E1118] relative rounded-xl">
           <div className="absolute top-1.5 left-1.5 w-1.5 h-1.5 border-t-2 border-l-2 border-[#F97316]" />
@@ -754,17 +759,30 @@ export default function DashboardPage() {
                             </span>
                           </div>
 
-                          <span
-                            className={`px-1.5 py-0.5 rounded font-bold border ${
-                              item.status === "Sold"
-                                ? "bg-[#22C55E]/10 text-[#22C55E] border-[#22C55E]/20"
-                                : item.status === "Active"
-                                ? "bg-sky-500/10 text-sky-400 border-sky-500/20"
-                                : "bg-amber-500/10 text-amber-400 border-amber-500/20"
-                            }`}
-                          >
-                            {item.status}
-                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <span
+                              className={`px-1.5 py-0.5 rounded font-bold border ${
+                                item.status === "Sold"
+                                  ? "bg-[#22C55E]/10 text-[#22C55E] border-[#22C55E]/20"
+                                  : item.status === "Active"
+                                  ? "bg-sky-500/10 text-sky-400 border-sky-500/20"
+                                  : "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                              }`}
+                            >
+                              {item.status}
+                            </span>
+
+                            {/* Direct eBay Publish Action Button right alongside status badge */}
+                            <button
+                              type="button"
+                              onClick={() => setEbayPublishItem(item)}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-gradient-to-r from-[#F97316]/15 to-amber-500/15 hover:from-[#F97316]/30 hover:to-amber-500/30 text-[#F97316] hover:text-amber-200 border border-[#F97316]/40 text-[10px] font-mono font-bold transition shadow-xs cursor-pointer shrink-0"
+                              title="Publish directly to eBay"
+                            >
+                              <ShoppingBag className="w-2.5 h-2.5 text-[#F97316]" />
+                              <span>EBAY</span>
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -903,34 +921,47 @@ export default function DashboardPage() {
                           {item.velocity.estDaysToSell}
                         </td>
 
-                        {/* Status */}
+                        {/* Status & Direct eBay Publish Bar */}
                         <td className="py-2 px-3 text-center">
-                          <span
-                            className={`inline-flex px-1.5 py-0.5 rounded text-[10px] font-bold border ${
-                              item.status === "Sold"
-                                ? "bg-[#22C55E]/10 text-[#22C55E] border-[#22C55E]/20"
-                                : item.status === "Active"
-                                ? "bg-sky-500/10 text-sky-400 border-sky-500/20"
-                                : "bg-amber-500/10 text-amber-400 border-amber-500/20"
-                            }`}
-                          >
-                            {item.status}
-                          </span>
+                          <div className="inline-flex items-center gap-1.5 justify-center">
+                            <span
+                              className={`inline-flex px-1.5 py-0.5 rounded text-[10px] font-bold border ${
+                                item.status === "Sold"
+                                  ? "bg-[#22C55E]/10 text-[#22C55E] border-[#22C55E]/20"
+                                  : item.status === "Active"
+                                  ? "bg-sky-500/10 text-sky-400 border-sky-500/20"
+                                  : "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                              }`}
+                            >
+                              {item.status}
+                            </span>
+
+                            {/* Direct Accessible eBay Publish Action Button */}
+                            <button
+                              type="button"
+                              onClick={() => setEbayPublishItem(item)}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-gradient-to-r from-[#F97316]/15 to-amber-500/15 hover:from-[#F97316]/30 hover:to-amber-500/30 text-[#F97316] hover:text-amber-200 border border-[#F97316]/40 text-[10px] font-mono font-bold transition shadow-xs cursor-pointer shrink-0"
+                              title="Publish directly to eBay"
+                            >
+                              <ShoppingBag className="w-2.5 h-2.5 text-[#F97316]" />
+                              <span>EBAY</span>
+                            </button>
+                          </div>
                         </td>
 
                         {/* Actions */}
                         <td className="py-2 px-3 text-right">
-                          <a
-                            href={`https://www.ebay.com.au/sl/prelist/suggest?keyword=${encodeURIComponent(
-                              item.product
-                            )}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 px-2 py-1 rounded bg-[#12151E] hover:bg-[#181C28] text-zinc-300 border border-zinc-700 text-[10px] font-mono font-bold transition cursor-pointer"
-                          >
-                            <span>DRAFT</span>
-                            <ExternalLink className="h-2.5 w-2.5" />
-                          </a>
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => setEbayPublishItem(item)}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded bg-[#12151E] hover:bg-[#181C28] text-zinc-300 border border-zinc-700 text-[10px] font-mono font-bold transition cursor-pointer"
+                              title="Publish to eBay"
+                            >
+                              <span>PUBLISH</span>
+                              <ExternalLink className="h-2.5 w-2.5 text-[#F97316]" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -954,6 +985,22 @@ export default function DashboardPage() {
         </div>
       </div>
       <SubscriptionPaywallModal isOpen={isPaywallOpen} onClose={() => setIsPaywallOpen(false)} />
+
+      {/* 1-Click Live eBay Publish Modal */}
+      {ebayPublishItem && (
+        <EbayListingModal
+          isOpen={!!ebayPublishItem}
+          onClose={() => {
+            setEbayPublishItem(null);
+            void handleRefresh();
+          }}
+          title={ebayPublishItem.product}
+          price={Number(ebayPublishItem.price) || 25}
+          currency={(ebayPublishItem as any).currency}
+          description={ebayPublishItem.description || `Authentic ${ebayPublishItem.product}. Logged in Spadas Inventory.`}
+          imageUrls={ebayPublishItem.image_url ? [ebayPublishItem.image_url] : []}
+        />
+      )}
     </PullToRefresh>
   );
 }

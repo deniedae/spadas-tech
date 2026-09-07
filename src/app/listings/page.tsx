@@ -270,7 +270,7 @@ export default function ListingsPage() {
   }
 
   return (
-    <main className="space-y-6 animate-fade-in max-w-7xl mx-auto px-4 sm:px-6 py-6 text-zinc-100 pb-28">
+    <main className="space-y-6 animate-fade-in max-w-7xl mx-auto px-4 sm:px-6 py-6 text-zinc-100 pb-32 sm:pb-36 pb-[calc(env(safe-area-inset-bottom,0px)+8rem)]">
       {/* Page Header - Hardware Specimen Control */}
       <div className="specimen-card p-4 sm:p-5 border border-zinc-800 bg-[#0E1118] rounded-xl flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
@@ -485,206 +485,365 @@ export default function ListingsPage() {
           </div>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-zinc-800 bg-[#0E1118]">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="border-b border-zinc-800 bg-[#090A0F] font-mono text-[10px] text-zinc-400 uppercase tracking-wider">
-                  <th scope="col" className="py-2 px-3">
-                    Product Item
-                  </th>
-                  <th scope="col" className="py-2 px-3 text-right">
-                    List Price
-                  </th>
-                  <th scope="col" className="py-2 px-3 text-right">
-                    Cost Basis
-                  </th>
-                  <th scope="col" className="py-2 px-3 text-right">
-                    Net Profit
-                  </th>
-                  <th scope="col" className="py-2 px-3 text-center">
-                    STR% (Velocity)
-                  </th>
-                  <th scope="col" className="py-2 px-3 text-center">
-                    Turn Days
-                  </th>
-                  <th scope="col" className="py-2 px-3 text-center">
-                    Status
-                  </th>
-                  <th scope="col" className="py-2 px-3 text-right">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
+        <div className="space-y-4">
+          {/* Mobile View: High-Density Card List with Direct eBay Publish Action Bars */}
+          <div className="block sm:hidden divide-y divide-zinc-800/70 border border-zinc-800 rounded-xl bg-[#0E1118] overflow-hidden">
+            {filteredListings.map((item) => {
+              const isFastFlip = item.velocity.sellThroughRate > 90;
+              const isTrap =
+                item.velocity.sellThroughRate < 25 || item.velocity.isHoarderRisk;
 
-              <tbody className="divide-y divide-zinc-800/60 font-mono text-xs">
-                {filteredListings.map((item) => {
-                  const isFastFlip = item.velocity.sellThroughRate > 90;
-                  const isTrap =
-                    item.velocity.sellThroughRate < 25 || item.velocity.isHoarderRisk;
+              return (
+                <div key={item.id} className="p-3 hover:bg-[#12151E] transition-colors space-y-2.5">
+                  <div className="flex items-start gap-2.5">
+                    {item.image_url ? (
+                      <Image
+                        src={item.image_url}
+                        alt={item.product}
+                        width={44}
+                        height={44}
+                        className="h-11 w-11 rounded-lg object-cover border border-zinc-800 shrink-0 mt-0.5"
+                      />
+                    ) : (
+                      <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-[#161922] border border-zinc-800 text-zinc-500 shrink-0 mt-0.5">
+                        <ImageIcon className="h-4 w-4" />
+                      </div>
+                    )}
 
-                  return (
-                    <tr
-                      key={item.id}
-                      className="group transition-colors hover:bg-[#12151E]"
-                    >
-                      {/* Product Info Column */}
-                      <td className="py-2 px-3 font-sans">
-                        <div className="flex items-center gap-2.5">
-                          {item.image_url ? (
-                            <Image
-                              src={item.image_url}
-                              alt={item.product}
-                              width={32}
-                              height={32}
-                              loading="lazy"
-                              className="h-8 w-8 rounded object-cover border border-zinc-800 shrink-0"
-                            />
-                          ) : (
-                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded border border-zinc-800 bg-[#161922] text-zinc-500">
-                              <ImageIcon className="h-3.5 w-3.5" />
-                            </div>
-                          )}
-                          <div className="min-w-0 max-w-[200px] sm:max-w-xs md:max-w-sm">
-                            <p className="font-bold text-zinc-100 text-xs truncate group-hover:text-[#F97316] transition">
-                              {item.product}
-                            </p>
-                            <span className="font-mono text-[9px] text-zinc-500">
-                              ID: {String(item.id || "").slice(0, 8)}
-                            </span>
-                          </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-bold text-zinc-100 text-xs truncate font-sans">
+                        {item.product}
+                      </p>
+                      <span className="font-mono text-[9px] text-zinc-500">
+                        ID: {String(item.id || "").slice(0, 8)}
+                      </span>
+
+                      {/* Price & Profit Row */}
+                      <div className="flex items-center justify-between mt-1 font-mono text-[11px]">
+                        <div className="text-zinc-400">
+                          <span className="text-zinc-500">Cost:</span> {fmtMoney(item.calculatedCost)}
+                          <span className="text-zinc-600 mx-1">→</span>
+                          <span className="text-zinc-200 font-bold">{fmtMoney(item.calculatedPrice)}</span>
                         </div>
-                      </td>
+                        <div
+                          className={`font-black tabular-nums ${
+                            item.calculatedProfit > 0
+                              ? "text-[#22C55E]"
+                              : item.calculatedProfit < 0
+                              ? "text-[#DC2626]"
+                              : "text-zinc-400"
+                          }`}
+                        >
+                          {item.calculatedProfit > 0
+                            ? `+${fmtMoney(item.calculatedProfit)}`
+                            : fmtMoney(item.calculatedProfit)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
 
-                      {/* List Price (Tabular Monospace) */}
-                      <td className="py-2 px-3 text-right tabular-nums font-bold text-zinc-200 data-readout">
-                        {fmtMoney(item.calculatedPrice)}
-                      </td>
-
-                      {/* Cost Basis (Tabular Monospace) */}
-                      <td className="py-2 px-3 text-right tabular-nums text-zinc-400 font-semibold data-readout">
-                        {fmtMoney(item.calculatedCost)}
-                      </td>
-
-                      {/* Estimated Profit (Tabular Monospace) */}
-                      <td
-                        className={`py-2 px-3 text-right tabular-nums font-black data-readout ${
-                          item.calculatedProfit > 0
-                            ? "text-[#22C55E]"
-                            : item.calculatedProfit < 0
-                            ? "text-[#DC2626]"
-                            : "text-zinc-400"
+                  {/* Velocity, Status Badge & Direct eBay Publish Action Bar */}
+                  <div className="flex items-center justify-between pt-2 border-t border-zinc-800/60 gap-2 flex-wrap">
+                    <div className="flex items-center gap-1.5 font-mono text-[10px]">
+                      <span
+                        className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded font-black border tabular-nums ${
+                          isFastFlip
+                            ? "bg-[#22C55E]/15 text-[#22C55E] border-[#22C55E]/30"
+                            : isTrap
+                            ? "bg-[#DC2626]/15 text-[#DC2626] border-[#DC2626]/30"
+                            : "bg-zinc-900 text-zinc-400 border-zinc-800"
                         }`}
                       >
-                        {item.calculatedProfit > 0
-                          ? `+${fmtMoney(item.calculatedProfit)}`
-                          : fmtMoney(item.calculatedProfit)}
-                      </td>
+                        {isFastFlip && "⚡"}
+                        {isTrap && "🛑"}
+                        {item.velocity.sellThroughRate}% STR
+                      </span>
+                      <span className="text-zinc-500">
+                        ~{item.velocity.estDaysToSell}d
+                      </span>
+                    </div>
 
-                      {/* Step 2: STR% Velocity (Strictly Color-Coded) */}
-                      <td className="py-2 px-3 text-center">
-                        <span
-                          className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-black border tabular-nums data-readout ${
-                            isFastFlip
-                              ? "bg-[#22C55E]/15 text-[#22C55E] border-[#22C55E]/30"
-                              : isTrap
-                              ? "bg-[#DC2626]/15 text-[#DC2626] border-[#DC2626]/30"
-                              : "bg-zinc-900/80 text-zinc-400 border-zinc-800"
-                          }`}
-                        >
-                          {isFastFlip && "⚡ "}
-                          {isTrap && "🛑 "}
-                          {item.velocity.sellThroughRate}% STR
-                        </span>
-                      </td>
+                    {/* Status Badge + Direct eBay Publish Action Button */}
+                    <div className="flex items-center gap-1.5 font-mono ml-auto">
+                      <select
+                        value={item.status}
+                        onChange={(e) =>
+                          updateListingStatus(item.id, e.target.value as any)
+                        }
+                        className={`text-[10px] font-mono font-bold rounded px-1.5 py-1 border cursor-pointer transition focus:outline-none ${
+                          item.status === "Sold"
+                            ? "bg-[#22C55E]/10 text-[#22C55E] border-[#22C55E]/30"
+                            : item.status === "Draft"
+                            ? "bg-amber-500/10 text-amber-400 border-amber-500/30"
+                            : "bg-sky-500/10 text-sky-400 border-sky-500/30"
+                        }`}
+                      >
+                        <option value="Draft" className="bg-[#090A0F] text-amber-400">
+                          Draft
+                        </option>
+                        <option value="Active" className="bg-[#090A0F] text-sky-400">
+                          Active
+                        </option>
+                        <option value="Sold" className="bg-[#090A0F] text-[#22C55E]">
+                          Sold
+                        </option>
+                      </select>
 
-                      {/* Turn Days (Tabular Monospace) */}
-                      <td className="py-2 px-3 text-center text-[11px] tabular-nums font-semibold text-zinc-400 data-readout">
-                        {item.velocity.estDaysToSell}
-                      </td>
+                      {/* Direct eBay Publish Bar */}
+                      <button
+                        type="button"
+                        onClick={() => setEbayPublishItem(item)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-gradient-to-r from-[#F97316]/20 to-amber-500/20 hover:from-[#F97316]/35 hover:to-amber-500/35 text-[#F97316] hover:text-white border border-[#F97316]/40 text-[10px] font-mono font-bold transition shadow-xs cursor-pointer shrink-0"
+                        title="Publish directly to eBay"
+                      >
+                        <ShoppingBag className="w-3 h-3 text-[#F97316]" />
+                        <span>EBAY PUBLISH</span>
+                      </button>
 
-                      {/* Quick Status toggle */}
-                      <td className="py-2 px-3 text-center">
-                        <select
-                          value={item.status}
-                          onChange={(e) =>
-                            updateListingStatus(item.id, e.target.value as any)
+                      <EditListingDialog listing={item} onUpdated={loadListings} />
+                      <ExportListingDialog listing={item} />
+                      <AlertDialog>
+                        <AlertDialogTrigger
+                          render={
+                            <button
+                              className="inline-flex h-6 w-6 items-center justify-center rounded text-zinc-500 hover:bg-[#DC2626]/10 hover:text-[#DC2626] transition cursor-pointer"
+                              title="Delete listing"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
                           }
-                          className={`text-[10px] font-mono font-bold rounded px-1.5 py-0.5 border cursor-pointer transition focus:outline-none ${
-                            item.status === "Sold"
-                              ? "bg-[#22C55E]/10 text-[#22C55E] border-[#22C55E]/30"
-                              : item.status === "Draft"
-                              ? "bg-amber-500/10 text-amber-400 border-amber-500/30"
-                              : "bg-sky-500/10 text-sky-400 border-sky-500/30"
+                        />
+                        <AlertDialogContent className="bg-[#0E1118] border-zinc-800 text-zinc-100">
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Listing?</AlertDialogTitle>
+                            <AlertDialogDescription className="text-zinc-400">
+                              This action will permanently delete &ldquo;{item.product}&rdquo;.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel className="bg-[#161922] border-zinc-700 text-zinc-300">
+                              Cancel
+                            </AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => deleteListing(item.id)}
+                              className="bg-[#DC2626] hover:bg-rose-700 text-white font-bold"
+                            >
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop/Tablet View: High-Density Table with Direct eBay Publish Bar Alongside Status Badge */}
+          <div className="hidden sm:block overflow-hidden rounded-xl border border-zinc-800 bg-[#0E1118]">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="border-b border-zinc-800 bg-[#090A0F] font-mono text-[10px] text-zinc-400 uppercase tracking-wider">
+                    <th scope="col" className="py-2 px-3">
+                      Product Item
+                    </th>
+                    <th scope="col" className="py-2 px-3 text-right">
+                      List Price
+                    </th>
+                    <th scope="col" className="py-2 px-3 text-right">
+                      Cost Basis
+                    </th>
+                    <th scope="col" className="py-2 px-3 text-right">
+                      Net Profit
+                    </th>
+                    <th scope="col" className="py-2 px-3 text-center">
+                      STR% (Velocity)
+                    </th>
+                    <th scope="col" className="py-2 px-3 text-center">
+                      Turn Days
+                    </th>
+                    <th scope="col" className="py-2 px-3 text-center">
+                      Status & eBay Publish
+                    </th>
+                    <th scope="col" className="py-2 px-3 text-right">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+
+                <tbody className="divide-y divide-zinc-800/60 font-mono text-xs">
+                  {filteredListings.map((item) => {
+                    const isFastFlip = item.velocity.sellThroughRate > 90;
+                    const isTrap =
+                      item.velocity.sellThroughRate < 25 || item.velocity.isHoarderRisk;
+
+                    return (
+                      <tr
+                        key={item.id}
+                        className="group transition-colors hover:bg-[#12151E]"
+                      >
+                        {/* Product Info Column */}
+                        <td className="py-2 px-3 font-sans">
+                          <div className="flex items-center gap-2.5">
+                            {item.image_url ? (
+                              <Image
+                                src={item.image_url}
+                                alt={item.product}
+                                width={32}
+                                height={32}
+                                loading="lazy"
+                                className="h-8 w-8 rounded object-cover border border-zinc-800 shrink-0"
+                              />
+                            ) : (
+                              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded border border-zinc-800 bg-[#161922] text-zinc-500">
+                                <ImageIcon className="h-3.5 w-3.5" />
+                              </div>
+                            )}
+                            <div className="min-w-0 max-w-[200px] sm:max-w-xs md:max-w-sm">
+                              <p className="font-bold text-zinc-100 text-xs truncate group-hover:text-[#F97316] transition">
+                                {item.product}
+                              </p>
+                              <span className="font-mono text-[9px] text-zinc-500">
+                                ID: {String(item.id || "").slice(0, 8)}
+                              </span>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* List Price (Tabular Monospace) */}
+                        <td className="py-2 px-3 text-right tabular-nums font-bold text-zinc-200 data-readout">
+                          {fmtMoney(item.calculatedPrice)}
+                        </td>
+
+                        {/* Cost Basis (Tabular Monospace) */}
+                        <td className="py-2 px-3 text-right tabular-nums text-zinc-400 font-semibold data-readout">
+                          {fmtMoney(item.calculatedCost)}
+                        </td>
+
+                        {/* Estimated Profit (Tabular Monospace) */}
+                        <td
+                          className={`py-2 px-3 text-right tabular-nums font-black data-readout ${
+                            item.calculatedProfit > 0
+                              ? "text-[#22C55E]"
+                              : item.calculatedProfit < 0
+                              ? "text-[#DC2626]"
+                              : "text-zinc-400"
                           }`}
                         >
-                          <option value="Draft" className="bg-[#090A0F] text-amber-400">
-                            Draft
-                          </option>
-                          <option value="Active" className="bg-[#090A0F] text-sky-400">
-                            Active
-                          </option>
-                          <option value="Sold" className="bg-[#090A0F] text-[#22C55E]">
-                            Sold
-                          </option>
-                        </select>
-                      </td>
+                          {item.calculatedProfit > 0
+                            ? `+${fmtMoney(item.calculatedProfit)}`
+                            : fmtMoney(item.calculatedProfit)}
+                        </td>
 
-                      {/* Actions */}
-                      <td className="py-2 px-3 text-right">
-                        <div className="flex items-center justify-end gap-1 font-mono">
-                          {/* Direct eBay Publish Button */}
-                          <button
-                            type="button"
-                            onClick={() => setEbayPublishItem(item)}
-                            className="inline-flex items-center gap-1 px-2 py-1 rounded bg-[#12151E] hover:bg-[#181C28] text-zinc-200 text-[10px] font-bold border border-zinc-700 transition cursor-pointer"
-                            title="Publish directly to eBay"
+                        {/* Step 2: STR% Velocity (Strictly Color-Coded) */}
+                        <td className="py-2 px-3 text-center">
+                          <span
+                            className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-black border tabular-nums data-readout ${
+                              isFastFlip
+                                ? "bg-[#22C55E]/15 text-[#22C55E] border-[#22C55E]/30"
+                                : isTrap
+                                ? "bg-[#DC2626]/15 text-[#DC2626] border-[#DC2626]/30"
+                                : "bg-zinc-900/80 text-zinc-400 border-zinc-800"
+                            }`}
                           >
-                            <ShoppingBag className="w-2.5 h-2.5 text-[#F97316]" />
-                            <span>EBAY</span>
-                          </button>
+                            {isFastFlip && "⚡ "}
+                            {isTrap && "🛑 "}
+                            {item.velocity.sellThroughRate}% STR
+                          </span>
+                        </td>
 
-                          <EditListingDialog listing={item} onUpdated={loadListings} />
-                          <ExportListingDialog listing={item} />
+                        {/* Turn Days (Tabular Monospace) */}
+                        <td className="py-2 px-3 text-center text-[11px] tabular-nums font-semibold text-zinc-400 data-readout">
+                          {item.velocity.estDaysToSell}
+                        </td>
 
-                          <AlertDialog>
-                            <AlertDialogTrigger
-                              render={
-                                <button
-                                  className="inline-flex h-6 w-6 items-center justify-center rounded text-zinc-500 hover:bg-[#DC2626]/10 hover:text-[#DC2626] transition cursor-pointer"
-                                  title="Delete listing"
-                                >
-                                  <Trash2 className="h-3 w-3" />
-                                </button>
+                        {/* Status Badge + Direct Accessible eBay Publish Action Button */}
+                        <td className="py-2 px-3 text-center">
+                          <div className="inline-flex items-center gap-1.5 justify-center">
+                            <select
+                              value={item.status}
+                              onChange={(e) =>
+                                updateListingStatus(item.id, e.target.value as any)
                               }
-                            />
-                            <AlertDialogContent className="bg-[#0E1118] border-zinc-800 text-zinc-100">
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Delete Listing?</AlertDialogTitle>
-                                <AlertDialogDescription className="text-zinc-400">
-                                  This action will permanently delete &ldquo;{item.product}&rdquo;.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel className="bg-[#161922] border-zinc-700 text-zinc-300">
-                                  Cancel
-                                </AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => deleteListing(item.id)}
-                                  className="bg-[#DC2626] hover:bg-rose-700 text-white font-bold"
-                                >
-                                  Delete
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                              className={`text-[10px] font-mono font-bold rounded px-1.5 py-0.5 border cursor-pointer transition focus:outline-none ${
+                                item.status === "Sold"
+                                  ? "bg-[#22C55E]/10 text-[#22C55E] border-[#22C55E]/30"
+                                  : item.status === "Draft"
+                                  ? "bg-amber-500/10 text-amber-400 border-amber-500/30"
+                                  : "bg-sky-500/10 text-sky-400 border-sky-500/30"
+                              }`}
+                            >
+                              <option value="Draft" className="bg-[#090A0F] text-amber-400">
+                                Draft
+                              </option>
+                              <option value="Active" className="bg-[#090A0F] text-sky-400">
+                                Active
+                              </option>
+                              <option value="Sold" className="bg-[#090A0F] text-[#22C55E]">
+                                Sold
+                              </option>
+                            </select>
+
+                            {/* Direct eBay Publish Action Button */}
+                            <button
+                              type="button"
+                              onClick={() => setEbayPublishItem(item)}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-gradient-to-r from-[#F97316]/20 to-amber-500/20 hover:from-[#F97316]/35 hover:to-amber-500/35 text-[#F97316] hover:text-white border border-[#F97316]/40 text-[10px] font-mono font-bold transition shadow-xs cursor-pointer shrink-0"
+                              title="Publish directly to eBay"
+                            >
+                              <ShoppingBag className="w-2.5 h-2.5 text-[#F97316]" />
+                              <span>EBAY</span>
+                            </button>
+                          </div>
+                        </td>
+
+                        {/* Actions */}
+                        <td className="py-2 px-3 text-right">
+                          <div className="flex items-center justify-end gap-1 font-mono">
+                            <EditListingDialog listing={item} onUpdated={loadListings} />
+                            <ExportListingDialog listing={item} />
+
+                            <AlertDialog>
+                              <AlertDialogTrigger
+                                render={
+                                  <button
+                                    className="inline-flex h-6 w-6 items-center justify-center rounded text-zinc-500 hover:bg-[#DC2626]/10 hover:text-[#DC2626] transition cursor-pointer"
+                                    title="Delete listing"
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                  </button>
+                                }
+                              />
+                              <AlertDialogContent className="bg-[#0E1118] border-zinc-800 text-zinc-100">
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete Listing?</AlertDialogTitle>
+                                  <AlertDialogDescription className="text-zinc-400">
+                                    This action will permanently delete &ldquo;{item.product}&rdquo;.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel className="bg-[#161922] border-zinc-700 text-zinc-300">
+                                    Cancel
+                                  </AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => deleteListing(item.id)}
+                                    className="bg-[#DC2626] hover:bg-rose-700 text-white font-bold"
+                                  >
+                                    Delete
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}

@@ -159,7 +159,7 @@ export default function VelocityPage() {
   };
 
   return (
-    <div className="space-y-8 animate-fade-in pb-16">
+    <div className="space-y-8 animate-fade-in pb-32 sm:pb-36 pb-[calc(env(safe-area-inset-bottom,0px)+8rem)]">
       {/* Header Banner */}
       <div className="rounded-3xl border border-blue-500/20 bg-gradient-to-r from-blue-600 via-cyan-600 to-indigo-700 p-6 md:p-10 text-white shadow-xl relative overflow-hidden">
         <div className="relative z-10 max-w-2xl space-y-3">

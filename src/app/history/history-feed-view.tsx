@@ -99,7 +99,7 @@ export function HistoryFeedView({
     });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-32 sm:pb-36 pb-[calc(env(safe-area-inset-bottom,0px)+8rem)]">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-6">
         <div>
