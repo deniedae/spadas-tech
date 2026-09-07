@@ -520,7 +520,12 @@ export function IronmanHudCamera() {
 
       // Save to Spadas DB as Active Inventory
       try {
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { session } } = await supabase.auth.getSession();
+        let user: any = session?.user;
+        if (!user) {
+          const { data: userData } = await supabase.auth.getUser();
+          user = userData?.user;
+        }
         if (user) {
           await createListing({
             userId: user.id,
