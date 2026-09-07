@@ -77,6 +77,16 @@ export default function SettingsPage() {
         toast.error(`eBay Connection Error: ${urlParams.get("ebayError")}`);
         window.history.replaceState({}, "", "/settings");
       }
+      if (urlParams.get("checkout") === "success") {
+        setPlan("Spadas Pro");
+        setPlanStatus("active");
+        toast.success("🚀 Subscription upgraded! Welcome to Spadas Pro.", { duration: 6000 });
+        window.history.replaceState({}, "", "/settings");
+      }
+      if (urlParams.get("checkout") === "canceled") {
+        toast.info("Checkout was canceled. You can upgrade anytime.", { duration: 4000 });
+        window.history.replaceState({}, "", "/settings");
+      }
     }
   }, []);
 

@@ -55,6 +55,9 @@ export async function POST(request: Request) {
 
     const stripe = new Stripe(secretKey);
 
+    const rawReturnPath = typeof body?.returnPath === "string" ? body.returnPath.replace(/^\/+/, "") : "settings";
+    const targetReturnPath = rawReturnPath ? `/${rawReturnPath}` : "/settings";
+
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       customer_email: user.email || undefined,
@@ -67,8 +70,8 @@ export async function POST(request: Request) {
           quantity: 1,
         },
       ],
-      success_url: `${appUrl}/settings?checkout=success`,
-      cancel_url: `${appUrl}/settings?checkout=canceled`,
+      success_url: `${appUrl}${targetReturnPath}?checkout=success`,
+      cancel_url: `${appUrl}${targetReturnPath}?checkout=canceled`,
       allow_promotion_codes: true,
       metadata: {
         app: "spadas-ai",

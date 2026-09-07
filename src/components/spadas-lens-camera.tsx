@@ -275,6 +275,46 @@ function SpadasLensCameraCore() {
     saveRapidSession(rapidItems);
   }, [rapidItems]);
 
+  // Verify User Authentication & Subscription Tier on Mount
+  useEffect(() => {
+    async function checkAuthAndSubscription() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          setIsGuestUser(false);
+          const res = await fetch("/api/usage").catch(() => null);
+          if (res && res.ok) {
+            const usage = await res.json().catch(() => ({}));
+            setIsPro(Boolean(usage.isPro));
+            setIsLimitReached(Boolean(usage.limitReached));
+          }
+        } else {
+          setIsGuestUser(true);
+        }
+      } catch (err) {
+        console.warn("[Spadas Lens] Auth check notice:", err);
+      }
+    }
+    void checkAuthAndSubscription();
+  }, []);
+
+  // Handle Stripe Checkout Return on /lens
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get("checkout") === "success") {
+        toast.success("🚀 Welcome to Spadas Pro! Unlimited scans unlocked.", { duration: 6000 });
+        setIsPro(true);
+        setIsLimitReached(false);
+        setIsGuestUser(false);
+        window.history.replaceState({}, "", "/lens");
+      } else if (urlParams.get("checkout") === "canceled") {
+        toast.info("Checkout was canceled. Your scans and drafts are saved.", { duration: 4000 });
+        window.history.replaceState({}, "", "/lens");
+      }
+    }
+  }, []);
+
   const requestWakeLock = useCallback(async () => {
     if (typeof navigator !== "undefined" && "wakeLock" in navigator) {
       try {

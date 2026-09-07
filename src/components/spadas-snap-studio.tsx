@@ -42,6 +42,18 @@ export function SpadasSnapStudio() {
       setIsGuestUser(!user);
     }
     void checkAuth();
+
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get("checkout") === "success") {
+        toast.success("🚀 Welcome to Spadas Pro! Unlimited scans unlocked.", { duration: 6000 });
+        setIsGuestUser(false);
+        window.history.replaceState({}, "", "/snap");
+      } else if (urlParams.get("checkout") === "canceled") {
+        toast.info("Checkout was canceled. Your photos and drafts are saved.", { duration: 4000 });
+        window.history.replaceState({}, "", "/snap");
+      }
+    }
   }, []);
 
   // Stop Camera Stream (Releases all hardware locks immediately)

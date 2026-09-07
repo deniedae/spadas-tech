@@ -12,6 +12,7 @@ import {
   ShieldCheck,
   X,
   Camera,
+  Loader2,
 } from "lucide-react";
 import { supabase } from "@/app/lib/supabase";
 import { toast } from "sonner";
@@ -35,12 +36,47 @@ export function GuestScanLimitModal({
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [upgradingToPro, setUpgradingToPro] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
   if (!isOpen) return null;
 
   const savedItems = getGuestScannedItems();
   const displayItem = lastScannedItem || (savedItems.length > 0 ? savedItems[0] : null);
+
+  async function handleUpgradeToPro() {
+    setUpgradingToPro(true);
+    setErrorMsg("");
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.info("Please sign in first to link your Spadas Pro subscription.");
+        return handleGoogleSignIn();
+      }
+
+      const res = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          planId: "pro",
+          returnPath: "/lens",
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.message || "Failed to start checkout.");
+      }
+
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch (err: any) {
+      setErrorMsg(err?.message || "Failed to initiate checkout.");
+    } finally {
+      setUpgradingToPro(false);
+    }
+  }
 
   async function handleGoogleSignIn() {
     setErrorMsg("");
@@ -198,6 +234,33 @@ export function GuestScanLimitModal({
             <CheckCircle2 className="h-4 w-4 text-orange-400 shrink-0" />
             <span><strong>Offline Mode</strong> for thrift stores</span>
           </div>
+        </div>
+
+        {/* Power Seller Pro Instant Unlock Banner */}
+        <div className="rounded-2xl border border-amber-500/30 bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-amber-500/10 p-3.5 flex items-center justify-between gap-3 shadow-lg">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5 text-amber-400 font-extrabold text-[11px] tracking-wide uppercase">
+              <Sparkles className="h-3 w-3 fill-amber-400" />
+              <span>Power Seller Option</span>
+            </div>
+            <p className="text-xs font-bold text-white truncate">
+              Unlimited Scans &bull; 1-Tap eBay Direct List
+            </p>
+            <p className="text-[10px] text-zinc-400 font-mono">$29 AUD / mo &bull; Cancel anytime</p>
+          </div>
+          <button
+            type="button"
+            onClick={handleUpgradeToPro}
+            disabled={upgradingToPro}
+            className="shrink-0 flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 px-3.5 py-2 text-xs font-black text-slate-950 hover:brightness-110 shadow-md transition disabled:opacity-50"
+          >
+            {upgradingToPro ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Zap className="h-3.5 w-3.5 fill-slate-950" />
+            )}
+            <span>{upgradingToPro ? "Redirecting..." : "Go Pro ⚡"}</span>
+          </button>
         </div>
 
         {/* Quick Sign Up Options */}
