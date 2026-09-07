@@ -44,6 +44,7 @@ logs/
 
 # env & secrets
 .env*
+!.env.example
 *.env
 *.key
 *.token
