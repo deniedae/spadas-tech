@@ -5,6 +5,7 @@
 
 import type { DetectedHit, ActiveScanItem } from "@/types/lens";
 import { calculateSalesVelocity, SalesVelocityProfile } from "@/lib/turnover-velocity-engine";
+import { getValuationMultiplier } from "./valuation-feedback-store";
 
 export interface OfflineCategoryModel {
   category: string;
@@ -157,6 +158,10 @@ export function appraiseItemLocally(inputHint?: string): {
     estVal = 8;
     tagCost = 2.5;
   }
+
+  // Apply automated data flywheel calibration factor from user corrections
+  const feedbackMultiplier = getValuationMultiplier(query || matchedModel.category);
+  estVal = Math.round(estVal * feedbackMultiplier * 100) / 100;
 
   // Realistic category parcel shipping estimate
   const text = `${matchedModel.category} ${pName}`.toLowerCase();

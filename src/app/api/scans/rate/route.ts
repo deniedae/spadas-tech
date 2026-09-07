@@ -1,12 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { recordValuationCorrection } from "@/app/lib/offline/valuation-feedback-store";
+
+export const preferredRegion = "syd1";
+export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
-    const { scanId, rating } = await req.json().catch(() => ({}));
+    const body = await req.json().catch(() => ({}));
+    const {
+      scanId,
+      rating,
+      userCorrectedPrice,
+      originalEstimatedPrice,
+      brand,
+      category,
+      reason,
+      notes,
+    } = body;
 
-    if (!scanId || !rating || (rating !== "up" && rating !== "down")) {
+    const validRatings = ["up", "down", "corrected", "accurate", "inaccurate"];
+    if (!scanId || !rating || !validRatings.includes(String(rating).toLowerCase())) {
       return NextResponse.json({ error: "Invalid scanId or rating parameter" }, { status: 400 });
     }
 
@@ -26,27 +41,51 @@ export async function POST(req: NextRequest) {
       data: { user },
     } = await supabase.auth.getUser();
 
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    // 1. If user provided a price correction, immediately feed into automated calibration flywheel
+    let calibrationResult: { newMultiplier: number; key: string } | null = null;
+    if (
+      typeof userCorrectedPrice === "number" &&
+      typeof originalEstimatedPrice === "number" &&
+      originalEstimatedPrice > 0
+    ) {
+      calibrationResult = await recordValuationCorrection({
+        userId: user?.id || null,
+        scanId,
+        brand,
+        category,
+        originalPrice: originalEstimatedPrice,
+        correctedPrice: userCorrectedPrice,
+        reason: reason || (rating === "down" ? "OVERVALUED" : "PRICE_ADJUSTMENT"),
+        notes,
+      });
     }
 
-    const { error } = await supabase.from("scan_ratings").upsert(
-      {
-        user_id: user.id,
-        scan_id: scanId,
-        rating,
-        rated_at: new Date().toISOString(),
-      },
-      { onConflict: "user_id,scan_id" }
-    );
+    // 2. Persist scan rating if user is authenticated
+    if (user) {
+      const { error } = await supabase.from("scan_ratings").upsert(
+        {
+          user_id: user.id,
+          scan_id: scanId,
+          rating: String(rating).toLowerCase(),
+          rated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id,scan_id" }
+      );
 
-    if (error) {
-      console.error("[Scan Rating] Upsert error:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      if (error) {
+        console.warn("[Scan Rating] Upsert warning:", error.message);
+      }
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({
+      success: true,
+      scanId,
+      rating,
+      flywheelTuned: !!calibrationResult,
+      calibration: calibrationResult,
+    });
   } catch (err: any) {
+    console.error("[scans/rate] Error:", err);
     return NextResponse.json({ error: err?.message || "Internal server error" }, { status: 500 });
   }
 }
