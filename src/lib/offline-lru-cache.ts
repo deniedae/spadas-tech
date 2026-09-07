@@ -82,3 +82,52 @@ export function getCachedValuation(keyText: string, maxAgeMs = 86400000): Detect
 
   return null;
 }
+
+/**
+ * Perform fuzzy or brand-based lookup across cached valuations
+ * when a network drop or timeout occurs.
+ */
+export function findBestCachedValuation(queryText?: string, brand?: string, maxAgeMs = 86400000): DetectedHit | null {
+  if (queryText) {
+    const directHit = getCachedValuation(queryText, maxAgeMs);
+    if (directHit) return directHit;
+  }
+
+  const queryNorm = (queryText || "").toLowerCase().trim();
+  const brandNorm = (brand || "").toLowerCase().trim();
+
+  // Search in memoryCache
+  for (const entry of memoryCache.values()) {
+    if (Date.now() - entry.timestamp > maxAgeMs) continue;
+    const hitName = (entry.hit.name || "").toLowerCase();
+    const hitBrand = (entry.hit.brand || "").toLowerCase();
+
+    if (queryNorm && hitName.includes(queryNorm)) return entry.hit;
+    if (queryNorm && queryNorm.split(/\s+/).filter((w) => w.length > 2).some((w) => hitName.includes(w))) {
+      return entry.hit;
+    }
+    if (brandNorm && hitBrand === brandNorm) return entry.hit;
+  }
+
+  // Search in localStorage
+  if (typeof window !== "undefined" && window.localStorage) {
+    try {
+      const stored: Array<{ key: string; hit: DetectedHit; timestamp: number }> =
+        JSON.parse(localStorage.getItem("spadas_lru_comps") || "[]");
+
+      for (const entry of stored) {
+        if (Date.now() - entry.timestamp > maxAgeMs) continue;
+        const hitName = (entry.hit.name || "").toLowerCase();
+        const hitBrand = (entry.hit.brand || "").toLowerCase();
+
+        if (queryNorm && hitName.includes(queryNorm)) return entry.hit;
+        if (queryNorm && queryNorm.split(/\s+/).filter((w) => w.length > 2).some((w) => hitName.includes(w))) {
+          return entry.hit;
+        }
+        if (brandNorm && hitBrand === brandNorm) return entry.hit;
+      }
+    } catch {}
+  }
+
+  return null;
+}

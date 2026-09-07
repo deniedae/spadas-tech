@@ -160,7 +160,14 @@ async function fetchRealMarketData(searchQuery: string): Promise<RealEbayItem[]>
     if (res.ok) {
       const data = (await res.json()) as { items?: RealEbayItem[] };
       if (data.items && Array.isArray(data.items) && data.items.length > 0) {
-        const filtered = data.items.filter((i) => i.title && Number(i.soldPrice) > 0 && i.imageUrl && i.imageUrl.startsWith("http"));
+        const seen = new Set<string>();
+        const filtered = data.items.filter((i) => {
+          if (!i.title || Number(i.soldPrice) <= 0 || !i.imageUrl || !i.imageUrl.startsWith("http")) return false;
+          const sig = `${i.title.trim().toLowerCase()}::${i.soldPrice}`;
+          if (seen.has(sig)) return false;
+          seen.add(sig);
+          return true;
+        });
         if (filtered.length > 0) return filtered;
       }
     }
@@ -184,11 +191,14 @@ async function fetchRealMarketData(searchQuery: string): Promise<RealEbayItem[]>
       const priceMatches = [...html.matchAll(/class="s-item__price"[^>]*><span[^>]*>\$([0-9.,]+)<\/span>/gi)].map((m) => parseFloat(m[1].replace(/,/g, "")));
       const imgMatches = [...html.matchAll(/src="(https:\/\/i\.ebayimg\.com\/images\/g\/[^"]+)"/gi)].map((m) => m[1]);
 
+      const seen = new Set<string>();
       for (let i = 0; i < titleMatches.length && items.length < 6; i++) {
         const title = titleMatches[i];
         const price = priceMatches[i];
         const imageUrl = imgMatches[i];
-        if (title && !title.includes("Shop on eBay") && price > 0 && imageUrl) {
+        const sig = `${title.trim().toLowerCase()}::${price}`;
+        if (title && !title.includes("Shop on eBay") && price > 0 && imageUrl && !seen.has(sig)) {
+          seen.add(sig);
           items.push({
             title,
             soldPrice: price.toString(),

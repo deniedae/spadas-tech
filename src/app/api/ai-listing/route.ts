@@ -641,32 +641,39 @@ MANDATORY STRUCTURED EXTRACTION REQUIREMENTS (STRICT SCHEMA):
     // Fetch REAL-TIME regional eBay Comps in target currency via Browse API ONLY for verified identified products
     const runCompsAndFinalizeResult = async () => {
       if (result.analysis?.product_name && result.status === "identified") {
-      try {
-        const ebayComps = await fetchEbayAustraliaSoldComps(result.analysis.product_name, targetCurrency);
-        if (ebayComps && ebayComps.count > 0) {
-          result.suggested_price_min = ebayComps.min;
-          result.suggested_price_max = ebayComps.max;
-          result.suggested_price_median = ebayComps.median;
-          result.ebay_comps_count = ebayComps.count;
-          (result as any).comps_source = ebayComps.source;
-          if (result.detected_objects && result.detected_objects.length > 0) {
-            result.detected_objects[0].ebay_comps_count = ebayComps.count;
-            (result.detected_objects[0] as any).comps_source = ebayComps.source;
+        try {
+          const ebayComps = await fetchEbayAustraliaSoldComps(result.analysis.product_name, targetCurrency);
+          if (
+            ebayComps &&
+            typeof ebayComps.median === "number" &&
+            !isNaN(ebayComps.median) &&
+            ebayComps.median > 0 &&
+            ebayComps.count > 0
+          ) {
+            // Single-Source Guardrail: Strict normalized baseline unit value assignment (never accumulated across response nodes)
+            result.suggested_price_min = ebayComps.min;
+            result.suggested_price_max = ebayComps.max;
+            result.suggested_price_median = ebayComps.median;
+            result.ebay_comps_count = ebayComps.count;
+            (result as any).comps_source = ebayComps.source;
+            if (result.detected_objects && result.detected_objects.length > 0) {
+              result.detected_objects[0].ebay_comps_count = ebayComps.count;
+              (result.detected_objects[0] as any).comps_source = ebayComps.source;
+            }
+          } else {
+            result.ebay_comps_count = undefined;
+            (result as any).comps_source = "ai_estimate";
+            if (result.detected_objects && result.detected_objects.length > 0) {
+              result.detected_objects[0].ebay_comps_count = undefined;
+              (result.detected_objects[0] as any).comps_source = "ai_estimate";
+            }
           }
-        } else {
+        } catch (compErr) {
+          console.warn("[ai-listing] Live eBay comps lookup warning:", compErr);
           result.ebay_comps_count = undefined;
           (result as any).comps_source = "ai_estimate";
-          if (result.detected_objects && result.detected_objects.length > 0) {
-            result.detected_objects[0].ebay_comps_count = undefined;
-            (result.detected_objects[0] as any).comps_source = "ai_estimate";
-          }
         }
-      } catch (compErr) {
-        console.warn("[ai-listing] Live eBay comps lookup warning:", compErr);
-        result.ebay_comps_count = undefined;
-        (result as any).comps_source = "ai_estimate";
       }
-    }
 
     // CATEGORY PRICE SANITY GUARD: Prevent sponsored tray outliers from inflating standard peripherals
     if (result.analysis?.product_name) {

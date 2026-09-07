@@ -30,7 +30,7 @@ import { resilientFetch } from "@/app/lib/resilient-fetch";
 import { playScanBeep, triggerScanHaptic, createNativeBarcodeScanner, isNativeBarcodeDetectorSupported } from "@/lib/barcode-detector";
 import { syncProfitToAndroidWidget, triggerTactileHaptic } from "@/lib/android-bridge";
 import { sourcingBus } from "@/lib/sourcing-event-bus";
-import { setCachedValuation, getCachedValuation } from "@/lib/offline-lru-cache";
+import { setCachedValuation, getCachedValuation, findBestCachedValuation } from "@/lib/offline-lru-cache";
 import { executeParallelAppraisal } from "@/lib/concurrent-appraiser";
 import { ScanTrace } from "@/lib/scan-trace";
 import { saveScanOffline } from "@/app/lib/offline-storage";
@@ -108,6 +108,137 @@ class CameraErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySta
             className="inline-flex h-10 items-center gap-2 rounded-xl bg-cyan-600 px-5 text-xs font-bold text-white hover:bg-cyan-500 shadow-lg"
           >
             <RefreshCw className="h-4 w-4" /> Restart Camera Feed
+          </button>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
+interface ValuationCardErrorBoundaryProps {
+  children: ReactNode;
+  onRetry?: () => void;
+  onDismiss?: () => void;
+}
+
+interface ValuationCardErrorBoundaryState {
+  hasError: boolean;
+}
+
+class ValuationCardErrorBoundary extends Component<
+  ValuationCardErrorBoundaryProps,
+  ValuationCardErrorBoundaryState
+> {
+  constructor(props: ValuationCardErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(): ValuationCardErrorBoundaryState {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error("[ValuationCardErrorBoundary] Caught valuation card rendering error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="w-full rounded-2xl bg-slate-950/95 border border-amber-500/50 p-3 shadow-xl backdrop-blur-xl flex items-center justify-between gap-2.5 animate-in fade-in zoom-in-95 select-none">
+          <div className="flex items-center gap-2 min-w-0">
+            <ShieldAlert className="h-4 w-4 text-amber-400 shrink-0" />
+            <div className="flex flex-col min-w-0">
+              <span className="text-xs font-bold text-slate-100 truncate">
+                Valuation data issue
+              </span>
+              <span className="text-[10px] text-slate-400 truncate">
+                Isolated safely • Session preserved
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            {this.props.onRetry && (
+              <button
+                type="button"
+                onClick={() => {
+                  this.setState({ hasError: false });
+                  this.props.onRetry?.();
+                }}
+                className="inline-flex items-center gap-1 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black px-2.5 py-1 rounded-lg text-[10px] transition cursor-pointer active:scale-95"
+              >
+                <RefreshCw className="h-3 w-3" />
+                <span>Retry</span>
+              </button>
+            )}
+            {this.props.onDismiss && (
+              <button
+                type="button"
+                onClick={() => {
+                  this.setState({ hasError: false });
+                  this.props.onDismiss?.();
+                }}
+                className="text-slate-400 hover:text-white p-1"
+                title="Dismiss"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
+interface CameraViewportErrorBoundaryProps {
+  children: ReactNode;
+  onRestart?: () => void;
+}
+
+interface CameraViewportErrorBoundaryState {
+  hasError: boolean;
+}
+
+class CameraViewportErrorBoundary extends Component<
+  CameraViewportErrorBoundaryProps,
+  CameraViewportErrorBoundaryState
+> {
+  constructor(props: CameraViewportErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(): CameraViewportErrorBoundaryState {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error("[CameraViewportErrorBoundary] Caught viewport error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center p-6 text-center bg-slate-950 text-slate-200 space-y-3">
+          <ShieldAlert className="h-10 w-10 text-amber-400" />
+          <h4 className="font-bold text-sm text-slate-100">Camera Viewport Recovered</h4>
+          <p className="text-xs text-slate-400 max-w-xs">
+            A camera frame rendering glitch occurred and was isolated safely.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              this.setState({ hasError: false });
+              this.props.onRestart?.();
+            }}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-cyan-600 px-4 py-2 text-xs font-bold text-white hover:bg-cyan-500 shadow-lg cursor-pointer"
+          >
+            <RefreshCw className="h-3.5 w-3.5" /> Resume Viewport
           </button>
         </div>
       );
@@ -239,6 +370,7 @@ function SpadasLensCameraCore() {
   const [activeScans, setActiveScans] = useState<ActiveScanItem[]>([]);
   const [activeValuationHit, setActiveValuationHit] = useState<DetectedHit | null>(null);
   const valuationExpiryTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [scanRetryPrompt, setScanRetryPrompt] = useState<{ message: string; canRetry: boolean } | null>(null);
   const [capturedLog, setCapturedLog] = useState<DetectedHit[]>([]);
   const [selectedHitIds, setSelectedHitIds] = useState<string[]>([]);
   const [exporting, setExporting] = useState(false);
@@ -1734,6 +1866,7 @@ function SpadasLensCameraCore() {
         clearTimeout(valuationExpiryTimerRef.current);
       }
       setActiveValuationHit(null);
+      setScanRetryPrompt(null);
       trace.markCaptureEnd();
 
       let imagePayloads = [snapshotImage];
@@ -1926,70 +2059,131 @@ function SpadasLensCameraCore() {
       }
 
       if (!data || data.error || !res) {
-        console.log("[Spadas Lens] Cloud AI unreachable/zero credits — Activating Autonomous On-Device Heuristics...");
-        const offlineAppraisal = appraiseItemLocally();
+        // 1. Try best cached valuation fallback first (from LRU or persistent local storage)
+        const queryText = pendingIdentifiedItem?.productName || lastDetectedBarcodeRef.current || undefined;
+        const cachedHit = findBestCachedValuation(queryText, pendingIdentifiedItem?.brand || undefined);
 
-        const scanObj: ActiveScanItem = {
-          id: `offline-${Date.now()}`,
-          productName: offlineAppraisal.productName,
-          brand: offlineAppraisal.brand,
-          category: offlineAppraisal.category,
-          condition: offlineAppraisal.condition,
-          inventoryCondition: "used_working",
-          defectNotes: [],
-          asIsDisclaimer: "",
-          bbox: { x: 15, y: 15, width: 70, height: 70 },
-          status: "valued",
-          estimatedValue: offlineAppraisal.estimatedValue,
-          suggestedPriceMin: Math.round(offlineAppraisal.estimatedValue * 0.7),
-          suggestedPriceMax: Math.round(offlineAppraisal.estimatedValue * 1.3),
-          confidenceScore: 0.95,
-          estCost: offlineAppraisal.tagPrice,
-          estimatedProfit: offlineAppraisal.trueNetProfit,
-          estRoi: offlineAppraisal.roiPercentage,
-          tagPrice: offlineAppraisal.tagPrice,
-          trueNetProfit: offlineAppraisal.trueNetProfit,
-          roiPercentage: offlineAppraisal.roiPercentage,
-          copVerdict: offlineAppraisal.copVerdict,
-          timestamp: Date.now(),
-        };
+        if (cachedHit) {
+          console.log("[Spadas Lens] Found matching cached valuation for offline/timeout fallback:", cachedHit.name);
+          const fallbackScanObj: ActiveScanItem = {
+            id: `cached-${Date.now()}`,
+            productName: cachedHit.name,
+            brand: cachedHit.brand || undefined,
+            category: cachedHit.category,
+            condition: cachedHit.condition,
+            inventoryCondition: "used_working",
+            defectNotes: cachedHit.defectNotes || [],
+            asIsDisclaimer: cachedHit.asIsDisclaimer || "",
+            bbox: cachedHit.bbox || { x: 15, y: 15, width: 70, height: 70 },
+            status: "valued",
+            estimatedValue: cachedHit.estimatedValue,
+            suggestedPriceMin: Math.round(cachedHit.estimatedValue * 0.7),
+            suggestedPriceMax: Math.round(cachedHit.estimatedValue * 1.3),
+            confidenceScore: 0.92,
+            estCost: cachedHit.estCost || cachedHit.tagPrice,
+            estimatedProfit: cachedHit.trueNetProfit || cachedHit.estimatedProfit,
+            estRoi: cachedHit.estRoi || cachedHit.roiPercentage,
+            tagPrice: cachedHit.tagPrice,
+            trueNetProfit: cachedHit.trueNetProfit || cachedHit.estimatedProfit,
+            roiPercentage: cachedHit.roiPercentage || cachedHit.estRoi,
+            copVerdict: cachedHit.copVerdict,
+            timestamp: Date.now(),
+          };
 
-        const verifiedHit: DetectedHit = {
-          id: `hit-${Date.now()}`,
-          name: offlineAppraisal.productName,
-          brand: offlineAppraisal.brand,
-          category: offlineAppraisal.category,
-          condition: offlineAppraisal.condition,
-          inventoryCondition: "used_working",
-          defectNotes: [],
-          asIsDisclaimer: "",
-          estimatedValue: offlineAppraisal.estimatedValue,
-          estCost: offlineAppraisal.tagPrice,
-          estimatedProfit: offlineAppraisal.trueNetProfit,
-          estRoi: offlineAppraisal.roiPercentage,
-          tagPrice: offlineAppraisal.tagPrice,
-          trueNetProfit: offlineAppraisal.trueNetProfit,
-          roiPercentage: offlineAppraisal.roiPercentage,
-          copVerdict: offlineAppraisal.copVerdict,
-          verdict: offlineAppraisal.trueNetProfit >= 15 ? "BUY" : "CAUTION",
-          confidence: 0.95,
-          bbox: { x: 15, y: 15, width: 70, height: 70 },
-          timestamp: Date.now(),
-        };
+          setActiveScans([fallbackScanObj]);
+          setActiveValuationHit(cachedHit);
+          if (valuationExpiryTimerRef.current) clearTimeout(valuationExpiryTimerRef.current);
+          valuationExpiryTimerRef.current = setTimeout(() => setActiveValuationHit(null), 6500);
 
-        setActiveScans([scanObj]);
-        setActiveValuationHit(verifiedHit);
-        if (valuationExpiryTimerRef.current) clearTimeout(valuationExpiryTimerRef.current);
-        valuationExpiryTimerRef.current = setTimeout(() => setActiveValuationHit(null), 6500);
-        setCapturedLog((prev) => [verifiedHit, ...prev.filter((h) => h.name !== verifiedHit.name)].slice(0, 50));
-        saveOfflineHitLocally(verifiedHit);
-        setSessionScanCount((prev) => prev + 1);
+          setCapturedLog((prev) => [cachedHit, ...prev.filter((h) => h.name !== cachedHit.name)].slice(0, 50));
+          setSessionScanCount((prev) => prev + 1);
+          playChime(cachedHit.trueNetProfit || cachedHit.estimatedProfit || 0);
+          toast.info(`⚡ Cached Comps: Loaded "${cachedHit.name}" (Offline Fallback)`);
+          setAnalyzingRealFrame(false);
+          return;
+        }
 
-        if (scanExpiryTimerRef.current) clearTimeout(scanExpiryTimerRef.current);
-        scanExpiryTimerRef.current = setTimeout(() => setActiveScans([]), 4500);
+        // 2. If dead-zone offline mode is active, use autonomous on-device heuristics:
+        if (isOffline) {
+          console.log("[Spadas Lens] Dead-zone active — Activating Autonomous On-Device Heuristics...");
+          const offlineAppraisal = appraiseItemLocally();
 
-        playChime(offlineAppraisal.trueNetProfit);
-        toast.success(`📶 Autonomous Appraisal: ${offlineAppraisal.productName} (+${fmtMoney(offlineAppraisal.trueNetProfit)} Net)`);
+          const scanObj: ActiveScanItem = {
+            id: `offline-${Date.now()}`,
+            productName: offlineAppraisal.productName,
+            brand: offlineAppraisal.brand,
+            category: offlineAppraisal.category,
+            condition: offlineAppraisal.condition,
+            inventoryCondition: "used_working",
+            defectNotes: [],
+            asIsDisclaimer: "",
+            bbox: { x: 15, y: 15, width: 70, height: 70 },
+            status: "valued",
+            estimatedValue: offlineAppraisal.estimatedValue,
+            suggestedPriceMin: Math.round(offlineAppraisal.estimatedValue * 0.7),
+            suggestedPriceMax: Math.round(offlineAppraisal.estimatedValue * 1.3),
+            confidenceScore: 0.95,
+            estCost: offlineAppraisal.tagPrice,
+            estimatedProfit: offlineAppraisal.trueNetProfit,
+            estRoi: offlineAppraisal.roiPercentage,
+            tagPrice: offlineAppraisal.tagPrice,
+            trueNetProfit: offlineAppraisal.trueNetProfit,
+            roiPercentage: offlineAppraisal.roiPercentage,
+            copVerdict: offlineAppraisal.copVerdict,
+            timestamp: Date.now(),
+          };
+
+          const verifiedHit: DetectedHit = {
+            id: `hit-${Date.now()}`,
+            name: offlineAppraisal.productName,
+            brand: offlineAppraisal.brand,
+            category: offlineAppraisal.category,
+            condition: offlineAppraisal.condition,
+            inventoryCondition: "used_working",
+            defectNotes: [],
+            asIsDisclaimer: "",
+            estimatedValue: offlineAppraisal.estimatedValue,
+            estCost: offlineAppraisal.tagPrice,
+            estimatedProfit: offlineAppraisal.trueNetProfit,
+            estRoi: offlineAppraisal.roiPercentage,
+            tagPrice: offlineAppraisal.tagPrice,
+            trueNetProfit: offlineAppraisal.trueNetProfit,
+            roiPercentage: offlineAppraisal.roiPercentage,
+            copVerdict: offlineAppraisal.copVerdict,
+            verdict: offlineAppraisal.trueNetProfit >= 15 ? "BUY" : "CAUTION",
+            confidence: 0.95,
+            bbox: { x: 15, y: 15, width: 70, height: 70 },
+            timestamp: Date.now(),
+          };
+
+          setActiveScans([scanObj]);
+          setActiveValuationHit(verifiedHit);
+          if (valuationExpiryTimerRef.current) clearTimeout(valuationExpiryTimerRef.current);
+          valuationExpiryTimerRef.current = setTimeout(() => setActiveValuationHit(null), 6500);
+          setCapturedLog((prev) => [verifiedHit, ...prev.filter((h) => h.name !== verifiedHit.name)].slice(0, 50));
+          saveOfflineHitLocally(verifiedHit);
+          setSessionScanCount((prev) => prev + 1);
+
+          if (scanExpiryTimerRef.current) clearTimeout(scanExpiryTimerRef.current);
+          scanExpiryTimerRef.current = setTimeout(() => setActiveScans([]), 4500);
+
+          playChime(offlineAppraisal.trueNetProfit);
+          toast.success(`📶 Autonomous Appraisal: ${offlineAppraisal.productName} (+${fmtMoney(offlineAppraisal.trueNetProfit)} Net)`);
+          setAnalyzingRealFrame(false);
+          return;
+        }
+
+        // 3. Otherwise, live scan connection dropped or API timed out with no cache:
+        // Gracefully display clean, non-intrusive error pill with 1-tap retry WITHOUT resetting active scan session!
+        const isConnDropped = typeof navigator !== "undefined" && !navigator.onLine;
+        const errorLabel = isConnDropped ? "Connection dropped" : "Scan timed out";
+        console.warn("[Spadas Lens] Live scan connection dropped/timed out without cache:", errorLabel);
+
+        setScanRetryPrompt({
+          message: errorLabel,
+          canRetry: true,
+        });
+        toast.warning(`${errorLabel} — tap Retry on camera to scan again`, { id: "scan-retry-toast" });
         setAnalyzingRealFrame(false);
         return;
       }
@@ -2673,6 +2867,7 @@ function SpadasLensCameraCore() {
         }}
         className="relative aspect-[4/3] sm:aspect-[16/9] w-full max-w-full box-border overflow-hidden rounded-3xl border border-cyan-500/30 bg-slate-950 shadow-[0_0_50px_rgba(6,182,212,0.15)] backdrop-blur-xl cursor-pointer touch-pan-y"
       >
+        <CameraViewportErrorBoundary onRestart={startCamera}>
         {deepVerifyItem ? (
           <div className="flex h-full w-full flex-col items-center justify-center p-6 text-center space-y-3 text-slate-300 bg-slate-950">
             <ShieldCheck className="h-12 w-12 text-purple-400 animate-pulse" />
@@ -2885,8 +3080,8 @@ function SpadasLensCameraCore() {
 
 
 
-            {/* Unified Sleek Frosted-Glass Shared Layout Container for Progressive Loader & Final Valuation Card */}
-            {(analyzingRealFrame || activeValuationHit) && (
+            {/* Unified Sleek Frosted-Glass Shared Layout Container for Progressive Loader, Final Valuation Card & Retry Fallback */}
+            {(analyzingRealFrame || activeValuationHit || scanRetryPrompt) && (
               <div className="absolute bottom-20 sm:bottom-24 left-1/2 -translate-x-1/2 z-25 w-[92%] max-w-sm mx-auto pointer-events-auto transition-all duration-300 ease-out">
                 {analyzingRealFrame ? (
                   <div
@@ -2901,133 +3096,176 @@ function SpadasLensCameraCore() {
                       variant="skeleton"
                     />
                   </div>
-                ) : activeValuationHit ? (
+                ) : scanRetryPrompt ? (
                   <div
-                    key={`lens-valuation-${activeValuationHit.id || activeValuationHit.name}`}
-                    className="w-full rounded-3xl bg-slate-950/95 border border-emerald-500/60 p-4 shadow-[0_10px_35px_rgba(16,185,129,0.3)] backdrop-blur-xl transition-all duration-300 ease-out animate-in fade-in zoom-in-95 select-none"
+                    key="lens-retry-prompt"
+                    className="w-full rounded-2xl bg-slate-950/95 border border-amber-500/50 p-3 shadow-xl backdrop-blur-xl flex items-center justify-between gap-2.5 animate-in fade-in zoom-in-95 select-none"
                   >
-                    {/* Top Header: Title, Brand & Cop Verdict */}
-                    <div className="flex items-start justify-between gap-2.5 mb-2.5">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/30">
-                            <Sparkles className="h-3 w-3" /> Live Comps Valued
-                          </span>
-                          {activeValuationHit.brand && (
-                            <span className="text-[10px] font-bold text-slate-300 bg-slate-800/80 px-2 py-0.5 rounded border border-slate-700/80 truncate max-w-[120px]">
-                              {activeValuationHit.brand}
+                    <div className="flex items-center gap-2 min-w-0">
+                      <WifiOff className="h-4 w-4 text-amber-400 shrink-0" />
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-xs font-bold text-slate-100 truncate">
+                          {scanRetryPrompt.message}
+                        </span>
+                        <span className="text-[10px] text-slate-400">
+                          Active session preserved • Tap retry
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setScanRetryPrompt(null);
+                          void processCurrentFrame(true);
+                        }}
+                        className="inline-flex items-center gap-1 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black px-3 py-1.5 rounded-xl text-[11px] transition cursor-pointer active:scale-95 shadow-md shadow-cyan-500/20"
+                      >
+                        <RefreshCw className="h-3 w-3" />
+                        <span>Retry</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setScanRetryPrompt(null)}
+                        className="text-slate-400 hover:text-white p-1 rounded-lg transition cursor-pointer"
+                        title="Dismiss"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ) : activeValuationHit ? (
+                  <ValuationCardErrorBoundary
+                    onRetry={() => void processCurrentFrame(true)}
+                    onDismiss={() => setActiveValuationHit(null)}
+                  >
+                    <div
+                      key={`lens-valuation-${activeValuationHit.id || activeValuationHit.name}`}
+                      className="w-full rounded-3xl bg-slate-950/95 border border-emerald-500/60 p-4 shadow-[0_10px_35px_rgba(16,185,129,0.3)] backdrop-blur-xl transition-all duration-300 ease-out animate-in fade-in zoom-in-95 select-none"
+                    >
+                      {/* Top Header: Title, Brand & Cop Verdict */}
+                      <div className="flex items-start justify-between gap-2.5 mb-2.5">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/30">
+                              <Sparkles className="h-3 w-3" /> Live Comps Valued
                             </span>
-                          )}
+                            {activeValuationHit.brand && (
+                              <span className="text-[10px] font-bold text-slate-300 bg-slate-800/80 px-2 py-0.5 rounded border border-slate-700/80 truncate max-w-[120px]">
+                                {activeValuationHit.brand}
+                              </span>
+                            )}
+                          </div>
+                          <h4 className="text-sm font-black text-white truncate leading-tight">
+                            {activeValuationHit.name}
+                          </h4>
                         </div>
-                        <h4 className="text-sm font-black text-white truncate leading-tight">
-                          {activeValuationHit.name}
-                        </h4>
-                      </div>
 
-                      {activeValuationHit.copVerdict && (
-                        <span
-                          className={`shrink-0 px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider shadow-md ${
-                            activeValuationHit.copVerdict === "MUST_COP"
-                              ? "bg-emerald-500 text-slate-950 shadow-emerald-500/40"
-                              : activeValuationHit.copVerdict === "QUICK_FLIP"
-                              ? "bg-cyan-500 text-slate-950 shadow-cyan-500/30"
-                              : activeValuationHit.copVerdict === "PASS_RISKY"
-                              ? "bg-rose-500/20 text-rose-300 border border-rose-500/40"
-                              : "bg-slate-800 text-slate-300"
-                          }`}
-                        >
-                          {activeValuationHit.copVerdict === "MUST_COP"
-                            ? "👑 MUST COP"
-                            : activeValuationHit.copVerdict === "QUICK_FLIP"
-                            ? "⚡ QUICK FLIP"
-                            : "⛔ PASS"}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Pricing & Net Profit Section */}
-                    <div className="grid grid-cols-3 gap-2 py-2 border-y border-slate-800/80 my-2.5">
-                      <div className="flex flex-col">
-                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Est Value</span>
-                        <span className="text-xs font-black text-cyan-300 font-mono">
-                          {fmtMoney(activeValuationHit.estimatedValue || 0)}
-                        </span>
-                      </div>
-
-                      <div className="flex flex-col">
-                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Thrift Tag</span>
-                        <span className="text-xs font-bold text-amber-300 font-mono">
-                          {activeValuationHit.tagPrice
-                            ? fmtMoney(activeValuationHit.tagPrice)
-                            : activeValuationHit.estCost
-                            ? fmtMoney(activeValuationHit.estCost)
-                            : "N/A"}
-                        </span>
-                      </div>
-
-                      <div className="flex flex-col text-right">
-                        <span className="text-[9px] font-bold text-emerald-400 uppercase tracking-wider">Net Profit</span>
-                        <span className="text-xs sm:text-sm font-black text-emerald-400 font-mono">
-                          +{fmtMoney(activeValuationHit.trueNetProfit || activeValuationHit.estimatedProfit || 0)}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Interactive Action Buttons */}
-                    <div className="flex items-center justify-between gap-2 pt-1">
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setActiveCompsHit(activeValuationHit);
-                            setActiveValuationHit(null);
-                          }}
-                          className="inline-flex items-center gap-1 bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 px-3 py-1.5 rounded-xl text-[11px] font-bold transition cursor-pointer active:scale-95"
-                        >
-                          <TrendingUp className="h-3.5 w-3.5 text-cyan-400" />
-                          <span>Comps</span>
-                        </button>
-
-                        {checkNeedsVerification({
-                          name: activeValuationHit.name,
-                          brand: activeValuationHit.brand || undefined,
-                          category: activeValuationHit.category || undefined,
-                          estimatedValue: activeValuationHit.estimatedValue,
-                        }).needsVerification && (
-                          <button
-                            type="button"
-                            onClick={() => handleOpenDeepVerify(activeValuationHit)}
-                            className="inline-flex items-center gap-1 bg-purple-600 hover:bg-purple-500 text-white px-2.5 py-1.5 rounded-xl text-[11px] font-black transition cursor-pointer shadow-md shadow-purple-900/40 animate-pulse"
+                        {activeValuationHit.copVerdict && (
+                          <span
+                            className={`shrink-0 px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider shadow-md ${
+                              activeValuationHit.copVerdict === "MUST_COP"
+                                ? "bg-emerald-500 text-slate-950 shadow-emerald-500/40"
+                                : activeValuationHit.copVerdict === "QUICK_FLIP"
+                                ? "bg-cyan-500 text-slate-950 shadow-cyan-500/30"
+                                : activeValuationHit.copVerdict === "PASS_RISKY"
+                                ? "bg-rose-500/20 text-rose-300 border border-rose-500/40"
+                                : "bg-slate-800 text-slate-300"
+                            }`}
                           >
-                            <ShieldCheck className="h-3.5 w-3.5" />
-                            <span>Verify</span>
-                          </button>
+                            {activeValuationHit.copVerdict === "MUST_COP"
+                              ? "👑 MUST COP"
+                              : activeValuationHit.copVerdict === "QUICK_FLIP"
+                              ? "⚡ QUICK FLIP"
+                              : "⛔ PASS"}
+                          </span>
                         )}
                       </div>
 
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            void handleSaveDraftHit(activeValuationHit);
-                            setActiveValuationHit(null);
-                          }}
-                          className="inline-flex items-center gap-1 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black px-3.5 py-1.5 rounded-xl text-[11px] shadow-lg shadow-emerald-500/20 transition cursor-pointer active:scale-95"
-                        >
-                          <CheckCircle2 className="h-3.5 w-3.5" />
-                          <span>+Add Find</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setActiveValuationHit(null)}
-                          className="text-slate-400 hover:text-white p-1 rounded-lg transition cursor-pointer"
-                          title="Dismiss"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
+                      {/* Pricing & Net Profit Section */}
+                      <div className="grid grid-cols-3 gap-2 py-2 border-y border-slate-800/80 my-2.5">
+                        <div className="flex flex-col">
+                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Est Value</span>
+                          <span className="text-xs font-black text-cyan-300 font-mono">
+                            {fmtMoney(activeValuationHit.estimatedValue || 0)}
+                          </span>
+                        </div>
+
+                        <div className="flex flex-col">
+                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Thrift Tag</span>
+                          <span className="text-xs font-bold text-amber-300 font-mono">
+                            {activeValuationHit.tagPrice
+                              ? fmtMoney(activeValuationHit.tagPrice)
+                              : activeValuationHit.estCost
+                              ? fmtMoney(activeValuationHit.estCost)
+                              : "N/A"}
+                          </span>
+                        </div>
+
+                        <div className="flex flex-col text-right">
+                          <span className="text-[9px] font-bold text-emerald-400 uppercase tracking-wider">Net Profit</span>
+                          <span className="text-xs sm:text-sm font-black text-emerald-400 font-mono">
+                            +{fmtMoney(activeValuationHit.trueNetProfit || activeValuationHit.estimatedProfit || 0)}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Interactive Action Buttons */}
+                      <div className="flex items-center justify-between gap-2 pt-1">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActiveCompsHit(activeValuationHit);
+                              setActiveValuationHit(null);
+                            }}
+                            className="inline-flex items-center gap-1 bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 px-3 py-1.5 rounded-xl text-[11px] font-bold transition cursor-pointer active:scale-95"
+                          >
+                            <TrendingUp className="h-3.5 w-3.5 text-cyan-400" />
+                            <span>Comps</span>
+                          </button>
+
+                          {checkNeedsVerification({
+                            name: activeValuationHit.name,
+                            brand: activeValuationHit.brand || undefined,
+                            category: activeValuationHit.category || undefined,
+                            estimatedValue: activeValuationHit.estimatedValue,
+                          }).needsVerification && (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenDeepVerify(activeValuationHit)}
+                              className="inline-flex items-center gap-1 bg-purple-600 hover:bg-purple-500 text-white px-2.5 py-1.5 rounded-xl text-[11px] font-black transition cursor-pointer shadow-md shadow-purple-900/40 animate-pulse"
+                            >
+                              <ShieldCheck className="h-3.5 w-3.5" />
+                              <span>Verify</span>
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              void handleSaveDraftHit(activeValuationHit);
+                              setActiveValuationHit(null);
+                            }}
+                            className="inline-flex items-center gap-1 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black px-3.5 py-1.5 rounded-xl text-[11px] shadow-lg shadow-emerald-500/20 transition cursor-pointer active:scale-95"
+                          >
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                            <span>+Add Find</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setActiveValuationHit(null)}
+                            className="text-slate-400 hover:text-white p-1 rounded-lg transition cursor-pointer"
+                            title="Dismiss"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  </ValuationCardErrorBoundary>
                 ) : null}
               </div>
             )}
@@ -3392,6 +3630,7 @@ function SpadasLensCameraCore() {
             </button>
           </div>
         )}
+        </CameraViewportErrorBoundary>
       </div>
 
       {/* Pinned Controls Bar (Always Mounted to Guarantee Zero Cumulative Layout Shift) */}

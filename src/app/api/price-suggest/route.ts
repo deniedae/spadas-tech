@@ -20,6 +20,17 @@ function median(nums: number[]): number {
     : sorted[mid];
 }
 
+function trimIqrOutliers(prices: number[]): number[] {
+  if (prices.length < 4) return prices;
+  const q1 = prices[Math.floor(prices.length * 0.25)];
+  const q3 = prices[Math.floor(prices.length * 0.75)];
+  const iqr = q3 - q1;
+  const filtered = prices.filter(
+    (p) => p >= Math.max(1, q1 - 1.5 * iqr) && p <= q3 + 1.5 * iqr
+  );
+  return filtered.length >= 2 ? filtered : prices;
+}
+
 export async function POST(req: Request) {
   try {
     if (!SOLD_COMPS_KEY) {
@@ -63,11 +74,11 @@ export async function POST(req: Request) {
 
     const data = (await res.json()) as {
       totalItems: number;
-      items: Array<{ soldPrice: string; soldCurrency: string }>;
+      items: Array<{ itemId?: string; id?: string; title?: string; soldPrice: string; soldCurrency: string }>;
     };
 
-    const items = data.items ?? [];
-    if (items.length === 0) {
+    const rawItems = data.items ?? [];
+    if (rawItems.length === 0) {
       return NextResponse.json({
         suggested_min: 0,
         suggested_max: 0,
@@ -77,13 +88,49 @@ export async function POST(req: Request) {
       });
     }
 
-    const prices = items
-      .map((i) => Number(i.soldPrice))
-      .filter((n) => !Number.isNaN(n) && n > 0);
+    // Single-Item Parity & Junk Filters
+    const isQueryMultiPack = /\b(pack|lot|bundle|set|box|bulk|\d+x|\d+\s*pk)\b/i.test(product);
+    const seenSignatures = new Set<string>();
+    const validPrices: number[] = [];
 
-    const med = median(prices);
-    const min = prices.length ? Math.min(...prices) : 0;
-    const max = prices.length ? Math.max(...prices) : 0;
+    for (const item of rawItems) {
+      const priceNum = Number(item.soldPrice);
+      if (Number.isNaN(priceNum) || priceNum <= 0) continue;
+
+      const title = String(item.title || "").trim();
+      const itemId = String(item.itemId || item.id || `${title.toLowerCase()}::${priceNum}`);
+      if (seenSignatures.has(itemId)) continue;
+      seenSignatures.add(itemId);
+
+      const lower = title.toLowerCase();
+      // Condition filter
+      if (/\b(untested|for parts|faulty|broken|damaged|as-is|as is|junk|empty box|box only)\b/i.test(lower)) {
+        continue;
+      }
+
+      // Single-Item Parity: Exclude bulk lots/bundles for single items
+      if (!isQueryMultiPack) {
+        if (/\b(\d+\s*pack|\d+\s*pk|\d+\s*pcs|\d+\s*pieces|pack of \d+|box of \d+|tray of|lot of \d+|\d+x\b|carton of|wholesale|bundle of \d+|bundle lot|job lot)\b/i.test(lower)) {
+          continue;
+        }
+      }
+
+      validPrices.push(priceNum);
+    }
+
+    if (validPrices.length === 0) {
+      return NextResponse.json({
+        suggested_min: 0,
+        suggested_max: 0,
+        suggested_median: 0,
+        sample_size: 0,
+        currency: "AUD",
+      });
+    }
+
+    validPrices.sort((a, b) => a - b);
+    const trimmed = trimIqrOutliers(validPrices);
+    const med = median(trimmed);
 
     const suggested_min = Math.round(med * 0.8 * 100) / 100;
     const suggested_max = Math.round(med * 1.2 * 100) / 100;
@@ -92,8 +139,8 @@ export async function POST(req: Request) {
       suggested_min,
       suggested_max,
       suggested_median: Math.round(med * 100) / 100,
-      sample_size: prices.length,
-      currency: items[0]?.soldCurrency || "AUD",
+      sample_size: trimmed.length,
+      currency: rawItems[0]?.soldCurrency || "AUD",
     };
 
     return NextResponse.json(result);

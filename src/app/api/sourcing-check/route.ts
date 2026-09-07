@@ -50,6 +50,17 @@ function median(nums: number[]): number {
     : sorted[mid];
 }
 
+function trimIqrOutliers(prices: number[]): number[] {
+  if (prices.length < 4) return prices;
+  const q1 = prices[Math.floor(prices.length * 0.25)];
+  const q3 = prices[Math.floor(prices.length * 0.75)];
+  const iqr = q3 - q1;
+  const filtered = prices.filter(
+    (p) => p >= Math.max(1, q1 - 1.5 * iqr) && p <= q3 + 1.5 * iqr
+  );
+  return filtered.length >= 2 ? filtered : prices;
+}
+
 function estimateFees(salePrice: number, shipping: number) {
   const marketplaceFee = Math.round(salePrice * 0.1325 * 100) / 100;
   const paymentFee = Math.round((salePrice + shipping) * 0.027 * 100) / 100;
@@ -248,13 +259,21 @@ export async function POST(req: Request) {
       currency: "AUD",
     };
 
-    // Single-Item Parity & Condition Lock filters
+    // Single-Item Parity, Deduplication & Condition Lock filters
     const LOT_KEYWORDS_REGEX = /\b(lot|mixed|loose cards|bundle|job lot|collection|set of)\b/i;
-    const BAD_CONDITION_REGEX = /\b(untested|faulty|parts-only|for parts|as-is|as is|broken|damaged|junk|unverified)\b/i;
+    const BAD_CONDITION_REGEX = /\b(untested|faulty|parts-only|for parts|as-is|as is|broken|damaged|junk|unverified|empty box|box only)\b/i;
 
+    const seenSignatures = new Set<string>();
     const filteredItems = rawComps.filter((item) => {
       const itemTitle = (item.title || "").toLowerCase();
       const itemCond = (item.condition || "").toLowerCase();
+      const price = Number(item.soldPrice) || 0;
+      if (price <= 0) return false;
+
+      // Deduplicate across paginated or duplicated response nodes
+      const sig = `${itemTitle.trim()}::${price}`;
+      if (seenSignatures.has(sig)) return false;
+      seenSignatures.add(sig);
 
       // Single-Item Parity: Exclude bulk lots/bundles for single items
       if (LOT_KEYWORDS_REGEX.test(itemTitle)) return false;
@@ -271,12 +290,14 @@ export async function POST(req: Request) {
       .filter((n) => !Number.isNaN(n) && n > 0);
 
     if (prices.length > 0) {
-      const med = median(prices);
+      prices.sort((a, b) => a - b);
+      const valid = trimIqrOutliers(prices);
+      const med = median(valid);
       marketPrices = {
         suggested_median: Math.round(med * 100) / 100,
         suggested_min: Math.round(med * 0.8 * 100) / 100,
         suggested_max: Math.round(med * 1.2 * 100) / 100,
-        sample_size: prices.length,
+        sample_size: valid.length,
         currency: "AUD",
       };
     }

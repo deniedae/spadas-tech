@@ -167,6 +167,32 @@ export async function fetchEbayAustraliaSoldComps(
   const searchQueries = buildSearchQueries(productName);
   if (searchQueries.length === 0) return null;
 
+  const isQueryMultiPack = /\b(pack|lot|bundle|set|box|bulk|\d+x|\d+\s*pk)\b/i.test(productName);
+  const isLuxury = /\b(prada|gucci|louis vuitton|chanel|dior|bottega|saint laurent|ysl|hermes|celine|balenciaga|burberry)\b/i.test(productName);
+
+  // Helper to validate single-unit parity and filter junk/outliers
+  const isValidUnitComp = (title: string, price: number): boolean => {
+    if (isNaN(price) || price <= 0) return false;
+    const lower = title.toLowerCase();
+
+    // Condition / junk guards
+    if (/\b(box only|empty box|dustbag only|dust bag only|paper bag|paperbag|ribbon|shopping bag|authenticity card only|care booklet|untested|faulty|for parts|parts only|as-is|as is|broken|damaged|junk)\b/i.test(lower)) {
+      return false;
+    }
+
+    // Luxury threshold
+    if (isLuxury && price < 20) return false;
+
+    // Single-Item Parity: reject multi-packs, wholesale bundles, bulk lots if query is a single item
+    if (!isQueryMultiPack) {
+      if (/\b(\d+\s*pack|\d+\s*pk|\d+\s*pcs|\d+\s*pieces|pack of \d+|box of \d+|tray of|lot of \d+|\d+x\b|carton of|wholesale|bundle of \d+|bundle lot|job lot)\b/i.test(lower)) {
+        return false;
+      }
+    }
+
+    return true;
+  };
+
   // ── 1. Paid sold-comps API (real 30-day sold data) ─────────────────────────
   if (process.env.SOLD_COMPS_API_KEY) {
     for (const q of searchQueries.slice(0, 2)) {
@@ -184,17 +210,33 @@ export async function fetchEbayAustraliaSoldComps(
 
         if (res?.ok) {
           const data = await res.json().catch(() => null);
-          const prices: number[] = (data?.items ?? [])
-            .map((i: any) => Number(i.soldPrice))
-            .filter((n: number) => !isNaN(n) && n > 0);
+          const rawItems: any[] = data?.items ?? [];
 
-          if (prices.length >= 2) {
-            prices.sort((a, b) => a - b);
-            const valid = trimIqrOutliers(prices);
+          // Single-Source Guardrail: Deduplicate items across paginated/duplicated API nodes
+          const seenSignatures = new Set<string>();
+          const validUnitPrices: number[] = [];
+
+          for (const item of rawItems) {
+            const rawPrice = Number(item.soldPrice);
+            const title = String(item.title || "").trim();
+            const itemId = String(item.itemId || item.id || `${title.toLowerCase()}::${rawPrice}`);
+
+            if (seenSignatures.has(itemId)) continue;
+            seenSignatures.add(itemId);
+
+            if (isValidUnitComp(title, rawPrice) && rawPrice >= (isLuxury ? 35 : 1) && rawPrice <= 10000) {
+              validUnitPrices.push(rawPrice);
+            }
+          }
+
+          if (validUnitPrices.length >= 2) {
+            validUnitPrices.sort((a, b) => a - b);
+            const valid = trimIqrOutliers(validUnitPrices);
+            const medianBaseline = calcMedian(valid);
             return {
               min: Math.round(valid[0] * 100) / 100,
               max: Math.round(valid[valid.length - 1] * 100) / 100,
-              median: Math.round(calcMedian(valid) * 100) / 100,
+              median: Math.round(medianBaseline * 100) / 100,
               count: valid.length,
               currency: targetCurrency,
               source: "sold_comps_api",
@@ -219,8 +261,6 @@ export async function fetchEbayAustraliaSoldComps(
 
       const env = (process.env.EBAY_ENVIRONMENT || "production").toLowerCase();
       const apiHost = env === "production" ? "api.ebay.com" : "api.sandbox.ebay.com";
-
-      const isLuxury = /\b(prada|gucci|louis vuitton|chanel|dior|bottega|saint laurent|ysl|hermes|celine|balenciaga|burberry)\b/i.test(productName);
 
       for (const marketplace of marketplacesToTry) {
         const isGlobalMarketplace = marketplace.id !== primaryMarketplace.id;
@@ -254,41 +294,31 @@ export async function fetchEbayAustraliaSoldComps(
 
             if (items.length === 0) continue;
 
-            const isQueryMultiPack = /\b(pack|lot|bundle|set|box|bulk|\d+x|\d+\s*pk)\b/i.test(productName);
+            // Single-Source Guardrail: Deduplicate browse items across paginated/duplicate nodes
+            const seenBrowseIds = new Set<string>();
+            const rawPrices: number[] = [];
 
-            // Filter out unrelated low-value noise (e.g. empty box, dust bag only, replacement strap)
-            const filteredItems = items.filter((item: any) => {
-              const title = (item.title || "").toLowerCase();
-              const price = Number(item.price?.value) || 0;
+            for (const item of items) {
+              const itemId = String(item.itemId || `${(item.title || "").toLowerCase()}::${item.price?.value}`);
+              if (seenBrowseIds.has(itemId)) continue;
+              seenBrowseIds.add(itemId);
 
-              // If luxury, filter out boxes/dustbags and items under $25 (likely knockoffs or accessories)
-              if (isLuxury) {
-                if (price < 20) return false;
-                if (/\b(box only|empty box|dustbag only|dust bag only|paper bag|paperbag|ribbon|shopping bag|authenticity card only|care booklet)\b/i.test(title)) {
-                  return false;
-                }
+              const title = String(item.title || "");
+              const unitPrice = (Number(item.price?.value) || 0) * fxMultiplier;
+
+              if (isValidUnitComp(title, unitPrice) && unitPrice >= (isLuxury ? 35 : 1) && unitPrice <= 10000) {
+                rawPrices.push(unitPrice);
               }
-
-              if (!isQueryMultiPack) {
-                if (/\b(\d+\s*pack|\d+\s*pk|\d+\s*pcs|\d+\s*pieces|pack of \d+|box of \d+|tray of|lot of \d+|\d+x\b|carton of|wholesale)\b/i.test(title)) {
-                  return false;
-                }
-              }
-
-              return true;
-            });
-
-            const rawPrices: number[] = filteredItems
-              .map((item: any) => (Number(item.price?.value) || 0) * fxMultiplier)
-              .filter((n: number) => !isNaN(n) && n >= (isLuxury ? 35 : 1) && n <= 10000);
+            }
 
             if (rawPrices.length >= 2) {
               rawPrices.sort((a, b) => a - b);
               const valid = trimIqrOutliers(rawPrices);
+              const medianBaseline = calcMedian(valid);
               return {
                 min: Math.round(valid[0] * 100) / 100,
                 max: Math.round(valid[valid.length - 1] * 100) / 100,
-                median: Math.round(calcMedian(valid) * 100) / 100,
+                median: Math.round(medianBaseline * 100) / 100,
                 count: valid.length,
                 currency: targetCurrency,
                 source: "browse_api",
