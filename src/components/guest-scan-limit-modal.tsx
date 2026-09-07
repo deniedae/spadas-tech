@@ -44,22 +44,53 @@ export function GuestScanLimitModal({
   const [upgradingToPro, setUpgradingToPro] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [activeUser, setActiveUser] = useState<any>(null);
+  const [hasActiveSub, setHasActiveSub] = useState<boolean>(false);
 
   React.useEffect(() => {
     // Non-blocking check against Supabase session and user metadata on mount
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session?.user) {
         setActiveUser(session.user);
         if (onClose) onClose();
+
+        // Check if user has active subscription or owner status
+        if (
+          isOwnerEmail(session.user.email) ||
+          session.user.app_metadata?.is_pro ||
+          session.user.user_metadata?.is_pro ||
+          session.user.app_metadata?.plan === "pro"
+        ) {
+          setHasActiveSub(true);
+        } else if (session.access_token) {
+          try {
+            const res = await fetch("/api/stripe/status", {
+              headers: { Authorization: `Bearer ${session.access_token}` },
+            });
+            if (res.ok) {
+              const data = await res.json().catch(() => ({}));
+              if (data.active || data.plan === "Pro" || data.status === "active") {
+                setHasActiveSub(true);
+              }
+            }
+          } catch {}
+        }
       }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
         setActiveUser(session.user);
+        if (
+          isOwnerEmail(session.user.email) ||
+          session.user.app_metadata?.is_pro ||
+          session.user.user_metadata?.is_pro
+        ) {
+          setHasActiveSub(true);
+        }
         if (onClose) onClose();
       } else {
         setActiveUser(null);
+        setHasActiveSub(false);
       }
     });
 
@@ -69,9 +100,24 @@ export function GuestScanLimitModal({
   }, [onClose]);
 
   // CRITICAL EARLY RETURN GUARD: Never render or pop up the scan limit modal
-  // if the user is authenticated, has active pro status, or matches owner/admin email
-  const isAuthedUser = Boolean(isAuthenticated || activeUser);
-  const isProOrOwner = Boolean(isPro || isOwnerEmail(activeUser?.email));
+  // if the user is authenticated, has active subscription/pro status, or matches owner/admin email
+  const isAuthedUser = Boolean(
+    isAuthenticated ||
+    activeUser ||
+    (typeof window !== "undefined" && Boolean(
+      document.cookie.includes("sb-access-token") ||
+      document.cookie.includes("sb-refresh-token") ||
+      document.cookie.includes("supabase-auth-token")
+    ))
+  );
+  const isProOrOwner = Boolean(
+    isPro ||
+    hasActiveSub ||
+    isOwnerEmail(activeUser?.email) ||
+    activeUser?.app_metadata?.is_pro ||
+    activeUser?.user_metadata?.is_pro ||
+    activeUser?.app_metadata?.plan === "pro"
+  );
 
   if (!isOpen || isAuthedUser || isProOrOwner) {
     return null;
