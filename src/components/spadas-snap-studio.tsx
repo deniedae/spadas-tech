@@ -14,6 +14,7 @@ import {
   getGuestScanState,
   recordGuestScan,
   saveGuestScannedItem,
+  resetGuestScanState,
   MAX_GUEST_SCANS,
   type GuestScanState,
 } from "@/lib/guest-scan-tracker";
@@ -57,12 +58,20 @@ export function SpadasSnapStudio() {
 
         if (user) {
           const isUserAdmin = isOwnerEmail(user.email);
+          resetGuestScanState();
           if (isMounted) {
             setIsGuestUser(false);
+            setGuestScanState({
+              count: 0,
+              remaining: 9999,
+              isLimitReached: false,
+              firstScanAt: null,
+              lastScanAt: null,
+            });
+            setIsGuestModalOpen(false);
             if (isUserAdmin) {
               setIsOwner(true);
               setIsPro(true);
-              setIsGuestModalOpen(false);
             }
           }
 
@@ -115,11 +124,19 @@ export function SpadasSnapStudio() {
       if (!isMounted) return;
       if (session?.user) {
         const isUserAdmin = isOwnerEmail(session.user.email);
+        resetGuestScanState();
         setIsGuestUser(false);
+        setGuestScanState({
+          count: 0,
+          remaining: 9999,
+          isLimitReached: false,
+          firstScanAt: null,
+          lastScanAt: null,
+        });
+        setIsGuestModalOpen(false);
         if (isUserAdmin) {
           setIsOwner(true);
           setIsPro(true);
-          setIsGuestModalOpen(false);
         }
       } else {
         setIsGuestUser(true);
@@ -421,7 +438,7 @@ export function SpadasSnapStudio() {
           copVerdict: cop.copVerdict,
         };
 
-        if (isGuestUser) {
+        if (!isAuthed && isGuestUser && !isPro && !isUserAdmin) {
           const nextState = recordGuestScan();
           setGuestScanState(nextState);
           setSessionScanCount((prev) => prev + 1);
@@ -478,7 +495,7 @@ export function SpadasSnapStudio() {
         </button>
 
         <div className="flex items-center gap-2">
-          {isGuestUser ? (
+          {isGuestUser && !isPro && !isOwner ? (
             <GuestScanHud
               remainingScans={guestScanState.remaining}
               onOpenAuthModal={() => setIsGuestModalOpen(true)}

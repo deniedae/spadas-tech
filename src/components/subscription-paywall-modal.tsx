@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { Check, Sparkles, Zap, ShieldCheck, Crown, X, Loader2, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/app/lib/supabase";
+import { isOwnerEmail } from "@/app/lib/auth-admin";
 
 export interface PlanTier {
   id: string;
@@ -51,6 +52,7 @@ export default function SubscriptionPaywallModal({
 }) {
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [isAppStoreClient, setIsAppStoreClient] = useState(false);
+  const [isOwner, setIsOwner] = useState(false);
 
   React.useEffect(() => {
     if (typeof window !== "undefined") {
@@ -58,9 +60,14 @@ export default function SubscriptionPaywallModal({
       const isWebView = /wv|Android.*Version\/[0-9.]+|Silk-Accelerated/i.test(navigator.userAgent);
       setIsAppStoreClient(isStandalone || isWebView);
     }
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user && isOwnerEmail(session.user.email)) {
+        setIsOwner(true);
+      }
+    });
   }, []);
 
-  if (!isOpen) return null;
+  if (!isOpen || isOwner) return null;
 
   const handleCheckout = async (plan: PlanTier) => {
     if (plan.id === "free") {

@@ -47,6 +47,7 @@ import {
   getGuestScanState,
   recordGuestScan,
   saveGuestScannedItem,
+  resetGuestScanState,
   MAX_GUEST_SCANS,
   type GuestScanState,
 } from "@/lib/guest-scan-tracker";
@@ -296,13 +297,21 @@ function SpadasLensCameraCore() {
 
         if (currentUser) {
           const isUserAdmin = isOwnerEmail(currentUser.email);
+          resetGuestScanState();
           if (isMounted) {
             setIsGuestUser(false);
+            setGuestScanState({
+              count: 0,
+              remaining: 9999,
+              isLimitReached: false,
+              firstScanAt: null,
+              lastScanAt: null,
+            });
+            setIsGuestLimitModalOpen(false);
             if (isUserAdmin) {
               setIsOwner(true);
               setIsPro(true);
               setIsLimitReached(false);
-              setIsGuestLimitModalOpen(false);
               setIsPaywallOpen(false);
             }
           }
@@ -364,12 +373,20 @@ function SpadasLensCameraCore() {
       if (!isMounted) return;
       if (session?.user) {
         const isUserAdmin = isOwnerEmail(session.user.email);
+        resetGuestScanState();
         setIsGuestUser(false);
+        setGuestScanState({
+          count: 0,
+          remaining: 9999,
+          isLimitReached: false,
+          firstScanAt: null,
+          lastScanAt: null,
+        });
+        setIsGuestLimitModalOpen(false);
         if (isUserAdmin) {
           setIsOwner(true);
           setIsPro(true);
           setIsLimitReached(false);
-          setIsGuestLimitModalOpen(false);
           setIsPaywallOpen(false);
         }
       } else {
@@ -437,14 +454,34 @@ function SpadasLensCameraCore() {
   const [confidencePercent, setConfidencePercent] = useState<number>(94);
 
   // Resume camera scanning handler
-  const handleResumeScanning = useCallback(() => {
-    if (isGuestUser && sessionScanCount >= MAX_GUEST_SCANS) {
+  const handleResumeScanning = useCallback(async () => {
+    let isAuthed = false;
+    let isUserAdmin = isOwner;
+    let currentPro = isPro;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        isAuthed = true;
+        setIsGuestUser(false);
+        setIsGuestLimitModalOpen(false);
+        if (isOwnerEmail(session.user.email)) {
+          isUserAdmin = true;
+          currentPro = true;
+          setIsOwner(true);
+          setIsPro(true);
+          setIsLimitReached(false);
+          setIsPaywallOpen(false);
+        }
+      }
+    } catch {}
+
+    if (!isAuthed && isGuestUser && sessionScanCount >= MAX_GUEST_SCANS) {
       setIsScanPaused(true);
       setIsGuestLimitModalOpen(true);
       toast.info("You've used all 3 free instant guest scans! Create a free account to unlock 10 daily scans.");
       return;
     }
-    if (!isPro && isLimitReached) {
+    if (!currentPro && !isUserAdmin && isLimitReached) {
       setIsScanPaused(true);
       setIsPaywallOpen(true);
       toast.error("You've used all 10 free daily scans! Upgrade to Pro for unlimited scans.", {
@@ -461,7 +498,7 @@ function SpadasLensCameraCore() {
     if (videoRef.current && videoRef.current.paused) {
       videoRef.current.play().catch(() => {});
     }
-  }, [isPro, isLimitReached, isGuestUser, guestScanState.isLimitReached]);
+  }, [isPro, isLimitReached, isGuestUser, isOwner, sessionScanCount]);
 
   // Barcode Single-Scan Debounce (1 scan only per barcode item)
   const lastDetectedBarcodeRef = useRef<string | null>(null);
@@ -2119,7 +2156,7 @@ function SpadasLensCameraCore() {
           }
           setConfidencePercent(98);
 
-          if (isGuestUser) {
+          if (!isAuthed && isGuestUser && !isPro && !isUserAdmin) {
             const nextGuestState = recordGuestScan();
             setGuestScanState(nextGuestState);
             setSessionScanCount((prev) => prev + 1);
@@ -2563,7 +2600,7 @@ function SpadasLensCameraCore() {
               </div>
 
               {/* Guest Scan Mode Real-Time Indicator */}
-              {isGuestUser && (
+              {isGuestUser && !isPro && !isOwner && (
                 <div className="pointer-events-auto">
                   <GuestScanHud
                     remainingScans={guestScanState.remaining}
