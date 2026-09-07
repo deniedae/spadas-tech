@@ -1632,7 +1632,8 @@ function SpadasLensCameraCore() {
           const preprocessed = processFrameForVision(video, {
             cropFactor: 0.65,
             boostContrast: true,
-            maxDimension: 1200,
+            maxDimension: 800,
+            quality: 0.74,
           });
           frameDataUrl = preprocessed.fullDataUrl;
           centerCropDataUrl = preprocessed.enhancedCropDataUrl;
@@ -1644,12 +1645,22 @@ function SpadasLensCameraCore() {
             offscreenCanvasRef.current = document.createElement("canvas");
           }
           const canvas = offscreenCanvasRef.current;
-          canvas.width = fullWidth;
-          canvas.height = fullHeight;
+          const maxDim = 800;
+          let targetW = fullWidth;
+          let targetH = fullHeight;
+          if (fullWidth > fullHeight) {
+            targetW = Math.min(maxDim, fullWidth);
+            targetH = Math.round((fullHeight * targetW) / fullWidth);
+          } else {
+            targetH = Math.min(maxDim, fullHeight);
+            targetW = Math.round((fullWidth * targetH) / fullHeight);
+          }
+          canvas.width = targetW;
+          canvas.height = targetH;
           const ctx = canvas.getContext("2d");
           if (ctx) {
-            ctx.drawImage(video, 0, 0, fullWidth, fullHeight);
-            frameDataUrl = canvas.toDataURL("image/jpeg", 0.88);
+            ctx.drawImage(video, 0, 0, fullWidth, fullHeight, 0, 0, targetW, targetH);
+            frameDataUrl = canvas.toDataURL("image/jpeg", 0.74);
           }
         }
       }
@@ -3042,7 +3053,7 @@ function SpadasLensCameraCore() {
                               const newItemId = `rapid_${timestamp}_${Math.random().toString(36).slice(2, 7)}`;
 
                               // 2. Asynchronous Blob Handoff to IndexedDB (Zero Base64 in LocalStorage)
-                              void canvasToBlob(canvas, 0.82).then(async (blob) => {
+                              void canvasToBlob(canvas, 0.74).then(async (blob) => {
                                 if (!blob) return;
                                 await savePhotoBlob(photoId, blob);
 

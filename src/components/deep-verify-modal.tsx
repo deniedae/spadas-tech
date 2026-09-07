@@ -51,6 +51,7 @@ import {
   generateOptimizedEbayTitle,
   generateEbayPrefillUrl,
 } from "@/app/lib/marketplaces/ebay-prefill";
+import { compressFileToDataUrl } from "@/lib/image-preprocessor";
 
 interface DeepVerifyModalProps {
   isOpen: boolean;
@@ -406,7 +407,7 @@ export function DeepVerifyModal({
       setOpticalWarning(null);
     }
 
-    const dataUrl = canvas.toDataURL("image/jpeg", 0.90);
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.78);
 
     const updated = [...capturedImages];
     updated[currentStepIndex] = dataUrl;
@@ -424,15 +425,15 @@ export function DeepVerifyModal({
     }
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === "string") {
+    try {
+      const compressed = await compressFileToDataUrl(file, { maxDimension: 900, quality: 0.78 });
+      if (compressed) {
         const updated = [...capturedImages];
-        updated[currentStepIndex] = reader.result;
+        updated[currentStepIndex] = compressed;
         setCapturedImages(updated);
         toast.success(`Uploaded ${currentStep.title}`);
 
@@ -440,9 +441,11 @@ export function DeepVerifyModal({
           setCurrentStepIndex((prev) => prev + 1);
         }
       }
-    };
-    reader.readAsDataURL(file);
-    e.target.value = "";
+    } catch {
+      toast.error("Failed to process uploaded image.");
+    } finally {
+      e.target.value = "";
+    }
   };
 
   const handleAnalyze = async (bypassTags: boolean = false) => {

@@ -280,16 +280,16 @@ export function IronmanHudCamera() {
       const cropY = Math.round((fullHeight - cropH) / 2);
 
       const canvas = document.createElement("canvas");
-      canvas.width = 800;
-      canvas.height = 800;
+      canvas.width = 640;
+      canvas.height = 640;
       const ctx = canvas.getContext("2d", { willReadFrequently: true });
       if (!ctx) return;
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = "high";
-      ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, 800, 800);
+      ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, 640, 640);
 
       // 5. Luminance Guard: Reject pitch black or covered camera (in pocket, table surface, or dark room)
-      const imgData = ctx.getImageData(0, 0, 800, 800);
+      const imgData = ctx.getImageData(0, 0, 640, 640);
       let totalLuminance = 0;
       let samples = 0;
       const step = 4 * 160; // sample ~1000 pixels
@@ -303,7 +303,7 @@ export function IronmanHudCamera() {
         return;
       }
 
-      const base64 = canvas.toDataURL("image/jpeg", 0.90);
+      const base64 = canvas.toDataURL("image/jpeg", 0.74);
 
       inFlightRef.current = true;
       let hitData: any = null;

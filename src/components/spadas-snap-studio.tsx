@@ -18,7 +18,7 @@ import {
   MAX_GUEST_SCANS,
   type GuestScanState,
 } from "@/lib/guest-scan-tracker";
-import { processFrameForVision } from "@/lib/image-preprocessor";
+import { processFrameForVision, compressFileToDataUrl } from "@/lib/image-preprocessor";
 import { isOwnerEmail } from "@/app/lib/auth-admin";
 
 export function SpadasSnapStudio() {
@@ -271,7 +271,7 @@ export function SpadasSnapStudio() {
     if (!video) return;
 
     try {
-      const preprocessed = processFrameForVision(video, { boostContrast: true, maxDimension: 1200 });
+      const preprocessed = processFrameForVision(video, { boostContrast: true, maxDimension: 850, quality: 0.75 });
       const dataUrl = preprocessed.fullDataUrl;
 
       if (dataUrl && dataUrl.length > 2000) {
@@ -287,12 +287,12 @@ export function SpadasSnapStudio() {
       const fullW = video.videoWidth || video.clientWidth || 640;
       const fullH = video.videoHeight || video.clientHeight || 480;
       const canvas = document.createElement("canvas");
-      canvas.width = Math.min(1200, fullW);
+      canvas.width = Math.min(850, fullW);
       canvas.height = Math.round((fullH * canvas.width) / fullW);
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
       ctx.drawImage(video, 0, 0, fullW, fullH, 0, 0, canvas.width, canvas.height);
-      const dataUrl = canvas.toDataURL("image/jpeg", 0.88);
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.75);
       if (dataUrl && dataUrl.length > 2000) {
         setCapturedPhotos((prev) => [...prev, dataUrl]);
         toast.success(`Photo ${capturedPhotos.length + 1} captured!`, { duration: 1200 });
@@ -300,25 +300,24 @@ export function SpadasSnapStudio() {
     }
   };
 
-  // Handle File Upload from Gallery
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle File Upload from Gallery with Aggressive Client-Side Compression
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
     const availableSlots = 6 - capturedPhotos.length;
     const toProcess = Array.from(files).slice(0, availableSlots);
 
-    toProcess.forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (typeof reader.result === "string") {
-          setCapturedPhotos((prev) => [...prev, reader.result as string]);
-        }
-      };
-      reader.readAsDataURL(file);
-    });
+    toast.info("Compressing photos...", { duration: 1200 });
+    const compressed = await Promise.all(
+      toProcess.map((file) => compressFileToDataUrl(file, { maxDimension: 850, quality: 0.75 }))
+    );
 
-    toast.success(`Added ${toProcess.length} photos!`);
+    const validCompressed = compressed.filter((url) => url && url.length > 2000);
+    if (validCompressed.length > 0) {
+      setCapturedPhotos((prev) => [...prev, ...validCompressed]);
+      toast.success(`Added ${validCompressed.length} compressed photo(s)!`);
+    }
   };
 
   const removePhoto = (index: number) => {
