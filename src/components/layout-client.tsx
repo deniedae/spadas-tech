@@ -8,6 +8,8 @@ import FocusLock from "react-focus-lock";
 import MobileNav from "@/components/mobile-nav";
 import OwnerAiStatusBanner from "@/components/owner-ai-status-banner";
 import { supabase } from "@/app/lib/supabase";
+import { isOwnerEmail } from "@/app/lib/auth-admin";
+import { resetGuestScanState } from "@/lib/guest-scan-tracker";
 
 /**
  * The main client layout component that wraps the app's pages.
@@ -64,34 +66,55 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
   const [isEbayConnected, setIsEbayConnected] = useState(false);
 
   useEffect(() => {
+    let isMounted = true;
+
     async function loadUserAndSub() {
       try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
+        // Reliable non-blocking session check from Supabase client storage
+        const { data: { session } } = await supabase.auth.getSession();
+        let user: any = session?.user;
+        if (!user) {
+          const { data: userData } = await supabase.auth.getUser();
+          user = userData?.user;
+        }
 
-        if (user?.email) {
+        if (user?.email && isMounted) {
           setUserEmail(user.email);
+          resetGuestScanState();
 
-          // Check eBay connection via secure server-side endpoint
-          const { data: { session } } = await supabase.auth.getSession();
+          const isOwner = isOwnerEmail(user.email);
+          const hasMetadataPro = Boolean(
+            user.app_metadata?.is_pro ||
+            user.user_metadata?.is_pro ||
+            user.app_metadata?.plan === "pro"
+          );
+
+          if (isOwner || hasMetadataPro) {
+            setIsProUser(true);
+          }
+
+          // Check eBay connection and live Stripe status passing Bearer token
           const authHeaders: Record<string, string> = {};
           if (session?.access_token) {
             authHeaders["Authorization"] = `Bearer ${session.access_token}`;
           }
 
-          const mktRes = await fetch("/api/marketplaces/status", { headers: authHeaders }).catch(() => null);
-          if (mktRes && mktRes.ok) {
-            const mktData = await mktRes.json().catch(() => ({}));
-            setIsEbayConnected(Boolean(mktData.isConnected));
-          }
+          const [mktRes, stripeRes] = await Promise.all([
+            fetch("/api/marketplaces/status", { headers: authHeaders }).catch(() => null),
+            fetch("/api/stripe/status", { headers: authHeaders }).catch(() => null),
+          ]);
 
-          // Pro check — resolved server-side only, no client-side email bypass
-          const res = await fetch("/api/stripe/status", { headers: authHeaders }).catch(() => null);
-          if (res && res.ok) {
-            const data = await res.json().catch(() => ({}));
-            if (data.active || data.plan === "Pro") {
-              setIsProUser(true);
+          if (isMounted) {
+            if (mktRes && mktRes.ok) {
+              const mktData = await mktRes.json().catch(() => ({}));
+              setIsEbayConnected(Boolean(mktData.isConnected));
+            }
+
+            if (stripeRes && stripeRes.ok) {
+              const stripeData = await stripeRes.json().catch(() => ({}));
+              if (stripeData.active || stripeData.plan === "Pro" || isOwner) {
+                setIsProUser(true);
+              }
             }
           }
         }
@@ -99,7 +122,32 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
         // silently fallback
       }
     }
+
     void loadUserAndSub();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!isMounted) return;
+      if (session?.user?.email) {
+        setUserEmail(session.user.email);
+        resetGuestScanState();
+        if (
+          isOwnerEmail(session.user.email) ||
+          session.user.app_metadata?.is_pro ||
+          session.user.user_metadata?.is_pro
+        ) {
+          setIsProUser(true);
+        }
+      } else {
+        setUserEmail(null);
+        setIsProUser(false);
+        setIsEbayConnected(false);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
