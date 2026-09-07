@@ -20,6 +20,7 @@ import {
 } from "@/lib/guest-scan-tracker";
 import { processFrameForVision, compressFileToDataUrl } from "@/lib/image-preprocessor";
 import { isOwnerEmail } from "@/app/lib/auth-admin";
+import { ScanProgressiveLoader } from "@/components/scan-progressive-loader";
 
 export function SpadasSnapStudio() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -613,6 +614,13 @@ export function SpadasSnapStudio() {
             </p>
           </div>
         </div>
+
+        {/* Progressive Loading Skeleton & Step Indicator */}
+        {isAnalyzing && (
+          <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-slate-950/75 backdrop-blur-md p-4 animate-in fade-in duration-200">
+            <ScanProgressiveLoader isActive={isAnalyzing} variant="skeleton" customLabel="Valuing Find..." />
+          </div>
+        )}
       </div>
 
       {/* Bottom Controls Stage */}

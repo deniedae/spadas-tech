@@ -67,6 +67,7 @@ import { calculateSalesVelocity } from "@/lib/turnover-velocity-engine";
 import type { DetectedHit, ActiveScanItem } from "@/types/lens";
 export type { DetectedHit, ActiveScanItem } from "@/types/lens";
 import { processFrameForVision } from "@/lib/image-preprocessor";
+import { ScanProgressiveLoader } from "@/components/scan-progressive-loader";
 
 // Catch-All React Error Boundary for Live Camera & Hit List Stability
 interface ErrorBoundaryProps {
@@ -2583,14 +2584,8 @@ function SpadasLensCameraCore() {
                   className="object-cover"
                 />
                 {analyzingRealFrame && (
-                  <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-slate-950/60 backdrop-blur-sm space-y-3">
-                    <div className="relative">
-                      <div className="h-16 w-16 rounded-full border-4 border-cyan-500/30 border-t-cyan-400 animate-spin" />
-                      <Sparkles className="absolute inset-0 m-auto h-6 w-6 text-cyan-300 animate-pulse" />
-                    </div>
-                    <div className="rounded-full bg-slate-950/90 border border-cyan-500/40 px-4 py-1.5 text-xs font-black text-cyan-300 shadow-xl">
-                      ⚡ Stabilizing & Pulling eBay Comps...
-                    </div>
+                  <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-slate-950/70 backdrop-blur-md p-4">
+                    <ScanProgressiveLoader isActive={analyzingRealFrame} variant="skeleton" />
                   </div>
                 )}
               </div>
@@ -2765,6 +2760,13 @@ function SpadasLensCameraCore() {
             </div>
 
 
+
+            {/* Dynamic Progressive Step Indicator during Live Continuous Scan */}
+            {analyzingRealFrame && !frozenFrameUrl && (
+              <div className="absolute top-20 left-1/2 -translate-x-1/2 z-25 pointer-events-none flex flex-col items-center justify-center w-[90%] max-w-xs">
+                <ScanProgressiveLoader isActive={analyzingRealFrame} variant="hud" />
+              </div>
+            )}
 
             {/* Minimalist Scanning Beam Indicator */}
             {analyzingRealFrame && (
