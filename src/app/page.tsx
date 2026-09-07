@@ -48,7 +48,7 @@ export default function Home() {
               href="/lens"
               className="btn-primary text-xs font-black px-4 h-9"
             >
-              <span>LAUNCH LENS AR</span>
+              <span>⚡ TRY GUEST SCAN</span>
             </Link>
           </div>
         </nav>
@@ -61,7 +61,7 @@ export default function Home() {
               <span className="h-2 w-2 rounded-full bg-[#22C55E] animate-pulse" />
               <span>LENS VISION ACTIVE // 60 FPS CAM CALIBRATED</span>
               <span className="text-zinc-600">|</span>
-              <span className="text-zinc-400">AU MARKETPLACE COMPS</span>
+              <span className="text-orange-400">⚡ ZERO SIGN-UP GUEST SCAN</span>
             </div>
 
             {/* Direct Field Headline */}
@@ -71,17 +71,17 @@ export default function Home() {
 
             {/* Direct Field Copy */}
             <p className="text-base sm:text-lg md:text-xl text-zinc-400 max-w-2xl mx-auto font-normal leading-relaxed">
-              Scan thrift racks or junkyard shelves. See 90-day sold comps before you buy.
+              Point camera at thrift racks or garage sales. See real-time eBay AU sold comps & net profit before you buy.
             </p>
 
             {/* Primary Action Buttons */}
             <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3 max-w-md mx-auto">
               <Link
                 href="/lens"
-                className="w-full sm:w-auto btn-primary h-12 px-7 text-sm gap-2"
+                className="w-full sm:w-auto btn-primary h-12 px-7 text-sm gap-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-lg shadow-orange-500/20"
               >
                 <Camera className="h-4 w-4" />
-                <span>LAUNCH LENS [AR]</span>
+                <span>⚡ INSTANT GUEST SCAN [AR]</span>
               </Link>
 
               <a
@@ -96,6 +96,10 @@ export default function Home() {
 
             {/* Telemetry Highlights */}
             <div className="pt-2 flex flex-wrap items-center justify-center gap-4 text-xs font-mono text-zinc-500">
+              <span className="flex items-center gap-1.5 text-orange-300 font-bold">
+                <span className="text-[#22C55E]">●</span> 3 Free Instant Scans (No Sign-Up)
+              </span>
+              <span className="text-zinc-700">//</span>
               <span className="flex items-center gap-1.5 text-zinc-300">
                 <span className="text-[#22C55E]">●</span> 30-Day Real Sold Comps
               </span>

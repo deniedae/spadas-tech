@@ -1,9 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
-// Explicit public routes that unauthenticated users are allowed to access
+// Explicit public routes that unauthenticated users are allowed to access (includes Instant Guest Scanning)
 const PUBLIC_PATHS = [
   "/",
+  "/lens",
+  "/snap",
   "/login",
   "/signup",
   "/auth/callback",

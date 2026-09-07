@@ -140,7 +140,11 @@ export async function POST(request: Request) {
     supabaseClient = supabase;
 
     const body = await request.json().catch(() => ({}));
-    const { imageUrls, isArScan, mode } = body as { imageUrls?: string[]; isArScan?: boolean; mode?: "sweep" | "deep" | "live" | "focus" | "standard" };
+    const { imageUrls, isArScan, mode } = body as {
+      imageUrls?: string[];
+      isArScan?: boolean;
+      mode?: "sweep" | "deep" | "live" | "focus" | "standard" | "snap";
+    };
     rawImageUrls = imageUrls || [];
 
     if (!imageUrls || imageUrls.length === 0) {
@@ -161,7 +165,9 @@ export async function POST(request: Request) {
       if (!error) user = data?.user;
     }
 
-    if (!user && !isArScan) {
+    const isGuestScan = !user && ((body as any)?.isGuestScan === true || mode === "deep" || mode === "snap" || isArScan);
+    const isGuestScanAllowed = isArScan || isGuestScan;
+    if (!user && !isGuestScanAllowed) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -176,8 +182,9 @@ export async function POST(request: Request) {
     userLimiter.minuteWindow = userLimiter.minuteWindow.filter((t) => now - t < 60000);
     userLimiter.dayWindow = userLimiter.dayWindow.filter((t) => now - t < 86400000);
 
-    // For standard listing generator (multi-step form), enforce strict 10/min and 100/day limits
-    if (!isArScan) {
+    // Guest scans and AR scans share the lenient 40/min limiter; only authenticated listing generator uses strict limits
+    const useArLimiter = isArScan || isGuestScan;
+    if (!useArLimiter) {
       if (userLimiter.inFlight) {
         return NextResponse.json(
           {

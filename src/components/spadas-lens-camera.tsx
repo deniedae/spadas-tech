@@ -40,6 +40,15 @@ import LensHitCard from "@/components/lens-hit-card";
 import LensControlsBar from "@/components/lens-controls-bar";
 import LensCompsModal from "@/components/lens-comps-modal";
 import { checkNeedsVerification } from "@/lib/forensic-knowledge";
+import { GuestScanHud } from "@/components/guest-scan-hud";
+import { GuestScanLimitModal } from "@/components/guest-scan-limit-modal";
+import {
+  getGuestScanState,
+  recordGuestScan,
+  saveGuestScannedItem,
+  MAX_GUEST_SCANS,
+  type GuestScanState,
+} from "@/lib/guest-scan-tracker";
 import {
   RapidThriftItem,
   loadRapidSession,
@@ -236,6 +245,10 @@ function SpadasLensCameraCore() {
   const [isOwner, setIsOwner] = useState<boolean>(false);
   const [isPro, setIsPro] = useState<boolean>(false);
   const [isLimitReached, setIsLimitReached] = useState<boolean>(false);
+  const [isGuestUser, setIsGuestUser] = useState<boolean>(true);
+  const [guestScanState, setGuestScanState] = useState<GuestScanState>(() => getGuestScanState());
+  const [isGuestLimitModalOpen, setIsGuestLimitModalOpen] = useState<boolean>(false);
+  const [lastGuestScannedItem, setLastGuestScannedItem] = useState<any>(null);
   const [scanFeedback, setScanFeedback] = useState<"HIT" | "MISS" | null>(null);
   const [sessionScanCount, setSessionScanCount] = useState<number>(0);
   const [shutterFlash, setShutterFlash] = useState<boolean>(false);
@@ -296,6 +309,12 @@ function SpadasLensCameraCore() {
 
   // Resume camera scanning handler
   const handleResumeScanning = useCallback(() => {
+    if (isGuestUser && sessionScanCount >= MAX_GUEST_SCANS) {
+      setIsScanPaused(true);
+      setIsGuestLimitModalOpen(true);
+      toast.info("You've used all 3 free instant guest scans! Create a free account to unlock 10 daily scans.");
+      return;
+    }
     if (!isPro && isLimitReached) {
       setIsScanPaused(true);
       setIsPaywallOpen(true);
@@ -313,7 +332,7 @@ function SpadasLensCameraCore() {
     if (videoRef.current && videoRef.current.paused) {
       videoRef.current.play().catch(() => {});
     }
-  }, [isPro, isLimitReached]);
+  }, [isPro, isLimitReached, isGuestUser, guestScanState.isLimitReached]);
 
   // Barcode Single-Scan Debounce (1 scan only per barcode item)
   const lastDetectedBarcodeRef = useRef<string | null>(null);
@@ -515,7 +534,10 @@ function SpadasLensCameraCore() {
       } = await supabase.auth.getUser();
 
       if (!user) {
-        toast.error("Please log in to save listings.");
+        saveGuestScannedItem(item);
+        setLastGuestScannedItem(item);
+        setIsGuestLimitModalOpen(true);
+        toast.info("Create a free account in 5 seconds to save drafts & sync inventory!");
         return;
       }
 
@@ -544,7 +566,10 @@ function SpadasLensCameraCore() {
       } = await supabase.auth.getUser();
 
       if (!user) {
-        toast.error("Please log in to save listings.");
+        saveGuestScannedItem(hit);
+        setLastGuestScannedItem(hit);
+        setIsGuestLimitModalOpen(true);
+        toast.info("Create a free account in 5 seconds to save drafts & sync inventory!");
         return;
       }
 
@@ -588,6 +613,7 @@ function SpadasLensCameraCore() {
         } = await supabase.auth.getUser();
 
         if (user) {
+          setIsGuestUser(false);
           const { data: { session } } = await supabase.auth.getSession();
           const authHeaders: Record<string, string> = {};
           if (session?.access_token) {
@@ -612,6 +638,8 @@ function SpadasLensCameraCore() {
               setIsLimitReached(true);
             }
           }
+        } else {
+          setIsGuestUser(true);
         }
       } catch {}
     }
@@ -1472,6 +1500,14 @@ function SpadasLensCameraCore() {
         }
       }
 
+      if (isGuestUser && sessionScanCount >= MAX_GUEST_SCANS) {
+        setIsScanPaused(true);
+        setIsGuestLimitModalOpen(true);
+        setAnalyzingRealFrame(false);
+        toast.info("You've used all 3 free instant guest scans! Create a free account to unlock 10 daily scans.");
+        return;
+      }
+
       if (!isPro && isLimitReached) {
         setIsScanPaused(true);
         setIsPaywallOpen(true);
@@ -1554,8 +1590,14 @@ function SpadasLensCameraCore() {
       }
 
       if (res?.status === 401) {
-        setScanErrorState({ type: "unauthorized" });
-        setLatestApiError("401 Unauthorized — session expired");
+        if (isGuestUser) {
+          setIsGuestLimitModalOpen(true);
+          setIsScanPaused(true);
+        } else {
+          setScanErrorState({ type: "unauthorized" });
+          setLatestApiError("401 Unauthorized — session expired");
+        }
+        setAnalyzingRealFrame(false);
         return;
       }
 
@@ -1935,6 +1977,19 @@ function SpadasLensCameraCore() {
             setIsScanPaused(true);
           }
           setConfidencePercent(98);
+
+          if (isGuestUser) {
+            const nextGuestState = recordGuestScan();
+            setGuestScanState(nextGuestState);
+            setSessionScanCount((prev) => prev + 1);
+            saveGuestScannedItem(verifiedHit);
+            setLastGuestScannedItem(verifiedHit);
+            if (nextGuestState.isLimitReached) {
+              setTimeout(() => {
+                setIsGuestLimitModalOpen(true);
+              }, 2200);
+            }
+          }
 
           // Emit to Reactive Observer Sourcing Bus & Store to Local LRU Cache
           sourcingBus.emit("ITEM_VALUED", {
@@ -2366,6 +2421,16 @@ function SpadasLensCameraCore() {
                 </span>
               </div>
 
+              {/* Guest Scan Mode Real-Time Indicator */}
+              {isGuestUser && (
+                <div className="pointer-events-auto">
+                  <GuestScanHud
+                    remainingScans={guestScanState.remaining}
+                    onOpenAuthModal={() => setIsGuestLimitModalOpen(true)}
+                  />
+                </div>
+              )}
+
               {/* Top Right Session Ticker & Controls */}
               <div className="flex items-center gap-2 pointer-events-auto">
                 <div className="hidden sm:inline-flex items-center gap-2 rounded-full bg-slate-950/90 border border-slate-800 px-3 py-1 text-[11px] font-bold text-slate-300 shadow-xl backdrop-blur-md">
@@ -2554,7 +2619,7 @@ function SpadasLensCameraCore() {
                   </div>
                 )}
 
-                {scanErrorState.type === "unauthorized" && (
+                {scanErrorState.type === "unauthorized" && !isGuestUser && (
                   <div className="flex items-center justify-between gap-3 rounded-xl bg-slate-800/95 backdrop-blur-md px-4 py-2.5 text-xs font-extrabold text-slate-200 shadow-2xl border border-slate-600/60 pointer-events-auto w-full">
                     <div className="flex items-center gap-2">
                       <ShieldAlert className="h-4 w-4 shrink-0 text-amber-400" />
@@ -3050,6 +3115,14 @@ function SpadasLensCameraCore() {
         currentScans={capturedLog.length}
       />
 
+      {/* Instant Guest Scan Limit & Conversion Modal */}
+      <GuestScanLimitModal
+        isOpen={isGuestLimitModalOpen}
+        onClose={() => setIsGuestLimitModalOpen(false)}
+        scannedCount={guestScanState.count}
+        lastScannedItem={lastGuestScannedItem}
+      />
+
       {/* Ebay Listing Automation Modal */}
       {activeEbayItem && (
         <EbayListingModal
@@ -3085,8 +3158,8 @@ function SpadasLensCameraCore() {
         frozenFrameUrl={frozenFrameUrl}
         onClose={() => setActiveCompsHit(null)}
         onResumeScan={handleResumeScanning}
-        onListEbay={(hit) => setActiveEbayItem(hit)}
-        onDeepVerify={(hit) => handleOpenDeepVerify(hit)}
+        onListEbay={(hit: any) => setActiveEbayItem(hit)}
+        onDeepVerify={(hit: any) => handleOpenDeepVerify(hit)}
       />
 
       {/* Rapid Thrift Haul "What You Got" Slide-Up Drawer */}

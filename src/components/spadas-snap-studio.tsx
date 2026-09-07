@@ -7,6 +7,16 @@ import { SpadasListingDetailsSheet, SpadasListingData } from "@/components/spada
 import { calculateThriftCopVerdict } from "@/lib/thrift-cop-engine";
 import { triggerTactileHaptic, syncProfitToAndroidWidget } from "@/lib/android-bridge";
 import { detectGeoCurrency } from "@/app/lib/currency-routing";
+import { supabase } from "@/app/lib/supabase";
+import { GuestScanHud } from "@/components/guest-scan-hud";
+import { GuestScanLimitModal } from "@/components/guest-scan-limit-modal";
+import {
+  getGuestScanState,
+  recordGuestScan,
+  saveGuestScannedItem,
+  MAX_GUEST_SCANS,
+  type GuestScanState,
+} from "@/lib/guest-scan-tracker";
 
 export function SpadasSnapStudio() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -18,6 +28,21 @@ export function SpadasSnapStudio() {
   const [facingMode, setFacingMode] = useState<"environment" | "user">("environment");
   const [listingResult, setListingResult] = useState<SpadasListingData | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Guest Scan State
+  const [isGuestUser, setIsGuestUser] = useState<boolean>(true);
+  const [sessionScanCount, setSessionScanCount] = useState<number>(0);
+  const [guestScanState, setGuestScanState] = useState<GuestScanState>(() => getGuestScanState());
+  const [isGuestModalOpen, setIsGuestModalOpen] = useState<boolean>(false);
+  const [lastScannedItem, setLastScannedItem] = useState<any>(null);
+
+  useEffect(() => {
+    async function checkAuth() {
+      const { data: { user } } = await supabase.auth.getUser();
+      setIsGuestUser(!user);
+    }
+    void checkAuth();
+  }, []);
 
   // Stop Camera Stream (Releases all hardware locks immediately)
   const stopCamera = useCallback(() => {
@@ -178,6 +203,12 @@ export function SpadasSnapStudio() {
       return;
     }
 
+    if (isGuestUser && sessionScanCount >= MAX_GUEST_SCANS) {
+      setIsGuestModalOpen(true);
+      toast.info("You've used all 3 free instant guest scans! Create a free account to unlock 10 daily scans.");
+      return;
+    }
+
     setIsAnalyzing(true);
     toast.info("🔍 AI identifying item, extracting tags, and finding eBay comps...", { duration: 3000 });
 
@@ -193,6 +224,8 @@ export function SpadasSnapStudio() {
           imageUrls: capturedPhotos,
           currency: activeCurrency,
           mode: "deep",
+          isArScan: true,
+          isGuestScan: isGuestUser,
         }),
       });
 
@@ -243,6 +276,14 @@ export function SpadasSnapStudio() {
           copVerdict: cop.copVerdict,
         };
 
+        if (isGuestUser) {
+          const nextState = recordGuestScan();
+          setGuestScanState(nextState);
+          setSessionScanCount((prev) => prev + 1);
+          saveGuestScannedItem(listingPayload);
+          setLastScannedItem(listingPayload);
+        }
+
         triggerTactileHaptic(cop.copVerdict === "MUST_COP" ? "grail" : "success");
         setListingResult(listingPayload);
         toast.success(`🎯 ${cop.verdictLabel}: +$${cop.netProfit.toFixed(0)} Profit!`);
@@ -292,10 +333,19 @@ export function SpadasSnapStudio() {
         </button>
 
         <div className="flex items-center gap-2">
-          <div className="h-2 w-2 rounded-full bg-cyan-400 animate-ping" />
-          <span className="text-xs font-black tracking-wider uppercase text-cyan-300">
-            Spadas Snap Studio
-          </span>
+          {isGuestUser ? (
+            <GuestScanHud
+              remainingScans={guestScanState.remaining}
+              onOpenAuthModal={() => setIsGuestModalOpen(true)}
+            />
+          ) : (
+            <div className="flex items-center gap-2">
+              <div className="h-2 w-2 rounded-full bg-cyan-400 animate-ping" />
+              <span className="text-xs font-black tracking-wider uppercase text-cyan-300">
+                Spadas Snap Studio
+              </span>
+            </div>
+          )}
         </div>
 
         <button
@@ -458,6 +508,14 @@ export function SpadasSnapStudio() {
           )}
         </div>
       </div>
+
+      {/* Instant Guest Scan Limit & Conversion Modal */}
+      <GuestScanLimitModal
+        isOpen={isGuestModalOpen}
+        onClose={() => setIsGuestModalOpen(false)}
+        scannedCount={guestScanState.count}
+        lastScannedItem={lastScannedItem}
+      />
     </div>
   );
 }

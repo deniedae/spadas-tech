@@ -23,6 +23,9 @@
 # scratch & extracted
 /extracted_apk/
 /scratch_xapk/
+/scratch/
+.gradle/
+android/.gradle/
 
 # misc
 .DS_Store
