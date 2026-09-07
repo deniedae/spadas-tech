@@ -11,7 +11,7 @@ import { checkUserUsage } from "@/app/lib/usage";
 import { AiListingResultSchema } from "@/app/lib/schemas/ai-listing-schema";
 import { AR_SCAN_MODEL_FALLBACKS, LISTING_MODEL_FALLBACKS, getPrimaryAiApiKey, createOpenAiClient } from "@/app/lib/config/ai-models";
 import { callClaudeVision } from "@/app/lib/config/claude-vision";
-import { callGeminiVision } from "@/app/lib/config/gemini-vision";
+import { callGeminiVision, hasGeminiVisionKey } from "@/app/lib/config/gemini-vision";
 import { fetchEbayAustraliaSoldComps } from "@/app/lib/ebay-australia-comps";
 import { detectGeoCurrency, SupportedCurrency } from "@/app/lib/currency-routing";
 import { saveProductToCache, getCachedProductScan } from "@/app/lib/cache/product-cache";
@@ -113,6 +113,27 @@ interface UserRateLimitRecord {
 }
 
 const userRateLimitMap = new Map<string, UserRateLimitRecord>();
+
+function brandsDisagree(brand1?: string | null, brand2?: string | null): boolean {
+  if (!brand1 || !brand2) return false;
+  const b1 = brand1.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+  const b2 = brand2.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (!b1 || !b2) return false;
+  if (b1 === b2 || b1.includes(b2) || b2.includes(b1)) return false;
+  const genericSentinels = [
+    "unknown",
+    "generic",
+    "vintage",
+    "custom",
+    "unbranded",
+    "null",
+    "none",
+    "handmade",
+    "nocenteritem",
+  ];
+  if (genericSentinels.includes(b1) || genericSentinels.includes(b2)) return false;
+  return true;
+}
 
 export async function POST(request: Request) {
   let userId: string | null = null;
@@ -328,49 +349,47 @@ Identify ONLY the single primary physical item positioned in the center target r
 
 ${modePrompt}
 
-1. ACCURATE IDENTIFICATION & FORENSIC RECOGNITION:
-- Identify ONLY what is directly visible in the image (Image 1 is the high-res center crop).
-- LUXURY & DESIGNER GOODS (Prada, Louis Vuitton, Gucci, Chanel, Dior, Bottega Veneta, Saint Laurent, Fendi, Goyard, Hermes, Burberry, Celine, Coach, MCM, Vivienne Westwood):
-  - Inspect visible hardware, logos, and emblems: Triangular metal enamel plaque ("PRADA MILANO"), gold/silver lettering, interlocking monogram, embossed leather stamps.
-  - Inspect leather texture and textile: Saffiano cross-hatch leather, Tessuto nylon, Epi textured leather, monogram coated canvas, Caviar leather, Intrecciato woven leather, patent leather, or smooth calfskin.
-  - Identify specific silhouette: Bifold Wallet, Zip-Around Continental Long Wallet, Flap Coin Purse, Cardholder, Chain Wallet, Crossbody Bag, Tote Bag.
-  - Formulate precise product_name: e.g. "Prada Saffiano Leather Triangle Logo Bifold Wallet", "Prada Saffiano Metal Zip Around Long Continental Wallet Black", "Louis Vuitton Monogram Sarah Long Wallet", "Gucci GG Supreme Continental Wallet".
-  - Realistic Resale Pricing: Authentic designer wallets in pre-owned good condition typically range $180 - $480 AUD (bags $350 - $1200+ AUD).
+MANDATORY STRUCTURED EXTRACTION REQUIREMENTS (STRICT SCHEMA):
+1. ACCURATE BRAND IDENTIFICATION:
+- Identify the EXACT brand (e.g. "Carhartt", "Prada", "Nike", "Sony", "Nintendo", "Lego", "TP-Link", "Patagonia", "Bose").
+- Transcribe ALL visible text, tags, model numbers, care labels, serial codes, and hallmarks verbatim into "visual_reasoning.visible_text_detected".
+- If no brand logo, hallmark, tag, or stamp is visible, output brand as null or generic description.
+- LUXURY & DESIGNER GOODS: Inspect visible hardware, logos, and emblems (e.g., triangular metal enamel plaque "PRADA MILANO", gold/silver lettering, interlocking monogram, embossed leather stamps).
+- NETWORKING & HARDWARE: Read visible brand stamps and model numbers (e.g., TP-Link, Archer, RE305). NEVER misidentify networking devices or USB dongles as vapes.
+- COMMODITY / UNBRANDED ITEMS: Identify accurately as generic (e.g., "Ceramic Coffee Mug White 350ml"). Do NOT hallucinate high-end collector brands.
 
-- SNEAKERS & STREETWEAR (Nike, Jordan, Yeezy, Adidas, Supreme, Stussy, Bape):
-  - Identify specific model, silhouette, and colorway (e.g. "Nike Dunk Low Retro Panda", "Air Jordan 4 Military Black").
+2. ITEM TYPE, SILHOUETTE & CATEGORY:
+- Identify the precise silhouette (e.g., "Detroit Duck Canvas Jacket", "Saffiano Leather Triangle Logo Bifold Wallet", "Cyber-shot DSC-W350 Digital Camera", "Air Jordan 4 Retro").
+- Accurately assign "category" (e.g., "Clothing", "Electronics", "Luxury Accessories", "Shoes", "Collectibles").
 
-- VINTAGE DIGICAMS & TECH (Sony Cyber-shot, Canon PowerShot, Olympus, Nintendo):
-  - Read visible model badges on the front or top plate (e.g. "Sony Cyber-shot DSC-W350 Digital Camera").
+3. HONEST CONDITION, WEAR & FLAW INSPECTION:
+- Inspect visible condition: collar grime, fabric fading, distress, moth holes, heel drag, screen scratches, or clean pre-owned status.
+- Put every observed flaw explicitly in "defect_notes" (e.g. ["Fading along collar edge", "Surface scuff near bottom corner"]).
+- Set "inventory_condition": "used_working", "refurbished", "untested", or "faulty_for_parts".
 
-- NETWORKING & ELECTRONIC HARDWARE (TP-Link, Netgear, Linksys, Cisco, Belkin, Anker, Apple, Sony, Nintendo, Logitech):
-  - Read visible brand stamps and model numbers (e.g., "TP-Link", "tp-link", "Archer", "N300", "AC1200", "Deco", "RE305").
-  - Accurately categorize networking equipment (Wi-Fi extender, router, network switch, powerline adapter, USB Wi-Fi dongle, smart plug).
-  - NEVER misidentify networking devices, USB dongles, or electronic plugs as "electronic cigarettes" or "vapes".
+4. ESTIMATED SOLD PRICE (AUD):
+- Provide realistic pre-owned secondary market sold comps: suggested_price_min, suggested_price_max, and suggested_price_median.
+- Common mass-market/generic items: $3 - $20 AUD. Realistic authentic designer wallets: $180 - $480 AUD.
 
-- FOR COMMON HOUSEHOLD OR UNBRANDED ITEMS (e.g. coffee mug, water bottle, phone case, generic t-shirt, desk fan):
-  - Identify it accurately as what it actually is (e.g. "Ceramic Coffee Mug White 350ml", "Stainless Steel Kitchen Tongs").
-  - Do NOT hallucinate high-end collector brands unless clearly visible.
-  - Price realistically ($3 - $20 AUD for generic goods).
-- If the item is blurry, empty, or genuinely unidentifiable, mark "status": "unidentified" rather than making a wild guess.
+5. BLURRY / NO-TAG RETAKE DETECTOR (DYNAMIC CAMERA GUIDANCE):
+- If the photo is blurry, out-of-focus, low-resolution, has extreme glare, or lacks a visible brand tag, size label, or hallmark required to establish confident valuation (>90% certainty):
+  DO NOT guess low-confidence valuations. Set:
+  "retake_recommended": {
+    "required": true,
+    "angle_type": "tag" | "hardware" | "material" | "focus" | "overall",
+    "reason": "Specific issue (e.g., 'Care tag and brand label not visible' or 'Hardware engraving is blurred')",
+    "prompt_label": "Direct action prompt (e.g., '📸 Snap Collar Tag for 100% Comp Accuracy')"
+  }
+- If the item is clearly in focus with verifiable attributes, set "retake_recommended": null.
 
-2. PROFESSIONAL HIGH-VOLUME EBAY SELLER COPYWRITING (STRICT EDITORIAL FILTER):
-- "market_titles.ebay": Max 80 characters. High-converting reseller structure:
-  Format: [Brand] [Model/Style] [Key Color/Material] [Size/Attribute] [Condition]
-  Example: "Prada Saffiano Leather Triangle Logo Bifold Wallet Black Authentic"
-  NEVER repeat words. NO punctuation clutter, no fake emojis.
+6. PROFESSIONAL HIGH-VOLUME EBAY SELLER COPYWRITING (STRICT EDITORIAL FILTER):
+- "market_titles.ebay": Max 80 characters. Format: [Brand] [Model/Style] [Key Color/Material] [Size/Attribute] [Condition]. NO punctuation clutter, no fake emojis.
 - "market_titles.facebook_marketplace": Clean, friendly, and local-buyer readable.
 - "market_titles.depop": Trendy lowercase aesthetic with 3-4 relevant hashtags.
-- "seo_description" & "detailed_description": You are a professional, high-volume eBay seller. Write a short, punchy, buyer-facing product description based on the provided raw data adhering strictly to these rules:
-  • STRICT RULE 1 (CONDITION IS KING): Never state an item is 'brand new' unless it is explicitly marked as 'New' (sealed/with tags). If the data suggests the item is from liquidation, faulty, or untested, state 'Condition: Untested/Faulty - Please review all photos' immediately in the first line.
-  • STRICT RULE 2 (FILTER SENSITIVE DATA): You MUST completely remove any internal analytics from the final output. Do NOT include 'ROI', 'True Net Profit', 'Cost', 'Sourced via', 'Spadas Lens', or thrift store buy costs.
-  • STRICT RULE 3 (NO FLUFF): Do not use generic AI marketing buzzwords like 'Elevate', 'Exquisite', or 'Must-have'. Keep it strictly factual.
-  • FORMAT INSTRUCTIONS: Output a clean, buyer-facing description starting with one brief introductory sentence, followed by 3 to 4 bullet points covering:
-    - Brand: [Exact Brand]
-    - Model: [Model / Style Name or Code]
-    - Material / Color: [Material and/or Colorway]
-    - Condition: [Exact honest Condition, operational status, or callout]
-  Plain clean text only.`,
+- "seo_description" & "detailed_description": Professional eBay seller description:
+  • STRICT RULE 1 (CONDITION IS KING): Never state 'brand new' unless sealed/with tags. If liquidation or untested, state 'Condition: Untested/Faulty - Please review all photos' immediately in first line.
+  • STRICT RULE 2 (FILTER SENSITIVE DATA): Completely remove internal analytics ('ROI', 'Cost', 'Spadas Lens', thrift buy costs).
+  • STRICT RULE 3 (NO FLUFF): Zero generic AI marketing buzzwords ('Elevate', 'Exquisite', 'Must-have'). Plain clean text only.`,
                   },
                   ...imageContent,
                 ],
@@ -408,6 +427,90 @@ ${modePrompt}
 
     let activeProvider = "openai-vision";
 
+    // ── MULTI-MODEL CONSENSUS & ARBITRATION (OpenAI Vision + Gemini Flash) ──
+    if (result && hasGeminiVisionKey() && imageUrls.length > 0) {
+      const openAiBrand = result.analysis?.brand || "";
+      const shouldRunConsensus =
+        mode === "deep" ||
+        result.analysis?.confidence !== "high" ||
+        (result.analysis?.confidence_score ?? 1) < 0.95 ||
+        Boolean(openAiBrand);
+
+      if (shouldRunConsensus) {
+        try {
+          const geminiResult = await callGeminiVision(imageUrls[0]);
+          if (geminiResult && geminiResult.analysis?.product_name) {
+            const geminiBrand = geminiResult.analysis?.brand || "";
+
+            // Check if models disagree on brand identification by a wide margin
+            if (brandsDisagree(openAiBrand, geminiBrand)) {
+              console.log(
+                `[Consensus] Brand disagreement detected: OpenAI="${openAiBrand}" vs Gemini="${geminiBrand}". Initiating OCR & live comps arbitration...`
+              );
+
+              // 1. Gather OCR keywords from both visual analyses
+              const ocrWords = Array.from(
+                new Set([
+                  ...(result.analysis?.visual_reasoning?.visible_text_detected || []),
+                  ...(geminiResult.analysis?.visual_reasoning?.visible_text_detected || []),
+                ])
+              ).filter(Boolean);
+
+              const ocrTextCombined = ocrWords.join(" ").toLowerCase();
+              const b1Match = openAiBrand && ocrTextCombined.includes(openAiBrand.toLowerCase());
+              const b2Match = geminiBrand && ocrTextCombined.includes(geminiBrand.toLowerCase());
+
+              if (b1Match && !b2Match) {
+                console.log(`[Consensus] OpenAI brand "${openAiBrand}" confirmed via direct tag/hardware OCR match.`);
+              } else if (b2Match && !b1Match) {
+                console.log(`[Consensus] Gemini brand "${geminiBrand}" confirmed via direct tag/hardware OCR match.`);
+                result = geminiResult;
+                activeProvider = "gemini-consensus";
+              } else {
+                // 2. Query live eBay sold comps API specifically using extracted OCR keywords
+                const ocrKeywords = ocrWords.slice(0, 3).join(" ");
+                const qA = `${openAiBrand} ${ocrKeywords}`.trim();
+                const qB = `${geminiBrand} ${ocrKeywords}`.trim();
+
+                const [compsA, compsB] = await Promise.all([
+                  fetchEbayAustraliaSoldComps(qA, (body.currency as SupportedCurrency) || "AUD"),
+                  fetchEbayAustraliaSoldComps(qB, (body.currency as SupportedCurrency) || "AUD"),
+                ]);
+
+                const countA = compsA?.count || 0;
+                const countB = compsB?.count || 0;
+
+                if (countA > countB && countA > 0) {
+                  console.log(`[Consensus] eBay sold comps verified OpenAI brand "${openAiBrand}" (${countA} comps vs ${countB}).`);
+                } else if (countB > countA && countB > 0) {
+                  console.log(`[Consensus] eBay sold comps verified Gemini brand "${geminiBrand}" (${countB} comps vs ${countA}).`);
+                  result = geminiResult;
+                  activeProvider = "gemini-consensus";
+                } else {
+                  // 3. Ambiguity persists - dynamically prompt user to snap secondary angle rather than low-confidence guessing
+                  console.log(`[Consensus] Brand disagreement unresolved (${openAiBrand} vs ${geminiBrand}) — prompting for secondary angle.`);
+                  if (result.analysis) {
+                    result.analysis.confidence = "medium";
+                    result.analysis.confidence_score = 0.65;
+                    result.analysis.retake_recommended = {
+                      required: true,
+                      angle_type: "tag",
+                      reason: `Disputed brand between ${openAiBrand} and ${geminiBrand}. Tag or hallmark close-up required for verification.`,
+                      prompt_label: "📸 Snap Brand Tag to Confirm Brand",
+                    };
+                  }
+                  result.retake_recommended = result.analysis?.retake_recommended;
+                }
+              }
+            }
+          }
+        } catch (consensusErr) {
+          console.warn("[Consensus] Multi-model consensus warning:", consensusErr);
+        }
+      }
+    }
+
+    // Fallback to Gemini if OpenAI yielded no result
     if (!result && imageUrls.length > 0) {
       try {
         const geminiResult = await callGeminiVision(imageUrls[0]);
@@ -492,6 +595,9 @@ ${modePrompt}
 
     (result as any).provider = activeProvider;
     (result as any).suggested_price_currency = targetCurrency;
+    if (!result.retake_recommended && result.analysis?.retake_recommended) {
+      result.retake_recommended = result.analysis.retake_recommended;
+    }
 
     // GROUNDING VALIDATOR: Only discard if genuinely no physical item or empty sentinel
     const rawProdName = (result.analysis?.product_name || (result as any).product_name || "").trim();

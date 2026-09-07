@@ -1,5 +1,14 @@
 import type { AiListingResult } from "@/types/ai-listing";
 
+export function hasGeminiVisionKey(): boolean {
+  const apiKey =
+    process.env.GEMINI_API_KEY ||
+    process.env.GOOGLE_GEMINI_KEY ||
+    process.env.GOOGLE_AI_KEY ||
+    process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+  return Boolean(apiKey && apiKey.length > 10 && !apiKey.includes("placeholder"));
+}
+
 /**
  * Google Gemini Multimodal Vision & Resale Research Engine
  * Directly performs deep visual identification, eBay/Depop resale pricing research,
@@ -40,35 +49,43 @@ export async function callGeminiVision(
       "gemini-1.5-pro",
     ];
 
-    const promptText = `You are the world's most capable AI reseller research assistant, luxury authenticator, and marketplace appraiser for eBay Australia, Depop, Grailed, and Poshmark.
-
-A reseller has taken a photo of an item in a thrift store, garage sale, or studio and asked you:
-"WHAT EXACTLY IS THIS ITEM, HOW MUCH CAN IT RESELL FOR IN AUD, AND GENERATE A COMPLETE RESELLER LISTING FOR IT."
+    const promptText = `You are an expert reseller appraiser, luxury authenticator, and marketplace copywriter for eBay Australia, Depop, and Grailed.
 
 PERFORM THOROUGH VISUAL IDENTIFICATION & SECONDARY MARKET RESEARCH:
 
-1. EXACT PRODUCT IDENTIFICATION (Inspect the image forensically):
-- Brand: Identify the exact brand (e.g. Nike, Jordan, Prada, Gucci, Sony, Nintendo, Lego, Carhartt, The North Face, Ralph Lauren, Apple, Bose, Pokemon, Canon, etc.).
-- Model / Silhouette: Identify the exact model name, edition, style code, or silhouette (e.g. "Air Jordan 4 Military Black", "Prada Saffiano Triangle Bifold Wallet", "Sony Cyber-shot DSC-W350", "Pokemon HeartGold Version Nintendo DS").
-- Material & Colorway: e.g. "Saffiano Leather / Black", "Leather & Suede / Olive", "Canvas / Monogram".
-- Era / Vintage Check: Pre-1996 single stitch, Y2K CCD sensor tech, early 2000s streetwear, modern retail.
-- Visible Condition: Inspect for scuffs, heel drag, collar fading, screen scratches, or clean pre-owned status.
+1. EXACT PRODUCT & BRAND IDENTIFICATION (FORENSIC OCR & LOGO INSPECTION):
+- Read every visible word, brand stamp, care label, serial number, or typography via OCR.
+- Brand: Identify the exact brand (e.g., Nike, Jordan, Prada, Gucci, Sony, Nintendo, Carhartt, The North Face, Ralph Lauren, Apple, Bose, TP-Link, Canon).
+- Model / Silhouette: Identify the exact model name, edition, style code, or silhouette (e.g. "Air Jordan 4 Military Black", "Prada Saffiano Triangle Bifold Wallet", "Sony Cyber-shot DSC-W350").
+- Material & Colorway: e.g. "Saffiano Leather / Black", "Duck Canvas / Carhartt Brown", "Monogram Coated Canvas".
 
-2. SECONDARY RESALE MARKET VALUATION (AUD):
+2. CONDITION, WEAR & HONEST FLAW INSPECTION:
+- Inspect visible condition: collar fading, moth holes, distress, heel drag, screen scratches, or clean pre-owned status.
+- Put every observed flaw in "defect_notes".
+- Set "inventory_condition": "used_working", "refurbished", "untested", or "faulty_for_parts".
+
+3. SECONDARY RESALE MARKET VALUATION (AUD):
 - Calculate realistic pre-owned market sold comps on eBay Australia & Depop.
 - "suggested_price_min": Conservative quick-sale floor price in AUD.
 - "suggested_price_max": High-end collector peak price in AUD.
 - "suggested_price_median": Fair market target listing price in AUD.
-- (If common household grocery/mug/cable, price realistically at $5 - $20 AUD. If luxury/collector, price at true market value).
+- Generic household items: $3 - $20 AUD. Do NOT hallucinate luxury comps on unbranded items.
 
-3. HIGH-CONVERTING RESELLER TITLES & COPYWRITING:
-- "market_titles.ebay": Max 80 characters. High-SEO keyword density format: [Brand] [Model/Style] [Key Color/Material] [Size/Edition] [Condition]. NO punctuation clutter, no fake emojis.
-- "market_titles.facebook_marketplace": Clean, friendly local title (e.g. "Prada Saffiano Leather Bifold Wallet - Great Condition").
-- "market_titles.depop": Trendy lowercase style with 3-4 viral hashtags (e.g. "prada saffiano leather triangle logo bifold wallet #prada #luxury #designer #vintage").
-- "seo_description" & "detailed_description": You are a professional, high-volume eBay seller. Output a clean, buyer-facing description starting with one brief introductory sentence, followed by 3 to 4 bullet points covering Brand, Model, Material/Color, and exact Condition:
-  • STRICT RULE 1 (CONDITION IS KING): Never state an item is 'brand new' unless explicitly marked as 'New'. If data suggests liquidation, faulty, or untested, state 'Condition: Untested/Faulty - Please review all photos' immediately in the first line.
-  • STRICT RULE 2 (FILTER SENSITIVE DATA): Completely remove any internal analytics from the output. Do NOT include 'ROI', 'True Net Profit', 'Cost', 'Sourced via', 'Spadas Lens', or thrift buy costs.
-  • STRICT RULE 3 (NO FLUFF): Zero generic AI marketing buzzwords ('Elevate', 'Exquisite', 'Must-have'). Keep strictly factual. Plain text only.
+4. RETAKE RECOMMENDATION (BLURRY / NO-TAG DETECTOR):
+- If the image is blurry, out of focus, or tags/hallmarks are obscured/missing preventing high-confidence valuation:
+  Set "retake_recommended": {
+    "required": true,
+    "angle_type": "tag" | "hardware" | "material" | "focus" | "overall",
+    "reason": "Clear explanation of what is missing",
+    "prompt_label": "User-facing prompt (e.g. '📸 Snap Collar Tag for 100% Accuracy')"
+  }
+- If clear and confident, set "retake_recommended": null.
+
+5. HIGH-CONVERTING RESELLER TITLES & COPYWRITING:
+- "market_titles.ebay": Max 80 characters. Format: [Brand] [Model/Style] [Key Color/Material] [Size/Edition] [Condition]. NO emojis.
+- "market_titles.facebook_marketplace": Clean, friendly local title.
+- "market_titles.depop": Trendy lowercase style with 3-4 hashtags.
+- "seo_description" & "detailed_description": Professional eBay seller description: brief intro sentence + bullet points for Brand, Model, Material/Color, and Condition. No fluff buzzwords.
 
 Return ONLY a valid JSON object matching this structure (no markdown formatting, no code block backticks):
 {
@@ -87,6 +104,13 @@ Return ONLY a valid JSON object matching this structure (no markdown formatting,
     }
   ],
   "analysis": {
+    "status": "identified",
+    "visual_reasoning": {
+      "visible_text_detected": ["OCR_WORD_1", "OCR_WORD_2"],
+      "physical_object_description": "Physical description of item",
+      "brand_identified": "Brand",
+      "identification_reasoning": "Reasoning based on visual features"
+    },
     "product_name": "Exact Brand + Model Name",
     "brand": "Brand",
     "model": "Model",
@@ -96,7 +120,8 @@ Return ONLY a valid JSON object matching this structure (no markdown formatting,
     "condition": "Used - Good",
     "accessories_detected": [],
     "confidence": "high",
-    "confidence_score": 0.98
+    "confidence_score": 0.98,
+    "retake_recommended": null
   },
   "market_titles": {
     "ebay": "Brand Model Colorway Key Attributes Clean SEO Title",
@@ -105,24 +130,25 @@ Return ONLY a valid JSON object matching this structure (no markdown formatting,
     "depop": "brand model colorway #brand #style #vintage #resale"
   },
   "seo_description": "Short SEO summary for search crawlers.",
-  "detailed_description": "Paragraph 1: Item overview and specifications.\\n\\nParagraph 2: Honest condition report.\\n\\nParagraph 3: Fast dispatch and secure packaging.",
+  "detailed_description": "Authentic item overview.\\n\\n• Brand: Brand\\n• Model: Model\\n• Material/Color: Material\\n• Condition: Honest condition report.",
   "shipping_estimate": {
     "size": "small",
     "estimated_weight_grams": 350,
     "dimensions_cm": { "length": 20, "width": 15, "height": 5 },
     "notes": "Standard trackable parcel dispatch from Australia"
   },
-  "item_specifics": {
-    "Brand": "Brand",
-    "Model": "Model",
-    "Type": "Category",
-    "Condition": "Used - Good"
-  },
+  "item_specifics": [
+    { "name": "Brand", "value": "Brand" },
+    { "name": "Model", "value": "Model" },
+    { "name": "Type", "value": "Category" },
+    { "name": "Condition", "value": "Used - Good" }
+  ],
   "suggested_keywords": ["keyword1", "keyword2", "keyword3"],
   "suggested_price_min": 50,
   "suggested_price_max": 120,
   "suggested_price_median": 85,
-  "suggested_price_currency": "AUD"
+  "suggested_price_currency": "AUD",
+  "retake_recommended": null
 }`;
 
     for (const modelName of modelsToTry) {

@@ -17,6 +17,7 @@ import {
   MAX_GUEST_SCANS,
   type GuestScanState,
 } from "@/lib/guest-scan-tracker";
+import { processFrameForVision } from "@/lib/image-preprocessor";
 
 export function SpadasSnapStudio() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -28,6 +29,12 @@ export function SpadasSnapStudio() {
   const [facingMode, setFacingMode] = useState<"environment" | "user">("environment");
   const [listingResult, setListingResult] = useState<SpadasListingData | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [retakePrompt, setRetakePrompt] = useState<{
+    required: boolean;
+    angleType: string;
+    reason: string;
+    promptLabel: string;
+  } | null>(null);
 
   // Guest Scan State
   const [isGuestUser, setIsGuestUser] = useState<boolean>(true);
@@ -161,25 +168,33 @@ export function SpadasSnapStudio() {
     const video = videoRef.current;
     if (!video) return;
 
-    const fullW = video.videoWidth || video.clientWidth || 640;
-    const fullH = video.videoHeight || video.clientHeight || 480;
+    try {
+      const preprocessed = processFrameForVision(video, { boostContrast: true, maxDimension: 1200 });
+      const dataUrl = preprocessed.fullDataUrl;
 
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.min(1200, fullW);
-    canvas.height = Math.round((fullH * canvas.width) / fullW);
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    ctx.drawImage(video, 0, 0, fullW, fullH, 0, 0, canvas.width, canvas.height);
-    const dataUrl = canvas.toDataURL("image/jpeg", 0.88);
-
-    if (dataUrl && dataUrl.length > 2000) {
-      setCapturedPhotos((prev) => [...prev, dataUrl]);
-      if (typeof navigator !== "undefined" && navigator.vibrate) {
-        navigator.vibrate(60);
+      if (dataUrl && dataUrl.length > 2000) {
+        setCapturedPhotos((prev) => [...prev, dataUrl]);
+        setRetakePrompt(null);
+        if (typeof navigator !== "undefined" && navigator.vibrate) {
+          navigator.vibrate(60);
+        }
+        toast.success(`Photo ${capturedPhotos.length + 1} captured!`, { duration: 1200 });
       }
-      toast.success(`Photo ${capturedPhotos.length + 1} captured!`, { duration: 1200 });
+    } catch (err) {
+      console.warn("[Snap Studio] Preprocessing fallback:", err);
+      const fullW = video.videoWidth || video.clientWidth || 640;
+      const fullH = video.videoHeight || video.clientHeight || 480;
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.min(1200, fullW);
+      canvas.height = Math.round((fullH * canvas.width) / fullW);
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      ctx.drawImage(video, 0, 0, fullW, fullH, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.88);
+      if (dataUrl && dataUrl.length > 2000) {
+        setCapturedPhotos((prev) => [...prev, dataUrl]);
+        toast.success(`Photo ${capturedPhotos.length + 1} captured!`, { duration: 1200 });
+      }
     }
   };
 
@@ -244,6 +259,21 @@ export function SpadasSnapStudio() {
       const data = await res.json().catch(() => null);
 
       if (data) {
+        const rec = data?.retake_recommended || data?.analysis?.retake_recommended;
+        if (rec?.required) {
+          setRetakePrompt({
+            required: true,
+            angleType: rec.angle_type || "tag",
+            reason: rec.reason || "Secondary angle needed for accurate valuation",
+            promptLabel: rec.prompt_label || "📸 Snap Collar Tag or Hardware Detail for 100% Comp Accuracy",
+          });
+          toast.warning(rec.prompt_label || "📸 Snap a secondary angle (fabric, tag, or hardware) for 100% accuracy!", {
+            duration: 6000,
+          });
+        } else {
+          setRetakePrompt(null);
+        }
+
         const rawPName =
           data?.analysis?.product_name ||
           data?.detected_objects?.[0]?.product_name ||
@@ -403,6 +433,43 @@ export function SpadasSnapStudio() {
             <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-white/80 rounded-br-xl" />
           </div>
         </div>
+
+        {/* Dynamic Secondary Angle HUD Banner */}
+        {retakePrompt?.required && (
+          <div className="absolute top-4 inset-x-4 z-30 animate-in fade-in slide-in-from-top duration-300 pointer-events-auto">
+            <div className="bg-amber-950/95 border-2 border-amber-500/90 rounded-2xl p-3.5 backdrop-blur-xl shadow-2xl flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center shrink-0">
+                  <Camera className="w-5 h-5 text-amber-400 animate-pulse" />
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-amber-400">
+                      Secondary Angle Needed
+                    </span>
+                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono uppercase">
+                      {retakePrompt.angleType}
+                    </span>
+                  </div>
+                  <p className="text-xs font-semibold text-amber-100 truncate">
+                    {retakePrompt.promptLabel}
+                  </p>
+                  <p className="text-[11px] text-amber-300/80 truncate">
+                    {retakePrompt.reason}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleSnapPhoto}
+                className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shrink-0 shadow-lg transition active:scale-95 flex items-center gap-1.5 cursor-pointer"
+              >
+                <Camera className="w-3.5 h-3.5" />
+                Snap
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Dynamic Instructional Tooltip Card */}
         <div className="absolute bottom-6 inset-x-4 z-20 pointer-events-none text-center">

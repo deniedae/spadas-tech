@@ -51,6 +51,13 @@ export const VisualReasoningSchema = z.object({
     .describe("Step-by-step reasoning explaining why this exact item is identified based on the visual evidence"),
 });
 
+export const RetakeRecommendationSchema = z.object({
+  required: z.boolean().describe("True if photo is blurry, collar tag/hallmark is missing or illegible, or details are insufficient for confident comp valuation"),
+  angle_type: z.enum(["tag", "hardware", "material", "focus", "overall"]).describe("Specific angle needed to achieve 100% comp accuracy"),
+  reason: z.string().describe("Specific reason secondary angle is required, e.g. 'Collar tag not visible' or 'Hardware engraving blurred'"),
+  prompt_label: z.string().describe("Direct user guidance string, e.g. '📸 Snap Collar Tag for 100% Comp Accuracy'"),
+});
+
 export const ProductAnalysisSchema = z.object({
   status: z
     .enum(["identified", "unidentified"])
@@ -69,6 +76,7 @@ export const ProductAnalysisSchema = z.object({
   accessories_detected: z.array(z.string()),
   confidence: z.enum(["high", "medium", "low"]),
   confidence_score: z.number(),
+  retake_recommended: RetakeRecommendationSchema.nullable().optional(),
 });
 
 export const MarketTitlesSchema = z.object({
@@ -134,6 +142,7 @@ export const AiListingResultSchema = z.object({
   suggested_price_currency: z.string(),
   sales_velocity: SalesVelocitySchema.nullable(),
   future_grail: FutureGrailSchema.nullable(),
+  retake_recommended: RetakeRecommendationSchema.nullable().optional(),
 });
 
 export type GenerateListingSchemaType = z.infer<typeof GenerateListingSchema>;

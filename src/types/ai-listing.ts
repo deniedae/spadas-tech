@@ -3,6 +3,13 @@
 
 export type Confidence = "high" | "medium" | "low";
 
+export interface RetakeRecommendation {
+  required: boolean;
+  angle_type: "tag" | "hardware" | "material" | "focus" | "overall";
+  reason: string;
+  prompt_label: string;
+}
+
 export interface VisualReasoning {
   visible_text_detected: string[];
   physical_object_description: string;
@@ -24,6 +31,7 @@ export interface ProductAnalysis {
   accessories_detected: string[];
   confidence: Confidence;
   confidence_score: number; // 0..1
+  retake_recommended?: RetakeRecommendation | null;
 }
 
 /** Marketplace-specific generated copy. */
@@ -99,6 +107,7 @@ export interface AiListingResult {
   roi_percentage?: number;
   cop_verdict?: CopVerdict;
   isMockFallback?: boolean;
+  retake_recommended?: RetakeRecommendation | null;
   detected_objects?: Array<{
     id: string;
     product_name: string | null;

@@ -63,6 +63,7 @@ import { RapidThriftDrawer } from "@/components/rapid-thrift-drawer";
 import { calculateSalesVelocity } from "@/lib/turnover-velocity-engine";
 import type { DetectedHit, ActiveScanItem } from "@/types/lens";
 export type { DetectedHit, ActiveScanItem } from "@/types/lens";
+import { processFrameForVision } from "@/lib/image-preprocessor";
 
 // Catch-All React Error Boundary for Live Camera & Hit List Stability
 interface ErrorBoundaryProps {
@@ -238,6 +239,13 @@ function SpadasLensCameraCore() {
     retryAfter?: number;
   }>({ type: null });
   const [cameraMoving, setCameraMoving] = useState<boolean>(false);
+  const [retakeRecommendation, setRetakeRecommendation] = useState<{
+    required: boolean;
+    angleType: string;
+    reason: string;
+    promptLabel: string;
+  } | null>(null);
+  const [secondaryImagePayload, setSecondaryImagePayload] = useState<string | null>(null);
   const [isPaywallOpen, setIsPaywallOpen] = useState<boolean>(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(false);
   const [activeEbayItem, setActiveEbayItem] = useState<any | null>(null);
@@ -1487,55 +1495,28 @@ function SpadasLensCameraCore() {
       let centerCropDataUrl = "";
 
       if (video) {
-        const fullWidth = video.videoWidth || video.clientWidth || 640;
-        const fullHeight = video.videoHeight || video.clientHeight || 480;
-
-        if (fullWidth > 0 && fullHeight > 0) {
-          // 1. Clean 1200px High-Res Full Frame Capture
-          const maxDim = 1200;
-          let targetW = fullWidth;
-          let targetH = fullHeight;
-
-          if (fullWidth >= fullHeight) {
-            targetW = Math.min(maxDim, fullWidth);
-            targetH = Math.round((fullHeight * targetW) / fullWidth);
-          } else {
-            targetH = Math.min(maxDim, fullHeight);
-            targetW = Math.round((fullWidth * targetH) / fullHeight);
-          }
-
+        try {
+          const preprocessed = processFrameForVision(video, {
+            cropFactor: 0.65,
+            boostContrast: true,
+            maxDimension: 1200,
+          });
+          frameDataUrl = preprocessed.fullDataUrl;
+          centerCropDataUrl = preprocessed.enhancedCropDataUrl;
+        } catch (prepErr) {
+          console.warn("[Spadas Lens] Preprocessing fallback:", prepErr);
+          const fullWidth = video.videoWidth || video.clientWidth || 640;
+          const fullHeight = video.videoHeight || video.clientHeight || 480;
           if (!offscreenCanvasRef.current) {
             offscreenCanvasRef.current = document.createElement("canvas");
           }
           const canvas = offscreenCanvasRef.current;
-          canvas.width = targetW;
-          canvas.height = targetH;
-          const ctx = canvas.getContext("2d", { willReadFrequently: true });
+          canvas.width = fullWidth;
+          canvas.height = fullHeight;
+          const ctx = canvas.getContext("2d");
           if (ctx) {
-            ctx.imageSmoothingEnabled = true;
-            ctx.imageSmoothingQuality = "high";
-            ctx.drawImage(video, 0, 0, fullWidth, fullHeight, 0, 0, targetW, targetH);
+            ctx.drawImage(video, 0, 0, fullWidth, fullHeight);
             frameDataUrl = canvas.toDataURL("image/jpeg", 0.88);
-          }
-
-          // 2. High-Detail Laser Center Crop (Target Reticle Area: Center 65% x 65%)
-          const cropW = Math.round(fullWidth * 0.65);
-          const cropH = Math.round(fullHeight * 0.65);
-          const cropX = Math.round((fullWidth - cropW) / 2);
-          const cropY = Math.round((fullHeight - cropH) / 2);
-
-          if (!cropCanvasRef.current) {
-            cropCanvasRef.current = document.createElement("canvas");
-          }
-          const cropCanvas = cropCanvasRef.current;
-          cropCanvas.width = 800;
-          cropCanvas.height = 800;
-          const cropCtx = cropCanvas.getContext("2d", { willReadFrequently: true });
-          if (cropCtx) {
-            cropCtx.imageSmoothingEnabled = true;
-            cropCtx.imageSmoothingQuality = "high";
-            cropCtx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, 800, 800);
-            centerCropDataUrl = cropCanvas.toDataURL("image/jpeg", 0.90);
           }
         }
       }
@@ -1573,7 +1554,10 @@ function SpadasLensCameraCore() {
         setIsScanPaused(true);
       }
 
-      const imagePayloads = [snapshotImage];
+      let imagePayloads = [snapshotImage];
+      if (secondaryImagePayload && secondaryImagePayload !== snapshotImage) {
+        imagePayloads = [secondaryImagePayload, snapshotImage];
+      }
 
       let res: Response | null = null;
       console.log('[Spadas Lens]', cycleId, 'Starting resilient fetch for frame with analyzingRealFrame:', analyzingRealFrame);
@@ -1725,6 +1709,24 @@ function SpadasLensCameraCore() {
         toast.success(`📶 Autonomous Appraisal: ${offlineAppraisal.productName} (+${fmtMoney(offlineAppraisal.trueNetProfit)} Net)`);
         setAnalyzingRealFrame(false);
         return;
+      }
+
+      const rec = data?.retake_recommended || data?.analysis?.retake_recommended;
+      if (rec?.required) {
+        setRetakeRecommendation({
+          required: true,
+          angleType: rec.angle_type || "tag",
+          reason: rec.reason || "Secondary angle needed for accurate valuation",
+          promptLabel: rec.prompt_label || "📸 Snap Collar Tag or Detail Angle for 100% Accuracy",
+        });
+        setSecondaryImagePayload(snapshotImage);
+        toast.warning(rec.prompt_label || "📸 Snap Collar Tag or Hardware Detail for 100% Accuracy", {
+          id: "retake-guidance",
+          duration: 6000,
+        });
+      } else {
+        setRetakeRecommendation(null);
+        setSecondaryImagePayload(null);
       }
 
       // Hard check: if unidentified, stay clean without inserting placeholder cards or fake prices
@@ -3254,6 +3256,45 @@ function SpadasLensCameraCore() {
         forceOpen={isOnboardingOpen}
         onDismiss={() => setIsOnboardingOpen(false)}
       />
+
+      {/* Dynamic Secondary Angle / Retake HUD Banner */}
+      {retakeRecommendation?.required && (
+        <div className="absolute top-24 left-4 right-4 z-50 animate-in fade-in slide-in-from-top duration-300 pointer-events-auto">
+          <div className="bg-amber-950/95 border-2 border-amber-500/90 rounded-2xl p-3.5 backdrop-blur-xl shadow-2xl flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center shrink-0">
+                <Camera className="w-5 h-5 text-amber-400 animate-pulse" />
+              </div>
+              <div className="flex flex-col min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-amber-400">
+                    Secondary Angle Needed
+                  </span>
+                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono uppercase">
+                    {retakeRecommendation.angleType}
+                  </span>
+                </div>
+                <p className="text-xs font-semibold text-amber-100 truncate">
+                  {retakeRecommendation.promptLabel}
+                </p>
+                <p className="text-[11px] text-amber-300/80 truncate">
+                  {retakeRecommendation.reason}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                setRetakeRecommendation(null);
+                void processCurrentFrame(true);
+              }}
+              className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shrink-0 shadow-lg transition active:scale-95 flex items-center gap-1.5"
+            >
+              <Camera className="w-3.5 h-3.5" />
+              Snap Angle
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
