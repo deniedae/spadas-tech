@@ -556,8 +556,8 @@ export function SpadasSnapStudio() {
         className="hidden"
       />
 
-      {/* Top Header Navigation */}
-      <header className="absolute top-0 inset-x-0 z-30 flex items-center justify-between p-4 bg-gradient-to-b from-black/80 to-transparent backdrop-blur-[2px]">
+      {/* Top Header Navigation with Safe-Area Inset */}
+      <header className="absolute top-0 inset-x-0 z-30 flex items-center justify-between px-4 pt-[max(1rem,calc(env(safe-area-inset-top,0px)+0.75rem))] pb-3 bg-gradient-to-b from-black/80 to-transparent backdrop-blur-[2px]">
         <button
           type="button"
           onClick={() => window.history.back()}

@@ -3250,7 +3250,7 @@ function SpadasLensCameraCore() {
   }, []);
 
   return (
-    <div className="spadas-lens-camera w-full max-w-full overflow-x-hidden box-border space-y-6 pb-24 mx-auto animate-fade-in touch-pan-y">
+    <div className="spadas-lens-camera w-full max-w-full overflow-x-hidden box-border space-y-6 pb-24 mx-auto animate-fade-in touch-pan-y pt-[max(0.5rem,calc(env(safe-area-inset-top,0px)+0.25rem))] sm:pt-0">
       {/* Video Viewport Container (Tap Anywhere to Focus or Snap) */}
       <div
         onClick={() => {
@@ -3310,8 +3310,8 @@ function SpadasLensCameraCore() {
               </div>
             )}
 
-            {/* Top HUD Bar: Dynamic Confidence Indicator & Camera Controls */}
-            <div className="absolute top-3.5 left-3.5 right-3.5 z-30 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
+            {/* Top HUD Bar: Dynamic Confidence Indicator, Credit Badge & Camera Controls with Safe-Area Insets */}
+            <div className="absolute top-[max(0.875rem,calc(env(safe-area-inset-top,0px)+0.75rem))] left-[max(0.875rem,env(safe-area-inset-left,0px))] right-[max(0.875rem,env(safe-area-inset-right,0px))] z-30 flex flex-wrap items-center justify-between gap-2 pointer-events-none transition-all">
               {/* Dynamic Real-Time Focus & AI Confidence Indicator */}
               <div className="inline-flex items-center gap-1.5 rounded-full bg-slate-950/90 border border-cyan-500/40 px-3.5 py-1 text-[11px] font-black text-cyan-300 shadow-xl backdrop-blur-md pointer-events-auto">
                 <div
@@ -3786,7 +3786,7 @@ function SpadasLensCameraCore() {
 
             {/* Offline Dead-Zone Signal Warning Banner */}
             {isOffline ? (
-              <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 w-[92%] max-w-md mx-auto pointer-events-none">
+              <div className="absolute top-[max(0.75rem,calc(env(safe-area-inset-top,0px)+0.75rem))] left-1/2 -translate-x-1/2 z-30 w-[92%] max-w-md mx-auto pointer-events-none">
                 <div className="flex items-center justify-center gap-2 rounded-xl bg-amber-500/95 backdrop-blur-md px-4 py-2 text-xs font-extrabold text-slate-950 shadow-2xl border border-amber-300/60 animate-pulse">
                   <WifiOff className="h-4 w-4 shrink-0 text-slate-950" />
                   <span>📶 Offline Dead-Zone Active — Camera Scanner Ready</span>
@@ -3796,7 +3796,7 @@ function SpadasLensCameraCore() {
 
             {/* Phase 4: Non-Alarming Scan Error State Banner */}
             {scanErrorState.type && !isOffline && (
-              <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 w-[92%] max-w-md mx-auto pointer-events-none">
+              <div className="absolute top-[max(0.75rem,calc(env(safe-area-inset-top,0px)+0.75rem))] left-1/2 -translate-x-1/2 z-30 w-[92%] max-w-md mx-auto pointer-events-none">
                 {scanErrorState.type === "rate_limit_user" && (
                   <div className="flex items-center gap-2 rounded-xl bg-amber-500/95 backdrop-blur-md px-4 py-2.5 text-xs font-extrabold text-slate-950 shadow-2xl border border-amber-300/60">
                     <Clock className="h-4 w-4 shrink-0" />
@@ -4072,8 +4072,8 @@ function SpadasLensCameraCore() {
         ) : (
           /* Camera Standby / Hardware Released View */
           <div className="relative flex h-full w-full flex-col items-center justify-center p-6 text-center space-y-4 text-white bg-slate-950/95">
-            {/* Standby Top HUD Bar */}
-            <div className="absolute top-3.5 left-3.5 right-3.5 z-30 flex items-center justify-between pointer-events-auto">
+            {/* Standby Top HUD Bar with Safe-Area Inset */}
+            <div className="absolute top-[max(0.875rem,calc(env(safe-area-inset-top,0px)+0.75rem))] left-[max(0.875rem,env(safe-area-inset-left,0px))] right-[max(0.875rem,env(safe-area-inset-right,0px))] z-30 flex items-center justify-between pointer-events-auto">
               <div className="inline-flex items-center gap-1.5 rounded-full bg-slate-900 border border-slate-700 px-3 py-1 text-[11px] font-bold text-slate-400 shadow-md">
                 <span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
                 <span>Camera Standby • Hardware Released</span>
@@ -4354,7 +4354,7 @@ function SpadasLensCameraCore() {
 
       {/* Compact Dismissible Secondary Angle / Retake HUD Floating Badge */}
       {retakeRecommendation?.required && (
-        <div className="absolute top-14 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-2rem)] max-w-md animate-in fade-in slide-in-from-top-2 duration-200 pointer-events-auto">
+        <div className="absolute top-[max(3.5rem,calc(env(safe-area-inset-top,0px)+3.5rem))] left-1/2 -translate-x-1/2 z-40 w-[calc(100%-2rem)] max-w-md animate-in fade-in slide-in-from-top-2 duration-200 pointer-events-auto">
           <div className="flex items-center justify-between gap-2.5 px-3 py-1.5 rounded-full bg-slate-950/90 border border-amber-500/60 shadow-[0_4px_24px_rgba(0,0,0,0.6)] backdrop-blur-xl text-amber-200">
             <button
               type="button"

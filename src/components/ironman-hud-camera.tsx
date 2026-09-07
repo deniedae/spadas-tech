@@ -576,8 +576,8 @@ export function IronmanHudCamera() {
         <div className="absolute inset-0 pointer-events-none opacity-20 bg-[linear-gradient(to_bottom,transparent_50%,rgba(6,182,212,0.25)_51%)] bg-[length:100%_4px]" />
 
         {/* ── 3. Outer HUD Telemetry Frame ───────────────────────────────────── */}
-        {/* Top Header Bar */}
-        <div className="absolute top-3 inset-x-3 flex items-center justify-between pointer-events-auto z-30">
+        {/* Top Header Bar with Safe-Area Inset */}
+        <div className="absolute top-[max(0.75rem,calc(env(safe-area-inset-top,0px)+0.75rem))] inset-x-3 flex items-center justify-between pointer-events-auto z-30">
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-950/80 backdrop-blur-md border border-cyan-500/50 shadow-lg shadow-cyan-500/20">
             <span className="flex h-2.5 w-2.5 relative">
               <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${isCameraActive && isScanning ? "bg-cyan-400" : "bg-zinc-600"} opacity-75`} />

@@ -82,7 +82,7 @@ export default function OwnerAiStatusBanner() {
   if (!isOwner) return null;
 
   return (
-    <div className="w-full bg-slate-950 text-white border-b border-slate-800 px-4 py-2.5 shadow-md">
+    <div className="w-full bg-slate-950 text-white border-b border-slate-800 px-4 pt-[max(0.625rem,calc(env(safe-area-inset-top)+0.5rem))] pb-2.5 shadow-md">
       <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3 text-xs">
         {/* Left Side: Owner ID & Real-Time Status */}
         <div className="flex items-center gap-3">

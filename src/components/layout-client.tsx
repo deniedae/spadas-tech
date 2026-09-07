@@ -261,14 +261,14 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
       >
         <FocusLock disabled={!isMobile || !sidebarOpen} className="flex-1 flex flex-col h-full">
           {/* Branding and close button */}
-          <div className="p-6 border-b border-slate-800 relative">
+          <div className="p-6 pt-[max(1.5rem,calc(env(safe-area-inset-top)+1rem))] border-b border-slate-800 relative">
             <h1 className="text-2xl font-black bg-gradient-to-r from-cyan-400 via-blue-400 to-indigo-400 bg-clip-text text-transparent select-none tracking-tight">⚡ Spadas AI</h1>
             <p className="mt-1 text-xs text-slate-400 select-none font-semibold">Billion-Dollar Reseller SaaS</p>
 
             {/* Close button only visible on mobile */}
             <button
               type="button"
-              className="absolute top-4 right-4 md:hidden p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-900 focus:outline-none transition-colors"
+              className="absolute top-[max(1rem,calc(env(safe-area-inset-top)+0.5rem))] right-4 md:hidden p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-900 focus:outline-none transition-colors"
               aria-label="Close sidebar"
               onClick={() => setSidebarOpen(false)}
             >
@@ -320,7 +320,7 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
         <OwnerAiStatusBanner />
 
         {/* Header (Hidden on mobile for /lens to provide native full-screen camera viewport) */}
-        <header className={`bg-slate-950/90 backdrop-blur-xl border-b border-slate-800 px-4 py-3 flex items-center justify-between md:px-8 md:py-4 shadow-xl ${
+        <header className={`bg-slate-950/90 backdrop-blur-xl border-b border-slate-800 px-4 pt-[max(0.75rem,calc(env(safe-area-inset-top)+0.5rem))] pb-3 flex items-center justify-between md:px-8 md:py-4 shadow-xl ${
           pathname === "/lens" ? "hidden md:flex" : "flex"
         }`}>
           {/* Mobile hamburger */}
@@ -370,8 +370,12 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
           </div>
         </header>
 
-        {/* Page content */}
-        <main className="flex-1 p-3 sm:p-4 md:p-8 pb-32 md:pb-8">
+        {/* Page content with safe-area padding when header is hidden on mobile */}
+        <main className={`flex-1 p-3 sm:p-4 md:p-8 pb-32 md:pb-8 ${
+          pathname === "/lens"
+            ? "pt-[max(0.75rem,calc(env(safe-area-inset-top)+0.25rem))] md:pt-8"
+            : ""
+        }`}>
           {children}
         </main>
 
