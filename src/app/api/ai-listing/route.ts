@@ -327,8 +327,8 @@ Perform deep OCR inspection of all text, brand logos, model plates, serial numbe
         : mode === "sweep"
         ? `SCAN MODE: MULTI-ITEM SCENE SCAN.
 Identify distinct physical products visible in the scene. If no distinct object is in frame, return product_name: "NO_CENTER_ITEM".`
-        : `SCAN MODE: TARGETED CENTER RETICLE FOCUS.
-Identify ONLY the single primary physical item positioned in the center target reticle (Image 1 is the high-res center crop). Disregard hands, table, floor, and room background.`;
+        : `SCAN MODE: TARGETED CENTER RETICLE FOCUS & MULTI-FRAME OPTICAL COMPOSITE.
+Identify ONLY the single primary physical item positioned in the center target reticle (Image 1 is a high-resolution composite synthesized from rapid consecutive frames pooled during movement to eliminate blur, with macro detail insets). Disregard hands, table, floor, and room background.`;
 
     // Try OpenAI Vision first if key is valid
     const hasOpenAiKey = getPrimaryAiApiKey().length > 10 && !getPrimaryAiApiKey().includes("placeholder");
@@ -351,6 +351,10 @@ Identify ONLY the single primary physical item positioned in the center target r
 ${modePrompt}
 
 MANDATORY STRUCTURED EXTRACTION REQUIREMENTS (STRICT SCHEMA):
+0. MULTI-FRAME OPTICAL COMPOSITE & MOTION BLUR ELIMINATION:
+- The input images feature an optical composite synthesized from rapid consecutive frames pooled when movement was detected, accompanied by focused macro center-crops.
+- Cross-reference the overview and macro insets across consecutive frames to resolve small text, care labels, serial codes, hallmarks, fabric texture, and condition flaws with 100% confidence, completely eliminating motion blur or misidentification.
+
 1. ACCURATE BRAND IDENTIFICATION:
 - Identify the EXACT brand (e.g. "Carhartt", "Prada", "Nike", "Sony", "Nintendo", "Lego", "TP-Link", "Patagonia", "Bose").
 - Transcribe ALL visible text, tags, model numbers, care labels, serial codes, and hallmarks verbatim into "visual_reasoning.visible_text_detected".
@@ -363,9 +367,20 @@ MANDATORY STRUCTURED EXTRACTION REQUIREMENTS (STRICT SCHEMA):
 - Identify the precise silhouette (e.g., "Detroit Duck Canvas Jacket", "Saffiano Leather Triangle Logo Bifold Wallet", "Cyber-shot DSC-W350 Digital Camera", "Air Jordan 4 Retro").
 - Accurately assign "category" (e.g., "Clothing", "Electronics", "Luxury Accessories", "Shoes", "Collectibles").
 
-3. HONEST CONDITION, WEAR & FLAW INSPECTION:
-- Inspect visible condition: collar grime, fabric fading, distress, moth holes, heel drag, screen scratches, or clean pre-owned status.
-- Put every observed flaw explicitly in "defect_notes" (e.g. ["Fading along collar edge", "Surface scuff near bottom corner"]).
+3. HONEST CONDITION, WEAR & FLAW INSPECTION (DEEP VISUAL CONDITION GRADING):
+- Inspect micro-features across all visible angles: surface wear, micro-scratches, oxidisation, patina, and packaging completeness.
+- Assign "condition_grade" strictly as one of:
+  • "Mint": Factory sealed or brand new with tags, flawless surface finish, pristine hardware, complete original box/packaging.
+  • "Good": Clean pre-owned condition, light/minimal surface wear, fully working, structurally sound.
+  • "Fair": Noticeable signs of wear, surface scuffs, fabric fading, heel drag, minor oxidisation, or loose without packaging.
+  • "For Parts": Heavy gouges, cracked screen/housing, heavy oxidisation/corrosion, missing critical components, or non-functional.
+- Explicitly populate "wear_inspection":
+  • "surface_wear": Fabric pilling, scuffs, abrasions, or clean finish.
+  • "scratching": Micro-scratches, screen gouges, hardware marks, or none.
+  • "oxidisation": Metal tarnish, patina, rust, or none.
+  • "patina": Desirable leather honey patina, vintage bronze aging, or none.
+  • "packaging_completeness": "Original box & tags intact", "Original box only", or "Loose / No box".
+- Put every observed flaw explicitly in "defect_notes" (e.g. ["Surface scuff near bottom corner", "Minor hardware tarnish"]).
 - Set "inventory_condition": "used_working", "refurbished", "untested", or "faulty_for_parts".
 
 4. ESTIMATED SOLD PRICE (AUD):
@@ -871,8 +886,38 @@ MANDATORY STRUCTURED EXTRACTION REQUIREMENTS (STRICT SCHEMA):
     const pBrand = result.analysis?.brand || "";
     const shippingCost = estimateCategoryShippingCost(pCategory, pName);
 
-    const tagPrice = Number(result.detected_tag_price) || (result.analysis?.product_name && result.analysis.product_name !== "NO_CENTER_ITEM" ? Math.max(3, Math.round((result.suggested_price_median || 45) * 0.15)) : null);
-    const sellPrice = Number(result.suggested_price_median) || 45;
+    // Deep Visual Condition Grading Modifier:
+    // Mint (+15%), Good (1.0x baseline), Fair (0.75x, -25%), For Parts (0.35x, -65%)
+    const rawGrade = (result.analysis?.condition_grade || result.condition_grade || "Good") as "Mint" | "Good" | "Fair" | "For Parts";
+    let conditionModifier = 1.0;
+    if (rawGrade === "Mint") {
+      conditionModifier = 1.15;
+    } else if (rawGrade === "Good") {
+      conditionModifier = 1.0;
+    } else if (rawGrade === "Fair") {
+      conditionModifier = 0.75;
+    } else if (rawGrade === "For Parts") {
+      conditionModifier = 0.35;
+    }
+
+    result.condition_grade = rawGrade;
+    result.condition_modifier = conditionModifier;
+    if (result.analysis) {
+      result.analysis.condition_grade = rawGrade;
+      result.analysis.condition_modifier = conditionModifier;
+    }
+
+    const baselineSellPrice = Number(result.suggested_price_median) || 45;
+    const sellPrice = Math.max(1, Math.round(baselineSellPrice * conditionModifier * 100) / 100);
+    result.suggested_price_median = sellPrice;
+    if (result.suggested_price_min) {
+      result.suggested_price_min = Math.max(1, Math.round(result.suggested_price_min * conditionModifier * 100) / 100);
+    }
+    if (result.suggested_price_max) {
+      result.suggested_price_max = Math.max(1, Math.round(result.suggested_price_max * conditionModifier * 100) / 100);
+    }
+
+    const tagPrice = Number(result.detected_tag_price) || (result.analysis?.product_name && result.analysis.product_name !== "NO_CENTER_ITEM" ? Math.max(3, Math.round(sellPrice * 0.15)) : null);
 
     if (tagPrice && sellPrice > 0) {
       const ebayFee = (sellPrice * 0.134) + 0.33; // Standard Australian eBay 13.4% + $0.33
@@ -977,6 +1022,10 @@ MANDATORY STRUCTURED EXTRACTION REQUIREMENTS (STRICT SCHEMA):
               brand: result.analysis?.brand || "Authentic",
               category: result.analysis?.category || "General Resale",
               condition: result.analysis?.condition || "Used",
+              condition_grade: result.condition_grade || result.analysis?.condition_grade || "Good",
+              wear_inspection: result.wear_inspection || result.analysis?.wear_inspection || null,
+              condition_modifier: result.condition_modifier || 1.0,
+              defect_notes: result.defect_notes || result.analysis?.defect_notes || [],
               detected_objects: result.detected_objects,
             };
             controller.enqueue(encoder.encode(JSON.stringify(visionEvent) + "\n"));

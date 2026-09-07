@@ -24,6 +24,21 @@ export const InventoryConditionEnum = z.enum([
   "refurbished",
 ]);
 
+export const ConditionGradeEnum = z.enum([
+  "Mint",
+  "Good",
+  "Fair",
+  "For Parts",
+]);
+
+export const WearInspectionSchema = z.object({
+  surface_wear: z.string().nullable().describe("Surface scuffs, abrasions, fabric pills, or clean finish"),
+  scratching: z.string().nullable().describe("Micro-scratches, deep gouges on screens/leather/hardware, or none"),
+  oxidisation: z.string().nullable().describe("Tarnish, patina, rust, hardware corrosion, or none"),
+  patina: z.string().nullable().describe("Desirable vintage aging, leather honey patina, or none"),
+  packaging_completeness: z.string().nullable().describe("Original box, tags attached, manual, accessories, or loose/unboxed"),
+});
+
 export const DetectedObjectSchema = z.object({
   id: z.string(),
   product_name: z.string().nullable(),
@@ -70,6 +85,9 @@ export const ProductAnalysisSchema = z.object({
   color: z.string().nullable(),
   material: z.string().nullable(),
   condition: z.string(),
+  condition_grade: ConditionGradeEnum.nullable().optional(),
+  wear_inspection: WearInspectionSchema.nullable().optional(),
+  condition_modifier: z.number().nullable().optional(),
   inventory_condition: InventoryConditionEnum,
   defect_notes: z.array(z.string()),
   as_is_disclaimer: z.string().nullable(),
@@ -127,6 +145,9 @@ export const AiListingResultSchema = z.object({
     .enum(["identified", "unidentified"])
     .describe("'identified' if a verified product is found, 'unidentified' if low confidence, unidentifiable, or no item in focus."),
   inventory_condition: InventoryConditionEnum,
+  condition_grade: ConditionGradeEnum.nullable().optional(),
+  wear_inspection: WearInspectionSchema.nullable().optional(),
+  condition_modifier: z.number().nullable().optional(),
   defect_notes: z.array(z.string()),
   as_is_disclaimer: z.string().nullable(),
   detected_objects: z.array(DetectedObjectSchema).nullable(),

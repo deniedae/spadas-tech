@@ -17,6 +17,16 @@ export interface VisualReasoning {
   identification_reasoning: string;
 }
 
+export type ConditionGrade = "Mint" | "Good" | "Fair" | "For Parts";
+
+export interface WearInspection {
+  surface_wear?: string | null;
+  scratching?: string | null;
+  oxidisation?: string | null;
+  patina?: string | null;
+  packaging_completeness?: string | null;
+}
+
 /** What the vision model extracts from the uploaded photos. */
 export interface ProductAnalysis {
   status?: "identified" | "unidentified";
@@ -28,6 +38,10 @@ export interface ProductAnalysis {
   color: string | null;
   material: string | null;
   condition: string;
+  condition_grade?: ConditionGrade | null;
+  wear_inspection?: WearInspection | null;
+  condition_modifier?: number | null;
+  defect_notes?: string[];
   accessories_detected: string[];
   confidence: Confidence;
   confidence_score: number; // 0..1
@@ -86,6 +100,9 @@ export interface ThriftTagOcrData {
 export interface AiListingResult {
   status?: "identified" | "unidentified";
   inventory_condition?: InventoryCondition;
+  condition_grade?: ConditionGrade | null;
+  wear_inspection?: WearInspection | null;
+  condition_modifier?: number | null;
   defect_notes?: string[];
   as_is_disclaimer?: string;
   analysis: ProductAnalysis;

@@ -64,10 +64,11 @@ import {
   clearRapidSession,
 } from "@/lib/rapid-thrift-engine";
 import { RapidThriftDrawer } from "@/components/rapid-thrift-drawer";
+import { QuickHistoryDrawer } from "@/components/quick-history-drawer";
 import { calculateSalesVelocity } from "@/lib/turnover-velocity-engine";
 import type { DetectedHit, ActiveScanItem } from "@/types/lens";
 export type { DetectedHit, ActiveScanItem } from "@/types/lens";
-import { processFrameForVision } from "@/lib/image-preprocessor";
+import { processFrameForVision, poolConsecutiveFrames, createMultiFrameComposite } from "@/lib/image-preprocessor";
 import { ScanProgressiveLoader } from "@/components/scan-progressive-loader";
 
 // Catch-All React Error Boundary for Live Camera & Hit List Stability
@@ -383,6 +384,8 @@ function SpadasLensCameraCore() {
   const [minProfitThreshold, setMinProfitThreshold] = useState<number>(5);
   const [minRoiThreshold, setMinRoiThreshold] = useState<number>(0);
   const [showDebugDrawer, setShowDebugDrawer] = useState<boolean>(false);
+  const [isHistoryDrawerOpen, setIsHistoryDrawerOpen] = useState<boolean>(false);
+  const [pendingSyncCount, setPendingSyncCount] = useState<number>(0);
   const [lastRawApiResponse, setLastRawApiResponse] = useState<any>(null);
   const [latestApiError, setLatestApiError] = useState<string | null>(null);
   const [scanErrorState, setScanErrorState] = useState<{
@@ -982,6 +985,8 @@ function SpadasLensCameraCore() {
   const prevFramePixelsRef = useRef<Uint8ClampedArray | null>(null);
   const lastScanTimeRef = useRef<number>(0);
   const lastRecognizedSignatureRef = useRef<{ name: string; timestamp: number } | null>(null);
+  const cameraMovingRef = useRef<boolean>(false);
+  const lastMotionTimeRef = useRef<number>(0);
 
   // Verify Owner and Pro User status purely server-side
   useEffect(() => {
@@ -1070,6 +1075,108 @@ function SpadasLensCameraCore() {
     };
   }, []);
 
+  // Offline Local Storage Persistence & Background Supabase Sync Engine
+  const flushPendingSyncQueue = useCallback(async () => {
+    if (typeof window === "undefined" || !navigator.onLine) return;
+    try {
+      const queueStr = localStorage.getItem("spadas_pending_scans_queue");
+      if (!queueStr) return;
+      const queue: any[] = JSON.parse(queueStr);
+      if (!queue || queue.length === 0) return;
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) return;
+
+      const unSynced: any[] = [];
+      for (const item of queue) {
+        try {
+          const { error } = await supabase.from("scans").insert([
+            {
+              user_id: session.user.id,
+              image_url: item.image_url,
+              result_json: item.result_json,
+              token_count: 2600,
+              status: "completed",
+            },
+          ]);
+          if (error) {
+            console.warn("[Spadas Lens] Background scan sync insert warning:", error.message);
+            unSynced.push(item);
+          }
+        } catch {
+          unSynced.push(item);
+        }
+      }
+
+      localStorage.setItem("spadas_pending_scans_queue", JSON.stringify(unSynced));
+      setPendingSyncCount(unSynced.length);
+    } catch (err) {
+      console.warn("[Spadas Lens] Sync queue flush error:", err);
+    }
+  }, []);
+
+  const persistHitAndSyncToSupabase = useCallback(
+    async (hit: DetectedHit, rawResultJson?: any) => {
+      // 1. Immediately persist to localStorage
+      try {
+        const cached = localStorage.getItem("spadas_cached_lens_hits");
+        let hitsList: DetectedHit[] = [];
+        if (cached) {
+          hitsList = JSON.parse(cached);
+        }
+        const deduped = [hit, ...hitsList.filter((h) => h.id !== hit.id && h.name !== hit.name)].slice(0, 100);
+        localStorage.setItem("spadas_cached_lens_hits", JSON.stringify(deduped));
+      } catch (err) {
+        console.warn("[Spadas Lens] LocalStorage persistence warning:", err);
+      }
+
+      // 2. Queue for background Supabase sync
+      const scanRecord = {
+        id: hit.id,
+        timestamp: hit.timestamp,
+        image_url: hit.image
+          ? hit.image.startsWith("data:")
+            ? `data:image/jpeg;base64,...(${hit.image.length} bytes)`
+            : hit.image
+          : null,
+        result_json: rawResultJson || {
+          product_name: hit.name,
+          brand: hit.brand,
+          category: hit.category,
+          condition: hit.condition,
+          condition_grade: hit.conditionGrade || "Good",
+          wear_inspection: hit.wearInspection || null,
+          condition_modifier: hit.conditionModifier || 1.0,
+          suggested_price_median: hit.estimatedValue,
+          suggested_price_min: Math.round(hit.estimatedValue * 0.8),
+          suggested_price_max: Math.round(hit.estimatedValue * 1.2),
+          suggested_price_currency: "AUD",
+          detected_tag_price: hit.tagPrice,
+          true_net_profit: hit.trueNetProfit,
+          roi_percentage: hit.roiPercentage,
+          cop_verdict: hit.copVerdict,
+          defect_notes: hit.defectNotes,
+          status: "completed",
+        },
+        status: "completed",
+      };
+
+      try {
+        const queueStr = localStorage.getItem("spadas_pending_scans_queue");
+        const queue = queueStr ? JSON.parse(queueStr) : [];
+        queue.push(scanRecord);
+        localStorage.setItem("spadas_pending_scans_queue", JSON.stringify(queue.slice(-50)));
+        setPendingSyncCount(queue.length);
+      } catch {}
+
+      // 3. Attempt immediate background sync if online
+      if (typeof navigator !== "undefined" && navigator.onLine) {
+        void flushPendingSyncQueue();
+      }
+    },
+    [flushPendingSyncQueue]
+  );
+
   useEffect(() => {
     if (capturedLog.length > 0) {
       try {
@@ -1079,7 +1186,19 @@ function SpadasLensCameraCore() {
   }, [capturedLog]);
 
   useEffect(() => {
-    const handleOnline = () => setIsOffline(false);
+    try {
+      const q = localStorage.getItem("spadas_pending_scans_queue");
+      if (q) {
+        const parsedQ = JSON.parse(q);
+        if (Array.isArray(parsedQ)) setPendingSyncCount(parsedQ.length);
+      }
+    } catch {}
+    void flushPendingSyncQueue();
+
+    const handleOnline = () => {
+      setIsOffline(false);
+      void flushPendingSyncQueue();
+    };
     const handleOffline = () => setIsOffline(true);
 
     window.addEventListener("online", handleOnline);
@@ -1089,7 +1208,7 @@ function SpadasLensCameraCore() {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
     };
-  }, []);
+  }, [flushPendingSyncQueue]);
 
   // AR Grail Detector Engine State ($100+ Profit / 300%+ ROI Hits)
   const [activeGrailAlert, setActiveGrailAlert] = useState<{
@@ -1672,7 +1791,14 @@ function SpadasLensCameraCore() {
       }
     }
 
+    const isMovementDetected =
+      cameraMovingRef.current ||
+      Date.now() - lastMotionTimeRef.current < 1500 ||
+      forceManual ||
+      scanMode === "snap";
+
     setCameraMoving(false);
+    cameraMovingRef.current = false;
 
     // 4. Instantaneous Frame Capture: Grab frame snapshot synchronously from video to immediately freeze the live viewfinder
     const video = videoRef.current;
@@ -1867,6 +1993,7 @@ function SpadasLensCameraCore() {
                   }
                   setActiveScans([scanObj]);
                   setCapturedLog((prev) => [verifiedHit, ...prev.filter((h) => h.name !== pName)].slice(0, 50));
+                  void persistHitAndSyncToSupabase(verifiedHit);
                   setSessionScanCount((prev) => prev + 1);
                   setActiveCompsHit(verifiedHit);
                   setIsScanPaused(true);
@@ -1997,9 +2124,57 @@ function SpadasLensCameraCore() {
       setScanRetryPrompt(null);
       trace.markCaptureEnd();
 
-      let imagePayloads = [snapshotImage];
-      if (secondaryImagePayload && secondaryImagePayload !== snapshotImage) {
-        imagePayloads = [secondaryImagePayload, snapshotImage];
+      // Multi-Frame Optical Stitching & Pooling:
+      // Pool data from rapid consecutive frames if movement is detected, creating a higher-resolution composite before sending it to the multi-model vision inference layer to completely eliminate blur or misidentification.
+      const pooledCanvases: HTMLCanvasElement[] = [];
+      if (instantCanvas) {
+        pooledCanvases.push(instantCanvas);
+      }
+
+      if (video && video.readyState >= 2 && video.videoWidth > 0) {
+        try {
+          // If movement was detected or active snap initiated, pool rapid consecutive frames (45ms spacing)
+          const framesToCapture = isMovementDetected ? 2 : 1;
+          const burstCanvases = await poolConsecutiveFrames(video, framesToCapture, 45);
+          pooledCanvases.push(...burstCanvases);
+        } catch (poolErr) {
+          console.warn("[Spadas Lens] Rapid burst frames pooling skipped:", poolErr);
+        }
+      }
+
+      // Generate higher-resolution composite and select sharpest blur-free frame
+      const compositeResult = createMultiFrameComposite(
+        pooledCanvases.length > 0 ? pooledCanvases : instantCanvas ? [instantCanvas] : [],
+        {
+          movementDetected: isMovementDetected,
+          quality: 0.80,
+          boostContrast: true,
+        }
+      );
+
+      const opticalStitchedPayloads: string[] = [];
+      if (compositeResult.compositeDataUrl) {
+        opticalStitchedPayloads.push(compositeResult.compositeDataUrl);
+      }
+      if (
+        compositeResult.sharpCropDataUrl &&
+        compositeResult.sharpCropDataUrl !== compositeResult.compositeDataUrl &&
+        !opticalStitchedPayloads.includes(compositeResult.sharpCropDataUrl)
+      ) {
+        opticalStitchedPayloads.push(compositeResult.sharpCropDataUrl);
+      }
+      if (opticalStitchedPayloads.length === 0) {
+        opticalStitchedPayloads.push(snapshotImage);
+      }
+
+      // If viewfinder was frozen on manual snap, update to the sharpest de-blurred frame
+      if (compositeResult.bestFrameDataUrl && (forceManual || scanMode === "snap")) {
+        setFrozenFrameUrl(compositeResult.bestFrameDataUrl);
+      }
+
+      let imagePayloads = opticalStitchedPayloads;
+      if (secondaryImagePayload && !imagePayloads.includes(secondaryImagePayload)) {
+        imagePayloads = [secondaryImagePayload, ...imagePayloads];
       }
 
       let res: Response | null = null;
@@ -2327,6 +2502,7 @@ function SpadasLensCameraCore() {
           valuationExpiryTimerRef.current = setTimeout(() => setActiveValuationHit(null), 6500);
           setCapturedLog((prev) => [verifiedHit, ...prev.filter((h) => h.name !== verifiedHit.name)].slice(0, 50));
           saveOfflineHitLocally(verifiedHit);
+          void persistHitAndSyncToSupabase(verifiedHit);
           setSessionScanCount((prev) => prev + 1);
 
           if (scanExpiryTimerRef.current) clearTimeout(scanExpiryTimerRef.current);
@@ -2593,6 +2769,9 @@ function SpadasLensCameraCore() {
             brand: obj.brand || data?.analysis?.brand || null,
             category: obj.category,
             condition: itemCondition,
+            conditionGrade: data?.condition_grade || data?.analysis?.condition_grade || "Good",
+            wearInspection: data?.wear_inspection || data?.analysis?.wear_inspection || null,
+            conditionModifier: data?.condition_modifier || data?.analysis?.condition_modifier || 1.0,
             visualReasoning: data?.analysis?.visual_reasoning ? {
               visible_text_detected: data.analysis.visual_reasoning.visible_text_detected,
               physical_object_description: data.analysis.visual_reasoning.physical_object_description,
@@ -2656,6 +2835,7 @@ function SpadasLensCameraCore() {
           });
 
           setCapturedLog((prev) => [verifiedHit, ...prev]);
+          void persistHitAndSyncToSupabase(verifiedHit, data);
           setActiveValuationHit(verifiedHit);
           if (valuationExpiryTimerRef.current) {
             clearTimeout(valuationExpiryTimerRef.current);
@@ -2955,6 +3135,8 @@ function SpadasLensCameraCore() {
 
       if (isPanning) {
         setCameraMoving(true);
+        cameraMovingRef.current = true;
+        lastMotionTimeRef.current = Date.now();
         setConfidencePercent(Math.max(68, Math.round(78 - avgDiff * 40)));
         wasMoving = true;
         stableTicks = 0;
@@ -2962,6 +3144,7 @@ function SpadasLensCameraCore() {
         lastRecognizedSignatureRef.current = null;
       } else if (isStill) {
         setCameraMoving(false);
+        cameraMovingRef.current = false;
         setConfidencePercent((prev) => Math.min(96, Math.max(90, prev + 1)));
         stableTicks++;
       }
@@ -3844,7 +4027,7 @@ function SpadasLensCameraCore() {
         }}
         nav={{
           onGuide: () => setIsOnboardingOpen(true),
-          onHistory: () => router.push("/history"),
+          onHistory: () => setIsHistoryDrawerOpen(true),
         }}
         debug={{
           isOwner,
@@ -4084,6 +4267,25 @@ function SpadasLensCameraCore() {
           </div>
         </div>
       )}
+
+      {/* Quick-Access History Drawer */}
+      <QuickHistoryDrawer
+        isOpen={isHistoryDrawerOpen}
+        onClose={() => setIsHistoryDrawerOpen(false)}
+        hits={capturedLog}
+        onClearHistory={() => {
+          setCapturedLog([]);
+          localStorage.removeItem("spadas_cached_lens_hits");
+          toast.success("Scanned history cleared");
+        }}
+        onDeleteHit={(id) => {
+          setCapturedLog((prev) => prev.filter((h) => h.id !== id));
+        }}
+        onSaveDraft={handleSaveDraftHit}
+        pendingSyncCount={pendingSyncCount}
+        currency={selectedCurrency}
+        onNavigateFullHistory={() => router.push("/history")}
+      />
     </div>
   );
 }

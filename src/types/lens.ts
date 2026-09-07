@@ -29,6 +29,15 @@ export interface DetectedHit {
   trueNetProfit?: number;
   roiPercentage?: number;
   copVerdict?: "MUST_COP" | "QUICK_FLIP" | "FAIR_MARGIN" | "PASS_RISKY";
+  conditionGrade?: "Mint" | "Good" | "Fair" | "For Parts";
+  wearInspection?: {
+    surface_wear?: string | null;
+    scratching?: string | null;
+    oxidisation?: string | null;
+    patina?: string | null;
+    packaging_completeness?: string | null;
+  };
+  conditionModifier?: number;
   image?: string | null;
   /** Number of eBay listings found (active or sold depending on compsSource) */
   ebayCompsCount?: number;
