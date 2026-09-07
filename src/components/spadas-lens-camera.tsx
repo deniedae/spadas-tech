@@ -4003,7 +4003,7 @@ function SpadasLensCameraCore() {
               )}
             </div>
 
-            {/* Compact Rapid Haul Review Badge (Bottom Right — Clean, Out of Viewfinder & Button Flow) */}
+            {/* Telemetry Haul Counter Badge (Bottom Right — Clean Data Telemetry Readout) */}
             {isRapidScanMode && (
               <div className="absolute bottom-4 right-3 sm:right-5 z-30 pointer-events-auto">
                 <button
@@ -4012,26 +4012,26 @@ function SpadasLensCameraCore() {
                     e.stopPropagation();
                     setIsRapidDrawerOpen(true);
                   }}
-                  className="group flex items-center gap-1.5 px-3 py-2 rounded-full bg-slate-950/90 border border-amber-400/80 shadow-[0_0_15px_rgba(251,191,36,0.35)] backdrop-blur-md text-xs font-bold text-white hover:scale-105 active:scale-95 transition cursor-pointer"
+                  className="group flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-950/90 border border-slate-700/80 hover:border-amber-400/60 shadow-lg backdrop-blur-md transition cursor-pointer active:scale-95"
                   title="Open Rapid Thrift Haul Review"
+                  aria-label={`Haul telemetry: ${rapidItems.length} items collected. Click to open haul review.`}
                 >
-                  <div className="flex h-4 w-4 items-center justify-center rounded-full bg-amber-400 text-slate-950 font-black shrink-0">
-                    <Zap className="h-2.5 w-2.5" />
+                  <div className="flex items-center gap-1.5 font-mono">
+                    <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse shrink-0" />
+                    <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                      Haul:
+                    </span>
+                    <span className="text-xs font-black text-amber-300 tabular-nums">
+                      {rapidItems.length}
+                    </span>
                   </div>
-                  <span className="font-mono text-amber-300 font-black text-xs">
-                    {rapidItems.length}
-                  </span>
                   {rapidStats.totalProfit > 0 && (
-                    <span className="font-mono text-emerald-400 font-bold text-[11px] hidden xs:inline">
+                    <span className="font-mono text-emerald-400 font-bold text-[10px] bg-emerald-500/10 border border-emerald-500/30 px-1.5 py-0.5 rounded hidden xs:inline tabular-nums">
                       +${rapidStats.totalProfit.toFixed(0)}
                     </span>
                   )}
-                  {rapidStats.queuedItems > 0 ? (
-                    <RefreshCw className="h-3 w-3 text-amber-300 animate-spin ml-0.5" />
-                  ) : (
-                    <span className="text-[10px] text-slate-400 group-hover:text-white uppercase font-extrabold tracking-wider ml-0.5">
-                      Haul
-                    </span>
+                  {rapidStats.queuedItems > 0 && (
+                    <RefreshCw className="h-3 w-3 text-amber-300 animate-spin ml-0.5 shrink-0" />
                   )}
                 </button>
               </div>
