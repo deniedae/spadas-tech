@@ -11,6 +11,7 @@ import {
   getDoc,
 } from "firebase/firestore";
 import { db, FirebaseUser } from "./firebase";
+import { isOwnerEmail } from "@/app/lib/auth-admin";
 
 export interface FirestoreListing {
   id?: string;
@@ -55,7 +56,7 @@ export async function syncUserProfileToFirestore(user: FirebaseUser): Promise<vo
     const userRef = doc(db, "users", user.uid);
     const snap = await getDoc(userRef);
 
-    const isProEmail = (user.email || "").toLowerCase() === "deniedae@gmail.com";
+    const isProEmail = isOwnerEmail(user.email);
 
     const baseData = {
       uid: user.uid,

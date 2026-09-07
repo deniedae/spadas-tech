@@ -33,14 +33,20 @@ android/.gradle/
 *.keystore
 *.jar
 
-# debug
+# debug & telemetry
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+*.log
+logs/
+.system_generated/
 
-# env files (can opt-in for committing if needed)
+# env & secrets
 .env*
+*.env
+*.key
+*.token
 
 # vercel
 .vercel

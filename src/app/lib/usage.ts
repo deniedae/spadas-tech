@@ -1,5 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
+import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
+import { isOwnerEmail } from "@/app/lib/auth-admin";
 
 export interface UsageStatus {
   isPro: boolean;
@@ -17,7 +19,6 @@ export async function checkUserUsage(userId: string, userEmail?: string): Promis
 
   let dbClient: any;
   if (supabaseUrl && serviceRoleKey) {
-    const { createClient: createAdminClient } = await import("@supabase/supabase-js");
     dbClient = createAdminClient(supabaseUrl, serviceRoleKey, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
@@ -42,11 +43,11 @@ export async function checkUserUsage(userId: string, userEmail?: string): Promis
   }
 
   // Admin & Owner Account Lifetime Pro Grant
-  let isOwner = userEmail?.toLowerCase() === "deniedae@gmail.com";
+  let isOwner = isOwnerEmail(userEmail);
   if (!isOwner) {
     try {
       const { data: authUserData } = await dbClient.auth.admin.getUserById(userId);
-      if (authUserData?.user?.email?.toLowerCase() === "deniedae@gmail.com") {
+      if (isOwnerEmail(authUserData?.user?.email)) {
         isOwner = true;
       }
     } catch {}

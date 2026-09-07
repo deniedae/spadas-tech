@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/app/lib/server";
+import { isOwnerEmail } from "@/app/lib/auth-admin";
 
 export async function GET(req: NextRequest) {
   try {
@@ -38,7 +39,7 @@ export async function GET(req: NextRequest) {
       throw error;
     }
 
-    const isOwner = user.email?.toLowerCase() === "deniedae@gmail.com";
+    const isOwner = isOwnerEmail(user.email);
     const status = (data?.status as string | undefined) || "inactive";
     const isActive = isOwner || status === "active" || status === "trialing" || status === "past_due";
 

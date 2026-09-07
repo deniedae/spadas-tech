@@ -7,7 +7,7 @@ import type { AiListingResult } from "@/types/ai-listing";
 export const preferredRegion = "syd1";
 
 const SOLD_COMPS_KEY = process.env.SOLD_COMPS_API_KEY;
-const SERPAPI_KEY = "837f35e9709091f977c567789f8368b8263b49c1620ed4d47b7aa3825cd0591f";
+const SERPAPI_KEY = process.env.SERPAPI_KEY || process.env.GEMINI_API_KEY || "";
 
 export interface SourcingVerdict {
   identification: {
@@ -103,6 +103,7 @@ async function fetchPrimaryComps(keyword: string): Promise<Array<{ title?: strin
 
 // 2. SerpApi Backup Scraper Fallback (Currency Lock: AUD)
 async function fetchBackupComps(productName: string): Promise<Array<{ title?: string; condition?: string; soldPrice: number; soldCurrency: string }>> {
+  if (!SERPAPI_KEY) return [];
   const serpUrl = `https://serpapi.com/search.json?engine=ebay&ebay_domain=ebay.com.au&_nkw=${encodeURIComponent(productName)}&LH_Sold=1&LH_Complete=1&api_key=${SERPAPI_KEY}`;
 
   const controller = new AbortController();

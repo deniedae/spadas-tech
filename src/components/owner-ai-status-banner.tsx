@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { Sparkles, ShieldAlert, RefreshCw, ExternalLink, Zap, AlertTriangle } from "lucide-react";
 import { supabase } from "@/app/lib/supabase";
+import { isOwnerEmail } from "@/app/lib/auth-admin";
 
 export default function OwnerAiStatusBanner() {
   const [isOwner, setIsOwner] = useState(false);
@@ -52,9 +53,9 @@ export default function OwnerAiStatusBanner() {
           data: { user },
         } = await supabase.auth.getUser();
 
-        if (user?.email?.toLowerCase() === "deniedae@gmail.com") {
+        if (isOwnerEmail(user?.email)) {
           setIsOwner(true);
-          setOwnerEmail(user.email);
+          setOwnerEmail(user?.email || null);
           void checkAiCredits();
         }
       } catch {

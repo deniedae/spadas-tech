@@ -7,6 +7,7 @@ import OpenAI from "openai";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { getPrimaryAiApiKey, createOpenAiClient } from "@/app/lib/config/ai-models";
+import { isOwnerEmail } from "@/app/lib/auth-admin";
 
 export const preferredRegion = "syd1";
 export const dynamic = "force-dynamic";
@@ -52,7 +53,7 @@ export async function GET(req: NextRequest) {
       user = data?.user;
     }
 
-    if (!user || user.email?.toLowerCase() !== "deniedae@gmail.com") {
+    if (!user || !isOwnerEmail(user.email)) {
       return NextResponse.json(
         { error: "Unauthorized. Missing owner authentication credentials." },
         { status: 401, headers: NO_CACHE_HEADERS }
