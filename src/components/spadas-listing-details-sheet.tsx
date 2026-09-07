@@ -221,7 +221,7 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white flex flex-col justify-between max-w-lg mx-auto pb-28 animate-fade-in">
+    <div className="min-h-screen bg-slate-950 text-white flex flex-col justify-between max-w-lg mx-auto pb-[calc(env(safe-area-inset-bottom,0px)+9rem)] sm:pb-32 animate-fade-in">
       {/* Top Header Bar */}
       <header className="sticky top-0 z-30 flex items-center justify-between p-4 bg-slate-950/90 backdrop-blur-md border-b border-slate-800">
         <button
@@ -468,8 +468,8 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
         </div>
       </div>
 
-      {/* Floating Bottom Earnings & Actions Bar (Positioned above Mobile Nav) */}
-      <div className="fixed bottom-16 md:bottom-0 inset-x-0 max-w-lg mx-auto p-4 bg-slate-950/95 border-t border-slate-800/90 backdrop-blur-xl z-40 space-y-3 shadow-2xl">
+      {/* Floating Bottom Earnings & Actions Bar (Positioned above Mobile Nav with Safe-Area Clearance) */}
+      <div className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+3.75rem)] md:bottom-0 inset-x-0 max-w-lg mx-auto p-4 pb-[max(1rem,calc(env(safe-area-inset-bottom,0px)+0.75rem))] md:pb-4 bg-slate-950/95 border-t border-slate-800/90 backdrop-blur-xl z-40 space-y-3 shadow-2xl">
         {/* Estimated Earning Row */}
         <div className="flex items-center justify-between text-xs font-bold text-slate-400">
           <div className="flex items-center gap-1.5">

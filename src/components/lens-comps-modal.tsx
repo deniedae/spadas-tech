@@ -506,8 +506,8 @@ export default function LensCompsModal({
           </div>
         </div>
 
-        {/* ── 3. Compact Sticky Bottom Action Bar (Never Blocked) ────────────── */}
-        <div className="shrink-0 p-3 sm:p-4 border-t border-slate-800 bg-slate-950/95 backdrop-blur-md space-y-2 z-20 pb-6 sm:pb-4">
+        {/* ── 3. Compact Sticky Bottom Action Bar (Never Blocked with Safe-Area Clearance) ── */}
+        <div className="shrink-0 p-3 sm:p-4 border-t border-slate-800 bg-slate-950/95 backdrop-blur-md space-y-2 z-20 pb-[max(1.5rem,calc(env(safe-area-inset-bottom,0px)+1rem))] sm:pb-4">
           {/* Primary Action Button: Save Draft */}
           <button
             type="button"

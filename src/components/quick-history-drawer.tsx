@@ -103,7 +103,7 @@ export const QuickHistoryDrawer: React.FC<QuickHistoryDrawerProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex flex-col justify-end bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200"
+      className="fixed inset-0 z-[70] flex flex-col justify-end bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200"
       onClick={onClose}
     >
       <div
@@ -218,8 +218,8 @@ export const QuickHistoryDrawer: React.FC<QuickHistoryDrawerProps> = ({
           </div>
         </div>
 
-        {/* Scanned Items Scroll List */}
-        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-3 space-y-2.5">
+        {/* Scanned Items Scroll List with Safe-Area & Nav Bar Clearance */}
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-3 pb-[calc(env(safe-area-inset-bottom,0px)+5rem)] sm:pb-3 space-y-2.5">
           {filteredHits.length === 0 ? (
             <div className="py-12 text-center space-y-2">
               <Camera className="h-8 w-8 text-slate-600 mx-auto animate-pulse" />
@@ -454,8 +454,8 @@ export const QuickHistoryDrawer: React.FC<QuickHistoryDrawerProps> = ({
           )}
         </div>
 
-        {/* Drawer Footer Summary & Clear Action */}
-        <div className="px-4 sm:px-6 py-3 border-t border-slate-800 bg-slate-950 flex items-center justify-between">
+        {/* Drawer Footer Summary & Clear Action with Safe-Area Clearance */}
+        <div className="px-4 sm:px-6 py-3 pb-[max(0.75rem,calc(env(safe-area-inset-bottom,0px)+0.5rem))] border-t border-slate-800 bg-slate-950 flex items-center justify-between">
           <div className="flex flex-col">
             <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
               Filtered Resale Net Profit

@@ -246,8 +246,8 @@ export default function EbayListingModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/85 backdrop-blur-md p-2 sm:p-4 flex min-h-full items-center justify-center overscroll-contain animate-fade-in">
-      <div className="relative w-full max-w-lg rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl flex flex-col max-h-[92dvh] sm:max-h-[88vh] overflow-hidden text-slate-100">
+    <div className="fixed inset-0 z-[70] overflow-y-auto bg-slate-950/85 backdrop-blur-md p-2 sm:p-4 pb-[calc(env(safe-area-inset-bottom,0px)+5rem)] sm:pb-4 flex min-h-full items-center justify-center overscroll-contain animate-fade-in">
+      <div className="relative w-full max-w-lg rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl flex flex-col max-h-[92dvh] sm:max-h-[88vh] overflow-y-auto text-slate-100">
         {/* Pinned Header */}
         <div className="shrink-0 flex items-center justify-between border-b border-slate-800 px-4 sm:px-6 py-3.5 sm:py-4 bg-slate-900/95 backdrop-blur">
           <div className="flex items-center gap-2 text-cyan-400 font-bold text-sm sm:text-base">
@@ -265,8 +265,8 @@ export default function EbayListingModal({
 
         {publishedUrl ? (
           /* Success Screen */
-          <div className="flex flex-col flex-1 min-h-0">
-            <div className="flex-1 overflow-y-auto overscroll-contain p-6 space-y-4 text-center">
+          <div className="flex flex-col flex-1 min-h-0 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto overscroll-contain p-6 pb-[calc(env(safe-area-inset-bottom,0px)+6rem)] sm:pb-6 space-y-4 text-center">
               <div className={`w-14 h-14 ${isLiveListing ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : "bg-cyan-500/20 text-cyan-400 border-cyan-500/30"} rounded-full flex items-center justify-center mx-auto border`}>
                 <CheckCircle2 className="w-8 h-8" />
               </div>
@@ -289,7 +289,7 @@ export default function EbayListingModal({
               </div>
             </div>
 
-            <div className="shrink-0 p-3.5 sm:p-4 border-t border-slate-800 bg-slate-900/95 backdrop-blur flex flex-col sm:flex-row items-center justify-center gap-3">
+            <div className="shrink-0 p-3.5 sm:p-4 pb-[max(0.875rem,calc(env(safe-area-inset-bottom,0px)+0.75rem))] border-t border-slate-800 bg-slate-900/95 backdrop-blur flex flex-col sm:flex-row items-center justify-center gap-3">
               <a
                 href={publishedUrl}
                 target="_blank"
@@ -312,8 +312,8 @@ export default function EbayListingModal({
         ) : (
           /* Pre-filled Listing Form */
           <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
-            {/* Scrollable Form Body */}
-            <div className="flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6 space-y-4 touch-pan-y">
+            {/* Scrollable Form Body with Nav Bar Clearance */}
+            <div className="flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6 pb-[calc(env(safe-area-inset-bottom,0px)+6rem)] sm:pb-6 space-y-4 touch-pan-y">
               {/* Target Marketplace Switcher */}
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-slate-300 block">
@@ -478,11 +478,11 @@ export default function EbayListingModal({
               </div>
 
               {/* Safe padding spacer at bottom of scrollable content */}
-              <div className="h-2" />
+              <div className="h-6 sm:h-2" />
             </div>
 
-            {/* Pinned Sticky Actions Footer */}
-            <div className="shrink-0 p-3 sm:p-4 border-t border-slate-800 bg-slate-900/95 backdrop-blur flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+            {/* Pinned Sticky Actions Footer with Safe-Area Clearance */}
+            <div className="shrink-0 p-3.5 sm:p-4 pb-[max(0.875rem,calc(env(safe-area-inset-bottom,0px)+0.75rem))] border-t border-slate-800 bg-slate-900/95 backdrop-blur flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
               <button
                 type="button"
                 onClick={handleSaveDraftLocal}

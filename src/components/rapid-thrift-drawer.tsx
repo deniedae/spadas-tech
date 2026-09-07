@@ -148,7 +148,7 @@ export const RapidThriftDrawer: React.FC<RapidThriftDrawerProps> = ({
       role="dialog"
       aria-modal="true"
       aria-labelledby="rapid-haul-title"
-      className="fixed inset-0 z-50 flex flex-col justify-end bg-slate-950/80 backdrop-blur-md transition-opacity animate-fade-in"
+      className="fixed inset-0 z-[70] flex flex-col justify-end bg-slate-950/80 backdrop-blur-md transition-opacity animate-fade-in"
       onClick={onClose}
     >
       <div
@@ -234,8 +234,8 @@ export const RapidThriftDrawer: React.FC<RapidThriftDrawerProps> = ({
           </div>
         )}
 
-        {/* Items List (Scrollable) */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-[220px]">
+        {/* Items List (Scrollable with Safe-Area & Nav Bar Clearance) */}
+        <div className="flex-1 overflow-y-auto p-4 pb-[calc(env(safe-area-inset-bottom,0px)+5rem)] sm:pb-4 space-y-3 min-h-[220px]">
           {items.length === 0 ? (
             <div className="py-12 text-center text-slate-400 space-y-2">
               <Camera className="h-10 w-10 mx-auto text-slate-600 stroke-1" />
@@ -393,9 +393,9 @@ export const RapidThriftDrawer: React.FC<RapidThriftDrawerProps> = ({
           )}
         </div>
 
-        {/* Footer Batch Actions */}
+        {/* Footer Batch Actions with Safe-Area Clearance */}
         {items.length > 0 && (
-          <div className="px-5 py-3 border-t border-slate-800/80 bg-slate-950 flex flex-wrap items-center justify-between gap-2">
+          <div className="px-5 py-3 pb-[max(0.75rem,calc(env(safe-area-inset-bottom,0px)+0.5rem))] border-t border-slate-800/80 bg-slate-950 flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <button
                 type="button"
