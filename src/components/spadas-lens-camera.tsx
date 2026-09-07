@@ -17,6 +17,7 @@ import {
   Power,
   ShieldCheck,
   Crown,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { fmtMoney } from "@/app/lib/listings";
@@ -3411,41 +3412,51 @@ function SpadasLensCameraCore() {
         onDismiss={() => setIsOnboardingOpen(false)}
       />
 
-      {/* Dynamic Secondary Angle / Retake HUD Banner */}
+      {/* Compact Dismissible Secondary Angle / Retake HUD Floating Badge */}
       {retakeRecommendation?.required && (
-        <div className="absolute top-24 left-4 right-4 z-50 animate-in fade-in slide-in-from-top duration-300 pointer-events-auto">
-          <div className="bg-amber-950/95 border-2 border-amber-500/90 rounded-2xl p-3.5 backdrop-blur-xl shadow-2xl flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center shrink-0">
-                <Camera className="w-5 h-5 text-amber-400 animate-pulse" />
-              </div>
-              <div className="flex flex-col min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-amber-400">
-                    Secondary Angle Needed
-                  </span>
-                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono uppercase">
-                    {retakeRecommendation.angleType}
-                  </span>
-                </div>
-                <p className="text-xs font-semibold text-amber-100 truncate">
-                  {retakeRecommendation.promptLabel}
-                </p>
-                <p className="text-[11px] text-amber-300/80 truncate">
-                  {retakeRecommendation.reason}
-                </p>
-              </div>
-            </div>
+        <div className="absolute top-14 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-2rem)] max-w-md animate-in fade-in slide-in-from-top-2 duration-200 pointer-events-auto">
+          <div className="flex items-center justify-between gap-2.5 px-3 py-1.5 rounded-full bg-slate-950/90 border border-amber-500/60 shadow-[0_4px_24px_rgba(0,0,0,0.6)] backdrop-blur-xl text-amber-200">
             <button
+              type="button"
               onClick={() => {
                 setRetakeRecommendation(null);
                 void processCurrentFrame(true);
               }}
-              className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shrink-0 shadow-lg transition active:scale-95 flex items-center gap-1.5"
+              className="flex items-center gap-2 min-w-0 flex-1 text-left cursor-pointer group"
+              title="Tap to snap recommended angle"
             >
-              <Camera className="w-3.5 h-3.5" />
-              Snap Angle
+              <div className="w-6 h-6 rounded-full bg-amber-500/20 border border-amber-500/40 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                <Camera className="w-3 h-3 text-amber-400" />
+              </div>
+              <div className="flex items-center gap-1.5 min-w-0 truncate">
+                <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 shrink-0">
+                  Optional:
+                </span>
+                <span className="text-[11px] font-semibold text-amber-100 truncate">
+                  {retakeRecommendation.promptLabel || "Snap detail/tag angle"}
+                </span>
+              </div>
             </button>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setRetakeRecommendation(null);
+                  void processCurrentFrame(true);
+                }}
+                className="px-2.5 py-1 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-[10px] uppercase tracking-wider transition active:scale-95 cursor-pointer shadow-sm"
+              >
+                Snap
+              </button>
+              <button
+                type="button"
+                onClick={() => setRetakeRecommendation(null)}
+                className="p-1 rounded-full text-amber-400/70 hover:text-amber-200 hover:bg-amber-500/10 transition cursor-pointer"
+                title="Dismiss (continue without secondary angle)"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
         </div>
       )}
