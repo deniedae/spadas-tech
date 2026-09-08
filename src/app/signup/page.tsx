@@ -5,7 +5,7 @@ import { SpadasAuthCard } from "@/components/spadas-auth-card";
 
 export default function SignupPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-400">Loading Spadas AI...</div>}>
+    <Suspense fallback={<div className="min-h-screen bg-[#07090E] flex items-center justify-center text-zinc-500 font-mono text-xs">Loading Spadas Lens...</div>}>
       <SpadasAuthCard initialMode="signup" />
     </Suspense>
   );

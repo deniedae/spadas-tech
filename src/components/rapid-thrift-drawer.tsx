@@ -22,6 +22,7 @@ import {
   RapidThriftItem,
   RapidSessionStats,
   getPhotoBlob,
+  saveRapidSession,
   computeSessionStats,
 } from "@/lib/rapid-thrift-engine";
 import { calculateSalesVelocity } from "@/lib/turnover-velocity-engine";
@@ -62,17 +63,19 @@ export const RapidThriftDrawer: React.FC<RapidThriftDrawerProps> = ({
 
     const loadAllPhotos = async () => {
       const urls: Record<string, string> = {};
-      for (const item of items) {
-        if (!item.photoId) continue;
-        try {
-          const blob = await getPhotoBlob(item.photoId);
-          if (blob && isMounted) {
-            urls[item.photoId] = URL.createObjectURL(blob);
+      await Promise.all(
+        items.map(async (item) => {
+          if (!item.photoId) return;
+          try {
+            const blob = await getPhotoBlob(item.photoId);
+            if (blob && isMounted) {
+              urls[item.photoId] = URL.createObjectURL(blob);
+            }
+          } catch (err) {
+            console.warn("[Rapid Drawer] Photo load error for photoId:", item.photoId, err);
           }
-        } catch (err) {
-          console.warn("[Rapid Drawer] Photo load error for photoId:", item.photoId, err);
-        }
-      }
+        })
+      );
       if (isMounted) {
         setPhotoUrls((prev) => {
           // Clean up old object URLs to prevent memory leaks
@@ -222,16 +225,28 @@ export const RapidThriftDrawer: React.FC<RapidThriftDrawerProps> = ({
 
         {/* Processing Banner (when background queue is active) */}
         {stats.queuedItems > 0 && (
-          <div className="px-5 py-2 bg-amber-500/10 border-b border-amber-500/30 flex items-center justify-between text-xs text-amber-300 animate-pulse">
+          <div className="px-5 py-2 bg-amber-500/10 border-b border-amber-500/30 flex items-center justify-between text-xs text-amber-300">
             <div className="flex items-center gap-2">
-              <Loader2 className="h-3.5 w-3.5 animate-spin text-amber-400" />
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-amber-400 shrink-0" />
               <span className="font-bold">
                 Analyzing {stats.queuedItems} item{stats.queuedItems > 1 ? "s" : ""} in background...
               </span>
             </div>
-            <span className="text-[10px] font-mono text-amber-200/80">
-              Hands-free pocket mode active
-            </span>
+            <button
+              type="button"
+              onClick={() => {
+                const repaired = items.map((i) => ({
+                  ...i,
+                  status: "completed" as const,
+                  productName: i.productName && i.productName !== "Scanned Sourcing Item" ? i.productName : "Sourced Thrift Item",
+                }));
+                saveRapidSession(repaired);
+                window.location.reload();
+              }}
+              className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/40 cursor-pointer"
+            >
+              Instant Reveal
+            </button>
           </div>
         )}
 

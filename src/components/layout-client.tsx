@@ -191,7 +191,6 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
     { href: "/history", label: "Scan History", icon: History },
     { href: "/dashboard", label: "Portfolio", icon: LayoutDashboard },
     { href: "/listings", label: "Active Listings", icon: Package },
-    { href: "/calculator", label: "Margin & Yield", icon: Calculator },
     { href: "/settings", label: "Settings", icon: Settings },
   ];
 

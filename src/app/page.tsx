@@ -1,141 +1,134 @@
 import Link from "next/link";
 import LandingInteractiveDemo from "@/components/landing-interactive-demo";
-import LandingCalculator from "@/components/landing-calculator";
 import LandingTestimonialsFaq from "@/components/landing-testimonials-faq";
 import LandingProductTabs from "@/components/landing-product-tabs";
 import {
-  Camera,
+  Scan,
   Download,
-  ArrowRight,
   Crosshair,
-  CheckCircle2,
   TrendingUp,
   Cpu,
   Layers,
-  Flame,
-  ShieldCheck,
-  AlertTriangle,
+  Sparkles,
 } from "lucide-react";
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-[#090A0F] text-zinc-100 select-none pb-20">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        {/* Navigation Top Bar - Industrial Field Equipment Header */}
-        <nav className="flex items-center justify-between py-4 border-b border-zinc-800/80">
-          <Link href="/" className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#F97316] text-[#090A0F] font-black text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.3)]">
-              SP
+    <main className="min-h-screen bg-[#07090E] text-zinc-100 select-none pb-16">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+        {/* Navigation Top Bar - Executive Secondary Market OS Header */}
+        <nav className="flex items-center justify-between py-4 border-b border-white/[0.08]">
+          <Link href="/" className="flex items-center gap-2.5 group">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-zinc-900 border border-white/[0.12] text-white shadow-sm group-hover:border-cyan-500/50 transition">
+              <Scan className="h-4 w-4 text-cyan-400" />
             </div>
             <div className="flex flex-col">
-              <span className="text-base font-black tracking-tight text-white leading-none">
-                SPADAS<span className="text-[#F97316]">.AI</span>
-              </span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-sm font-bold tracking-tight text-white leading-none">
+                  Spadas Lens
+                </span>
+                <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 font-semibold">
+                  PRO
+                </span>
+              </div>
               <span className="font-mono text-[9px] text-zinc-500 uppercase tracking-wider font-semibold">
-                Field Terminal v2.6
+                Secondary Market OS
               </span>
             </div>
           </Link>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
             <Link
               href="/login"
-              className="text-xs font-mono font-bold text-zinc-400 hover:text-white transition px-3 py-2"
+              className="text-xs font-mono font-medium text-zinc-400 hover:text-white transition px-3 py-1.5 rounded-lg hover:bg-white/[0.04]"
             >
-              [LOG IN]
+              Sign In
             </Link>
             <Link
               href="/lens"
-              className="btn-primary text-xs font-black px-4 h-9"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-white hover:bg-zinc-200 text-zinc-950 font-bold px-3.5 py-1.5 text-xs transition shadow-sm active:scale-95 cursor-pointer"
             >
-              <span>⚡ TRY GUEST SCAN</span>
+              <Scan className="h-3.5 w-3.5" />
+              <span>Instant Guest Scan</span>
             </Link>
           </div>
         </nav>
 
         {/* Hero Section */}
-        <section className="pt-12 pb-16 md:pt-20 md:pb-24">
-          <div className="max-w-4xl mx-auto text-center space-y-6">
+        <section className="pt-10 pb-12 md:pt-16 md:pb-16">
+          <div className="max-w-3xl mx-auto text-center space-y-5">
             {/* Telemetry Status Line */}
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-[#12151E] border border-zinc-800 font-mono text-[11px] text-zinc-400 font-semibold tracking-tight">
-              <span className="h-2 w-2 rounded-full bg-[#22C55E] animate-pulse" />
-              <span>LENS VISION ACTIVE // 60 FPS CAM CALIBRATED</span>
-              <span className="text-zinc-600">|</span>
-              <span className="text-orange-400">⚡ ZERO SIGN-UP GUEST SCAN</span>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-900/90 border border-white/[0.08] font-mono text-[11px] text-zinc-400">
+              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span>60 FPS OPTICAL VISION ACTIVE</span>
+              <span className="text-zinc-700">|</span>
+              <span className="text-cyan-400">ZERO SIGN-UP GUEST SCAN</span>
             </div>
 
             {/* Direct Field Headline */}
-            <h1 className="text-3xl sm:text-5xl md:text-6xl font-black tracking-tight text-white leading-[1.1]">
-              Instant Resale Margin Scanner.
+            <h1 className="text-3xl sm:text-5xl md:text-5xl font-extrabold tracking-tight text-white leading-[1.1]">
+              The Optical Sourcing Scanner for Professional Resellers.
             </h1>
 
             {/* Direct Field Copy */}
-            <p className="text-base sm:text-lg md:text-xl text-zinc-400 max-w-2xl mx-auto font-normal leading-relaxed">
-              Point camera at thrift racks or garage sales. See real-time eBay AU sold comps & net profit before you buy.
+            <p className="text-sm sm:text-base text-zinc-400 max-w-xl mx-auto leading-relaxed">
+              Point camera at thrift racks, estate sales, or retail clearance. View real-time eBay sold comps, turnover velocity, and net take-home margins before you spend capital.
             </p>
 
             {/* Primary Action Buttons */}
-            <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3 max-w-md mx-auto">
+            <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3 max-w-md mx-auto">
               <Link
                 href="/lens"
-                className="w-full sm:w-auto btn-primary h-12 px-7 text-sm gap-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-lg shadow-orange-500/20"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-white hover:bg-zinc-200 text-zinc-950 font-bold px-6 py-3 text-xs shadow-md transition active:scale-95 cursor-pointer"
               >
-                <Camera className="h-4 w-4" />
-                <span>⚡ INSTANT GUEST SCAN [AR]</span>
+                <Scan className="h-4 w-4 text-zinc-950" />
+                <span>Launch Lens AR (Guest Mode)</span>
               </Link>
 
               <a
                 href="/spadas-ai.apk"
                 download
-                className="w-full sm:w-auto btn-secondary h-12 px-6 text-sm gap-2 font-mono"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-zinc-900/90 hover:bg-zinc-800 text-zinc-200 font-semibold px-5 py-3 text-xs transition active:scale-95 font-mono cursor-pointer"
               >
-                <Download className="h-4 w-4 text-[#22C55E]" />
-                <span>DOWNLOAD APK</span>
+                <Download className="h-4 w-4 text-emerald-400" />
+                <span>Download .APK (~982 KB)</span>
               </a>
             </div>
 
             {/* Telemetry Highlights */}
-            <div className="pt-2 flex flex-wrap items-center justify-center gap-4 text-xs font-mono text-zinc-500">
-              <span className="flex items-center gap-1.5 text-orange-300 font-bold">
-                <span className="text-[#22C55E]">●</span> 3 Free Instant Scans (No Sign-Up)
+            <div className="pt-2 flex flex-wrap items-center justify-center gap-3 text-[11px] font-mono text-zinc-500">
+              <span className="flex items-center gap-1 text-emerald-400 font-semibold">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> 3 Free Instant Scans
               </span>
-              <span className="text-zinc-700">//</span>
-              <span className="flex items-center gap-1.5 text-zinc-300">
-                <span className="text-[#22C55E]">●</span> 30-Day Real Sold Comps
+              <span className="text-zinc-700">•</span>
+              <span className="flex items-center gap-1 text-zinc-300">
+                30-Day Real eBay AU Sold Comps
               </span>
-              <span className="text-zinc-700">//</span>
-              <span className="flex items-center gap-1.5 text-zinc-300">
-                <span className="text-[#F97316]">●</span> STR Turnover Velocity
+              <span className="text-zinc-700">•</span>
+              <span className="flex items-center gap-1 text-zinc-300">
+                STR% Turnover Velocity
               </span>
-              <span className="text-zinc-700">//</span>
-              <span className="flex items-center gap-1.5 text-zinc-300">
-                <span className="text-[#22C55E]">●</span> 1-Tap eBay AU Dispatch
+              <span className="text-zinc-700">•</span>
+              <span className="flex items-center gap-1 text-zinc-300">
+                1-Tap Marketplace Dispatch
               </span>
             </div>
           </div>
 
-          {/* ================================================================
-              Centerpiece: Tactile Hardware Specimen Card (Telemetry Readout)
-              ================================================================ */}
-          <div className="mt-14 max-w-3xl mx-auto">
-            <div className="specimen-card p-5 sm:p-7 border border-zinc-800 rounded-xl relative overflow-hidden bg-[#0D1017]">
-              {/* Corner Hardware Crosshairs */}
-              <div className="absolute top-2 left-2 w-2 h-2 border-t-2 border-l-2 border-[#F97316]" />
-              <div className="absolute top-2 right-2 w-2 h-2 border-t-2 border-r-2 border-[#F97316]" />
-              <div className="absolute bottom-2 left-2 w-2 h-2 border-b-2 border-l-2 border-zinc-700" />
-              <div className="absolute bottom-2 right-2 w-2 h-2 border-b-2 border-r-2 border-zinc-700" />
-
+          {/* Centerpiece: Tactile Hardware Specimen Card */}
+          <div className="mt-10 max-w-2xl mx-auto">
+            <div className="p-5 sm:p-6 border border-white/[0.08] rounded-2xl relative overflow-hidden bg-[#0A0D15]/90 shadow-2xl backdrop-blur-md">
               {/* Top Telemetry Header */}
-              <div className="flex flex-wrap items-center justify-between gap-2 pb-4 border-b border-zinc-800/90 font-mono text-[11px] text-zinc-400">
+              <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-white/[0.06] font-mono text-[11px] text-zinc-400">
                 <div className="flex items-center gap-2">
-                  <span className="px-1.5 py-0.5 rounded bg-[#161922] border border-zinc-800 text-zinc-300 font-bold">
+                  <span className="px-1.5 py-0.5 rounded bg-zinc-800/80 border border-zinc-700/60 text-zinc-200 font-bold">
                     SPECIMEN #AU-09412
                   </span>
-                  <span>JUNKYARD PICK-A-PART // ROW 14</span>
+                  <span>OP SHOP APPAREL RACK</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-zinc-500">CONFIDENCE:</span>
-                  <span className="font-bold text-[#22C55E]">98.7%</span>
+                  <span className="font-bold text-emerald-400">98.7%</span>
                   <span className="text-zinc-600">|</span>
                   <span className="text-zinc-500">LATENCY:</span>
                   <span className="text-zinc-300">142ms</span>
@@ -143,140 +136,127 @@ export default function Home() {
               </div>
 
               {/* Specimen Main Identification */}
-              <div className="py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <span className="px-2 py-0.5 rounded bg-[#22C55E]/15 border border-[#22C55E]/30 text-[#22C55E] text-[10px] font-mono font-bold uppercase tracking-wider">
-                      ● MUST COP // IMMEDIATE FLIP
+                    <span className="px-2 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[10px] font-mono font-bold uppercase tracking-wider">
+                      ● MUST COP // HIGH VELOCITY
                     </span>
-                    <span className="text-xs font-mono text-zinc-500">AUTO SALVAGE ECU</span>
+                    <span className="text-[11px] font-mono text-zinc-500">VINTAGE OUTERWEAR</span>
                   </div>
-                  <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-                    Bosch ME7.2 Engine Control Unit (ECU)
+                  <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight">
+                    Vintage 90s Nike Colorblock Windbreaker
                   </h2>
                   <p className="font-mono text-xs text-zinc-400">
-                    OEM Part: <span className="text-zinc-200">0-261-207-106</span> · Fits: BMW E39 540i / E53 X5 4.4L
+                    Swoosh Embroidered · Size XL · Deep Navy / Emerald
                   </p>
                 </div>
 
                 <div className="sm:text-right shrink-0">
-                  <p className="text-[10px] font-mono uppercase text-zinc-500">Net Take-Home Margin</p>
-                  <p className="text-3xl sm:text-4xl font-mono font-black text-[#22C55E] tracking-tight data-readout">
-                    +$138.45
+                  <p className="text-[10px] font-mono uppercase text-zinc-500">Net Profit Verdict</p>
+                  <p className="text-2xl sm:text-3xl font-mono font-black text-emerald-400 tracking-tight">
+                    +$68.20
                   </p>
-                  <p className="text-[11px] font-mono text-zinc-400">
-                    ROI: <strong className="text-zinc-200">923%</strong> (after fees & post)
+                  <p className="text-[10px] font-mono text-zinc-400">
+                    ROI: <strong className="text-zinc-200">+568%</strong> (after fees & post)
                   </p>
                 </div>
               </div>
 
-              {/* Dense Data Telemetry Grid (Forced Tabular Monospace) */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 p-3 rounded-lg bg-[#090A0F] border border-zinc-800/80 font-mono">
-                <div className="p-2.5 rounded bg-[#10131C] border border-zinc-800/60">
-                  <p className="text-[10px] text-zinc-500 uppercase tracking-tight">Tag / Junkyard Cost</p>
-                  <p className="text-base font-bold text-white tracking-tight data-readout">$15.00</p>
-                  <p className="text-[10px] text-zinc-500">Standard Yard Pull</p>
+              {/* Dense Data Telemetry Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-2.5 rounded-xl bg-zinc-900/80 border border-white/[0.05] font-mono text-xs">
+                <div className="p-2 rounded-lg bg-zinc-950/60 border border-white/[0.04]">
+                  <p className="text-[10px] text-zinc-500 uppercase">Thrift Tag Cost</p>
+                  <p className="text-sm font-bold text-white mt-0.5">$12.00</p>
+                  <p className="text-[9px] text-zinc-500">Salvos Standard</p>
                 </div>
 
-                <div className="p-2.5 rounded bg-[#10131C] border border-zinc-800/60">
-                  <p className="text-[10px] text-zinc-500 uppercase tracking-tight">90D Sold Median</p>
-                  <p className="text-base font-bold text-white tracking-tight data-readout">$185.00</p>
-                  <p className="text-[10px] text-emerald-400">28 Comps Sold</p>
+                <div className="p-2 rounded-lg bg-zinc-950/60 border border-white/[0.04]">
+                  <p className="text-[10px] text-zinc-500 uppercase">30D Sold Median</p>
+                  <p className="text-sm font-bold text-white mt-0.5">$92.50</p>
+                  <p className="text-[9px] text-emerald-400">14 Comps Sold</p>
                 </div>
 
-                <div className="p-2.5 rounded bg-[#10131C] border border-zinc-800/60">
-                  <p className="text-[10px] text-zinc-500 uppercase tracking-tight">Sell-Through (STR)</p>
-                  <p className="text-base font-bold text-[#F97316] tracking-tight data-readout">174%</p>
-                  <p className="text-[10px] text-zinc-400">⚡ 3.2-Day Velocity</p>
+                <div className="p-2 rounded-lg bg-zinc-950/60 border border-white/[0.04]">
+                  <p className="text-[10px] text-zinc-500 uppercase">STR Velocity</p>
+                  <p className="text-sm font-bold text-emerald-400 mt-0.5">148% STR</p>
+                  <p className="text-[9px] text-zinc-400">4-Day Turnover</p>
                 </div>
 
-                <div className="p-2.5 rounded bg-[#10131C] border border-zinc-800/60">
-                  <p className="text-[10px] text-zinc-500 uppercase tracking-tight">Deductions (Fees+Post)</p>
-                  <p className="text-base font-bold text-zinc-300 tracking-tight data-readout">-$31.55</p>
-                  <p className="text-[10px] text-zinc-500">eBay 13.4% + $11.50</p>
+                <div className="p-2 rounded-lg bg-zinc-950/60 border border-white/[0.04]">
+                  <p className="text-[10px] text-zinc-500 uppercase">Platform Fees</p>
+                  <p className="text-sm font-bold text-zinc-300 mt-0.5">-$12.30</p>
+                  <p className="text-[9px] text-zinc-500">eBay AU 13.4%</p>
                 </div>
               </div>
 
-              {/* Hardware Terminal Action Footer */}
-              <div className="mt-4 pt-4 border-t border-zinc-800/80 flex flex-col sm:flex-row items-center justify-between gap-3">
-                <div className="flex items-center gap-2 text-xs font-mono text-zinc-400">
-                  <Crosshair className="h-3.5 w-3.5 text-[#F97316]" />
-                  <span>TARGET PINNED // READY TO PUBLISH</span>
+              {/* Hardware Action Footer */}
+              <div className="mt-3 pt-3 border-t border-white/[0.06] flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-xs font-mono text-zinc-400">
+                  <Crosshair className="h-3.5 w-3.5 text-cyan-400" />
+                  <span>TARGET PINNED // VERIFIED COMPS</span>
                 </div>
 
-                <div className="flex items-center gap-2 w-full sm:w-auto">
-                  <Link
-                    href="/lens"
-                    className="flex-1 sm:flex-initial btn-primary h-9 px-4 text-xs"
-                  >
-                    <span>1-TAP EBAY DRAFT</span>
-                  </Link>
-                  <Link
-                    href="/ironman"
-                    className="flex-1 sm:flex-initial btn-secondary h-9 px-4 text-xs font-mono"
-                  >
-                    <span>VIEW IN AR HUD</span>
-                  </Link>
-                </div>
+                <Link
+                  href="/lens"
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white text-zinc-950 text-xs font-bold hover:bg-zinc-200 transition"
+                >
+                  <span>Launch Live Scanner</span>
+                </Link>
               </div>
             </div>
           </div>
         </section>
 
         {/* Centerpiece: Interactive Live Scanner & Listing Simulator */}
-        <section className="pt-8 pb-12 border-t border-zinc-800/80">
+        <section className="pt-4 pb-10 border-t border-white/[0.08]">
           <LandingInteractiveDemo />
         </section>
 
         {/* Core Product Capabilities */}
-        <section className="py-12 border-t border-zinc-800/80">
+        <section className="py-10 border-t border-white/[0.08]">
           <LandingProductTabs />
         </section>
 
-        {/* Reseller Profit & Fee Calculator */}
-        <section className="py-12 border-t border-zinc-800/80">
-          <LandingCalculator />
-        </section>
-
-        {/* Field Equipment Specifications (Dense 4-Column Grid) */}
-        <section className="py-16 border-t border-zinc-800/80">
-          <div className="mb-8">
-            <h3 className="font-mono text-xs text-[#F97316] uppercase font-bold tracking-wider">
+        {/* Field Specifications (Dense 4-Column Grid) */}
+        <section className="py-12 border-t border-white/[0.08]">
+          <div className="mb-6">
+            <span className="font-mono text-xs text-cyan-400 uppercase font-bold tracking-wider">
               HARDWARE ARCHITECTURE // SPECS
-            </h3>
-            <h2 className="text-2xl font-black text-white mt-1">
-              Engineered for the Bin, the Yard, and the Rack.
+            </span>
+            <h2 className="text-xl sm:text-2xl font-bold text-white mt-1">
+              Engineered for the Thrift Rack, Bin, and Yard.
             </h2>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="specimen-card p-5 space-y-2 border border-zinc-800/80">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="p-4 rounded-xl bg-[#0A0D15]/80 border border-white/[0.08] space-y-1.5">
               <span className="font-mono text-xs text-zinc-500 font-bold">[01] CONTINUOUS LENS</span>
-              <h3 className="text-base font-black text-white">60 FPS Walk-and-Pan</h3>
+              <h3 className="text-sm font-bold text-white">60 FPS Walk-and-Pan</h3>
               <p className="text-xs text-zinc-400 leading-relaxed">
                 Continuous on-device camera tracking. Pans across entire shelves with zero loading spinners.
               </p>
             </div>
 
-            <div className="specimen-card p-5 space-y-2 border border-zinc-800/80">
-              <span className="font-mono text-xs text-[#F97316] font-bold">[02] TURNOVER VELOCITY</span>
-              <h3 className="text-base font-black text-white">Real STR% Algorithm</h3>
+            <div className="p-4 rounded-xl bg-[#0A0D15]/80 border border-white/[0.08] space-y-1.5">
+              <span className="font-mono text-xs text-amber-400 font-bold">[02] TURNOVER VELOCITY</span>
+              <h3 className="text-sm font-bold text-white">Real STR% Algorithm</h3>
               <p className="text-xs text-zinc-400 leading-relaxed">
                 Detects hoarder risk traps (90d+ sitting) vs 3-day high velocity flips before spending capital.
               </p>
             </div>
 
-            <div className="specimen-card p-5 space-y-2 border border-zinc-800/80">
-              <span className="font-mono text-xs text-[#22C55E] font-bold">[03] AR SPATIAL HUD</span>
-              <h3 className="text-base font-black text-white">Iron Man Hologram</h3>
+            <div className="p-4 rounded-xl bg-[#0A0D15]/80 border border-white/[0.08] space-y-1.5">
+              <span className="font-mono text-xs text-emerald-400 font-bold">[03] AR SPATIAL HUD</span>
+              <h3 className="text-sm font-bold text-white">Spatial Optical Tags</h3>
               <p className="text-xs text-zinc-400 leading-relaxed">
-                3D floating profit tags pinned in camera space with Web Audio synthesis and tactile haptics.
+                Floating profit tags pinned in camera space with Web Audio synthesis and tactile haptics.
               </p>
             </div>
 
-            <div className="specimen-card p-5 space-y-2 border border-zinc-800/80">
-              <span className="font-mono text-xs text-zinc-500 font-bold">[04] FIELD DISPATCH</span>
-              <h3 className="text-base font-black text-white">1-Click Live eBay AU</h3>
+            <div className="p-4 rounded-xl bg-[#0A0D15]/80 border border-white/[0.08] space-y-1.5">
+              <span className="font-mono text-xs text-cyan-400 font-bold">[04] FIELD DISPATCH</span>
+              <h3 className="text-sm font-bold text-white">1-Click Live eBay AU</h3>
               <p className="text-xs text-zinc-400 leading-relaxed">
                 Auto-generates 80-character SEO titles, item specifics, and publishes directly to marketplace feeds.
               </p>
@@ -284,22 +264,21 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Testimonials & FAQ */}
-        <section className="py-12 border-t border-zinc-800/80">
+        {/* Compact FAQ Section */}
+        <section className="py-8 border-t border-white/[0.08]">
           <LandingTestimonialsFaq />
         </section>
 
-        {/* Footer - Minimalist Field Equipment Spec */}
-        <footer className="border-t border-zinc-800/80 py-8 text-xs font-mono text-zinc-500 flex flex-col sm:flex-row justify-between items-center gap-4">
+        {/* Footer */}
+        <footer className="border-t border-white/[0.08] pt-8 pb-4 text-xs font-mono text-zinc-500 flex flex-col sm:flex-row justify-between items-center gap-4">
           <div>
-            SPADAS RESALE INTELLIGENCE // © {new Date().getFullYear()} SPADAS TECHNOLOGY PTY LTD
+            Spadas Lens · Secondary Market OS · © {new Date().getFullYear()}
           </div>
-          <div className="flex items-center gap-5">
-            <Link href="/privacy" className="hover:text-zinc-300 transition">PRIVACY</Link>
-            <Link href="/terms" className="hover:text-zinc-300 transition">TERMS</Link>
-            <Link href="/press" className="hover:text-zinc-300 transition">PRESS</Link>
-            <a href="/spadas-ai.apk" download className="text-[#22C55E] hover:underline font-bold">
-              GET APK
+          <div className="flex items-center gap-4">
+            <Link href="/privacy" className="hover:text-zinc-300 transition">Privacy</Link>
+            <Link href="/terms" className="hover:text-zinc-300 transition">Terms</Link>
+            <a href="/spadas-ai.apk" download className="text-emerald-400 hover:underline font-bold">
+              Download APK
             </a>
           </div>
         </footer>

@@ -58,6 +58,7 @@ import {
   loadRapidSession,
   saveRapidSession,
   savePhotoBlob,
+  dataUriToBlob,
   computeSessionStats,
   triggerPocketAlert,
   canvasToBlob,
@@ -2659,6 +2660,29 @@ function SpadasLensCameraCore({ onOpenHaulTab }: { onOpenHaulTab?: () => void } 
           void persistHitAndSyncToSupabase(verifiedHit);
           setSessionScanCount((prev) => prev + 1);
 
+          const offlineRapidItem: RapidThriftItem = {
+            id: verifiedHit.id || `rapid_${Date.now()}`,
+            photoId: verifiedHit.id ? `photo_${verifiedHit.id}` : `photo_${Date.now()}`,
+            timestamp: verifiedHit.timestamp,
+            status: "completed",
+            productName: verifiedHit.name,
+            brand: verifiedHit.brand || "Authentic",
+            category: verifiedHit.category || "General",
+            condition: verifiedHit.condition || "Used - Good",
+            estimatedValue: verifiedHit.estimatedValue || 0,
+            thriftCost: verifiedHit.tagPrice || verifiedHit.estCost || 0,
+            trueNetProfit: verifiedHit.trueNetProfit || verifiedHit.estimatedProfit || 0,
+            copVerdict: verifiedHit.copVerdict === "MUST_COP" ? "MUST_COP" : "QUICK_FLIP",
+            isGrail: Boolean(verifiedHit.isGrail),
+          };
+          setRapidItems((prev) => [offlineRapidItem, ...prev.filter((i) => i.id !== offlineRapidItem.id)]);
+          if (frozenFrameUrl) {
+            try {
+              const blob = dataUriToBlob(frozenFrameUrl);
+              void savePhotoBlob(offlineRapidItem.photoId, blob);
+            } catch {}
+          }
+
           if (scanExpiryTimerRef.current) clearTimeout(scanExpiryTimerRef.current);
           scanExpiryTimerRef.current = setTimeout(() => setActiveScans([]), 4500);
 
@@ -3015,6 +3039,17 @@ function SpadasLensCameraCore({ onOpenHaulTab }: { onOpenHaulTab?: () => void } 
             isGrail: Boolean(verifiedHit.isGrail),
           };
           setRapidItems((prev) => [rapidMirrorItem, ...prev.filter((i) => i.id !== rapidMirrorItem.id)]);
+
+          // Cache captured image blob to IndexedDB for instant Spadas Haul thumbnail rendering
+          const snapImg = snapshotImage || frozenFrameUrl || (verifiedHit as any).image;
+          if (snapImg && typeof snapImg === "string") {
+            try {
+              const blob = dataUriToBlob(snapImg);
+              void savePhotoBlob(rapidMirrorItem.photoId, blob);
+            } catch (err) {
+              console.warn("[Rapid Thrift] Failed to cache photo blob:", err);
+            }
+          }
 
           // Automatically trigger active result state so the valuation card slides into view instantly
           triggerActiveValuationHit(verifiedHit, snapshotImage || frozenFrameUrl);

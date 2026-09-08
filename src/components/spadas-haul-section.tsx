@@ -86,17 +86,19 @@ export function SpadasHaulSection({
 
     const loadAllPhotos = async () => {
       const urls: Record<string, string> = {};
-      for (const item of items) {
-        if (!item.photoId) continue;
-        try {
-          const blob = await getPhotoBlob(item.photoId);
-          if (blob && isMounted) {
-            urls[item.photoId] = URL.createObjectURL(blob);
+      await Promise.all(
+        items.map(async (item) => {
+          if (!item.photoId) return;
+          try {
+            const blob = await getPhotoBlob(item.photoId);
+            if (blob && isMounted) {
+              urls[item.photoId] = URL.createObjectURL(blob);
+            }
+          } catch (err) {
+            console.warn("[Spadas Haul] Failed loading photo for:", item.photoId, err);
           }
-        } catch (err) {
-          console.warn("[Spadas Haul] Failed loading photo for:", item.photoId, err);
-        }
-      }
+        })
+      );
       if (isMounted) {
         setPhotoUrls((prev) => {
           Object.values(prev).forEach((url) => {
@@ -375,10 +377,39 @@ export function SpadasHaulSection({
               title="Clear Sourcing Run"
             >
               <Trash2 className="h-3.5 w-3.5" />
+              <span>Clear Lot</span>
             </button>
           )}
         </div>
       </div>
+
+      {/* Background Analyzing Banner if items are queued */}
+      {stats.queuedItems > 0 && (
+        <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between text-xs text-amber-300">
+          <div className="flex items-center gap-2">
+            <Loader2 className="h-4 w-4 animate-spin text-amber-400 shrink-0" />
+            <span className="font-bold">
+              Analyzing {stats.queuedItems} item{stats.queuedItems > 1 ? "s" : ""} in background...
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              const repaired = items.map((i) => ({
+                ...i,
+                status: "completed" as const,
+                productName: i.productName && i.productName !== "Scanned Sourcing Item" ? i.productName : "Sourced Thrift Item",
+              }));
+              setItems(repaired);
+              saveRapidSession(repaired);
+              toast.success("All lot items resolved to completed state.");
+            }}
+            className="text-xs font-mono font-bold px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/40 cursor-pointer transition"
+          >
+            Instant Reveal
+          </button>
+        </div>
+      )}
 
       {/* Quantitative Executive Financial Metrics Banner */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">

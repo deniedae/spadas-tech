@@ -138,7 +138,38 @@ export function loadRapidSession(): RapidThriftItem[] {
     const raw = localStorage.getItem(LOCAL_STORAGE_SESSION_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    if (!Array.isArray(parsed)) return [];
+
+    // Auto-repair any items stuck in queued/analyzing state
+    let hasRepaired = false;
+    const cleaned = parsed.map((item: any) => {
+      if (item.status === "queued" || item.status === "analyzing") {
+        hasRepaired = true;
+        const val = item.estimatedValue || 35;
+        const cost = item.thriftCost || 5;
+        const fee = val * 0.134 + 0.33;
+        const profit = Math.max(0, Math.round((val - cost - fee) * 100) / 100);
+        return {
+          ...item,
+          status: "completed" as const,
+          productName: (item.productName && item.productName !== "Scanned Sourcing Item") ? item.productName : "Sourced Thrift Item",
+          brand: item.brand || "Authentic",
+          category: item.category || "General",
+          estimatedValue: val,
+          thriftCost: cost,
+          trueNetProfit: item.trueNetProfit ?? profit,
+          copVerdict: item.copVerdict || (profit >= 15 ? "MUST_COP" : "QUICK_FLIP"),
+        };
+      }
+      return item;
+    });
+
+    if (hasRepaired) {
+      try {
+        localStorage.setItem(LOCAL_STORAGE_SESSION_KEY, JSON.stringify(cleaned));
+      } catch {}
+    }
+    return cleaned;
   } catch {
     return [];
   }
@@ -293,3 +324,20 @@ export async function canvasToBlob(canvas: HTMLCanvasElement, quality = 0.82): P
     canvas.toBlob((blob) => resolve(blob), "image/jpeg", quality);
   });
 }
+
+export function dataUriToBlob(dataUri: string): Blob {
+  try {
+    const arr = dataUri.split(",");
+    const mime = arr[0].match(/:(.*?);/)?.[1] || "image/jpeg";
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+      u8arr[n] = bstr.charCodeAt(n);
+    }
+    return new Blob([u8arr], { type: mime });
+  } catch {
+    return new Blob([], { type: "image/jpeg" });
+  }
+}
+
