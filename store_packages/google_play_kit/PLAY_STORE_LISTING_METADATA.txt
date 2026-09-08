@@ -1,36 +1,74 @@
-# Spadas AI — Appstore Listing Metadata (100% Policy & Trademark Compliant)
+# ==============================================================================
+# SPADAS AI — GOOGLE PLAY STORE LISTING COPY (HIGH CONVERTING & ASO OPTIMIZED)
+# ==============================================================================
 
-## App Title (Max 30 chars - No 3rd Party Trademarks):
+## 1. APP NAME (Choose 1 — Exactly <= 30 Chars)
+--------------------------------------------------------------------------------
+OPTION 1 (Recommended - High ASO Ranking):
+Spadas Lens: Reseller Scanner
+(29 / 30 characters)
+
+OPTION 2 (Current Brand):
 Spadas AI: Reseller Scanner
+(27 / 30 characters)
 
-## Short Description (Max 80 chars - No 3rd Party Trademarks):
-Instant 60 FPS barcode scanner, real-time resale comps, and AI listing generator.
+OPTION 3:
+Spadas: Resale Comps Scanner
+(28 / 30 characters)
 
-## Full Description:
-Supercharge your thrift, garage sale, and retail arbitrage flips with Spadas AI!
 
-⚡ ULTRA-FAST HARDWARE SCANNER
-• Scan 60 FPS barcodes and item labels in rapid succession with Turbo Batch Mode.
-• Built-in camera flashlight control to illuminate dim thrift store shelves.
-• Audio and tactile haptic scan feedback.
+## 2. SHORT DESCRIPTION (Choose 1 — Strictly <= 80 Chars)
+--------------------------------------------------------------------------------
+OPTION 1 (Recommended - High Conversion & Clear Hook):
+Scan thrift aisles in 60 FPS. Instant resale comps, net profit & AI listings.
+(77 / 80 characters)
 
-💰 REAL-TIME MARKET PRICE COMPS & VALUE APPRAISAL
-• Instant estimated resale prices, net profit calculations, and ROI metrics.
-• Live sales velocity indicators (Sell-through rate, fast-flip vs slow-burner tags).
-• Grail detector alerts for high-value collectibles and rare vintage items.
+OPTION 2 (Direct Value Proposition):
+Point & scan thrift items. Real-time resale comps, net profit & 1-tap listings.
+(78 / 80 characters)
 
-📸 1-CLICK AI LISTING CREATOR
-• Generate optimized marketplace titles, item specifics, and descriptions from photos.
-• Auto-enhancement & contrast tuning for high-accuracy product matching.
+OPTION 3 (Action-Oriented):
+Instant 60 FPS camera scanner, real-time resale comps & automated net profit.
+(77 / 80 characters)
 
-📊 COMPLETE INVENTORY & PROFIT TRACKER
-• Track cost of goods (COGS), active inventory value, and monthly net profit.
-• Quick Settings drop-down tile to scan from anywhere on your phone.
 
----
-## Required Store Info:
-• Category: Business / Shopping / Utilities
-• Privacy Policy URL: https://spadas-tech.vercel.app/privacy
-• Support Email: deniedae@gmail.com
-• Target Audience: 16+ / Everyone
-• Keywords: reseller, price comps, barcode scanner, thrift, arbitrage, inventory, resale, scanner, appraisal, flipping
+## 3. FULL DESCRIPTION (Ready to Copy-Paste into Google Play Console)
+--------------------------------------------------------------------------------
+Stop typing. Start scanning. Supercharge your thrift, garage sale, op-shop, and retail arbitrage sourcing with Spadas AI!
+
+Spadas AI turns your smartphone camera into a high-speed resale intelligence scanner. Simply point your camera down thrift store aisles, video game shelves, or clothing racks to identify items, pull verified sold comps, and calculate your exact net profit in real time.
+
+Whether you flip on eBay, Depop, Poshmark, Mercari, or Facebook Marketplace, Spadas AI gives you the unfair sourcing advantage to buy with 100% confidence.
+
+
+⚡ 60 FPS HARDWARE AR CAMERA SCANNER
+• Instant Continuous Scanning: Scan shelves in rapid succession without tapping shutter buttons or typing search terms.
+• Precision Barcode & Label OCR: Instant recognition of retail barcodes, tags, model numbers, and vintage brand labels.
+• Tactile Haptic & Audio Feedback: High-pitch audio chimes and distinct vibrations trigger the moment a profitable item is detected.
+• Dim Shelf Flashlight: Built-in hardware torch toggle illuminates dark thrift bins and warehouse corners.
+
+
+💰 REAL-TIME SOLD COMPS & TRUE NET PROFIT
+• Real Market Comps: Direct integration with eBay sold comps gives you what items actually sell for—not unrealistic asking prices.
+• Automated Net Profit Calculator: Enter or scan the thrift tag price, and Spadas instantly deducts marketplace seller fees, payment processing, and estimated shipping costs.
+• Intelligent Cop Verdict: Instant recommendations (👑 MUST COP, ⚡ QUICK FLIP, or ⛔ PASS) so you never buy low-margin inventory.
+• Smart Noise Filtering: Automatically filters out lot bundles, strategy guides, empty cases, and digital codes to give you accurate unit comps.
+
+
+🛡️ FORENSIC LUXURY & REPLICA SAFEGUARDS
+• High-Risk Triage: Instant counterfeit risk alerts for designer bags, luxury streetwear, wallets, and watches.
+• Deep Verification: Automated forensic inspection prompts verify stitching, hallmarks, and serial tags to keep your seller accounts safe from VERO strikes.
+
+
+🚀 1-CLICK MULTI-CHANNEL LISTING
+• AI Listing Generator: Snap photos of your thrift haul to generate optimized SEO titles, rich item descriptions, and category specifics in seconds.
+• Multi-Platform Publishing: Cross-list drafts directly to eBay, Depop, and Poshmark with one tap.
+• Sell-Through Velocity Metrics: Prioritize inventory that flips fast with real-time sell-through rate (STR) and turnaround days indicators.
+
+
+📦 BUILT FOR RESELLERS IN THE FIELD
+• Offline Dead-Zone Mode: Sourcing in a metal-roof thrift store or rural market with zero mobile reception? On-device caching keeps your scanner running smoothly.
+• Thrift Haul Review Drawer: Review and edit your entire day’s thrift haul before checking out at the register.
+• Quick Settings Dropdown Tile: Pull down your Android notification shade to trigger camera scans instantly from anywhere.
+
+Download Spadas AI today and never leave money on the thrift store shelf again!
