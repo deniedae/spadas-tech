@@ -57,15 +57,12 @@ import {
 } from "@/lib/guest-scan-tracker";
 import {
   RapidThriftItem,
-  loadRapidSession,
-  saveRapidSession,
   savePhotoBlob,
   dataUriToBlob,
-  computeSessionStats,
   triggerPocketAlert,
   canvasToBlob,
-  clearRapidSession,
 } from "@/lib/rapid-thrift-engine";
+import { useHaulStore } from "@/lib/haul-store";
 import { RapidThriftDrawer } from "@/components/rapid-thrift-drawer";
 import { QuickHistoryDrawer } from "@/components/quick-history-drawer";
 import { calculateSalesVelocity } from "@/lib/turnover-velocity-engine";
@@ -358,7 +355,13 @@ function cleanConditionText(rawCondition: string): string {
 
 let cycleSeq = 0;
 
-function SpadasLensCameraCore({ onOpenHaulTab }: { onOpenHaulTab?: () => void } = {}) {
+function SpadasLensCameraCore({
+  onOpenHaulTab,
+  onOpenSnapStudio,
+}: {
+  onOpenHaulTab?: () => void;
+  onOpenSnapStudio?: () => void;
+} = {}) {
   const router = useRouter();
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -491,27 +494,21 @@ function SpadasLensCameraCore({ onOpenHaulTab }: { onOpenHaulTab?: () => void } 
     };
   }, []);
 
-  // Dedicated Rapid Thrift Sourcing Engine State (Locked Permanently Enabled)
+  // Dedicated Rapid Thrift Sourcing Engine State (Unified Global Store)
   const isRapidScanMode = true;
-  const [rapidItems, setRapidItems] = useState<RapidThriftItem[]>([]);
+  const {
+    items: rapidItems,
+    haulCount,
+    rapidStats,
+    setItems: setRapidItems,
+    removeItem,
+    clearHaul,
+  } = useHaulStore();
   const [isRapidDrawerOpen, setIsRapidDrawerOpen] = useState<boolean>(false);
   const rapidQueueRef = useRef<Array<{ item: RapidThriftItem; blob: Blob }>>([]);
   const activeRapidWorkersRef = useRef<number>(0);
   const MAX_RAPID_CONCURRENCY = 2; // Capped at 2 concurrent background requests
   const wakeLockRef = useRef<any>(null);
-
-  // Load saved session metadata on mount (Zero Base64 in LocalStorage)
-  useEffect(() => {
-    const saved = loadRapidSession();
-    if (saved && saved.length > 0) {
-      setRapidItems(saved);
-    }
-  }, []);
-
-  // Persist lightweight session metadata whenever items change
-  useEffect(() => {
-    saveRapidSession(rapidItems);
-  }, [rapidItems]);
 
   // Reliable Non-Blocking Supabase Auth & Subscription Check on Mount
   useEffect(() => {
@@ -778,7 +775,6 @@ function SpadasLensCameraCore({ onOpenHaulTab }: { onOpenHaulTab?: () => void } 
 
   const profitableCount = capturedLog.filter((h) => (h.estimatedProfit || 0) >= minProfitThreshold).length;
   const bestProfit = capturedLog.reduce((max, h) => Math.max(max, h.estimatedProfit || 0), 0);
-  const rapidStats = useMemo(() => computeSessionStats(rapidItems), [rapidItems]);
 
   // Background / Mobile Tab Switch Reconnect Listener
   useEffect(() => {
@@ -4211,6 +4207,33 @@ function SpadasLensCameraCore({ onOpenHaulTab }: { onOpenHaulTab?: () => void } 
               )}
             </div>
 
+            {/* Dedicated Quick Snap Studio Action Trigger (Bottom Left — Isolated Studio Multi-Angle Intake) */}
+            <div className="absolute bottom-4 left-3 sm:left-5 z-40 pointer-events-auto">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (onOpenSnapStudio) {
+                    onOpenSnapStudio();
+                  } else {
+                    router.push("/snap");
+                  }
+                }}
+                onPointerDown={(e) => {
+                  e.stopPropagation();
+                }}
+                className="group flex min-h-[44px] min-w-[44px] touch-manipulation items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-950/90 border border-slate-700/80 hover:border-cyan-400/60 shadow-lg backdrop-blur-md transition cursor-pointer active:scale-95 text-slate-300 hover:text-white"
+                title="Launch Quick Snap Studio (Multi-Angle Photography & Valuation)"
+                aria-label="Open Quick Snap Studio"
+              >
+                <Camera className="h-4 w-4 text-cyan-400 shrink-0 group-hover:scale-110 transition-transform" />
+                <span className="text-xs font-black tracking-tight text-white hidden xs:inline">
+                  Quick Snap
+                </span>
+              </button>
+            </div>
+
             {/* Telemetry Haul Counter Badge (Bottom Right — Clean Data Telemetry Readout) */}
             {isRapidScanMode && (
               <div className="absolute bottom-4 right-3 sm:right-5 z-40 pointer-events-auto">
@@ -4230,7 +4253,7 @@ function SpadasLensCameraCore({ onOpenHaulTab }: { onOpenHaulTab?: () => void } 
                   }}
                   className="group flex min-h-[44px] min-w-[44px] touch-manipulation items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-950/90 border border-slate-700/80 hover:border-amber-400/60 shadow-lg backdrop-blur-md transition cursor-pointer active:scale-95"
                   title="Open Spadas Haul Lot Review"
-                  aria-label={`Haul telemetry: ${rapidItems.length} items collected. Tap to open haul review.`}
+                  aria-label={`Haul telemetry: ${haulCount} items collected. Tap to open haul review.`}
                 >
                   <div className="flex items-center gap-1.5 font-mono">
                     <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse shrink-0" />
@@ -4238,7 +4261,7 @@ function SpadasLensCameraCore({ onOpenHaulTab }: { onOpenHaulTab?: () => void } 
                       Haul:
                     </span>
                     <span className="text-xs font-black text-amber-300 tabular-nums">
-                      {rapidItems.length}
+                      {haulCount}
                     </span>
                   </div>
                   {rapidStats.totalProfit > 0 && (
@@ -4493,10 +4516,9 @@ function SpadasLensCameraCore({ onOpenHaulTab }: { onOpenHaulTab?: () => void } 
         isOpen={isRapidDrawerOpen}
         onClose={() => setIsRapidDrawerOpen(false)}
         items={rapidItems}
-        onDeleteItem={(id) => setRapidItems((prev) => prev.filter((i) => i.id !== id))}
+        onDeleteItem={(id) => removeItem(id)}
         onClearSession={async () => {
-          await clearRapidSession();
-          setRapidItems([]);
+          await clearHaul();
           toast.success("Rapid Haul cleared.");
         }}
         onAddToInventory={(item) => {
@@ -4612,10 +4634,19 @@ function SpadasLensCameraCore({ onOpenHaulTab }: { onOpenHaulTab?: () => void } 
   );
 }
 
-export default function SpadasLensCamera({ onOpenHaulTab }: { onOpenHaulTab?: () => void } = {}) {
+export default function SpadasLensCamera({
+  onOpenHaulTab,
+  onOpenSnapStudio,
+}: {
+  onOpenHaulTab?: () => void;
+  onOpenSnapStudio?: () => void;
+} = {}) {
   return (
     <CameraErrorBoundary>
-      <SpadasLensCameraCore onOpenHaulTab={onOpenHaulTab} />
+      <SpadasLensCameraCore
+        onOpenHaulTab={onOpenHaulTab}
+        onOpenSnapStudio={onOpenSnapStudio}
+      />
     </CameraErrorBoundary>
   );
 }

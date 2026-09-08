@@ -22,18 +22,18 @@ import {
   RapidThriftItem,
   RapidSessionStats,
   getPhotoBlob,
-  saveRapidSession,
   computeSessionStats,
 } from "@/lib/rapid-thrift-engine";
+import { useHaulStore } from "@/lib/haul-store";
 import { calculateSalesVelocity } from "@/lib/turnover-velocity-engine";
 import { toast } from "sonner";
 
 interface RapidThriftDrawerProps {
   isOpen: boolean;
   onClose: () => void;
-  items: RapidThriftItem[];
-  onDeleteItem: (id: string) => void;
-  onClearSession: () => void;
+  items?: RapidThriftItem[];
+  onDeleteItem?: (id: string) => void;
+  onClearSession?: () => void;
   onAddToInventory?: (item: RapidThriftItem) => void;
   onOpenVerify?: (item: RapidThriftItem) => void;
   currency?: string;
@@ -42,13 +42,34 @@ interface RapidThriftDrawerProps {
 export const RapidThriftDrawer: React.FC<RapidThriftDrawerProps> = ({
   isOpen,
   onClose,
-  items,
-  onDeleteItem,
-  onClearSession,
+  items: propItems,
+  onDeleteItem: propOnDeleteItem,
+  onClearSession: propOnClearSession,
   onAddToInventory,
   onOpenVerify,
   currency = "AUD",
 }) => {
+  const { items: storeItems, removeItem, clearHaul, setItems } = useHaulStore();
+  const items = propItems ?? storeItems;
+
+  const handleDeleteItem = async (id: string) => {
+    if (propOnDeleteItem) {
+      propOnDeleteItem(id);
+    } else {
+      await removeItem(id);
+      toast.success("Item removed from haul.");
+    }
+  };
+
+  const handleClearSession = async () => {
+    if (propOnClearSession) {
+      propOnClearSession();
+    } else {
+      await clearHaul();
+      toast.success("Rapid Haul cleared.");
+    }
+  };
+
   const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({});
   const [loadingPhotos, setLoadingPhotos] = useState<boolean>(false);
 
@@ -240,8 +261,7 @@ export const RapidThriftDrawer: React.FC<RapidThriftDrawerProps> = ({
                   status: "completed" as const,
                   productName: i.productName && i.productName !== "Scanned Sourcing Item" ? i.productName : "Sourced Thrift Item",
                 }));
-                saveRapidSession(repaired);
-                window.location.reload();
+                setItems(repaired);
               }}
               className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/40 cursor-pointer"
             >
@@ -398,7 +418,7 @@ export const RapidThriftDrawer: React.FC<RapidThriftDrawerProps> = ({
                     )}
                     <button
                       type="button"
-                      onClick={() => onDeleteItem(item.id)}
+                      onClick={() => handleDeleteItem(item.id)}
                       className="text-slate-500 hover:text-rose-400 p-1 transition cursor-pointer"
                       title="Remove item"
                     >
@@ -434,7 +454,7 @@ export const RapidThriftDrawer: React.FC<RapidThriftDrawerProps> = ({
 
             <button
               type="button"
-              onClick={onClearSession}
+              onClick={handleClearSession}
               className="px-3 py-1.5 rounded-xl text-xs font-bold text-rose-400 hover:bg-rose-950/30 transition cursor-pointer flex items-center gap-1"
             >
               <Trash2 className="h-3.5 w-3.5" /> Clear Haul

@@ -6,7 +6,7 @@ import SpadasLensCamera from "@/components/spadas-lens-camera";
 import { SpadasSnapStudio } from "@/components/spadas-snap-studio";
 import IronmanHudCamera from "@/components/ironman-hud-camera";
 import { SpadasHaulSection } from "@/components/spadas-haul-section";
-import { loadRapidSession } from "@/lib/rapid-thrift-engine";
+import { useHaulStore } from "@/lib/haul-store";
 
 interface UnifiedCameraHubProps {
   initialTab?: "lens" | "ironman" | "studio" | "haul";
@@ -14,22 +14,7 @@ interface UnifiedCameraHubProps {
 
 export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraHubProps) {
   const [activeTab, setActiveTab] = useState<"lens" | "ironman" | "studio" | "haul">(initialTab);
-  const [haulCount, setHaulCount] = useState<number>(0);
-
-  // Sync active haul lot count
-  useEffect(() => {
-    const updateCount = () => {
-      const items = loadRapidSession();
-      setHaulCount(items.length);
-    };
-    updateCount();
-    window.addEventListener("storage", updateCount);
-    const interval = setInterval(updateCount, 2500);
-    return () => {
-      window.removeEventListener("storage", updateCount);
-      clearInterval(interval);
-    };
-  }, []);
+  const { haulCount } = useHaulStore();
 
   return (
     <div className="relative w-full bg-black text-white flex flex-col">
@@ -114,7 +99,10 @@ export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraH
       {/* Dynamic Mode Viewport — Persistent mounts prevent camera hardware stream teardown */}
       <div className="flex-1 w-full flex flex-col">
         <div className={activeTab === "lens" ? "p-2 sm:p-4 max-w-5xl mx-auto w-full" : "hidden"}>
-          <SpadasLensCamera onOpenHaulTab={() => setActiveTab("haul")} />
+          <SpadasLensCamera
+            onOpenHaulTab={() => setActiveTab("haul")}
+            onOpenSnapStudio={() => setActiveTab("studio")}
+          />
         </div>
         <div className={activeTab === "ironman" ? "block w-full" : "hidden"}>
           <IronmanHudCamera />

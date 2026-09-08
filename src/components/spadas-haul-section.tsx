@@ -26,13 +26,9 @@ import {
 } from "lucide-react";
 import {
   RapidThriftItem,
-  RapidSessionStats,
   getPhotoBlob,
-  loadRapidSession,
-  saveRapidSession,
-  clearRapidSession,
-  computeSessionStats,
 } from "@/lib/rapid-thrift-engine";
+import { useHaulStore } from "@/lib/haul-store";
 import { calculateSalesVelocity } from "@/lib/turnover-velocity-engine";
 import { toast } from "sonner";
 import EbayListingModal from "@/components/ebay-listing-modal";
@@ -48,7 +44,20 @@ export function SpadasHaulSection({
   onSwitchToLens,
   currency = "AUD",
 }: SpadasHaulSectionProps) {
-  const [items, setItems] = useState<RapidThriftItem[]>([]);
+  const {
+    items,
+    haulCount,
+    stats,
+    totalCostBasis,
+    totalGrossValue,
+    totalProfit,
+    aggregateRoi,
+    removeItem,
+    clearHaul,
+    setItems,
+    refresh: refreshItems,
+  } = useHaulStore();
+
   const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({});
   const [loadingPhotos, setLoadingPhotos] = useState<boolean>(false);
   const [searchFilter, setSearchFilter] = useState<string>("");
@@ -57,25 +66,6 @@ export function SpadasHaulSection({
   // Modals state
   const [ebayItem, setEbayItem] = useState<RapidThriftItem | null>(null);
   const [verifyItem, setVerifyItem] = useState<RapidThriftItem | null>(null);
-
-  // Load session from storage on mount
-  const refreshItems = useCallback(() => {
-    const loaded = loadRapidSession();
-    setItems(loaded);
-  }, []);
-
-  useEffect(() => {
-    refreshItems();
-
-    // Listen for storage events in case items are updated in another tab/window
-    const handleStorage = (e: StorageEvent) => {
-      if (e.key === "spadas_rapid_thrift_session") {
-        refreshItems();
-      }
-    };
-    window.addEventListener("storage", handleStorage);
-    return () => window.removeEventListener("storage", handleStorage);
-  }, [refreshItems]);
 
   // Load IndexedDB photo blobs for thumbnails
   useEffect(() => {
@@ -126,21 +116,6 @@ export function SpadasHaulSection({
     };
   }, [photoUrls]);
 
-  // Compute quantitative stats
-  const stats: RapidSessionStats = useMemo(() => computeSessionStats(items), [items]);
-
-  const totalCostBasis = useMemo(() => {
-    return items.reduce((acc, curr) => acc + (curr.thriftCost || 0), 0);
-  }, [items]);
-
-  const totalGrossValue = useMemo(() => {
-    return items.reduce((acc, curr) => acc + (curr.estimatedValue || 0), 0);
-  }, [items]);
-
-  const aggregateRoi = useMemo(() => {
-    if (totalCostBasis <= 0) return 0;
-    return Math.round((stats.totalProfit / totalCostBasis) * 100);
-  }, [stats.totalProfit, totalCostBasis]);
 
   // Filtered items
   const filteredItems = useMemo(() => {
@@ -241,10 +216,8 @@ export function SpadasHaulSection({
   };
 
   // Handle item deletion
-  const handleDeleteItem = (id: string) => {
-    const updated = items.filter((i) => i.id !== id);
-    setItems(updated);
-    saveRapidSession(updated);
+  const handleDeleteItem = async (id: string) => {
+    await removeItem(id);
     toast.success("Item removed from sourcing haul.");
   };
 
@@ -253,8 +226,7 @@ export function SpadasHaulSection({
     if (!confirm("Clear all items in this sourcing haul session? This will reset the active manifest.")) {
       return;
     }
-    await clearRapidSession();
-    setItems([]);
+    await clearHaul();
     toast.success("Sourcing haul cleared.");
   };
 
@@ -401,7 +373,6 @@ export function SpadasHaulSection({
                 productName: i.productName && i.productName !== "Scanned Sourcing Item" ? i.productName : "Sourced Thrift Item",
               }));
               setItems(repaired);
-              saveRapidSession(repaired);
               toast.success("All lot items resolved to completed state.");
             }}
             className="text-xs font-mono font-bold px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/40 cursor-pointer transition"

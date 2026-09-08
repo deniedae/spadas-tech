@@ -21,6 +21,8 @@ import {
 import { processFrameForVision, compressFileToDataUrl } from "@/lib/image-preprocessor";
 import { isOwnerEmail } from "@/app/lib/auth-admin";
 import { ScanProgressiveLoader } from "@/components/scan-progressive-loader";
+import { haulStore } from "@/lib/haul-store";
+import { RapidThriftItem, dataUriToBlob, savePhotoBlob } from "@/lib/rapid-thrift-engine";
 
 export function SpadasSnapStudio() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -515,9 +517,36 @@ export function SpadasSnapStudio() {
           setLastScannedItem(listingPayload);
         }
 
+        // Auto-commit to Spadas Haul lot store
+        const snapPhotoId = `snap_photo_${Date.now()}`;
+        const haulItem: RapidThriftItem = {
+          id: `snap_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+          photoId: snapPhotoId,
+          timestamp: Date.now(),
+          status: "completed",
+          productName: listingPayload.productName,
+          brand: listingPayload.brand,
+          category: listingPayload.category,
+          condition: listingPayload.condition,
+          estimatedValue: listingPayload.priceMedian,
+          thriftCost: listingPayload.buyCost,
+          trueNetProfit: listingPayload.trueNetProfit,
+          roiPercentage: listingPayload.roiPercentage,
+          copVerdict: listingPayload.copVerdict,
+          isGrail: (listingPayload.trueNetProfit || 0) >= 50 || listingPayload.copVerdict === "MUST_COP",
+        };
+        haulStore.addItem(haulItem);
+
+        if (capturedPhotos[0]) {
+          try {
+            const blob = dataUriToBlob(capturedPhotos[0]);
+            void savePhotoBlob(snapPhotoId, blob);
+          } catch {}
+        }
+
         triggerTactileHaptic(cop.copVerdict === "MUST_COP" ? "grail" : "success");
         setListingResult(listingPayload);
-        toast.success(`🎯 ${cop.verdictLabel}: +$${cop.netProfit.toFixed(0)} Profit!`);
+        toast.success(`🎯 ${cop.verdictLabel}: +$${cop.netProfit.toFixed(0)} Profit! Added to Haul.`);
       } else {
         toast.error("Could not analyze item. Please try another shot.");
       }
