@@ -378,6 +378,8 @@ function SpadasLensCameraCore() {
   const [rateLimited, setRateLimited] = useState(false);
   const [activeScans, setActiveScans] = useState<ActiveScanItem[]>([]);
   const [activeValuationHit, setActiveValuationHit] = useState<DetectedHit | null>(null);
+  const [scanCompletePulse, setScanCompletePulse] = useState<boolean>(false);
+  const scanCompletePulseTimerRef = useRef<NodeJS.Timeout | null>(null);
   const valuationExpiryTimerRef = useRef<NodeJS.Timeout | null>(null);
   const scanExpiryTimerRef = useRef<NodeJS.Timeout | null>(null);
   const activeAbortControllerRef = useRef<AbortController | null>(null);
@@ -770,8 +772,118 @@ function SpadasLensCameraCore() {
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       if (scanExpiryTimerRef.current) clearTimeout(scanExpiryTimerRef.current);
+      if (scanCompletePulseTimerRef.current) clearTimeout(scanCompletePulseTimerRef.current);
     };
   }, [stream, isRapidScanMode, requestWakeLock]);
+
+  // Multi-Tier Reseller Audio Synthesizer based on profit margin
+  const playChime = useCallback(
+    (profit = 15) => {
+      if (!soundEnabled || typeof window === "undefined") return;
+      try {
+        const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        const now = ctx.currentTime;
+
+        if (profit >= 80) {
+          // GRAIL FIND FANFARE (4-tone victory arpeggio)
+          const freqs = [523.25, 659.25, 783.99, 1046.5];
+          freqs.forEach((f, idx) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            const t = now + idx * 0.07;
+            osc.type = "triangle";
+            osc.frequency.setValueAtTime(f, t);
+            gain.gain.setValueAtTime(0.3, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(t);
+            osc.stop(t + 0.28);
+          });
+        } else if (profit >= 30) {
+          // STRONG FLIP (Harmonic Triad Chord)
+          const freqs = [587.33, 739.99, 880.0];
+          freqs.forEach((f) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = "sine";
+            osc.frequency.setValueAtTime(f, now);
+            gain.gain.setValueAtTime(0.2, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.3);
+          });
+        } else {
+          // STANDARD RESALE FIND (Clean High-Tech Dual-Tone Chirp)
+          const osc1 = ctx.createOscillator();
+          const osc2 = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc1.type = "sine";
+          osc2.type = "sine";
+          osc1.frequency.setValueAtTime(587.33, now);
+          osc1.frequency.exponentialRampToValueAtTime(880, now + 0.12);
+          osc2.frequency.setValueAtTime(880, now + 0.08);
+          osc2.frequency.exponentialRampToValueAtTime(1174.66, now + 0.22);
+          gain.gain.setValueAtTime(0.2, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+          osc1.connect(gain);
+          osc2.connect(gain);
+          gain.connect(ctx.destination);
+          osc1.start(now);
+          osc2.start(now + 0.04);
+          osc1.stop(now + 0.28);
+          osc2.stop(now + 0.28);
+        }
+      } catch (e) {
+        console.error("AudioContext chime error:", e);
+      }
+    },
+    [soundEnabled]
+  );
+
+  // Unified Instant Result Card & Haptic/Visual Confirmation Trigger
+  const triggerActiveValuationHit = useCallback(
+    (hit: DetectedHit, previewImage?: string | null) => {
+      // 1. Immediately activate valuation result state so the valuation card slides into view
+      setActiveValuationHit(hit);
+      if (previewImage || hit.image) {
+        setFrozenFrameUrl(previewImage || hit.image || null);
+      }
+      setIsValuationCardMounted(true);
+      setIsLoaderTransitioning(false);
+
+      // 2. Hardware / Tactile Haptic Confirmation (Android Bridge + Web Vibration API)
+      triggerTactileHaptic(hit.copVerdict === "MUST_COP" || hit.isGrail ? "grail" : "success");
+      if (typeof navigator !== "undefined" && navigator.vibrate) {
+        navigator.vibrate(hit.copVerdict === "MUST_COP" || hit.isGrail ? [50, 30, 90] : [40, 25, 50]);
+      }
+
+      // 3. Audio Confirmation
+      playChime(hit.trueNetProfit || hit.estimatedProfit || 0);
+
+      // 4. Viewfinder Instant Visual Confirmation: Target lock snap & pulse animation
+      setScanCompletePulse(true);
+      if (scanCompletePulseTimerRef.current) {
+        clearTimeout(scanCompletePulseTimerRef.current);
+      }
+      scanCompletePulseTimerRef.current = setTimeout(() => {
+        setScanCompletePulse(false);
+      }, 900);
+
+      // 5. Generous auto-expiry timer so the user has ample time to inspect comps, ROI, and actions
+      if (valuationExpiryTimerRef.current) {
+        clearTimeout(valuationExpiryTimerRef.current);
+      }
+      valuationExpiryTimerRef.current = setTimeout(() => {
+        setActiveValuationHit(null);
+      }, 8500);
+    },
+    [soundEnabled, playChime]
+  );
 
   // Continuous 60 FPS Native Barcode Scanner Loop
   const handleNativeBarcode = useCallback(
@@ -884,10 +996,8 @@ function SpadasLensCameraCore() {
             setActiveScans([scanObj]);
             setCapturedLog((prev) => [verifiedHit, ...prev.filter((h) => h.name !== pName)].slice(0, 50));
             setSessionScanCount((prev) => prev + 1);
-            setActiveCompsHit(verifiedHit);
-            setIsScanPaused(true);
+            triggerActiveValuationHit(verifiedHit, snapshotUrl || productImg);
             setConfidencePercent(99);
-            playChime(estProfit);
             toast.success(`⚡ Barcode Lock: ${pName.slice(0, 24)}... (+$${estProfit} Net)`);
           }
         }
@@ -895,7 +1005,7 @@ function SpadasLensCameraCore() {
         console.warn("[Spadas Lens] Continuous barcode lookup error:", err);
       }
     },
-    [soundEnabled, isScanPaused]
+    [soundEnabled, isScanPaused, triggerActiveValuationHit]
   );
 
   useEffect(() => {
@@ -1716,72 +1826,6 @@ function SpadasLensCameraCore() {
     window.speechSynthesis.speak(utterance);
   };
 
-  // Multi-Tier Reseller Audio Synthesizer based on profit margin
-  const playChime = (profit = 15) => {
-    if (!soundEnabled || typeof window === "undefined") return;
-    try {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioCtx) return;
-      const ctx = new AudioCtx();
-      const now = ctx.currentTime;
-
-      if (profit >= 80) {
-        // GRAIL FIND FANFARE (4-tone victory arpeggio)
-        const freqs = [523.25, 659.25, 783.99, 1046.50];
-        freqs.forEach((f, idx) => {
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          const t = now + idx * 0.07;
-          osc.type = "triangle";
-          osc.frequency.setValueAtTime(f, t);
-          gain.gain.setValueAtTime(0.3, t);
-          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.start(t);
-          osc.stop(t + 0.28);
-        });
-      } else if (profit >= 30) {
-        // STRONG FLIP (Harmonic Triad Chord)
-        const freqs = [587.33, 739.99, 880.00];
-        freqs.forEach((f) => {
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.type = "sine";
-          osc.frequency.setValueAtTime(f, now);
-          gain.gain.setValueAtTime(0.2, now);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.start(now);
-          osc.stop(now + 0.3);
-        });
-      } else {
-        // STANDARD RESALE FIND (Clean High-Tech Dual-Tone Chirp)
-        const osc1 = ctx.createOscillator();
-        const osc2 = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc1.type = "sine";
-        osc2.type = "sine";
-        osc1.frequency.setValueAtTime(587.33, now);
-        osc1.frequency.exponentialRampToValueAtTime(880, now + 0.12);
-        osc2.frequency.setValueAtTime(880, now + 0.08);
-        osc2.frequency.exponentialRampToValueAtTime(1174.66, now + 0.22);
-        gain.gain.setValueAtTime(0.2, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
-        osc1.connect(gain);
-        osc2.connect(gain);
-        gain.connect(ctx.destination);
-        osc1.start(now);
-        osc2.start(now + 0.04);
-        osc1.stop(now + 0.28);
-        osc2.stop(now + 0.28);
-      }
-    } catch (e) {
-      console.error("AudioContext chime error:", e);
-    }
-  };
-
   const autoScanActiveRef = useRef(autoScanActive);
   useEffect(() => {
     autoScanActiveRef.current = autoScanActive;
@@ -2028,8 +2072,7 @@ function SpadasLensCameraCore() {
                   setCapturedLog((prev) => [verifiedHit, ...prev.filter((h) => h.name !== pName)].slice(0, 50));
                   void persistHitAndSyncToSupabase(verifiedHit);
                   setSessionScanCount((prev) => prev + 1);
-                  setActiveCompsHit(verifiedHit);
-                  setIsScanPaused(true);
+                  triggerActiveValuationHit(verifiedHit, snapshotUrl || productImg);
                   setConfidencePercent(99);
 
                   if (scanExpiryTimerRef.current) clearTimeout(scanExpiryTimerRef.current);
@@ -2038,8 +2081,6 @@ function SpadasLensCameraCore() {
                   if (soundEnabled) {
                     playScanBeep();
                   }
-                  triggerScanHaptic([45, 25, 45]);
-                  playChime(estProfit);
                   setAnalyzingRealFrame(false);
                   return;
                 } else {
@@ -2167,7 +2208,7 @@ function SpadasLensCameraCore() {
       if (video && video.readyState >= 2 && video.videoWidth > 0) {
         try {
           // If movement was detected or active snap initiated, pool rapid consecutive frames (45ms spacing)
-          const framesToCapture = isMovementDetected ? 2 : 1;
+          const framesToCapture = forceManual || isMovementDetected ? 2 : 1;
           const burstCanvases = await poolConsecutiveFrames(video, framesToCapture, 45);
           pooledCanvases.push(...burstCanvases);
         } catch (poolErr) {
@@ -2473,13 +2514,9 @@ function SpadasLensCameraCore() {
           };
 
           setActiveScans([fallbackScanObj]);
-          setActiveValuationHit(cachedHit);
-          if (valuationExpiryTimerRef.current) clearTimeout(valuationExpiryTimerRef.current);
-          valuationExpiryTimerRef.current = setTimeout(() => setActiveValuationHit(null), 6500);
-
           setCapturedLog((prev) => [cachedHit, ...prev.filter((h) => h.name !== cachedHit.name)].slice(0, 50));
           setSessionScanCount((prev) => prev + 1);
-          playChime(cachedHit.trueNetProfit || cachedHit.estimatedProfit || 0);
+          triggerActiveValuationHit(cachedHit, frozenFrameUrl);
           toast.info(`⚡ Cached Comps: Loaded "${cachedHit.name}" (Offline Fallback)`);
           setAnalyzingRealFrame(false);
           return;
@@ -2539,9 +2576,6 @@ function SpadasLensCameraCore() {
           };
 
           setActiveScans([scanObj]);
-          setActiveValuationHit(verifiedHit);
-          if (valuationExpiryTimerRef.current) clearTimeout(valuationExpiryTimerRef.current);
-          valuationExpiryTimerRef.current = setTimeout(() => setActiveValuationHit(null), 6500);
           setCapturedLog((prev) => [verifiedHit, ...prev.filter((h) => h.name !== verifiedHit.name)].slice(0, 50));
           saveOfflineHitLocally(verifiedHit);
           void persistHitAndSyncToSupabase(verifiedHit);
@@ -2550,7 +2584,7 @@ function SpadasLensCameraCore() {
           if (scanExpiryTimerRef.current) clearTimeout(scanExpiryTimerRef.current);
           scanExpiryTimerRef.current = setTimeout(() => setActiveScans([]), 4500);
 
-          playChime(offlineAppraisal.trueNetProfit);
+          triggerActiveValuationHit(verifiedHit, frozenFrameUrl);
           toast.success(`📶 Autonomous Appraisal: ${offlineAppraisal.productName} (+${fmtMoney(offlineAppraisal.trueNetProfit)} Net)`);
           setAnalyzingRealFrame(false);
           return;
@@ -2880,19 +2914,32 @@ function SpadasLensCameraCore() {
           setCapturedLog((prev) => [verifiedHit, ...prev]);
           void persistHitAndSyncToSupabase(verifiedHit, data);
           recordCategoryTemplateQuery(verifiedHit.name, verifiedHit.category, categoryBias);
-          setActiveValuationHit(verifiedHit);
-          if (valuationExpiryTimerRef.current) {
-            clearTimeout(valuationExpiryTimerRef.current);
-          }
-          valuationExpiryTimerRef.current = setTimeout(() => {
-            setActiveValuationHit(null);
-            setFrozenFrameUrl(null);
-          }, 6500);
 
-          if (forceManual || scanMode === "snap") {
-            setActiveCompsHit(verifiedHit);
-            setIsScanPaused(true);
-          }
+          // Mirror hit to Rapid Thrift Haul items for real-time telemetry badge updates
+          const rapidMirrorItem: RapidThriftItem = {
+            id: verifiedHit.id || `rapid_${Date.now()}`,
+            photoId: verifiedHit.id ? `photo_${verifiedHit.id}` : `photo_${Date.now()}`,
+            timestamp: verifiedHit.timestamp,
+            status: "completed",
+            productName: verifiedHit.name,
+            brand: verifiedHit.brand || "Authentic",
+            category: verifiedHit.category || "General",
+            condition: verifiedHit.condition || "Used - Good",
+            estimatedValue: verifiedHit.estimatedValue || 0,
+            thriftCost: verifiedHit.tagPrice || verifiedHit.estCost || 0,
+            trueNetProfit: verifiedHit.trueNetProfit || verifiedHit.estimatedProfit || 0,
+            copVerdict:
+              verifiedHit.copVerdict === "MUST_COP"
+                ? "MUST_COP"
+                : verifiedHit.copVerdict === "PASS_RISKY"
+                ? "PASS_RISKY"
+                : "QUICK_FLIP",
+            isGrail: Boolean(verifiedHit.isGrail),
+          };
+          setRapidItems((prev) => [rapidMirrorItem, ...prev.filter((i) => i.id !== rapidMirrorItem.id)]);
+
+          // Automatically trigger active result state so the valuation card slides into view instantly
+          triggerActiveValuationHit(verifiedHit, snapshotImage || frozenFrameUrl);
           setConfidencePercent(98);
 
           if (!isAuthed && isGuestUser && !isPro && !isUserAdmin) {
@@ -3108,6 +3155,9 @@ function SpadasLensCameraCore() {
           };
           setCapturedLog((prev) => [hit, ...prev.filter((h) => h.name !== hit.name)].slice(0, 50));
           setSessionScanCount((prev) => prev + 1);
+
+          // Automatically trigger active result state so the valuation card slides into view instantly
+          triggerActiveValuationHit(hit, base64Data);
         } catch (err) {
           console.warn("[Rapid Worker] Processing error:", err);
           setRapidItems((prev) =>
@@ -3120,7 +3170,7 @@ function SpadasLensCameraCore() {
       };
       reader.readAsDataURL(task.blob);
     }
-  }, [selectedCurrency, soundEnabled]);
+  }, [selectedCurrency, soundEnabled, triggerActiveValuationHit]);
 
   const processFrameRef = useRef(processCurrentFrame);
   useEffect(() => {
@@ -3256,9 +3306,6 @@ function SpadasLensCameraCore() {
         onClick={() => {
           if (isScanPaused) {
             handleResumeScanning();
-          } else if (isRapidScanMode) {
-            // In Rapid Mode, taps on viewfinder are ignored to prevent accidental scans in pocket
-            return;
           } else if (!analyzingRealFrame) {
             void processCurrentFrame(true);
           }
@@ -3307,6 +3354,24 @@ function SpadasLensCameraCore() {
                 />
                 {/* Subtle frosted vignette to preserve complete visual context while making translucent UI overlay pop */}
                 <div className="absolute inset-0 bg-black/25 backdrop-blur-[1px]" />
+              </div>
+            )}
+
+            {/* Instant Target Lock & Scan Completion Visual Feedback */}
+            {scanCompletePulse && (
+              <div className="absolute inset-0 z-30 pointer-events-none select-none flex items-center justify-center animate-in fade-in zoom-in-95 duration-150">
+                {/* 1. Viewfinder edge high-visibility emerald pulse laser ring */}
+                <div className="absolute inset-0 rounded-3xl border-2 border-emerald-400 bg-emerald-500/15 shadow-[inset_0_0_50px_rgba(16,185,129,0.4)] animate-pulse" />
+
+                {/* 2. Target lock reticle snap badge */}
+                <div className="relative flex flex-col items-center justify-center gap-1.5 p-3 rounded-2xl bg-slate-950/85 border border-emerald-400/80 shadow-[0_0_35px_rgba(16,185,129,0.6)] backdrop-blur-md animate-in zoom-in-90 duration-200">
+                  <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-emerald-500/20 border border-emerald-400 text-emerald-300">
+                    <Sparkles className="h-5 w-5 animate-spin duration-1000" />
+                  </div>
+                  <span className="text-[11px] font-black text-emerald-300 uppercase tracking-widest font-mono">
+                    TARGET LOCKED & VALUED
+                  </span>
+                </div>
               </div>
             )}
 
@@ -3543,7 +3608,11 @@ function SpadasLensCameraCore() {
                       ref={(node) => {
                         if (node) setIsValuationCardMounted(true);
                       }}
-                      className="col-start-1 row-start-1 w-full transition-opacity duration-200 ease-in z-20 animate-in fade-in"
+                      className={`col-start-1 row-start-1 w-full z-20 transition-all duration-300 ease-out animate-in fade-in slide-in-from-bottom-6 zoom-in-95 ${
+                        scanCompletePulse
+                          ? "ring-2 ring-emerald-400/80 shadow-[0_0_40px_rgba(16,185,129,0.5)] scale-[1.02]"
+                          : ""
+                      }`}
                     >
                       <ValuationCardErrorBoundary
                         onRetry={() => void processCurrentFrame(true)}
@@ -3908,93 +3977,20 @@ function SpadasLensCameraCore() {
                       });
                       return;
                     }
-                    if (isRapidScanMode) {
-                      const video = videoRef.current;
-                      if (video) {
-                        try {
-                          const fullWidth = video.videoWidth || video.clientWidth || 640;
-                          const fullHeight = video.videoHeight || video.clientHeight || 480;
-
-                          if (fullWidth > 0 && fullHeight > 0) {
-                            if (!offscreenCanvasRef.current) {
-                              offscreenCanvasRef.current = document.createElement("canvas");
-                            }
-                            const canvas = offscreenCanvasRef.current;
-                            const maxDim = 800; // Optimized size for fast vision & low memory
-                            let targetW = fullWidth;
-                            let targetH = fullHeight;
-                            if (fullWidth >= fullHeight) {
-                              targetW = Math.min(maxDim, fullWidth);
-                              targetH = Math.round((fullHeight * targetW) / fullWidth);
-                            } else {
-                              targetH = Math.min(maxDim, fullHeight);
-                              targetW = Math.round((fullWidth * targetH) / fullHeight);
-                            }
-                            canvas.width = targetW;
-                            canvas.height = targetH;
-                            const ctx = canvas.getContext("2d", { willReadFrequently: true });
-                            if (ctx) {
-                              ctx.drawImage(video, 0, 0, fullWidth, fullHeight, 0, 0, targetW, targetH);
-
-                              // 1. Immediate Non-Blocking UI Feedback (Zero Lag)
-                              setShutterFlash(true);
-                              setTimeout(() => setShutterFlash(false), 100);
-                              if (typeof navigator !== "undefined" && navigator.vibrate) {
-                                navigator.vibrate(40);
-                              }
-                              if (soundEnabled) {
-                                playScanBeep();
-                              }
-
-                              const timestamp = Date.now();
-                              const photoId = `rapid_photo_${timestamp}_${Math.random().toString(36).slice(2, 7)}`;
-                              const newItemId = `rapid_${timestamp}_${Math.random().toString(36).slice(2, 7)}`;
-
-                              // 2. Asynchronous Blob Handoff to IndexedDB (Zero Base64 in LocalStorage)
-                              void canvasToBlob(canvas, 0.74).then(async (blob) => {
-                                if (!blob) return;
-                                await savePhotoBlob(photoId, blob);
-
-                                const newItem: RapidThriftItem = {
-                                  id: newItemId,
-                                  photoId,
-                                  timestamp,
-                                  status: "queued",
-                                  productName: "Analyzing Thrift Item...",
-                                  brand: "Thrift Hunt",
-                                };
-
-                                setRapidItems((prev) => [newItem, ...prev]);
-                                rapidQueueRef.current.push({ item: newItem, blob });
-                                void processRapidQueue();
-                              });
-                            }
-                          }
-                        } catch (err) {
-                          console.warn("[Rapid Scan] Snap error:", err);
-                        }
-                      }
-                      return;
-                    }
-
                     flushScanState();
                     void processCurrentFrame(true);
                   }}
-                  className={`group relative flex items-center justify-center h-16 w-16 sm:h-20 sm:w-20 rounded-full p-1 active:scale-95 transition-all duration-200 cursor-pointer ${
-                    isRapidScanMode
-                      ? "bg-gradient-to-tr from-amber-400 via-yellow-500 to-amber-300 shadow-[0_0_35px_rgba(251,191,36,0.7)]"
-                      : "bg-gradient-to-tr from-cyan-500 via-blue-500 to-emerald-400 shadow-[0_0_35px_rgba(6,182,212,0.6)]"
-                  }`}
-                  title={isRapidScanMode ? "⚡ Rapid Snap (Tap rapidly & pocket phone)" : "⚡ Quick Snap & Value"}
+                  className="group relative flex items-center justify-center h-16 w-16 sm:h-20 sm:w-20 rounded-full p-1 active:scale-95 transition-all duration-200 cursor-pointer bg-gradient-to-tr from-amber-400 via-yellow-500 to-amber-300 shadow-[0_0_35px_rgba(251,191,36,0.7)]"
+                  title="⚡ Instant Multi-Frame Snap & Value (Tap to scan)"
                 >
                   <div className="flex h-full w-full items-center justify-center rounded-full bg-slate-950/90 border-2 border-white/90 group-hover:bg-slate-900 transition">
-                    {!isRapidScanMode && analyzingRealFrame ? (
-                      <RefreshCw className="h-6 w-6 sm:h-7 sm:w-7 text-cyan-400 animate-spin" />
+                    {analyzingRealFrame ? (
+                      <RefreshCw className="h-6 w-6 sm:h-7 sm:w-7 text-amber-300 animate-spin" />
                     ) : (
                       <div className="flex flex-col items-center justify-center text-center">
-                        <Zap className={`h-6 w-6 sm:h-7 sm:w-7 group-hover:scale-110 transition-transform ${isRapidScanMode ? "text-amber-300" : "text-cyan-300"}`} />
-                        <span className={`text-[8px] sm:text-[9px] font-black uppercase tracking-tight -mt-0.5 ${isRapidScanMode ? "text-amber-300" : "text-cyan-300"}`}>
-                          {isRapidScanMode ? "RAPID" : "SNAP"}
+                        <Zap className="h-6 w-6 sm:h-7 sm:w-7 group-hover:scale-110 transition-transform text-amber-300" />
+                        <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-tight -mt-0.5 text-amber-300">
+                          SNAP
                         </span>
                       </div>
                     )}
