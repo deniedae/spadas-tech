@@ -29,6 +29,7 @@ import {
   getPhotoBlob,
 } from "@/lib/rapid-thrift-engine";
 import { useHaulStore } from "@/lib/haul-store";
+import { useQuickSnapQueue } from "@/lib/quick-snap-queue";
 import { calculateSalesVelocity } from "@/lib/turnover-velocity-engine";
 import { toast } from "sonner";
 import EbayListingModal from "@/components/ebay-listing-modal";
@@ -66,6 +67,24 @@ export function SpadasHaulSection({
   // Modals state
   const [ebayItem, setEbayItem] = useState<RapidThriftItem | null>(null);
   const [verifyItem, setVerifyItem] = useState<RapidThriftItem | null>(null);
+
+  // Quick Snap background queueing integration
+  const quickSnapInputRef = React.useRef<HTMLInputElement>(null);
+  const { isProcessing, pendingCount, enqueuePhoto } = useQuickSnapQueue();
+
+  const handleQuickSnapFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const fileList = Array.from(files);
+    toast.info(`📸 Queued ${fileList.length} photo${fileList.length > 1 ? "s" : ""} for background valuation!`);
+
+    for (const file of fileList) {
+      void enqueuePhoto(file, undefined, currency);
+    }
+
+    e.target.value = "";
+  };
 
   // Load IndexedDB photo blobs for thumbnails
   useEffect(() => {
@@ -309,6 +328,36 @@ export function SpadasHaulSection({
 
         {/* Global Batch Action Buttons */}
         <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+          {/* Quick Snap Rapid Intake Input & Shutter */}
+          <input
+            ref={quickSnapInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            multiple
+            onChange={handleQuickSnapFiles}
+            className="hidden"
+          />
+
+          <button
+            type="button"
+            onClick={() => quickSnapInputRef.current?.click()}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black text-xs transition shadow-md shadow-amber-500/20 cursor-pointer active:scale-95"
+            title="Rapid-fire shelf photos on the run — valuations processed asynchronously in background"
+          >
+            {isProcessing ? (
+              <Loader2 className="h-4 w-4 animate-spin text-slate-950" />
+            ) : (
+              <Camera className="h-4 w-4 text-slate-950" />
+            )}
+            <span>Quick Snap Intake</span>
+            {pendingCount > 0 && (
+              <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold bg-slate-950 text-amber-300">
+                {pendingCount}
+              </span>
+            )}
+          </button>
+
           {onSwitchToLens && (
             <button
               type="button"

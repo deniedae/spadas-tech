@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Camera, Zap, Layers, ShoppingBag } from "lucide-react";
 import SpadasLensCamera from "@/components/spadas-lens-camera";
 import { SpadasSnapStudio } from "@/components/spadas-snap-studio";
 import IronmanHudCamera from "@/components/ironman-hud-camera";
-import { SpadasHaulSection } from "@/components/spadas-haul-section";
 import { useHaulStore } from "@/lib/haul-store";
 
 interface UnifiedCameraHubProps {
@@ -13,12 +13,21 @@ interface UnifiedCameraHubProps {
 }
 
 export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraHubProps) {
-  const [activeTab, setActiveTab] = useState<"lens" | "ironman" | "studio" | "haul">(initialTab);
+  const router = useRouter();
+  const [activeTab, setActiveTab] = useState<"lens" | "ironman" | "studio">(
+    initialTab === "haul" ? "lens" : initialTab
+  );
   const { haulCount } = useHaulStore();
+
+  useEffect(() => {
+    if (initialTab === "haul") {
+      router.replace("/haul");
+    }
+  }, [initialTab, router]);
 
   return (
     <div className="relative w-full bg-black text-white flex flex-col">
-      {/* Top Segmented Mode Slider — Executive 4-Mode Suite */}
+      {/* Top Segmented Mode Slider — Executive 3-Camera Suite & Haul Service Link */}
       <div className="sticky top-0 z-40 w-full px-2.5 sm:px-3 pt-[max(0.75rem,calc(env(safe-area-inset-top)+0.5rem))] pb-2.5 sm:pb-3 sm:pt-3 bg-slate-950/90 backdrop-blur-md border-b border-slate-800/80 flex items-center justify-center">
         <div className="grid grid-cols-4 gap-1 p-1 rounded-2xl bg-slate-900/95 border border-slate-800 shadow-xl max-w-2xl w-full">
           {/* Mode 1: Lens AR */}
@@ -69,26 +78,17 @@ export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraH
             <span className="truncate">Snap Studio</span>
           </button>
 
-          {/* Mode 4: Spadas Haul */}
+          {/* Mode 4: Spadas Haul (Routes to standalone /haul service) */}
           <button
             type="button"
-            onClick={() => setActiveTab("haul")}
-            className={`py-2 px-1 rounded-xl text-[10.5px] sm:text-xs font-black transition-all flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer text-center relative ${
-              activeTab === "haul"
-                ? "bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-500 text-slate-950 shadow-[0_0_18px_rgba(52,211,153,0.5)] scale-[1.02]"
-                : "text-emerald-400 hover:text-emerald-300"
-            }`}
+            onClick={() => router.push("/haul")}
+            className="py-2 px-1 rounded-xl text-[10.5px] sm:text-xs font-black transition-all flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer text-center relative text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 active:scale-95"
+            title="Open Spadas Haul Lot Batch Manager & Quick Snap Intake"
           >
             <ShoppingBag className="h-3.5 w-3.5 shrink-0" />
             <span className="truncate">Spadas Haul</span>
             {haulCount > 0 && (
-              <span
-                className={`ml-0.5 px-1.5 py-0.2 rounded-full text-[9px] font-mono font-bold ${
-                  activeTab === "haul"
-                    ? "bg-slate-950 text-emerald-300"
-                    : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
-                }`}
-              >
+              <span className="ml-0.5 px-1.5 py-0.2 rounded-full text-[9px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
                 {haulCount}
               </span>
             )}
@@ -96,12 +96,12 @@ export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraH
         </div>
       </div>
 
-      {/* Dynamic Mode Viewport — Clean camera hardware lifecycle release on tab switch */}
+      {/* Dynamic Mode Viewport — Clean camera hardware lifecycle release on mode switch */}
       <div className="flex-1 w-full flex flex-col">
         {activeTab === "lens" && (
           <div className="p-2 sm:p-4 max-w-5xl mx-auto w-full animate-fade-in">
             <SpadasLensCamera
-              onOpenHaulTab={() => setActiveTab("haul")}
+              onOpenHaulTab={() => router.push("/haul")}
               onOpenSnapStudio={() => setActiveTab("studio")}
             />
           </div>
@@ -114,11 +114,6 @@ export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraH
         {activeTab === "studio" && (
           <div className="block w-full animate-fade-in">
             <SpadasSnapStudio />
-          </div>
-        )}
-        {activeTab === "haul" && (
-          <div className="p-3 sm:p-6 max-w-6xl mx-auto w-full block animate-fade-in">
-            <SpadasHaulSection onSwitchToLens={() => setActiveTab("lens")} />
           </div>
         )}
       </div>
