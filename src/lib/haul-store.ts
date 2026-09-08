@@ -15,6 +15,7 @@ import { sourcingBus } from "./sourcing-event-bus";
 export const SPADAS_HAUL_UPDATED_EVENT = "spadas:haul-updated";
 
 let memoryItems: RapidThriftItem[] | null = null;
+let cachedStats: RapidSessionStats | null = null;
 const listeners = new Set<() => void>();
 
 function getItemsSnapshot(): RapidThriftItem[] {
@@ -24,6 +25,28 @@ function getItemsSnapshot(): RapidThriftItem[] {
   return memoryItems;
 }
 
+export function getStatsSnapshot(items: RapidThriftItem[]): RapidSessionStats {
+  if (!cachedStats) {
+    cachedStats = computeSessionStats(items);
+  }
+  return cachedStats;
+}
+
+function updateCachedStats(newItems: RapidThriftItem[]) {
+  const nextStats = computeSessionStats(newItems);
+  if (
+    !cachedStats ||
+    cachedStats.totalItems !== nextStats.totalItems ||
+    cachedStats.completedItems !== nextStats.completedItems ||
+    cachedStats.queuedItems !== nextStats.queuedItems ||
+    cachedStats.profitableCount !== nextStats.profitableCount ||
+    cachedStats.totalProfit !== nextStats.totalProfit ||
+    cachedStats.grailsCount !== nextStats.grailsCount
+  ) {
+    cachedStats = nextStats;
+  }
+}
+
 const SERVER_SNAPSHOT: RapidThriftItem[] = [];
 function getServerSnapshot(): RapidThriftItem[] {
   return SERVER_SNAPSHOT;
@@ -31,6 +54,7 @@ function getServerSnapshot(): RapidThriftItem[] {
 
 function notifySubscribers(newItems: RapidThriftItem[]) {
   memoryItems = newItems;
+  updateCachedStats(newItems);
   listeners.forEach((listener) => {
     try {
       listener();
@@ -163,25 +187,13 @@ export const haulStore = {
  * Ensures 0ms hydration sync across camera HUD, haul manifest, and summary metrics.
  */
 export function useHaulStore() {
-  const [isHydrated, setIsHydrated] = useState(false);
-
-  useEffect(() => {
-    setIsHydrated(true);
-    if (memoryItems === null) {
-      haulStore.refresh();
-    }
-  }, []);
-
-  const rawItems = useSyncExternalStore(
+  const items = useSyncExternalStore(
     haulStore.subscribe,
     haulStore.getSnapshot,
     getServerSnapshot
   );
 
-  // During SSR return server snapshot to eliminate hydration mismatches; on client return active items
-  const items = isHydrated ? rawItems : (typeof window !== "undefined" ? rawItems : SERVER_SNAPSHOT);
-
-  const stats: RapidSessionStats = useMemo(() => computeSessionStats(items), [items]);
+  const stats = useMemo(() => getStatsSnapshot(items), [items]);
 
   const totalCostBasis = useMemo(() => {
     return items.reduce((acc, curr) => acc + (curr.thriftCost || 0), 0);
@@ -191,26 +203,19 @@ export function useHaulStore() {
     return items.reduce((acc, curr) => acc + (curr.estimatedValue || 0), 0);
   }, [items]);
 
-  const totalProfit = useMemo(() => {
-    return stats.totalProfit;
-  }, [stats.totalProfit]);
+  const totalProfit = stats.totalProfit;
 
   const aggregateRoi = useMemo(() => {
     if (totalCostBasis <= 0) return 0;
     return Math.round((stats.totalProfit / totalCostBasis) * 100);
   }, [stats.totalProfit, totalCostBasis]);
 
-  const profitableCount = useMemo(() => {
-    return items.filter((i) => (i.trueNetProfit || 0) >= 10).length;
-  }, [items]);
-
-  const grailsCount = useMemo(() => {
-    return items.filter((i) => (i.trueNetProfit || 0) >= 40 || i.isGrail).length;
-  }, [items]);
+  const profitableCount = stats.profitableCount;
+  const grailsCount = stats.grailsCount;
 
   return {
     items,
-    isHydrated,
+    isHydrated: true,
     haulCount: items.length,
     stats,
     rapidStats: stats, // Backward-compatibility alias for SpadasLensCamera

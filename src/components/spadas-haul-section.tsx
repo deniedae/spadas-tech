@@ -59,82 +59,116 @@ export function SpadasHaulSection({
     refresh: refreshItems,
   } = useHaulStore();
 
+  const photoUrlsRef = React.useRef<Record<string, string>>({});
   const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({});
   const [loadingPhotos, setLoadingPhotos] = useState<boolean>(false);
   const [searchFilter, setSearchFilter] = useState<string>("");
   const [activeTabFilter, setActiveTabFilter] = useState<"all" | "profitable" | "grails" | "traps">("all");
 
+  // In-flight commitment states for UI stability
+  const [committingId, setCommittingId] = useState<string | null>(null);
+  const [isBatchCommitting, setIsBatchCommitting] = useState<boolean>(false);
+
   // Modals state
   const [ebayItem, setEbayItem] = useState<RapidThriftItem | null>(null);
   const [verifyItem, setVerifyItem] = useState<RapidThriftItem | null>(null);
+
+  const handleCloseEbayModal = useCallback(() => setEbayItem(null), []);
+  const handleCloseVerifyModal = useCallback(() => setVerifyItem(null), []);
 
   // Quick Snap background queueing integration
   const quickSnapInputRef = React.useRef<HTMLInputElement>(null);
   const { isProcessing, pendingCount, enqueuePhoto } = useQuickSnapQueue();
 
-  const handleQuickSnapFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
+  const handleQuickSnapFiles = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = e.target.files;
+      if (!files || files.length === 0) return;
 
-    const fileList = Array.from(files);
-    toast.info(`📸 Queued ${fileList.length} photo${fileList.length > 1 ? "s" : ""} for background valuation!`);
+      const fileList = Array.from(files);
+      toast.info(`📸 Queued ${fileList.length} photo${fileList.length > 1 ? "s" : ""} for background valuation!`);
 
-    for (const file of fileList) {
-      void enqueuePhoto(file, undefined, currency);
+      for (const file of fileList) {
+        void enqueuePhoto(file, undefined, currency);
+      }
+
+      e.target.value = "";
+    },
+    [enqueuePhoto, currency]
+  );
+
+  // Synchronize IndexedDB photo blobs for thumbnails without redundant re-fetching or thrashing
+  useEffect(() => {
+    let isMounted = true;
+
+    // 1. Clean up removed items' object URLs
+    const currentPhotoIds = new Set(items.map((i) => i.photoId).filter(Boolean) as string[]);
+    let hasRemoved = false;
+    for (const [id, url] of Object.entries(photoUrlsRef.current)) {
+      if (!currentPhotoIds.has(id)) {
+        URL.revokeObjectURL(url);
+        delete photoUrlsRef.current[id];
+        hasRemoved = true;
+      }
     }
 
-    e.target.value = "";
-  };
+    // 2. Identify missing photos that need to be loaded
+    const missingItems = items.filter(
+      (item) => item.photoId && !photoUrlsRef.current[item.photoId]
+    );
 
-  // Load IndexedDB photo blobs for thumbnails
-  useEffect(() => {
-    if (items.length === 0) return;
+    if (missingItems.length === 0) {
+      if (hasRemoved && isMounted) {
+        setPhotoUrls({ ...photoUrlsRef.current });
+      }
+      return;
+    }
 
-    let isMounted = true;
     setLoadingPhotos(true);
 
-    const loadAllPhotos = async () => {
-      const urls: Record<string, string> = {};
+    const loadMissingPhotos = async () => {
+      let newlyLoaded = false;
       await Promise.all(
-        items.map(async (item) => {
-          if (!item.photoId) return;
+        missingItems.map(async (item) => {
+          if (!item.photoId || photoUrlsRef.current[item.photoId]) return;
           try {
             const blob = await getPhotoBlob(item.photoId);
-            if (blob && isMounted) {
-              urls[item.photoId] = URL.createObjectURL(blob);
+            if (blob && isMounted && !photoUrlsRef.current[item.photoId]) {
+              photoUrlsRef.current[item.photoId] = URL.createObjectURL(blob);
+              newlyLoaded = true;
             }
           } catch (err) {
             console.warn("[Spadas Haul] Failed loading photo for:", item.photoId, err);
           }
         })
       );
+
       if (isMounted) {
-        setPhotoUrls((prev) => {
-          Object.values(prev).forEach((url) => {
-            if (!Object.values(urls).includes(url)) {
-              URL.revokeObjectURL(url);
-            }
-          });
-          return urls;
-        });
+        if (newlyLoaded || hasRemoved) {
+          setPhotoUrls({ ...photoUrlsRef.current });
+        }
         setLoadingPhotos(false);
       }
     };
 
-    void loadAllPhotos();
+    void loadMissingPhotos();
 
     return () => {
       isMounted = false;
     };
   }, [items]);
 
-  // Clean up object URLs on unmount
+  // Clean up all object URLs strictly on component unmount
   useEffect(() => {
     return () => {
-      Object.values(photoUrls).forEach((url) => URL.revokeObjectURL(url));
+      Object.values(photoUrlsRef.current).forEach((url) => {
+        try {
+          URL.revokeObjectURL(url);
+        } catch {}
+      });
+      photoUrlsRef.current = {};
     };
-  }, [photoUrls]);
-
+  }, []);
 
   // Filtered items
   const filteredItems = useMemo(() => {
@@ -169,43 +203,54 @@ export function SpadasHaulSection({
   }, [items, searchFilter, activeTabFilter]);
 
   // Handle single item add to inventory
-  const handleAddToInventory = async (item: RapidThriftItem) => {
-    try {
-      const { data: authData } = await supabase.auth.getUser();
-      const user = authData?.user;
+  const handleAddToInventory = useCallback(
+    async (item: RapidThriftItem) => {
+      if (committingId === item.id) return;
+      setCommittingId(item.id);
+      try {
+        const { data: authData } = await supabase.auth.getUser();
+        const user = authData?.user;
 
-      const listingPayload = {
-        user_id: user?.id || null,
-        product: item.productName || "Sourced Thrift Item",
-        category: item.category || "General",
-        price: item.estimatedValue || 25,
-        estimated_profit: item.trueNetProfit || 15,
-        status: "Active",
-        confidence: 0.95,
-        currency: currency,
-        cost_price: item.thriftCost || 5,
-        image_url: photoUrls[item.photoId] || null,
-      };
+        const listingPayload = {
+          user_id: user?.id || null,
+          product: item.productName || "Sourced Thrift Item",
+          category: item.category || "General",
+          price: item.estimatedValue || 25,
+          estimated_profit: item.trueNetProfit || 15,
+          status: "Active",
+          confidence: 0.95,
+          currency: currency,
+          cost_price: item.thriftCost || 5,
+          image_url: photoUrls[item.photoId] || null,
+        };
 
-      const { error } = await supabase.from("listings").insert([listingPayload]);
-      if (error) {
-        console.warn("[Spadas Haul] Database insert fallback to local:", error);
+        const { error } = await supabase.from("listings").insert([listingPayload]);
+        if (error) {
+          console.warn("[Spadas Haul] Database insert warning:", error);
+          toast.error(`Database commit error: ${error.message || "Unable to save"}`);
+          return;
+        }
+        toast.success(`"${item.productName || "Item"}" committed to Active Inventory!`);
+      } catch (err) {
+        console.error("[Spadas Haul] Failed to commit to inventory:", err);
+        toast.error("Failed to commit item to inventory.");
+      } finally {
+        setCommittingId(null);
       }
-      toast.success(`"${item.productName || "Item"}" committed to Active Inventory!`);
-    } catch (err) {
-      console.error("[Spadas Haul] Failed to commit to inventory:", err);
-      toast.error("Failed to commit item to inventory.");
-    }
-  };
+    },
+    [committingId, currency, photoUrls]
+  );
 
   // Handle batch save all profitable finds
-  const handleBatchCommitToInventory = async () => {
+  const handleBatchCommitToInventory = useCallback(async () => {
+    if (isBatchCommitting) return;
     const profitable = items.filter((i) => (i.trueNetProfit || 0) >= 10);
     if (profitable.length === 0) {
       toast.info("No completed profitable items (>$10 net margin) to commit.");
       return;
     }
 
+    setIsBatchCommitting(true);
     try {
       const { data: authData } = await supabase.auth.getUser();
       const user = authData?.user;
@@ -226,31 +271,38 @@ export function SpadasHaulSection({
       const { error } = await supabase.from("listings").insert(payloads);
       if (error) {
         console.warn("[Spadas Haul] Batch insert warning:", error);
+        toast.error(`Batch commit error: ${error.message || "Failed to commit batch"}`);
+        return;
       }
       toast.success(`Committed ${profitable.length} profitable finds to Active Inventory!`);
     } catch (err) {
       console.error("[Spadas Haul] Batch commit error:", err);
       toast.error("Error committing batch to inventory.");
+    } finally {
+      setIsBatchCommitting(false);
     }
-  };
+  }, [isBatchCommitting, items, currency, photoUrls]);
 
   // Handle item deletion
-  const handleDeleteItem = async (id: string) => {
-    await removeItem(id);
-    toast.success("Item removed from sourcing haul.");
-  };
+  const handleDeleteItem = useCallback(
+    async (id: string) => {
+      await removeItem(id);
+      toast.success("Item removed from sourcing haul.");
+    },
+    [removeItem]
+  );
 
   // Handle session clear
-  const handleClearSession = async () => {
+  const handleClearSession = useCallback(async () => {
     if (!confirm("Clear all items in this sourcing haul session? This will reset the active manifest.")) {
       return;
     }
     await clearHaul();
     toast.success("Sourcing haul cleared.");
-  };
+  }, [clearHaul]);
 
   // Export CSV Lot Manifest
-  const handleExportCsv = () => {
+  const handleExportCsv = useCallback(() => {
     if (items.length === 0) {
       toast.error("No items in session to export.");
       return;
@@ -298,7 +350,12 @@ export function SpadasHaulSection({
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
     toast.success("Haul Lot Manifest exported to CSV!");
-  };
+  }, [items]);
+
+  const ebayItemImageUrls = useMemo(() => {
+    if (!ebayItem?.photoId || !photoUrls[ebayItem.photoId]) return [];
+    return [photoUrls[ebayItem.photoId]];
+  }, [ebayItem?.photoId, photoUrls]);
 
   return (
     <div className="w-full max-w-6xl mx-auto space-y-6 pb-20 animate-in fade-in duration-200">
@@ -372,11 +429,15 @@ export function SpadasHaulSection({
           <button
             type="button"
             onClick={handleBatchCommitToInventory}
-            disabled={items.length === 0}
+            disabled={items.length === 0 || isBatchCommitting}
             className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-zinc-200 text-zinc-950 font-black text-xs transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-md active:scale-95"
           >
-            <PackagePlus className="h-4 w-4" />
-            <span>Commit All Profitable</span>
+            {isBatchCommitting ? (
+              <Loader2 className="h-4 w-4 animate-spin text-zinc-950" />
+            ) : (
+              <PackagePlus className="h-4 w-4" />
+            )}
+            <span>{isBatchCommitting ? "Committing..." : "Commit All Profitable"}</span>
           </button>
 
           <button
@@ -721,11 +782,16 @@ export function SpadasHaulSection({
                     <button
                       type="button"
                       onClick={() => handleAddToInventory(item)}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-mono font-black transition cursor-pointer shadow-sm active:scale-95"
+                      disabled={committingId === item.id}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-mono font-black transition cursor-pointer shadow-sm active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                       title="Commit item to active inventory"
                     >
-                      <PackagePlus className="h-3.5 w-3.5" />
-                      <span>INTAKE</span>
+                      {committingId === item.id ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-950" />
+                      ) : (
+                        <PackagePlus className="h-3.5 w-3.5" />
+                      )}
+                      <span>{committingId === item.id ? "SAVING" : "INTAKE"}</span>
                     </button>
 
                     <button
@@ -770,12 +836,12 @@ export function SpadasHaulSection({
       {ebayItem && (
         <EbayListingModal
           isOpen={!!ebayItem}
-          onClose={() => setEbayItem(null)}
+          onClose={handleCloseEbayModal}
           title={ebayItem.productName || "Sourced Thrift Item"}
           price={Number(ebayItem.estimatedValue) || 25}
           currency={currency}
           description={`Authentic ${ebayItem.productName || "Thrift Item"}. Professionally sourced & verified via Spadas Lens.`}
-          imageUrls={photoUrls[ebayItem.photoId] ? [photoUrls[ebayItem.photoId]] : []}
+          imageUrls={ebayItemImageUrls}
         />
       )}
 
@@ -783,7 +849,7 @@ export function SpadasHaulSection({
       {verifyItem && (
         <DeepVerifyModal
           isOpen={!!verifyItem}
-          onClose={() => setVerifyItem(null)}
+          onClose={handleCloseVerifyModal}
           productName={verifyItem.productName || "Scanned Specimen"}
           brand={verifyItem.brand || "Designer Brand"}
           category={verifyItem.category || "Luxury / Fashion"}

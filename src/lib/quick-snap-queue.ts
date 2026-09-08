@@ -23,6 +23,18 @@ class QuickSnapQueueService {
   private activeWorkers = 0;
   private readonly maxConcurrency = 2;
   private listeners = new Set<() => void>();
+  private cachedSnapshot = { isProcessing: false, pendingCount: 0 };
+
+  private updateSnapshot() {
+    const isProcessing = this.activeWorkers > 0 || this.queue.length > 0;
+    const pendingCount = this.queue.length + this.activeWorkers;
+    if (
+      this.cachedSnapshot.isProcessing !== isProcessing ||
+      this.cachedSnapshot.pendingCount !== pendingCount
+    ) {
+      this.cachedSnapshot = { isProcessing, pendingCount };
+    }
+  }
 
   public subscribe = (listener: () => void): (() => void) => {
     this.listeners.add(listener);
@@ -32,6 +44,7 @@ class QuickSnapQueueService {
   };
 
   private notify() {
+    this.updateSnapshot();
     this.listeners.forEach((l) => {
       try {
         l();
@@ -40,21 +53,18 @@ class QuickSnapQueueService {
   }
 
   public getSnapshot = (): { isProcessing: boolean; pendingCount: number } => {
-    return {
-      isProcessing: this.activeWorkers > 0 || this.queue.length > 0,
-      pendingCount: this.queue.length + this.activeWorkers,
-    };
+    return this.cachedSnapshot;
   };
 
   /**
    * Enqueue a single captured photo for asynchronous background valuation.
    * Immediately registers the item in haulStore (0ms count increment) and saves the photo blob to IndexedDB.
    */
-  public async enqueuePhoto(
+  public enqueuePhoto = async (
     blob: Blob,
     metadata?: Partial<RapidThriftItem>,
     currency = "AUD"
-  ): Promise<RapidThriftItem> {
+  ): Promise<RapidThriftItem> => {
     const timestamp = Date.now();
     const rand = Math.random().toString(36).slice(2, 7);
     const photoId = `photo_snap_${timestamp}_${rand}`;
@@ -95,20 +105,20 @@ class QuickSnapQueueService {
     void this.processQueue();
 
     return item;
-  }
+  };
 
   /**
    * Batch enqueue rapid-fire photos on the run.
    */
-  public async enqueuePhotos(
+  public enqueuePhotos = async (
     blobs: Blob[],
     currency = "AUD"
-  ): Promise<RapidThriftItem[]> {
+  ): Promise<RapidThriftItem[]> => {
     const items = await Promise.all(
       blobs.map((blob) => this.enqueuePhoto(blob, undefined, currency))
     );
     return items;
-  }
+  };
 
   private async processQueue(): Promise<void> {
     while (this.queue.length > 0 && this.activeWorkers < this.maxConcurrency) {
@@ -234,11 +244,6 @@ const SERVER_SNAPSHOT = { isProcessing: false, pendingCount: 0 };
  * Hook for consuming real-time Quick Snap background queue status
  */
 export function useQuickSnapQueue() {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
   const state = useSyncExternalStore(
     quickSnapQueue.subscribe,
     quickSnapQueue.getSnapshot,
@@ -246,9 +251,9 @@ export function useQuickSnapQueue() {
   );
 
   return {
-    isProcessing: mounted ? state.isProcessing : false,
-    pendingCount: mounted ? state.pendingCount : 0,
-    enqueuePhoto: quickSnapQueue.enqueuePhoto.bind(quickSnapQueue),
-    enqueuePhotos: quickSnapQueue.enqueuePhotos.bind(quickSnapQueue),
+    isProcessing: state.isProcessing,
+    pendingCount: state.pendingCount,
+    enqueuePhoto: quickSnapQueue.enqueuePhoto,
+    enqueuePhotos: quickSnapQueue.enqueuePhotos,
   };
 }

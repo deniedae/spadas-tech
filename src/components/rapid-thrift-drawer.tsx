@@ -24,7 +24,7 @@ import {
   getPhotoBlob,
   computeSessionStats,
 } from "@/lib/rapid-thrift-engine";
-import { useHaulStore } from "@/lib/haul-store";
+import { useHaulStore, getStatsSnapshot } from "@/lib/haul-store";
 import { calculateSalesVelocity } from "@/lib/turnover-velocity-engine";
 import { toast } from "sonner";
 
@@ -52,45 +52,74 @@ export const RapidThriftDrawer: React.FC<RapidThriftDrawerProps> = ({
   const { items: storeItems, removeItem, clearHaul, setItems } = useHaulStore();
   const items = propItems ?? storeItems;
 
-  const handleDeleteItem = async (id: string) => {
-    if (propOnDeleteItem) {
-      propOnDeleteItem(id);
-    } else {
-      await removeItem(id);
-      toast.success("Item removed from haul.");
-    }
-  };
+  const handleDeleteItem = React.useCallback(
+    async (id: string) => {
+      if (propOnDeleteItem) {
+        propOnDeleteItem(id);
+      } else {
+        await removeItem(id);
+        toast.success("Item removed from haul.");
+      }
+    },
+    [propOnDeleteItem, removeItem]
+  );
 
-  const handleClearSession = async () => {
+  const handleClearSession = React.useCallback(async () => {
     if (propOnClearSession) {
       propOnClearSession();
     } else {
       await clearHaul();
       toast.success("Rapid Haul cleared.");
     }
-  };
+  }, [propOnClearSession, clearHaul]);
 
+  const photoUrlsRef = React.useRef<Record<string, string>>({});
   const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({});
   const [loadingPhotos, setLoadingPhotos] = useState<boolean>(false);
 
-  const stats: RapidSessionStats = useMemo(() => computeSessionStats(items), [items]);
+  const stats: RapidSessionStats = useMemo(() => getStatsSnapshot(items), [items]);
 
   // Asynchronously load photo Blobs from IndexedDB (Zero Base64 in LocalStorage)
   useEffect(() => {
     if (!isOpen || items.length === 0) return;
 
     let isMounted = true;
+
+    // 1. Clean up removed items
+    const currentPhotoIds = new Set(items.map((i) => i.photoId).filter(Boolean) as string[]);
+    let hasRemoved = false;
+    for (const [id, url] of Object.entries(photoUrlsRef.current)) {
+      if (!currentPhotoIds.has(id)) {
+        URL.revokeObjectURL(url);
+        delete photoUrlsRef.current[id];
+        hasRemoved = true;
+      }
+    }
+
+    // 2. Identify missing photos
+    const missingItems = items.filter(
+      (item) => item.photoId && !photoUrlsRef.current[item.photoId]
+    );
+
+    if (missingItems.length === 0) {
+      if (hasRemoved && isMounted) {
+        setPhotoUrls({ ...photoUrlsRef.current });
+      }
+      return;
+    }
+
     setLoadingPhotos(true);
 
-    const loadAllPhotos = async () => {
-      const urls: Record<string, string> = {};
+    const loadMissingPhotos = async () => {
+      let newlyLoaded = false;
       await Promise.all(
-        items.map(async (item) => {
-          if (!item.photoId) return;
+        missingItems.map(async (item) => {
+          if (!item.photoId || photoUrlsRef.current[item.photoId]) return;
           try {
             const blob = await getPhotoBlob(item.photoId);
-            if (blob && isMounted) {
-              urls[item.photoId] = URL.createObjectURL(blob);
+            if (blob && isMounted && !photoUrlsRef.current[item.photoId]) {
+              photoUrlsRef.current[item.photoId] = URL.createObjectURL(blob);
+              newlyLoaded = true;
             }
           } catch (err) {
             console.warn("[Rapid Drawer] Photo load error for photoId:", item.photoId, err);
@@ -98,20 +127,14 @@ export const RapidThriftDrawer: React.FC<RapidThriftDrawerProps> = ({
         })
       );
       if (isMounted) {
-        setPhotoUrls((prev) => {
-          // Clean up old object URLs to prevent memory leaks
-          Object.values(prev).forEach((url) => {
-            if (!Object.values(urls).includes(url)) {
-              URL.revokeObjectURL(url);
-            }
-          });
-          return urls;
-        });
+        if (newlyLoaded || hasRemoved) {
+          setPhotoUrls({ ...photoUrlsRef.current });
+        }
         setLoadingPhotos(false);
       }
     };
 
-    void loadAllPhotos();
+    void loadMissingPhotos();
 
     return () => {
       isMounted = false;
@@ -121,11 +144,16 @@ export const RapidThriftDrawer: React.FC<RapidThriftDrawerProps> = ({
   // Clean up object URLs on unmount
   useEffect(() => {
     return () => {
-      Object.values(photoUrls).forEach((url) => URL.revokeObjectURL(url));
+      Object.values(photoUrlsRef.current).forEach((url) => {
+        try {
+          URL.revokeObjectURL(url);
+        } catch {}
+      });
+      photoUrlsRef.current = {};
     };
-  }, [photoUrls]);
+  }, []);
 
-  const handleExportCsv = () => {
+  const handleExportCsv = React.useCallback(() => {
     if (items.length === 0) {
       toast.error("No items in session to export.");
       return;
@@ -154,9 +182,9 @@ export const RapidThriftDrawer: React.FC<RapidThriftDrawerProps> = ({
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
     toast.success("Rapid Haul exported to CSV!");
-  };
+  }, [items]);
 
-  const handleBatchAddToInventory = () => {
+  const handleBatchAddToInventory = React.useCallback(() => {
     const profitable = items.filter((i) => (i.trueNetProfit || 0) >= 10 && i.status === "completed");
     if (profitable.length === 0) {
       toast.info("No completed profitable items to add.");
@@ -164,7 +192,7 @@ export const RapidThriftDrawer: React.FC<RapidThriftDrawerProps> = ({
     }
     profitable.forEach((itm) => onAddToInventory?.(itm));
     toast.success(`Added ${profitable.length} profitable finds to inventory!`);
-  };
+  }, [items, onAddToInventory]);
 
   if (!isOpen) return null;
 
