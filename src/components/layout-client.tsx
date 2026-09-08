@@ -167,7 +167,12 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
   useEffect(() => {
     if (typeof window !== "undefined" && "serviceWorker" in navigator) {
       navigator.serviceWorker.register("/sw.js").then((reg) => {
-        if (reg) reg.update();
+        if (reg) {
+          reg.update();
+          if (reg.waiting) {
+            reg.waiting.postMessage({ type: "SKIP_WAITING" });
+          }
+        }
       }).catch(() => {});
     }
   }, []);

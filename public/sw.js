@@ -1,13 +1,7 @@
-const CACHE_NAME = "spadas-ai-v4";
+const CACHE_NAME = "spadas-ai-v6";
 const OFFLINE_URL = "/offline.html";
 
 const PRECACHE_ASSETS = [
-  "/",
-  "/dashboard",
-  "/lens",
-  "/listings",
-  "/studio",
-  "/calculator",
   "/offline.html",
   "/manifest.json",
   "/icon-192.png",
@@ -26,7 +20,7 @@ self.addEventListener("install", (event) => {
   self.skipWaiting();
 });
 
-// Activate Event
+// Activate Event - aggressively wipe ALL legacy caches
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -37,29 +31,35 @@ self.addEventListener("activate", (event) => {
           }
         })
       );
-    })
+    }).then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
-// Fetch Event - Offline-first with network fallback
+// Allow client pages to force activation
+self.addEventListener("message", (event) => {
+  if (event.data && (event.data.type === "SKIP_WAITING" || event.data === "skipWaiting")) {
+    self.skipWaiting();
+  }
+});
+
+// Fetch Event - Network first for all app routes & Next.js chunks, offline fallback only
 self.addEventListener("fetch", (event) => {
-  // Only handle GET and HEAD requests. Pass all POST/PUT/PATCH/DELETE directly to network
   if (event.request.method !== "GET" && event.request.method !== "HEAD") {
     return;
   }
 
-  // Never cache API routes, auth routes, or dynamic mutations
+  // Never cache API routes, Next.js dynamic assets, or 3rd party providers
   try {
     const url = new URL(event.request.url);
     if (
       url.pathname.startsWith("/api/") ||
       url.pathname.startsWith("/auth/") ||
+      url.pathname.startsWith("/_next/") ||
       url.hostname.includes("supabase.co") ||
       url.hostname.includes("ebay.com") ||
       url.hostname.includes("googleapis.com")
     ) {
-      return;
+      return; // Direct browser network pass-through
     }
   } catch (e) {}
 
@@ -72,29 +72,22 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  // Network-first with cache fallback for static shell assets
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        return cachedResponse;
-      }
-      return fetch(event.request)
-        .then((response) => {
-          if (!response || response.status !== 200 || response.type !== "basic") {
-            return response;
-          }
-          // Only cache successful GET/HEAD responses
-          if (event.request.method === "GET" || event.request.method === "HEAD") {
-            const responseToCache = response.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, responseToCache).catch(() => {});
-            });
-          }
+    fetch(event.request)
+      .then((response) => {
+        if (!response || response.status !== 200 || response.type !== "basic") {
           return response;
-        })
-        .catch(() => {
-          return caches.match(event.request);
+        }
+        const responseToCache = response.clone();
+        caches.open(CACHE_NAME).then((cache) => {
+          cache.put(event.request, responseToCache).catch(() => {});
         });
-    })
+        return response;
+      })
+      .catch(() => {
+        return caches.match(event.request);
+      })
   );
 });
 
@@ -122,45 +115,51 @@ self.addEventListener("periodicsync", (event) => {
 
 // Push Notifications Event (PWABuilder Audit)
 self.addEventListener("push", (event) => {
-  let data = { title: "Spadas AI", body: "New inventory or market update available!" };
-  if (event.data) {
-    try {
-      data = event.data.json();
-    } catch (e) {
-      data.body = event.data.text();
-    }
+  if (!event.data) return;
+
+  try {
+    const data = event.data.json();
+    const title = data.title || "Spadas Lens Alert";
+    const options = {
+      body: data.body || "New high-margin sold comps detected!",
+      icon: "/icon-192.png",
+      badge: "/icon-192.png",
+      vibrate: [100, 50, 100],
+      data: {
+        url: data.url || "/dashboard",
+      },
+    };
+
+    event.waitUntil(self.registration.showNotification(title, options));
+  } catch (e) {
+    const text = event.data.text();
+    event.waitUntil(
+      self.registration.showNotification("Spadas Lens", {
+        body: text,
+        icon: "/icon-192.png",
+      })
+    );
   }
-
-  const options = {
-    body: data.body,
-    icon: "/icon-192.png",
-    badge: "/icon-192.png",
-    vibrate: [100, 50, 100],
-    data: {
-      dateOfArrival: Date.now(),
-      primaryKey: "1"
-    }
-  };
-
-  event.waitUntil(self.registration.showNotification(data.title, options));
 });
 
-// Notification Click Event (PWABuilder Audit)
+// Notification Click Event
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  event.waitUntil(
-    clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
-      if (clientList.length > 0) {
-        return clientList[0].focus();
-      }
-      return clients.openWindow("/dashboard");
-    })
-  );
-});
+  const urlToOpen = event.notification.data?.url || "/dashboard";
 
-// Client Message Event
-self.addEventListener("message", (event) => {
-  if (event.data && event.data.type === "SKIP_WAITING") {
-    self.skipWaiting();
-  }
+  event.waitUntil(
+    self.clients
+      .matchAll({ type: "window", includeUncontrolled: true })
+      .then((windowClients) => {
+        for (let i = 0; i < windowClients.length; i++) {
+          const client = windowClients[i];
+          if (client.url === urlToOpen && "focus" in client) {
+            return client.focus();
+          }
+        }
+        if (self.clients.openWindow) {
+          return self.clients.openWindow(urlToOpen);
+        }
+      })
+  );
 });
