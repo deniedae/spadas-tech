@@ -175,8 +175,18 @@ export async function fetchEbayAustraliaSoldComps(
     if (isNaN(price) || price <= 0) return false;
     const lower = title.toLowerCase();
 
-    // Condition / junk guards
+    // Condition / junk / accessory guards
     if (/\b(box only|empty box|dustbag only|dust bag only|paper bag|paperbag|ribbon|shopping bag|authenticity card only|care booklet|untested|faulty|for parts|parts only|as-is|as is|broken|damaged|junk)\b/i.test(lower)) {
+      return false;
+    }
+
+    // Physical Media & Standalone Parity Guards: Exclude strategy guides, artbooks, soundtracks, case/manual only
+    if (/\b(strategy guide|official guide|game guide|guide book|walkthrough|prima guide|bradygames|art book|artbook|soundtrack|ost|poster|case only|cover art only|manual only|inserts only|case & manual|case and manual|steelbook only|no game|no disc)\b/i.test(lower)) {
+      return false;
+    }
+
+    // Digital Media Guards: Exclude digital download codes, keys, and virtual accounts
+    if (/\b(digital code|download code|dlc code|digital key|cd key|steam key|activation key|digital download|code only|account|v-bucks|robux)\b/i.test(lower)) {
       return false;
     }
 
@@ -185,7 +195,7 @@ export async function fetchEbayAustraliaSoldComps(
 
     // Single-Item Parity: reject multi-packs, wholesale bundles, bulk lots if query is a single item
     if (!isQueryMultiPack) {
-      if (/\b(\d+\s*pack|\d+\s*pk|\d+\s*pcs|\d+\s*pieces|pack of \d+|box of \d+|tray of|lot of \d+|\d+x\b|carton of|wholesale|bundle of \d+|bundle lot|job lot)\b/i.test(lower)) {
+      if (/\b(\d+\s*pack|\d+\s*pk|\d+\s*pcs|\d+\s*pieces|pack of \d+|box of \d+|tray of|lot of \d+|\d+x\b|carton of|wholesale|bundle of \d+|bundle lot|game lot|games lot|\d+\s*games|collection of \d+|console bundle|system bundle|console \+|job lot|joblot|bulk lot)\b/i.test(lower)) {
         return false;
       }
     }

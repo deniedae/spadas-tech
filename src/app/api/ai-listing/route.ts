@@ -8,6 +8,7 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { checkUserUsage } from "@/app/lib/usage";
+import { isOwnerEmail } from "@/app/lib/auth-admin";
 import { AiListingResultSchema } from "@/app/lib/schemas/ai-listing-schema";
 import { AR_SCAN_MODEL_FALLBACKS, LISTING_MODEL_FALLBACKS, getPrimaryAiApiKey, createOpenAiClient } from "@/app/lib/config/ai-models";
 import { callClaudeVision } from "@/app/lib/config/claude-vision";
@@ -264,7 +265,14 @@ export async function POST(request: Request) {
         );
       }
 
-      if (userLimiter.dayWindow.length >= 200) {
+      const isOwner = user ? isOwnerEmail(user.email) : false;
+      const hasMetadataPro = Boolean(
+        user?.app_metadata?.is_pro ||
+        user?.user_metadata?.is_pro ||
+        user?.app_metadata?.plan === "pro"
+      );
+
+      if (!isOwner && !hasMetadataPro && userLimiter.dayWindow.length >= 200) {
         return NextResponse.json(
           {
             error: "rate_limit",
@@ -297,18 +305,27 @@ export async function POST(request: Request) {
 
     // Usage Limit Check (10 Free Daily Scans for Non-Pro accounts across AR Lens and Studio)
     if (user) {
-      const usage = await checkUserUsage(user.id, user.email);
-      if (!usage.isPro && usage.limitReached) {
-        return NextResponse.json(
-          {
-            error: `Daily free scan limit reached (${usage.usesCount}/${usage.maxFreeUses} scans used today). Upgrade to Spadas Pro for unlimited scans.`,
-            limitReached: true,
-            isPro: false,
-            maxFreeUses: usage.maxFreeUses,
-            usesCount: usage.usesCount,
-          },
-          { status: 403 }
-        );
+      const isOwner = isOwnerEmail(user.email);
+      const hasMetadataPro = Boolean(
+        user.app_metadata?.is_pro ||
+        user.user_metadata?.is_pro ||
+        user.app_metadata?.plan === "pro"
+      );
+
+      if (!isOwner && !hasMetadataPro) {
+        const usage = await checkUserUsage(user.id, user.email);
+        if (!usage.isPro && usage.limitReached) {
+          return NextResponse.json(
+            {
+              error: `Daily free scan limit reached (${usage.usesCount}/${usage.maxFreeUses} scans used today). Upgrade to Spadas Pro for unlimited scans.`,
+              limitReached: true,
+              isPro: false,
+              maxFreeUses: usage.maxFreeUses,
+              usesCount: usage.usesCount,
+            },
+            { status: 403 }
+          );
+        }
       }
     } else {
       // For anonymous/guest scans: cap at 10 scans per day per IP

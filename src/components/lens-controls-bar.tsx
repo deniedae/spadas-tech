@@ -158,20 +158,22 @@ export default function LensControlsBar({
           <div className="flex flex-wrap items-center justify-between gap-2.5">
             {/* Left group: Hardware & Audio (Torch, Sound, Voice) */}
             <div className="flex flex-wrap items-center gap-2">
-              {/* Torch / Flashlight */}
-              <button
-                type="button"
-                onClick={hardware.onToggleTorch}
-                title={hardware.torchSupported ? "Toggle Hardware Flashlight" : "Flashlight not supported on this device"}
-                className={`inline-flex h-8 items-center gap-1.5 rounded-xl border px-2.5 text-xs font-bold transition cursor-pointer ${
-                  hardware.torchEnabled
-                    ? "bg-amber-400 text-slate-950 border-amber-300 shadow-md shadow-amber-400/30"
-                    : "bg-slate-900 border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800"
-                }`}
-              >
-                <Sun className={`h-3.5 w-3.5 ${hardware.torchEnabled ? "text-slate-950 animate-pulse" : "text-amber-400"}`} />
-                <span>{hardware.torchEnabled ? "Torch ON" : "Torch"}</span>
-              </button>
+              {/* Torch / Flashlight (gracefully hidden if unsupported by active lens) */}
+              {hardware.torchSupported && (
+                <button
+                  type="button"
+                  onClick={hardware.onToggleTorch}
+                  title={hardware.torchEnabled ? "Turn Flashlight OFF" : "Turn Flashlight ON"}
+                  className={`inline-flex h-8 items-center gap-1.5 rounded-xl border px-2.5 text-xs font-bold transition cursor-pointer ${
+                    hardware.torchEnabled
+                      ? "bg-amber-400 text-slate-950 border-amber-300 shadow-md shadow-amber-400/30"
+                      : "bg-slate-900 border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800"
+                  }`}
+                >
+                  <Sun className={`h-3.5 w-3.5 ${hardware.torchEnabled ? "text-slate-950 animate-pulse" : "text-amber-400"}`} />
+                  <span>{hardware.torchEnabled ? "Torch ON" : "Torch"}</span>
+                </button>
+              )}
 
               {/* Sound Cues Toggle */}
               <button

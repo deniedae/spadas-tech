@@ -65,19 +65,17 @@ export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraH
         </div>
       </div>
 
-      {/* Dynamic Mode Viewport */}
+      {/* Dynamic Mode Viewport — Persistent mounts prevent camera hardware stream teardown */}
       <div className="flex-1 w-full flex flex-col">
-        {activeTab === "lens" && (
-          <div className="p-2 sm:p-4 max-w-5xl mx-auto w-full">
-            <SpadasLensCamera />
-          </div>
-        )}
-        {activeTab === "ironman" && (
+        <div className={activeTab === "lens" ? "p-2 sm:p-4 max-w-5xl mx-auto w-full" : "hidden"}>
+          <SpadasLensCamera />
+        </div>
+        <div className={activeTab === "ironman" ? "block w-full" : "hidden"}>
           <IronmanHudCamera />
-        )}
-        {activeTab === "studio" && (
+        </div>
+        <div className={activeTab === "studio" ? "block w-full" : "hidden"}>
           <SpadasSnapStudio />
-        )}
+        </div>
       </div>
     </div>
   );

@@ -89,7 +89,33 @@ export default function NewListingDialog({
 
   async function handleGenerateAI() {
     if (!image && !imagePreview) {
-      toast.error("Please upload an image first.");
+      if (!product.trim()) {
+        toast.error("Please enter a product title or upload an image first.");
+        return;
+      }
+      // Text-based AI / Sold Comps Price Suggestion Fallback:
+      setAiLoading(true);
+      try {
+        const response = await fetch(`/api/price-suggest?q=${encodeURIComponent(product.trim())}&currency=AUD`);
+        const result = await response.json();
+        if (result.suggestedPrice || result.averagePrice) {
+          const suggestedVal = result.suggestedPrice || result.averagePrice;
+          setPrice(String(suggestedVal));
+          if (!cost) {
+            setCost(String(Math.max(1, Math.round(suggestedVal * 0.2))));
+          }
+          if (!description) {
+            setDescription(`Title: ${product.trim()}\nCondition: USED / TESTED\nComps Range: $${result.lowPrice || Math.round(suggestedVal * 0.8)} - $${result.highPrice || Math.round(suggestedVal * 1.2)} AUD`);
+          }
+          toast.success("AI Price Suggestion & Comps generated!");
+        } else {
+          toast.info("No comps found for this title. You can set prices manually.");
+        }
+      } catch (err: any) {
+        toast.error(err?.message || "Failed to fetch price comps.");
+      } finally {
+        setAiLoading(false);
+      }
       return;
     }
     setAiLoading(true);
@@ -158,6 +184,9 @@ export default function NewListingDialog({
     let imageUrl = initialData?.image ?? "";
     if (!imageUrl && imagePreview && imagePreview.startsWith("http")) {
       imageUrl = imagePreview;
+    }
+    if (!imageUrl && !image) {
+      imageUrl = "https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?w=600&auto=format&fit=crop&q=80";
     }
 
     if (image) {
