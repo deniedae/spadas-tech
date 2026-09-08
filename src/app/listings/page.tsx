@@ -7,7 +7,6 @@ import Link from "next/link";
 import { supabase } from "@/app/lib/supabase";
 import EditListingDialog from "@/components/edit-listing-dialog";
 import ExportListingDialog from "@/components/export-listing-dialog";
-import BarcodeScanner from "@/components/barcode-scanner";
 import NewListingDialog from "@/components/new-listing-dialog";
 import EbayListingModal from "@/components/ebay-listing-modal";
 import { toast } from "sonner";
@@ -33,6 +32,7 @@ import {
   Zap,
   ShieldAlert,
   ExternalLink,
+  Scan,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -46,7 +46,6 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import DashboardCards from "@/components/dashboard-cards";
-import AiOfferNegotiator from "@/components/ai-offer-negotiator";
 
 export interface Listing {
   id: string;
@@ -271,17 +270,20 @@ export default function ListingsPage() {
 
   return (
     <main className="space-y-6 animate-fade-in max-w-7xl mx-auto px-4 sm:px-6 py-6 text-zinc-100 pb-32 sm:pb-36 pb-[calc(env(safe-area-inset-bottom,0px)+8rem)]">
-      {/* Page Header - Hardware Specimen Control */}
-      <div className="specimen-card p-4 sm:p-5 border border-zinc-800 bg-[#0E1118] rounded-xl flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      {/* Executive Portfolio Header */}
+      <div className="p-5 rounded-2xl bg-[#0A0D15]/90 border border-white/[0.08] shadow-2xl backdrop-blur-md flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-[#F97316]" />
-            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white font-sans">
-              Inventory & Catalog Operations
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white font-sans">
+              Active Portfolio & Listings
             </h1>
+            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-[10px] font-mono font-bold text-emerald-400">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              Direct Sync
+            </span>
           </div>
           <p className="text-xs text-zinc-400 font-mono">
-            High-density telemetry grid with STR% turnover velocity and 1-tap marketplace dispatch.
+            Secondary market catalog with sell-through rate velocity and 1-tap marketplace dispatch.
           </p>
         </div>
 
@@ -289,7 +291,7 @@ export default function ListingsPage() {
           <button
             type="button"
             onClick={loadListings}
-            className="btn-secondary h-9 w-9 p-0 text-zinc-300"
+            className="h-9 w-9 flex items-center justify-center rounded-xl bg-zinc-900 border border-zinc-700 text-zinc-300 hover:text-white transition cursor-pointer"
             title="Refresh Listings"
           >
             <RefreshCw className="h-3.5 w-3.5" />
@@ -297,10 +299,10 @@ export default function ListingsPage() {
 
           <Link
             href="/lens"
-            className="btn-primary h-9 px-3.5 text-xs gap-1.5"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-zinc-200 text-zinc-950 font-black text-xs transition shadow-md active:scale-95 cursor-pointer"
           >
-            <Camera className="h-3.5 w-3.5" />
-            <span>LAUNCH LENS AR</span>
+            <Scan className="h-3.5 w-3.5" />
+            <span>Launch Lens AR</span>
           </Link>
 
           <NewListingDialog />
@@ -311,14 +313,14 @@ export default function ListingsPage() {
       {error && (
         <div
           role="alert"
-          className="flex items-start gap-3 rounded-lg border border-[#DC2626]/40 bg-[#DC2626]/10 p-3 text-xs font-mono text-[#DC2626]"
+          className="flex items-start gap-3 rounded-xl border border-rose-500/40 bg-rose-500/10 p-3 text-xs font-mono text-rose-300"
         >
-          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-[#DC2626]" />
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-400" />
           <p className="flex-1">{error}</p>
           <button
             type="button"
             onClick={() => setError(null)}
-            className="rounded p-1 text-[#DC2626] hover:bg-[#DC2626]/20"
+            className="rounded p-1 text-rose-300 hover:bg-rose-500/20"
           >
             <X className="h-3.5 w-3.5" />
           </button>
@@ -333,88 +335,85 @@ export default function ListingsPage() {
         inventoryValue={inventoryValue}
       />
 
-      {/* AI Automated Offer Negotiator Copilot */}
-      <AiOfferNegotiator />
-
-      {/* Control Bar: Tactile Mechanical Filters, Search & Sort */}
+      {/* Control Bar: Precision Filters, Search & Sort */}
       <div className="space-y-3">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 bg-[#0E1118] border border-zinc-800 p-2.5 rounded-xl">
-          {/* Step 3: Segmented Mechanical Status Tabs with Inset Pressed State */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 bg-[#0A0D15]/80 border border-white/[0.08] p-3 rounded-2xl">
+          {/* Segmented Mechanical Status Tabs with Inset Pressed State */}
           <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1 lg:pb-0 select-none">
             <button
               type="button"
               onClick={() => setStatusFilter("ALL")}
-              className={`px-3 py-1.5 rounded-md font-mono text-xs transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
+              className={`px-3 py-1.5 rounded-xl font-mono text-xs transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
                 statusFilter === "ALL"
-                  ? "bg-[#161922] text-[#F97316] font-black border border-zinc-700 shadow-[inset_0_2px_4px_rgba(0,0,0,0.6)]"
-                  : "text-zinc-400 hover:text-zinc-200 border border-transparent font-medium"
+                  ? "bg-white text-zinc-950 font-black shadow-sm"
+                  : "text-zinc-400 hover:text-white bg-zinc-900/60 font-medium"
               }`}
             >
-              <span>[All Units: {totalListings}]</span>
+              <span>All [{totalListings}]</span>
             </button>
 
             <button
               type="button"
               onClick={() => setStatusFilter("FAST_FLIPS")}
-              className={`px-3 py-1.5 rounded-md font-mono text-xs transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
+              className={`px-3 py-1.5 rounded-xl font-mono text-xs transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
                 statusFilter === "FAST_FLIPS"
-                  ? "bg-[#161922] text-[#22C55E] font-black border border-[#22C55E]/40 shadow-[inset_0_2px_4px_rgba(0,0,0,0.6)]"
-                  : "text-zinc-400 hover:text-[#22C55E] border border-transparent font-medium"
+                  ? "bg-emerald-500 text-slate-950 font-black shadow-sm"
+                  : "text-zinc-400 hover:text-emerald-400 bg-zinc-900/60 font-medium"
               }`}
             >
-              <Zap className="w-3 h-3 text-[#22C55E]" />
-              <span>[⚡ Fast Flips: {fastFlipsCount}]</span>
+              <Zap className="w-3 h-3" />
+              <span>High Velocity [{fastFlipsCount}]</span>
             </button>
 
             <button
               type="button"
               onClick={() => setStatusFilter("TRAPS")}
-              className={`px-3 py-1.5 rounded-md font-mono text-xs transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
+              className={`px-3 py-1.5 rounded-xl font-mono text-xs transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
                 statusFilter === "TRAPS"
-                  ? "bg-[#161922] text-[#DC2626] font-black border border-[#DC2626]/40 shadow-[inset_0_2px_4px_rgba(0,0,0,0.6)]"
-                  : "text-zinc-400 hover:text-[#DC2626] border border-transparent font-medium"
+                  ? "bg-rose-500 text-white font-black shadow-sm"
+                  : "text-zinc-400 hover:text-rose-400 bg-zinc-900/60 font-medium"
               }`}
             >
-              <ShieldAlert className="w-3 h-3 text-[#DC2626]" />
-              <span>[🛑 Traps: {trapsCount}]</span>
+              <ShieldAlert className="w-3 h-3" />
+              <span>Low Turnover [{trapsCount}]</span>
             </button>
 
             <button
               type="button"
               onClick={() => setStatusFilter("Active")}
-              className={`px-3 py-1.5 rounded-md font-mono text-xs transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
+              className={`px-3 py-1.5 rounded-xl font-mono text-xs transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
                 statusFilter === "Active"
-                  ? "bg-[#161922] text-sky-400 font-black border border-sky-500/40 shadow-[inset_0_2px_4px_rgba(0,0,0,0.6)]"
-                  : "text-zinc-400 hover:text-zinc-200 border border-transparent font-medium"
+                  ? "bg-sky-500 text-slate-950 font-black shadow-sm"
+                  : "text-zinc-400 hover:text-sky-400 bg-zinc-900/60 font-medium"
               }`}
             >
-              <span>[Active: {activeListings}]</span>
+              <span>Active [{activeListings}]</span>
             </button>
 
             <button
               type="button"
               onClick={() => setStatusFilter("Draft")}
-              className={`px-3 py-1.5 rounded-md font-mono text-xs transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
+              className={`px-3 py-1.5 rounded-xl font-mono text-xs transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
                 statusFilter === "Draft"
-                  ? "bg-[#161922] text-amber-400 font-black border border-amber-500/40 shadow-[inset_0_2px_4px_rgba(0,0,0,0.6)]"
-                  : "text-zinc-400 hover:text-zinc-200 border border-transparent font-medium"
+                  ? "bg-amber-400 text-slate-950 font-black shadow-sm"
+                  : "text-zinc-400 hover:text-amber-300 bg-zinc-900/60 font-medium"
               }`}
             >
-              <Clock className="w-3 h-3 text-amber-400" />
-              <span>[Drafts: {draftListings}]</span>
+              <Clock className="w-3 h-3" />
+              <span>Drafts [{draftListings}]</span>
             </button>
 
             <button
               type="button"
               onClick={() => setStatusFilter("Sold")}
-              className={`px-3 py-1.5 rounded-md font-mono text-xs transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
+              className={`px-3 py-1.5 rounded-xl font-mono text-xs transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
                 statusFilter === "Sold"
-                  ? "bg-[#161922] text-[#22C55E] font-black border border-[#22C55E]/40 shadow-[inset_0_2px_4px_rgba(0,0,0,0.6)]"
-                  : "text-zinc-400 hover:text-zinc-200 border border-transparent font-medium"
+                  ? "bg-emerald-500 text-slate-950 font-black shadow-sm"
+                  : "text-zinc-400 hover:text-emerald-400 bg-zinc-900/60 font-medium"
               }`}
             >
-              <CheckCircle2 className="w-3 h-3 text-[#22C55E]" />
-              <span>[Sold: {soldListings}]</span>
+              <CheckCircle2 className="w-3 h-3" />
+              <span>Sold [{soldListings}]</span>
             </button>
           </div>
 
@@ -427,15 +426,15 @@ export default function ListingsPage() {
                 placeholder="Filter by title, brand, SKU..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="h-8 w-full rounded bg-[#090A0F] border border-zinc-800 pl-8 pr-7 text-xs font-mono text-zinc-100 placeholder:text-zinc-600 focus:border-[#F97316] focus:outline-none"
+                className="h-8 w-full rounded-xl bg-zinc-900/90 border border-zinc-800 pl-8 pr-7 text-xs font-mono text-zinc-100 placeholder:text-zinc-500 focus:border-cyan-500 focus:outline-none"
               />
               {search && (
                 <button
                   type="button"
                   onClick={() => setSearch("")}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 text-xs"
                 >
-                  <X className="w-3 h-3" />
+                  ×
                 </button>
               )}
             </div>
@@ -443,19 +442,14 @@ export default function ListingsPage() {
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as any)}
-              className="h-8 rounded bg-[#090A0F] border border-zinc-800 px-2 text-xs font-mono font-bold text-zinc-300 focus:border-[#F97316] focus:outline-none cursor-pointer"
+              className="h-8 rounded-xl bg-zinc-900/90 border border-zinc-800 px-2.5 text-xs font-mono font-bold text-zinc-300 focus:border-cyan-500 focus:outline-none cursor-pointer"
             >
-              <option value="newest">🕒 Newest</option>
-              <option value="profit_high">💰 Top Profit</option>
-              <option value="price_high">📈 Top Price</option>
-              <option value="price_low">📉 Low Price</option>
+              <option value="newest">Newest First</option>
+              <option value="profit_high">Highest Margin</option>
+              <option value="price_high">Highest Price</option>
+              <option value="price_low">Lowest Price</option>
             </select>
           </div>
-        </div>
-
-        {/* Barcode scanner action helper */}
-        <div className="pt-0.5">
-          <BarcodeScanner onCreateListing={loadListings} />
         </div>
       </div>
 
