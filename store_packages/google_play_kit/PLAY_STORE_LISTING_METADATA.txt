@@ -13,47 +13,44 @@ Spadas Lens
 
 ## 2. SHORT DESCRIPTION (Active Copy)
 --------------------------------------------------------------------------------
-Scan thrift aisles in 60 FPS. Instant resale comps, net profit & AI listings.
+High-throughput computer vision, margin modeling & secondary market liquidity.
 (77 / 80 characters — Fits Google Play maximum 80 character limit)
 
 
 ## 3. FULL DESCRIPTION (Ready to Copy-Paste into Google Play Console)
 --------------------------------------------------------------------------------
-Stop typing. Start scanning. Supercharge your thrift, garage sale, op-shop, and retail arbitrage sourcing with Spadas Lens!
+Eliminate speculative capital allocation and manual lookup friction in secondary market sourcing. Spadas Lens deploys sub-second edge computer vision, real-time clearinghouse comps, and automated margin underwriting directly through your device’s optical sensor.
 
-Spadas Lens turns your smartphone camera into a high-speed optical resale scanner. Simply point your camera down thrift store aisles, video game shelves, sneaker walls, or designer clothing racks to identify items, pull verified eBay sold comps, and calculate your exact net profit in real time.
-
-Whether you flip on eBay, Depop, Poshmark, Mercari, or Facebook Marketplace, Spadas Lens gives you the unfair sourcing advantage to buy with 100% confidence.
+Designed for high-throughput arbitrage operators, estate liquidators, and commercial resellers, Spadas Lens transforms raw visual input into actionable unit economics in real time. 
 
 
-⚡ 60 FPS HARDWARE AR CAMERA SCANNER
-• Instant Continuous Scanning: Scan shelves in rapid succession without tapping shutter buttons or typing search terms.
-• Precision Barcode & Label OCR: Instant recognition of retail barcodes, tags, model numbers, and vintage brand labels.
-• Tactile Haptic & Audio Feedback: High-pitch audio chimes and distinct vibrations trigger the moment a profitable item is detected.
-• Dim Shelf Flashlight: Built-in hardware torch toggle illuminates dark thrift bins and warehouse corners.
+CONTINUOUS OPTICAL INFERENCE (60 FPS)
+• High-Throughput Scan Stream: Ingest shelves, apparel racks, electronics bins, and media lots without manual shutter latency or repetitive query typing.
+• Edge OCR & Taxonomic Parsing: Sub-second extraction of manufacturer model numbers, UPC/EAN barcodes, serial identifiers, and vintage garment tags.
+• Precision Haptic & Acoustic Telemetry: Low-latency sensory signaling confirms asset identification and instantaneous margin viability.
+• Dynamic Luminance Control: Integrated hardware torch toggle calibrated for low-light warehouse aisles and liquidation storage bins.
 
 
-💰 REAL-TIME SOLD COMPS & TRUE NET PROFIT
-• Real Market Comps: Direct integration with eBay sold comps gives you what items actually sell for—not unrealistic asking prices.
-• Automated Net Profit Calculator: Enter or scan the thrift tag price, and Spadas Lens instantly deducts marketplace seller fees, payment processing, and estimated shipping costs.
-• Intelligent Cop Verdict: Instant recommendations (👑 MUST COP, ⚡ QUICK FLIP, or ⛔ PASS) so you never buy low-margin inventory.
-• Smart Noise Filtering: Automatically filters out lot bundles, strategy guides, empty cases, and digital codes to give you accurate unit comps.
+QUANTITATIVE LIQUIDITY & TRUE NET MARGIN UNDERWRITING
+• Verified Clearinghouse Comps: Real-time query architecture pulls confirmed transaction data from global secondary marketplaces—filtering out speculative, unsold asking prices.
+• Automated Unit Economics Engine: Input purchase cost basis and instantly compute net realized margins after marketplace final value fees, payment gateway splits, dynamic category tariffs, and dimensional weight parcel logistics.
+• Liquidity Underwriting & Sourcing Verdicts: Quantitative clearance indicators isolate rapid turnover inventory from stagnant capital traps using 90-day sell-through distributions.
+• Outlier & Bundle Noise Filtering: Algorithmic screening strips out irrelevant accessory lots, damaged parts, and digital download listings to preserve comp integrity.
 
 
-🛡️ FORENSIC LUXURY & REPLICA SAFEGUARDS
-• High-Risk Triage: Instant counterfeit risk alerts for designer bags, luxury streetwear, wallets, and watches.
-• Deep Verification: Automated forensic inspection prompts verify stitching, hallmarks, and serial tags to keep your seller accounts safe from VERO strikes.
+FORENSIC AUTHENTICATION & COUNTERFEIT TRIAGE
+• High-Risk Specimen Flagging: Immediate algorithmic risk alerts triggered upon scanning high-counterfeit luxury silhouettes, designer footwear, and fine timepieces.
+• Structural Inspection Protocols: Guided micro-inspection prompts evaluate stitching density, heat stamps, font kerning, and hardware engravings to protect enterprise seller metrics and prevent marketplace compliance strikes.
 
 
-🚀 1-CLICK MULTI-CHANNEL LISTING
-• AI Listing Generator: Snap photos of your thrift haul to generate optimized SEO titles, rich item descriptions, and category specifics in seconds.
-• Multi-Platform Publishing: Cross-list drafts directly to eBay, Depop, and Poshmark with one tap.
-• Sell-Through Velocity Metrics: Prioritize inventory that flips fast with real-time sell-through rate (STR) and turnaround days indicators.
+OMNICHANNEL CATALOG SYNCHRONIZATION
+• Algorithmic Listing Ingestion: Convert physical scans into publication-ready draft catalogs featuring algorithmic SEO title generation, structured item specifics, and condition taxonomy.
+• Multi-Marketplace Dispatch: Directly stage and synchronize inventory pipelines across eBay, Depop, Poshmark, and regional liquidation exchanges.
+• Working Capital Analytics: Track portfolio gross merchandise value (GMV), unrealized asset value, historical turnover rate, and realized capital gains within a unified operational dashboard.
 
 
-📦 BUILT FOR RESELLERS IN THE FIELD
-• Offline Dead-Zone Mode: Sourcing in a metal-roof thrift store or rural market with zero mobile reception? On-device caching keeps your scanner running smoothly.
-• Thrift Haul Review Drawer: Review and edit your entire day’s thrift haul before checking out at the register.
-• Quick Settings Dropdown Tile: Pull down your Android notification shade to trigger camera scans instantly from anywhere.
+OFFLINE-FIRST EDGE RESILIENCE
+• Localized Model Caching: Execute continuous inference and local inventory logging without mobile carrier connectivity—engineered for metal-clad thrift outlets, rural auctions, and subterranean liquidation vaults.
+• Lot Intake Manifest: Stage, batch-review, and adjust purchase basis across high-volume sourcing runs before committing capital at point of sale.
 
-Download Spadas Lens today and never leave money on the thrift store shelf again!
+Deploy Spadas Lens into your sourcing operations and underwrite secondary market inventory with institutional precision.

@@ -2,8 +2,21 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { AlignJustify, X, Sparkles } from "lucide-react";
+import {
+  AlignJustify,
+  X,
+  Sparkles,
+  Scan,
+  Layers,
+  Camera,
+  History,
+  LayoutDashboard,
+  Package,
+  Calculator,
+  Settings,
+} from "lucide-react";
 import FocusLock from "react-focus-lock";
 import MobileNav from "@/components/mobile-nav";
 import OwnerAiStatusBanner from "@/components/owner-ai-status-banner";
@@ -163,17 +176,17 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
     return <>{children}</>;
   }
 
-  // Streamlined Navigation items for sidebar (Spadas Studio added for direct multi-angle studio workflow)
+  // Executive navigation hierarchy with precision SVG icons
   const navItems = [
-    { href: "/lens", label: "🔮 Spadas Lens AR" },
-    { href: "/ironman", label: "🥽 Iron Man HUD" },
-    { href: "/studio", label: "📸 Spadas Studio" },
-    { href: "/history", label: "📜 Scan History" },
-    { href: "/dashboard", label: "🏠 Dashboard" },
-    { href: "/listings", label: "📦 My Listings" },
-    { href: "/generator", label: "🤖 AI Generator" },
-    { href: "/calculator", label: "💰 Profit Calculator" },
-    { href: "/settings", label: "⚙️ Settings" },
+    { href: "/lens", label: "Spadas Lens", icon: Scan, tag: "60 FPS" },
+    { href: "/ironman", label: "Spatial Field HUD", icon: Layers, tag: "3D AR" },
+    { href: "/studio", label: "Studio Intake", icon: Camera },
+    { href: "/history", label: "Scan History", icon: History },
+    { href: "/dashboard", label: "Portfolio", icon: LayoutDashboard },
+    { href: "/listings", label: "Active Listings", icon: Package },
+    { href: "/generator", label: "AI Listing Studio", icon: Sparkles },
+    { href: "/calculator", label: "Margin & Yield", icon: Calculator },
+    { href: "/settings", label: "Settings", icon: Settings },
   ];
 
   // Determines if a link is active (including child routes)
@@ -182,18 +195,18 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
 
   // Dynamic page titles for header
   const pageTitleMap: Record<string, string> = {
-    "/lens": "Spadas Lens AR Sourcing",
-    "/ironman": "Iron Man AR Spatial HUD",
-    "/studio": "Spadas Snap Studio",
-    "/snap": "Spadas Snap Studio",
-    "/history": "Scan History Feed",
-    "/dashboard": "Dashboard",
-    "/listings": "My Listings",
-    "/generator": "AI Generator",
-    "/calculator": "Reseller Profit Calculator",
-    "/settings": "Settings",
+    "/lens": "Spadas Lens · Optical Sourcing",
+    "/ironman": "Spatial Field HUD",
+    "/studio": "Multi-Angle Studio Intake",
+    "/snap": "Multi-Angle Studio Intake",
+    "/history": "Scan History & Comps Feed",
+    "/dashboard": "Portfolio Overview",
+    "/listings": "Active Portfolio",
+    "/generator": "AI Listing Studio",
+    "/calculator": "Margin & Yield Models",
+    "/settings": "System Settings",
   };
-  const pageTitle = pageTitleMap[pathname] || "SpadasTechnology";
+  const pageTitle = pageTitleMap[pathname] || "Spadas Lens";
 
   /**
    * Touch gesture handlers for swipe to open/close sidebar on mobile.
@@ -244,7 +257,7 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
         onKeyDown={(e) => {
           if (e.key === "Escape") setSidebarOpen(false);
         }}
-        className={`fixed inset-0 bg-black/40 backdrop-blur-sm z-40 md:hidden transition-opacity duration-300 ease-in-out ${
+        className={`fixed inset-0 bg-black/50 backdrop-blur-sm z-40 md:hidden transition-opacity duration-300 ease-in-out ${
           sidebarOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
         }`}
         onClick={() => setSidebarOpen(false)}
@@ -253,119 +266,154 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
 
       {/* Sidebar container */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-slate-950 border-r border-slate-800 text-white transition-transform duration-300 ease-in-out md:static md:translate-x-0 shrink-0 flex flex-col ${
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-[#090C13] border-r border-white/[0.08] text-white transition-transform duration-300 ease-in-out md:static md:translate-x-0 shrink-0 flex flex-col ${
           sidebarOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full"
         }`}
         aria-hidden={isMobile && !sidebarOpen ? true : undefined}
         aria-label="Main sidebar"
       >
         <FocusLock disabled={!isMobile || !sidebarOpen} className="flex-1 flex flex-col h-full">
-          {/* Branding and close button */}
-          <div className="p-6 pt-[max(1.5rem,calc(env(safe-area-inset-top)+1rem))] border-b border-slate-800 relative">
-            <h1 className="text-2xl font-black bg-gradient-to-r from-cyan-400 via-blue-400 to-indigo-400 bg-clip-text text-transparent select-none tracking-tight">⚡ Spadas AI</h1>
-            <p className="mt-1 text-xs text-slate-400 select-none font-semibold">Billion-Dollar Reseller SaaS</p>
+          {/* Executive Branding */}
+          <div className="p-5 pt-[max(1.5rem,calc(env(safe-area-inset-top)+1rem))] border-b border-white/[0.08] relative">
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-cyan-500/20 via-blue-500/10 to-indigo-500/20 border border-cyan-400/30 p-1.5 flex items-center justify-center shadow-inner shrink-0">
+                <Image src="/icon-192.png" alt="Spadas Lens" width={24} height={24} className="rounded-lg object-contain" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5">
+                  <h1 className="text-base font-bold text-white tracking-tight truncate">Spadas Lens</h1>
+                  <span className="text-[9px] font-mono font-semibold px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                    PRO
+                  </span>
+                </div>
+                <p className="text-[10px] text-zinc-400 font-medium tracking-wide uppercase truncate mt-0.5">
+                  Secondary Market OS
+                </p>
+              </div>
+            </div>
 
             {/* Close button only visible on mobile */}
             <button
               type="button"
-              className="absolute top-[max(1rem,calc(env(safe-area-inset-top)+0.5rem))] right-4 md:hidden p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-900 focus:outline-none transition-colors"
+              className="absolute top-[max(1rem,calc(env(safe-area-inset-top)+0.5rem))] right-4 md:hidden p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/[0.06] focus:outline-none transition-colors cursor-pointer"
               aria-label="Close sidebar"
               onClick={() => setSidebarOpen(false)}
             >
-              <X className="h-6 w-6" />
+              <X className="h-5 w-5" />
             </button>
           </div>
 
           {/* Navigation menu */}
-          <nav aria-label="Main navigation" className="flex-1 p-4 space-y-1.5 overflow-y-auto">
-            {navItems.map(({ href, label }) => (
-              <Link
-                key={href}
-                href={href}
-                className={`block rounded-xl min-h-[44px] px-4 py-3 text-xs font-bold transition-all focus:outline-none ${
-                  isActiveLink(href)
-                    ? "bg-gradient-to-r from-cyan-500/20 to-blue-600/20 border border-cyan-400/30 text-cyan-300 font-black shadow-md"
-                    : "text-slate-400 hover:bg-slate-900 hover:text-white"
-                }`}
-                aria-current={isActiveLink(href) ? "page" : undefined}
-                onClick={() => setSidebarOpen(false)}
-              >
-                {label}
-              </Link>
-            ))}
+          <nav aria-label="Main navigation" className="flex-1 p-3 space-y-1 overflow-y-auto">
+            {navItems.map(({ href, label, icon: Icon, tag }) => {
+              const active = isActiveLink(href);
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className={`flex items-center justify-between rounded-lg min-h-[40px] px-3 py-2 text-xs font-medium transition-all group focus:outline-none ${
+                    active
+                      ? "bg-white/[0.08] text-white font-semibold border-l-2 border-cyan-400 pl-[10px] shadow-sm"
+                      : "text-zinc-400 hover:text-zinc-100 hover:bg-white/[0.04]"
+                  }`}
+                  aria-current={active ? "page" : undefined}
+                  onClick={() => setSidebarOpen(false)}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <Icon className={`h-4 w-4 shrink-0 transition-colors ${
+                      active ? "text-cyan-400" : "text-zinc-400 group-hover:text-zinc-200"
+                    }`} />
+                    <span className="truncate">{label}</span>
+                  </div>
+                  {tag && (
+                    <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded ${
+                      active
+                        ? "bg-cyan-500/20 text-cyan-300 font-semibold"
+                        : "bg-zinc-800/80 text-zinc-400 group-hover:text-zinc-300"
+                    }`}>
+                      {tag}
+                    </span>
+                  )}
+                </Link>
+              );
+            })}
           </nav>
 
           {/* User info section */}
-          <div className="p-4 border-t border-slate-800 mt-auto">
-            <div className="rounded-2xl bg-slate-900 p-3.5 select-none border border-slate-800 space-y-1">
-              <p className="text-xs font-black text-white truncate">
-                👤 {userEmail || "Reseller Pro User"}
-              </p>
-              {isProUser ? (
-                <span className="inline-flex items-center gap-1 text-[11px] font-black text-cyan-400">
-                  <Sparkles className="h-3 w-3 text-amber-400 animate-pulse" />
-                  Spadas Pro Enterprise
-                </span>
-              ) : (
-                <p className="text-[11px] text-slate-400 font-semibold">Standard Reseller Account</p>
-              )}
+          <div className="p-3 border-t border-white/[0.08] mt-auto">
+            <div className="rounded-xl bg-white/[0.03] p-3 border border-white/[0.06] flex items-center gap-2.5">
+              <div className="h-7 w-7 rounded-lg bg-zinc-800 border border-zinc-700 flex items-center justify-center text-xs font-bold text-zinc-200 shrink-0">
+                {(userEmail || "U")[0].toUpperCase()}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-semibold text-zinc-200 truncate">
+                  {userEmail || "Operator Account"}
+                </p>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                  <p className="text-[10px] text-zinc-400 font-medium truncate">
+                    {isProUser ? "Enterprise Tier" : "Standard Operator"}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </FocusLock>
       </aside>
 
       {/* Main content container */}
-      <div className="flex-1 flex flex-col min-w-0 min-h-screen bg-slate-950 text-white">
+      <div className="flex-1 flex flex-col min-w-0 min-h-screen bg-[#07090E] text-white">
         {/* Owner Account AI Credits Health Banner (Only visible for deniedae@gmail.com) */}
         <OwnerAiStatusBanner />
 
         {/* Header (Hidden on mobile for /lens to provide native full-screen camera viewport) */}
-        <header className={`bg-slate-950/90 backdrop-blur-xl border-b border-slate-800 px-4 pt-[max(0.75rem,calc(env(safe-area-inset-top)+0.5rem))] pb-3 flex items-center justify-between md:px-8 md:py-4 shadow-xl ${
+        <header className={`bg-[#090C13]/90 backdrop-blur-xl border-b border-white/[0.08] px-4 pt-[max(0.75rem,calc(env(safe-area-inset-top)+0.5rem))] pb-3 flex items-center justify-between md:px-8 md:py-3.5 shadow-sm ${
           pathname === "/lens" ? "hidden md:flex" : "flex"
         }`}>
-          {/* Mobile hamburger */}
+          {/* Mobile hamburger & Title */}
           <div className="flex items-center gap-3">
             <button
               ref={hamburgerButtonRef}
-              className="md:hidden p-2 rounded-xl text-slate-300 hover:bg-slate-900 hover:text-white focus:outline-none transition-colors cursor-pointer"
+              className="md:hidden p-2 rounded-lg text-zinc-400 hover:bg-white/[0.06] hover:text-white focus:outline-none transition-colors cursor-pointer"
               aria-label="Open sidebar"
               aria-expanded={sidebarOpen}
               onClick={() => setSidebarOpen(true)}
             >
-              <AlignJustify className="h-6 w-6" />
+              <AlignJustify className="h-5 w-5" />
             </button>
 
             {/* Page title */}
-            <h2 className="text-xl sm:text-2xl font-black text-white select-none tracking-tight">{pageTitle}</h2>
+            <h2 className="text-lg sm:text-xl font-bold text-zinc-100 select-none tracking-tight">{pageTitle}</h2>
           </div>
 
-          {/* SaaS Header Right Actions & Live Market Sync Status */}
+          {/* Header Right Actions & Live Market Sync Status */}
           <div className="hidden sm:flex items-center gap-3">
             {isEbayConnected ? (
               <Link
                 href="/settings"
-                className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 px-3 py-1 text-xs font-bold text-emerald-400 hover:bg-emerald-500/20 transition cursor-pointer"
+                className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 text-xs font-medium text-emerald-400 hover:bg-emerald-500/15 transition cursor-pointer"
                 title="eBay Account Connected - 1-Click Publishing Active"
               >
-                <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span>🛍️ eBay Connected</span>
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span>eBay Synchronized</span>
               </Link>
             ) : (
               <Link
                 href="/settings"
-                className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 px-3 py-1 text-xs font-bold text-amber-400 hover:bg-amber-500/20 transition cursor-pointer"
+                className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 px-3 py-1 text-xs font-medium text-amber-400 hover:bg-amber-500/15 transition cursor-pointer"
                 title="Click to Connect your eBay Seller Hub"
               >
-                <span className="h-2 w-2 rounded-full bg-amber-400" />
-                <span>⚡ Connect eBay</span>
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+                <span>Connect eBay</span>
               </Link>
             )}
 
             <Link
               href="/lens"
-              className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-3.5 text-xs font-black text-slate-950 shadow-md shadow-cyan-500/20 hover:scale-105 transition cursor-pointer active:scale-95"
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-white text-zinc-950 font-semibold px-3 text-xs hover:bg-zinc-200 transition-all cursor-pointer shadow-sm active:scale-95"
             >
-              📷 Open Camera AR
+              <Scan className="h-3.5 w-3.5" />
+              <span>Launch Lens AR</span>
             </Link>
           </div>
         </header>
