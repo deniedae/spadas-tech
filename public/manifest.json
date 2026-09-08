@@ -1,7 +1,7 @@
 {
-  "name": "Spadas AI — Reseller Inventory & Analytics",
-  "short_name": "Spadas AI",
-  "description": "Track inventory, calculate profits, and generate AI listings on the go.",
+  "name": "Spadas Lens: Reseller Scanner",
+  "short_name": "Spadas Lens",
+  "description": "Instant optical scanner & AI reseller copilot. Scan shelves, detect flip margins, compare sold comps on eBay, Poshmark & Mercari, and check authenticity.",
   "start_url": "/dashboard",
   "scope": "/",
   "id": "/dashboard",
@@ -17,7 +17,11 @@
   "theme_color": "#2563eb",
   "lang": "en-US",
   "dir": "ltr",
-  "categories": ["business", "productivity", "shopping"],
+  "categories": [
+    "business",
+    "productivity",
+    "shopping"
+  ],
   "iarc_rating_id": "e58c1766-3d23-4e31-8260-eb2874eb1c46",
   "prefer_related_applications": false,
   "related_applications": [
@@ -33,8 +37,12 @@
     }
   ],
   "scope_extensions": [
-    { "origin": "*.spadas.tech" },
-    { "origin": "spadas.tech" }
+    {
+      "origin": "*.spadas.tech"
+    },
+    {
+      "origin": "spadas.tech"
+    }
   ],
   "launch_handler": {
     "client_mode": "focus-existing"
@@ -50,7 +58,12 @@
       "files": [
         {
           "name": "images",
-          "accept": ["image/jpeg", "image/png", "image/webp", "image/*"]
+          "accept": [
+            "image/jpeg",
+            "image/png",
+            "image/webp",
+            "image/*"
+          ]
         }
       ]
     }
@@ -59,8 +72,12 @@
     {
       "action": "/inventory/import",
       "accept": {
-        "text/csv": [".csv"],
-        "application/json": [".json"]
+        "text/csv": [
+          ".csv"
+        ],
+        "application/json": [
+          ".json"
+        ]
       }
     }
   ],

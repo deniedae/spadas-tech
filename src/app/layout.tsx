@@ -19,18 +19,20 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Spadas AI — Reseller Inventory & Analytics",
-    template: "%s · Spadas AI",
+    default: "Spadas Lens: Reseller Scanner",
+    template: "%s · Spadas Lens",
   },
   description:
-    "Track inventory, profits, and sales across marketplaces in one dashboard built for resellers.",
+    "Instant optical scanner & AI reseller copilot. Scan shelves, detect flip margins, compare sold comps on eBay, Poshmark & Mercari, and check authenticity.",
   metadataBase: new URL("https://spadas.ai"),
   alternates: {
     canonical: "https://spadas.ai",
   },
-  applicationName: "Spadas AI",
+  applicationName: "Spadas Lens",
   authors: [{ name: "SpadasTechnology" }],
   keywords: [
+    "reseller scanner",
+    "spadas lens",
     "reseller",
     "inventory",
     "marketplace",
@@ -44,35 +46,41 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     url: "https://spadas.ai",
-    title: "Spadas AI — Reseller Inventory & Analytics",
+    title: "Spadas Lens: Reseller Scanner",
     description:
-      "Track inventory, profits, live AR camera sold comps, and forensic authentication in one dashboard built for resellers.",
-    siteName: "Spadas AI",
+      "Instant optical scanner & AI reseller copilot. Scan shelves, detect flip margins, compare sold comps on eBay, Poshmark & Mercari, and check authenticity.",
+    siteName: "Spadas Lens",
     images: [
       {
         url: "https://spadas.ai/og-preview.jpg",
         width: 1200,
         height: 630,
-        alt: "Spadas AI — Reseller Inventory, Live AR Scanner & Forensic Engine",
+        alt: "Spadas Lens: Reseller Scanner — Live Optical Scanner & Forensic Engine",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Spadas AI — Reseller Inventory & Analytics",
+    title: "Spadas Lens: Reseller Scanner",
     description:
-      "Track inventory, profits, live AR camera sold comps, and forensic authentication in one dashboard built for resellers.",
+      "Instant optical scanner & AI reseller copilot. Scan shelves, detect flip margins, compare sold comps on eBay, Poshmark & Mercari, and check authenticity.",
     images: ["https://spadas.ai/og-preview.jpg"],
   },
   icons: {
-    icon: "/icon-192.png",
-    apple: "/icon-192.png",
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon-192.png", type: "image/png", sizes: "192x192" },
+      { url: "/icon-512.png", type: "image/png", sizes: "512x512" },
+    ],
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
   },
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Spadas AI",
+    title: "Spadas Lens",
   },
 };
 

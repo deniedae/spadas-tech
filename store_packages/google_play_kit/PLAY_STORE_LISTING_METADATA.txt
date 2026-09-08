@@ -1,44 +1,29 @@
 # ==============================================================================
-# SPADAS AI — GOOGLE PLAY STORE LISTING COPY (HIGH CONVERTING & ASO OPTIMIZED)
+# SPADAS LENS: RESELLER SCANNER — GOOGLE PLAY STORE LISTING METADATA
 # ==============================================================================
 
-## 1. APP NAME (Choose 1 — Exactly <= 30 Chars)
+## 1. APP NAME (Official Active Name)
 --------------------------------------------------------------------------------
-OPTION 1 (Recommended - High ASO Ranking):
 Spadas Lens: Reseller Scanner
-(29 / 30 characters)
+(29 / 30 characters — Fits Google Play maximum 30 character limit)
 
-OPTION 2 (Current Brand):
-Spadas AI: Reseller Scanner
-(27 / 30 characters)
-
-OPTION 3:
-Spadas: Resale Comps Scanner
-(28 / 30 characters)
+Short Launcher Name:
+Spadas Lens
 
 
-## 2. SHORT DESCRIPTION (Choose 1 — Strictly <= 80 Chars)
+## 2. SHORT DESCRIPTION (Active Copy)
 --------------------------------------------------------------------------------
-OPTION 1 (Recommended - High Conversion & Clear Hook):
 Scan thrift aisles in 60 FPS. Instant resale comps, net profit & AI listings.
-(77 / 80 characters)
-
-OPTION 2 (Direct Value Proposition):
-Point & scan thrift items. Real-time resale comps, net profit & 1-tap listings.
-(78 / 80 characters)
-
-OPTION 3 (Action-Oriented):
-Instant 60 FPS camera scanner, real-time resale comps & automated net profit.
-(77 / 80 characters)
+(77 / 80 characters — Fits Google Play maximum 80 character limit)
 
 
 ## 3. FULL DESCRIPTION (Ready to Copy-Paste into Google Play Console)
 --------------------------------------------------------------------------------
-Stop typing. Start scanning. Supercharge your thrift, garage sale, op-shop, and retail arbitrage sourcing with Spadas AI!
+Stop typing. Start scanning. Supercharge your thrift, garage sale, op-shop, and retail arbitrage sourcing with Spadas Lens!
 
-Spadas AI turns your smartphone camera into a high-speed resale intelligence scanner. Simply point your camera down thrift store aisles, video game shelves, or clothing racks to identify items, pull verified sold comps, and calculate your exact net profit in real time.
+Spadas Lens turns your smartphone camera into a high-speed optical resale scanner. Simply point your camera down thrift store aisles, video game shelves, sneaker walls, or designer clothing racks to identify items, pull verified eBay sold comps, and calculate your exact net profit in real time.
 
-Whether you flip on eBay, Depop, Poshmark, Mercari, or Facebook Marketplace, Spadas AI gives you the unfair sourcing advantage to buy with 100% confidence.
+Whether you flip on eBay, Depop, Poshmark, Mercari, or Facebook Marketplace, Spadas Lens gives you the unfair sourcing advantage to buy with 100% confidence.
 
 
 ⚡ 60 FPS HARDWARE AR CAMERA SCANNER
@@ -50,7 +35,7 @@ Whether you flip on eBay, Depop, Poshmark, Mercari, or Facebook Marketplace, Spa
 
 💰 REAL-TIME SOLD COMPS & TRUE NET PROFIT
 • Real Market Comps: Direct integration with eBay sold comps gives you what items actually sell for—not unrealistic asking prices.
-• Automated Net Profit Calculator: Enter or scan the thrift tag price, and Spadas instantly deducts marketplace seller fees, payment processing, and estimated shipping costs.
+• Automated Net Profit Calculator: Enter or scan the thrift tag price, and Spadas Lens instantly deducts marketplace seller fees, payment processing, and estimated shipping costs.
 • Intelligent Cop Verdict: Instant recommendations (👑 MUST COP, ⚡ QUICK FLIP, or ⛔ PASS) so you never buy low-margin inventory.
 • Smart Noise Filtering: Automatically filters out lot bundles, strategy guides, empty cases, and digital codes to give you accurate unit comps.
 
@@ -71,4 +56,4 @@ Whether you flip on eBay, Depop, Poshmark, Mercari, or Facebook Marketplace, Spa
 • Thrift Haul Review Drawer: Review and edit your entire day’s thrift haul before checking out at the register.
 • Quick Settings Dropdown Tile: Pull down your Android notification shade to trigger camera scans instantly from anywhere.
 
-Download Spadas AI today and never leave money on the thrift store shelf again!
+Download Spadas Lens today and never leave money on the thrift store shelf again!

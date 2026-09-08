@@ -2,10 +2,10 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Spadas AI — Reseller Inventory & Analytics",
-    short_name: "Spadas AI",
+    name: "Spadas Lens: Reseller Scanner",
+    short_name: "Spadas Lens",
     description:
-      "Track inventory, calculate profits, and generate AI listings on the go.",
+      "Instant optical scanner & AI reseller copilot. Scan shelves, detect flip margins, compare sold comps on eBay, Poshmark & Mercari, and check authenticity.",
     start_url: "/dashboard",
     scope: "/",
     id: "/dashboard",

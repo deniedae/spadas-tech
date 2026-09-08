@@ -17,6 +17,7 @@
     "build:aab": "node scripts/build_production_release_aab.js",
     "build:screenshots": "node scripts/build_store_screenshots.js",
     "build:store-graphics": "node scripts/build_store_icon_and_feature_graphic.js",
+    "apply:brand": "node scripts/apply_new_brand_and_icons.js",
     "build:android": "npx @bubblewrap/cli build",
     "build:windows": "npx @pwabuilder/cli"
   },

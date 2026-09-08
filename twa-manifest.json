@@ -1,8 +1,8 @@
 {
   "packageId": "com.spadas.ai",
   "host": "spadas-tech.vercel.app",
-  "name": "Spadas AI — Reseller Inventory & Analytics",
-  "launcherName": "Spadas AI",
+  "name": "Spadas Lens: Reseller Scanner",
+  "launcherName": "Spadas Lens",
   "display": "standalone",
   "themeColor": "#2563eb",
   "navigationColor": "#090d16",
