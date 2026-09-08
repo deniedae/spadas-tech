@@ -3436,10 +3436,13 @@ function SpadasLensCameraCore({ onOpenHaulTab }: { onOpenHaulTab?: () => void } 
 
   return (
     <div className="spadas-lens-camera w-full max-w-full overflow-x-hidden box-border space-y-6 pb-24 mx-auto animate-fade-in touch-pan-y pt-[max(0.5rem,calc(env(safe-area-inset-top,0px)+0.25rem))] sm:pt-0">
-      {/* Video Viewport Container (Tap Anywhere to Focus or Snap) */}
+      {/* Video Viewport Container (Tap Anywhere to Focus, Snap, or Dismiss Card) */}
       <div
         onClick={() => {
-          if (isScanPaused) {
+          if (activeValuationHit) {
+            setActiveValuationHit(null);
+            setFrozenFrameUrl(null);
+          } else if (isScanPaused) {
             handleResumeScanning();
           } else if (!analyzingRealFrame) {
             void processCurrentFrame(true);
@@ -3487,26 +3490,13 @@ function SpadasLensCameraCore({ onOpenHaulTab }: { onOpenHaulTab?: () => void } 
                   alt="Captured Scanned Frame"
                   className="object-cover w-full h-full"
                 />
-                {/* Subtle frosted vignette to preserve complete visual context while making translucent UI overlay pop */}
-                <div className="absolute inset-0 bg-black/25 backdrop-blur-[1px]" />
               </div>
             )}
 
-            {/* Instant Target Lock & Scan Completion Visual Feedback */}
+            {/* Instant Target Lock & Scan Completion Feedback (Perimeter Laser Ring - Never blocks center) */}
             {scanCompletePulse && (
-              <div className="absolute inset-0 z-30 pointer-events-none select-none flex items-center justify-center animate-in fade-in zoom-in-95 duration-150">
-                {/* 1. Viewfinder edge high-visibility emerald pulse laser ring */}
-                <div className="absolute inset-0 rounded-3xl border-2 border-emerald-400 bg-emerald-500/15 shadow-[inset_0_0_50px_rgba(16,185,129,0.4)] animate-pulse" />
-
-                {/* 2. Target lock reticle snap badge */}
-                <div className="relative flex flex-col items-center justify-center gap-1.5 p-3 rounded-2xl bg-slate-950/85 border border-emerald-400/80 shadow-[0_0_35px_rgba(16,185,129,0.6)] backdrop-blur-md animate-in zoom-in-90 duration-200">
-                  <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-emerald-500/20 border border-emerald-400 text-emerald-300">
-                    <Sparkles className="h-5 w-5 animate-spin duration-1000" />
-                  </div>
-                  <span className="text-[11px] font-black text-emerald-300 uppercase tracking-widest font-mono">
-                    TARGET LOCKED & VALUED
-                  </span>
-                </div>
+              <div className="absolute inset-0 z-30 pointer-events-none select-none animate-in fade-in duration-150">
+                <div className="absolute inset-0 rounded-3xl border-2 border-emerald-400 bg-emerald-500/10 shadow-[inset_0_0_50px_rgba(16,185,129,0.3)] animate-pulse" />
               </div>
             )}
 
@@ -3703,81 +3693,67 @@ function SpadasLensCameraCore({ onOpenHaulTab }: { onOpenHaulTab?: () => void } 
               </div>
             </div>
 
-            {/* Interim Scanning Skeleton & Retry Prompt Layer (z-25) */}
-            {(analyzingRealFrame || isLoaderTransitioning || scanRetryPrompt) && !activeValuationHit && (
-              <div className="absolute bottom-20 sm:bottom-24 left-1/2 -translate-x-1/2 z-25 w-[92%] max-w-sm mx-auto pointer-events-auto transition-all duration-300 ease-out">
-                <div className="grid grid-cols-1 grid-rows-1 w-full items-end">
-                  {/* Immediate Crossfade Handoff: Progressive loader stays mounted in same frame during handoff */}
-                  {(analyzingRealFrame || isLoaderTransitioning) && (
-                    <div
-                      key="lens-loader-interim"
-                      className="col-start-1 row-start-1 w-full transition-opacity duration-200 ease-out z-10 opacity-100"
-                    >
-                      <ScanProgressiveLoader
-                        isActive={true}
-                        stage={scanStage}
-                        detectedTitle={pendingIdentifiedItem?.productName}
-                        detectedBrand={pendingIdentifiedItem?.brand ?? undefined}
-                        previewImage={frozenFrameUrl}
-                        variant="skeleton"
-                      />
-                    </div>
-                  )}
+            {/* Streamlined Non-Obstructing Top Docked Scanning Telemetry (z-35) */}
+            {(analyzingRealFrame || isLoaderTransitioning) && !activeValuationHit && (
+              <div className="absolute top-[max(3.5rem,calc(env(safe-area-inset-top,0px)+3.25rem))] left-1/2 -translate-x-1/2 z-35 pointer-events-auto transition-all duration-300 ease-out">
+                <ScanProgressiveLoader
+                  isActive={true}
+                  stage={scanStage}
+                  detectedTitle={pendingIdentifiedItem?.productName}
+                  detectedBrand={pendingIdentifiedItem?.brand ?? undefined}
+                  previewImage={frozenFrameUrl}
+                />
+              </div>
+            )}
 
-                  {/* Retry Prompt Layer */}
-                  {scanRetryPrompt && (
-                    <div
-                      key="lens-retry-prompt"
-                      className="col-start-1 row-start-1 w-full rounded-2xl bg-slate-950/95 border border-amber-500/50 p-3 shadow-xl backdrop-blur-xl flex items-center justify-between gap-2.5 animate-in fade-in zoom-in-95 select-none z-20"
-                    >
-                      <div className="flex items-center gap-2 min-w-0">
-                        <WifiOff className="h-4 w-4 text-amber-400 shrink-0" />
-                        <div className="flex flex-col min-w-0">
-                          <span className="text-xs font-bold text-slate-100 truncate">
-                            {scanRetryPrompt.message}
-                          </span>
-                          <span className="text-[10px] text-slate-400">
-                            Active session preserved • Tap retry
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setScanRetryPrompt(null);
-                            void processCurrentFrame(true);
-                          }}
-                          className="inline-flex items-center gap-1 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black px-3 py-1.5 rounded-xl text-[11px] transition cursor-pointer active:scale-95 shadow-md shadow-cyan-500/20"
-                        >
-                          <RefreshCw className="h-3 w-3" />
-                          <span>Retry</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setScanRetryPrompt(null)}
-                          className="text-slate-400 hover:text-white p-1 rounded-lg transition cursor-pointer"
-                          title="Dismiss"
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
+            {/* Non-Obstructing Retry Prompt Layer */}
+            {scanRetryPrompt && !activeValuationHit && (
+              <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-35 w-[92%] max-w-sm mx-auto pointer-events-auto transition-all duration-300 ease-out">
+                <div
+                  key="lens-retry-prompt"
+                  className="w-full rounded-2xl bg-slate-950/95 border border-amber-500/50 p-3 shadow-xl backdrop-blur-xl flex items-center justify-between gap-2.5 animate-in fade-in zoom-in-95 select-none"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <WifiOff className="h-4 w-4 text-amber-400 shrink-0" />
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-xs font-bold text-slate-100 truncate">
+                        {scanRetryPrompt.message}
+                      </span>
+                      <span className="text-[10px] text-slate-400">
+                        Active session preserved • Tap retry
+                      </span>
                     </div>
-                  )}
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setScanRetryPrompt(null);
+                        void processCurrentFrame(true);
+                      }}
+                      className="inline-flex items-center gap-1 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black px-3 py-1.5 rounded-xl text-[11px] transition cursor-pointer active:scale-95 shadow-md shadow-cyan-500/20"
+                    >
+                      <RefreshCw className="h-3 w-3" />
+                      <span>Retry</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setScanRetryPrompt(null)}
+                      className="text-slate-400 hover:text-white p-1 rounded-lg transition cursor-pointer"
+                      title="Dismiss"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
 
-            {/* 1. Viewfinder Card Modal Isolation & Z-Index Layering (z-50) */}
+            {/* Instant Non-Obstructing Bottom-Docked Valuation Card (z-40) */}
             {activeValuationHit && (
               <div
-                className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/50 backdrop-blur-sm pointer-events-auto transition-all duration-300 animate-in fade-in"
-                onClick={(e) => {
-                  if (e.target === e.currentTarget) {
-                    setActiveValuationHit(null);
-                    setFrozenFrameUrl(null);
-                  }
-                }}
+                className="absolute bottom-3 sm:bottom-4 left-1/2 -translate-x-1/2 z-40 w-[95%] max-w-md pointer-events-auto transition-all duration-300 ease-out animate-in slide-in-from-bottom-4 fade-in"
+                onClick={(e) => e.stopPropagation()}
               >
                 <div
                   key={`lens-valuation-${activeValuationHit.id || activeValuationHit.name}`}
@@ -3787,9 +3763,9 @@ function SpadasLensCameraCore({ onOpenHaulTab }: { onOpenHaulTab?: () => void } 
                       setIsValuationCardMounted(true);
                     }
                   }}
-                  className={`w-full max-w-sm mx-auto transition-all duration-300 ease-out animate-in fade-in slide-in-from-bottom-6 zoom-in-95 ${
+                  className={`w-full transition-all duration-300 ease-out ${
                     scanCompletePulse
-                      ? "ring-2 ring-emerald-400/80 shadow-[0_0_40px_rgba(16,185,129,0.5)] scale-[1.02]"
+                      ? "ring-2 ring-emerald-400/80 shadow-[0_0_40px_rgba(16,185,129,0.5)]"
                       : ""
                   }`}
                 >

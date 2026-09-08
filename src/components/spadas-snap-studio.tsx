@@ -687,15 +687,14 @@ export function SpadasSnapStudio() {
           </div>
         </div>
 
-        {/* Progressive Loading Skeleton & Step Indicator */}
+        {/* Non-Obstructing Progressive Loading Telemetry */}
         {isAnalyzing && (
-          <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-slate-950/75 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className="absolute top-16 left-1/2 -translate-x-1/2 z-35 pointer-events-auto transition-all duration-300 ease-out">
             <ScanProgressiveLoader
               isActive={isAnalyzing}
               stage={analysisStage}
               detectedTitle={detectedTitle}
               detectedBrand={detectedBrand}
-              variant="skeleton"
               customLabel={detectedTitle ? `Valuing ${detectedTitle}...` : "Valuing Find..."}
             />
           </div>
