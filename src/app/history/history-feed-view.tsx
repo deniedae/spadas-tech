@@ -1,8 +1,22 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { Camera, ChevronLeft, ChevronRight, AlertTriangle, Filter, Scale, CheckSquare, Square, Lock } from "lucide-react";
+import {
+  Scan,
+  History,
+  ChevronLeft,
+  ChevronRight,
+  AlertTriangle,
+  Scale,
+  CheckSquare,
+  Square,
+  Lock,
+  Search,
+  X,
+  Layers,
+  CheckCircle2,
+} from "lucide-react";
 import { ClearAllHistoryButton } from "./delete-button";
 import { ScanItemCard } from "./scan-item-card";
 import ItemComparisonModal, { ComparisonItem } from "@/components/item-comparison-modal";
@@ -39,6 +53,7 @@ export function HistoryFeedView({
 }: HistoryFeedViewProps) {
   const [items, setItems] = useState<ScanRecord[]>(initialScans);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const [isCompareOpen, setIsCompareOpen] = useState(false);
   const [isPaywallOpen, setIsPaywallOpen] = useState(false);
   const [isPro, setIsPro] = useState(false);
@@ -70,6 +85,32 @@ export function HistoryFeedView({
     );
   };
 
+  const selectAll = () => {
+    if (selectedIds.length === filteredItems.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filteredItems.map((i) => i.id));
+    }
+  };
+
+  // Filter items by search query
+  const filteredItems = useMemo(() => {
+    if (!searchQuery.trim()) return items;
+    const q = searchQuery.toLowerCase();
+    return items.filter((s) => {
+      const res = s.result_json || {};
+      const name = (
+        res.analysis?.product_name ||
+        res.detected_objects?.[0]?.product_name ||
+        res.product_name ||
+        ""
+      ).toLowerCase();
+      const brand = (res.analysis?.brand || res.brand || "").toLowerCase();
+      const cat = (res.analysis?.category || res.category || "").toLowerCase();
+      return name.includes(q) || brand.includes(q) || cat.includes(q);
+    });
+  }, [items, searchQuery]);
+
   const selectedComparisonItems: ComparisonItem[] = items
     .filter((s) => selectedIds.includes(s.id))
     .map((s) => {
@@ -100,94 +141,177 @@ export function HistoryFeedView({
 
   return (
     <div className="space-y-6 pb-32 sm:pb-36 pb-[calc(env(safe-area-inset-bottom,0px)+8rem)]">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-6">
-        <div>
-          <div className="flex items-center gap-2 text-emerald-400 font-semibold text-sm mb-1">
-            <Camera className="w-4 h-4" />
-            <span>SPADAS LENS AR PERSISTENCE</span>
+      {/* Executive Operational Header */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-5 rounded-2xl bg-[#0A0D15]/90 border border-white/[0.08] shadow-2xl backdrop-blur-md">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/[0.08] border border-white/[0.12] text-zinc-100 font-black shadow-md">
+              <History className="h-5 w-5 text-cyan-400" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-lg sm:text-xl font-bold tracking-tight text-white">
+                  Scan History & Comps Feed
+                </h1>
+                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-[10px] font-mono font-bold text-emerald-400">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  Telemetry Archive
+                </span>
+              </div>
+              <p className="text-xs text-zinc-400">
+                Historical optical computer vision sessions, valuation comps & secondary market listings.
+              </p>
+            </div>
           </div>
-          <h1 className="text-3xl font-bold tracking-tight">Scan History Feed</h1>
-          <p className="text-slate-400 text-sm mt-1">
-            Showing page {page} of {totalPages} ({totalCount} total scans recorded)
-          </p>
         </div>
-        <div className="flex items-center gap-3 flex-wrap">
+
+        {/* Header Action Suite */}
+        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
           {items.length > 0 && (
             <ClearAllHistoryButton onClearedAll={() => setItems([])} />
           )}
+
           <Link
             href="/lens"
-            className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold rounded-lg text-sm transition-colors flex items-center gap-2 shadow-lg shadow-emerald-500/20"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-zinc-200 text-zinc-950 font-black text-xs transition shadow-md active:scale-95 cursor-pointer"
           >
-            <Camera className="w-4 h-4" />
-            <span>Launch AR Scanner</span>
+            <Scan className="h-4 w-4" />
+            <span>Launch Lens AR</span>
           </Link>
         </div>
       </div>
 
-      {/* Status Filter Tabs & Selection Bar */}
-      <div className="flex items-center justify-between gap-4 flex-wrap bg-slate-900/40 p-1.5 rounded-xl border border-slate-800/80">
-        <div className="flex items-center gap-1 flex-wrap">
-          <span className="text-xs text-slate-400 font-semibold px-3 flex items-center gap-1.5">
-            <Filter className="w-3.5 h-3.5 text-slate-500" />
-            <span>Filter Status:</span>
+      {/* Quantitative Executive Stat Bar */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="p-3.5 rounded-2xl bg-[#0A0D15]/80 border border-white/[0.08] shadow-sm flex flex-col justify-between">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400">
+            Total Scans Logged
           </span>
+          <div className="mt-1.5">
+            <span className="text-2xl font-black text-white font-mono tabular-nums">
+              {totalCount}
+            </span>
+          </div>
+        </div>
+
+        <div className="p-3.5 rounded-2xl bg-[#0A0D15]/80 border border-white/[0.08] shadow-sm flex flex-col justify-between">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400">
+            Current Page Range
+          </span>
+          <div className="mt-1.5">
+            <span className="text-lg font-bold text-zinc-200 font-mono">
+              Page {page} of {totalPages}
+            </span>
+          </div>
+        </div>
+
+        <div className="p-3.5 rounded-2xl bg-[#0A0D15]/80 border border-white/[0.08] shadow-sm flex flex-col justify-between">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400">
+            Active Filter
+          </span>
+          <div className="mt-1.5">
+            <span className="text-sm font-mono font-bold uppercase text-cyan-400">
+              {activeStatus === "all" ? "All Telemetry" : activeStatus}
+            </span>
+          </div>
+        </div>
+
+        <div className="p-3.5 rounded-2xl bg-[#0A0D15]/80 border border-white/[0.08] shadow-sm flex flex-col justify-between">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400">
+            Batch Selection
+          </span>
+          <div className="mt-1.5 flex items-baseline justify-between">
+            <span className="text-xl font-black text-emerald-400 font-mono tabular-nums">
+              {selectedIds.length}
+            </span>
+            {selectedIds.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setSelectedIds([])}
+                className="text-[10px] font-mono text-zinc-400 hover:text-zinc-200 underline cursor-pointer"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Filter Tabs & Search Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 rounded-2xl bg-[#0A0D15]/60 border border-white/[0.08]">
+        {/* Status Filter Tabs */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
           <Link
             href="/history?status=all"
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition shrink-0 ${
               activeStatus === "all"
-                ? "bg-slate-800 text-slate-100 border border-slate-700 shadow"
-                : "text-slate-400 hover:text-slate-200 hover:bg-slate-900"
+                ? "bg-white text-zinc-950 shadow-sm"
+                : "text-zinc-400 hover:text-white bg-zinc-900/60"
             }`}
           >
-            All Scans
+            All Audits
           </Link>
           <Link
             href="/history?status=completed"
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition shrink-0 ${
               activeStatus === "completed"
-                ? "bg-emerald-950/80 text-emerald-300 border border-emerald-800/80 shadow"
-                : "text-slate-400 hover:text-emerald-400 hover:bg-slate-900"
+                ? "bg-emerald-500 text-slate-950 font-black shadow-sm"
+                : "text-zinc-400 hover:text-emerald-400 bg-zinc-900/60"
             }`}
           >
-            Completed Only
+            Completed
           </Link>
           <Link
             href="/history?status=failed"
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition shrink-0 ${
               activeStatus === "failed"
-                ? "bg-rose-950/80 text-rose-300 border border-rose-800/80 shadow"
-                : "text-slate-400 hover:text-rose-400 hover:bg-slate-900"
+                ? "bg-rose-500 text-white font-black shadow-sm"
+                : "text-zinc-400 hover:text-rose-400 bg-zinc-900/60"
             }`}
           >
-            Failed Only
+            Flags / Unresolved
           </Link>
-        </div>
 
-        {selectedIds.length > 0 && (
-          <div className="flex items-center gap-2 pr-2">
-            <span className="text-xs font-mono text-cyan-400 font-bold">
-              {selectedIds.length} Selected
-            </span>
+          {filteredItems.length > 0 && (
             <button
               type="button"
-              onClick={() => setSelectedIds([])}
-              className="text-xs text-slate-400 hover:text-slate-200 underline cursor-pointer"
+              onClick={selectAll}
+              className="px-2.5 py-1.5 rounded-xl text-[11px] font-mono text-zinc-400 hover:text-zinc-200 bg-zinc-900/40 border border-white/[0.06] transition cursor-pointer shrink-0 ml-1"
             >
-              Deselect All
+              {selectedIds.length === filteredItems.length ? "Deselect Page" : "Select Page"}
             </button>
-          </div>
-        )}
+          )}
+        </div>
+
+        {/* Search Input */}
+        <div className="relative min-w-[200px] sm:w-64">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search history by title or brand..."
+            className="w-full h-8 pl-8 pr-8 rounded-xl bg-zinc-900/90 border border-zinc-800 text-xs font-mono text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-cyan-500"
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery("")}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 text-xs"
+            >
+              ×
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Error Banner */}
       {error && (
-        <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-300 text-sm flex items-center gap-3">
+        <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-amber-300 text-xs font-mono flex items-center gap-3">
           <AlertTriangle className="w-5 h-5 shrink-0 text-amber-400" />
           <div>
-            <div className="font-semibold text-amber-200">Database Scan History Table Status</div>
-            <div className="text-xs text-amber-400/80 mt-0.5">
+            <div className="font-bold text-amber-200">Database Scan History Status</div>
+            <div className="text-amber-400/80 mt-0.5">
               {error.message || "Unable to retrieve scan history records."}
             </div>
           </div>
@@ -196,37 +320,44 @@ export function HistoryFeedView({
 
       {/* Scan List */}
       {items.length === 0 ? (
-        <div className="text-center py-16 bg-slate-900/50 border border-slate-800 rounded-xl space-y-3">
-          <Camera className="w-12 h-12 text-slate-600 mx-auto" />
-          <h3 className="text-lg font-semibold text-slate-300">No scan records found</h3>
-          <p className="text-slate-500 text-sm max-w-md mx-auto">
+        <div className="text-center py-16 px-6 bg-[#0A0D15]/60 border border-white/[0.08] rounded-3xl space-y-3">
+          <div className="flex h-14 w-14 mx-auto items-center justify-center rounded-2xl bg-zinc-900 border border-zinc-800 text-zinc-500">
+            <Scan className="w-7 h-7 stroke-1 text-zinc-400" />
+          </div>
+          <h3 className="text-base font-bold text-white">No Scan Records Found</h3>
+          <p className="text-zinc-400 text-xs max-w-md mx-auto">
             {activeStatus === "all"
-              ? "Scans executed in Spadas Lens will automatically persist to your account history feed."
-              : `No scan records match status filter: '${activeStatus}'.`}
+              ? "Items scanned using Spadas Lens AR will automatically persist to your account history feed with full comps."
+              : `No historical scan records match status filter: '${activeStatus}'.`}
           </p>
           <Link
             href="/lens"
-            className="inline-block mt-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium text-sm rounded-lg transition-colors"
+            className="inline-flex items-center gap-2 mt-2 px-4 py-2 bg-white hover:bg-zinc-200 text-zinc-950 font-black text-xs rounded-xl transition-colors shadow-md"
           >
-            Scan Your First Item
+            <Scan className="w-4 h-4" />
+            <span>Scan Your First Item</span>
           </Link>
+        </div>
+      ) : filteredItems.length === 0 ? (
+        <div className="py-12 text-center rounded-2xl bg-[#0A0D15]/60 border border-white/[0.08] text-zinc-500 font-mono text-xs">
+          No scan records match current search filter: &quot;{searchQuery}&quot;
         </div>
       ) : (
         <div className="space-y-3">
-          {items.map((scan) => {
+          {filteredItems.map((scan) => {
             const isSelected = selectedIds.includes(scan.id);
             return (
               <div key={scan.id} className="relative flex items-center gap-3">
                 <button
                   type="button"
                   onClick={() => toggleSelect(scan.id)}
-                  className="p-1 text-slate-500 hover:text-emerald-400 transition cursor-pointer shrink-0"
-                  title={isSelected ? "Deselect item" : "Select item for comparison"}
+                  className="p-1 text-zinc-600 hover:text-emerald-400 transition cursor-pointer shrink-0"
+                  title={isSelected ? "Deselect item" : "Select item for side-by-side comparison"}
                 >
                   {isSelected ? (
                     <CheckSquare className="w-5 h-5 text-emerald-400" />
                   ) : (
-                    <Square className="w-5 h-5 text-slate-700 hover:text-slate-500" />
+                    <Square className="w-5 h-5 text-zinc-700 hover:text-zinc-500" />
                   )}
                 </button>
 
@@ -247,7 +378,7 @@ export function HistoryFeedView({
 
       {/* Sticky Bottom Comparison Floating Toolbar */}
       {selectedIds.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 animate-fade-in max-w-[92vw]">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 animate-in fade-in slide-in-from-bottom-3 duration-200 max-w-[92vw]">
           <button
             type="button"
             onClick={() => {
@@ -303,27 +434,27 @@ export function HistoryFeedView({
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between border-t border-slate-800 pt-6">
+        <div className="flex items-center justify-between border-t border-white/[0.08] pt-6">
           <Link
             href={`/history?page=${Math.max(1, page - 1)}&status=${activeStatus}`}
-            className={`px-4 py-2 rounded-lg text-sm font-medium border border-slate-800 transition-colors flex items-center gap-2 ${
+            className={`px-4 py-2 rounded-xl text-xs font-mono font-bold border border-white/[0.08] transition-colors flex items-center gap-2 ${
               page <= 1
-                ? "pointer-events-none opacity-40 text-slate-600 bg-slate-900"
-                : "bg-slate-900 text-slate-200 hover:bg-slate-800"
+                ? "pointer-events-none opacity-40 text-zinc-600 bg-zinc-900"
+                : "bg-zinc-900 text-zinc-200 hover:bg-zinc-800"
             }`}
           >
             <ChevronLeft className="w-4 h-4" />
             <span>Previous Page</span>
           </Link>
-          <span className="text-xs text-slate-400 font-medium">
+          <span className="text-xs font-mono text-zinc-400">
             Page {page} of {totalPages}
           </span>
           <Link
             href={`/history?page=${Math.min(totalPages, page + 1)}&status=${activeStatus}`}
-            className={`px-4 py-2 rounded-lg text-sm font-medium border border-slate-800 transition-colors flex items-center gap-2 ${
+            className={`px-4 py-2 rounded-xl text-xs font-mono font-bold border border-white/[0.08] transition-colors flex items-center gap-2 ${
               page >= totalPages
-                ? "pointer-events-none opacity-40 text-slate-600 bg-slate-900"
-                : "bg-slate-900 text-slate-200 hover:bg-slate-800"
+                ? "pointer-events-none opacity-40 text-zinc-600 bg-zinc-900"
+                : "bg-zinc-900 text-zinc-200 hover:bg-zinc-800"
             }`}
           >
             <span>Next Page</span>

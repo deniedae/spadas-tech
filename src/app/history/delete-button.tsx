@@ -57,9 +57,9 @@ export function DeleteScanButton({
       disabled={loading}
       type="button"
       title="Delete scan record"
-      className="p-2 text-slate-500 hover:text-rose-400 hover:bg-rose-950/30 rounded-lg transition-colors border border-transparent hover:border-rose-900/40 shrink-0"
+      className="p-1.5 text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition-colors border border-transparent hover:border-rose-500/30 shrink-0 cursor-pointer"
     >
-      {loading ? <Loader2 className="w-4 h-4 animate-spin text-rose-400" /> : <Trash2 className="w-4 h-4" />}
+      {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin text-rose-400" /> : <Trash2 className="w-3.5 h-3.5" />}
     </button>
   );
 }
@@ -76,6 +76,10 @@ export function ClearAllHistoryButton({
     e.preventDefault();
     e.stopPropagation();
     if (loading) return;
+
+    if (!confirm("Are you sure you want to clear all scan history? This action cannot be undone.")) {
+      return;
+    }
 
     setLoading(true);
 
@@ -107,7 +111,7 @@ export function ClearAllHistoryButton({
       onClick={handleClearAll}
       disabled={loading}
       type="button"
-      className="px-3 py-1.5 bg-slate-900 hover:bg-rose-950/40 border border-slate-800 hover:border-rose-900/50 text-slate-400 hover:text-rose-400 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 shrink-0"
+      className="px-3 py-2 bg-[#0A0D15] hover:bg-rose-500/10 border border-white/[0.08] hover:border-rose-500/30 text-zinc-400 hover:text-rose-400 text-xs font-mono font-bold rounded-xl transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
     >
       {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin text-rose-400" /> : <Trash2 className="w-3.5 h-3.5" />}
       <span>Clear History</span>

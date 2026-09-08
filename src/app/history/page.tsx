@@ -54,8 +54,6 @@ export default async function HistoryPage({
     redirect("/login?redirect=/history");
   }
 
-  console.log('[History Feed] Fetching scans for user ID:', user.id, 'page:', page, 'status:', activeStatus, 'range:', fromIndex, 'to', toIndex);
-
   let query = supabase
     .from("scans")
     .select("*", { count: "exact" })
@@ -68,19 +66,13 @@ export default async function HistoryPage({
 
   const { data: scansData, count, error } = await query.range(fromIndex, toIndex);
 
-  if (error) {
-    console.error('[History Feed] Supabase query error:', error);
-  }
-
   const scans: ScanRecord[] = (scansData as ScanRecord[]) || [];
   const totalCount = count || 0;
   const totalPages = Math.ceil(totalCount / pageSize) || 1;
 
-  console.log('[History Feed] Retrieved scans count:', scans.length, 'totalCount:', totalCount, 'totalPages:', totalPages);
-
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 p-4 md:p-8">
-      <div className="max-w-5xl mx-auto">
+    <div className="min-h-screen bg-[#07090E] text-zinc-100 p-3 sm:p-6 md:p-8 animate-fade-in">
+      <div className="max-w-6xl mx-auto">
         <HistoryFeedView
           initialScans={scans}
           totalCount={totalCount}
