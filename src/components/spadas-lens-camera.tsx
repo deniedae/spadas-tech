@@ -355,7 +355,7 @@ function cleanConditionText(rawCondition: string): string {
 
 let cycleSeq = 0;
 
-function SpadasLensCameraCore() {
+function SpadasLensCameraCore({ onOpenHaulTab }: { onOpenHaulTab?: () => void } = {}) {
   const router = useRouter();
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -4125,15 +4125,19 @@ function SpadasLensCameraCore() {
                 <button
                   type="button"
                   onClick={(e) => {
+                    e.preventDefault();
                     e.stopPropagation();
-                    setIsRapidDrawerOpen(true);
+                    if (onOpenHaulTab) {
+                      onOpenHaulTab();
+                    } else {
+                      setIsRapidDrawerOpen(true);
+                    }
                   }}
-                  onTouchEnd={(e) => {
+                  onPointerDown={(e) => {
                     e.stopPropagation();
-                    setIsRapidDrawerOpen(true);
                   }}
                   className="group flex min-h-[44px] min-w-[44px] touch-manipulation items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-950/90 border border-slate-700/80 hover:border-amber-400/60 shadow-lg backdrop-blur-md transition cursor-pointer active:scale-95"
-                  title="Open Rapid Thrift Haul Review"
+                  title="Open Spadas Haul Lot Review"
                   aria-label={`Haul telemetry: ${rapidItems.length} items collected. Tap to open haul review.`}
                 >
                   <div className="flex items-center gap-1.5 font-mono">
@@ -4511,10 +4515,10 @@ function SpadasLensCameraCore() {
   );
 }
 
-export default function SpadasLensCamera() {
+export default function SpadasLensCamera({ onOpenHaulTab }: { onOpenHaulTab?: () => void } = {}) {
   return (
     <CameraErrorBoundary>
-      <SpadasLensCameraCore />
+      <SpadasLensCameraCore onOpenHaulTab={onOpenHaulTab} />
     </CameraErrorBoundary>
   );
 }

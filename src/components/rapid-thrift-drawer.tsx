@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useMemo } from "react";
+import { createPortal } from "react-dom";
 import {
   X,
   Zap,
@@ -143,12 +144,12 @@ export const RapidThriftDrawer: React.FC<RapidThriftDrawerProps> = ({
 
   if (!isOpen) return null;
 
-  return (
+  const drawerContent = (
     <div
       role="dialog"
       aria-modal="true"
       aria-labelledby="rapid-haul-title"
-      className="fixed inset-0 z-[70] flex flex-col justify-end bg-slate-950/80 backdrop-blur-md transition-opacity animate-fade-in"
+      className="fixed inset-0 z-[9999] flex flex-col justify-end bg-slate-950/80 backdrop-blur-md transition-opacity animate-fade-in"
       onClick={onClose}
     >
       <div
@@ -426,4 +427,9 @@ export const RapidThriftDrawer: React.FC<RapidThriftDrawerProps> = ({
       </div>
     </div>
   );
+
+  if (typeof document !== "undefined") {
+    return createPortal(drawerContent, document.body);
+  }
+  return drawerContent;
 };

@@ -11,6 +11,7 @@ import {
   Scan,
   Layers,
   Camera,
+  ShoppingBag,
   History,
   LayoutDashboard,
   Package,
@@ -179,6 +180,7 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
   // Executive navigation hierarchy with precision SVG icons
   const navItems = [
     { href: "/lens", label: "Spadas Lens", icon: Scan, tag: "60 FPS" },
+    { href: "/haul", label: "Spadas Haul", icon: ShoppingBag, tag: "Lot Batch" },
     { href: "/ironman", label: "Spatial Field HUD", icon: Layers, tag: "3D AR" },
     { href: "/studio", label: "Studio Intake", icon: Camera },
     { href: "/history", label: "Scan History", icon: History },
@@ -196,6 +198,7 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
   // Dynamic page titles for header
   const pageTitleMap: Record<string, string> = {
     "/lens": "Spadas Lens · Optical Sourcing",
+    "/haul": "Spadas Haul · Lot Sourcing Batch",
     "/ironman": "Spatial Field HUD",
     "/studio": "Multi-Angle Studio Intake",
     "/snap": "Multi-Angle Studio Intake",
