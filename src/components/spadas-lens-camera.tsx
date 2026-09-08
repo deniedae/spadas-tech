@@ -3714,7 +3714,7 @@ function SpadasLensCameraCore() {
             {/* 1. Viewfinder Card Modal Isolation & Z-Index Layering (z-50) */}
             {activeValuationHit && (
               <div
-                className="absolute inset-0 z-50 flex items-end sm:items-center justify-center p-3 sm:p-4 bg-slate-950/40 backdrop-blur-[3px] pointer-events-auto transition-all duration-300 animate-in fade-in"
+                className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/50 backdrop-blur-sm pointer-events-auto transition-all duration-300 animate-in fade-in"
                 onClick={(e) => {
                   if (e.target === e.currentTarget) {
                     setActiveValuationHit(null);
@@ -3730,7 +3730,7 @@ function SpadasLensCameraCore() {
                       setIsValuationCardMounted(true);
                     }
                   }}
-                  className={`w-full max-w-sm mx-auto mb-2 sm:mb-0 transition-all duration-300 ease-out animate-in fade-in slide-in-from-bottom-8 zoom-in-95 ${
+                  className={`w-full max-w-sm mx-auto transition-all duration-300 ease-out animate-in fade-in slide-in-from-bottom-6 zoom-in-95 ${
                     scanCompletePulse
                       ? "ring-2 ring-emerald-400/80 shadow-[0_0_40px_rgba(16,185,129,0.5)] scale-[1.02]"
                       : ""
