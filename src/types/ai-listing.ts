@@ -45,6 +45,7 @@ export interface ProductAnalysis {
   accessories_detected: string[];
   confidence: Confidence;
   confidence_score: number; // 0..1
+  variant_audit?: VariantAuditRecord | null;
   retake_recommended?: RetakeRecommendation | null;
 }
 
@@ -85,7 +86,7 @@ export interface FutureGrailPrediction {
   value_curve: number[];
 }
 
-export type CopVerdict = "MUST_COP" | "QUICK_FLIP" | "FAIR_MARGIN" | "PASS_RISKY";
+export type CopVerdict = "MUST_COP" | "QUICK_FLIP" | "FAIR_MARGIN" | "PASS_RISKY" | "VERIFY_FIRST";
 
 export interface ThriftTagOcrData {
   detected_tag_price: number | null;
@@ -94,6 +95,27 @@ export interface ThriftTagOcrData {
   true_net_profit: number;
   roi_percentage: number;
   cop_verdict: CopVerdict;
+}
+
+export interface RawSoldCompRecord {
+  id: string;
+  title: string;
+  price: number;
+  condition?: string;
+  sold_date?: string;
+  shipping_included?: boolean;
+  shipping_price?: number;
+  url?: string;
+  thumbnail?: string;
+}
+
+export interface VariantAuditRecord {
+  variant_name?: string | null;
+  model_year_or_gen?: string | null;
+  colorway?: string | null;
+  is_reprint_risk?: boolean;
+  completeness?: "complete" | "incomplete_missing_parts" | "loose_only" | "bundle";
+  reprint_warning?: string | null;
 }
 
 /** Full AI-generated listing payload. */
@@ -117,6 +139,12 @@ export interface AiListingResult {
   suggested_price_median?: number;
   suggested_price_currency: "USD" | "AUD" | "GBP" | "EUR";
   ebay_comps_count?: number;
+  raw_sold_comps?: RawSoldCompRecord[];
+  comps_range?: { min: number; max: number; median: number };
+  variant_audit?: VariantAuditRecord;
+  requires_secondary_verification?: boolean;
+  verification_reason?: string | null;
+  fallback_protocol?: "SCAN_BARCODE" | "ZOOM_LABEL" | "SECOND_ANGLE" | "NONE";
   sales_velocity?: SalesVelocityEstimate;
   future_grail?: FutureGrailPrediction;
   detected_tag_price?: number;
@@ -138,6 +166,8 @@ export interface AiListingResult {
     true_net_profit?: number;
     roi_percentage?: number;
     cop_verdict?: CopVerdict;
+    raw_sold_comps?: RawSoldCompRecord[];
+    variant_audit?: VariantAuditRecord;
   }>;
 }
 

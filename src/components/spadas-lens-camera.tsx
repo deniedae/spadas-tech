@@ -19,6 +19,8 @@ import {
   Crown,
   X,
   TrendingUp,
+  AlertTriangle,
+  Barcode,
 } from "lucide-react";
 import { toast } from "sonner";
 import { fmtMoney } from "@/app/lib/listings";
@@ -67,8 +69,8 @@ import {
 import { RapidThriftDrawer } from "@/components/rapid-thrift-drawer";
 import { QuickHistoryDrawer } from "@/components/quick-history-drawer";
 import { calculateSalesVelocity } from "@/lib/turnover-velocity-engine";
-import type { DetectedHit, ActiveScanItem } from "@/types/lens";
-export type { DetectedHit, ActiveScanItem } from "@/types/lens";
+import type { DetectedHit, ActiveScanItem, CopVerdict } from "@/types/lens";
+export type { DetectedHit, ActiveScanItem, CopVerdict } from "@/types/lens";
 import { processFrameForVision, poolConsecutiveFrames, createMultiFrameComposite } from "@/lib/image-preprocessor";
 import { ScanProgressiveLoader } from "@/components/scan-progressive-loader";
 import {
@@ -2818,6 +2820,12 @@ function SpadasLensCameraCore({ onOpenHaulTab }: { onOpenHaulTab?: () => void } 
           confidenceScore: item.confidence_score || data.analysis?.confidence_score || 0.95,
           ebayCompsCount: item.ebay_comps_count || data.ebay_comps_count || undefined,
           compsSource: data.comps_source || (data.ebay_comps_count ? "browse_api" : "ai_estimate"),
+          rawComps: data.raw_sold_comps || [],
+          compsRange: data.comps_range,
+          variantAudit: data.variant_audit,
+          requiresSecondaryVerification: data.requires_secondary_verification,
+          verificationReason: data.verification_reason,
+          fallbackProtocol: data.fallback_protocol,
           timestamp: now,
         };
 
@@ -2843,7 +2851,7 @@ function SpadasLensCameraCore({ onOpenHaulTab }: { onOpenHaulTab?: () => void } 
           let detectedTagPrice = Number(data.detected_tag_price) || (baseVal <= 4 ? 1 : Math.max(3, Math.round(baseVal * 0.15 * 100) / 100));
           let trueNetProfit = Number(data.true_net_profit) || Math.max(0, Math.round((baseVal - detectedTagPrice - (baseVal * 0.134 + 0.33)) * 100) / 100);
           let roiPercentage = Number(data.roi_percentage) || (detectedTagPrice > 0 ? Math.round((trueNetProfit / detectedTagPrice) * 100) : 0);
-          let copVerdict: "MUST_COP" | "QUICK_FLIP" | "FAIR_MARGIN" | "PASS_RISKY" = data.cop_verdict || (roiPercentage >= 300 && trueNetProfit >= 30 ? "MUST_COP" : roiPercentage >= 100 && trueNetProfit >= 15 ? "QUICK_FLIP" : trueNetProfit < 10 ? "PASS_RISKY" : "FAIR_MARGIN");
+          let copVerdict: CopVerdict = data.cop_verdict || (roiPercentage >= 300 && trueNetProfit >= 30 ? "MUST_COP" : roiPercentage >= 100 && trueNetProfit >= 15 ? "QUICK_FLIP" : trueNetProfit < 10 ? "PASS_RISKY" : "FAIR_MARGIN");
 
           let estCost = detectedTagPrice;
           let estimatedProfit = trueNetProfit;
@@ -2858,6 +2866,12 @@ function SpadasLensCameraCore({ onOpenHaulTab }: { onOpenHaulTab?: () => void } 
             confidenceScore: obj.confidenceScore || 0.95,
             ebayCompsCount: obj.ebayCompsCount,
             compsSource: obj.compsSource,
+            rawComps: data.raw_sold_comps || obj.rawComps,
+            compsRange: data.comps_range || obj.compsRange,
+            variantAudit: data.variant_audit || obj.variantAudit,
+            requiresSecondaryVerification: data.requires_secondary_verification ?? obj.requiresSecondaryVerification,
+            verificationReason: data.verification_reason || obj.verificationReason,
+            fallbackProtocol: data.fallback_protocol || obj.fallbackProtocol,
             estCost,
             estimatedProfit,
             estRoi,
@@ -2969,6 +2983,12 @@ function SpadasLensCameraCore({ onOpenHaulTab }: { onOpenHaulTab?: () => void } 
             confidence: 0.98,
             ebayCompsCount: obj.ebayCompsCount,
             compsSource: obj.compsSource,
+            rawComps: data?.raw_sold_comps || obj.rawComps,
+            compsRange: data?.comps_range || obj.compsRange,
+            variantAudit: data?.variant_audit || obj.variantAudit,
+            requiresSecondaryVerification: data?.requires_secondary_verification ?? obj.requiresSecondaryVerification,
+            verificationReason: data?.verification_reason || obj.verificationReason,
+            fallbackProtocol: data?.fallback_protocol || obj.fallbackProtocol,
             bbox: obj.bbox,
             timestamp: now,
             isGrail: isGrailHit,
@@ -3033,6 +3053,8 @@ function SpadasLensCameraCore({ onOpenHaulTab }: { onOpenHaulTab?: () => void } 
             copVerdict:
               verifiedHit.copVerdict === "MUST_COP"
                 ? "MUST_COP"
+                : verifiedHit.copVerdict === "VERIFY_FIRST"
+                ? "VERIFY_FIRST"
                 : verifiedHit.copVerdict === "PASS_RISKY"
                 ? "PASS_RISKY"
                 : "QUICK_FLIP",
@@ -3818,6 +3840,8 @@ function SpadasLensCameraCore({ onOpenHaulTab }: { onOpenHaulTab?: () => void } 
                                 ? "bg-emerald-500 text-slate-950 shadow-emerald-500/40"
                                 : activeValuationHit.copVerdict === "QUICK_FLIP"
                                 ? "bg-cyan-500 text-slate-950 shadow-cyan-500/30"
+                                : activeValuationHit.copVerdict === "VERIFY_FIRST"
+                                ? "bg-amber-500/20 text-amber-300 border border-amber-500/50 shadow-amber-500/20"
                                 : activeValuationHit.copVerdict === "PASS_RISKY"
                                 ? "bg-rose-500/20 text-rose-300 border border-rose-500/40"
                                 : "bg-slate-800 text-slate-300"
@@ -3827,10 +3851,67 @@ function SpadasLensCameraCore({ onOpenHaulTab }: { onOpenHaulTab?: () => void } 
                               ? "👑 MUST COP"
                               : activeValuationHit.copVerdict === "QUICK_FLIP"
                               ? "⚡ QUICK FLIP"
+                              : activeValuationHit.copVerdict === "VERIFY_FIRST"
+                              ? "🔍 VERIFY FIRST"
                               : "⛔ PASS"}
                           </span>
                         )}
                       </div>
+
+                      {/* Zero Blind Verdict Fallback Protocol Banner */}
+                      {(activeValuationHit.copVerdict === "VERIFY_FIRST" || activeValuationHit.requiresSecondaryVerification) && (
+                        <div className="my-2 px-2.5 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                            <span className="text-[11px] font-semibold text-amber-200 truncate">
+                              {activeValuationHit.verificationReason || "Confidence < 88% — confirm details before copping"}
+                            </span>
+                          </div>
+                          {activeValuationHit.fallbackProtocol === "SCAN_BARCODE" ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActiveValuationHit(null);
+                                setFrozenFrameUrl(null);
+                                setScanMode("barcode");
+                                toast.info("Switched to Barcode Mode for precision verification.");
+                              }}
+                              className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-[10px] font-black uppercase tracking-wider transition active:scale-95 cursor-pointer shadow-sm"
+                            >
+                              <Barcode className="w-3 h-3" />
+                              <span>Barcode</span>
+                            </button>
+                          ) : activeValuationHit.fallbackProtocol === "ZOOM_LABEL" ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActiveValuationHit(null);
+                                setFrozenFrameUrl(null);
+                                toast.info("Move camera closer to focus on brand/size tag.");
+                                void processCurrentFrame(true);
+                              }}
+                              className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-[10px] font-black uppercase tracking-wider transition active:scale-95 cursor-pointer shadow-sm"
+                            >
+                              <Camera className="w-3 h-3" />
+                              <span>Zoom Tag</span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActiveValuationHit(null);
+                                setFrozenFrameUrl(null);
+                                toast.info("Capturing second angle for verification.");
+                                void processCurrentFrame(true);
+                              }}
+                              className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-[10px] font-black uppercase tracking-wider transition active:scale-95 cursor-pointer shadow-sm"
+                            >
+                              <Camera className="w-3 h-3" />
+                              <span>2nd Angle</span>
+                            </button>
+                          )}
+                        </div>
+                      )}
 
                       {/* Pricing & Net Profit Section */}
                       <div className="grid grid-cols-3 gap-2 py-2 border-y border-slate-800/80 my-2.5">
@@ -4424,6 +4505,11 @@ function SpadasLensCameraCore({ onOpenHaulTab }: { onOpenHaulTab?: () => void } 
         onResumeScan={handleResumeScanning}
         onListEbay={(hit: any) => setActiveEbayItem(hit)}
         onDeepVerify={(hit: any) => handleOpenDeepVerify(hit)}
+        onTriggerBarcodeScan={() => {
+          setActiveCompsHit(null);
+          setScanMode("barcode");
+          toast.info("Switched to Barcode Mode for precision verification.");
+        }}
       />
 
       {/* Rapid Thrift Haul "What You Got" Slide-Up Drawer */}

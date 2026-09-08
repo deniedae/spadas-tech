@@ -20,7 +20,7 @@ export interface RapidThriftItem {
   thriftCost?: number;
   trueNetProfit?: number;
   roiPercentage?: number;
-  copVerdict?: "MUST_COP" | "QUICK_FLIP" | "PASS_RISKY";
+  copVerdict?: "MUST_COP" | "QUICK_FLIP" | "FAIR_MARGIN" | "PASS_RISKY" | "VERIFY_FIRST";
   isGrail?: boolean;
   needsVerification?: boolean;
   notes?: string;

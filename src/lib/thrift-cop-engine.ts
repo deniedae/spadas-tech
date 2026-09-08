@@ -14,7 +14,7 @@ export interface ThriftPricingEstimate {
   netProfit: number;
   roiPercentage: number;
   marginPercentage: number;
-  copVerdict: "MUST_COP" | "QUICK_FLIP" | "FAIR_MARGIN" | "PASS_RISKY";
+  copVerdict: "MUST_COP" | "QUICK_FLIP" | "FAIR_MARGIN" | "PASS_RISKY" | "VERIFY_FIRST";
   verdictLabel: string;
   verdictDescription: string;
   badgeStyle: {
@@ -24,6 +24,9 @@ export interface ThriftPricingEstimate {
   };
   sourcingTip?: string;
   salesVelocity: SalesVelocityProfile;
+  fallbackProtocol?: "SCAN_BARCODE" | "ZOOM_LABEL" | "SECOND_ANGLE" | "NONE";
+  requiresSecondaryVerification?: boolean;
+  verificationReason?: string;
 }
 
 // Typical benchmark thrift / garage sale purchase prices by category
@@ -173,7 +176,7 @@ export function detectThriftTrap(
  * Calculates complete net profit, ROI, and actionable Cop Verdict for any scanned item.
  * Automatically deducts realistic parcel shipping and applies ruthless thrift trap filters.
  */
-export function calculateThriftCopVerdict(options: {
+export interface CalculateCopVerdictOptions {
   resalePrice: number;
   customCost?: number | null;
   category?: string | null;
@@ -182,7 +185,26 @@ export function calculateThriftCopVerdict(options: {
   platformFeeRate?: number; // default 0.134 (eBay standard)
   fixedFee?: number; // default 0.33
   shippingCost?: number;
-}): ThriftPricingEstimate {
+  confidenceScore?: number; // 0.0 to 1.0 or 0 to 100
+  variantAudit?: {
+    variantName?: string | null;
+    modelYearOrGen?: string | null;
+    colorway?: string | null;
+    isReprintRisk?: boolean;
+    completeness?: "complete" | "incomplete_missing_parts" | "loose_only" | "bundle" | string;
+    reprintWarning?: string | null;
+  };
+  needsVerification?: boolean;
+  hasVerifiedBarcode?: boolean;
+  hasMultiAngleConfirmation?: boolean;
+}
+
+/**
+ * Calculates complete net profit, ROI, and actionable Cop Verdict for any scanned item.
+ * Enforces ZERO BLIND VERDICTS: Withholds MUST_COP whenever visual confidence < 88%
+ * or near-match/reprint risks are detected, triggering explicit secondary fallback actions.
+ */
+export function calculateThriftCopVerdict(options: CalculateCopVerdictOptions): ThriftPricingEstimate {
   const {
     resalePrice = 0,
     customCost,
@@ -239,6 +261,30 @@ export function calculateThriftCopVerdict(options: {
     text: "text-blue-400",
     border: "border-blue-500/30",
   };
+  let fallbackProtocol: ThriftPricingEstimate["fallbackProtocol"] = "NONE";
+  let requiresSecondaryVerification = false;
+  let verificationReason: string | undefined;
+
+  // STRICT ZERO BLIND VERDICT GUARD
+  // Normalize confidence score to 0.0 - 1.0
+  const normConfidence =
+    typeof options.confidenceScore === "number"
+      ? options.confidenceScore > 1
+        ? options.confidenceScore / 100
+        : options.confidenceScore
+      : 0.95;
+
+  const isLowConfidence = normConfidence < 0.88;
+  const isReprintRisk = Boolean(options.variantAudit?.isReprintRisk);
+  const isIncompleteOrBundle =
+    options.variantAudit?.completeness === "incomplete_missing_parts" ||
+    options.variantAudit?.completeness === "bundle";
+  const isNeedsVerification = Boolean(options.needsVerification);
+
+  const shouldWithholdVerdict =
+    !options.hasVerifiedBarcode &&
+    !options.hasMultiAngleConfirmation &&
+    (isLowConfidence || isReprintRisk || isIncompleteOrBundle || isNeedsVerification);
 
   // RUTHLESS RESELLER COP VERDICT
   if (trap.isTrap) {
@@ -281,23 +327,79 @@ export function calculateThriftCopVerdict(options: {
       border: "border-rose-500/30",
     };
   } else if (netProfit >= 35 || (roiPercentage >= 250 && netProfit >= 25)) {
-    copVerdict = "MUST_COP";
-    verdictLabel = "🔥 MUST COP (High Profit)";
-    verdictDescription = `Outstanding return! Projected +$${netProfit.toFixed(0)} profit (${roiPercentage}% ROI, ${salesVelocity.estDaysToSell} turnover).`;
-    badgeStyle = {
-      bg: "bg-emerald-500/20",
-      text: "text-emerald-400",
-      border: "border-emerald-500/40",
-    };
+    if (shouldWithholdVerdict) {
+      copVerdict = "VERIFY_FIRST";
+      requiresSecondaryVerification = true;
+
+      const catText = `${category || ""} ${productName || ""}`.toLowerCase();
+      const isModernOrBoxed = catText.includes("electronic") || catText.includes("gaming") || catText.includes("tech") || catText.includes("toy") || catText.includes("media");
+      const isApparelOrVintage = catText.includes("apparel") || catText.includes("vintage") || catText.includes("shirt") || catText.includes("jacket") || catText.includes("shoe") || catText.includes("sneaker");
+
+      if (isReprintRisk) {
+        fallbackProtocol = "ZOOM_LABEL";
+        verdictLabel = "🔍 VERIFY FIRST (Reprint Risk)";
+        verificationReason = options.variantAudit?.reprintWarning || "Visual match resembles high-value vintage grail, but has modern reprint indicators. Zoom neck/care tag or copyright date.";
+        verdictDescription = verificationReason;
+      } else if (isIncompleteOrBundle) {
+        fallbackProtocol = "SECOND_ANGLE";
+        verdictLabel = "🔍 VERIFY FIRST (Check Parity)";
+        verificationReason = `Unit detected as ${options.variantAudit?.completeness || "non-standard"}. Comps may reflect complete sets. Inspect accessories.`;
+        verdictDescription = verificationReason;
+      } else if (isModernOrBoxed) {
+        fallbackProtocol = "SCAN_BARCODE";
+        verdictLabel = "🔍 VERIFY FIRST (Scan Barcode)";
+        verificationReason = `High potential margin (+$${netProfit.toFixed(0)}), but visual confidence (${Math.round(normConfidence * 100)}%) is below 88% strict gate. Scan barcode to confirm exact model & SKU parity.`;
+        verdictDescription = verificationReason;
+      } else if (isApparelOrVintage) {
+        fallbackProtocol = "ZOOM_LABEL";
+        verdictLabel = "🔍 VERIFY FIRST (Zoom Label / Tag)";
+        verificationReason = `High potential margin (+$${netProfit.toFixed(0)}), but visual match requires tag confirmation. Snap collar tag, care label, or size tag to confirm.`;
+        verdictDescription = verificationReason;
+      } else {
+        fallbackProtocol = "SECOND_ANGLE";
+        verdictLabel = "🔍 VERIFY FIRST (Second Angle)";
+        verificationReason = `Visual confidence (${Math.round(normConfidence * 100)}%) below 88% threshold. Snap secondary angle or serial label to confirm +$${netProfit.toFixed(0)} profit.`;
+        verdictDescription = verificationReason;
+      }
+
+      badgeStyle = {
+        bg: "bg-amber-500/20",
+        text: "text-amber-300",
+        border: "border-amber-500/50",
+      };
+    } else {
+      copVerdict = "MUST_COP";
+      verdictLabel = "🔥 MUST COP (High Profit)";
+      verdictDescription = `Outstanding return! Projected +$${netProfit.toFixed(0)} profit (${roiPercentage}% ROI, ${salesVelocity.estDaysToSell} turnover).`;
+      badgeStyle = {
+        bg: "bg-emerald-500/20",
+        text: "text-emerald-400",
+        border: "border-emerald-500/40",
+      };
+    }
   } else if (netProfit >= 15 || roiPercentage >= 100) {
-    copVerdict = "QUICK_FLIP";
-    verdictLabel = `⚡ Quick Flip (~${salesVelocity.estDaysToSell})`;
-    verdictDescription = `Solid net profit ($${netProfit.toFixed(0)}) with rapid turnaround (${salesVelocity.sellThroughRate}% STR).`;
-    badgeStyle = {
-      bg: "bg-cyan-500/20",
-      text: "text-cyan-300",
-      border: "border-cyan-500/30",
-    };
+    if (shouldWithholdVerdict && isLowConfidence) {
+      copVerdict = "VERIFY_FIRST";
+      requiresSecondaryVerification = true;
+      fallbackProtocol = "SECOND_ANGLE";
+      verdictLabel = "🔍 VERIFY FIRST (Low Confidence)";
+      verificationReason = `Visual confidence (${Math.round(normConfidence * 100)}%) below 88%. Check item or snap secondary angle before buying.`;
+      verdictDescription = verificationReason;
+      badgeStyle = {
+        bg: "bg-amber-500/20",
+        text: "text-amber-300",
+        border: "border-amber-500/40",
+      };
+    } else {
+      copVerdict = "QUICK_FLIP";
+      verdictLabel = `⚡ Quick Flip (~${salesVelocity.estDaysToSell})`;
+      verdictDescription = `Solid net profit ($${netProfit.toFixed(0)}) with rapid turnaround (${salesVelocity.sellThroughRate}% STR).`;
+      badgeStyle = {
+        bg: "bg-cyan-500/20",
+        text: "text-cyan-300",
+        border: "border-cyan-500/30",
+      };
+    }
   }
 
   // Sourcing tips based on category
@@ -327,5 +429,8 @@ export function calculateThriftCopVerdict(options: {
     badgeStyle,
     sourcingTip,
     salesVelocity,
+    fallbackProtocol,
+    requiresSecondaryVerification,
+    verificationReason,
   };
 }

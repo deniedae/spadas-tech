@@ -57,15 +57,29 @@ async function getEbayAppToken(): Promise<string | null> {
   }
 }
 
-function trimIqrOutliers(prices: number[]): number[] {
-  if (prices.length < 4) return prices;
+function computeIqrStats(prices: number[]): { valid: number[]; lowerBound: number; upperBound: number } {
+  if (prices.length < 4) {
+    return {
+      valid: prices,
+      lowerBound: prices[0] || 0,
+      upperBound: prices[prices.length - 1] || 0,
+    };
+  }
   const q1 = prices[Math.floor(prices.length * 0.25)];
   const q3 = prices[Math.floor(prices.length * 0.75)];
   const iqr = q3 - q1;
-  const filtered = prices.filter(
-    (p) => p >= Math.max(3, q1 - 1.5 * iqr) && p <= q3 + 1.5 * iqr
-  );
-  return filtered.length >= 2 ? filtered : prices;
+  const lowerBound = Math.max(3, q1 - 1.5 * iqr);
+  const upperBound = q3 + 1.5 * iqr;
+  const filtered = prices.filter((p) => p >= lowerBound && p <= upperBound);
+  return {
+    valid: filtered.length >= 2 ? filtered : prices,
+    lowerBound: Math.round(lowerBound * 100) / 100,
+    upperBound: Math.round(upperBound * 100) / 100,
+  };
+}
+
+function trimIqrOutliers(prices: number[]): number[] {
+  return computeIqrStats(prices).valid;
 }
 
 function calcMedian(sorted: number[]): number {
@@ -77,6 +91,18 @@ function calcMedian(sorted: number[]): number {
 
 export type CompsSource = "browse_api" | "sold_comps_api" | "ai_estimate";
 
+export interface EbaySoldCompItem {
+  id: string;
+  title: string;
+  price: number;
+  condition?: string;
+  soldDate?: string;
+  shippingIncluded?: boolean;
+  shippingPrice?: number;
+  url?: string;
+  thumbnail?: string;
+}
+
 export interface EbayCompsResult {
   min: number;
   max: number;
@@ -84,6 +110,8 @@ export interface EbayCompsResult {
   count: number;
   currency: SupportedCurrency;
   source: CompsSource;
+  rawComps?: EbaySoldCompItem[];
+  iqrBounds?: { lower: number; upper: number };
 }
 
 // FX Conversion rates from source marketplace currency to target currency
@@ -224,7 +252,7 @@ export async function fetchEbayAustraliaSoldComps(
 
           // Single-Source Guardrail: Deduplicate items across paginated/duplicated API nodes
           const seenSignatures = new Set<string>();
-          const validUnitPrices: number[] = [];
+          const validCompItems: EbaySoldCompItem[] = [];
 
           for (const item of rawItems) {
             const rawPrice = Number(item.soldPrice);
@@ -235,13 +263,26 @@ export async function fetchEbayAustraliaSoldComps(
             seenSignatures.add(itemId);
 
             if (isValidUnitComp(title, rawPrice) && rawPrice >= (isLuxury ? 35 : 1) && rawPrice <= 10000) {
-              validUnitPrices.push(rawPrice);
+              const compItem: EbaySoldCompItem = {
+                id: itemId,
+                title,
+                price: Math.round(rawPrice * 100) / 100,
+                condition: String(item.condition || "Pre-Owned"),
+                soldDate: item.dateEnded ? new Date(item.dateEnded).toLocaleDateString("en-AU", { month: "short", day: "numeric" }) : "Recent",
+                shippingIncluded: item.shippingCost === 0 || item.freeShipping === true,
+                shippingPrice: Number(item.shippingCost) || 0,
+                url: item.viewItemUrl || item.url || (item.itemId ? `https://www.ebay.com.au/itm/${item.itemId}` : undefined),
+                thumbnail: item.galleryURL || item.image,
+              };
+              validCompItems.push(compItem);
             }
           }
 
-          if (validUnitPrices.length >= 2) {
-            validUnitPrices.sort((a, b) => a - b);
-            const valid = trimIqrOutliers(validUnitPrices);
+          if (validCompItems.length >= 2) {
+            validCompItems.sort((a, b) => a.price - b.price);
+            const prices = validCompItems.map((c) => c.price);
+            const { valid, lowerBound, upperBound } = computeIqrStats(prices);
+            const filteredComps = validCompItems.filter((c) => c.price >= lowerBound && c.price <= upperBound);
             const medianBaseline = calcMedian(valid);
             return {
               min: Math.round(valid[0] * 100) / 100,
@@ -250,6 +291,8 @@ export async function fetchEbayAustraliaSoldComps(
               count: valid.length,
               currency: targetCurrency,
               source: "sold_comps_api",
+              rawComps: (filteredComps.length > 0 ? filteredComps : validCompItems).slice(0, 10),
+              iqrBounds: { lower: lowerBound, upper: upperBound },
             };
           }
         }
@@ -306,7 +349,7 @@ export async function fetchEbayAustraliaSoldComps(
 
             // Single-Source Guardrail: Deduplicate browse items across paginated/duplicate nodes
             const seenBrowseIds = new Set<string>();
-            const rawPrices: number[] = [];
+            const validBrowseItems: EbaySoldCompItem[] = [];
 
             for (const item of items) {
               const itemId = String(item.itemId || `${(item.title || "").toLowerCase()}::${item.price?.value}`);
@@ -317,13 +360,26 @@ export async function fetchEbayAustraliaSoldComps(
               const unitPrice = (Number(item.price?.value) || 0) * fxMultiplier;
 
               if (isValidUnitComp(title, unitPrice) && unitPrice >= (isLuxury ? 35 : 1) && unitPrice <= 10000) {
-                rawPrices.push(unitPrice);
+                const compItem: EbaySoldCompItem = {
+                  id: itemId,
+                  title,
+                  price: Math.round(unitPrice * 100) / 100,
+                  condition: String(item.condition || "Pre-Owned"),
+                  soldDate: "Active Comp",
+                  shippingIncluded: item.shippingOptions?.[0]?.shippingCost?.value === "0.00",
+                  shippingPrice: Number(item.shippingOptions?.[0]?.shippingCost?.value) || 0,
+                  url: item.itemWebUrl || (item.itemId ? `https://www.ebay.com.au/itm/${item.itemId}` : undefined),
+                  thumbnail: item.image?.imageUrl,
+                };
+                validBrowseItems.push(compItem);
               }
             }
 
-            if (rawPrices.length >= 2) {
-              rawPrices.sort((a, b) => a - b);
-              const valid = trimIqrOutliers(rawPrices);
+            if (validBrowseItems.length >= 2) {
+              validBrowseItems.sort((a, b) => a.price - b.price);
+              const prices = validBrowseItems.map((c) => c.price);
+              const { valid, lowerBound, upperBound } = computeIqrStats(prices);
+              const filteredComps = validBrowseItems.filter((c) => c.price >= lowerBound && c.price <= upperBound);
               const medianBaseline = calcMedian(valid);
               return {
                 min: Math.round(valid[0] * 100) / 100,
@@ -332,6 +388,8 @@ export async function fetchEbayAustraliaSoldComps(
                 count: valid.length,
                 currency: targetCurrency,
                 source: "browse_api",
+                rawComps: (filteredComps.length > 0 ? filteredComps : validBrowseItems).slice(0, 10),
+                iqrBounds: { lower: lowerBound, upper: upperBound },
               };
             }
           }

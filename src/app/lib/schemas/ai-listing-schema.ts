@@ -95,6 +95,17 @@ export const ProductAnalysisSchema = z.object({
   confidence: z.enum(["high", "medium", "low"]),
   confidence_score: z.number(),
   retake_recommended: RetakeRecommendationSchema.nullable().optional(),
+  variant_audit: z
+    .object({
+      variant_name: z.string().nullable(),
+      model_year_or_gen: z.string().nullable(),
+      colorway: z.string().nullable(),
+      is_reprint_risk: z.boolean(),
+      completeness: z.enum(["complete", "incomplete_missing_parts", "loose_only", "bundle"]),
+      reprint_warning: z.string().nullable(),
+    })
+    .nullable()
+    .optional(),
 });
 
 export const MarketTitlesSchema = z.object({
@@ -164,6 +175,17 @@ export const AiListingResultSchema = z.object({
   sales_velocity: SalesVelocitySchema.nullable(),
   future_grail: FutureGrailSchema.nullable(),
   retake_recommended: RetakeRecommendationSchema.nullable().optional(),
+  variant_audit: z
+    .object({
+      variant_name: z.string().nullable(),
+      model_year_or_gen: z.string().nullable(),
+      colorway: z.string().nullable(),
+      is_reprint_risk: z.boolean(),
+      completeness: z.enum(["complete", "incomplete_missing_parts", "loose_only", "bundle"]),
+      reprint_warning: z.string().nullable(),
+    })
+    .nullable()
+    .optional(),
 });
 
 export type GenerateListingSchemaType = z.infer<typeof GenerateListingSchema>;

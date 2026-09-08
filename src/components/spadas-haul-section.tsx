@@ -636,6 +636,8 @@ export function SpadasHaulSection({
                               ? "bg-amber-400 text-slate-950 font-black shadow-xs"
                               : item.copVerdict === "QUICK_FLIP"
                               ? "bg-emerald-500 text-slate-950 font-black"
+                              : item.copVerdict === "VERIFY_FIRST"
+                              ? "bg-amber-500/20 text-amber-300 border border-amber-500/40"
                               : "bg-zinc-800 text-zinc-400"
                           }`}
                         >

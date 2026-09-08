@@ -1,7 +1,30 @@
 /**
  * Shared types for Spadas Lens AR scanner.
- * Imported by spadas-lens-camera.tsx, lens-hit-card.tsx, and lens-controls-bar.tsx.
+ * Imported by spadas-lens-camera.tsx, lens-hit-card.tsx, lens-comps-modal.tsx, and lens-controls-bar.tsx.
  */
+
+export interface RawSoldComp {
+  id: string;
+  title: string;
+  price: number;
+  condition?: string;
+  soldDate?: string;
+  shippingIncluded?: boolean;
+  shippingPrice?: number;
+  url?: string;
+  thumbnail?: string;
+}
+
+export interface VariantAudit {
+  variantName?: string | null;
+  modelYearOrGen?: string | null;
+  colorway?: string | null;
+  isReprintRisk?: boolean;
+  completeness?: "complete" | "incomplete_missing_parts" | "loose_only" | "bundle";
+  reprintWarning?: string | null;
+}
+
+export type CopVerdict = "MUST_COP" | "QUICK_FLIP" | "FAIR_MARGIN" | "PASS_RISKY" | "VERIFY_FIRST";
 
 export interface DetectedHit {
   id: string;
@@ -28,7 +51,7 @@ export interface DetectedHit {
   tagPrice?: number;
   trueNetProfit?: number;
   roiPercentage?: number;
-  copVerdict?: "MUST_COP" | "QUICK_FLIP" | "FAIR_MARGIN" | "PASS_RISKY";
+  copVerdict?: CopVerdict;
   conditionGrade?: "Mint" | "Good" | "Fair" | "For Parts";
   wearInspection?: {
     surface_wear?: string | null;
@@ -43,6 +66,20 @@ export interface DetectedHit {
   ebayCompsCount?: number;
   /** Data source used for price comps — drives the UI label */
   compsSource?: "browse_api" | "sold_comps_api" | "ai_estimate";
+  /** Underlying real sold listings for full auditability */
+  rawComps?: RawSoldComp[];
+  /** Min, max, and median price distribution */
+  compsRange?: {
+    min: number;
+    max: number;
+    median: number;
+  };
+  /** Telemetry check separating near-matches, reprints, and model variants */
+  variantAudit?: VariantAudit;
+  /** Guardrail flag: true if visual confidence < 88% or variant unconfirmed */
+  requiresSecondaryVerification?: boolean;
+  verificationReason?: string | null;
+  fallbackProtocol?: "SCAN_BARCODE" | "ZOOM_LABEL" | "SECOND_ANGLE" | "NONE";
   salesVelocity?: {
     sell_speed: "FAST_FLIP" | "MODERATE" | "SLOW_BURNER";
     est_days_to_sell: string;
@@ -78,13 +115,23 @@ export interface ActiveScanItem {
   confidenceScore?: number;
   ebayCompsCount?: number;
   compsSource?: "browse_api" | "sold_comps_api" | "ai_estimate";
+  rawComps?: RawSoldComp[];
+  compsRange?: {
+    min: number;
+    max: number;
+    median: number;
+  };
+  variantAudit?: VariantAudit;
+  requiresSecondaryVerification?: boolean;
+  verificationReason?: string | null;
+  fallbackProtocol?: "SCAN_BARCODE" | "ZOOM_LABEL" | "SECOND_ANGLE" | "NONE";
   estCost?: number;
   estimatedProfit?: number;
   estRoi?: number;
   tagPrice?: number;
   trueNetProfit?: number;
   roiPercentage?: number;
-  copVerdict?: "MUST_COP" | "QUICK_FLIP" | "FAIR_MARGIN" | "PASS_RISKY";
+  copVerdict?: CopVerdict;
   image?: string | null;
   timestamp: number;
 }

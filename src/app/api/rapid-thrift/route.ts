@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { checkUserUsage } from "@/app/lib/usage";
 import { createOpenAiClient, getPrimaryAiApiKey } from "@/app/lib/config/ai-models";
 import { checkNeedsVerification } from "@/lib/forensic-knowledge";
-import { estimateCategoryShippingCost, detectThriftTrap } from "@/lib/thrift-cop-engine";
+import { estimateCategoryShippingCost, detectThriftTrap, calculateThriftCopVerdict } from "@/lib/thrift-cop-engine";
 import { calculateSalesVelocity } from "@/lib/turnover-velocity-engine";
 
 export const preferredRegion = "syd1";
@@ -18,7 +18,7 @@ interface RapidThriftResponse {
   thrift_cost: number;
   true_net_profit: number;
   roi_percentage: number;
-  cop_verdict: "MUST_COP" | "QUICK_FLIP" | "PASS_RISKY";
+  cop_verdict: "MUST_COP" | "QUICK_FLIP" | "FAIR_MARGIN" | "PASS_RISKY" | "VERIFY_FIRST";
   is_grail: boolean;
   needs_verification: boolean;
   notes: string;
@@ -232,36 +232,31 @@ Output ONLY valid JSON adhering strictly to:
       brand: pBrand,
     });
 
-    let copVerdict: "MUST_COP" | "QUICK_FLIP" | "PASS_RISKY" = "PASS_RISKY";
-    let notes = parsed.notes || "";
-
-    if (trap.isTrap) {
-      copVerdict = "PASS_RISKY";
-      notes = trap.reason || "Postage & fees exceed item resale value. Leave on shelf.";
-    } else if (velocity.isHoarderRisk) {
-      // Ruthless Hoarder Trap Filter: Low turnover, long shelf time
-      copVerdict = "PASS_RISKY";
-      notes = velocity.warning || `Low turnover (${velocity.sellThroughRate}% STR, ${velocity.estDaysToSell}). Space & hoarding risk!`;
-    } else if (netProfit <= 0 || (estVal < 14 && pCategory.toLowerCase().includes("media"))) {
-      copVerdict = "PASS_RISKY";
-      notes = `Negative profit (-$${(estCost + ebayFee + shippingCost - estVal).toFixed(2)}) after $${shippingCost.toFixed(2)} shipping. Leave on shelf.`;
-    } else if (netProfit < 8 || roi < 40) {
-      copVerdict = "PASS_RISKY";
-      notes = `Thin profit ($${netProfit.toFixed(2)}) after postage. High effort for low reward.`;
-    } else if (netProfit >= 40 || (roi >= 250 && netProfit >= 25)) {
-      copVerdict = "MUST_COP";
-      notes = notes || `High profit thrift find (${velocity.estDaysToSell} turnover)!`;
-    } else if (netProfit >= 15 || roi >= 100) {
-      copVerdict = "QUICK_FLIP";
-      notes = notes || `Fast flip potential (${velocity.sellThroughRate}% STR, ~${velocity.estDaysToSell})!`;
-    }
-
     const verificationCheck = checkNeedsVerification({
       name: pName,
       brand: pBrand,
       category: pCategory,
       estimatedValue: estVal,
     });
+
+    const copEstimate = calculateThriftCopVerdict({
+      resalePrice: estVal,
+      customCost: estCost,
+      category: pCategory,
+      productName: pName,
+      brand: pBrand,
+      shippingCost,
+      confidenceScore: parsed.confidence_score,
+      needsVerification: Boolean(parsed.needs_verification || verificationCheck.needsVerification),
+    });
+
+    const copVerdict = copEstimate.copVerdict;
+    let notes = parsed.notes || "";
+    if (copVerdict === "VERIFY_FIRST") {
+      notes = copEstimate.verificationReason || notes || "Secondary verification required before buy recommendation.";
+    } else if (copEstimate.verdictDescription) {
+      notes = notes || copEstimate.verdictDescription;
+    }
 
     const result: RapidThriftResponse = {
       product_name: pName,

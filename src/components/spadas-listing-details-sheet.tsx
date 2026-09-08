@@ -10,6 +10,7 @@ import { syncProfitToAndroidWidget, triggerTactileHaptic } from "@/lib/android-b
 import { OmniMarketplaceCompareCard } from "@/components/omni-marketplace-compare-card";
 import { generateEbayPrefillUrl } from "@/app/lib/marketplaces/ebay-prefill";
 import { convertCurrency, CURRENCY_CONFIGS, SupportedCurrency } from "@/app/lib/currency-routing";
+import type { CopVerdict } from "@/types/lens";
 
 export interface SpadasListingData {
   productName: string;
@@ -28,7 +29,7 @@ export interface SpadasListingData {
   buyCost?: number;
   trueNetProfit?: number;
   roiPercentage?: number;
-  copVerdict?: "MUST_COP" | "QUICK_FLIP" | "FAIR_MARGIN" | "PASS_RISKY";
+  copVerdict?: CopVerdict;
 }
 
 interface Props {
@@ -320,9 +321,11 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
                         ? "bg-emerald-500 text-slate-950 font-black shadow-md shadow-emerald-500/30"
                         : data.copVerdict === "QUICK_FLIP"
                         ? "bg-cyan-500 text-slate-950 font-black"
+                        : data.copVerdict === "VERIFY_FIRST"
+                        ? "bg-amber-500/20 text-amber-300 border border-amber-500/40"
                         : "bg-slate-800 text-slate-300"
                     }`}>
-                      {data.copVerdict === "MUST_COP" ? "👑 MUST COP" : data.copVerdict === "QUICK_FLIP" ? "⚡ QUICK FLIP" : "FAIR MARGIN"}
+                      {data.copVerdict === "MUST_COP" ? "👑 MUST COP" : data.copVerdict === "QUICK_FLIP" ? "⚡ QUICK FLIP" : data.copVerdict === "VERIFY_FIRST" ? "🔍 VERIFY FIRST" : "FAIR MARGIN"}
                     </span>
                   )}
                   <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full text-[10px] font-black">

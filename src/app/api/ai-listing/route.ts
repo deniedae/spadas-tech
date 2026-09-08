@@ -17,7 +17,7 @@ import { fetchEbayAustraliaSoldComps } from "@/app/lib/ebay-australia-comps";
 import { detectGeoCurrency, SupportedCurrency } from "@/app/lib/currency-routing";
 import { saveProductToCache, getCachedProductScan } from "@/app/lib/cache/product-cache";
 import { appraiseItemLocally } from "@/app/lib/offline/offline-engine";
-import { estimateCategoryShippingCost, detectThriftTrap } from "@/lib/thrift-cop-engine";
+import { estimateCategoryShippingCost, detectThriftTrap, calculateThriftCopVerdict } from "@/lib/thrift-cop-engine";
 import type { AiListingResult } from "@/types/ai-listing";
 
 export const preferredRegion = "syd1";
@@ -443,16 +443,25 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
 - Provide realistic pre-owned secondary market sold comps: suggested_price_min, suggested_price_max, and suggested_price_median.
 - Common mass-market/generic items: $3 - $20 AUD. Realistic authentic designer wallets: $180 - $480 AUD.
 
-5. BLURRY / NO-TAG RETAKE DETECTOR (DYNAMIC CAMERA GUIDANCE):
-- If the photo is blurry, out-of-focus, low-resolution, has extreme glare, or lacks a visible brand tag, size label, or hallmark required to establish confident valuation (>90% certainty):
-  DO NOT guess low-confidence valuations. Set:
-  "retake_recommended": {
-    "required": true,
-    "angle_type": "tag" | "hardware" | "material" | "focus" | "overall",
-    "reason": "Specific issue (e.g., 'Care tag and brand label not visible' or 'Hardware engraving is blurred')",
-    "prompt_label": "Direct action prompt (e.g., '📸 Snap Collar Tag for 100% Comp Accuracy')"
-  }
-- If the item is clearly in focus with verifiable attributes, set "retake_recommended": null.
+5. ZERO BLIND VERDICTS & VARIANT / REPRINT DISCRIMINATION:
+- Populate "variant_audit":
+  • "variant_name": Exact sub-model, edition, or colorway (e.g. "Triple Black", "Model CUH-7200B Pro", "Special Edition").
+  • "model_year_or_gen": Detected model year or generation (e.g. "2018 Gen 2", "1994 Vintage").
+  • "colorway": Exact color scheme.
+  • "is_reprint_risk": TRUE if vintage band tee, movie graphic, vinyl, or collectible shows modern reprint cues (modern Gildan/Anvil tag, digital DTG print, modern copyright line).
+  • "completeness": "complete" (original packaging/accessories present), "incomplete_missing_parts" (e.g. console missing cords/controller), "loose_only" (cartridge/item only), or "bundle" (multi-item lot).
+  • "reprint_warning": Explicit caution if near-match or reprint risk exists.
+- STRICT CONFIDENCE SCORING:
+  • "confidence_score": Float between 0.0 and 1.0. Set < 0.88 if unable to read exact model number tag, care label, serial number, or if visual ambiguity exists between common base models and rare high-value variants.
+- BLURRY / NO-TAG RETAKE DETECTOR (DYNAMIC CAMERA GUIDANCE):
+  • If confidence_score < 0.88, out-of-focus, or lacks a visible brand tag, size label, or hallmark needed for confident valuation:
+    Set "retake_recommended": {
+      "required": true,
+      "angle_type": "tag" | "hardware" | "material" | "focus" | "overall",
+      "reason": "Specific issue (e.g., 'Care tag and brand label not visible' or 'Hardware engraving is blurred')",
+      "prompt_label": "Direct action prompt (e.g., '📸 Snap Collar Tag for 100% Comp Accuracy')"
+    }
+  • If the item is clearly in focus with verifiable attributes, set "retake_recommended": null.
 
 6. PROFESSIONAL HIGH-VOLUME EBAY SELLER COPYWRITING (STRICT EDITORIAL FILTER):
 - "market_titles.ebay": Max 80 characters. Format: [Brand] [Model/Style] [Key Color/Material] [Size/Attribute] [Condition]. NO punctuation clutter, no fake emojis.
@@ -745,9 +754,26 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
             result.suggested_price_median = ebayComps.median;
             result.ebay_comps_count = ebayComps.count;
             (result as any).comps_source = ebayComps.source;
+            result.raw_sold_comps = (ebayComps.rawComps || []).map((c: any) => ({
+              id: c.id,
+              title: c.title,
+              price: c.price,
+              condition: c.condition,
+              sold_date: c.soldDate,
+              shipping_included: c.shippingIncluded,
+              shipping_price: c.shippingPrice,
+              url: c.url,
+              thumbnail: c.thumbnail,
+            }));
+            result.comps_range = {
+              min: ebayComps.min,
+              max: ebayComps.max,
+              median: ebayComps.median,
+            };
             if (result.detected_objects && result.detected_objects.length > 0) {
               result.detected_objects[0].ebay_comps_count = ebayComps.count;
               (result.detected_objects[0] as any).comps_source = ebayComps.source;
+              result.detected_objects[0].raw_sold_comps = result.raw_sold_comps;
             }
           } else {
             result.ebay_comps_count = undefined;
@@ -994,36 +1020,31 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
     const tagPrice = Number(result.detected_tag_price) || (result.analysis?.product_name && result.analysis.product_name !== "NO_CENTER_ITEM" ? Math.max(3, Math.round(sellPrice * 0.15)) : null);
 
     if (tagPrice && sellPrice > 0) {
-      const ebayFee = (sellPrice * 0.134) + 0.33; // Standard Australian eBay 13.4% + $0.33
-      // Real Reseller Net Profit: Resale - Tag Cost - eBay Fees - Parcel Shipping
-      const netProfit = Math.max(0, sellPrice - tagPrice - ebayFee - shippingCost);
-      const roi = tagPrice > 0 ? (netProfit / tagPrice) * 100 : 0;
-
-      const trap = detectThriftTrap(pName, sellPrice, pBrand);
-
-      let verdict: "MUST_COP" | "QUICK_FLIP" | "FAIR_MARGIN" | "PASS_RISKY" = "FAIR_MARGIN";
-      if (trap.isTrap) {
-        verdict = "PASS_RISKY";
-      } else if (netProfit <= 0 || (sellPrice < 14 && pCategory.toLowerCase().includes("media"))) {
-        verdict = "PASS_RISKY";
-      } else if (netProfit < 8 || roi < 40) {
-        verdict = "PASS_RISKY"; // ⛔ Low margin / pass
-      } else if (netProfit >= 35 || (roi >= 250 && netProfit >= 25)) {
-        verdict = "MUST_COP"; // 👑 High profit grail
-      } else if (netProfit >= 15 || roi >= 100) {
-        verdict = "QUICK_FLIP"; // ⚡ Solid fast turnover
-      }
+      const copEstimate = calculateThriftCopVerdict({
+        resalePrice: sellPrice,
+        customCost: tagPrice,
+        category: pCategory,
+        productName: pName,
+        brand: pBrand,
+        shippingCost,
+        confidenceScore: result.analysis?.confidence_score,
+        variantAudit: result.analysis?.variant_audit || result.variant_audit,
+        needsVerification: Boolean(result.retake_recommended?.required),
+      });
 
       result.detected_tag_price = tagPrice;
-      result.true_net_profit = Number(netProfit.toFixed(2));
-      result.roi_percentage = Math.round(roi);
-      result.cop_verdict = verdict;
+      result.true_net_profit = copEstimate.netProfit;
+      result.roi_percentage = copEstimate.roiPercentage;
+      result.cop_verdict = copEstimate.copVerdict;
+      result.requires_secondary_verification = copEstimate.requiresSecondaryVerification;
+      result.verification_reason = copEstimate.verificationReason;
+      result.fallback_protocol = copEstimate.fallbackProtocol;
 
       if (result.detected_objects && result.detected_objects.length > 0) {
         result.detected_objects[0].detected_tag_price = tagPrice;
-        result.detected_objects[0].true_net_profit = Number(netProfit.toFixed(2));
-        result.detected_objects[0].roi_percentage = Math.round(roi);
-        result.detected_objects[0].cop_verdict = verdict;
+        result.detected_objects[0].true_net_profit = copEstimate.netProfit;
+        result.detected_objects[0].roi_percentage = copEstimate.roiPercentage;
+        result.detected_objects[0].cop_verdict = copEstimate.copVerdict;
       }
     }
 
