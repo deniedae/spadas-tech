@@ -7,11 +7,13 @@ import {
   Package,
   Camera,
   History,
-  Settings,
+  ShoppingBag,
 } from "lucide-react";
+import { useHaulStore } from "@/lib/haul-store";
 
 export default function MobileNav() {
   const pathname = usePathname();
+  const { haulCount } = useHaulStore();
 
   const triggerHaptic = () => {
     if (typeof window !== "undefined" && "vibrate" in navigator) {
@@ -29,10 +31,11 @@ export default function MobileNav() {
       isCenter: false,
     },
     {
-      href: "/history",
-      label: "History",
-      icon: History,
+      href: "/haul",
+      label: "Haul",
+      icon: ShoppingBag,
       isCenter: false,
+      badge: haulCount,
     },
     {
       href: "/lens",
@@ -47,9 +50,9 @@ export default function MobileNav() {
       isCenter: false,
     },
     {
-      href: "/settings",
-      label: "Settings",
-      icon: Settings,
+      href: "/history",
+      label: "History",
+      icon: History,
       isCenter: false,
     },
   ];
@@ -64,7 +67,7 @@ export default function MobileNav() {
       className="fixed bottom-0 left-0 right-0 z-50 border-t border-slate-800/90 bg-slate-950/95 backdrop-blur-xl md:hidden px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-10px_30px_rgba(0,0,0,0.5)] select-none"
     >
       <div className="flex items-center justify-between max-w-md mx-auto relative">
-        {navItems.map(({ href, label, icon: Icon, isCenter }) => {
+        {navItems.map(({ href, label, icon: Icon, isCenter, badge }) => {
           const active = isActiveLink(href);
 
           if (isCenter) {
@@ -102,12 +105,19 @@ export default function MobileNav() {
               }`}
               aria-current={active ? "page" : undefined}
             >
-              <Icon
-                className={`h-5 w-5 mb-1 transition-transform ${
-                  active ? "scale-110 text-cyan-400 drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]" : ""
-                }`}
-                aria-hidden="true"
-              />
+              <div className="relative flex items-center justify-center">
+                <Icon
+                  className={`h-5 w-5 mb-1 transition-transform ${
+                    active ? "scale-110 text-cyan-400 drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]" : ""
+                  }`}
+                  aria-hidden="true"
+                />
+                {badge !== undefined && badge > 0 && (
+                  <span className="absolute -top-1 -right-2.5 px-1 min-w-[15px] h-3.5 rounded-full bg-emerald-400 text-slate-950 text-[8.5px] font-mono font-black flex items-center justify-center shadow-[0_0_8px_rgba(52,211,153,0.8)] leading-none pointer-events-none">
+                    {badge > 99 ? "99+" : badge}
+                  </span>
+                )}
+              </div>
               <span className="truncate text-[10px] tracking-tight">
                 {label}
               </span>

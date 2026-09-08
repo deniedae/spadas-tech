@@ -96,23 +96,31 @@ export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraH
         </div>
       </div>
 
-      {/* Dynamic Mode Viewport — Persistent mounts prevent camera hardware stream teardown */}
+      {/* Dynamic Mode Viewport — Clean camera hardware lifecycle release on tab switch */}
       <div className="flex-1 w-full flex flex-col">
-        <div className={activeTab === "lens" ? "p-2 sm:p-4 max-w-5xl mx-auto w-full" : "hidden"}>
-          <SpadasLensCamera
-            onOpenHaulTab={() => setActiveTab("haul")}
-            onOpenSnapStudio={() => setActiveTab("studio")}
-          />
-        </div>
-        <div className={activeTab === "ironman" ? "block w-full" : "hidden"}>
-          <IronmanHudCamera />
-        </div>
-        <div className={activeTab === "studio" ? "block w-full" : "hidden"}>
-          <SpadasSnapStudio />
-        </div>
-        <div className={activeTab === "haul" ? "p-3 sm:p-6 max-w-6xl mx-auto w-full block" : "hidden"}>
-          <SpadasHaulSection onSwitchToLens={() => setActiveTab("lens")} />
-        </div>
+        {activeTab === "lens" && (
+          <div className="p-2 sm:p-4 max-w-5xl mx-auto w-full animate-fade-in">
+            <SpadasLensCamera
+              onOpenHaulTab={() => setActiveTab("haul")}
+              onOpenSnapStudio={() => setActiveTab("studio")}
+            />
+          </div>
+        )}
+        {activeTab === "ironman" && (
+          <div className="block w-full animate-fade-in">
+            <IronmanHudCamera />
+          </div>
+        )}
+        {activeTab === "studio" && (
+          <div className="block w-full animate-fade-in">
+            <SpadasSnapStudio />
+          </div>
+        )}
+        {activeTab === "haul" && (
+          <div className="p-3 sm:p-6 max-w-6xl mx-auto w-full block animate-fade-in">
+            <SpadasHaulSection onSwitchToLens={() => setActiveTab("lens")} />
+          </div>
+        )}
       </div>
     </div>
   );

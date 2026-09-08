@@ -1729,6 +1729,15 @@ function SpadasLensCameraCore({
       persistentMediaStream = null;
     }
     if (videoRef.current) {
+      if (videoRef.current.srcObject) {
+        try {
+          const s = videoRef.current.srcObject as MediaStream;
+          s.getTracks().forEach((t) => {
+            t.stop();
+            t.enabled = false;
+          });
+        } catch {}
+      }
       videoRef.current.srcObject = null;
     }
     setIsCameraPoweredOn(false);
@@ -4245,7 +4254,7 @@ function SpadasLensCameraCore({
                     if (onOpenHaulTab) {
                       onOpenHaulTab();
                     } else {
-                      setIsRapidDrawerOpen(true);
+                      router.push("/haul");
                     }
                   }}
                   onPointerDown={(e) => {

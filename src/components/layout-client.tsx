@@ -24,6 +24,7 @@ import OwnerAiStatusBanner from "@/components/owner-ai-status-banner";
 import { supabase } from "@/app/lib/supabase";
 import { isOwnerEmail } from "@/app/lib/auth-admin";
 import { resetGuestScanState } from "@/lib/guest-scan-tracker";
+import { useHaulStore } from "@/lib/haul-store";
 
 /**
  * The main client layout component that wraps the app's pages.
@@ -78,6 +79,7 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [isProUser, setIsProUser] = useState(false);
   const [isEbayConnected, setIsEbayConnected] = useState(false);
+  const { haulCount } = useHaulStore();
 
   useEffect(() => {
     let isMounted = true;
@@ -413,6 +415,24 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
                 <span>Connect eBay</span>
               </Link>
             )}
+
+            <Link
+              href="/haul"
+              className={`inline-flex h-8 items-center gap-1.5 rounded-lg border px-3 text-xs font-semibold transition-all cursor-pointer shadow-sm active:scale-95 ${
+                pathname === "/haul"
+                  ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-[0_0_12px_rgba(52,211,153,0.3)]"
+                  : "bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+              }`}
+              title="Open Spadas Haul Lot Batch Manager & CSV Export"
+            >
+              <ShoppingBag className="h-3.5 w-3.5" />
+              <span>Spadas Haul</span>
+              {haulCount > 0 && (
+                <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold bg-emerald-500/30 text-emerald-200">
+                  {haulCount}
+                </span>
+              )}
+            </Link>
 
             <Link
               href="/lens"
