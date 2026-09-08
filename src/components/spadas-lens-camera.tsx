@@ -63,6 +63,7 @@ import {
   canvasToBlob,
 } from "@/lib/rapid-thrift-engine";
 import { useHaulStore } from "@/lib/haul-store";
+import { quickSnapQueue, useQuickSnapQueue } from "@/lib/quick-snap-queue";
 import { RapidThriftDrawer } from "@/components/rapid-thrift-drawer";
 import { QuickHistoryDrawer } from "@/components/quick-history-drawer";
 import { calculateSalesVelocity } from "@/lib/turnover-velocity-engine";
@@ -504,6 +505,9 @@ function SpadasLensCameraCore({
     removeItem,
     clearHaul,
   } = useHaulStore();
+  const { pendingCount: quickSnapPendingCount } = useQuickSnapQueue();
+  const [quickSnapFlash, setQuickSnapFlash] = useState<boolean>(false);
+  const [isQuickSnapping, setIsQuickSnapping] = useState<boolean>(false);
   const [isRapidDrawerOpen, setIsRapidDrawerOpen] = useState<boolean>(false);
   const rapidQueueRef = useRef<Array<{ item: RapidThriftItem; blob: Blob }>>([]);
   const activeRapidWorkersRef = useRef<number>(0);
@@ -1900,6 +1904,70 @@ function SpadasLensCameraCore({
   useEffect(() => {
     autoScanActiveRef.current = autoScanActive;
   }, [autoScanActive]);
+
+  // Unified Quick Snap Stream Capture (Instant frame capture directly into background queue)
+  const handleQuickSnapCapture = useCallback(async () => {
+    const video = videoRef.current;
+    if (!video || video.readyState < 2 || video.videoWidth === 0 || video.videoHeight === 0) {
+      toast.error("Camera is initializing. Please aim at an item.");
+      return;
+    }
+
+    if (isQuickSnapping) return;
+    setIsQuickSnapping(true);
+
+    try {
+      // 1. Shutter audio and tactile haptic feedback
+      try {
+        playScanBeep();
+        triggerScanHaptic();
+      } catch {}
+
+      // 2. Viewfinder optical shutter flash (0ms response)
+      setQuickSnapFlash(true);
+      setTimeout(() => setQuickSnapFlash(false), 150);
+
+      // 3. Grab current frame onto offscreen canvas (1280px resolution for fine AI appraisal)
+      const canvas = document.createElement("canvas");
+      const maxDim = 1280;
+      const fullW = video.videoWidth;
+      const fullH = video.videoHeight;
+      let tw = fullW;
+      let th = fullH;
+      if (fullW >= fullH) {
+        tw = Math.min(maxDim, fullW);
+        th = Math.round((fullH * tw) / fullW);
+      } else {
+        th = Math.min(maxDim, fullH);
+        tw = Math.round((fullW * th) / fullH);
+      }
+      canvas.width = tw;
+      canvas.height = th;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Failed to create canvas context");
+      ctx.drawImage(video, 0, 0, fullW, fullH, 0, 0, tw, th);
+
+      // 4. Encode directly to JPEG Blob
+      const blob = await new Promise<Blob | null>((resolve) => {
+        canvas.toBlob((b) => resolve(b), "image/jpeg", 0.85);
+      });
+
+      if (!blob) throw new Error("Frame blob encoding failed");
+
+      // 5. Pipe immediately into QuickSnapQueueService (0ms haulStore hydration + IndexedDB save)
+      void quickSnapQueue.enqueuePhoto(blob, undefined, selectedCurrency);
+
+      toast.success("⚡ Quick Snapped to Haul!", {
+        duration: 1500,
+        id: "quick-snap-toast",
+      });
+    } catch (err) {
+      console.error("[Spadas Lens] Quick Snap capture error:", err);
+      toast.error("Quick Snap failed to capture frame.");
+    } finally {
+      setIsQuickSnapping(false);
+    }
+  }, [isQuickSnapping, selectedCurrency]);
 
   // Frame Scanner with Instantaneous Shutter Trigger & Responsive Viewfinder State
   const processCurrentFrame = useCallback(async (forceManual = false) => {
@@ -3487,6 +3555,11 @@ function SpadasLensCameraCore({
               className="h-full w-full object-cover"
             />
 
+            {/* Quick Snap Viewfinder Shutter Flash (0ms visual feedback) */}
+            {quickSnapFlash && (
+              <div className="absolute inset-0 z-40 bg-white/50 pointer-events-none select-none transition-opacity animate-out fade-out duration-150" />
+            )}
+
             {/* Continuous Visual Anchor: Captured item snapshot remains continuously visible beneath progressive loader, handoff, and valuation steps with ZERO black flashes */}
             {frozenFrameUrl && (analyzingRealFrame || isLoaderTransitioning || activeValuationHit || isScanPaused) && (
               <div className="absolute inset-0 z-10 transition-opacity duration-300 pointer-events-none select-none animate-in fade-in duration-150">
@@ -4216,30 +4289,36 @@ function SpadasLensCameraCore({
               )}
             </div>
 
-            {/* Dedicated Quick Snap Studio Action Trigger (Bottom Left — Isolated Studio Multi-Angle Intake) */}
+            {/* Dedicated Quick Snap Stream Shutter (Bottom Left — Instant Live Frame Capture into Background Valuation Queue) */}
             <div className="absolute bottom-4 left-3 sm:left-5 z-40 pointer-events-auto">
               <button
                 type="button"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  if (onOpenSnapStudio) {
-                    onOpenSnapStudio();
-                  } else {
-                    router.push("/snap");
-                  }
+                  void handleQuickSnapCapture();
                 }}
                 onPointerDown={(e) => {
                   e.stopPropagation();
                 }}
-                className="group flex min-h-[44px] min-w-[44px] touch-manipulation items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-950/90 border border-slate-700/80 hover:border-cyan-400/60 shadow-lg backdrop-blur-md transition cursor-pointer active:scale-95 text-slate-300 hover:text-white"
-                title="Launch Quick Snap Studio (Multi-Angle Photography & Valuation)"
-                aria-label="Open Quick Snap Studio"
+                disabled={isQuickSnapping}
+                className="group flex min-h-[44px] min-w-[44px] touch-manipulation items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-950/90 border border-amber-500/50 hover:border-amber-400 shadow-lg shadow-amber-500/10 backdrop-blur-md transition cursor-pointer active:scale-95 text-slate-300 hover:text-white"
+                title="Rapid-fire shelf photo directly from live camera stream into background valuation queue"
+                aria-label="Quick Snap frame to Haul"
               >
-                <Camera className="h-4 w-4 text-cyan-400 shrink-0 group-hover:scale-110 transition-transform" />
+                {isQuickSnapping ? (
+                  <RefreshCw className="h-4 w-4 text-amber-300 animate-spin shrink-0" />
+                ) : (
+                  <Camera className="h-4 w-4 text-amber-300 shrink-0 group-hover:scale-110 transition-transform" />
+                )}
                 <span className="text-xs font-black tracking-tight text-white hidden xs:inline">
                   Quick Snap
                 </span>
+                {quickSnapPendingCount > 0 && (
+                  <span className="px-1.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-400 text-slate-950">
+                    {quickSnapPendingCount}
+                  </span>
+                )}
               </button>
             </div>
 
