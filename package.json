@@ -14,6 +14,7 @@
     "verify-scans": "node scratch/verify_3_scans.js",
     "preflight": "npm run type-check && npm run build",
     "build:store": "node scripts/build_store_packages.js",
+    "build:aab": "node scripts/build_production_release_aab.js",
     "build:android": "npx @bubblewrap/cli build",
     "build:windows": "npx @pwabuilder/cli"
   },

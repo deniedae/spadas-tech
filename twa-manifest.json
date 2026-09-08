@@ -14,26 +14,30 @@
   "startUrl": "/dashboard",
   "iconUrl": "https://spadas-tech.vercel.app/icon-512.png",
   "maskableIconUrl": "https://spadas-tech.vercel.app/maskable-512.png",
-  "appVersionName": "1.0.0",
-  "appVersionCode": 1,
+  "appVersionName": "1.2.0",
+  "appVersionCode": 3,
+  "signingKey": {
+    "path": "./signing.keystore",
+    "alias": "my-key-alias"
+  },
   "shortcuts": [
     {
       "name": "Scan Product",
-      "short_name": "Scan",
+      "shortName": "Scan",
       "url": "https://spadas-tech.vercel.app/lens",
-      "icon": "https://spadas-tech.vercel.app/icon-192.png"
+      "chosenIconUrl": "https://spadas-tech.vercel.app/icon-192.png"
     },
     {
       "name": "Inventory Overview",
-      "short_name": "Inventory",
+      "shortName": "Inventory",
       "url": "https://spadas-tech.vercel.app/inventory",
-      "icon": "https://spadas-tech.vercel.app/icon-192.png"
+      "chosenIconUrl": "https://spadas-tech.vercel.app/icon-192.png"
     },
     {
       "name": "Profit Calculator",
-      "short_name": "Calculator",
+      "shortName": "Calculator",
       "url": "https://spadas-tech.vercel.app/calculator",
-      "icon": "https://spadas-tech.vercel.app/icon-192.png"
+      "chosenIconUrl": "https://spadas-tech.vercel.app/icon-192.png"
     }
   ],
   "generatorApp": "bubblewrap-cli",
