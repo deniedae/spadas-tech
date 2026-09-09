@@ -482,68 +482,104 @@ function SpadasLensCameraCore({
     void resolveSpatialMetadata(categoryBias).then(setSpatialMetadata);
   }, [categoryBias]);
 
-  // 1. Immediate State Flush on New Scan / Stop: Instantly wipes valuation states, active stream tokens, unblocks promise chains, and resets progressive loader flags
-  const flushScanState = useCallback((targetStage: ScanStage = "idle") => {
-    // Abort active in-flight NDJSON stream / fetch request to immediately unblock promise chains
-    if (activeAbortControllerRef.current) {
-      try {
-        activeAbortControllerRef.current.abort();
-      } catch {}
-      activeAbortControllerRef.current = null;
-    }
+  // Dedicated Sold Comps Modal & In-Memory Comps Cache State
+  const [activeCompsHit, _setActiveCompsHit] = useState<DetectedHit | ActiveScanItem | null>(null);
+  const [isCompsModalOpen, _setIsCompsModalOpen] = useState<boolean>(false);
+  const isCompsModalOpenRef = useRef<boolean>(false);
+  const lastCompsHitRef = useRef<DetectedHit | ActiveScanItem | null>(null);
 
-    // Unblock active ReadableStream reader immediately
-    if (activeStreamReaderRef.current) {
-      try {
-        void activeStreamReaderRef.current.cancel();
-      } catch {}
-      activeStreamReaderRef.current = null;
-    }
-
-    // Cancel any active requestAnimationFrame callback
-    if (activeRafIdRef.current) {
-      cancelAnimationFrame(activeRafIdRef.current);
-      activeRafIdRef.current = null;
-    }
-
-    // Advance cycle counter to invalidate any pending asynchronous callbacks from previous scans
-    activeCycleIdRef.current = ++cycleSeq;
-
-    // Clear active expiration timers & pulse animations
-    if (valuationExpiryTimerRef.current) {
-      clearTimeout(valuationExpiryTimerRef.current);
-      valuationExpiryTimerRef.current = null;
-    }
-    if (scanExpiryTimerRef.current) {
-      clearTimeout(scanExpiryTimerRef.current);
-      scanExpiryTimerRef.current = null;
-    }
-    if (scanCompletePulseTimerRef.current) {
-      clearTimeout(scanCompletePulseTimerRef.current);
-      scanCompletePulseTimerRef.current = null;
-    }
-
-    // Instantly wipe all valuation states, stream tokens, and progressive loader flags to zero
-    setActiveValuationHit(null);
-    setActiveScans([]);
-    setPendingIdentifiedItem(null);
-    setActiveCompsHit(null);
-    setScanStage(targetStage);
-    setScanRetryPrompt(null);
-    setScanFeedback(null);
-    setFrozenFrameUrl(null);
-    setLatestApiError(null);
-    setLastRawApiResponse(null);
-    setRetakeRecommendation(null);
-    setSecondaryImagePayload(null);
-    setConfidencePercent(94);
-    setIsScanPaused(false);
-    setAnalyzingRealFrame(false);
-    analyzingRef.current = false;
-    setIsLoaderTransitioning(false);
-    setIsScanning(false);
-    isScanningRef.current = false;
+  const setIsCompsModalOpen = useCallback((open: boolean) => {
+    isCompsModalOpenRef.current = open;
+    _setIsCompsModalOpen(open);
   }, []);
+
+  const setActiveCompsHit = useCallback((hit: DetectedHit | ActiveScanItem | null) => {
+    if (hit) {
+      lastCompsHitRef.current = hit;
+    }
+    _setActiveCompsHit(hit);
+  }, []);
+
+  // 1. Immediate State Flush on New Scan / Stop: Instantly wipes valuation states, active stream tokens, unblocks promise chains, and resets progressive loader flags
+  const flushScanState = useCallback(
+    (
+      targetStage: ScanStage = "idle",
+      options?: { preserveValuation?: boolean; preserveComps?: boolean }
+    ) => {
+      // Abort active in-flight NDJSON stream / fetch request to immediately unblock promise chains
+      if (activeAbortControllerRef.current) {
+        try {
+          activeAbortControllerRef.current.abort();
+        } catch {}
+        activeAbortControllerRef.current = null;
+      }
+
+      // Unblock active ReadableStream reader immediately
+      if (activeStreamReaderRef.current) {
+        try {
+          void activeStreamReaderRef.current.cancel();
+        } catch {}
+        activeStreamReaderRef.current = null;
+      }
+
+      // Cancel any active requestAnimationFrame callback
+      if (activeRafIdRef.current) {
+        cancelAnimationFrame(activeRafIdRef.current);
+        activeRafIdRef.current = null;
+      }
+
+      // Advance cycle counter to invalidate any pending asynchronous callbacks from previous scans
+      activeCycleIdRef.current = ++cycleSeq;
+
+      // Clear active expiration timers & pulse animations
+      if (valuationExpiryTimerRef.current) {
+        clearTimeout(valuationExpiryTimerRef.current);
+        valuationExpiryTimerRef.current = null;
+      }
+      if (scanExpiryTimerRef.current) {
+        clearTimeout(scanExpiryTimerRef.current);
+        scanExpiryTimerRef.current = null;
+      }
+      if (scanCompletePulseTimerRef.current) {
+        clearTimeout(scanCompletePulseTimerRef.current);
+        scanCompletePulseTimerRef.current = null;
+      }
+
+      // Guard against race conditions: Never wipe valuation results if preserveValuation is requested
+      if (!options?.preserveValuation) {
+        setActiveValuationHit(null);
+      }
+      setActiveScans([]);
+      setPendingIdentifiedItem(null);
+
+      // Guard against race conditions:
+      // If preserveComps is requested OR if the modal is currently open, DO NOT wipe comps data before modal render pass executes!
+      if (!options?.preserveComps && !isCompsModalOpenRef.current) {
+        _setActiveCompsHit(null);
+        _setIsCompsModalOpen(false);
+        isCompsModalOpenRef.current = false;
+      }
+
+      setScanStage(targetStage);
+      setScanRetryPrompt(null);
+      setScanFeedback(null);
+      if (!options?.preserveValuation) {
+        setFrozenFrameUrl(null);
+      }
+      setLatestApiError(null);
+      setLastRawApiResponse(null);
+      setRetakeRecommendation(null);
+      setSecondaryImagePayload(null);
+      setConfidencePercent(94);
+      setIsScanPaused(false);
+      setAnalyzingRealFrame(false);
+      analyzingRef.current = false;
+      setIsLoaderTransitioning(false);
+      setIsScanning(false);
+      isScanningRef.current = false;
+    },
+    []
+  );
 
   // Cleanup abort controller on component unmount
   useEffect(() => {
@@ -764,7 +800,6 @@ function SpadasLensCameraCore({
   // Scan Stabilization & Dynamic Confidence State
   const [isScanPaused, setIsScanPaused] = useState<boolean>(false);
   const [frozenFrameUrl, setFrozenFrameUrl] = useState<string | null>(null);
-  const [activeCompsHit, setActiveCompsHit] = useState<DetectedHit | ActiveScanItem | null>(null);
   const [confidencePercent, setConfidencePercent] = useState<number>(94);
   const [isLoaderTransitioning, setIsLoaderTransitioning] = useState<boolean>(false);
   const [isValuationCardMounted, setIsValuationCardMounted] = useState<boolean>(false);
@@ -993,6 +1028,7 @@ function SpadasLensCameraCore({
 
       // 5. Automatically trigger dedicated full-screen / bottom-sheet Comps Modal Dialog as soon as comps are resolved
       setActiveCompsHit(hit);
+      setIsCompsModalOpen(true);
 
       // 6. Generous auto-expiry timer so the user has ample time to inspect comps, ROI, and actions
       if (valuationExpiryTimerRef.current) {
@@ -1145,6 +1181,7 @@ function SpadasLensCameraCore({
       };
 
       setActiveValuationHit(updatedHit);
+      setActiveCompsHit(updatedHit);
       setCapturedLog((prev) => [updatedHit, ...prev.filter((h) => h.id !== updatedHit.id)].slice(0, 50));
       setIsEditingOverride(false);
       triggerTactileHaptic("success");
@@ -1938,7 +1975,8 @@ function SpadasLensCameraCore({
   // Stop Camera Stream (Releases all hardware locks immediately & halts scanning pipeline)
   const stopCamera = useCallback(() => {
     // 1. Force flush scanner state: clear timers, unblock promise chains, cancel stream readers & RAF, reset stage to "idle"
-    flushScanState("idle");
+    // Preserves valuation results & comps modal to prevent race conditions from prematurely wiping data before modal render pass executes
+    flushScanState("idle", { preserveValuation: true, preserveComps: true });
 
     // 2. Force state flags to stopped/idle
     setIsCameraPoweredOn(false);
@@ -3674,7 +3712,7 @@ function SpadasLensCameraCore({
 
   // Active Auto-Scan & Scene Change Watcher with Frame-Skip Delay & Sampling Interval
   useEffect(() => {
-    if (!stream || !!deepVerifyItem || isScanPaused || !!activeCompsHit) return;
+    if (!stream || !!deepVerifyItem || isScanPaused || !!activeCompsHit || isCompsModalOpen) return;
 
     let isDestroyed = false;
     const offCanvas = document.createElement("canvas");
@@ -3786,7 +3824,7 @@ function SpadasLensCameraCore({
       isDestroyed = true;
       clearInterval(interval);
     };
-  }, [stream, autoScanActive, scanMode, deepVerifyItem, isScanPaused, activeCompsHit, isRapidScanMode]);
+  }, [stream, autoScanActive, scanMode, deepVerifyItem, isScanPaused, activeCompsHit, isCompsModalOpen, isRapidScanMode]);
 
   useEffect(() => {
     return () => {
@@ -4470,12 +4508,13 @@ function SpadasLensCameraCore({
                             type="button"
                             onClick={() => {
                               setActiveCompsHit(activeValuationHit);
+                              setIsCompsModalOpen(true);
                               setActiveValuationHit(null);
                             }}
-                            className="inline-flex items-center gap-1.5 bg-gradient-to-r from-cyan-600/30 to-blue-600/30 hover:from-cyan-600/40 hover:to-blue-600/40 text-cyan-300 border border-cyan-500/40 px-3 py-1.5 rounded-xl text-[11px] font-bold transition cursor-pointer active:scale-95 shadow-sm"
+                            className="inline-flex items-center gap-1.5 bg-gradient-to-r from-cyan-600/30 via-cyan-500/30 to-blue-600/30 hover:from-cyan-600/40 hover:to-blue-600/40 text-cyan-300 border border-cyan-500/50 px-3 py-1.5 rounded-xl text-[11px] font-black transition cursor-pointer active:scale-95 shadow-md shadow-cyan-500/20 animate-pulse"
                             title="Open Full Sold Comps Modal Dialog"
                           >
-                            <TrendingUp className="h-3.5 w-3.5 text-cyan-400" />
+                            <TrendingUp className="h-3.5 w-3.5 text-cyan-300 animate-bounce" />
                             <span>Comps Modal</span>
                           </button>
 
@@ -4877,6 +4916,44 @@ function SpadasLensCameraCore({
                 </button>
               </div>
             )}
+
+            {/* UI Fallback Trigger: Compact "Comps Modal" Action Button on Viewfinder HUD */}
+            {(activeCompsHit || lastCompsHitRef.current) && !isCompsModalOpen && !activeValuationHit && (
+              <div
+                className={`absolute z-40 pointer-events-auto transition-all duration-200 ${
+                  isRapidScanMode ? "bottom-20 right-3 sm:right-5" : "bottom-4 right-3 sm:right-5"
+                }`}
+              >
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const hit = activeCompsHit || lastCompsHitRef.current;
+                    if (hit) {
+                      setActiveCompsHit(hit);
+                      setIsCompsModalOpen(true);
+                    }
+                  }}
+                  onPointerDown={(e) => {
+                    e.stopPropagation();
+                  }}
+                  className="group flex min-h-[44px] touch-manipulation items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-950/95 border-2 border-cyan-400 text-cyan-300 hover:text-white hover:bg-cyan-500/20 shadow-[0_0_25px_rgba(6,182,212,0.45)] backdrop-blur-md transition-all cursor-pointer active:scale-95 animate-pulse"
+                  title="Open Sold Comps Modal Dialog"
+                  aria-label="Force open Sold Comps Modal"
+                >
+                  <TrendingUp className="h-4 w-4 text-cyan-300 animate-bounce shrink-0" />
+                  <span className="text-xs font-black tracking-tight text-white uppercase">
+                    Comps Modal
+                  </span>
+                  {((activeCompsHit || lastCompsHitRef.current)?.estimatedValue) ? (
+                    <span className="px-1.5 py-0.5 rounded-md text-[10px] font-mono font-black bg-cyan-400 text-slate-950">
+                      {fmtMoney((activeCompsHit || lastCompsHitRef.current)?.estimatedValue || 0)}
+                    </span>
+                  ) : null}
+                </button>
+              </div>
+            )}
           </>
         ) : (
           /* Camera Standby / Hardware Released View */
@@ -5101,15 +5178,24 @@ function SpadasLensCameraCore({
 
       {/* Stabilized AR Comps Breakdown & Resale Verdict Modal */}
       <LensCompsModal
-        isOpen={!!activeCompsHit}
-        item={activeCompsHit}
+        isOpen={isCompsModalOpen && !!(activeCompsHit || lastCompsHitRef.current)}
+        item={activeCompsHit || lastCompsHitRef.current}
         frozenFrameUrl={frozenFrameUrl}
-        onClose={() => setActiveCompsHit(null)}
-        onResumeScan={handleResumeScanning}
-        onListEbay={(hit: any) => setActiveEbayItem(hit)}
-        onDeepVerify={(hit: any) => handleOpenDeepVerify(hit)}
+        onClose={() => setIsCompsModalOpen(false)}
+        onResumeScan={() => {
+          setIsCompsModalOpen(false);
+          handleResumeScanning();
+        }}
+        onListEbay={(hit: any) => {
+          setIsCompsModalOpen(false);
+          setActiveEbayItem(hit);
+        }}
+        onDeepVerify={(hit: any) => {
+          setIsCompsModalOpen(false);
+          handleOpenDeepVerify(hit);
+        }}
         onTriggerBarcodeScan={() => {
-          setActiveCompsHit(null);
+          setIsCompsModalOpen(false);
           setScanMode("barcode");
           toast.info("Switched to Barcode Mode for precision verification.");
         }}
@@ -5251,10 +5337,14 @@ function SpadasLensCameraCore({
             : undefined
         }
         onViewComps={
-          activeValuationHit
+          activeValuationHit || lastCompsHitRef.current
             ? () => {
-                setActiveCompsHit(activeValuationHit);
-                setActiveValuationHit(null);
+                const target = activeValuationHit || lastCompsHitRef.current;
+                if (target) {
+                  setActiveCompsHit(target);
+                  setIsCompsModalOpen(true);
+                  setActiveValuationHit(null);
+                }
               }
             : undefined
         }
