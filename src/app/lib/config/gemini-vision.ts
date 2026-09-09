@@ -59,6 +59,17 @@ PERFORM THOROUGH VISUAL IDENTIFICATION & SECONDARY MARKET RESEARCH:
 - Model / Silhouette: Identify the exact model name, edition, style code, or silhouette (e.g. "Air Jordan 4 Military Black", "Prada Saffiano Triangle Bifold Wallet", "Sony Cyber-shot DSC-W350").
 - Material & Colorway: e.g. "Saffiano Leather / Black", "Duck Canvas / Carhartt Brown", "Monogram Coated Canvas".
 
+1.1 NEXT-GEN HARDWARE GENERATION & STRICT BOX ART PARSING:
+- Explicitly check packaging, retail box art, console chassis, and labels for generation indicators:
+  • Sequel numerals: "2", "3", "4", "5", "6", "II", "III"
+  • Tier & generation suffixes: "Pro", "OLED", "Lite", "Slim", "Series X", "Series S", "Max", "Plus", "Ultra"
+  • Generational branding logos & typography (e.g., large stylized numeral "2" on Nintendo packaging, "Pro" badge on console housing).
+- HARD NEGATIVE CONSTRAINT (ZERO TOLERANCE FOR LEGACY COLLAPSE):
+  • You are STRICTLY FORBIDDEN from mapping next-gen, sequel, or revised hardware packaging/box art back to legacy base variants.
+  • For example, if packaging or hardware displays "Switch 2", a prominent "2", or next-gen branding, you MUST NEVER classify it as an original "Nintendo Switch", "Switch V2", or "Switch OLED". The product_name MUST preserve the exact generation (e.g. "Nintendo Switch 2 Console").
+  • NEVER classify "PS5 Pro" as "PS5", "Xbox Series X" as "Xbox One", or "AirPods Pro 2" as "AirPods Pro 1".
+- Transcribe all box art text into "visual_reasoning.visible_text_detected" and populate "variant_audit.model_year_or_gen".
+
 2. CONDITION, WEAR & HONEST FLAW INSPECTION:
 - Inspect visible condition: collar fading, moth holes, distress, heel drag, screen scratches, or clean pre-owned status.
 - Put every observed flaw in "defect_notes".

@@ -13,7 +13,7 @@ import { AiListingResultSchema } from "@/app/lib/schemas/ai-listing-schema";
 import { AR_SCAN_MODEL_FALLBACKS, LISTING_MODEL_FALLBACKS, getPrimaryAiApiKey, createOpenAiClient } from "@/app/lib/config/ai-models";
 import { callClaudeVision } from "@/app/lib/config/claude-vision";
 import { callGeminiVision, hasGeminiVisionKey } from "@/app/lib/config/gemini-vision";
-import { fetchEbayAustraliaSoldComps } from "@/app/lib/ebay-australia-comps";
+import { fetchEbayAustraliaSoldComps, detectGenerationProfile } from "@/app/lib/ebay-australia-comps";
 import { detectGeoCurrency, SupportedCurrency } from "@/app/lib/currency-routing";
 import { saveProductToCache, getCachedProductScan } from "@/app/lib/cache/product-cache";
 import { appraiseItemLocally } from "@/app/lib/offline/offline-engine";
@@ -499,6 +499,21 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
 - NETWORKING & HARDWARE: Read visible brand stamps and model numbers (e.g., TP-Link, Archer, RE305). NEVER misidentify networking devices or USB dongles as vapes.
 - COMMODITY / UNBRANDED ITEMS: Identify accurately as generic (e.g., "Ceramic Coffee Mug White 350ml"). Do NOT hallucinate high-end collector brands.
 
+1.1 NEXT-GEN HARDWARE GENERATION & STRICT BOX ART PARSING:
+- Explicitly check for generation indicators, sequel numbers, next-gen branding logos, and distinct number accents across packaging, retail box art, console chassis, and faceplates:
+  • Sequel numerals: "2", "3", "4", "5", "6", "II", "III"
+  • Tier & generation suffixes: "Pro", "OLED", "Lite", "Slim", "Series X", "Series S", "Max", "Plus", "Ultra"
+  • Generational branding logos & typography (e.g., large stylized numeral "2" on packaging, "Pro" badge on console housing).
+- HARD NEGATIVE CONSTRAINT (ZERO TOLERANCE FOR LEGACY COLLAPSE):
+  • You are STRICTLY FORBIDDEN from mapping next-gen, sequel, or revised hardware packaging/box art back to legacy base variants.
+  • For example, if packaging, box art, console body, or typography displays "Switch 2", a prominent "2", or next-gen branding accents, you MUST NEVER classify it as an original "Nintendo Switch", "Switch V2", or "Switch OLED". The output product_name and model MUST preserve the exact generation (e.g. "Nintendo Switch 2 Console").
+  • NEVER classify "PS5 Pro" as "PS5", "Xbox Series X" as "Xbox One", or "AirPods Pro 2" as "AirPods Pro 1".
+- VERBATIM OCR & VARIANT AUDIT:
+  • Transcribe all visible box art typography, generation numerals, and model badges verbatim into "visual_reasoning.visible_text_detected".
+  • Explicitly populate "variant_audit.model_year_or_gen" with the exact detected generation (e.g. "Switch 2", "Pro", "Gen 2") and "variant_audit.variant_name".
+- AMBIGUITY THRESHOLD:
+  • If visual confidence on exact hardware generation is ambiguous or partially obscured, do NOT default to a legacy base model. Set "confidence_score" < 0.88 and trigger "retake_recommended" to prompt for barcode or front packaging verification.
+
 2. ITEM TYPE, SILHOUETTE & CATEGORY:
 - Identify the precise silhouette (e.g., "Detroit Duck Canvas Jacket", "Saffiano Leather Triangle Logo Bifold Wallet", "Cyber-shot DSC-W350 Digital Camera", "Air Jordan 4 Retro").
 - Accurately assign "category" (e.g., "Clothing", "Electronics", "Luxury Accessories", "Shoes", "Collectibles").
@@ -791,30 +806,105 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
 
     console.log(`[Spadas Vision Diagnostic] userId: ${userId || "guest"} | provider: ${activeProvider} | product_name: "${result.analysis?.product_name}" | brand: "${result.analysis?.brand}" | category: "${result.analysis?.category}" | currency: ${targetCurrency}`);
 
+    let generationSuffixDetected: string | null = null;
+
     // Fetch REAL-TIME regional eBay Comps in target currency via Browse API ONLY for verified identified products
     const runCompsAndFinalizeResult = async () => {
       if (result.analysis?.product_name && result.status === "identified") {
         try {
+          // ── GENERATION VALIDATION GUARDRAIL ──────────────────────────────────────────
+          // If OCR / visual reasoning detects prominent generational branding (e.g. large "2", "Switch 2", "Pro", "OLED"),
+          // force the query builder and verified product name to append the exact generation suffix.
+          const ocrTexts = result.analysis.visual_reasoning?.visible_text_detected || [];
+          const variantGen = result.analysis.variant_audit?.model_year_or_gen || result.variant_audit?.model_year_or_gen || "";
+          const variantName = result.analysis.variant_audit?.variant_name || result.variant_audit?.variant_name || "";
+          const visualDesc = result.analysis.visual_reasoning?.physical_object_description || "";
+          const pNameLower = (result.analysis.product_name || "").toLowerCase();
+          const combinedOcr = `${ocrTexts.join(" ")} ${variantGen} ${variantName} ${visualDesc}`.toLowerCase();
+
+          let isSwitchGen2 = false;
+          let isPs5Pro = false;
+          let isXboxSeriesX = false;
+          let isXboxSeriesS = false;
+          let isQuest3 = false;
+
+          // Check Switch 2: prominent "2" / "ii" on Switch packaging or in OCR
+          if (
+            (combinedOcr.includes("switch") && (/\b(switch\s*2|switch\s*ii|\b2\b)\b/i.test(combinedOcr))) ||
+            (pNameLower.includes("switch") && (/\b(switch\s*2|\b2\b)\b/i.test(combinedOcr) || /\b(switch\s*2|\b2\b)\b/i.test(variantGen)))
+          ) {
+            generationSuffixDetected = "2";
+            isSwitchGen2 = true;
+          } else if (
+            /\b(ps5\s*pro|playstation\s*5\s*pro)\b/i.test(combinedOcr) ||
+            (pNameLower.includes("ps5") && /\bpro\b/i.test(combinedOcr))
+          ) {
+            generationSuffixDetected = "Pro";
+            isPs5Pro = true;
+          } else if (/\bxbox\s*series\s*x\b/i.test(combinedOcr)) {
+            generationSuffixDetected = "Series X";
+            isXboxSeriesX = true;
+          } else if (/\bxbox\s*series\s*s\b/i.test(combinedOcr)) {
+            generationSuffixDetected = "Series S";
+            isXboxSeriesS = true;
+          } else if (/\b(quest\s*3|meta\s*quest\s*3)\b/i.test(combinedOcr)) {
+            generationSuffixDetected = "3";
+            isQuest3 = true;
+          }
+
+          // Force append generation suffix to product name and model if missing
+          if (generationSuffixDetected && result.analysis?.product_name) {
+            let currName = result.analysis.product_name;
+            if (!currName.toLowerCase().includes(generationSuffixDetected.toLowerCase())) {
+              if (isSwitchGen2) {
+                currName = currName.replace(/\bswitch\b/i, "Switch 2");
+                if (!currName.toLowerCase().includes("switch 2")) {
+                  currName = `${currName} 2`;
+                }
+              } else if (isPs5Pro) {
+                currName = currName.replace(/\bps5\b/i, "PS5 Pro").replace(/\bplaystation\s*5\b/i, "PlayStation 5 Pro");
+                if (!currName.toLowerCase().includes("pro")) {
+                  currName = `${currName} Pro`;
+                }
+              } else {
+                currName = `${currName} ${generationSuffixDetected}`;
+              }
+              result.analysis.product_name = currName;
+              if (result.analysis.model && !result.analysis.model.toLowerCase().includes(generationSuffixDetected.toLowerCase())) {
+                result.analysis.model = `${result.analysis.model} ${generationSuffixDetected}`;
+              }
+              if (result.detected_objects && result.detected_objects.length > 0) {
+                result.detected_objects[0].product_name = currName;
+              }
+              console.log(`[Generation Guardrail] Enforced generation suffix "${generationSuffixDetected}" on product name: "${currName}"`);
+            }
+          }
+
           const verifiedName = result.analysis.product_name;
           let ebayComps: any = null;
 
           // 1. INTELLIGENT PREFETCH: Check if parallel background comps query finished and matches verified product
           if (parallelCompsPromise && initialPrefetchQuery) {
             try {
-              const precomputed = await parallelCompsPromise;
-              const cleanInitial = initialPrefetchQuery.toLowerCase();
-              const cleanVerified = verifiedName.toLowerCase();
-              const wordsMatch = cleanInitial.split(/\s+/).some((w: string) => w.length > 2 && cleanVerified.includes(w));
-              if (precomputed && precomputed.count > 0 && (wordsMatch || cleanVerified.includes(cleanInitial))) {
-                ebayComps = precomputed;
-                console.log(`[ai-listing] Parallel comps prefetch hit (0ms latency): "${initialPrefetchQuery}" for "${verifiedName}"`);
+              const prefetchHasGen = !generationSuffixDetected || initialPrefetchQuery.toLowerCase().includes(generationSuffixDetected.toLowerCase());
+              if (prefetchHasGen) {
+                const precomputed = await parallelCompsPromise;
+                const cleanInitial = initialPrefetchQuery.toLowerCase();
+                const cleanVerified = verifiedName.toLowerCase();
+                const wordsMatch = cleanInitial.split(/\s+/).some((w: string) => w.length > 2 && cleanVerified.includes(w));
+                if (precomputed && precomputed.count > 0 && (wordsMatch || cleanVerified.includes(cleanInitial))) {
+                  ebayComps = precomputed;
+                  console.log(`[ai-listing] Parallel comps prefetch hit (0ms latency): "${initialPrefetchQuery}" for "${verifiedName}"`);
+                }
+              } else {
+                console.log(`[ai-listing] Rejecting prefetch comps because generation "${generationSuffixDetected}" was missing from initial query`);
               }
             } catch {}
           }
 
           // 2. Fallback fetch if parallel comps differed or yielded 0 comps
           if (!ebayComps) {
-            ebayComps = await fetchEbayAustraliaSoldComps(verifiedName, targetCurrency);
+            ebayComps = await fetchEbayAustraliaSoldComps(verifiedName, targetCurrency, generationSuffixDetected);
           }
           if (
             ebayComps &&
@@ -1120,6 +1210,31 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
         result.detected_objects[0].true_net_profit = copEstimate.netProfit;
         result.detected_objects[0].roi_percentage = copEstimate.roiPercentage;
         result.detected_objects[0].cop_verdict = copEstimate.copVerdict;
+      }
+    }
+
+    // ── HARDWARE GENERATION CONFIDENCE & AMBIGUITY GATE ───────────────────────
+    // If next-gen/sequel hardware is detected, require >= 0.90 confidence and explicit packaging confirmation.
+    // Otherwise flag for secondary barcode verification to prevent mismatched historical comps.
+    const pCategoryLower = (pCategory || "").toLowerCase();
+    const isHardwareOrGaming =
+      pCategoryLower.includes("electronic") ||
+      pCategoryLower.includes("gaming") ||
+      pCategoryLower.includes("tech") ||
+      pCategoryLower.includes("console");
+    const activeGenProfile = detectGenerationProfile(pName, generationSuffixDetected);
+
+    if (isHardwareOrGaming && (generationSuffixDetected || activeGenProfile)) {
+      const conf = typeof result.analysis?.confidence_score === "number" ? result.analysis.confidence_score : 0.85;
+      const genLabel = generationSuffixDetected || activeGenProfile?.generationToken || "Next-Gen";
+      if (conf < 0.90 || !result.analysis?.variant_audit?.model_year_or_gen) {
+        result.requires_secondary_verification = true;
+        result.verification_reason = `Hardware Generation (${genLabel}) detected — confirm version on packaging or scan barcode`;
+        result.fallback_protocol = "SCAN_BARCODE";
+        result.cop_verdict = "VERIFY_FIRST";
+        if (result.detected_objects && result.detected_objects.length > 0) {
+          result.detected_objects[0].cop_verdict = "VERIFY_FIRST";
+        }
       }
     }
 

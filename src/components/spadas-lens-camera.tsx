@@ -4282,21 +4282,48 @@ function SpadasLensCameraCore({
                               {activeValuationHit.verificationReason || "Confidence < 88% — confirm details before copping"}
                             </span>
                           </div>
-                          {activeValuationHit.fallbackProtocol === "SCAN_BARCODE" ? (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setActiveValuationHit(null);
-                                setFrozenFrameUrl(null);
-                                setScanMode("barcode");
-                                toast.info("Switched to Barcode Mode for precision verification.");
-                              }}
-                              className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-[10px] font-black uppercase tracking-wider transition active:scale-95 cursor-pointer shadow-sm"
-                            >
-                              <Barcode className="w-3 h-3" />
-                              <span>Barcode</span>
-                            </button>
-                          ) : activeValuationHit.fallbackProtocol === "ZOOM_LABEL" ? (
+                          <div className="flex items-center gap-1 shrink-0">
+                            {activeValuationHit.verificationReason?.toLowerCase().includes("generation") && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (valuationExpiryTimerRef.current) {
+                                    clearTimeout(valuationExpiryTimerRef.current);
+                                    valuationExpiryTimerRef.current = null;
+                                  }
+                                  setIsEditingOverride(true);
+                                  setOverrideBrand(activeValuationHit.brand || "");
+                                  setOverrideModel(activeValuationHit.name || "");
+                                  setOverrideTagPrice(
+                                    activeValuationHit.tagPrice
+                                      ? String(activeValuationHit.tagPrice)
+                                      : activeValuationHit.estCost
+                                      ? String(activeValuationHit.estCost)
+                                      : ""
+                                  );
+                                }}
+                                className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 text-[10px] font-black uppercase tracking-wider transition active:scale-95 cursor-pointer shadow-sm"
+                                title="Quickly correct or verify hardware generation"
+                              >
+                                <Edit3 className="w-3 h-3" />
+                                <span>Fix Model</span>
+                              </button>
+                            )}
+                            {activeValuationHit.fallbackProtocol === "SCAN_BARCODE" ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActiveValuationHit(null);
+                                  setFrozenFrameUrl(null);
+                                  setScanMode("barcode");
+                                  toast.info("Switched to Barcode Mode for precision verification.");
+                                }}
+                                className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-[10px] font-black uppercase tracking-wider transition active:scale-95 cursor-pointer shadow-sm"
+                              >
+                                <Barcode className="w-3 h-3" />
+                                <span>Barcode</span>
+                              </button>
+                            ) : activeValuationHit.fallbackProtocol === "ZOOM_LABEL" ? (
                             <button
                               type="button"
                               onClick={() => {
@@ -4310,21 +4337,22 @@ function SpadasLensCameraCore({
                               <Camera className="w-3 h-3" />
                               <span>Zoom Tag</span>
                             </button>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setActiveValuationHit(null);
-                                setFrozenFrameUrl(null);
-                                toast.info("Capturing second angle for verification.");
-                                void processCurrentFrame(true);
-                              }}
-                              className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-[10px] font-black uppercase tracking-wider transition active:scale-95 cursor-pointer shadow-sm"
-                            >
-                              <Camera className="w-3 h-3" />
-                              <span>2nd Angle</span>
-                            </button>
-                          )}
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActiveValuationHit(null);
+                                  setFrozenFrameUrl(null);
+                                  toast.info("Capturing second angle for verification.");
+                                  void processCurrentFrame(true);
+                                }}
+                                className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-[10px] font-black uppercase tracking-wider transition active:scale-95 cursor-pointer shadow-sm"
+                              >
+                                <Camera className="w-3 h-3" />
+                                <span>2nd Angle</span>
+                              </button>
+                            )}
+                          </div>
                         </div>
                       )}
 

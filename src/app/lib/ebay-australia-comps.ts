@@ -123,17 +123,131 @@ const FX_RATES: Record<string, Record<SupportedCurrency, number>> = {
 };
 
 /**
- * Builds prioritized search variations from a product title to maximize exact and category comp matches.
+ * Detects next-gen hardware, sequel numerals, and generational suffixes to prevent legacy comp collapse.
  */
-function buildSearchQueries(productName: string): string[] {
-  const clean = productName
+export interface GenerationProfile {
+  isNextGen: boolean;
+  generationToken: string; // e.g. "2", "Pro", "OLED", "Series X", "Quest 3"
+  cleanBaseProduct: string; // e.g. "Nintendo Switch", "PlayStation 5", "Xbox"
+  exactGenerationalQuery: string; // e.g. "Nintendo Switch 2", "PS5 Pro"
+}
+
+export function detectGenerationProfile(productName: string, generationHint?: string | null): GenerationProfile | null {
+  const text = `${productName || ""} ${generationHint || ""}`.trim();
+  if (!text) return null;
+  const lower = text.toLowerCase();
+
+  // 1. Nintendo Switch 2 / Next-Gen Switch (sequel numeral "2")
+  if (/\b(switch\s*2|switch\s*ii)\b/i.test(text) || (/\bswitch\b/i.test(text) && /\b(2|ii|next[\s-]?gen)\b/i.test(text))) {
+    return {
+      isNextGen: true,
+      generationToken: "2",
+      cleanBaseProduct: "Nintendo Switch",
+      exactGenerationalQuery: "Nintendo Switch 2",
+    };
+  }
+
+  // 2. PlayStation 5 Pro
+  if (/\b(ps5\s*pro|playstation\s*5\s*pro)\b/i.test(text)) {
+    return {
+      isNextGen: true,
+      generationToken: "Pro",
+      cleanBaseProduct: "PlayStation 5",
+      exactGenerationalQuery: "PS5 Pro",
+    };
+  }
+
+  // 3. PlayStation 5 Slim
+  if (/\b(ps5\s*slim|playstation\s*5\s*slim)\b/i.test(text)) {
+    return {
+      isNextGen: true,
+      generationToken: "Slim",
+      cleanBaseProduct: "PlayStation 5",
+      exactGenerationalQuery: "PS5 Slim",
+    };
+  }
+
+  // 4. Xbox Series X / Series S
+  if (/\bxbox\s*series\s*x\b/i.test(text)) {
+    return {
+      isNextGen: true,
+      generationToken: "Series X",
+      cleanBaseProduct: "Xbox",
+      exactGenerationalQuery: "Xbox Series X",
+    };
+  }
+  if (/\bxbox\s*series\s*s\b/i.test(text)) {
+    return {
+      isNextGen: true,
+      generationToken: "Series S",
+      cleanBaseProduct: "Xbox",
+      exactGenerationalQuery: "Xbox Series S",
+    };
+  }
+
+  // 5. Meta / Oculus Quest 3
+  if (/\b(quest\s*3|meta\s*quest\s*3)\b/i.test(text)) {
+    return {
+      isNextGen: true,
+      generationToken: "3",
+      cleanBaseProduct: "Meta Quest",
+      exactGenerationalQuery: "Meta Quest 3",
+    };
+  }
+
+  // 6. AirPods Pro 2 / 2nd Gen
+  if (/\bairpods\s*pro\s*2\b/i.test(text) || (/\bairpods\s*pro\b/i.test(text) && /\b(2nd\s*gen|gen\s*2|2)\b/i.test(text))) {
+    return {
+      isNextGen: true,
+      generationToken: "2",
+      cleanBaseProduct: "AirPods Pro",
+      exactGenerationalQuery: "AirPods Pro 2",
+    };
+  }
+
+  // 7. General hardware with explicit sequel number or generation suffix (e.g. "Steam Deck OLED", "Switch OLED")
+  if (/\b(oled)\b/i.test(text) && /\b(switch|steam\s*deck)\b/i.test(text)) {
+    return {
+      isNextGen: true,
+      generationToken: "OLED",
+      cleanBaseProduct: text.toLowerCase().includes("switch") ? "Nintendo Switch" : "Steam Deck",
+      exactGenerationalQuery: text.toLowerCase().includes("switch") ? "Nintendo Switch OLED" : "Steam Deck OLED",
+    };
+  }
+
+  return null;
+}
+
+/**
+ * Builds prioritized search variations from a product title to maximize exact and category comp matches.
+ * Strictly enforces next-gen hardware generation indicators, ensuring relaxed queries never drop sequel suffixes.
+ */
+export function buildSearchQueries(productName: string, generationHint?: string | null): string[] {
+  let clean = productName
     .replace(/["'’]/g, "")
     .replace(/\b(model|item|authentic|genuine|used|pre-owned|tested|working|vintage|retro|clean|great|condition)\b/gi, "")
     .replace(/\s+/g, " ")
     .trim();
 
+  const genProfile = detectGenerationProfile(clean, generationHint);
+
+  // If a generational profile is detected but missing from clean title, enforce appending it
+  if (genProfile && !clean.toLowerCase().includes(genProfile.generationToken.toLowerCase())) {
+    clean = `${clean} ${genProfile.generationToken}`.trim();
+  }
+
   const lower = clean.toLowerCase();
   const queries: string[] = [];
+
+  // NEXT-GEN HARDWARE GENERATION PRIORITY QUERIES:
+  // Inject exact generational queries FIRST so sold comps target next-gen data rather than legacy fallbacks
+  if (genProfile) {
+    queries.push(`${genProfile.exactGenerationalQuery} Console`);
+    queries.push(genProfile.exactGenerationalQuery);
+    if (!genProfile.exactGenerationalQuery.toLowerCase().includes("nintendo") && genProfile.cleanBaseProduct.includes("Switch")) {
+      queries.push(`Nintendo ${genProfile.exactGenerationalQuery}`);
+    }
+  }
 
   // 1. Luxury designer extraction (e.g. Prada, Gucci, Louis Vuitton, Chanel, Dior, YSL, Bottega Veneta)
   const luxuryBrands = [
@@ -169,12 +283,20 @@ function buildSearchQueries(productName: string): string[] {
     }
   }
 
-  // 2. Direct cleaned query (up to 5-6 core words)
+  // 2. Direct cleaned query (up to 5-6 core words) with GENERATION-PRESERVING RELAXATION
   const words = clean.split(" ").filter((w) => w.length >= 2);
   if (words.length > 0) {
-    queries.push(words.slice(0, 5).join(" "));
+    const slice5 = words.slice(0, 5).join(" ");
+    queries.push(slice5);
+
     if (words.length > 3) {
-      queries.push(words.slice(0, 3).join(" "));
+      let slice3 = words.slice(0, 3).join(" ");
+      // GENERATION PRESERVATION GUARD:
+      // If next-gen profile is active and slice3 dropped the generation token, force append it!
+      if (genProfile && !slice3.toLowerCase().includes(genProfile.generationToken.toLowerCase())) {
+        slice3 = `${slice3} ${genProfile.generationToken}`;
+      }
+      queries.push(slice3);
     }
   }
 
@@ -182,7 +304,20 @@ function buildSearchQueries(productName: string): string[] {
   queries.push(clean);
 
   // Return unique non-empty queries
-  return Array.from(new Set(queries.filter((q) => q.trim().length >= 3)));
+  const unique = Array.from(new Set(queries.filter((q) => q.trim().length >= 3)));
+
+  // If next-gen profile exists, strictly filter out any relaxed query that dropped the generation token
+  if (genProfile) {
+    return unique.filter((q) => {
+      const qLower = q.toLowerCase();
+      return (
+        qLower.includes(genProfile.generationToken.toLowerCase()) ||
+        qLower.includes(genProfile.exactGenerationalQuery.toLowerCase())
+      );
+    });
+  }
+
+  return unique;
 }
 
 /**
@@ -190,11 +325,13 @@ function buildSearchQueries(productName: string): string[] {
  */
 export async function fetchEbayAustraliaSoldComps(
   productName: string,
-  targetCurrency: SupportedCurrency = "AUD"
+  targetCurrency: SupportedCurrency = "AUD",
+  generationHint?: string | null
 ): Promise<EbayCompsResult | null> {
-  const searchQueries = buildSearchQueries(productName);
+  const searchQueries = buildSearchQueries(productName, generationHint);
   if (searchQueries.length === 0) return null;
 
+  const genProfile = detectGenerationProfile(productName, generationHint);
   const isQueryMultiPack = /\b(pack|lot|bundle|set|box|bulk|\d+x|\d+\s*pk)\b/i.test(productName);
   const isLuxury = /\b(prada|gucci|louis vuitton|chanel|dior|bottega|saint laurent|ysl|hermes|celine|balenciaga|burberry)\b/i.test(productName);
 
@@ -220,6 +357,34 @@ export async function fetchEbayAustraliaSoldComps(
 
     // Luxury threshold
     if (isLuxury && price < 20) return false;
+
+    // HARDWARE GENERATION & SEQUEL PARITY GUARD:
+    // When searching for next-gen hardware, reject legacy base models that lack the generation indicator!
+    if (genProfile) {
+      if (genProfile.exactGenerationalQuery === "Nintendo Switch 2" || (genProfile.generationToken === "2" && lower.includes("switch"))) {
+        // Must contain "2" or "switch 2"
+        const hasSwitch2 = /\b(switch\s*2|switch\s*ii|\b2\b)\b/i.test(lower);
+        if (!hasSwitch2) {
+          return false; // Reject legacy Switch 1, V1, V2, and non-2 OLED
+        }
+        // Reject legacy Switch OLED or Lite without 2
+        if (/\b(oled|lite)\b/i.test(lower) && !/\b(switch\s*2|\b2\b)\b/i.test(lower)) {
+          return false;
+        }
+      } else if (genProfile.generationToken.toLowerCase() === "pro") {
+        if (!/\bpro\b/i.test(lower)) return false;
+        if (genProfile.exactGenerationalQuery.includes("PS5") && /\bps4\b/i.test(lower)) return false;
+      } else if (genProfile.generationToken.toLowerCase() === "series x") {
+        if (!/\bseries\s*x\b/i.test(lower)) return false;
+        if (/\b(one\s*x|one\s*s|xbox\s*one)\b/i.test(lower)) return false;
+      } else if (genProfile.generationToken.toLowerCase() === "series s") {
+        if (!/\bseries\s*s\b/i.test(lower)) return false;
+        if (/\b(one\s*x|one\s*s|xbox\s*one)\b/i.test(lower)) return false;
+      } else if (genProfile.generationToken.toLowerCase() === "3" && lower.includes("quest")) {
+        if (!/\b(quest\s*3|\b3\b)\b/i.test(lower)) return false;
+        if (/\b(quest\s*2|quest\s*1)\b/i.test(lower)) return false;
+      }
+    }
 
     // Single-Item Parity: reject multi-packs, wholesale bundles, bulk lots if query is a single item
     if (!isQueryMultiPack) {
