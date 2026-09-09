@@ -45,7 +45,6 @@ import { DeepVerifyModal } from "@/components/deep-verify-modal";
 import LensHitCard from "@/components/lens-hit-card";
 import LensControlsBar from "@/components/lens-controls-bar";
 import LensCompsModal from "@/components/lens-comps-modal";
-import { TransparentSoldCompsLedger } from "@/components/transparent-sold-comps-ledger";
 import { estimateCategoryShippingCost, calculateThriftCopVerdict } from "@/lib/thrift-cop-engine";
 import { checkNeedsVerification } from "@/lib/forensic-knowledge";
 import { GuestScanHud } from "@/components/guest-scan-hud";
@@ -79,7 +78,7 @@ import {
 import type { DetectedHit, ActiveScanItem, CopVerdict } from "@/types/lens";
 export type { DetectedHit, ActiveScanItem, CopVerdict } from "@/types/lens";
 import { processFrameForVision, poolConsecutiveFrames, createMultiFrameComposite } from "@/lib/image-preprocessor";
-import { ScanProgressiveLoader } from "@/components/scan-progressive-loader";
+import { ScanProgressiveLoader, type ScanStage } from "@/components/scan-progressive-loader";
 import {
   resolveSpatialMetadata,
   getPredictiveQueryForCategory,
@@ -379,10 +378,12 @@ function SpadasLensCameraCore({
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [isCameraPoweredOn, setIsCameraPoweredOn] = useState<boolean>(true);
   const [scanning, setScanning] = useState(true);
+  const [isScanning, setIsScanning] = useState<boolean>(false);
+  const isScanningRef = useRef<boolean>(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [autoScanActive, setAutoScanActive] = useState(false);
   const [analyzingRealFrame, setAnalyzingRealFrame] = useState(false);
-  const [scanStage, setScanStage] = useState<"vision" | "comps" | "profit" | "complete">("vision");
+  const [scanStage, setScanStage] = useState<ScanStage>("idle");
   const [pendingIdentifiedItem, setPendingIdentifiedItem] = useState<{
     productName: string;
     brand?: string;
@@ -404,6 +405,8 @@ function SpadasLensCameraCore({
   const valuationExpiryTimerRef = useRef<NodeJS.Timeout | null>(null);
   const scanExpiryTimerRef = useRef<NodeJS.Timeout | null>(null);
   const activeAbortControllerRef = useRef<AbortController | null>(null);
+  const activeStreamReaderRef = useRef<ReadableStreamDefaultReader<Uint8Array> | null>(null);
+  const activeRafIdRef = useRef<number | null>(null);
   const activeCycleIdRef = useRef<number>(0);
   const analyzingRef = useRef(false);
   const [scanRetryPrompt, setScanRetryPrompt] = useState<{ message: string; canRetry: boolean } | null>(null);
@@ -447,6 +450,30 @@ function SpadasLensCameraCore({
   const [shutterFlash, setShutterFlash] = useState<boolean>(false);
   const [networkLatencyMs, setNetworkLatencyMs] = useState<number | null>(null);
 
+  // User-facing Barcode Lock State (persisted to localStorage)
+  const [enableBarcodeLock, setEnableBarcodeLock] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("spadas_barcode_lock");
+      if (saved !== null) return saved === "true";
+    }
+    return false; // Default disabled: standard visual scanning runs uninterrupted!
+  });
+
+  const handleToggleBarcodeLock = useCallback(() => {
+    setEnableBarcodeLock((prev) => {
+      const next = !prev;
+      if (typeof window !== "undefined") {
+        localStorage.setItem("spadas_barcode_lock", String(next));
+      }
+      toast.success(
+        next
+          ? "🎯 Barcode Lock ON: Continuous Barcode Auto-Lock Active"
+          : "👁️ Barcode Lock OFF: Standard Visual Scanning Uninterrupted"
+      );
+      return next;
+    });
+  }, []);
+
   // Category Biasing via Geolocation & Spatial Metadata
   const [categoryBias, setCategoryBias] = useState<CategoryBiasOption>("auto");
   const [spatialMetadata, setSpatialMetadata] = useState<SpatialMetadata | null>(null);
@@ -455,9 +482,9 @@ function SpadasLensCameraCore({
     void resolveSpatialMetadata(categoryBias).then(setSpatialMetadata);
   }, [categoryBias]);
 
-  // 1. Immediate State Flush on New Scan: Instantly wipes valuation states, active stream tokens, and progressive loader flags to zero
-  const flushScanState = useCallback(() => {
-    // Abort active in-flight NDJSON stream / fetch request
+  // 1. Immediate State Flush on New Scan / Stop: Instantly wipes valuation states, active stream tokens, unblocks promise chains, and resets progressive loader flags
+  const flushScanState = useCallback((targetStage: ScanStage = "idle") => {
+    // Abort active in-flight NDJSON stream / fetch request to immediately unblock promise chains
     if (activeAbortControllerRef.current) {
       try {
         activeAbortControllerRef.current.abort();
@@ -465,10 +492,24 @@ function SpadasLensCameraCore({
       activeAbortControllerRef.current = null;
     }
 
+    // Unblock active ReadableStream reader immediately
+    if (activeStreamReaderRef.current) {
+      try {
+        void activeStreamReaderRef.current.cancel();
+      } catch {}
+      activeStreamReaderRef.current = null;
+    }
+
+    // Cancel any active requestAnimationFrame callback
+    if (activeRafIdRef.current) {
+      cancelAnimationFrame(activeRafIdRef.current);
+      activeRafIdRef.current = null;
+    }
+
     // Advance cycle counter to invalidate any pending asynchronous callbacks from previous scans
     activeCycleIdRef.current = ++cycleSeq;
 
-    // Clear active expiration timers
+    // Clear active expiration timers & pulse animations
     if (valuationExpiryTimerRef.current) {
       clearTimeout(valuationExpiryTimerRef.current);
       valuationExpiryTimerRef.current = null;
@@ -477,13 +518,17 @@ function SpadasLensCameraCore({
       clearTimeout(scanExpiryTimerRef.current);
       scanExpiryTimerRef.current = null;
     }
+    if (scanCompletePulseTimerRef.current) {
+      clearTimeout(scanCompletePulseTimerRef.current);
+      scanCompletePulseTimerRef.current = null;
+    }
 
     // Instantly wipe all valuation states, stream tokens, and progressive loader flags to zero
     setActiveValuationHit(null);
     setActiveScans([]);
     setPendingIdentifiedItem(null);
     setActiveCompsHit(null);
-    setScanStage("vision");
+    setScanStage(targetStage);
     setScanRetryPrompt(null);
     setScanFeedback(null);
     setFrozenFrameUrl(null);
@@ -495,6 +540,9 @@ function SpadasLensCameraCore({
     setIsScanPaused(false);
     setAnalyzingRealFrame(false);
     analyzingRef.current = false;
+    setIsLoaderTransitioning(false);
+    setIsScanning(false);
+    isScanningRef.current = false;
   }, []);
 
   // Cleanup abort controller on component unmount
@@ -943,7 +991,10 @@ function SpadasLensCameraCore({
         }
       }, 50);
 
-      // 5. Generous auto-expiry timer so the user has ample time to inspect comps, ROI, and actions
+      // 5. Automatically trigger dedicated full-screen / bottom-sheet Comps Modal Dialog as soon as comps are resolved
+      setActiveCompsHit(hit);
+
+      // 6. Generous auto-expiry timer so the user has ample time to inspect comps, ROI, and actions
       if (valuationExpiryTimerRef.current) {
         clearTimeout(valuationExpiryTimerRef.current);
       }
@@ -1235,6 +1286,8 @@ function SpadasLensCameraCore({
   );
 
   useEffect(() => {
+    // Only prioritize and auto-lock barcodes continuously if Barcode Lock toggle is explicitly active or in barcode mode
+    if (!enableBarcodeLock && scanMode !== "barcode") return;
     if (!stream || !videoRef.current || !isNativeBarcodeDetectorSupported() || isScanPaused) return;
 
     const nativeScanner = createNativeBarcodeScanner(
@@ -1251,7 +1304,7 @@ function SpadasLensCameraCore({
     return () => {
       nativeScanner.stop();
     };
-  }, [stream, handleNativeBarcode, isScanPaused]);
+  }, [stream, handleNativeBarcode, isScanPaused, enableBarcodeLock, scanMode]);
 
   // Safety watchdog to prevent analyzingRealFrame from getting permanently stuck
   useEffect(() => {
@@ -1882,8 +1935,22 @@ function SpadasLensCameraCore({
     }
   }, [stream]);
 
-  // Stop Camera Stream (Releases all hardware locks immediately)
+  // Stop Camera Stream (Releases all hardware locks immediately & halts scanning pipeline)
   const stopCamera = useCallback(() => {
+    // 1. Force flush scanner state: clear timers, unblock promise chains, cancel stream readers & RAF, reset stage to "idle"
+    flushScanState("idle");
+
+    // 2. Force state flags to stopped/idle
+    setIsCameraPoweredOn(false);
+    setScanning(false);
+    setIsScanning(false);
+    isScanningRef.current = false;
+    setActiveScans([]);
+    setAnalyzingRealFrame(false);
+    analyzingRef.current = false;
+    setScanStage("idle");
+
+    // 3. Hardware media stream tracks release
     if (streamRef.current) {
       try {
         streamRef.current.getTracks().forEach((track) => {
@@ -1923,12 +1990,7 @@ function SpadasLensCameraCore({
       }
       videoRef.current.srcObject = null;
     }
-    setIsCameraPoweredOn(false);
-    setScanning(false);
-    setActiveScans([]);
-    setAnalyzingRealFrame(false);
-    analyzingRef.current = false;
-  }, [stream]);
+  }, [stream, flushScanState]);
 
   // Start Camera Stream with mobile-optimized progressive WebRTC constraints & zero-latency reuse
   const startCamera = async () => {
@@ -2050,16 +2112,20 @@ function SpadasLensCameraCore({
       } catch {}
       videoRef.current.srcObject = null;
     }
-    // 3. Clear stream state & camera power
+    // 3. Clear stream state & camera power, flush scanning state to idle
+    flushScanState("idle");
     setStream(null);
     setIsCameraPoweredOn(false);
     setScanning(false);
+    setIsScanning(false);
+    isScanningRef.current = false;
     analyzingRef.current = false;
     setAnalyzingRealFrame(false);
+    setScanStage("idle");
 
     // 4. Open Deep Verify modal
     setDeepVerifyItem(item);
-  }, []);
+  }, [flushScanState]);
 
   const handleCloseDeepVerify = useCallback(() => {
     setDeepVerifyItem(null);
@@ -2114,7 +2180,8 @@ function SpadasLensCameraCore({
 
       // 4. Asynchronous frame capture off the main thread (maintains locked 60 FPS viewfinder with zero stutter)
       const blobPromise = new Promise<Blob>((resolve, reject) => {
-        requestAnimationFrame(() => {
+        const rafId = requestAnimationFrame(() => {
+          activeRafIdRef.current = null;
           try {
             const maxDim = 1280;
             const fullW = video.videoWidth;
@@ -2149,9 +2216,11 @@ function SpadasLensCameraCore({
               }, "image/jpeg", 0.85);
             }
           } catch (err) {
+            activeRafIdRef.current = null;
             reject(err);
           }
         });
+        activeRafIdRef.current = rafId;
       });
 
       // 5. Pipe immediately into QuickSnapQueueService (optimistically adds to haulStore synchronously)
@@ -2168,7 +2237,7 @@ function SpadasLensCameraCore({
   const processCurrentFrame = useCallback(async (forceManual = false) => {
     // 1. Immediate State Flush on Manual Scan (via "Scan Next Item" or the shutter button)
     if (forceManual) {
-      flushScanState();
+      flushScanState("vision");
     } else if (analyzingRef.current) {
       // In automatic mode, prevent concurrent overlapping fetches
       return;
@@ -2184,6 +2253,9 @@ function SpadasLensCameraCore({
     // Instantly transition UI to active scanning & progressive loader in the vision stage
     analyzingRef.current = true;
     setAnalyzingRealFrame(true);
+    setScanning(true);
+    setIsScanning(true);
+    isScanningRef.current = true;
     setScanStage("vision");
     setScanErrorState({ type: null });
     setActiveValuationHit(null);
@@ -2294,8 +2366,14 @@ function SpadasLensCameraCore({
     try {
       let frameDataUrl = instantSnapshotUrl || "";
 
-      // SUB-100MS LOCAL WASM BARCODE PRE-PASS: Scan live video frame for barcodes locally (0ms cloud latency)
-      if ((instantCanvas || video) && typeof window !== "undefined" && "BarcodeDetector" in window) {
+      // SUB-100MS LOCAL WASM BARCODE PRE-PASS:
+      // Only prioritized and auto-locked when Barcode Lock toggle is explicitly active or in barcode mode
+      if (
+        (enableBarcodeLock || scanMode === "barcode") &&
+        (instantCanvas || video) &&
+        typeof window !== "undefined" &&
+        "BarcodeDetector" in window
+      ) {
         try {
           const detector = new (window as any).BarcodeDetector({
             formats: ["ean_13", "ean_8", "upc_a", "upc_e", "qr_code", "code_128", "code_39"],
@@ -2656,111 +2734,112 @@ function SpadasLensCameraCore({
         if (contentType.includes("application/x-ndjson") && res.body) {
           try {
             const reader = res.body.getReader();
+            activeStreamReaderRef.current = reader;
             const decoder = new TextDecoder();
             let buffer = "";
             let isStreamFinished = false;
 
-            while (!isStreamFinished) {
-              if (abortController.signal.aborted || cycleId !== activeCycleIdRef.current) {
-                try { void reader.cancel(); } catch {}
-                return;
-              }
-
-              const { done, value } = await reader.read();
-              if (done) break;
-
-              if (abortController.signal.aborted || cycleId !== activeCycleIdRef.current) {
-                try { void reader.cancel(); } catch {}
-                return;
-              }
-
-              buffer += decoder.decode(value, { stream: true });
-              const lines = buffer.split("\n");
-              buffer = lines.pop() || "";
-
-              for (const line of lines) {
+            try {
+              while (!isStreamFinished) {
                 if (abortController.signal.aborted || cycleId !== activeCycleIdRef.current) {
                   try { void reader.cancel(); } catch {}
                   return;
                 }
 
-                const trimmed = line.trim();
-                if (!trimmed) continue;
-                try {
-                  const chunk = JSON.parse(trimmed);
-                  if (chunk.event === "vision_complete") {
-                    if (abortController.signal.aborted || cycleId !== activeCycleIdRef.current) return;
-                    // Vision processing finished! Immediately transition progressive loader to comps and render card skeleton
-                    const rawPName = chunk.product_name || chunk.analysis?.product_name || "";
-                    if (rawPName && !isVagueOrPartialRead(rawPName)) {
-                      setScanStage("comps");
-                      const pendingObj = {
-                        productName: rawPName,
-                        brand: chunk.brand || chunk.analysis?.brand || "Authentic",
-                        category: chunk.category || chunk.analysis?.category || "General Resale",
-                        condition: chunk.condition || chunk.analysis?.condition || "Used",
-                        bbox: chunk.detected_objects?.[0]?.bbox || { x: 20, y: 20, width: 60, height: 60 },
-                      };
-                      setPendingIdentifiedItem(pendingObj);
+                const { done, value } = await reader.read();
+                if (done) break;
 
-                      // Instantly render lightweight pending card skeleton on camera HUD
-                      const pendingScan: ActiveScanItem = {
-                        id: `pending-${Date.now()}`,
-                        productName: rawPName,
-                        brand: pendingObj.brand,
-                        category: pendingObj.category,
-                        condition: cleanConditionText(pendingObj.condition),
-                        inventoryCondition: "used_working",
-                        defectNotes: [],
-                        asIsDisclaimer: "",
-                        bbox: pendingObj.bbox,
-                        status: "pending",
-                        confidenceScore: 0.95,
-                        timestamp: Date.now(),
-                      };
-                      setActiveScans((prev) => {
-                        const existingValued = prev.find((s) => s.status === "valued");
-                        if (existingValued && Date.now() - existingValued.timestamp < 8000) {
-                          if (getKeywordSimilarity(existingValued.productName, rawPName) >= 0.5) {
-                            return prev;
-                          }
-                          return [existingValued, pendingScan].slice(0, 2);
-                        }
-                        return [pendingScan];
-                      });
-                    }
-                  } else if (chunk.event === "complete") {
-                    if (abortController.signal.aborted || cycleId !== activeCycleIdRef.current) return;
-                    data = chunk.data;
-                    isStreamFinished = true;
-                    break;
-                  } else if (!chunk.event) {
-                    if (abortController.signal.aborted || cycleId !== activeCycleIdRef.current) return;
-                    data = chunk;
-                    isStreamFinished = true;
-                    break;
+                if (abortController.signal.aborted || cycleId !== activeCycleIdRef.current) {
+                  try { void reader.cancel(); } catch {}
+                  return;
+                }
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split("\n");
+                buffer = lines.pop() || "";
+
+                for (const line of lines) {
+                  if (abortController.signal.aborted || cycleId !== activeCycleIdRef.current) {
+                    try { void reader.cancel(); } catch {}
+                    return;
                   }
-                } catch (parseErr) {
-                  console.warn("[Spadas Lens] NDJSON stream parse warning:", parseErr);
+
+                  const trimmed = line.trim();
+                  if (!trimmed) continue;
+                  try {
+                    const chunk = JSON.parse(trimmed);
+                    if (chunk.event === "vision_complete") {
+                      if (abortController.signal.aborted || cycleId !== activeCycleIdRef.current) return;
+                      // Vision processing finished! Immediately transition progressive loader to comps and render card skeleton
+                      const rawPName = chunk.product_name || chunk.analysis?.product_name || "";
+                      if (rawPName && !isVagueOrPartialRead(rawPName)) {
+                        setScanStage("comps");
+                        const pendingObj = {
+                          productName: rawPName,
+                          brand: chunk.brand || chunk.analysis?.brand || "Authentic",
+                          category: chunk.category || chunk.analysis?.category || "General Resale",
+                          condition: chunk.condition || chunk.analysis?.condition || "Used",
+                          bbox: chunk.detected_objects?.[0]?.bbox || { x: 20, y: 20, width: 60, height: 60 },
+                        };
+                        setPendingIdentifiedItem(pendingObj);
+
+                        // Instantly render lightweight pending card skeleton on camera HUD
+                        const pendingScan: ActiveScanItem = {
+                          id: `pending-${Date.now()}`,
+                          productName: rawPName,
+                          brand: pendingObj.brand,
+                          category: pendingObj.category,
+                          condition: cleanConditionText(pendingObj.condition),
+                          inventoryCondition: "used_working",
+                          defectNotes: [],
+                          asIsDisclaimer: "",
+                          bbox: pendingObj.bbox,
+                          status: "pending",
+                          confidenceScore: 0.95,
+                          timestamp: Date.now(),
+                        };
+                        setActiveScans((prev) => {
+                          const existingValued = prev.find((s) => s.status === "valued");
+                          if (existingValued && Date.now() - existingValued.timestamp < 8000) {
+                            if (getKeywordSimilarity(existingValued.productName, rawPName) >= 0.5) {
+                              return prev;
+                            }
+                            return [existingValued, pendingScan].slice(0, 2);
+                          }
+                          return [pendingScan];
+                        });
+                      }
+                    } else if (chunk.event === "complete") {
+                      if (abortController.signal.aborted || cycleId !== activeCycleIdRef.current) return;
+                      data = chunk.data;
+                      isStreamFinished = true;
+                      break;
+                    } else if (!chunk.event) {
+                      if (abortController.signal.aborted || cycleId !== activeCycleIdRef.current) return;
+                      data = chunk;
+                      isStreamFinished = true;
+                      break;
+                    }
+                  } catch (parseErr) {
+                    console.warn("[Spadas Lens] NDJSON stream parse warning:", parseErr);
+                  }
                 }
               }
-            }
 
-            if (!data && buffer.trim()) {
-              try {
-                const chunk = JSON.parse(buffer.trim());
-                if (chunk.event === "complete") {
-                  data = chunk.data;
-                } else if (!chunk.event) {
-                  data = chunk;
-                }
-              } catch {}
+              if (!data && buffer.trim()) {
+                try {
+                  const chunk = JSON.parse(buffer.trim());
+                  if (chunk.event === "complete") {
+                    data = chunk.data;
+                  } else if (!chunk.event) {
+                    data = chunk;
+                  }
+                } catch {}
+              }
+            } finally {
+              activeStreamReaderRef.current = null;
+              try { void reader.cancel(); } catch {}
             }
-
-            // Immediately cancel reader to free HTTP connection without waiting for keepalive timeout
-            try {
-              void reader.cancel();
-            } catch {}
           } catch (streamErr: any) {
             if (streamErr?.name === "AbortError" || abortController.signal.aborted || cycleId !== activeCycleIdRef.current) {
               return;
@@ -4017,10 +4096,10 @@ function SpadasLensCameraCore({
             </div>
 
             {/* Streamlined Non-Obstructing Top Docked Scanning Telemetry (z-35) */}
-            {(analyzingRealFrame || isLoaderTransitioning) && !activeValuationHit && (
+            {(analyzingRealFrame || isLoaderTransitioning) && !activeValuationHit && scanStage !== "idle" && (
               <div className="absolute top-[max(3.5rem,calc(env(safe-area-inset-top,0px)+3.25rem))] left-1/2 -translate-x-1/2 z-35 pointer-events-auto transition-all duration-300 ease-out">
                 <ScanProgressiveLoader
-                  isActive={true}
+                  isActive={analyzingRealFrame}
                   stage={scanStage}
                   isIntelMode={isIntelModeActive}
                   detectedTitle={pendingIdentifiedItem?.productName}
@@ -4384,21 +4463,6 @@ function SpadasLensCameraCore({
                         </div>
                       </div>
 
-                      {/* Transparent Underlying Sold Comps Ledger (3-5 Verified Listings) */}
-                      <TransparentSoldCompsLedger
-                        productName={activeValuationHit.name}
-                        brand={activeValuationHit.brand}
-                        estimatedValue={activeValuationHit.estimatedValue}
-                        rawComps={activeValuationHit.rawComps}
-                        currency={selectedCurrency}
-                        variant="card_embedded"
-                        onOpenCompsModal={() => {
-                          setActiveCompsHit(activeValuationHit);
-                          setActiveValuationHit(null);
-                        }}
-                        className="my-2"
-                      />
-
                       {/* Interactive Action Buttons */}
                       <div className="flex items-center justify-between gap-2 pt-1">
                         <div className="flex items-center gap-1.5 min-w-0">
@@ -4408,10 +4472,11 @@ function SpadasLensCameraCore({
                               setActiveCompsHit(activeValuationHit);
                               setActiveValuationHit(null);
                             }}
-                            className="inline-flex items-center gap-1 bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 px-3 py-1.5 rounded-xl text-[11px] font-bold transition cursor-pointer active:scale-95"
+                            className="inline-flex items-center gap-1.5 bg-gradient-to-r from-cyan-600/30 to-blue-600/30 hover:from-cyan-600/40 hover:to-blue-600/40 text-cyan-300 border border-cyan-500/40 px-3 py-1.5 rounded-xl text-[11px] font-bold transition cursor-pointer active:scale-95 shadow-sm"
+                            title="Open Full Sold Comps Modal Dialog"
                           >
                             <TrendingUp className="h-3.5 w-3.5 text-cyan-400" />
-                            <span>Comps</span>
+                            <span>Comps Modal</span>
                           </button>
 
                           <button
@@ -4877,6 +4942,8 @@ function SpadasLensCameraCore({
           onStop: stopCamera,
           cameraMoving,
           rateLimited,
+          barcodeLock: enableBarcodeLock,
+          onToggleBarcodeLock: handleToggleBarcodeLock,
         }}
         hardware={{
           torchEnabled,

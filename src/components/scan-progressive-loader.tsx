@@ -10,7 +10,7 @@ export interface ScanStep {
   progress: number;
 }
 
-export type ScanStage = "vision" | "comps" | "profit" | "complete";
+export type ScanStage = "idle" | "vision" | "comps" | "profit" | "complete";
 
 const STANDARD_STEPS: ScanStep[] = [
   {
@@ -95,7 +95,7 @@ export function ScanProgressiveLoader({
 
   // Synchronize immediately if explicit stage is provided
   useEffect(() => {
-    if (!isActive) {
+    if (!isActive || stage === "idle") {
       setCurrentStepIndex(0);
       return;
     }
@@ -135,7 +135,7 @@ export function ScanProgressiveLoader({
     };
   }, [isActive, stage]);
 
-  if (!isActive) return null;
+  if (!isActive || stage === "idle") return null;
 
   const currentStep = activeSteps[currentStepIndex] || activeSteps[0];
   const StepIcon = currentStep.icon;
