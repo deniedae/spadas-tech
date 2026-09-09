@@ -24,6 +24,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { LensIntelData } from "@/lib/lens-intel-engine";
+import { TransparentSoldCompsLedger } from "@/components/transparent-sold-comps-ledger";
 import { toast } from "sonner";
 
 export interface LensIntelPanelProps {
@@ -772,6 +773,16 @@ export const LensIntelPanel: React.FC<LensIntelPanelProps> = ({
                 </div>
               )}
             </div>
+
+            {/* Transparent Underlying Sold Comps Evidence Ledger */}
+            <TransparentSoldCompsLedger
+              productName={intel.productName}
+              brand={intel.brand}
+              estimatedValue={intel.estimatedValue}
+              currency={currency}
+              variant="full"
+              className="mt-2"
+            />
 
             {/* Tactical Notes */}
             {intel.tacticalNotes && intel.tacticalNotes.length > 0 && (

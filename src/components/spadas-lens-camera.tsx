@@ -21,6 +21,7 @@ import {
   TrendingUp,
   AlertTriangle,
   Barcode,
+  Edit3,
 } from "lucide-react";
 import { toast } from "sonner";
 import { fmtMoney } from "@/app/lib/listings";
@@ -44,6 +45,8 @@ import { DeepVerifyModal } from "@/components/deep-verify-modal";
 import LensHitCard from "@/components/lens-hit-card";
 import LensControlsBar from "@/components/lens-controls-bar";
 import LensCompsModal from "@/components/lens-comps-modal";
+import { TransparentSoldCompsLedger } from "@/components/transparent-sold-comps-ledger";
+import { estimateCategoryShippingCost, calculateThriftCopVerdict } from "@/lib/thrift-cop-engine";
 import { checkNeedsVerification } from "@/lib/forensic-knowledge";
 import { GuestScanHud } from "@/components/guest-scan-hud";
 import { GuestScanLimitModal } from "@/components/guest-scan-limit-modal";
@@ -390,6 +393,11 @@ function SpadasLensCameraCore({
   const [rateLimited, setRateLimited] = useState(false);
   const [activeScans, setActiveScans] = useState<ActiveScanItem[]>([]);
   const [activeValuationHit, setActiveValuationHit] = useState<DetectedHit | null>(null);
+  const [isEditingOverride, setIsEditingOverride] = useState(false);
+  const [overrideBrand, setOverrideBrand] = useState("");
+  const [overrideModel, setOverrideModel] = useState("");
+  const [overrideTagPrice, setOverrideTagPrice] = useState("");
+  const [isRevaluing, setIsRevaluing] = useState(false);
   const valuationCardRef = useRef<HTMLDivElement | null>(null);
   const [scanCompletePulse, setScanCompletePulse] = useState<boolean>(false);
   const scanCompletePulseTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -1000,6 +1008,108 @@ function SpadasLensCameraCore({
     },
     [activeValuationHit, selectedCurrency, frozenFrameUrl]
   );
+
+  // Inline Quick Brand/Model Manual Override Handler
+  const handleApplyOverride = useCallback(async () => {
+    if (!activeValuationHit) return;
+    const trimmedBrand = overrideBrand.trim();
+    const trimmedModel = overrideModel.trim();
+    const cleanTagPrice = parseFloat(overrideTagPrice) || activeValuationHit.tagPrice || activeValuationHit.estCost || 5;
+
+    if (!trimmedBrand && !trimmedModel) {
+      toast.error("Please enter a brand or model name.");
+      return;
+    }
+
+    if (valuationExpiryTimerRef.current) {
+      clearTimeout(valuationExpiryTimerRef.current);
+      valuationExpiryTimerRef.current = null;
+    }
+
+    setIsRevaluing(true);
+    try {
+      const combinedQuery = `${trimmedBrand ? trimmedBrand + " " : ""}${trimmedModel || activeValuationHit.name}`.trim();
+
+      const { data: sessionData } = await supabase.auth.getSession();
+      const requestHeaders: Record<string, string> = { "Content-Type": "application/json" };
+      if (sessionData?.session?.access_token) {
+        requestHeaders["Authorization"] = `Bearer ${sessionData.session.access_token}`;
+      }
+
+      const res = await resilientFetch(
+        "/api/ai-listing",
+        {
+          method: "POST",
+          headers: requestHeaders,
+          body: JSON.stringify({
+            manualOverride: true,
+            brand: trimmedBrand,
+            model: trimmedModel,
+            itemTitle: combinedQuery,
+            predictedQuery: combinedQuery,
+            category: activeValuationHit.category || "General Resale",
+            tagPrice: cleanTagPrice,
+            currency: selectedCurrency,
+            isArScan: true,
+            imageUrls: frozenFrameUrl || activeValuationHit.image ? [frozenFrameUrl || activeValuationHit.image!] : [],
+          }),
+        },
+        { maxRetries: 1, initialDelayMs: 200 }
+      );
+
+      if (!res || !res.ok) {
+        throw new Error("Failed to re-appraise with overridden details.");
+      }
+
+      const data = await res.json();
+      const newEstValue = data.suggested_price_median || activeValuationHit.estimatedValue;
+      const newComps = data.raw_sold_comps || [];
+
+      // Recalculate true net profit and cop verdict
+      const copEstimate = calculateThriftCopVerdict({
+        resalePrice: newEstValue,
+        customCost: cleanTagPrice,
+        category: activeValuationHit.category || "General Resale",
+        productName: combinedQuery,
+        brand: trimmedBrand,
+        shippingCost: estimateCategoryShippingCost(activeValuationHit.category || "General Resale", combinedQuery),
+      });
+
+      const updatedHit: DetectedHit = {
+        ...activeValuationHit,
+        name: combinedQuery,
+        brand: trimmedBrand || null,
+        estimatedValue: newEstValue,
+        estCost: cleanTagPrice,
+        tagPrice: cleanTagPrice,
+        trueNetProfit: copEstimate.netProfit,
+        estimatedProfit: copEstimate.netProfit,
+        roiPercentage: copEstimate.roiPercentage,
+        estRoi: copEstimate.roiPercentage,
+        copVerdict: copEstimate.copVerdict,
+        rawComps: newComps.length > 0 ? newComps : activeValuationHit.rawComps,
+        compsRange: data.comps_range || activeValuationHit.compsRange,
+        ebayCompsCount: data.ebay_comps_count || newComps.length || activeValuationHit.ebayCompsCount,
+        compsSource: (data as any).comps_source || "sold_comps_api",
+      };
+
+      setActiveValuationHit(updatedHit);
+      setCapturedLog((prev) => [updatedHit, ...prev.filter((h) => h.id !== updatedHit.id)].slice(0, 50));
+      setIsEditingOverride(false);
+      triggerTactileHaptic("success");
+      toast.success(`Valuation updated: ${combinedQuery} (+$${copEstimate.netProfit} Net)`);
+
+      // Reset auto-expiry timer for inspection
+      valuationExpiryTimerRef.current = setTimeout(() => {
+        setActiveValuationHit(null);
+      }, 10000);
+    } catch (err: any) {
+      console.error("[Spadas Lens] Override re-appraisal error:", err);
+      toast.error("Failed to re-appraise. Check network connection.");
+    } finally {
+      setIsRevaluing(false);
+    }
+  }, [activeValuationHit, overrideBrand, overrideModel, overrideTagPrice, selectedCurrency, frozenFrameUrl]);
 
   // Continuous 60 FPS Native Barcode Scanner Loop
   const handleNativeBarcode = useCallback(
@@ -4016,6 +4126,31 @@ function SpadasLensCameraCore({
                                   {activeValuationHit.brand}
                                 </span>
                               )}
+                              {/* Quick Brand/Model Override Pill */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (valuationExpiryTimerRef.current) {
+                                    clearTimeout(valuationExpiryTimerRef.current);
+                                    valuationExpiryTimerRef.current = null;
+                                  }
+                                  setIsEditingOverride(!isEditingOverride);
+                                  setOverrideBrand(activeValuationHit.brand || "");
+                                  setOverrideModel(activeValuationHit.name || "");
+                                  setOverrideTagPrice(
+                                    activeValuationHit.tagPrice
+                                      ? String(activeValuationHit.tagPrice)
+                                      : activeValuationHit.estCost
+                                      ? String(activeValuationHit.estCost)
+                                      : ""
+                                  );
+                                }}
+                                className="inline-flex items-center gap-1 text-[10px] font-bold text-cyan-300 hover:text-white bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 px-2 py-0.5 rounded-full transition cursor-pointer active:scale-95"
+                                title="Correct misidentified brand, hidden model, or price tag"
+                              >
+                                <Edit3 className="w-2.5 h-2.5" />
+                                <span>Override</span>
+                              </button>
                             </div>
                             <h4 className="text-sm font-black text-white truncate leading-tight">
                               {activeValuationHit.name}
@@ -4047,6 +4182,96 @@ function SpadasLensCameraCore({
                           </span>
                         )}
                       </div>
+
+                      {/* Inline Quick Brand/Model Override HUD Form */}
+                      {isEditingOverride && (
+                        <div className="my-2 p-3 rounded-2xl bg-slate-900/95 border border-cyan-500/40 space-y-2.5 animate-in fade-in zoom-in-95 duration-150">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-black text-cyan-300 flex items-center gap-1.5 uppercase tracking-wider">
+                              <Edit3 className="w-3.5 h-3.5" />
+                              <span>Override Brand & Model</span>
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setIsEditingOverride(false)}
+                              className="text-slate-400 hover:text-white p-1 rounded-lg transition cursor-pointer"
+                              title="Cancel Override"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                                Brand Name
+                              </label>
+                              <input
+                                type="text"
+                                value={overrideBrand}
+                                onChange={(e) => setOverrideBrand(e.target.value)}
+                                placeholder="e.g. Nike, Sony, Carhartt"
+                                className="w-full px-2.5 py-1.5 text-xs bg-slate-950 border border-slate-700 rounded-xl text-white placeholder:text-slate-500 focus:outline-none focus:border-cyan-400 font-medium"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                                Tag Cost ($)
+                              </label>
+                              <input
+                                type="number"
+                                step="0.5"
+                                value={overrideTagPrice}
+                                onChange={(e) => setOverrideTagPrice(e.target.value)}
+                                placeholder="e.g. 8.00"
+                                className="w-full px-2.5 py-1.5 text-xs bg-slate-950 border border-slate-700 rounded-xl text-amber-300 placeholder:text-slate-500 focus:outline-none focus:border-amber-400 font-mono font-bold"
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                              Model / Item Title
+                            </label>
+                            <input
+                              type="text"
+                              value={overrideModel}
+                              onChange={(e) => setOverrideModel(e.target.value)}
+                              placeholder="e.g. Air Max 95, J97 Detroit Jacket"
+                              className="w-full px-2.5 py-1.5 text-xs bg-slate-950 border border-slate-700 rounded-xl text-white placeholder:text-slate-500 focus:outline-none focus:border-cyan-400 font-medium"
+                            />
+                          </div>
+
+                          <div className="flex items-center justify-end gap-2 pt-1">
+                            <button
+                              type="button"
+                              onClick={() => setIsEditingOverride(false)}
+                              className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition cursor-pointer"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleApplyOverride}
+                              disabled={isRevaluing}
+                              className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 disabled:opacity-50 text-slate-950 text-xs font-black transition cursor-pointer shadow-md shadow-cyan-500/25 active:scale-95"
+                            >
+                              {isRevaluing ? (
+                                <>
+                                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                  <span>Re-Valuing Comps...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Sparkles className="w-3.5 h-3.5" />
+                                  <span>Re-Appraise Now</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                      )}
 
                       {/* Zero Blind Verdict Fallback Protocol Banner */}
                       {(activeValuationHit.copVerdict === "VERIFY_FIRST" || activeValuationHit.requiresSecondaryVerification) && (
@@ -4130,6 +4355,21 @@ function SpadasLensCameraCore({
                           </span>
                         </div>
                       </div>
+
+                      {/* Transparent Underlying Sold Comps Ledger (3-5 Verified Listings) */}
+                      <TransparentSoldCompsLedger
+                        productName={activeValuationHit.name}
+                        brand={activeValuationHit.brand}
+                        estimatedValue={activeValuationHit.estimatedValue}
+                        rawComps={activeValuationHit.rawComps}
+                        currency={selectedCurrency}
+                        variant="card_embedded"
+                        onOpenCompsModal={() => {
+                          setActiveCompsHit(activeValuationHit);
+                          setActiveValuationHit(null);
+                        }}
+                        className="my-2"
+                      />
 
                       {/* Interactive Action Buttons */}
                       <div className="flex items-center justify-between gap-2 pt-1">
@@ -4329,8 +4569,8 @@ function SpadasLensCameraCore({
                     : "border-cyan-400 animate-pulse shadow-[0_0_10px_rgba(34,211,238,0.5)]"
                 } ${cameraMoving ? "opacity-75 scale-[0.99]" : "opacity-100 scale-100"}`}
               >
-                {/* Subtle AR Reticle Tag with OCR Telemetry */}
-                <div className="absolute -top-7 left-0 flex items-center gap-1.5 bg-slate-950/90 text-white border border-cyan-400/30 rounded-lg px-2 py-0.5 text-[10px] font-bold shadow-lg backdrop-blur-md">
+                {/* Subtle AR Reticle Tag with OCR Telemetry & Quick Override */}
+                <div className="absolute -top-7 left-0 flex items-center gap-1.5 bg-slate-950/90 text-white border border-cyan-400/30 rounded-lg px-2 py-0.5 text-[10px] font-bold shadow-lg backdrop-blur-md pointer-events-auto">
                   <span className={`h-1.5 w-1.5 rounded-full ${scan.status === "valued" ? "bg-emerald-400" : "bg-cyan-400 animate-pulse"}`} />
                   <span className="text-cyan-300 font-mono text-[9px] uppercase tracking-wider">
                     {scan.status === "valued" ? "LOCKED" : "TRACKING"}
@@ -4338,6 +4578,32 @@ function SpadasLensCameraCore({
                   <span className="text-white font-extrabold truncate max-w-[130px]">
                     {scan.productName}
                   </span>
+                  {activeValuationHit && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (valuationExpiryTimerRef.current) {
+                          clearTimeout(valuationExpiryTimerRef.current);
+                          valuationExpiryTimerRef.current = null;
+                        }
+                        setIsEditingOverride(true);
+                        setOverrideBrand(activeValuationHit.brand || "");
+                        setOverrideModel(activeValuationHit.name || "");
+                        setOverrideTagPrice(
+                          activeValuationHit.tagPrice
+                            ? String(activeValuationHit.tagPrice)
+                            : activeValuationHit.estCost
+                            ? String(activeValuationHit.estCost)
+                            : ""
+                        );
+                      }}
+                      className="text-cyan-400 hover:text-white p-0.5 rounded cursor-pointer transition hover:bg-cyan-500/20"
+                      title="Quick Override Brand/Model"
+                    >
+                      <Edit3 className="h-2.5 w-2.5" />
+                    </button>
+                  )}
                   {scan.ocrText && scan.ocrText.length > 0 && (
                     <span className="hidden xs:inline text-amber-300 font-mono text-[8px] bg-amber-400/10 px-1 rounded border border-amber-400/30 max-w-[90px] truncate">
                       OCR: {scan.ocrText[0]}

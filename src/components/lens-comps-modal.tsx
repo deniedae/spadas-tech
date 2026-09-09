@@ -39,6 +39,7 @@ import {
   detectThriftTrap,
   calculateThriftCopVerdict,
 } from "@/lib/thrift-cop-engine";
+import { TransparentSoldCompsLedger } from "@/components/transparent-sold-comps-ledger";
 import type { DetectedHit, ActiveScanItem, RawSoldComp, VariantAudit } from "@/types/lens";
 
 interface LensCompsModalProps {
@@ -616,87 +617,15 @@ export default function LensCompsModal({
             </div>
           </div>
 
-          {/* UNDERLYING RAW SOLD COMPS AUDIT TRAIL LIST */}
-          <div className="rounded-2xl bg-[#07090E] border border-white/[0.08] p-3 space-y-2.5">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-white flex items-center gap-1.5">
-                <CheckCircle2 className="h-4 w-4 text-cyan-400" />
-                <span>Underlying Sold Comps Evidence ({compsCount})</span>
-              </span>
-              <button
-                type="button"
-                onClick={() => setShowRawCompsList(!showRawCompsList)}
-                className="text-[10px] font-mono text-cyan-400 hover:text-cyan-300 transition cursor-pointer"
-              >
-                {showRawCompsList ? "Collapse ▲" : "Inspect ▼"}
-              </button>
-            </div>
-
-            {showRawCompsList && (
-              <div className="space-y-2 pt-1 border-t border-white/[0.04]">
-                {rawComps.length > 0 ? (
-                  rawComps.map((comp, idx) => (
-                    <div
-                      key={comp.id || idx}
-                      className="p-2.5 rounded-xl bg-[#0A0D15] border border-white/[0.04] flex items-center justify-between gap-3 text-xs"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <a
-                          href={comp.url || ebaySoldsUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="font-bold text-zinc-200 hover:text-cyan-300 truncate block leading-tight transition"
-                          title={comp.title}
-                        >
-                          {comp.title}
-                        </a>
-                        <div className="flex items-center gap-2 mt-1 text-[10px] text-zinc-400 font-mono">
-                          {comp.condition && (
-                            <span className="px-1.5 py-0.2 rounded bg-zinc-800 text-zinc-300">
-                              {comp.condition}
-                            </span>
-                          )}
-                          {comp.soldDate && <span>📅 {comp.soldDate}</span>}
-                          <span>
-                            {comp.shippingIncluded ? "📦 Free Post" : comp.shippingPrice ? `+${fmtMoney(comp.shippingPrice)} Post` : "Postage excluded"}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="text-right shrink-0">
-                        <span className="font-mono font-black text-cyan-300 text-sm">
-                          {fmtMoney(comp.price)}
-                        </span>
-                        {comp.url && (
-                          <a
-                            href={comp.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-[10px] text-zinc-500 hover:text-cyan-400 block transition"
-                          >
-                            Listing ↗
-                          </a>
-                        )}
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="py-3 px-2 text-center text-[11px] text-zinc-400 space-y-1">
-                    <p>Live eBay AU sales distribution calibrated from secondary market records.</p>
-                    <a
-                      href={ebaySoldsUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-cyan-400 hover:underline font-bold inline-flex items-center gap-1"
-                    >
-                      <span>View Live eBay AU Solds Registry</span>
-                      <ExternalLink className="h-3 w-3" />
-                    </a>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+          {/* UNDERLYING RAW SOLD COMPS AUDIT TRAIL LIST (Transparent Comps Ledger) */}
+          <TransparentSoldCompsLedger
+            productName={title}
+            brand={brand}
+            estimatedValue={estValue}
+            rawComps={rawComps}
+            currency={(item as any).currency || "AUD"}
+            variant="full"
+          />
 
           {/* In-Aisle Inspection Checklist */}
           <div className="rounded-2xl bg-zinc-950/80 border border-white/[0.08] p-3 space-y-2">

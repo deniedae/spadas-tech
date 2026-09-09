@@ -185,15 +185,16 @@ export async function POST(request: Request) {
       categoryBias?: string;
       predictedQuery?: string;
     };
-    rawImageUrls = imageUrls || [];
+    const isManualOverride = Boolean((body as any)?.manualOverride);
 
-    if (!imageUrls || imageUrls.length === 0) {
+    if (!isManualOverride && (!imageUrls || imageUrls.length === 0)) {
       return NextResponse.json(createEmptyScanResult());
     }
 
     const countryHeader = request.headers.get("x-vercel-ip-country");
     const geoInfo = detectGeoCurrency(countryHeader);
-    const initialTargetCurrency: SupportedCurrency = (body.currency as SupportedCurrency) || geoInfo.currency;
+    const targetCurrency: SupportedCurrency = (body.currency as SupportedCurrency) || geoInfo.currency;
+    const initialTargetCurrency: SupportedCurrency = targetCurrency;
 
     // ── INTELLIGENT PREFETCH: Fire parallel eBay sold comps query the instant optical composite is received ──
     let parallelCompsPromise: Promise<any> | null = null;
@@ -351,7 +352,86 @@ export async function POST(request: Request) {
       }
     }
 
-    const imageContent = imageUrls.map((url) => {
+    let result: AiListingResult | null = null;
+    let activeProvider = isManualOverride ? "manual-override" : "openai-vision";
+
+    if (isManualOverride && ((body as any)?.brand || (body as any)?.model || (body as any)?.itemTitle || predictedQuery)) {
+      const overrideBrand = ((body as any)?.brand || "").trim();
+      const overrideModel = ((body as any)?.model || (body as any)?.itemTitle || predictedQuery || "Item").trim();
+      const overrideName = overrideBrand && !overrideModel.toLowerCase().includes(overrideBrand.toLowerCase())
+        ? `${overrideBrand} ${overrideModel}`
+        : overrideModel;
+      const overrideCategory = ((body as any)?.category || "General Resale").trim();
+      const overrideCondition = ((body as any)?.condition || "Used - Good").trim();
+
+      result = {
+        status: "identified",
+        isMockFallback: false,
+        inventory_condition: "used_working",
+        defect_notes: [],
+        as_is_disclaimer: undefined,
+        detected_objects: [
+          {
+            id: `obj_${Date.now()}`,
+            product_name: overrideName,
+            brand: overrideBrand || null,
+            category: overrideCategory,
+            condition: overrideCondition,
+            bbox: { x: 15, y: 15, width: 70, height: 70 },
+            confidence_score: 0.99,
+          },
+        ],
+        analysis: {
+          status: "identified",
+          visual_reasoning: {
+            visible_text_detected: [overrideBrand, overrideModel].filter(Boolean),
+            physical_object_description: `User manual override: ${overrideName}`,
+            brand_identified: overrideBrand || null,
+            identification_reasoning: `Manual override by user: ${overrideName}`,
+          },
+          product_name: overrideName,
+          brand: overrideBrand || null,
+          model: overrideModel || null,
+          category: overrideCategory,
+          color: null,
+          material: null,
+          condition: overrideCondition,
+          accessories_detected: [],
+          confidence: "high",
+          confidence_score: 0.99,
+        },
+        market_titles: {
+          ebay: `${overrideBrand ? overrideBrand + " " : ""}${overrideModel}`.slice(0, 80),
+          facebook_marketplace: overrideName,
+          vinted: overrideName,
+          depop: overrideName,
+        },
+        seo_description: `Authentic ${overrideName} in ${overrideCondition} condition. Verified via Spadas Lens.`,
+        detailed_description: `Authentic ${overrideName} in ${overrideCondition} condition. Verified via Spadas Lens.`,
+        shipping_estimate: {
+          size: "medium",
+          estimated_weight_grams: 500,
+          dimensions_cm: null,
+          notes: null,
+        },
+        item_specifics: {
+          Brand: overrideBrand || "Authentic",
+          Model: overrideModel,
+          Condition: overrideCondition,
+        },
+        suggested_keywords: [overrideBrand, overrideModel, overrideCategory, "Resale", "Thrift"].filter(Boolean),
+        suggested_price_min: 0,
+        suggested_price_max: 0,
+        suggested_price_median: 0,
+        suggested_price_currency: targetCurrency,
+      };
+
+      if (result && (body as any)?.tagPrice) {
+        result.detected_tag_price = Number((body as any).tagPrice);
+      }
+    }
+
+    const imageContent = (imageUrls || []).map((url) => {
       // Clean base64 strings (remove whitespace/newlines) to prevent OpenAI 400 "unsupported image" errors
       const cleanUrl = url.trim().replace(/[\r\n]/g, "");
       return {
@@ -364,7 +444,7 @@ export async function POST(request: Request) {
     });
 
     const openai = createOpenAiClient();
-    let completion;
+    let completion: any = null;
     let hasCreditOrQuotaError = false;
     const targetModels = isArScan ? AR_SCAN_MODEL_FALLBACKS : LISTING_MODEL_FALLBACKS;
 
@@ -378,10 +458,10 @@ Identify distinct physical products visible in the scene. If no distinct object 
         : `SCAN MODE: TARGETED CENTER RETICLE FOCUS & MULTI-FRAME OPTICAL COMPOSITE.
 Identify ONLY the single primary physical item positioned in the center target reticle (Image 1 is a high-resolution composite synthesized from rapid consecutive frames pooled during movement to eliminate blur, with macro detail insets). Disregard hands, table, floor, and room background.`;
 
-    // Try OpenAI Vision first if key is valid
+    // Try OpenAI Vision first if key is valid and not already overridden
     const hasOpenAiKey = getPrimaryAiApiKey().length > 10 && !getPrimaryAiApiKey().includes("placeholder");
 
-    if (hasOpenAiKey) {
+    if (hasOpenAiKey && !isManualOverride) {
       for (const modelName of targetModels) {
         try {
           const reqParams: any = {
@@ -496,9 +576,8 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
     }
 
     const content = completion?.choices?.[0]?.message?.content;
-    let result: AiListingResult | null = null;
 
-    if (content) {
+    if (content && !result) {
       try {
         result = JSON.parse(content) as AiListingResult;
       } catch {
@@ -506,10 +585,8 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
       }
     }
 
-    let activeProvider = "openai-vision";
-
     // ── MULTI-MODEL CONSENSUS & ARBITRATION (OpenAI Vision + Gemini Flash) ──
-    if (result && hasGeminiVisionKey() && imageUrls.length > 0) {
+    if (result && hasGeminiVisionKey() && (imageUrls || []).length > 0 && !isManualOverride) {
       const openAiBrand = result.analysis?.brand || "";
       const shouldRunConsensus =
         mode === "deep" ||
@@ -519,7 +596,7 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
 
       if (shouldRunConsensus) {
         try {
-          const geminiResult = await callGeminiVision(imageUrls[0]);
+          const geminiResult = await callGeminiVision((imageUrls || [])[0]);
           if (geminiResult && geminiResult.analysis?.product_name) {
             const geminiBrand = geminiResult.analysis?.brand || "";
 
@@ -592,9 +669,9 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
     }
 
     // Fallback to Gemini if OpenAI yielded no result
-    if (!result && imageUrls.length > 0) {
+    if (!result && (imageUrls || []).length > 0) {
       try {
-        const geminiResult = await callGeminiVision(imageUrls[0]);
+        const geminiResult = await callGeminiVision((imageUrls || [])[0]);
         if (geminiResult && geminiResult.analysis?.product_name) {
           result = geminiResult;
           activeProvider = "gemini-flash";
@@ -670,11 +747,9 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
       activeProvider = "offline-heuristics";
     }
 
-    const targetCurrency: SupportedCurrency = initialTargetCurrency;
-
     (result as any).provider = activeProvider;
     (result as any).suggested_price_currency = targetCurrency;
-    if (!result.retake_recommended && result.analysis?.retake_recommended) {
+    if (result && !result.retake_recommended && result.analysis?.retake_recommended) {
       result.retake_recommended = result.analysis.retake_recommended;
     }
 
@@ -1065,7 +1140,7 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
 
     if (user && !isSentinelScan) {
       try {
-        const firstImg = imageUrls[0] || "";
+        const firstImg = (imageUrls || [])[0] || "";
         const sanitizedUrl = firstImg.startsWith("data:")
           ? `data:image/jpeg;base64,...(${firstImg.length} bytes)`
           : firstImg;
