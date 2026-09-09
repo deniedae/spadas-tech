@@ -6,7 +6,6 @@ import { createOpenAiClient, getPrimaryAiApiKey } from "@/app/lib/config/ai-mode
 import { checkNeedsVerification } from "@/lib/forensic-knowledge";
 import { estimateCategoryShippingCost, detectThriftTrap, calculateThriftCopVerdict } from "@/lib/thrift-cop-engine";
 import { calculateSalesVelocity } from "@/lib/turnover-velocity-engine";
-import { detectGenerationProfile } from "@/app/lib/ebay-australia-comps";
 
 export const preferredRegion = "syd1";
 
@@ -148,12 +147,9 @@ RESELLER MARKET RULES & TRAP DETECTION:
    -> Cop Verdict: "PASS_RISKY". Notes: "Fragile ceramic novelty. Shipping exceeds margin."
 4. READ VISIBLE TEXT & BRAND LOGOS FIRST:
    Inspect logos and badges (e.g. TP-Link, Netgear, Linksys, Cisco, Belkin, Anker, Sony, Nintendo, Apple, Logitech, Carhartt, Nike, Patagonia, Ralph Lauren).
-5. NEXT-GEN HARDWARE GENERATION & STRICT BOX ART PARSING:
-   Check for sequel numerals ("2", "3", "4", "5", "6"), "Pro", "OLED", "Slim", "Series X/S", and generation branding accents on packaging or chassis.
-   HARD NEGATIVE CONSTRAINT: Strictly forbidden from classifying next-gen hardware packaging/consoles as legacy base models (e.g. NEVER classify a Switch 2 box/console as an original Switch or OLED model; NEVER classify PS5 Pro as PS5 or AirPods Pro 2 as AirPods Pro 1). Preserve exact generational suffix in product_name.
-6. NEVER MISIDENTIFY COMPUTER/NETWORKING GEAR AS VAPES.
-7. PRECISE TITLES:
-   Formulate accurate title: [Brand] [Model/Type] [Category/Color] (e.g. "Nintendo Switch 2 Console Grey", "TP-Link AC1200 Wi-Fi Range Extender White", "Vintage Carhartt Canvas Work Jacket").
+5. NEVER MISIDENTIFY COMPUTER/NETWORKING GEAR AS VAPES.
+6. PRECISE TITLES:
+   Formulate accurate title: [Brand] [Model/Type] [Category/Color] (e.g. "TP-Link AC1200 Wi-Fi Range Extender White", "Vintage Carhartt Canvas Work Jacket").
 
 Cop Verdict Criteria:
 - "MUST_COP": Net profit >= $40 after shipping & fees.
@@ -214,15 +210,9 @@ Output ONLY valid JSON adhering strictly to:
     const estCost = Number(parsed.thrift_cost) || (estVal <= 5 ? 1 : Math.max(2, Math.round(estVal * 0.15)));
     const ebayFee = estVal * 0.134 + 0.33;
 
-    let pName = parsed.product_name || "Thrift Item";
+    const pName = parsed.product_name || "Thrift Item";
     const pBrand = parsed.brand || "Authentic";
     const pCategory = parsed.category || "General";
-
-    // Enforce Next-Gen Generation Suffix if prominent generational branding exists in notes or product name
-    const genProfile = detectGenerationProfile(pName, parsed.notes);
-    if (genProfile && !pName.toLowerCase().includes(genProfile.generationToken.toLowerCase())) {
-      pName = `${pName} ${genProfile.generationToken}`.trim();
-    }
 
     // Deduct realistic category parcel shipping
     const shippingCost = estimateCategoryShippingCost(pCategory, pName);

@@ -21,7 +21,6 @@ import {
   TrendingUp,
   AlertTriangle,
   Barcode,
-  Edit3,
 } from "lucide-react";
 import { toast } from "sonner";
 import { fmtMoney } from "@/app/lib/listings";
@@ -44,9 +43,7 @@ import CameraOnboardingOverlay from "@/components/camera-onboarding-overlay";
 import { DeepVerifyModal } from "@/components/deep-verify-modal";
 import LensHitCard from "@/components/lens-hit-card";
 import LensControlsBar from "@/components/lens-controls-bar";
-import { TransparentSoldCompsLedger } from "@/components/transparent-sold-comps-ledger";
 import LensCompsModal from "@/components/lens-comps-modal";
-import { estimateCategoryShippingCost, calculateThriftCopVerdict } from "@/lib/thrift-cop-engine";
 import { checkNeedsVerification } from "@/lib/forensic-knowledge";
 import { GuestScanHud } from "@/components/guest-scan-hud";
 import { GuestScanLimitModal } from "@/components/guest-scan-limit-modal";
@@ -79,7 +76,7 @@ import {
 import type { DetectedHit, ActiveScanItem, CopVerdict } from "@/types/lens";
 export type { DetectedHit, ActiveScanItem, CopVerdict } from "@/types/lens";
 import { processFrameForVision, poolConsecutiveFrames, createMultiFrameComposite } from "@/lib/image-preprocessor";
-import { ScanProgressiveLoader, type ScanStage } from "@/components/scan-progressive-loader";
+import { ScanProgressiveLoader } from "@/components/scan-progressive-loader";
 import {
   resolveSpatialMetadata,
   getPredictiveQueryForCategory,
@@ -379,12 +376,10 @@ function SpadasLensCameraCore({
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [isCameraPoweredOn, setIsCameraPoweredOn] = useState<boolean>(true);
   const [scanning, setScanning] = useState(true);
-  const [isScanning, setIsScanning] = useState<boolean>(false);
-  const isScanningRef = useRef<boolean>(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [autoScanActive, setAutoScanActive] = useState(false);
   const [analyzingRealFrame, setAnalyzingRealFrame] = useState(false);
-  const [scanStage, setScanStage] = useState<ScanStage>("idle");
+  const [scanStage, setScanStage] = useState<"vision" | "comps" | "profit" | "complete">("vision");
   const [pendingIdentifiedItem, setPendingIdentifiedItem] = useState<{
     productName: string;
     brand?: string;
@@ -395,19 +390,12 @@ function SpadasLensCameraCore({
   const [rateLimited, setRateLimited] = useState(false);
   const [activeScans, setActiveScans] = useState<ActiveScanItem[]>([]);
   const [activeValuationHit, setActiveValuationHit] = useState<DetectedHit | null>(null);
-  const [isEditingOverride, setIsEditingOverride] = useState(false);
-  const [overrideBrand, setOverrideBrand] = useState("");
-  const [overrideModel, setOverrideModel] = useState("");
-  const [overrideTagPrice, setOverrideTagPrice] = useState("");
-  const [isRevaluing, setIsRevaluing] = useState(false);
   const valuationCardRef = useRef<HTMLDivElement | null>(null);
   const [scanCompletePulse, setScanCompletePulse] = useState<boolean>(false);
   const scanCompletePulseTimerRef = useRef<NodeJS.Timeout | null>(null);
   const valuationExpiryTimerRef = useRef<NodeJS.Timeout | null>(null);
   const scanExpiryTimerRef = useRef<NodeJS.Timeout | null>(null);
   const activeAbortControllerRef = useRef<AbortController | null>(null);
-  const activeStreamReaderRef = useRef<ReadableStreamDefaultReader<Uint8Array> | null>(null);
-  const activeRafIdRef = useRef<number | null>(null);
   const activeCycleIdRef = useRef<number>(0);
   const analyzingRef = useRef(false);
   const [scanRetryPrompt, setScanRetryPrompt] = useState<{ message: string; canRetry: boolean } | null>(null);
@@ -451,30 +439,6 @@ function SpadasLensCameraCore({
   const [shutterFlash, setShutterFlash] = useState<boolean>(false);
   const [networkLatencyMs, setNetworkLatencyMs] = useState<number | null>(null);
 
-  // User-facing Barcode Lock State (persisted to localStorage)
-  const [enableBarcodeLock, setEnableBarcodeLock] = useState<boolean>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("spadas_barcode_lock");
-      if (saved !== null) return saved === "true";
-    }
-    return false; // Default disabled: standard visual scanning runs uninterrupted!
-  });
-
-  const handleToggleBarcodeLock = useCallback(() => {
-    setEnableBarcodeLock((prev) => {
-      const next = !prev;
-      if (typeof window !== "undefined") {
-        localStorage.setItem("spadas_barcode_lock", String(next));
-      }
-      toast.success(
-        next
-          ? "🎯 Barcode Lock ON: Continuous Barcode Auto-Lock Active"
-          : "👁️ Barcode Lock OFF: Standard Visual Scanning Uninterrupted"
-      );
-      return next;
-    });
-  }, []);
-
   // Category Biasing via Geolocation & Spatial Metadata
   const [categoryBias, setCategoryBias] = useState<CategoryBiasOption>("auto");
   const [spatialMetadata, setSpatialMetadata] = useState<SpatialMetadata | null>(null);
@@ -483,98 +447,47 @@ function SpadasLensCameraCore({
     void resolveSpatialMetadata(categoryBias).then(setSpatialMetadata);
   }, [categoryBias]);
 
-  // Inline Sold Comps State — populates the viewfinder HUD card directly (no modal)
-  const [activeCompsHit, _setActiveCompsHit] = useState<DetectedHit | ActiveScanItem | null>(null);
-  const lastCompsHitRef = useRef<DetectedHit | ActiveScanItem | null>(null);
-
-  const setActiveCompsHit = useCallback((hit: DetectedHit | ActiveScanItem | null) => {
-    if (hit) {
-      lastCompsHitRef.current = hit;
+  // 1. Immediate State Flush on New Scan: Instantly wipes valuation states, active stream tokens, and progressive loader flags to zero
+  const flushScanState = useCallback(() => {
+    // Abort active in-flight NDJSON stream / fetch request
+    if (activeAbortControllerRef.current) {
+      try {
+        activeAbortControllerRef.current.abort();
+      } catch {}
+      activeAbortControllerRef.current = null;
     }
-    _setActiveCompsHit(hit);
+
+    // Advance cycle counter to invalidate any pending asynchronous callbacks from previous scans
+    activeCycleIdRef.current = ++cycleSeq;
+
+    // Clear active expiration timers
+    if (valuationExpiryTimerRef.current) {
+      clearTimeout(valuationExpiryTimerRef.current);
+      valuationExpiryTimerRef.current = null;
+    }
+    if (scanExpiryTimerRef.current) {
+      clearTimeout(scanExpiryTimerRef.current);
+      scanExpiryTimerRef.current = null;
+    }
+
+    // Instantly wipe all valuation states, stream tokens, and progressive loader flags to zero
+    setActiveValuationHit(null);
+    setActiveScans([]);
+    setPendingIdentifiedItem(null);
+    setActiveCompsHit(null);
+    setScanStage("vision");
+    setScanRetryPrompt(null);
+    setScanFeedback(null);
+    setFrozenFrameUrl(null);
+    setLatestApiError(null);
+    setLastRawApiResponse(null);
+    setRetakeRecommendation(null);
+    setSecondaryImagePayload(null);
+    setConfidencePercent(94);
+    setIsScanPaused(false);
+    setAnalyzingRealFrame(false);
+    analyzingRef.current = false;
   }, []);
-
-  // 1. Immediate State Flush on New Scan / Stop: Instantly wipes valuation states, active stream tokens, unblocks promise chains, and resets progressive loader flags
-  const flushScanState = useCallback(
-    (
-      targetStage: ScanStage = "idle",
-      options?: { preserveValuation?: boolean; preserveComps?: boolean; resetComps?: boolean }
-    ) => {
-      // Abort active in-flight NDJSON stream / fetch request to immediately unblock promise chains
-      if (activeAbortControllerRef.current) {
-        try {
-          activeAbortControllerRef.current.abort();
-        } catch {}
-        activeAbortControllerRef.current = null;
-      }
-
-      // Unblock active ReadableStream reader immediately
-      if (activeStreamReaderRef.current) {
-        try {
-          void activeStreamReaderRef.current.cancel();
-        } catch {}
-        activeStreamReaderRef.current = null;
-      }
-
-      // Cancel any active requestAnimationFrame callback
-      if (activeRafIdRef.current) {
-        cancelAnimationFrame(activeRafIdRef.current);
-        activeRafIdRef.current = null;
-      }
-
-      // Advance cycle counter to invalidate any pending asynchronous callbacks from previous scans
-      activeCycleIdRef.current = ++cycleSeq;
-
-      // Clear active expiration timers & pulse animations
-      if (valuationExpiryTimerRef.current) {
-        clearTimeout(valuationExpiryTimerRef.current);
-        valuationExpiryTimerRef.current = null;
-      }
-      if (scanExpiryTimerRef.current) {
-        clearTimeout(scanExpiryTimerRef.current);
-        scanExpiryTimerRef.current = null;
-      }
-      if (scanCompletePulseTimerRef.current) {
-        clearTimeout(scanCompletePulseTimerRef.current);
-        scanCompletePulseTimerRef.current = null;
-      }
-
-      // Guard against race conditions: Never wipe valuation results if preserveValuation is requested
-      if (!options?.preserveValuation && !isIntelPanelOpenRef.current) {
-        setActiveValuationHit(null);
-      }
-      setActiveScans([]);
-      setPendingIdentifiedItem(null);
-
-      // Only clear comps hit when explicitly commanded (e.g. user taps "Scan Next Item")
-      if (options?.resetComps) {
-        _setActiveCompsHit(null);
-        _setIsIntelPanelOpen(false);
-        isIntelPanelOpenRef.current = false;
-      }
-
-      setScanStage(targetStage);
-      setScanRetryPrompt(null);
-      setScanFeedback(null);
-      if (!options?.preserveValuation && !isIntelPanelOpenRef.current) {
-        setFrozenFrameUrl(null);
-      }
-      setLatestApiError(null);
-      setLastRawApiResponse(null);
-      setRetakeRecommendation(null);
-      setSecondaryImagePayload(null);
-      setConfidencePercent(94);
-      if (!isIntelPanelOpenRef.current) {
-        setIsScanPaused(false);
-      }
-      setAnalyzingRealFrame(false);
-      analyzingRef.current = false;
-      setIsLoaderTransitioning(false);
-      setIsScanning(false);
-      isScanningRef.current = false;
-    },
-    []
-  );
 
   // Cleanup abort controller on component unmount
   useEffect(() => {
@@ -610,21 +523,9 @@ function SpadasLensCameraCore({
     }
     return detectGeoCurrency().currency;
   });
-
-  const [isIntelModeActive, _setIsIntelModeActive] = useState<boolean>(false);
-  const isIntelModeActiveRef = useRef<boolean>(false);
-  const setIsIntelModeActive = useCallback((active: boolean) => {
-    isIntelModeActiveRef.current = active;
-    _setIsIntelModeActive(active);
-  }, []);
-
+  const [isIntelModeActive, setIsIntelModeActive] = useState<boolean>(false);
   const [activeIntelData, setActiveIntelData] = useState<LensIntelData | null>(null);
-  const [isIntelPanelOpen, _setIsIntelPanelOpen] = useState<boolean>(false);
-  const isIntelPanelOpenRef = useRef<boolean>(false);
-  const setIsIntelPanelOpen = useCallback((open: boolean) => {
-    isIntelPanelOpenRef.current = open;
-    _setIsIntelPanelOpen(open);
-  }, []);
+  const [isIntelPanelOpen, setIsIntelPanelOpen] = useState<boolean>(false);
   const [isIntelAnalyzing, setIsIntelAnalyzing] = useState<boolean>(false);
   const [isRapidDrawerOpen, setIsRapidDrawerOpen] = useState<boolean>(false);
   const rapidQueueRef = useRef<Array<{ item: RapidThriftItem; blob: Blob }>>([]);
@@ -807,6 +708,7 @@ function SpadasLensCameraCore({
   // Scan Stabilization & Dynamic Confidence State
   const [isScanPaused, setIsScanPaused] = useState<boolean>(false);
   const [frozenFrameUrl, setFrozenFrameUrl] = useState<string | null>(null);
+  const [activeCompsHit, setActiveCompsHit] = useState<DetectedHit | ActiveScanItem | null>(null);
   const [confidencePercent, setConfidencePercent] = useState<number>(94);
   const [isLoaderTransitioning, setIsLoaderTransitioning] = useState<boolean>(false);
   const [isValuationCardMounted, setIsValuationCardMounted] = useState<boolean>(false);
@@ -877,8 +779,8 @@ function SpadasLensCameraCore({
       });
       return;
     }
-    // 1. Immediate State Flush on "Scan Next Item": Wipe all valuation states, comps hit, active stream tokens & progressive loader flags
-    flushScanState("idle", { resetComps: true });
+    // 1. Immediate State Flush on "Scan Next Item": Wipe all valuation states, active stream tokens & progressive loader flags
+    flushScanState();
 
     if (videoRef.current && videoRef.current.paused) {
       videoRef.current.play().catch(() => {});
@@ -1033,24 +935,22 @@ function SpadasLensCameraCore({
         }
       }, 50);
 
-      // 5. Explicit Final Step Callback Execution:
-      // Immediately execute guaranteed state update sequence based on active engine mode:
-      if (isIntelModeActiveRef.current || isIntelModeActive) {
-        // Intel Mode: Route cleanly to P2P valuation & Tactical Intel panel
+      // 5. Generous auto-expiry timer so the user has ample time to inspect comps, ROI, and actions
+      if (valuationExpiryTimerRef.current) {
+        clearTimeout(valuationExpiryTimerRef.current);
+      }
+      valuationExpiryTimerRef.current = setTimeout(() => {
+        setActiveValuationHit(null);
+      }, 8500);
+
+      // 6. Standard Lens AR appraisal preserves pure historical eBay sold comps pipeline.
+      // If Intel Mode is active, prepare instant 0ms offline baseline heuristics without calling /api/marketplace-intel over network
+      if (isIntelModeActive) {
         try {
           const baselineIntel = generateTacticalIntel(hit, selectedCurrency);
           setActiveIntelData(baselineIntel);
         } catch {}
-        setIsIntelPanelOpen(true);
-      } else {
-        // Standard Mode: Populate inline comps hit — comps render directly inside the viewfinder HUD card
-        lastCompsHitRef.current = hit;
-        setActiveCompsHit(hit);
       }
-      setIsScanPaused(true);
-
-      // 6. No auto-expiry: card stays locked on screen until user explicitly taps "Scan Next Item" or dismisses
-      // This preserves the fast continuous scanning rhythm without premature result wipes.
     },
     [soundEnabled, playChime, minProfitThreshold, isIntelModeActive, selectedCurrency]
   );
@@ -1066,19 +966,11 @@ function SpadasLensCameraCore({
 
       setIsIntelPanelOpen(true);
 
-      const targetP2p = (target as any).marketplaceIntelligence || (target as any).marketplace_intelligence || (target as any).p2p_intel;
-      if (targetP2p) {
-        try {
-          const base = generateTacticalIntel(target, selectedCurrency);
-          setActiveIntelData({ ...base, marketplaceIntelligence: targetP2p });
-        } catch {}
-      } else {
-        // Instantly seed baseline 0ms heuristics if not already populated
-        try {
-          const baseline = generateTacticalIntel(target, selectedCurrency);
-          setActiveIntelData((prev) => prev || baseline);
-        } catch {}
-      }
+      // Instantly seed baseline 0ms heuristics if not already populated
+      try {
+        const baseline = generateTacticalIntel(target, selectedCurrency);
+        setActiveIntelData((prev) => prev || baseline);
+      } catch {}
 
       // Fire secondary marketplace & off-market intelligence pipeline strictly on-demand
       setIsIntelAnalyzing(true);
@@ -1108,112 +1000,6 @@ function SpadasLensCameraCore({
     },
     [activeValuationHit, selectedCurrency, frozenFrameUrl]
   );
-
-  // Inline Quick Brand/Model Manual Override Handler
-  const handleApplyOverride = useCallback(async () => {
-    if (!activeValuationHit) return;
-    const trimmedBrand = overrideBrand.trim();
-    const trimmedModel = overrideModel.trim();
-    const cleanTagPrice = parseFloat(overrideTagPrice) || activeValuationHit.tagPrice || activeValuationHit.estCost || 5;
-
-    if (!trimmedBrand && !trimmedModel) {
-      toast.error("Please enter a brand or model name.");
-      return;
-    }
-
-    if (valuationExpiryTimerRef.current) {
-      clearTimeout(valuationExpiryTimerRef.current);
-      valuationExpiryTimerRef.current = null;
-    }
-
-    setIsRevaluing(true);
-    try {
-      const combinedQuery = `${trimmedBrand ? trimmedBrand + " " : ""}${trimmedModel || activeValuationHit.name}`.trim();
-
-      const { data: sessionData } = await supabase.auth.getSession();
-      const requestHeaders: Record<string, string> = { "Content-Type": "application/json" };
-      if (sessionData?.session?.access_token) {
-        requestHeaders["Authorization"] = `Bearer ${sessionData.session.access_token}`;
-      }
-
-      const res = await resilientFetch(
-        "/api/ai-listing",
-        {
-          method: "POST",
-          headers: requestHeaders,
-          body: JSON.stringify({
-            manualOverride: true,
-            brand: trimmedBrand,
-            model: trimmedModel,
-            itemTitle: combinedQuery,
-            predictedQuery: (isIntelModeActiveRef.current || isIntelModeActive) ? undefined : combinedQuery,
-            category: activeValuationHit.category || "General Resale",
-            tagPrice: cleanTagPrice,
-            currency: selectedCurrency,
-            isArScan: true,
-            mode: (isIntelModeActiveRef.current || isIntelModeActive) ? "intel" : scanMode,
-            activeEngine: (isIntelModeActiveRef.current || isIntelModeActive) ? "intel" : "ebay",
-            isIntelMode: (isIntelModeActiveRef.current || isIntelModeActive),
-            imageUrls: frozenFrameUrl || activeValuationHit.image ? [frozenFrameUrl || activeValuationHit.image!] : [],
-          }),
-        },
-        { maxRetries: 1, initialDelayMs: 200 }
-      );
-
-      if (!res || !res.ok) {
-        throw new Error("Failed to re-appraise with overridden details.");
-      }
-
-      const data = await res.json();
-      const newEstValue = data.suggested_price_median || activeValuationHit.estimatedValue;
-      const newComps = data.raw_sold_comps || [];
-
-      // Recalculate true net profit and cop verdict
-      const copEstimate = calculateThriftCopVerdict({
-        resalePrice: newEstValue,
-        customCost: cleanTagPrice,
-        category: activeValuationHit.category || "General Resale",
-        productName: combinedQuery,
-        brand: trimmedBrand,
-        shippingCost: estimateCategoryShippingCost(activeValuationHit.category || "General Resale", combinedQuery),
-      });
-
-      const updatedHit: DetectedHit = {
-        ...activeValuationHit,
-        name: combinedQuery,
-        brand: trimmedBrand || null,
-        estimatedValue: newEstValue,
-        estCost: cleanTagPrice,
-        tagPrice: cleanTagPrice,
-        trueNetProfit: copEstimate.netProfit,
-        estimatedProfit: copEstimate.netProfit,
-        roiPercentage: copEstimate.roiPercentage,
-        estRoi: copEstimate.roiPercentage,
-        copVerdict: copEstimate.copVerdict,
-        rawComps: newComps.length > 0 ? newComps : activeValuationHit.rawComps,
-        compsRange: data.comps_range || activeValuationHit.compsRange,
-        ebayCompsCount: data.ebay_comps_count || newComps.length || activeValuationHit.ebayCompsCount,
-        compsSource: (data as any).comps_source || "sold_comps_api",
-      };
-
-      setActiveValuationHit(updatedHit);
-      setActiveCompsHit(updatedHit);
-      setCapturedLog((prev) => [updatedHit, ...prev.filter((h) => h.id !== updatedHit.id)].slice(0, 50));
-      setIsEditingOverride(false);
-      triggerTactileHaptic("success");
-      toast.success(`Valuation updated: ${combinedQuery} (+$${copEstimate.netProfit} Net)`);
-
-      // Reset auto-expiry timer for inspection
-      valuationExpiryTimerRef.current = setTimeout(() => {
-        setActiveValuationHit(null);
-      }, 10000);
-    } catch (err: any) {
-      console.error("[Spadas Lens] Override re-appraisal error:", err);
-      toast.error("Failed to re-appraise. Check network connection.");
-    } finally {
-      setIsRevaluing(false);
-    }
-  }, [activeValuationHit, overrideBrand, overrideModel, overrideTagPrice, selectedCurrency, frozenFrameUrl]);
 
   // Continuous 60 FPS Native Barcode Scanner Loop
   const handleNativeBarcode = useCallback(
@@ -1339,8 +1125,6 @@ function SpadasLensCameraCore({
   );
 
   useEffect(() => {
-    // Only prioritize and auto-lock barcodes continuously if Barcode Lock toggle is explicitly active or in barcode mode
-    if (!enableBarcodeLock && scanMode !== "barcode") return;
     if (!stream || !videoRef.current || !isNativeBarcodeDetectorSupported() || isScanPaused) return;
 
     const nativeScanner = createNativeBarcodeScanner(
@@ -1357,7 +1141,7 @@ function SpadasLensCameraCore({
     return () => {
       nativeScanner.stop();
     };
-  }, [stream, handleNativeBarcode, isScanPaused, enableBarcodeLock, scanMode]);
+  }, [stream, handleNativeBarcode, isScanPaused]);
 
   // Safety watchdog to prevent analyzingRealFrame from getting permanently stuck
   useEffect(() => {
@@ -1988,23 +1772,8 @@ function SpadasLensCameraCore({
     }
   }, [stream]);
 
-  // Stop Camera Stream (Releases all hardware locks immediately & halts scanning pipeline)
+  // Stop Camera Stream (Releases all hardware locks immediately)
   const stopCamera = useCallback(() => {
-    // 1. Force flush scanner state: clear timers, unblock promise chains, cancel stream readers & RAF, reset stage to "idle"
-    // Preserves valuation results & comps modal to prevent race conditions from prematurely wiping data before modal render pass executes
-    flushScanState("idle", { preserveValuation: true, preserveComps: true });
-
-    // 2. Force state flags to stopped/idle
-    setIsCameraPoweredOn(false);
-    setScanning(false);
-    setIsScanning(false);
-    isScanningRef.current = false;
-    setActiveScans([]);
-    setAnalyzingRealFrame(false);
-    analyzingRef.current = false;
-    setScanStage("idle");
-
-    // 3. Hardware media stream tracks release
     if (streamRef.current) {
       try {
         streamRef.current.getTracks().forEach((track) => {
@@ -2044,7 +1813,12 @@ function SpadasLensCameraCore({
       }
       videoRef.current.srcObject = null;
     }
-  }, [stream, flushScanState]);
+    setIsCameraPoweredOn(false);
+    setScanning(false);
+    setActiveScans([]);
+    setAnalyzingRealFrame(false);
+    analyzingRef.current = false;
+  }, [stream]);
 
   // Start Camera Stream with mobile-optimized progressive WebRTC constraints & zero-latency reuse
   const startCamera = async () => {
@@ -2166,20 +1940,16 @@ function SpadasLensCameraCore({
       } catch {}
       videoRef.current.srcObject = null;
     }
-    // 3. Clear stream state & camera power, flush scanning state to idle
-    flushScanState("idle");
+    // 3. Clear stream state & camera power
     setStream(null);
     setIsCameraPoweredOn(false);
     setScanning(false);
-    setIsScanning(false);
-    isScanningRef.current = false;
     analyzingRef.current = false;
     setAnalyzingRealFrame(false);
-    setScanStage("idle");
 
     // 4. Open Deep Verify modal
     setDeepVerifyItem(item);
-  }, [flushScanState]);
+  }, []);
 
   const handleCloseDeepVerify = useCallback(() => {
     setDeepVerifyItem(null);
@@ -2234,8 +2004,7 @@ function SpadasLensCameraCore({
 
       // 4. Asynchronous frame capture off the main thread (maintains locked 60 FPS viewfinder with zero stutter)
       const blobPromise = new Promise<Blob>((resolve, reject) => {
-        const rafId = requestAnimationFrame(() => {
-          activeRafIdRef.current = null;
+        requestAnimationFrame(() => {
           try {
             const maxDim = 1280;
             const fullW = video.videoWidth;
@@ -2270,11 +2039,9 @@ function SpadasLensCameraCore({
               }, "image/jpeg", 0.85);
             }
           } catch (err) {
-            activeRafIdRef.current = null;
             reject(err);
           }
         });
-        activeRafIdRef.current = rafId;
       });
 
       // 5. Pipe immediately into QuickSnapQueueService (optimistically adds to haulStore synchronously)
@@ -2291,7 +2058,7 @@ function SpadasLensCameraCore({
   const processCurrentFrame = useCallback(async (forceManual = false) => {
     // 1. Immediate State Flush on Manual Scan (via "Scan Next Item" or the shutter button)
     if (forceManual) {
-      flushScanState("vision");
+      flushScanState();
     } else if (analyzingRef.current) {
       // In automatic mode, prevent concurrent overlapping fetches
       return;
@@ -2307,9 +2074,6 @@ function SpadasLensCameraCore({
     // Instantly transition UI to active scanning & progressive loader in the vision stage
     analyzingRef.current = true;
     setAnalyzingRealFrame(true);
-    setScanning(true);
-    setIsScanning(true);
-    isScanningRef.current = true;
     setScanStage("vision");
     setScanErrorState({ type: null });
     setActiveValuationHit(null);
@@ -2420,14 +2184,8 @@ function SpadasLensCameraCore({
     try {
       let frameDataUrl = instantSnapshotUrl || "";
 
-      // SUB-100MS LOCAL WASM BARCODE PRE-PASS:
-      // Only prioritized and auto-locked when Barcode Lock toggle is explicitly active or in barcode mode
-      if (
-        (enableBarcodeLock || scanMode === "barcode") &&
-        (instantCanvas || video) &&
-        typeof window !== "undefined" &&
-        "BarcodeDetector" in window
-      ) {
+      // SUB-100MS LOCAL WASM BARCODE PRE-PASS: Scan live video frame for barcodes locally (0ms cloud latency)
+      if ((instantCanvas || video) && typeof window !== "undefined" && "BarcodeDetector" in window) {
         try {
           const detector = new (window as any).BarcodeDetector({
             formats: ["ean_13", "ean_8", "upc_a", "upc_e", "qr_code", "code_128", "code_39"],
@@ -2732,11 +2490,9 @@ function SpadasLensCameraCore({
         imagePayloads = [secondaryImagePayload, ...imagePayloads];
       }
 
-      // Intelligent Prefetch Queue: Retrieve cached category query template and fire parallel comps query (Only when NOT Intel Mode)
+      // Intelligent Prefetch Queue: Retrieve cached category query template and fire parallel comps query
       const predictiveQuery = getPredictiveQueryForCategory(categoryBias);
-      if (!isIntelModeActiveRef.current && !isIntelModeActive) {
-        void fireParallelCompsQuery(predictiveQuery, selectedCurrency);
-      }
+      void fireParallelCompsQuery(predictiveQuery, selectedCurrency);
 
       let res: Response | null = null;
       console.log('[Spadas Lens]', cycleId, 'Starting resilient fetch for frame with analyzingRealFrame:', analyzingRealFrame);
@@ -2761,13 +2517,11 @@ function SpadasLensCameraCore({
           imageUrls: imagePayloads,
           isArScan: true,
           currency: selectedCurrency,
-          mode: (isIntelModeActiveRef.current || isIntelModeActive) ? "intel" : scanMode,
-          activeEngine: (isIntelModeActiveRef.current || isIntelModeActive) ? "intel" : "ebay",
-          isIntelMode: (isIntelModeActiveRef.current || isIntelModeActive),
+          mode: scanMode,
           stream: true,
           spatialMetadata,
           categoryBias,
-          predictedQuery: (isIntelModeActiveRef.current || isIntelModeActive) ? undefined : predictiveQuery,
+          predictedQuery: predictiveQuery,
         }),
       }, { maxRetries: 2, initialDelayMs: 300 }).catch((e) => {
         if (e?.name === "AbortError" || abortController.signal.aborted) {
@@ -2792,112 +2546,111 @@ function SpadasLensCameraCore({
         if (contentType.includes("application/x-ndjson") && res.body) {
           try {
             const reader = res.body.getReader();
-            activeStreamReaderRef.current = reader;
             const decoder = new TextDecoder();
             let buffer = "";
             let isStreamFinished = false;
 
-            try {
-              while (!isStreamFinished) {
-                if (abortController.signal.aborted || cycleId !== activeCycleIdRef.current) {
-                  try { void reader.cancel(); } catch {}
-                  return;
-                }
-
-                const { done, value } = await reader.read();
-                if (done) break;
-
-                if (abortController.signal.aborted || cycleId !== activeCycleIdRef.current) {
-                  try { void reader.cancel(); } catch {}
-                  return;
-                }
-
-                buffer += decoder.decode(value, { stream: true });
-                const lines = buffer.split("\n");
-                buffer = lines.pop() || "";
-
-                for (const line of lines) {
-                  if (abortController.signal.aborted || cycleId !== activeCycleIdRef.current) {
-                    try { void reader.cancel(); } catch {}
-                    return;
-                  }
-
-                  const trimmed = line.trim();
-                  if (!trimmed) continue;
-                  try {
-                    const chunk = JSON.parse(trimmed);
-                    if (chunk.event === "vision_complete") {
-                      if (abortController.signal.aborted || cycleId !== activeCycleIdRef.current) return;
-                      // Vision processing finished! Immediately transition progressive loader to comps and render card skeleton
-                      const rawPName = chunk.product_name || chunk.analysis?.product_name || "";
-                      if (rawPName && !isVagueOrPartialRead(rawPName)) {
-                        setScanStage("comps");
-                        const pendingObj = {
-                          productName: rawPName,
-                          brand: chunk.brand || chunk.analysis?.brand || "Authentic",
-                          category: chunk.category || chunk.analysis?.category || "General Resale",
-                          condition: chunk.condition || chunk.analysis?.condition || "Used",
-                          bbox: chunk.detected_objects?.[0]?.bbox || { x: 20, y: 20, width: 60, height: 60 },
-                        };
-                        setPendingIdentifiedItem(pendingObj);
-
-                        // Instantly render lightweight pending card skeleton on camera HUD
-                        const pendingScan: ActiveScanItem = {
-                          id: `pending-${Date.now()}`,
-                          productName: rawPName,
-                          brand: pendingObj.brand,
-                          category: pendingObj.category,
-                          condition: cleanConditionText(pendingObj.condition),
-                          inventoryCondition: "used_working",
-                          defectNotes: [],
-                          asIsDisclaimer: "",
-                          bbox: pendingObj.bbox,
-                          status: "pending",
-                          confidenceScore: 0.95,
-                          timestamp: Date.now(),
-                        };
-                        setActiveScans((prev) => {
-                          const existingValued = prev.find((s) => s.status === "valued");
-                          if (existingValued && Date.now() - existingValued.timestamp < 8000) {
-                            if (getKeywordSimilarity(existingValued.productName, rawPName) >= 0.5) {
-                              return prev;
-                            }
-                            return [existingValued, pendingScan].slice(0, 2);
-                          }
-                          return [pendingScan];
-                        });
-                      }
-                    } else if (chunk.event === "complete") {
-                      if (abortController.signal.aborted || cycleId !== activeCycleIdRef.current) return;
-                      data = chunk.data;
-                      isStreamFinished = true;
-                      break;
-                    } else if (!chunk.event) {
-                      if (abortController.signal.aborted || cycleId !== activeCycleIdRef.current) return;
-                      data = chunk;
-                      isStreamFinished = true;
-                      break;
-                    }
-                  } catch (parseErr) {
-                    console.warn("[Spadas Lens] NDJSON stream parse warning:", parseErr);
-                  }
-                }
+            while (!isStreamFinished) {
+              if (abortController.signal.aborted || cycleId !== activeCycleIdRef.current) {
+                try { void reader.cancel(); } catch {}
+                return;
               }
 
-              if (!data && buffer.trim()) {
+              const { done, value } = await reader.read();
+              if (done) break;
+
+              if (abortController.signal.aborted || cycleId !== activeCycleIdRef.current) {
+                try { void reader.cancel(); } catch {}
+                return;
+              }
+
+              buffer += decoder.decode(value, { stream: true });
+              const lines = buffer.split("\n");
+              buffer = lines.pop() || "";
+
+              for (const line of lines) {
+                if (abortController.signal.aborted || cycleId !== activeCycleIdRef.current) {
+                  try { void reader.cancel(); } catch {}
+                  return;
+                }
+
+                const trimmed = line.trim();
+                if (!trimmed) continue;
                 try {
-                  const chunk = JSON.parse(buffer.trim());
-                  if (chunk.event === "complete") {
+                  const chunk = JSON.parse(trimmed);
+                  if (chunk.event === "vision_complete") {
+                    if (abortController.signal.aborted || cycleId !== activeCycleIdRef.current) return;
+                    // Vision processing finished! Immediately transition progressive loader to comps and render card skeleton
+                    const rawPName = chunk.product_name || chunk.analysis?.product_name || "";
+                    if (rawPName && !isVagueOrPartialRead(rawPName)) {
+                      setScanStage("comps");
+                      const pendingObj = {
+                        productName: rawPName,
+                        brand: chunk.brand || chunk.analysis?.brand || "Authentic",
+                        category: chunk.category || chunk.analysis?.category || "General Resale",
+                        condition: chunk.condition || chunk.analysis?.condition || "Used",
+                        bbox: chunk.detected_objects?.[0]?.bbox || { x: 20, y: 20, width: 60, height: 60 },
+                      };
+                      setPendingIdentifiedItem(pendingObj);
+
+                      // Instantly render lightweight pending card skeleton on camera HUD
+                      const pendingScan: ActiveScanItem = {
+                        id: `pending-${Date.now()}`,
+                        productName: rawPName,
+                        brand: pendingObj.brand,
+                        category: pendingObj.category,
+                        condition: cleanConditionText(pendingObj.condition),
+                        inventoryCondition: "used_working",
+                        defectNotes: [],
+                        asIsDisclaimer: "",
+                        bbox: pendingObj.bbox,
+                        status: "pending",
+                        confidenceScore: 0.95,
+                        timestamp: Date.now(),
+                      };
+                      setActiveScans((prev) => {
+                        const existingValued = prev.find((s) => s.status === "valued");
+                        if (existingValued && Date.now() - existingValued.timestamp < 8000) {
+                          if (getKeywordSimilarity(existingValued.productName, rawPName) >= 0.5) {
+                            return prev;
+                          }
+                          return [existingValued, pendingScan].slice(0, 2);
+                        }
+                        return [pendingScan];
+                      });
+                    }
+                  } else if (chunk.event === "complete") {
+                    if (abortController.signal.aborted || cycleId !== activeCycleIdRef.current) return;
                     data = chunk.data;
+                    isStreamFinished = true;
+                    break;
                   } else if (!chunk.event) {
+                    if (abortController.signal.aborted || cycleId !== activeCycleIdRef.current) return;
                     data = chunk;
+                    isStreamFinished = true;
+                    break;
                   }
-                } catch {}
+                } catch (parseErr) {
+                  console.warn("[Spadas Lens] NDJSON stream parse warning:", parseErr);
+                }
               }
-            } finally {
-              activeStreamReaderRef.current = null;
-              try { void reader.cancel(); } catch {}
             }
+
+            if (!data && buffer.trim()) {
+              try {
+                const chunk = JSON.parse(buffer.trim());
+                if (chunk.event === "complete") {
+                  data = chunk.data;
+                } else if (!chunk.event) {
+                  data = chunk;
+                }
+              } catch {}
+            }
+
+            // Immediately cancel reader to free HTTP connection without waiting for keepalive timeout
+            try {
+              void reader.cancel();
+            } catch {}
           } catch (streamErr: any) {
             if (streamErr?.name === "AbortError" || abortController.signal.aborted || cycleId !== activeCycleIdRef.current) {
               return;
@@ -3258,8 +3011,7 @@ function SpadasLensCameraCore({
         return;
       }
 
-      // Process and render all verified scan items on HUD overlay (Final Step: Calculating net profit & verdict...)
-      setScanStage("profit");
+      // Process and render all verified scan items on HUD overlay
       for (const obj of validPendingItems) {
         try {
           let rawMin = Number(data.suggested_price_min) || 15;
@@ -3491,17 +3243,6 @@ function SpadasLensCameraCore({
               console.warn("[Rapid Thrift] Failed to cache photo blob:", err);
             }
           }
-
-          // Explicit Final Step Callback Execution:
-          // Immediately upon receiving resolved comps/intel payload, execute guaranteed state update sequence:
-          if (isIntelModeActiveRef.current || isIntelModeActive) {
-            handleOpenTacticalIntel(verifiedHit, snapshotImage || frozenFrameUrl || undefined);
-          } else {
-            // Inline comps mode: populate activeCompsHit so the HUD card renders comps directly
-            setActiveCompsHit(verifiedHit);
-            lastCompsHitRef.current = verifiedHit;
-          }
-          setIsScanPaused(true);
 
           // Automatically trigger active result state so the valuation card slides into view instantly
           triggerActiveValuationHit(verifiedHit, snapshotImage || frozenFrameUrl);
@@ -3744,7 +3485,7 @@ function SpadasLensCameraCore({
 
   // Active Auto-Scan & Scene Change Watcher with Frame-Skip Delay & Sampling Interval
   useEffect(() => {
-    if (!stream || !!deepVerifyItem || isScanPaused || !!activeCompsHit || isIntelPanelOpen) return;
+    if (!stream || !!deepVerifyItem || isScanPaused || !!activeCompsHit) return;
 
     let isDestroyed = false;
     const offCanvas = document.createElement("canvas");
@@ -3856,7 +3597,7 @@ function SpadasLensCameraCore({
       isDestroyed = true;
       clearInterval(interval);
     };
-  }, [stream, autoScanActive, scanMode, deepVerifyItem, isScanPaused, activeCompsHit, isIntelPanelOpen, isRapidScanMode]);
+  }, [stream, autoScanActive, scanMode, deepVerifyItem, isScanPaused, activeCompsHit, isRapidScanMode]);
 
   useEffect(() => {
     return () => {
@@ -4166,10 +3907,10 @@ function SpadasLensCameraCore({
             </div>
 
             {/* Streamlined Non-Obstructing Top Docked Scanning Telemetry (z-35) */}
-            {(analyzingRealFrame || isLoaderTransitioning) && !activeValuationHit && scanStage !== "idle" && (
+            {(analyzingRealFrame || isLoaderTransitioning) && !activeValuationHit && (
               <div className="absolute top-[max(3.5rem,calc(env(safe-area-inset-top,0px)+3.25rem))] left-1/2 -translate-x-1/2 z-35 pointer-events-auto transition-all duration-300 ease-out">
                 <ScanProgressiveLoader
-                  isActive={analyzingRealFrame}
+                  isActive={true}
                   stage={scanStage}
                   isIntelMode={isIntelModeActive}
                   detectedTitle={pendingIdentifiedItem?.productName}
@@ -4275,31 +4016,6 @@ function SpadasLensCameraCore({
                                   {activeValuationHit.brand}
                                 </span>
                               )}
-                              {/* Quick Brand/Model Override Pill */}
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (valuationExpiryTimerRef.current) {
-                                    clearTimeout(valuationExpiryTimerRef.current);
-                                    valuationExpiryTimerRef.current = null;
-                                  }
-                                  setIsEditingOverride(!isEditingOverride);
-                                  setOverrideBrand(activeValuationHit.brand || "");
-                                  setOverrideModel(activeValuationHit.name || "");
-                                  setOverrideTagPrice(
-                                    activeValuationHit.tagPrice
-                                      ? String(activeValuationHit.tagPrice)
-                                      : activeValuationHit.estCost
-                                      ? String(activeValuationHit.estCost)
-                                      : ""
-                                  );
-                                }}
-                                className="inline-flex items-center gap-1 text-[10px] font-bold text-cyan-300 hover:text-white bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 px-2 py-0.5 rounded-full transition cursor-pointer active:scale-95"
-                                title="Correct misidentified brand, hidden model, or price tag"
-                              >
-                                <Edit3 className="w-2.5 h-2.5" />
-                                <span>Override</span>
-                              </button>
                             </div>
                             <h4 className="text-sm font-black text-white truncate leading-tight">
                               {activeValuationHit.name}
@@ -4332,96 +4048,6 @@ function SpadasLensCameraCore({
                         )}
                       </div>
 
-                      {/* Inline Quick Brand/Model Override HUD Form */}
-                      {isEditingOverride && (
-                        <div className="my-2 p-3 rounded-2xl bg-slate-900/95 border border-cyan-500/40 space-y-2.5 animate-in fade-in zoom-in-95 duration-150">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[11px] font-black text-cyan-300 flex items-center gap-1.5 uppercase tracking-wider">
-                              <Edit3 className="w-3.5 h-3.5" />
-                              <span>Override Brand & Model</span>
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => setIsEditingOverride(false)}
-                              className="text-slate-400 hover:text-white p-1 rounded-lg transition cursor-pointer"
-                              title="Cancel Override"
-                            >
-                              <X className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-2">
-                            <div>
-                              <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                                Brand Name
-                              </label>
-                              <input
-                                type="text"
-                                value={overrideBrand}
-                                onChange={(e) => setOverrideBrand(e.target.value)}
-                                placeholder="e.g. Nike, Sony, Carhartt"
-                                className="w-full px-2.5 py-1.5 text-xs bg-slate-950 border border-slate-700 rounded-xl text-white placeholder:text-slate-500 focus:outline-none focus:border-cyan-400 font-medium"
-                              />
-                            </div>
-
-                            <div>
-                              <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                                Tag Cost ($)
-                              </label>
-                              <input
-                                type="number"
-                                step="0.5"
-                                value={overrideTagPrice}
-                                onChange={(e) => setOverrideTagPrice(e.target.value)}
-                                placeholder="e.g. 8.00"
-                                className="w-full px-2.5 py-1.5 text-xs bg-slate-950 border border-slate-700 rounded-xl text-amber-300 placeholder:text-slate-500 focus:outline-none focus:border-amber-400 font-mono font-bold"
-                              />
-                            </div>
-                          </div>
-
-                          <div>
-                            <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                              Model / Item Title
-                            </label>
-                            <input
-                              type="text"
-                              value={overrideModel}
-                              onChange={(e) => setOverrideModel(e.target.value)}
-                              placeholder="e.g. Air Max 95, J97 Detroit Jacket"
-                              className="w-full px-2.5 py-1.5 text-xs bg-slate-950 border border-slate-700 rounded-xl text-white placeholder:text-slate-500 focus:outline-none focus:border-cyan-400 font-medium"
-                            />
-                          </div>
-
-                          <div className="flex items-center justify-end gap-2 pt-1">
-                            <button
-                              type="button"
-                              onClick={() => setIsEditingOverride(false)}
-                              className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition cursor-pointer"
-                            >
-                              Cancel
-                            </button>
-                            <button
-                              type="button"
-                              onClick={handleApplyOverride}
-                              disabled={isRevaluing}
-                              className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 disabled:opacity-50 text-slate-950 text-xs font-black transition cursor-pointer shadow-md shadow-cyan-500/25 active:scale-95"
-                            >
-                              {isRevaluing ? (
-                                <>
-                                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                                  <span>Re-Valuing Comps...</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Sparkles className="w-3.5 h-3.5" />
-                                  <span>Re-Appraise Now</span>
-                                </>
-                              )}
-                            </button>
-                          </div>
-                        </div>
-                      )}
-
                       {/* Zero Blind Verdict Fallback Protocol Banner */}
                       {(activeValuationHit.copVerdict === "VERIFY_FIRST" || activeValuationHit.requiresSecondaryVerification) && (
                         <div className="my-2 px-2.5 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-2">
@@ -4431,48 +4057,21 @@ function SpadasLensCameraCore({
                               {activeValuationHit.verificationReason || "Confidence < 88% — confirm details before copping"}
                             </span>
                           </div>
-                          <div className="flex items-center gap-1 shrink-0">
-                            {activeValuationHit.verificationReason?.toLowerCase().includes("generation") && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (valuationExpiryTimerRef.current) {
-                                    clearTimeout(valuationExpiryTimerRef.current);
-                                    valuationExpiryTimerRef.current = null;
-                                  }
-                                  setIsEditingOverride(true);
-                                  setOverrideBrand(activeValuationHit.brand || "");
-                                  setOverrideModel(activeValuationHit.name || "");
-                                  setOverrideTagPrice(
-                                    activeValuationHit.tagPrice
-                                      ? String(activeValuationHit.tagPrice)
-                                      : activeValuationHit.estCost
-                                      ? String(activeValuationHit.estCost)
-                                      : ""
-                                  );
-                                }}
-                                className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 text-[10px] font-black uppercase tracking-wider transition active:scale-95 cursor-pointer shadow-sm"
-                                title="Quickly correct or verify hardware generation"
-                              >
-                                <Edit3 className="w-3 h-3" />
-                                <span>Fix Model</span>
-                              </button>
-                            )}
-                            {activeValuationHit.fallbackProtocol === "SCAN_BARCODE" ? (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setActiveValuationHit(null);
-                                  setFrozenFrameUrl(null);
-                                  setScanMode("barcode");
-                                  toast.info("Switched to Barcode Mode for precision verification.");
-                                }}
-                                className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-[10px] font-black uppercase tracking-wider transition active:scale-95 cursor-pointer shadow-sm"
-                              >
-                                <Barcode className="w-3 h-3" />
-                                <span>Barcode</span>
-                              </button>
-                            ) : activeValuationHit.fallbackProtocol === "ZOOM_LABEL" ? (
+                          {activeValuationHit.fallbackProtocol === "SCAN_BARCODE" ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActiveValuationHit(null);
+                                setFrozenFrameUrl(null);
+                                setScanMode("barcode");
+                                toast.info("Switched to Barcode Mode for precision verification.");
+                              }}
+                              className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-[10px] font-black uppercase tracking-wider transition active:scale-95 cursor-pointer shadow-sm"
+                            >
+                              <Barcode className="w-3 h-3" />
+                              <span>Barcode</span>
+                            </button>
+                          ) : activeValuationHit.fallbackProtocol === "ZOOM_LABEL" ? (
                             <button
                               type="button"
                               onClick={() => {
@@ -4486,22 +4085,21 @@ function SpadasLensCameraCore({
                               <Camera className="w-3 h-3" />
                               <span>Zoom Tag</span>
                             </button>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setActiveValuationHit(null);
-                                  setFrozenFrameUrl(null);
-                                  toast.info("Capturing second angle for verification.");
-                                  void processCurrentFrame(true);
-                                }}
-                                className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-[10px] font-black uppercase tracking-wider transition active:scale-95 cursor-pointer shadow-sm"
-                              >
-                                <Camera className="w-3 h-3" />
-                                <span>2nd Angle</span>
-                              </button>
-                            )}
-                          </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActiveValuationHit(null);
+                                setFrozenFrameUrl(null);
+                                toast.info("Capturing second angle for verification.");
+                                void processCurrentFrame(true);
+                              }}
+                              className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-[10px] font-black uppercase tracking-wider transition active:scale-95 cursor-pointer shadow-sm"
+                            >
+                              <Camera className="w-3 h-3" />
+                              <span>2nd Angle</span>
+                            </button>
+                          )}
                         </div>
                       )}
 
@@ -4536,6 +4134,18 @@ function SpadasLensCameraCore({
                       {/* Interactive Action Buttons */}
                       <div className="flex items-center justify-between gap-2 pt-1">
                         <div className="flex items-center gap-1.5 min-w-0">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActiveCompsHit(activeValuationHit);
+                              setActiveValuationHit(null);
+                            }}
+                            className="inline-flex items-center gap-1 bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 px-3 py-1.5 rounded-xl text-[11px] font-bold transition cursor-pointer active:scale-95"
+                          >
+                            <TrendingUp className="h-3.5 w-3.5 text-cyan-400" />
+                            <span>Comps</span>
+                          </button>
+
                           <button
                             type="button"
                             onClick={() => handleOpenTacticalIntel(activeValuationHit, frozenFrameUrl || activeValuationHit.image || undefined)}
@@ -4594,21 +4204,6 @@ function SpadasLensCameraCore({
                         </div>
                       </div>
                     </div>
-
-                    {/* Inline Sold Comps Ledger — renders directly inside the viewfinder HUD card when comps are available */}
-                    {activeCompsHit && (
-                      <div className="mt-3 pt-2.5 border-t border-slate-800/80 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                        <TransparentSoldCompsLedger
-                          productName={(activeCompsHit as any).name || (activeCompsHit as any).productName || ""}
-                          brand={(activeCompsHit as any).brand}
-                          estimatedValue={(activeCompsHit as any).estimatedValue}
-                          rawComps={(activeCompsHit as any).rawComps}
-                          currency={selectedCurrency}
-                          variant="card_embedded"
-                          maxItems={5}
-                        />
-                      </div>
-                    )}
                   </ValuationCardErrorBoundary>
                 </div>
               </div>
@@ -4734,8 +4329,8 @@ function SpadasLensCameraCore({
                     : "border-cyan-400 animate-pulse shadow-[0_0_10px_rgba(34,211,238,0.5)]"
                 } ${cameraMoving ? "opacity-75 scale-[0.99]" : "opacity-100 scale-100"}`}
               >
-                {/* Subtle AR Reticle Tag with OCR Telemetry & Quick Override */}
-                <div className="absolute -top-7 left-0 flex items-center gap-1.5 bg-slate-950/90 text-white border border-cyan-400/30 rounded-lg px-2 py-0.5 text-[10px] font-bold shadow-lg backdrop-blur-md pointer-events-auto">
+                {/* Subtle AR Reticle Tag with OCR Telemetry */}
+                <div className="absolute -top-7 left-0 flex items-center gap-1.5 bg-slate-950/90 text-white border border-cyan-400/30 rounded-lg px-2 py-0.5 text-[10px] font-bold shadow-lg backdrop-blur-md">
                   <span className={`h-1.5 w-1.5 rounded-full ${scan.status === "valued" ? "bg-emerald-400" : "bg-cyan-400 animate-pulse"}`} />
                   <span className="text-cyan-300 font-mono text-[9px] uppercase tracking-wider">
                     {scan.status === "valued" ? "LOCKED" : "TRACKING"}
@@ -4743,32 +4338,6 @@ function SpadasLensCameraCore({
                   <span className="text-white font-extrabold truncate max-w-[130px]">
                     {scan.productName}
                   </span>
-                  {activeValuationHit && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (valuationExpiryTimerRef.current) {
-                          clearTimeout(valuationExpiryTimerRef.current);
-                          valuationExpiryTimerRef.current = null;
-                        }
-                        setIsEditingOverride(true);
-                        setOverrideBrand(activeValuationHit.brand || "");
-                        setOverrideModel(activeValuationHit.name || "");
-                        setOverrideTagPrice(
-                          activeValuationHit.tagPrice
-                            ? String(activeValuationHit.tagPrice)
-                            : activeValuationHit.estCost
-                            ? String(activeValuationHit.estCost)
-                            : ""
-                        );
-                      }}
-                      className="text-cyan-400 hover:text-white p-0.5 rounded cursor-pointer transition hover:bg-cyan-500/20"
-                      title="Quick Override Brand/Model"
-                    >
-                      <Edit3 className="h-2.5 w-2.5" />
-                    </button>
-                  )}
                   {scan.ocrText && scan.ocrText.length > 0 && (
                     <span className="hidden xs:inline text-amber-300 font-mono text-[8px] bg-amber-400/10 px-1 rounded border border-amber-400/30 max-w-[90px] truncate">
                       OCR: {scan.ocrText[0]}
@@ -4949,8 +4518,6 @@ function SpadasLensCameraCore({
                 </button>
               </div>
             )}
-
-
           </>
         ) : (
           /* Camera Standby / Hardware Released View */
@@ -5016,8 +4583,6 @@ function SpadasLensCameraCore({
           onStop: stopCamera,
           cameraMoving,
           rateLimited,
-          barcodeLock: enableBarcodeLock,
-          onToggleBarcodeLock: handleToggleBarcodeLock,
         }}
         hardware={{
           torchEnabled,
@@ -5173,7 +4738,21 @@ function SpadasLensCameraCore({
         />
       )}
 
-      {/* LensCompsModal kept as a fallback for manual trigger from other surfaces (e.g. LensIntelPanel "View Comps" button) */}
+      {/* Stabilized AR Comps Breakdown & Resale Verdict Modal */}
+      <LensCompsModal
+        isOpen={!!activeCompsHit}
+        item={activeCompsHit}
+        frozenFrameUrl={frozenFrameUrl}
+        onClose={() => setActiveCompsHit(null)}
+        onResumeScan={handleResumeScanning}
+        onListEbay={(hit: any) => setActiveEbayItem(hit)}
+        onDeepVerify={(hit: any) => handleOpenDeepVerify(hit)}
+        onTriggerBarcodeScan={() => {
+          setActiveCompsHit(null);
+          setScanMode("barcode");
+          toast.info("Switched to Barcode Mode for precision verification.");
+        }}
+      />
 
       {/* Rapid Thrift Haul "What You Got" Slide-Up Drawer */}
       <RapidThriftDrawer
@@ -5311,14 +4890,10 @@ function SpadasLensCameraCore({
             : undefined
         }
         onViewComps={
-          activeValuationHit || lastCompsHitRef.current
+          activeValuationHit
             ? () => {
-                const target = activeValuationHit || lastCompsHitRef.current;
-                if (target) {
-                  setActiveCompsHit(target);
-                  // Comps now render inline in the HUD card; no modal needed
-                  setActiveValuationHit(null);
-                }
+                setActiveCompsHit(activeValuationHit);
+                setActiveValuationHit(null);
               }
             : undefined
         }

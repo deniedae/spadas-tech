@@ -62,17 +62,14 @@ export default function LensHitCard({
       ? "bg-cyan-500/15 text-cyan-300 border-cyan-500/30"
       : "bg-amber-500/15 text-amber-300 border-amber-500/30";
 
-  // ── Engine comps label — honest about data source ────────────────────────────
+  // ── eBay comps label — honest about data source ────────────────────────────
   const hasRealComps = item.ebayCompsCount && item.ebayCompsCount > 0;
-  const isP2pIntel = item.compsSource === "intel_p2p";
-  const compsLabel = isP2pIntel
-    ? "Local P2P & Buyout Comps"
-    : hasRealComps
+  const compsLabel = hasRealComps
     ? item.compsSource === "sold_comps_api"
       ? `${item.ebayCompsCount} Sold (30d)`
       : `${item.ebayCompsCount} Active eBay AU`
     : "AI Price Estimate";
-  const compsStyle = isP2pIntel ? "text-cyan-400 font-bold" : hasRealComps ? "text-emerald-400" : "text-slate-500";
+  const compsStyle = hasRealComps ? "text-emerald-400" : "text-slate-500";
 
   // ── Intelligent AI Verification Triage ────────────────────────────────────
   const verificationReq = checkNeedsVerification({

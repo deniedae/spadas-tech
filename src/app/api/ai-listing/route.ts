@@ -13,13 +13,11 @@ import { AiListingResultSchema } from "@/app/lib/schemas/ai-listing-schema";
 import { AR_SCAN_MODEL_FALLBACKS, LISTING_MODEL_FALLBACKS, getPrimaryAiApiKey, createOpenAiClient } from "@/app/lib/config/ai-models";
 import { callClaudeVision } from "@/app/lib/config/claude-vision";
 import { callGeminiVision, hasGeminiVisionKey } from "@/app/lib/config/gemini-vision";
-import { fetchEbayAustraliaSoldComps, detectGenerationProfile } from "@/app/lib/ebay-australia-comps";
+import { fetchEbayAustraliaSoldComps } from "@/app/lib/ebay-australia-comps";
 import { detectGeoCurrency, SupportedCurrency } from "@/app/lib/currency-routing";
 import { saveProductToCache, getCachedProductScan } from "@/app/lib/cache/product-cache";
 import { appraiseItemLocally } from "@/app/lib/offline/offline-engine";
 import { estimateCategoryShippingCost, detectThriftTrap, calculateThriftCopVerdict } from "@/lib/thrift-cop-engine";
-import { computeLocalMarketplaceIntelligence } from "@/lib/lens-intel-engine";
-import { computeOffMarketIntelligence } from "@/lib/off-market-engine";
 import type { AiListingResult } from "@/types/ai-listing";
 
 export const preferredRegion = "syd1";
@@ -168,7 +166,6 @@ export async function POST(request: Request) {
       imageUrls,
       isArScan,
       mode,
-      activeEngine,
       stream: isStreamRequested,
       spatialMetadata,
       categoryBias,
@@ -176,8 +173,7 @@ export async function POST(request: Request) {
     } = body as {
       imageUrls?: string[];
       isArScan?: boolean;
-      mode?: "sweep" | "deep" | "live" | "focus" | "standard" | "snap" | "intel";
-      activeEngine?: "intel" | "ebay";
+      mode?: "sweep" | "deep" | "live" | "focus" | "standard" | "snap";
       stream?: boolean;
       spatialMetadata?: {
         latitude?: number;
@@ -189,28 +185,20 @@ export async function POST(request: Request) {
       categoryBias?: string;
       predictedQuery?: string;
     };
-    const isManualOverride = Boolean((body as any)?.manualOverride);
+    rawImageUrls = imageUrls || [];
 
-    // ── ISOLATED ENGINE BRANCH DETECTION ──
-    const isIntelMode =
-      activeEngine === "intel" ||
-      mode === "intel" ||
-      Boolean((body as any)?.isIntelMode) ||
-      Boolean((body as any)?.isIntelModeActive);
-
-    if (!isManualOverride && (!imageUrls || imageUrls.length === 0)) {
+    if (!imageUrls || imageUrls.length === 0) {
       return NextResponse.json(createEmptyScanResult());
     }
 
     const countryHeader = request.headers.get("x-vercel-ip-country");
     const geoInfo = detectGeoCurrency(countryHeader);
-    const targetCurrency: SupportedCurrency = (body.currency as SupportedCurrency) || geoInfo.currency;
-    const initialTargetCurrency: SupportedCurrency = targetCurrency;
+    const initialTargetCurrency: SupportedCurrency = (body.currency as SupportedCurrency) || geoInfo.currency;
 
-    // ── INTELLIGENT PREFETCH: Fire parallel eBay sold comps query ONLY for eBay comps mode (bypassed in Intel Mode) ──
+    // ── INTELLIGENT PREFETCH: Fire parallel eBay sold comps query the instant optical composite is received ──
     let parallelCompsPromise: Promise<any> | null = null;
     const initialPrefetchQuery = (predictedQuery || (body as any).query || "").trim();
-    if (!isIntelMode && initialPrefetchQuery.length >= 3) {
+    if (initialPrefetchQuery.length >= 3) {
       parallelCompsPromise = fetchEbayAustraliaSoldComps(initialPrefetchQuery, initialTargetCurrency).catch((err) => {
         console.warn("[ai-listing] Parallel comps prefetch warning:", err);
         return null;
@@ -363,86 +351,7 @@ export async function POST(request: Request) {
       }
     }
 
-    let result: AiListingResult | null = null;
-    let activeProvider = isManualOverride ? "manual-override" : "openai-vision";
-
-    if (isManualOverride && ((body as any)?.brand || (body as any)?.model || (body as any)?.itemTitle || predictedQuery)) {
-      const overrideBrand = ((body as any)?.brand || "").trim();
-      const overrideModel = ((body as any)?.model || (body as any)?.itemTitle || predictedQuery || "Item").trim();
-      const overrideName = overrideBrand && !overrideModel.toLowerCase().includes(overrideBrand.toLowerCase())
-        ? `${overrideBrand} ${overrideModel}`
-        : overrideModel;
-      const overrideCategory = ((body as any)?.category || "General Resale").trim();
-      const overrideCondition = ((body as any)?.condition || "Used - Good").trim();
-
-      result = {
-        status: "identified",
-        isMockFallback: false,
-        inventory_condition: "used_working",
-        defect_notes: [],
-        as_is_disclaimer: undefined,
-        detected_objects: [
-          {
-            id: `obj_${Date.now()}`,
-            product_name: overrideName,
-            brand: overrideBrand || null,
-            category: overrideCategory,
-            condition: overrideCondition,
-            bbox: { x: 15, y: 15, width: 70, height: 70 },
-            confidence_score: 0.99,
-          },
-        ],
-        analysis: {
-          status: "identified",
-          visual_reasoning: {
-            visible_text_detected: [overrideBrand, overrideModel].filter(Boolean),
-            physical_object_description: `User manual override: ${overrideName}`,
-            brand_identified: overrideBrand || null,
-            identification_reasoning: `Manual override by user: ${overrideName}`,
-          },
-          product_name: overrideName,
-          brand: overrideBrand || null,
-          model: overrideModel || null,
-          category: overrideCategory,
-          color: null,
-          material: null,
-          condition: overrideCondition,
-          accessories_detected: [],
-          confidence: "high",
-          confidence_score: 0.99,
-        },
-        market_titles: {
-          ebay: `${overrideBrand ? overrideBrand + " " : ""}${overrideModel}`.slice(0, 80),
-          facebook_marketplace: overrideName,
-          vinted: overrideName,
-          depop: overrideName,
-        },
-        seo_description: `Authentic ${overrideName} in ${overrideCondition} condition. Verified via Spadas Lens.`,
-        detailed_description: `Authentic ${overrideName} in ${overrideCondition} condition. Verified via Spadas Lens.`,
-        shipping_estimate: {
-          size: "medium",
-          estimated_weight_grams: 500,
-          dimensions_cm: null,
-          notes: null,
-        },
-        item_specifics: {
-          Brand: overrideBrand || "Authentic",
-          Model: overrideModel,
-          Condition: overrideCondition,
-        },
-        suggested_keywords: [overrideBrand, overrideModel, overrideCategory, "Resale", "Thrift"].filter(Boolean),
-        suggested_price_min: 0,
-        suggested_price_max: 0,
-        suggested_price_median: 0,
-        suggested_price_currency: targetCurrency,
-      };
-
-      if (result && (body as any)?.tagPrice) {
-        result.detected_tag_price = Number((body as any).tagPrice);
-      }
-    }
-
-    const imageContent = (imageUrls || []).map((url) => {
+    const imageContent = imageUrls.map((url) => {
       // Clean base64 strings (remove whitespace/newlines) to prevent OpenAI 400 "unsupported image" errors
       const cleanUrl = url.trim().replace(/[\r\n]/g, "");
       return {
@@ -455,7 +364,7 @@ export async function POST(request: Request) {
     });
 
     const openai = createOpenAiClient();
-    let completion: any = null;
+    let completion;
     let hasCreditOrQuotaError = false;
     const targetModels = isArScan ? AR_SCAN_MODEL_FALLBACKS : LISTING_MODEL_FALLBACKS;
 
@@ -466,16 +375,13 @@ Perform deep OCR inspection of all text, brand logos, model plates, serial numbe
         : mode === "sweep"
         ? `SCAN MODE: MULTI-ITEM SCENE SCAN.
 Identify distinct physical products visible in the scene. If no distinct object is in frame, return product_name: "NO_CENTER_ITEM".`
-        : isIntelMode
-        ? `SCAN MODE: TACTICAL INTEL & LOCAL P2P ARBITRAGE SCAN.
-Identify the centered physical item specifically for peer-to-peer local resale (Facebook Marketplace, Gumtree AU), off-market dealer buyout, and private collector acquisition. Extract brand, exact model, category, and physical bulk/shipping profile.`
         : `SCAN MODE: TARGETED CENTER RETICLE FOCUS & MULTI-FRAME OPTICAL COMPOSITE.
 Identify ONLY the single primary physical item positioned in the center target reticle (Image 1 is a high-resolution composite synthesized from rapid consecutive frames pooled during movement to eliminate blur, with macro detail insets). Disregard hands, table, floor, and room background.`;
 
-    // Try OpenAI Vision first if key is valid and not already overridden
+    // Try OpenAI Vision first if key is valid
     const hasOpenAiKey = getPrimaryAiApiKey().length > 10 && !getPrimaryAiApiKey().includes("placeholder");
 
-    if (hasOpenAiKey && !isManualOverride) {
+    if (hasOpenAiKey) {
       for (const modelName of targetModels) {
         try {
           const reqParams: any = {
@@ -512,21 +418,6 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
 - LUXURY & DESIGNER GOODS: Inspect visible hardware, logos, and emblems (e.g., triangular metal enamel plaque "PRADA MILANO", gold/silver lettering, interlocking monogram, embossed leather stamps).
 - NETWORKING & HARDWARE: Read visible brand stamps and model numbers (e.g., TP-Link, Archer, RE305). NEVER misidentify networking devices or USB dongles as vapes.
 - COMMODITY / UNBRANDED ITEMS: Identify accurately as generic (e.g., "Ceramic Coffee Mug White 350ml"). Do NOT hallucinate high-end collector brands.
-
-1.1 NEXT-GEN HARDWARE GENERATION & STRICT BOX ART PARSING:
-- Explicitly check for generation indicators, sequel numbers, next-gen branding logos, and distinct number accents across packaging, retail box art, console chassis, and faceplates:
-  • Sequel numerals: "2", "3", "4", "5", "6", "II", "III"
-  • Tier & generation suffixes: "Pro", "OLED", "Lite", "Slim", "Series X", "Series S", "Max", "Plus", "Ultra"
-  • Generational branding logos & typography (e.g., large stylized numeral "2" on packaging, "Pro" badge on console housing).
-- HARD NEGATIVE CONSTRAINT (ZERO TOLERANCE FOR LEGACY COLLAPSE):
-  • You are STRICTLY FORBIDDEN from mapping next-gen, sequel, or revised hardware packaging/box art back to legacy base variants.
-  • For example, if packaging, box art, console body, or typography displays "Switch 2", a prominent "2", or next-gen branding accents, you MUST NEVER classify it as an original "Nintendo Switch", "Switch V2", or "Switch OLED". The output product_name and model MUST preserve the exact generation (e.g. "Nintendo Switch 2 Console").
-  • NEVER classify "PS5 Pro" as "PS5", "Xbox Series X" as "Xbox One", or "AirPods Pro 2" as "AirPods Pro 1".
-- VERBATIM OCR & VARIANT AUDIT:
-  • Transcribe all visible box art typography, generation numerals, and model badges verbatim into "visual_reasoning.visible_text_detected".
-  • Explicitly populate "variant_audit.model_year_or_gen" with the exact detected generation (e.g. "Switch 2", "Pro", "Gen 2") and "variant_audit.variant_name".
-- AMBIGUITY THRESHOLD:
-  • If visual confidence on exact hardware generation is ambiguous or partially obscured, do NOT default to a legacy base model. Set "confidence_score" < 0.88 and trigger "retake_recommended" to prompt for barcode or front packaging verification.
 
 2. ITEM TYPE, SILHOUETTE & CATEGORY:
 - Identify the precise silhouette (e.g., "Detroit Duck Canvas Jacket", "Saffiano Leather Triangle Logo Bifold Wallet", "Cyber-shot DSC-W350 Digital Camera", "Air Jordan 4 Retro").
@@ -605,8 +496,9 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
     }
 
     const content = completion?.choices?.[0]?.message?.content;
+    let result: AiListingResult | null = null;
 
-    if (content && !result) {
+    if (content) {
       try {
         result = JSON.parse(content) as AiListingResult;
       } catch {
@@ -614,8 +506,10 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
       }
     }
 
+    let activeProvider = "openai-vision";
+
     // ── MULTI-MODEL CONSENSUS & ARBITRATION (OpenAI Vision + Gemini Flash) ──
-    if (result && hasGeminiVisionKey() && (imageUrls || []).length > 0 && !isManualOverride) {
+    if (result && hasGeminiVisionKey() && imageUrls.length > 0) {
       const openAiBrand = result.analysis?.brand || "";
       const shouldRunConsensus =
         mode === "deep" ||
@@ -625,7 +519,7 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
 
       if (shouldRunConsensus) {
         try {
-          const geminiResult = await callGeminiVision((imageUrls || [])[0]);
+          const geminiResult = await callGeminiVision(imageUrls[0]);
           if (geminiResult && geminiResult.analysis?.product_name) {
             const geminiBrand = geminiResult.analysis?.brand || "";
 
@@ -698,9 +592,9 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
     }
 
     // Fallback to Gemini if OpenAI yielded no result
-    if (!result && (imageUrls || []).length > 0) {
+    if (!result && imageUrls.length > 0) {
       try {
-        const geminiResult = await callGeminiVision((imageUrls || [])[0]);
+        const geminiResult = await callGeminiVision(imageUrls[0]);
         if (geminiResult && geminiResult.analysis?.product_name) {
           result = geminiResult;
           activeProvider = "gemini-flash";
@@ -776,9 +670,11 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
       activeProvider = "offline-heuristics";
     }
 
+    const targetCurrency: SupportedCurrency = initialTargetCurrency;
+
     (result as any).provider = activeProvider;
     (result as any).suggested_price_currency = targetCurrency;
-    if (result && !result.retake_recommended && result.analysis?.retake_recommended) {
+    if (!result.retake_recommended && result.analysis?.retake_recommended) {
       result.retake_recommended = result.analysis.retake_recommended;
     }
 
@@ -820,251 +716,77 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
 
     console.log(`[Spadas Vision Diagnostic] userId: ${userId || "guest"} | provider: ${activeProvider} | product_name: "${result.analysis?.product_name}" | brand: "${result.analysis?.brand}" | category: "${result.analysis?.category}" | currency: ${targetCurrency}`);
 
-    let generationSuffixDetected: string | null = null;
-
     // Fetch REAL-TIME regional eBay Comps in target currency via Browse API ONLY for verified identified products
     const runCompsAndFinalizeResult = async () => {
       if (result.analysis?.product_name && result.status === "identified") {
         try {
-          // ── GENERATION VALIDATION GUARDRAIL ──────────────────────────────────────────
-          // If OCR / visual reasoning detects prominent generational branding (e.g. large "2", "Switch 2", "Pro", "OLED"),
-          // force the query builder and verified product name to append the exact generation suffix.
-          const ocrTexts = result.analysis.visual_reasoning?.visible_text_detected || [];
-          const variantGen = result.analysis.variant_audit?.model_year_or_gen || result.variant_audit?.model_year_or_gen || "";
-          const variantName = result.analysis.variant_audit?.variant_name || result.variant_audit?.variant_name || "";
-          const visualDesc = result.analysis.visual_reasoning?.physical_object_description || "";
-          const pNameLower = (result.analysis.product_name || "").toLowerCase();
-          const combinedOcr = `${ocrTexts.join(" ")} ${variantGen} ${variantName} ${visualDesc}`.toLowerCase();
-
-          let isSwitchGen2 = false;
-          let isPs5Pro = false;
-          let isXboxSeriesX = false;
-          let isXboxSeriesS = false;
-          let isQuest3 = false;
-
-          // Check Switch 2: prominent "2" / "ii" on Switch packaging or in OCR
-          if (
-            (combinedOcr.includes("switch") && (/\b(switch\s*2|switch\s*ii|\b2\b)\b/i.test(combinedOcr))) ||
-            (pNameLower.includes("switch") && (/\b(switch\s*2|\b2\b)\b/i.test(combinedOcr) || /\b(switch\s*2|\b2\b)\b/i.test(variantGen)))
-          ) {
-            generationSuffixDetected = "2";
-            isSwitchGen2 = true;
-          } else if (
-            /\b(ps5\s*pro|playstation\s*5\s*pro)\b/i.test(combinedOcr) ||
-            (pNameLower.includes("ps5") && /\bpro\b/i.test(combinedOcr))
-          ) {
-            generationSuffixDetected = "Pro";
-            isPs5Pro = true;
-          } else if (/\bxbox\s*series\s*x\b/i.test(combinedOcr)) {
-            generationSuffixDetected = "Series X";
-            isXboxSeriesX = true;
-          } else if (/\bxbox\s*series\s*s\b/i.test(combinedOcr)) {
-            generationSuffixDetected = "Series S";
-            isXboxSeriesS = true;
-          } else if (/\b(quest\s*3|meta\s*quest\s*3)\b/i.test(combinedOcr)) {
-            generationSuffixDetected = "3";
-            isQuest3 = true;
-          }
-
-          // Force append generation suffix to product name and model if missing
-          if (generationSuffixDetected && result.analysis?.product_name) {
-            let currName = result.analysis.product_name;
-            if (!currName.toLowerCase().includes(generationSuffixDetected.toLowerCase())) {
-              if (isSwitchGen2) {
-                currName = currName.replace(/\bswitch\b/i, "Switch 2");
-                if (!currName.toLowerCase().includes("switch 2")) {
-                  currName = `${currName} 2`;
-                }
-              } else if (isPs5Pro) {
-                currName = currName.replace(/\bps5\b/i, "PS5 Pro").replace(/\bplaystation\s*5\b/i, "PlayStation 5 Pro");
-                if (!currName.toLowerCase().includes("pro")) {
-                  currName = `${currName} Pro`;
-                }
-              } else {
-                currName = `${currName} ${generationSuffixDetected}`;
-              }
-              result.analysis.product_name = currName;
-              if (result.analysis.model && !result.analysis.model.toLowerCase().includes(generationSuffixDetected.toLowerCase())) {
-                result.analysis.model = `${result.analysis.model} ${generationSuffixDetected}`;
-              }
-              if (result.detected_objects && result.detected_objects.length > 0) {
-                result.detected_objects[0].product_name = currName;
-              }
-              console.log(`[Generation Guardrail] Enforced generation suffix "${generationSuffixDetected}" on product name: "${currName}"`);
-            }
-          }
-
           const verifiedName = result.analysis.product_name;
+          let ebayComps: any = null;
 
-          if (isIntelMode) {
-            // ── ISOLATED ENGINE BRANCH: LOCAL P2P, BUYOUT & LIQUIDATION INTELLIGENCE PARSER ──
-            // Explicitly bypass eBay sold-comps query builder and run dedicated local marketplace & off-market appraisal
-            console.log(`[ai-listing] Executing isolated Intel Mode P2P & Liquidation Engine for: "${verifiedName}"`);
+          // 1. INTELLIGENT PREFETCH: Check if parallel background comps query finished and matches verified product
+          if (parallelCompsPromise && initialPrefetchQuery) {
             try {
-              const rawEstVal = Number(result.suggested_price_median) || 40;
-              const p2pIntel = computeLocalMarketplaceIntelligence(
-                verifiedName,
-                result.analysis.brand || null,
-                result.analysis.category || null,
-                rawEstVal,
-                targetCurrency
-              );
-
-              // Extract P2P and off-market liquidation valuation metrics
-              const targetCash = p2pIntel.p2pEstimatedCashPrice;
-              const floorPrice = p2pIntel.cashNegotiationBuffer.floorPrice;
-              const listPrice = p2pIntel.cashNegotiationBuffer.listPrice;
-              const buyoutPrice = p2pIntel.offMarketIntelligence.cashBuyoutPrice;
-              const collectorPrice = p2pIntel.offMarketIntelligence.privateCollectorTargetPrice;
-
-              result.suggested_price_min = floorPrice;
-              result.suggested_price_max = listPrice;
-              result.suggested_price_median = targetCash;
-              (result as any).comps_source = "intel_p2p";
-              (result as any).marketplace_intelligence = p2pIntel;
-              (result as any).off_market_intelligence = p2pIntel.offMarketIntelligence;
-              (result as any).p2p_intel = p2pIntel;
-
-              result.comps_range = {
-                min: floorPrice,
-                max: listPrice,
-                median: targetCash,
-              };
-
-              // Build deterministic P2P and Liquidation channel comps for full auditability
-              result.raw_sold_comps = [
-                {
-                  id: `p2p-target-${Date.now()}`,
-                  title: `${p2pIntel.primaryLocalChannel} Local Cash Target`,
-                  price: targetCash,
-                  condition: "Local Cash / In-Person Pickup",
-                  sold_date: "High Liquidity (1-3 days)",
-                  shipping_included: true,
-                  shipping_price: 0,
-                },
-                {
-                  id: `p2p-dealer-${Date.now()}`,
-                  title: "Dealer Instant Cash Buyout",
-                  price: buyoutPrice,
-                  condition: "Immediate Same-Day Liquidation",
-                  sold_date: "Instant 0ms Settlement",
-                  shipping_included: true,
-                  shipping_price: 0,
-                },
-                {
-                  id: `p2p-collector-${Date.now()}`,
-                  title: "Private Collector Network Target",
-                  price: collectorPrice,
-                  condition: "Direct Collector Peer-to-Peer",
-                  sold_date: "Zero Platform Fees",
-                  shipping_included: true,
-                  shipping_price: 0,
-                },
-                {
-                  id: `p2p-list-${Date.now()}`,
-                  title: "Negotiation List Price (with Buffer)",
-                  price: listPrice,
-                  condition: "Includes Counter-Offer Buffer",
-                  sold_date: "Suggested Asking Price",
-                  shipping_included: true,
-                  shipping_price: 0,
-                },
-              ];
-
-              if (result.detected_objects && result.detected_objects.length > 0) {
-                (result.detected_objects[0] as any).comps_source = "intel_p2p";
-                (result.detected_objects[0] as any).p2p_intel = p2pIntel;
-                (result.detected_objects[0] as any).marketplace_intelligence = p2pIntel;
-                result.detected_objects[0].raw_sold_comps = result.raw_sold_comps;
-                (result.detected_objects[0] as any).suggested_price_min = floorPrice;
-                (result.detected_objects[0] as any).suggested_price_max = listPrice;
-                (result.detected_objects[0] as any).suggested_price_median = targetCash;
+              const precomputed = await parallelCompsPromise;
+              const cleanInitial = initialPrefetchQuery.toLowerCase();
+              const cleanVerified = verifiedName.toLowerCase();
+              const wordsMatch = cleanInitial.split(/\s+/).some((w: string) => w.length > 2 && cleanVerified.includes(w));
+              if (precomputed && precomputed.count > 0 && (wordsMatch || cleanVerified.includes(cleanInitial))) {
+                ebayComps = precomputed;
+                console.log(`[ai-listing] Parallel comps prefetch hit (0ms latency): "${initialPrefetchQuery}" for "${verifiedName}"`);
               }
-            } catch (intelErr) {
-              console.warn("[ai-listing] Intel Mode P2P appraisal warning:", intelErr);
-              // Guaranteed independent fallback: Never redirect or fallback to eBay comps
-              (result as any).comps_source = "intel_p2p";
-              const fallbackVal = Number(result.suggested_price_median) || 35;
-              result.suggested_price_min = Math.round(fallbackVal * 0.75);
-              result.suggested_price_max = Math.round(fallbackVal * 1.15);
-              result.suggested_price_median = Math.round(fallbackVal * 0.9);
+            } catch {}
+          }
+
+          // 2. Fallback fetch if parallel comps differed or yielded 0 comps
+          if (!ebayComps) {
+            ebayComps = await fetchEbayAustraliaSoldComps(verifiedName, targetCurrency);
+          }
+          if (
+            ebayComps &&
+            typeof ebayComps.median === "number" &&
+            !isNaN(ebayComps.median) &&
+            ebayComps.median > 0 &&
+            ebayComps.count > 0
+          ) {
+            // Single-Source Guardrail: Strict normalized baseline unit value assignment (never accumulated across response nodes)
+            result.suggested_price_min = ebayComps.min;
+            result.suggested_price_max = ebayComps.max;
+            result.suggested_price_median = ebayComps.median;
+            result.ebay_comps_count = ebayComps.count;
+            (result as any).comps_source = ebayComps.source;
+            result.raw_sold_comps = (ebayComps.rawComps || []).map((c: any) => ({
+              id: c.id,
+              title: c.title,
+              price: c.price,
+              condition: c.condition,
+              sold_date: c.soldDate,
+              shipping_included: c.shippingIncluded,
+              shipping_price: c.shippingPrice,
+              url: c.url,
+              thumbnail: c.thumbnail,
+            }));
+            result.comps_range = {
+              min: ebayComps.min,
+              max: ebayComps.max,
+              median: ebayComps.median,
+            };
+            if (result.detected_objects && result.detected_objects.length > 0) {
+              result.detected_objects[0].ebay_comps_count = ebayComps.count;
+              (result.detected_objects[0] as any).comps_source = ebayComps.source;
+              result.detected_objects[0].raw_sold_comps = result.raw_sold_comps;
             }
           } else {
-            // ── STANDARD ENGINE BRANCH: REAL-TIME REGIONAL EBAY SOLD COMPS ──
-            let ebayComps: any = null;
-
-            // 1. INTELLIGENT PREFETCH: Check if parallel background comps query finished and matches verified product
-            if (parallelCompsPromise && initialPrefetchQuery) {
-              try {
-                const prefetchHasGen = !generationSuffixDetected || initialPrefetchQuery.toLowerCase().includes(generationSuffixDetected.toLowerCase());
-                if (prefetchHasGen) {
-                  const precomputed = await parallelCompsPromise;
-                  const cleanInitial = initialPrefetchQuery.toLowerCase();
-                  const cleanVerified = verifiedName.toLowerCase();
-                  const wordsMatch = cleanInitial.split(/\s+/).some((w: string) => w.length > 2 && cleanVerified.includes(w));
-                  if (precomputed && precomputed.count > 0 && (wordsMatch || cleanVerified.includes(cleanInitial))) {
-                    ebayComps = precomputed;
-                    console.log(`[ai-listing] Parallel comps prefetch hit (0ms latency): "${initialPrefetchQuery}" for "${verifiedName}"`);
-                  }
-                } else {
-                  console.log(`[ai-listing] Rejecting prefetch comps because generation "${generationSuffixDetected}" was missing from initial query`);
-                }
-              } catch {}
-            }
-
-            // 2. Fallback fetch if parallel comps differed or yielded 0 comps
-            if (!ebayComps) {
-              ebayComps = await fetchEbayAustraliaSoldComps(verifiedName, targetCurrency, generationSuffixDetected);
-            }
-            if (
-              ebayComps &&
-              typeof ebayComps.median === "number" &&
-              !isNaN(ebayComps.median) &&
-              ebayComps.median > 0 &&
-              ebayComps.count > 0
-            ) {
-              // Single-Source Guardrail: Strict normalized baseline unit value assignment (never accumulated across response nodes)
-              result.suggested_price_min = ebayComps.min;
-              result.suggested_price_max = ebayComps.max;
-              result.suggested_price_median = ebayComps.median;
-              result.ebay_comps_count = ebayComps.count;
-              (result as any).comps_source = ebayComps.source;
-              result.raw_sold_comps = (ebayComps.rawComps || []).map((c: any) => ({
-                id: c.id,
-                title: c.title,
-                price: c.price,
-                condition: c.condition,
-                sold_date: c.soldDate,
-                shipping_included: c.shippingIncluded,
-                shipping_price: c.shippingPrice,
-                url: c.url,
-                thumbnail: c.thumbnail,
-              }));
-              result.comps_range = {
-                min: ebayComps.min,
-                max: ebayComps.max,
-                median: ebayComps.median,
-              };
-              if (result.detected_objects && result.detected_objects.length > 0) {
-                result.detected_objects[0].ebay_comps_count = ebayComps.count;
-                (result.detected_objects[0] as any).comps_source = ebayComps.source;
-                result.detected_objects[0].raw_sold_comps = result.raw_sold_comps;
-              }
-            } else {
-              result.ebay_comps_count = undefined;
-              (result as any).comps_source = "ai_estimate";
-              if (result.detected_objects && result.detected_objects.length > 0) {
-                result.detected_objects[0].ebay_comps_count = undefined;
-                (result.detected_objects[0] as any).comps_source = "ai_estimate";
-              }
+            result.ebay_comps_count = undefined;
+            (result as any).comps_source = "ai_estimate";
+            if (result.detected_objects && result.detected_objects.length > 0) {
+              result.detected_objects[0].ebay_comps_count = undefined;
+              (result.detected_objects[0] as any).comps_source = "ai_estimate";
             }
           }
         } catch (compErr) {
-          console.warn("[ai-listing] Live comps lookup warning:", compErr);
-          if (!isIntelMode) {
-            result.ebay_comps_count = undefined;
-            (result as any).comps_source = "ai_estimate";
-          }
+          console.warn("[ai-listing] Live eBay comps lookup warning:", compErr);
+          result.ebay_comps_count = undefined;
+          (result as any).comps_source = "ai_estimate";
         }
       }
 
@@ -1326,31 +1048,6 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
       }
     }
 
-    // ── HARDWARE GENERATION CONFIDENCE & AMBIGUITY GATE ───────────────────────
-    // If next-gen/sequel hardware is detected, require >= 0.90 confidence and explicit packaging confirmation.
-    // Otherwise flag for secondary barcode verification to prevent mismatched historical comps.
-    const pCategoryLower = (pCategory || "").toLowerCase();
-    const isHardwareOrGaming =
-      pCategoryLower.includes("electronic") ||
-      pCategoryLower.includes("gaming") ||
-      pCategoryLower.includes("tech") ||
-      pCategoryLower.includes("console");
-    const activeGenProfile = detectGenerationProfile(pName, generationSuffixDetected);
-
-    if (isHardwareOrGaming && (generationSuffixDetected || activeGenProfile)) {
-      const conf = typeof result.analysis?.confidence_score === "number" ? result.analysis.confidence_score : 0.85;
-      const genLabel = generationSuffixDetected || activeGenProfile?.generationToken || "Next-Gen";
-      if (conf < 0.90 || !result.analysis?.variant_audit?.model_year_or_gen) {
-        result.requires_secondary_verification = true;
-        result.verification_reason = `Hardware Generation (${genLabel}) detected — confirm version on packaging or scan barcode`;
-        result.fallback_protocol = "SCAN_BARCODE";
-        result.cop_verdict = "VERIFY_FIRST";
-        if (result.detected_objects && result.detected_objects.length > 0) {
-          result.detected_objects[0].cop_verdict = "VERIFY_FIRST";
-        }
-      }
-    }
-
     // Persist scan history to public.scans table (skip empty sentinel / junk scans)
     const rawTitle = result.analysis?.product_name || (result as any).product_name || "";
     const isSentinelScan =
@@ -1368,7 +1065,7 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
 
     if (user && !isSentinelScan) {
       try {
-        const firstImg = (imageUrls || [])[0] || "";
+        const firstImg = imageUrls[0] || "";
         const sanitizedUrl = firstImg.startsWith("data:")
           ? `data:image/jpeg;base64,...(${firstImg.length} bytes)`
           : firstImg;

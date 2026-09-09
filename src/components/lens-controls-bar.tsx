@@ -21,7 +21,6 @@ import {
   Terminal,
   Settings2,
   Square,
-  Barcode,
 } from "lucide-react";
 import { CURRENCY_CONFIGS, SupportedCurrency } from "@/app/lib/currency-routing";
 import { toast } from "sonner";
@@ -37,8 +36,6 @@ export interface LensControlsBarProps {
     onStop: () => void;
     cameraMoving?: boolean;
     rateLimited?: boolean;
-    barcodeLock?: boolean;
-    onToggleBarcodeLock?: () => void;
   };
   hardware: {
     torchEnabled: boolean;
@@ -126,23 +123,6 @@ export default function LensControlsBar({
             <Trophy className="h-4 w-4" />
           </button>
 
-          {/* Barcode Lock Toggle */}
-          {scan.onToggleBarcodeLock && (
-            <button
-              type="button"
-              onClick={scan.onToggleBarcodeLock}
-              title={scan.barcodeLock ? "Barcode Lock ON (Auto-locks Barcodes)" : "Barcode Lock OFF (Standard Visual Scan)"}
-              className={`inline-flex h-9 items-center gap-1.5 rounded-xl border px-2.5 text-xs font-bold transition cursor-pointer active:scale-95 ${
-                scan.barcodeLock
-                  ? "bg-cyan-500 text-slate-950 border-cyan-300 shadow-md shadow-cyan-500/30 font-black"
-                  : "bg-white/10 text-slate-400 border-white/20 hover:bg-white/20 hover:text-white"
-              }`}
-            >
-              <Barcode className="h-4 w-4" />
-              <span className="hidden xs:inline">{scan.barcodeLock ? "Barcode Lock" : "Barcode"}</span>
-            </button>
-          )}
-
           {/* Expandable Options Drawer Toggle ("⚙️ More") */}
           <button
             type="button"
@@ -222,23 +202,6 @@ export default function LensControlsBar({
                 {audio.voiceListening ? <Mic className="h-3.5 w-3.5 text-emerald-400 animate-pulse" /> : <MicOff className="h-3.5 w-3.5 text-slate-500" />}
                 <span>{audio.voiceListening ? "Voice Active" : "Voice"}</span>
               </button>
-
-              {/* Barcode Lock Toggle */}
-              {scan.onToggleBarcodeLock && (
-                <button
-                  type="button"
-                  onClick={scan.onToggleBarcodeLock}
-                  className={`inline-flex h-8 items-center gap-1.5 rounded-xl border px-2.5 text-xs font-semibold transition cursor-pointer ${
-                    scan.barcodeLock
-                      ? "bg-cyan-500/25 text-cyan-300 border-cyan-500/50 shadow-sm shadow-cyan-500/20 font-bold"
-                      : "bg-slate-900 border-slate-700 text-slate-400 hover:text-slate-200"
-                  }`}
-                  title={scan.barcodeLock ? "Barcode Auto-Lock Active" : "Barcode Auto-Lock Inactive"}
-                >
-                  <Barcode className="h-3.5 w-3.5 text-cyan-400" />
-                  <span>{scan.barcodeLock ? "Barcode Lock ON" : "Barcode Lock"}</span>
-                </button>
-              )}
             </div>
 
             {/* Right group: Currency, Nav, Pro */}
