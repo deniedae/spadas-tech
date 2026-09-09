@@ -504,7 +504,7 @@ function SpadasLensCameraCore({
   const flushScanState = useCallback(
     (
       targetStage: ScanStage = "idle",
-      options?: { preserveValuation?: boolean; preserveComps?: boolean }
+      options?: { preserveValuation?: boolean; preserveComps?: boolean; resetComps?: boolean }
     ) => {
       // Abort active in-flight NDJSON stream / fetch request to immediately unblock promise chains
       if (activeAbortControllerRef.current) {
@@ -546,15 +546,16 @@ function SpadasLensCameraCore({
       }
 
       // Guard against race conditions: Never wipe valuation results if preserveValuation is requested
-      if (!options?.preserveValuation) {
+      if (!options?.preserveValuation && !isCompsModalOpenRef.current) {
         setActiveValuationHit(null);
       }
       setActiveScans([]);
       setPendingIdentifiedItem(null);
 
-      // Guard against race conditions:
-      // If preserveComps is requested OR if the modal is currently open, DO NOT wipe comps data before modal render pass executes!
-      if (!options?.preserveComps && !isCompsModalOpenRef.current) {
+      // 2. Remove Premature Reset Flags:
+      // Guard against race conditions: Never prematurely clear modal trigger flags or comps hit during general state flushes,
+      // stage transitions, or lifecycle cleanup. Only clear comps if explicitly commanded via options?.resetComps === true.
+      if (options?.resetComps) {
         _setActiveCompsHit(null);
         _setIsCompsModalOpen(false);
         isCompsModalOpenRef.current = false;
@@ -563,7 +564,7 @@ function SpadasLensCameraCore({
       setScanStage(targetStage);
       setScanRetryPrompt(null);
       setScanFeedback(null);
-      if (!options?.preserveValuation) {
+      if (!options?.preserveValuation && !isCompsModalOpenRef.current) {
         setFrozenFrameUrl(null);
       }
       setLatestApiError(null);
@@ -571,7 +572,9 @@ function SpadasLensCameraCore({
       setRetakeRecommendation(null);
       setSecondaryImagePayload(null);
       setConfidencePercent(94);
-      setIsScanPaused(false);
+      if (!isCompsModalOpenRef.current) {
+        setIsScanPaused(false);
+      }
       setAnalyzingRealFrame(false);
       analyzingRef.current = false;
       setIsLoaderTransitioning(false);
@@ -1026,9 +1029,14 @@ function SpadasLensCameraCore({
         }
       }, 50);
 
-      // 5. Automatically trigger dedicated full-screen / bottom-sheet Comps Modal Dialog as soon as comps are resolved
+      // 5. Explicit Final Step Callback Execution:
+      // Immediately execute guaranteed state update sequence:
+      // setting setActiveCompsHit(hit), storing lastCompsHitRef.current = hit,
+      // and explicitly forcing setIsCompsModalOpen(true) with zero dependency on background scanning loop state
+      lastCompsHitRef.current = hit;
       setActiveCompsHit(hit);
       setIsCompsModalOpen(true);
+      setIsScanPaused(true);
 
       // 6. Generous auto-expiry timer so the user has ample time to inspect comps, ROI, and actions
       if (valuationExpiryTimerRef.current) {
@@ -3238,7 +3246,8 @@ function SpadasLensCameraCore({
         return;
       }
 
-      // Process and render all verified scan items on HUD overlay
+      // Process and render all verified scan items on HUD overlay (Final Step: Calculating net profit & verdict...)
+      setScanStage("profit");
       for (const obj of validPendingItems) {
         try {
           let rawMin = Number(data.suggested_price_min) || 15;
@@ -3470,6 +3479,15 @@ function SpadasLensCameraCore({
               console.warn("[Rapid Thrift] Failed to cache photo blob:", err);
             }
           }
+
+          // Explicit Final Step Callback Execution:
+          // Immediately upon receiving resolved comps payload, execute guaranteed state update sequence:
+          // setting setActiveCompsHit(verifiedHit), storing lastCompsHitRef.current = verifiedHit,
+          // and explicitly forcing setIsCompsModalOpen(true) with zero dependency on background scanning loop state
+          setActiveCompsHit(verifiedHit);
+          lastCompsHitRef.current = verifiedHit;
+          setIsCompsModalOpen(true);
+          setIsScanPaused(true);
 
           // Automatically trigger active result state so the valuation card slides into view instantly
           triggerActiveValuationHit(verifiedHit, snapshotImage || frozenFrameUrl);
