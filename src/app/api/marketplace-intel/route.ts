@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { createOpenAiClient, getPrimaryAiApiKey } from "@/app/lib/config/ai-models";
+import { computeOffMarketIntelligence, OffMarketIntelligence } from "@/lib/off-market-engine";
 
 export const preferredRegion = "syd1";
 
@@ -29,6 +30,7 @@ export interface MarketplaceIntelligenceResponse {
   tactical_listing_hook: string;
   safety_tip: string;
   arbitrage_notes: string[];
+  off_market_intelligence?: OffMarketIntelligence;
 }
 
 export function generateLocalMarketplaceFallback(
@@ -152,6 +154,7 @@ export function generateLocalMarketplaceFallback(
       `List at $${listPrice} ${currency} to allow standard $${listPrice - targetCash} negotiation room.`,
       `Do not accept below $${floorPrice} ${currency} cash floor.`,
     ],
+    off_market_intelligence: computeOffMarketIntelligence(productName, brand, category, val, currency),
   };
 }
 
@@ -303,6 +306,15 @@ Output strictly valid JSON adhering to:
     }
 
     const parsed = JSON.parse(content);
+    if (!parsed.off_market_intelligence) {
+      parsed.off_market_intelligence = computeOffMarketIntelligence(
+        productName || parsed.product_name || "Item",
+        brand || parsed.brand || "",
+        category || parsed.category || "General",
+        Number(estimatedValue) || Number(parsed.p2p_estimated_cash_price) || 40,
+        currency
+      );
+    }
     return NextResponse.json(parsed);
   } catch (error: any) {
     console.error("[Marketplace Intel API Error]:", error);

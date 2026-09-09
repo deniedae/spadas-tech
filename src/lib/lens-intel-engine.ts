@@ -1,12 +1,16 @@
 /**
  * Spadas Lens Tactical Intel Engine
  * Computes deep reseller intelligence: market worth distribution, target sell prices,
- * optimal sales channel routing, empirical turnaround velocity, and localized P2P
- * Marketplace Intelligence (Facebook Marketplace, Gumtree AU, local collector groups).
+ * optimal sales channel routing, empirical turnaround velocity, localized P2P
+ * Marketplace Intelligence (Facebook Marketplace, Gumtree AU), and dedicated Off-Market
+ * Liquidation Intelligence (private collector networks, dealer buyouts, bundle multipliers).
  */
 
 import { calculateSalesVelocity, SalesVelocityProfile } from "./turnover-velocity-engine";
+import { computeOffMarketIntelligence, OffMarketIntelligence } from "./off-market-engine";
 import { DetectedHit } from "@/types/lens";
+
+export type { OffMarketIntelligence } from "./off-market-engine";
 
 export type ArbitrageVerdict = "INSTANT_COP" | "FAST_FLIP" | "CAUTION_SPECULATIVE" | "PASS_TRAP";
 
@@ -33,6 +37,7 @@ export interface MarketplaceIntelligence {
   tacticalListingHook: string;
   safetyTip: string;
   arbitrageNotes: string[];
+  offMarketIntelligence: OffMarketIntelligence;
 }
 
 export interface LensIntelData {
@@ -63,6 +68,7 @@ export interface LensIntelData {
   tacticalNotes: string[];
   arbitrageVerdict: ArbitrageVerdict;
   marketplaceIntelligence: MarketplaceIntelligence;
+  offMarketIntelligence: OffMarketIntelligence;
   timestamp: number;
 }
 
@@ -165,7 +171,7 @@ export function determineFastestChannel(
 }
 
 /**
- * Compute local heuristic baseline for Marketplace Intelligence with 0ms latency.
+ * Compute local heuristic baseline for Marketplace and Off-Market Intelligence with 0ms latency.
  */
 export function computeLocalMarketplaceIntelligence(
   productName: string,
@@ -240,6 +246,14 @@ export function computeLocalMarketplaceIntelligence(
   const listPrice = Math.round(targetCash * 1.18);
   const floorPrice = Math.round(targetCash * 0.85);
 
+  const offMarketIntelligence = computeOffMarketIntelligence(
+    productName,
+    brand,
+    category,
+    val,
+    currency
+  );
+
   return {
     p2pDemandLevel: val >= 50 ? "HIGH" : "MODERATE",
     p2pEstimatedCashPrice: targetCash,
@@ -279,6 +293,7 @@ export function computeLocalMarketplaceIntelligence(
       `List at $${listPrice} ${currency} to allow standard $${listPrice - targetCash} negotiation room.`,
       `Hold firm: Do not accept below $${floorPrice} ${currency} cash floor.`,
     ],
+    offMarketIntelligence,
   };
 }
 
@@ -288,7 +303,7 @@ export function computeLocalMarketplaceIntelligence(
 const marketplaceIntelCache = new Map<string, MarketplaceIntelligence>();
 
 /**
- * Decoupled Asynchronous Fetcher for Deep Marketplace Intelligence.
+ * Decoupled Asynchronous Fetcher for Deep Marketplace & Off-Market Intelligence.
  * Executes in the background without blocking the camera frame loop or primary valuation pipeline.
  */
 export async function fetchMarketplaceIntelligenceAsync(params: {
@@ -324,6 +339,14 @@ export async function fetchMarketplaceIntelligenceAsync(params: {
     }
 
     const data = await res.json();
+    const offMarketFallback = computeOffMarketIntelligence(
+      params.productName,
+      params.brand,
+      params.category,
+      params.estimatedValue || 30,
+      params.currency || "AUD"
+    );
+
     const result: MarketplaceIntelligence = {
       p2pDemandLevel: data.p2p_demand_level || "MODERATE",
       p2pEstimatedCashPrice: Number(data.p2p_estimated_cash_price) || Math.round((params.estimatedValue || 30) * 0.9),
@@ -345,6 +368,7 @@ export async function fetchMarketplaceIntelligenceAsync(params: {
       tacticalListingHook: data.tactical_listing_hook || `Clean ${params.productName}. Local pickup.`,
       safetyTip: data.safety_tip || "Exchange in a safe, visible public location.",
       arbitrageNotes: data.arbitrage_notes || [],
+      offMarketIntelligence: data.off_market_intelligence || offMarketFallback,
     };
 
     marketplaceIntelCache.set(cacheKey, result);
@@ -432,7 +456,7 @@ export function generateTacticalIntel(
     notes.push(`Quick Turnaround: Price at $${fastFlipPrice.toFixed(0)} to liquidate within ${velocity.estDaysToSell}.`);
   }
 
-  // 6. Synchronous Local Baseline for Marketplace Intelligence (0ms UI latency)
+  // 6. Synchronous Local Baseline for Marketplace & Off-Market Intelligence (0ms UI latency)
   const marketplaceIntelligence = computeLocalMarketplaceIntelligence(
     pName,
     brand,
@@ -460,6 +484,7 @@ export function generateTacticalIntel(
     tacticalNotes: notes,
     arbitrageVerdict: verdict,
     marketplaceIntelligence,
+    offMarketIntelligence: marketplaceIntelligence.offMarketIntelligence,
     timestamp: Date.now(),
   };
 }
