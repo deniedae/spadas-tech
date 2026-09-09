@@ -1043,7 +1043,9 @@ function SpadasLensCameraCore({
         clearTimeout(valuationExpiryTimerRef.current);
       }
       valuationExpiryTimerRef.current = setTimeout(() => {
-        setActiveValuationHit(null);
+        if (!isCompsModalOpenRef.current) {
+          setActiveValuationHit(null);
+        }
       }, 8500);
 
       // 6. Standard Lens AR appraisal preserves pure historical eBay sold comps pipeline.
@@ -4935,43 +4937,7 @@ function SpadasLensCameraCore({
               </div>
             )}
 
-            {/* UI Fallback Trigger: Compact "Comps Modal" Action Button on Viewfinder HUD */}
-            {(activeCompsHit || lastCompsHitRef.current) && !isCompsModalOpen && !activeValuationHit && (
-              <div
-                className={`absolute z-40 pointer-events-auto transition-all duration-200 ${
-                  isRapidScanMode ? "bottom-20 right-3 sm:right-5" : "bottom-4 right-3 sm:right-5"
-                }`}
-              >
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const hit = activeCompsHit || lastCompsHitRef.current;
-                    if (hit) {
-                      setActiveCompsHit(hit);
-                      setIsCompsModalOpen(true);
-                    }
-                  }}
-                  onPointerDown={(e) => {
-                    e.stopPropagation();
-                  }}
-                  className="group flex min-h-[44px] touch-manipulation items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-950/95 border-2 border-cyan-400 text-cyan-300 hover:text-white hover:bg-cyan-500/20 shadow-[0_0_25px_rgba(6,182,212,0.45)] backdrop-blur-md transition-all cursor-pointer active:scale-95 animate-pulse"
-                  title="Open Sold Comps Modal Dialog"
-                  aria-label="Force open Sold Comps Modal"
-                >
-                  <TrendingUp className="h-4 w-4 text-cyan-300 animate-bounce shrink-0" />
-                  <span className="text-xs font-black tracking-tight text-white uppercase">
-                    Comps Modal
-                  </span>
-                  {((activeCompsHit || lastCompsHitRef.current)?.estimatedValue) ? (
-                    <span className="px-1.5 py-0.5 rounded-md text-[10px] font-mono font-black bg-cyan-400 text-slate-950">
-                      {fmtMoney((activeCompsHit || lastCompsHitRef.current)?.estimatedValue || 0)}
-                    </span>
-                  ) : null}
-                </button>
-              </div>
-            )}
+
           </>
         ) : (
           /* Camera Standby / Hardware Released View */
