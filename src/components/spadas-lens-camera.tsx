@@ -44,6 +44,7 @@ import CameraOnboardingOverlay from "@/components/camera-onboarding-overlay";
 import { DeepVerifyModal } from "@/components/deep-verify-modal";
 import LensHitCard from "@/components/lens-hit-card";
 import LensControlsBar from "@/components/lens-controls-bar";
+import { TransparentSoldCompsLedger } from "@/components/transparent-sold-comps-ledger";
 import LensCompsModal from "@/components/lens-comps-modal";
 import { estimateCategoryShippingCost, calculateThriftCopVerdict } from "@/lib/thrift-cop-engine";
 import { checkNeedsVerification } from "@/lib/forensic-knowledge";
@@ -482,16 +483,9 @@ function SpadasLensCameraCore({
     void resolveSpatialMetadata(categoryBias).then(setSpatialMetadata);
   }, [categoryBias]);
 
-  // Dedicated Sold Comps Modal & In-Memory Comps Cache State
+  // Inline Sold Comps State — populates the viewfinder HUD card directly (no modal)
   const [activeCompsHit, _setActiveCompsHit] = useState<DetectedHit | ActiveScanItem | null>(null);
-  const [isCompsModalOpen, _setIsCompsModalOpen] = useState<boolean>(false);
-  const isCompsModalOpenRef = useRef<boolean>(false);
   const lastCompsHitRef = useRef<DetectedHit | ActiveScanItem | null>(null);
-
-  const setIsCompsModalOpen = useCallback((open: boolean) => {
-    isCompsModalOpenRef.current = open;
-    _setIsCompsModalOpen(open);
-  }, []);
 
   const setActiveCompsHit = useCallback((hit: DetectedHit | ActiveScanItem | null) => {
     if (hit) {
@@ -546,19 +540,15 @@ function SpadasLensCameraCore({
       }
 
       // Guard against race conditions: Never wipe valuation results if preserveValuation is requested
-      if (!options?.preserveValuation && !isCompsModalOpenRef.current && !isIntelPanelOpenRef.current) {
+      if (!options?.preserveValuation && !isIntelPanelOpenRef.current) {
         setActiveValuationHit(null);
       }
       setActiveScans([]);
       setPendingIdentifiedItem(null);
 
-      // 2. Remove Premature Reset Flags:
-      // Guard against race conditions: Never prematurely clear modal trigger flags or comps hit during general state flushes,
-      // stage transitions, or lifecycle cleanup. Only clear comps if explicitly commanded via options?.resetComps === true.
+      // Only clear comps hit when explicitly commanded (e.g. user taps "Scan Next Item")
       if (options?.resetComps) {
         _setActiveCompsHit(null);
-        _setIsCompsModalOpen(false);
-        isCompsModalOpenRef.current = false;
         _setIsIntelPanelOpen(false);
         isIntelPanelOpenRef.current = false;
       }
@@ -566,7 +556,7 @@ function SpadasLensCameraCore({
       setScanStage(targetStage);
       setScanRetryPrompt(null);
       setScanFeedback(null);
-      if (!options?.preserveValuation && !isCompsModalOpenRef.current && !isIntelPanelOpenRef.current) {
+      if (!options?.preserveValuation && !isIntelPanelOpenRef.current) {
         setFrozenFrameUrl(null);
       }
       setLatestApiError(null);
@@ -574,7 +564,7 @@ function SpadasLensCameraCore({
       setRetakeRecommendation(null);
       setSecondaryImagePayload(null);
       setConfidencePercent(94);
-      if (!isCompsModalOpenRef.current && !isIntelPanelOpenRef.current) {
+      if (!isIntelPanelOpenRef.current) {
         setIsScanPaused(false);
       }
       setAnalyzingRealFrame(false);
@@ -887,8 +877,8 @@ function SpadasLensCameraCore({
       });
       return;
     }
-    // 1. Immediate State Flush on "Scan Next Item": Wipe all valuation states, active stream tokens & progressive loader flags
-    flushScanState();
+    // 1. Immediate State Flush on "Scan Next Item": Wipe all valuation states, comps hit, active stream tokens & progressive loader flags
+    flushScanState("idle", { resetComps: true });
 
     if (videoRef.current && videoRef.current.paused) {
       videoRef.current.play().catch(() => {});
@@ -1053,22 +1043,14 @@ function SpadasLensCameraCore({
         } catch {}
         setIsIntelPanelOpen(true);
       } else {
-        // Standard Mode: Route to full-screen / bottom-sheet eBay Comps Modal
+        // Standard Mode: Populate inline comps hit — comps render directly inside the viewfinder HUD card
         lastCompsHitRef.current = hit;
         setActiveCompsHit(hit);
-        setIsCompsModalOpen(true);
       }
       setIsScanPaused(true);
 
-      // 6. Generous auto-expiry timer so the user has ample time to inspect comps, ROI, and actions
-      if (valuationExpiryTimerRef.current) {
-        clearTimeout(valuationExpiryTimerRef.current);
-      }
-      valuationExpiryTimerRef.current = setTimeout(() => {
-        if (!isCompsModalOpenRef.current && !isIntelPanelOpenRef.current) {
-          setActiveValuationHit(null);
-        }
-      }, 8500);
+      // 6. No auto-expiry: card stays locked on screen until user explicitly taps "Scan Next Item" or dismisses
+      // This preserves the fast continuous scanning rhythm without premature result wipes.
     },
     [soundEnabled, playChime, minProfitThreshold, isIntelModeActive, selectedCurrency]
   );
@@ -3515,9 +3497,9 @@ function SpadasLensCameraCore({
           if (isIntelModeActiveRef.current || isIntelModeActive) {
             handleOpenTacticalIntel(verifiedHit, snapshotImage || frozenFrameUrl || undefined);
           } else {
+            // Inline comps mode: populate activeCompsHit so the HUD card renders comps directly
             setActiveCompsHit(verifiedHit);
             lastCompsHitRef.current = verifiedHit;
-            setIsCompsModalOpen(true);
           }
           setIsScanPaused(true);
 
@@ -3762,7 +3744,7 @@ function SpadasLensCameraCore({
 
   // Active Auto-Scan & Scene Change Watcher with Frame-Skip Delay & Sampling Interval
   useEffect(() => {
-    if (!stream || !!deepVerifyItem || isScanPaused || !!activeCompsHit || isCompsModalOpen || isIntelPanelOpen) return;
+    if (!stream || !!deepVerifyItem || isScanPaused || !!activeCompsHit || isIntelPanelOpen) return;
 
     let isDestroyed = false;
     const offCanvas = document.createElement("canvas");
@@ -3874,7 +3856,7 @@ function SpadasLensCameraCore({
       isDestroyed = true;
       clearInterval(interval);
     };
-  }, [stream, autoScanActive, scanMode, deepVerifyItem, isScanPaused, activeCompsHit, isCompsModalOpen, isIntelPanelOpen, isRapidScanMode]);
+  }, [stream, autoScanActive, scanMode, deepVerifyItem, isScanPaused, activeCompsHit, isIntelPanelOpen, isRapidScanMode]);
 
   useEffect(() => {
     return () => {
@@ -4556,20 +4538,6 @@ function SpadasLensCameraCore({
                         <div className="flex items-center gap-1.5 min-w-0">
                           <button
                             type="button"
-                            onClick={() => {
-                              setActiveCompsHit(activeValuationHit);
-                              setIsCompsModalOpen(true);
-                              setActiveValuationHit(null);
-                            }}
-                            className="inline-flex items-center gap-1.5 bg-gradient-to-r from-cyan-600/30 via-cyan-500/30 to-blue-600/30 hover:from-cyan-600/40 hover:to-blue-600/40 text-cyan-300 border border-cyan-500/50 px-3 py-1.5 rounded-xl text-[11px] font-black transition cursor-pointer active:scale-95 shadow-md shadow-cyan-500/20 animate-pulse"
-                            title="Open Full Sold Comps Modal Dialog"
-                          >
-                            <TrendingUp className="h-3.5 w-3.5 text-cyan-300 animate-bounce" />
-                            <span>Comps Modal</span>
-                          </button>
-
-                          <button
-                            type="button"
                             onClick={() => handleOpenTacticalIntel(activeValuationHit, frozenFrameUrl || activeValuationHit.image || undefined)}
                             className={`inline-flex items-center gap-1 border px-2.5 py-1.5 rounded-xl text-[11px] font-black transition cursor-pointer active:scale-95 ${
                               isIntelModeActive
@@ -4626,6 +4594,21 @@ function SpadasLensCameraCore({
                         </div>
                       </div>
                     </div>
+
+                    {/* Inline Sold Comps Ledger — renders directly inside the viewfinder HUD card when comps are available */}
+                    {activeCompsHit && (
+                      <div className="mt-3 pt-2.5 border-t border-slate-800/80 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                        <TransparentSoldCompsLedger
+                          productName={(activeCompsHit as any).name || (activeCompsHit as any).productName || ""}
+                          brand={(activeCompsHit as any).brand}
+                          estimatedValue={(activeCompsHit as any).estimatedValue}
+                          rawComps={(activeCompsHit as any).rawComps}
+                          currency={selectedCurrency}
+                          variant="card_embedded"
+                          maxItems={5}
+                        />
+                      </div>
+                    )}
                   </ValuationCardErrorBoundary>
                 </div>
               </div>
@@ -5190,30 +5173,7 @@ function SpadasLensCameraCore({
         />
       )}
 
-      {/* Stabilized AR Comps Breakdown & Resale Verdict Modal */}
-      <LensCompsModal
-        isOpen={isCompsModalOpen && !!(activeCompsHit || lastCompsHitRef.current)}
-        item={activeCompsHit || lastCompsHitRef.current}
-        frozenFrameUrl={frozenFrameUrl}
-        onClose={() => setIsCompsModalOpen(false)}
-        onResumeScan={() => {
-          setIsCompsModalOpen(false);
-          handleResumeScanning();
-        }}
-        onListEbay={(hit: any) => {
-          setIsCompsModalOpen(false);
-          setActiveEbayItem(hit);
-        }}
-        onDeepVerify={(hit: any) => {
-          setIsCompsModalOpen(false);
-          handleOpenDeepVerify(hit);
-        }}
-        onTriggerBarcodeScan={() => {
-          setIsCompsModalOpen(false);
-          setScanMode("barcode");
-          toast.info("Switched to Barcode Mode for precision verification.");
-        }}
-      />
+      {/* LensCompsModal kept as a fallback for manual trigger from other surfaces (e.g. LensIntelPanel "View Comps" button) */}
 
       {/* Rapid Thrift Haul "What You Got" Slide-Up Drawer */}
       <RapidThriftDrawer
@@ -5356,7 +5316,7 @@ function SpadasLensCameraCore({
                 const target = activeValuationHit || lastCompsHitRef.current;
                 if (target) {
                   setActiveCompsHit(target);
-                  setIsCompsModalOpen(true);
+                  // Comps now render inline in the HUD card; no modal needed
                   setActiveValuationHit(null);
                 }
               }
