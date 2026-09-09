@@ -12,7 +12,7 @@ export interface ScanStep {
 
 export type ScanStage = "vision" | "comps" | "profit" | "complete";
 
-const DEFAULT_STEPS: ScanStep[] = [
+const STANDARD_STEPS: ScanStep[] = [
   {
     label: "Analyzing image...",
     sublabel: "Visual feature detection",
@@ -26,8 +26,35 @@ const DEFAULT_STEPS: ScanStep[] = [
     progress: 55,
   },
   {
-    label: "Querying marketplace sold comps...",
-    sublabel: "Querying live eBay cleared sold listings",
+    label: "Querying historical eBay sold comps...",
+    sublabel: "Live eBay cleared sold listings",
+    icon: TrendingUp,
+    progress: 82,
+  },
+  {
+    label: "Calculating net profit & verdict...",
+    sublabel: "Platform fees, shipping & cop rating",
+    icon: Zap,
+    progress: 95,
+  },
+];
+
+const INTEL_STEPS: ScanStep[] = [
+  {
+    label: "Analyzing image...",
+    sublabel: "Visual feature detection",
+    icon: Camera,
+    progress: 25,
+  },
+  {
+    label: "Extracting brand & tags...",
+    sublabel: "OCR & condition appraisal",
+    icon: Tag,
+    progress: 55,
+  },
+  {
+    label: "Querying marketplace & local P2P comps...",
+    sublabel: "Aggregating eBay comps & marketplace intel",
     icon: TrendingUp,
     progress: 82,
   },
@@ -48,6 +75,7 @@ interface ScanProgressiveLoaderProps {
   detectedTitle?: string;
   detectedBrand?: string;
   previewImage?: string | null;
+  isIntelMode?: boolean;
 }
 
 export function ScanProgressiveLoader({
@@ -59,8 +87,11 @@ export function ScanProgressiveLoader({
   detectedTitle,
   detectedBrand,
   previewImage,
+  isIntelMode = false,
 }: ScanProgressiveLoaderProps) {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
+
+  const activeSteps = isIntelMode ? INTEL_STEPS : STANDARD_STEPS;
 
   // Synchronize immediately if explicit stage is provided
   useEffect(() => {
@@ -70,7 +101,7 @@ export function ScanProgressiveLoader({
     }
 
     if (stage === "comps") {
-      setCurrentStepIndex(2); // Immediately jump to "Querying marketplace sold comps..."
+      setCurrentStepIndex(2); // Jump to comps query step
       return;
     }
 
@@ -106,22 +137,22 @@ export function ScanProgressiveLoader({
 
   if (!isActive) return null;
 
-  const currentStep = DEFAULT_STEPS[currentStepIndex] || DEFAULT_STEPS[0];
+  const currentStep = activeSteps[currentStepIndex] || activeSteps[0];
   const StepIcon = currentStep.icon;
 
   const isComplete = stage === "complete";
   const displayProgress = isComplete ? 100 : currentStep.progress;
 
   const displayLabel = isComplete
-    ? "Comps Valued & Verified"
+    ? (isIntelMode ? "Intel Comps Valued & Verified" : "eBay Comps Valued & Verified")
     : customLabel || (currentStepIndex === 2 && detectedTitle
-      ? "Querying marketplace sold comps..."
+      ? (isIntelMode ? "Querying marketplace & local P2P comps..." : "Querying historical eBay sold comps...")
       : currentStep.label);
 
   const displaySublabel = isComplete
     ? (detectedTitle ? `Verified: ${detectedTitle}` : "Ready for pricing & profit analysis")
     : detectedTitle
-    ? `Live eBay comps: "${detectedTitle}"`
+    ? (isIntelMode ? `Marketplace & eBay comps: "${detectedTitle}"` : `Live eBay comps: "${detectedTitle}"`)
     : currentStep.sublabel;
 
   if (variant === "minimal") {

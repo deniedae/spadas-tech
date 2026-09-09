@@ -471,6 +471,116 @@ export const LensIntelPanel: React.FC<LensIntelPanelProps> = ({
               </div>
             </div>
 
+            {/* 4.5 Actionable Cash Advisory Playbook */}
+            {offMarket?.actionablePlaybook && (
+              <div className="p-3.5 rounded-2xl bg-gradient-to-b from-slate-900 via-slate-900/90 to-slate-950 border border-cyan-500/30 space-y-3 shadow-md">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                  <span className="flex items-center gap-1.5 text-xs font-black text-cyan-300 uppercase tracking-wider">
+                    <Zap className="h-3.5 w-3.5 text-cyan-400" /> Actionable Cash Advisory Playbook
+                  </span>
+                  <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-800/50">
+                    {offMarket.actionablePlaybook.localizedMarketValue.demandRating.replace("_", " ")}
+                  </span>
+                </div>
+
+                {/* Localized Market Value Advisory */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-slate-400 font-medium">Fair Local Cash Realization:</span>
+                    <span className="font-mono font-black text-emerald-300 text-sm">
+                      {fmtMoney(offMarket.actionablePlaybook.localizedMarketValue.fairCashPrice)}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-300 leading-snug">
+                    {offMarket.actionablePlaybook.localizedMarketValue.context}
+                  </p>
+                </div>
+
+                {/* Platform-Specific Pricing Matrix */}
+                <div className="space-y-1.5 pt-1">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
+                    Platform Pricing Strategies
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                    <div className="p-2 rounded-xl bg-slate-950/80 border border-slate-800 space-y-0.5">
+                      <div className="flex items-center justify-between">
+                        <span className="font-black text-cyan-300">Facebook Marketplace</span>
+                        <span className="font-mono font-bold text-white">
+                          Ask {fmtMoney(offMarket.actionablePlaybook.platformStrategies.facebookMarketplace.askingPrice)}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-slate-400 leading-snug">
+                        {offMarket.actionablePlaybook.platformStrategies.facebookMarketplace.tacticalTip}
+                      </p>
+                    </div>
+
+                    <div className="p-2 rounded-xl bg-slate-950/80 border border-slate-800 space-y-0.5">
+                      <div className="flex items-center justify-between">
+                        <span className="font-black text-amber-300">Gumtree AU</span>
+                        <span className="font-mono font-bold text-white">
+                          Ask {fmtMoney(offMarket.actionablePlaybook.platformStrategies.gumtreeAu.askingPrice)}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-slate-400 leading-snug">
+                        {offMarket.actionablePlaybook.platformStrategies.gumtreeAu.tacticalTip}
+                      </p>
+                    </div>
+
+                    <div className="p-2 rounded-xl bg-slate-950/80 border border-slate-800 space-y-0.5">
+                      <div className="flex items-center justify-between">
+                        <span className="font-black text-purple-300">Collector Circles</span>
+                        <span className="font-mono font-bold text-white">
+                          Ask {fmtMoney(offMarket.actionablePlaybook.platformStrategies.collectorCircles.askingPrice)}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-slate-400 leading-snug">
+                        {offMarket.actionablePlaybook.platformStrategies.collectorCircles.tacticalTip}
+                      </p>
+                    </div>
+
+                    <div className="p-2 rounded-xl bg-slate-950/80 border border-slate-800 space-y-0.5">
+                      <div className="flex items-center justify-between">
+                        <span className="font-black text-emerald-300">Dealer Instant Cash</span>
+                        <span className="font-mono font-bold text-emerald-400">
+                          {fmtMoney(offMarket.actionablePlaybook.platformStrategies.instantDealer.cashOffer)}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-slate-400 leading-snug">
+                        {offMarket.actionablePlaybook.platformStrategies.instantDealer.tacticalTip}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Fastest Logistical Route to Cash */}
+                <div className="p-2.5 rounded-xl bg-cyan-950/30 border border-cyan-500/20 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-cyan-400 flex items-center gap-1">
+                      <Clock className="h-3 w-3" /> Fastest Cash Turnaround
+                    </span>
+                    <span className="text-[10px] font-mono font-bold text-white">
+                      {offMarket.actionablePlaybook.fastestLogisticalCashout.estimatedTurnaround}
+                    </span>
+                  </div>
+
+                  <div className="space-y-1">
+                    {offMarket.actionablePlaybook.fastestLogisticalCashout.actionSteps.map((step, sIdx) => (
+                      <div key={sIdx} className="flex items-start gap-1.5 text-[11px] text-slate-200">
+                        <ArrowRight className="h-3 w-3 text-cyan-400 shrink-0 mt-0.5" />
+                        <span>{step}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="pt-1 border-t border-cyan-900/40 text-[10px] text-cyan-200/90 leading-tight">
+                    <span className="font-bold text-white">Payment & Safety: </span>
+                    {offMarket.actionablePlaybook.fastestLogisticalCashout.safePaymentProtocol}{" "}
+                    {offMarket.actionablePlaybook.fastestLogisticalCashout.stagingLocationTip}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* 5. Tactical Marketplace Copy & Hook */}
             {p2p?.tacticalListingHook && (
               <div className="p-3 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-1.5">

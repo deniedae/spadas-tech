@@ -5,6 +5,43 @@
  * and bundle/lot multipliers.
  */
 
+export interface TacticalCashAdvisory {
+  localizedMarketValue: {
+    fairCashPrice: number;
+    demandRating: "HOT_LOCAL" | "STEADY" | "NICHE";
+    context: string;
+  };
+  platformStrategies: {
+    facebookMarketplace: {
+      askingPrice: number;
+      targetCashPrice: number;
+      tacticalTip: string;
+    };
+    gumtreeAu: {
+      askingPrice: number;
+      targetCashPrice: number;
+      tacticalTip: string;
+    };
+    collectorCircles: {
+      askingPrice: number;
+      targetCashPrice: number;
+      tacticalTip: string;
+    };
+    instantDealer: {
+      cashOffer: number;
+      turnaroundWindow: string;
+      tacticalTip: string;
+    };
+  };
+  fastestLogisticalCashout: {
+    fastestRouteName: string;
+    estimatedTurnaround: string;
+    actionSteps: string[];
+    safePaymentProtocol: string;
+    stagingLocationTip: string;
+  };
+}
+
 export interface OffMarketIntelligence {
   collectorDemandLevel: "HIGH_NICHE" | "STEADY" | "COLD";
   cashBuyoutPrice: number; // Rapid same-day cash liquidation to another reseller (~55-65% of retail)
@@ -24,6 +61,7 @@ export interface OffMarketIntelligence {
     description: string;
   }>;
   dealerNegotiationScript: string;
+  actionablePlaybook: TacticalCashAdvisory;
 }
 
 /**
@@ -122,6 +160,54 @@ export function computeOffMarketIntelligence(
     ? `I've got an authentic ${brand} ${productName}. Market clears at $${val}, take it off my hands for $${cashBuyoutPrice} cash today.`
     : `Authentic ${productName} in tested condition. Comps are $${val}, take it now for $${cashBuyoutPrice} cash.`;
 
+  // 8. Actionable Cash Advisory Playbook
+  const targetCash = Math.round(val * 0.9);
+  const fbAsking = Math.round(targetCash * 1.15);
+  const gumtreeAsking = Math.round(targetCash * 1.10);
+
+  const actionablePlaybook: TacticalCashAdvisory = {
+    localizedMarketValue: {
+      fairCashPrice: targetCash,
+      demandRating: isHighVelocity ? "HOT_LOCAL" : val >= 50 ? "STEADY" : "NICHE",
+      context: isHighVelocity
+        ? "High localized velocity. Buyers frequently seek immediate cash-and-carry deals without waiting for postage."
+        : "Steady secondary market turnover. Price competitively for rapid 24-48h cash liquidation.",
+    },
+    platformStrategies: {
+      facebookMarketplace: {
+        askingPrice: fbAsking,
+        targetCashPrice: targetCash,
+        tacticalTip: "Pad listing price by 15% to absorb lowballers. State 'Cash on pickup only in local suburb'.",
+      },
+      gumtreeAu: {
+        askingPrice: gumtreeAsking,
+        targetCashPrice: targetCash,
+        tacticalTip: "Target DIYers, tradies and local collectors. Include phone number or quick SMS contact for faster settlement.",
+      },
+      collectorCircles: {
+        askingPrice: privateCollectorTargetPrice,
+        targetCashPrice: privateCollectorTargetPrice,
+        tacticalTip: "Post high-resolution close-ups of hallmarks/tags to enthusiast groups with zero platform commissions.",
+      },
+      instantDealer: {
+        cashOffer: cashBuyoutPrice,
+        turnaroundWindow: "1 - 3 Hours",
+        tacticalTip: "Walk directly into a local specialty or pawn dealer to instantly trade inventory for cash in hand.",
+      },
+    },
+    fastestLogisticalCashout: {
+      fastestRouteName: isHighVelocity ? "Same-Day Facebook Marketplace Meetup" : "Direct Specialist Dealer Buyout",
+      estimatedTurnaround: isHighVelocity ? "Under 12 Hours" : "Instant (1 - 3 Hours)",
+      actionSteps: [
+        `Take 3 crisp daylight photos: full front view, serial/brand tag, and back condition.`,
+        `Publish to ${isHighVelocity ? "Facebook Marketplace" : "Local Collector Circle"} with asking price $${fbAsking} ${currency}.`,
+        `Confirm pickup with first serious buyer within 2 hours. Do not hold without confirmed ETA.`,
+      ],
+      safePaymentProtocol: "Strictly Cash in hand or instant PayID/Osko with confirmed received balance before handing over item.",
+      stagingLocationTip: "Meet during daylight hours at a public spot (e.g. supermarket carpark or police station safe exchange zone).",
+    },
+  };
+
   return {
     collectorDemandLevel: isHighVelocity ? "HIGH_NICHE" : val >= 50 ? "STEADY" : "COLD",
     cashBuyoutPrice,
@@ -136,5 +222,6 @@ export function computeOffMarketIntelligence(
     },
     offMarketChannels: channels,
     dealerNegotiationScript: dealerScript,
+    actionablePlaybook,
   };
 }

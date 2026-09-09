@@ -14,6 +14,7 @@ import android.view.View
 import android.widget.ImageButton
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.enableEdgeToEdge
 import androidx.annotation.OptIn
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.*
@@ -21,6 +22,8 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import com.google.mlkit.vision.barcode.BarcodeScanner
 import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
@@ -55,8 +58,24 @@ class MLKitScannerActivity : AppCompatActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_mlkit_scanner)
+
+        // Modern Edge-to-Edge WindowInsets Handling (Android 15+ Target SDK 35/36)
+        val topBar = findViewById<View>(R.id.top_bar)
+        ViewCompat.setOnApplyWindowInsetsListener(topBar) { view, insets ->
+            val statusBarInsets = insets.getInsets(
+                WindowInsetsCompat.Type.statusBars() or WindowInsetsCompat.Type.displayCutout()
+            )
+            view.setPadding(
+                view.paddingLeft,
+                statusBarInsets.top + 8,
+                view.paddingRight,
+                view.paddingBottom
+            )
+            insets
+        }
 
         previewView = findViewById(R.id.preview_view)
         btnTorch = findViewById(R.id.btn_torch)

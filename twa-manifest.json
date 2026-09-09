@@ -13,9 +13,9 @@
   "enableNotifications": true,
   "startUrl": "/dashboard",
   "iconUrl": "https://spadas-tech.vercel.app/icon-512.png",
-  "maskableIconUrl": "https://spadas-tech.vercel.app/maskable-512.png",
-  "appVersionName": "1.2.0",
-  "appVersionCode": 3,
+  "orientation": "any",
+  "appVersionName": "1.2.1.0",
+  "appVersionCode": 4,
   "signingKey": {
     "path": "./signing.keystore",
     "alias": "my-key-alias"

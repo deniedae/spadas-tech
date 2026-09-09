@@ -943,34 +943,19 @@ function SpadasLensCameraCore({
         setActiveValuationHit(null);
       }, 8500);
 
-      // 6. If Intel Mode is active, precompute tactical & local marketplace intel asynchronously without stalling UI
+      // 6. Standard Lens AR appraisal preserves pure historical eBay sold comps pipeline.
+      // If Intel Mode is active, prepare instant 0ms offline baseline heuristics without calling /api/marketplace-intel over network
       if (isIntelModeActive) {
-        setTimeout(() => {
-          try {
-            const intel = generateTacticalIntel(hit, selectedCurrency);
-            setActiveIntelData(intel);
-            void fetchMarketplaceIntelligenceAsync({
-              image: previewImage || (hit as any).image || undefined,
-              productName: hit.name,
-              brand: hit.brand,
-              category: hit.category,
-              estimatedValue: hit.estimatedValue,
-              currency: selectedCurrency,
-            }).then((p2p) => {
-              if (p2p) {
-                setActiveIntelData((prev) =>
-                  prev ? { ...prev, marketplaceIntelligence: p2p } : prev
-                );
-              }
-            });
-          } catch {}
-        }, 60);
+        try {
+          const baselineIntel = generateTacticalIntel(hit, selectedCurrency);
+          setActiveIntelData(baselineIntel);
+        } catch {}
       }
     },
     [soundEnabled, playChime, minProfitThreshold, isIntelModeActive, selectedCurrency]
   );
 
-  // Open Tactical Intel Panel (Deep multi-prompt resell & P2P marketplace insights on demand)
+  // Open Tactical Intel Panel (Deep multi-prompt resell & P2P marketplace insights strictly on-demand)
   const handleOpenTacticalIntel = useCallback(
     (hit?: DetectedHit | null, imageSnapshot?: string) => {
       const target = hit || activeValuationHit;
@@ -980,35 +965,38 @@ function SpadasLensCameraCore({
       }
 
       setIsIntelPanelOpen(true);
+
+      // Instantly seed baseline 0ms heuristics if not already populated
+      try {
+        const baseline = generateTacticalIntel(target, selectedCurrency);
+        setActiveIntelData((prev) => prev || baseline);
+      } catch {}
+
+      // Fire secondary marketplace & off-market intelligence pipeline strictly on-demand
       setIsIntelAnalyzing(true);
-
-      // Asynchronously generate deep reseller intel without blocking camera animation loop
-      setTimeout(() => {
-        try {
-          const intel = generateTacticalIntel(target, selectedCurrency);
-          setActiveIntelData(intel);
-
-          void fetchMarketplaceIntelligenceAsync({
-            image: imageSnapshot || frozenFrameUrl || (target as any).image,
-            productName: target.name,
-            brand: target.brand,
-            category: target.category,
-            estimatedValue: target.estimatedValue,
-            currency: selectedCurrency,
-          }).then((p2p) => {
-            if (p2p) {
-              setActiveIntelData((prev) =>
-                prev ? { ...prev, marketplaceIntelligence: p2p } : prev
-              );
-            }
-          });
-        } catch (err) {
+      void fetchMarketplaceIntelligenceAsync({
+        image: imageSnapshot || frozenFrameUrl || (target as any).image,
+        productName: target.name,
+        brand: target.brand,
+        category: target.category,
+        estimatedValue: target.estimatedValue,
+        currency: selectedCurrency,
+      })
+        .then((p2p) => {
+          if (p2p) {
+            setActiveIntelData((prev) => {
+              const base = prev || generateTacticalIntel(target, selectedCurrency);
+              return { ...base, marketplaceIntelligence: p2p };
+            });
+          }
+        })
+        .catch((err) => {
           console.error("[Spadas Lens] Tactical intel generation error:", err);
-          toast.error("Could not generate tactical intel.");
-        } finally {
+          toast.error("Could not load real-time marketplace intel.");
+        })
+        .finally(() => {
           setIsIntelAnalyzing(false);
-        }
-      }, 50);
+        });
     },
     [activeValuationHit, selectedCurrency, frozenFrameUrl]
   );
@@ -3717,6 +3705,16 @@ function SpadasLensCameraCore({
                 <span className="text-slate-200 font-medium text-[10px]">
                   {isScanPaused ? "🎯 Locked" : cameraMoving ? "Panning..." : "Steady"}
                 </span>
+                <span className="text-slate-600">•</span>
+                {isIntelModeActive ? (
+                  <span className="text-cyan-400 font-black text-[10px] tracking-wider uppercase inline-flex items-center gap-1 animate-pulse">
+                    <Zap className="h-2.5 w-2.5 fill-cyan-400 text-cyan-400" /> Intel Mode
+                  </span>
+                ) : (
+                  <span className="text-slate-400 font-bold text-[10px] tracking-wider uppercase">
+                    eBay Comps
+                  </span>
+                )}
               </div>
 
               {/* Geolocation & Category Biasing Prior Badge */}
@@ -3914,6 +3912,7 @@ function SpadasLensCameraCore({
                 <ScanProgressiveLoader
                   isActive={true}
                   stage={scanStage}
+                  isIntelMode={isIntelModeActive}
                   detectedTitle={pendingIdentifiedItem?.productName}
                   detectedBrand={pendingIdentifiedItem?.brand ?? undefined}
                   previewImage={frozenFrameUrl}
