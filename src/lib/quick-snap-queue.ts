@@ -58,10 +58,10 @@ class QuickSnapQueueService {
 
   /**
    * Enqueue a single captured photo for asynchronous background valuation.
-   * Immediately registers the item in haulStore (0ms count increment) and saves the photo blob to IndexedDB.
+   * Immediately registers the item in haulStore (0ms count increment) and asynchronously persists the photo blob to IndexedDB without blocking the main UI thread.
    */
   public enqueuePhoto = async (
-    blob: Blob,
+    blobOrPromise: Blob | Promise<Blob>,
     metadata?: Partial<RapidThriftItem>,
     currency = "AUD"
   ): Promise<RapidThriftItem> => {
@@ -70,14 +70,7 @@ class QuickSnapQueueService {
     const photoId = `photo_snap_${timestamp}_${rand}`;
     const id = `snap_${timestamp}_${rand}`;
 
-    // 1. Asynchronously persist photo blob to IndexedDB
-    try {
-      await savePhotoBlob(photoId, blob);
-    } catch (err) {
-      console.warn("[QuickSnapQueue] Failed to persist photo blob:", err);
-    }
-
-    // 2. Immediately register in reactive Haul Store with queued status
+    // 1. Immediately register in reactive Haul Store with queued status (0ms synchronous UI update)
     const item: RapidThriftItem = {
       id,
       photoId,
@@ -97,12 +90,36 @@ class QuickSnapQueueService {
 
     haulStore.addItem(item);
 
-    // 3. Queue task for background execution
-    this.queue.push({ id, photoId, blob, currency });
-    this.notify();
-
-    // 4. Trigger asynchronous processing loop
-    void this.processQueue();
+    // 2. Asynchronously resolve blob, persist to IndexedDB in background, and dispatch to worker queue
+    if (blobOrPromise instanceof Blob) {
+      void savePhotoBlob(photoId, blobOrPromise).catch((err) => {
+        console.warn("[QuickSnapQueue] Failed to persist photo blob to IndexedDB:", err);
+      });
+      this.queue.push({ id, photoId, blob: blobOrPromise, currency });
+      this.notify();
+      void this.processQueue();
+    } else {
+      Promise.resolve(blobOrPromise)
+        .then((blob) => {
+          if (!blob) throw new Error("Null blob resolved");
+          void savePhotoBlob(photoId, blob).catch((err) => {
+            console.warn("[QuickSnapQueue] Failed to persist photo blob to IndexedDB:", err);
+          });
+          this.queue.push({ id, photoId, blob, currency });
+          this.notify();
+          void this.processQueue();
+        })
+        .catch((err) => {
+          console.error("[QuickSnapQueue] Failed to resolve captured frame blob:", err);
+          haulStore.updateItem(id, {
+            status: "completed",
+            productName: "Frame capture error",
+            brand: "Unidentified",
+            trueNetProfit: 0,
+            copVerdict: "PASS_RISKY",
+          });
+        });
+    }
 
     return item;
   };

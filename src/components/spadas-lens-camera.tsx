@@ -891,8 +891,11 @@ function SpadasLensCameraCore({
         navigator.vibrate(hit.copVerdict === "MUST_COP" || hit.isGrail ? [50, 30, 90] : [40, 25, 50]);
       }
 
-      // 3. Audio Confirmation
-      playChime(hit.trueNetProfit || hit.estimatedProfit || 0);
+      // 3. Audio Confirmation — only chime on locked final hits with positive profit margin (never on break-even or pass)
+      const confirmedProfit = hit.trueNetProfit ?? hit.estimatedProfit ?? 0;
+      if (confirmedProfit >= minProfitThreshold && hit.verdict !== "PASS") {
+        playChime(confirmedProfit);
+      }
 
       // 4. Viewfinder Instant Visual Confirmation: Target lock snap & pulse animation
       setScanCompletePulse(true);
@@ -921,7 +924,7 @@ function SpadasLensCameraCore({
         setActiveValuationHit(null);
       }, 8500);
     },
-    [soundEnabled, playChime]
+    [soundEnabled, playChime, minProfitThreshold]
   );
 
   // Continuous 60 FPS Native Barcode Scanner Loop
@@ -1905,7 +1908,7 @@ function SpadasLensCameraCore({
     autoScanActiveRef.current = autoScanActive;
   }, [autoScanActive]);
 
-  // Unified Quick Snap Stream Capture (Instant frame capture directly into background queue)
+  // Unified Quick Snap Stream Capture (Instant frame capture directly into background queue with 0ms UI blocking)
   const handleQuickSnapCapture = useCallback(async () => {
     const video = videoRef.current;
     if (!video || video.readyState < 2 || video.videoWidth === 0 || video.videoHeight === 0) {
@@ -1917,7 +1920,7 @@ function SpadasLensCameraCore({
     setIsQuickSnapping(true);
 
     try {
-      // 1. Shutter audio and tactile haptic feedback
+      // 1. Instant sensory feedback in 0ms (Audio + Tactile Haptic)
       try {
         playScanBeep();
         triggerScanHaptic();
@@ -1927,40 +1930,56 @@ function SpadasLensCameraCore({
       setQuickSnapFlash(true);
       setTimeout(() => setQuickSnapFlash(false), 150);
 
-      // 3. Grab current frame onto offscreen canvas (1280px resolution for fine AI appraisal)
-      const canvas = document.createElement("canvas");
-      const maxDim = 1280;
-      const fullW = video.videoWidth;
-      const fullH = video.videoHeight;
-      let tw = fullW;
-      let th = fullH;
-      if (fullW >= fullH) {
-        tw = Math.min(maxDim, fullW);
-        th = Math.round((fullH * tw) / fullW);
-      } else {
-        th = Math.min(maxDim, fullH);
-        tw = Math.round((fullW * th) / fullH);
-      }
-      canvas.width = tw;
-      canvas.height = th;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) throw new Error("Failed to create canvas context");
-      ctx.drawImage(video, 0, 0, fullW, fullH, 0, 0, tw, th);
-
-      // 4. Encode directly to JPEG Blob
-      const blob = await new Promise<Blob | null>((resolve) => {
-        canvas.toBlob((b) => resolve(b), "image/jpeg", 0.85);
-      });
-
-      if (!blob) throw new Error("Frame blob encoding failed");
-
-      // 5. Pipe immediately into QuickSnapQueueService (0ms haulStore hydration + IndexedDB save)
-      void quickSnapQueue.enqueuePhoto(blob, undefined, selectedCurrency);
-
+      // 3. Optimistic user feedback in 0ms
       toast.success("⚡ Quick Snapped to Haul!", {
         duration: 1500,
         id: "quick-snap-toast",
       });
+
+      // 4. Asynchronous frame capture off the main thread (maintains locked 60 FPS viewfinder with zero stutter)
+      const blobPromise = new Promise<Blob>((resolve, reject) => {
+        requestAnimationFrame(() => {
+          try {
+            const maxDim = 1280;
+            const fullW = video.videoWidth;
+            const fullH = video.videoHeight;
+            let tw = fullW;
+            let th = fullH;
+            if (fullW >= fullH) {
+              tw = Math.min(maxDim, fullW);
+              th = Math.round((fullH * tw) / fullW);
+            } else {
+              th = Math.min(maxDim, fullH);
+              tw = Math.round((fullW * th) / fullH);
+            }
+
+            // Prefer OffscreenCanvas if available to avoid any DOM interaction or main-thread hitch
+            if (typeof OffscreenCanvas !== "undefined") {
+              const offscreen = new OffscreenCanvas(tw, th);
+              const ctx = offscreen.getContext("2d");
+              if (!ctx) throw new Error("Offscreen context unavailable");
+              ctx.drawImage(video, 0, 0, fullW, fullH, 0, 0, tw, th);
+              offscreen.convertToBlob({ type: "image/jpeg", quality: 0.85 }).then(resolve, reject);
+            } else {
+              const canvas = document.createElement("canvas");
+              canvas.width = tw;
+              canvas.height = th;
+              const ctx = canvas.getContext("2d");
+              if (!ctx) throw new Error("Canvas context unavailable");
+              ctx.drawImage(video, 0, 0, fullW, fullH, 0, 0, tw, th);
+              canvas.toBlob((b) => {
+                if (b) resolve(b);
+                else reject(new Error("Canvas blob encoding failed"));
+              }, "image/jpeg", 0.85);
+            }
+          } catch (err) {
+            reject(err);
+          }
+        });
+      });
+
+      // 5. Pipe immediately into QuickSnapQueueService (optimistically adds to haulStore synchronously)
+      void quickSnapQueue.enqueuePhoto(blobPromise, undefined, selectedCurrency);
     } catch (err) {
       console.error("[Spadas Lens] Quick Snap capture error:", err);
       toast.error("Quick Snap failed to capture frame.");
@@ -2213,8 +2232,10 @@ function SpadasLensCameraCore({
                   triggerActiveValuationHit(verifiedHit, snapshotUrl || productImg);
                   setConfidencePercent(99);
 
-                  if (scanExpiryTimerRef.current) clearTimeout(scanExpiryTimerRef.current);
-                  scanExpiryTimerRef.current = setTimeout(() => setActiveScans([]), 4500);
+                  if (scanExpiryTimerRef.current) {
+                    clearTimeout(scanExpiryTimerRef.current);
+                    scanExpiryTimerRef.current = null;
+                  }
 
                   if (soundEnabled) {
                     playScanBeep();
@@ -2521,7 +2542,16 @@ function SpadasLensCameraCore({
                         confidenceScore: 0.95,
                         timestamp: Date.now(),
                       };
-                      setActiveScans([pendingScan]);
+                      setActiveScans((prev) => {
+                        const existingValued = prev.find((s) => s.status === "valued");
+                        if (existingValued && Date.now() - existingValued.timestamp < 8000) {
+                          if (getKeywordSimilarity(existingValued.productName, rawPName) >= 0.5) {
+                            return prev;
+                          }
+                          return [existingValued, pendingScan].slice(0, 2);
+                        }
+                        return [pendingScan];
+                      });
                     }
                   } else if (chunk.event === "complete") {
                     if (abortController.signal.aborted || cycleId !== activeCycleIdRef.current) return;
@@ -2758,8 +2788,10 @@ function SpadasLensCameraCore({
             } catch {}
           }
 
-          if (scanExpiryTimerRef.current) clearTimeout(scanExpiryTimerRef.current);
-          scanExpiryTimerRef.current = setTimeout(() => setActiveScans([]), 4500);
+          if (scanExpiryTimerRef.current) {
+            clearTimeout(scanExpiryTimerRef.current);
+            scanExpiryTimerRef.current = null;
+          }
 
           triggerActiveValuationHit(verifiedHit, frozenFrameUrl);
           toast.success(`📶 Autonomous Appraisal: ${offlineAppraisal.productName} (+${fmtMoney(offlineAppraisal.trueNetProfit)} Net)`);
@@ -2956,6 +2988,7 @@ function SpadasLensCameraCore({
             inventoryCondition: "used_working",
             defectNotes: obj.defectNotes,
             asIsDisclaimer: obj.asIsDisclaimer,
+            ocrText: data?.analysis?.visual_reasoning?.visible_text_detected || (obj.brand ? [obj.brand] : undefined),
           };
 
           setSessionScanCount((prev) => prev + 1);
@@ -2979,23 +3012,23 @@ function SpadasLensCameraCore({
             } catch {}
           }
 
-          // Dynamically update activeScans array with smooth 3.5s decay retention
           if (scanExpiryTimerRef.current) {
             clearTimeout(scanExpiryTimerRef.current);
+            scanExpiryTimerRef.current = null;
           }
 
+          // Retain up to 3 verified scan items smoothly without abrupt timer clearing
           setActiveScans((prev) => {
             const filtered = prev.filter((s) => getKeywordSimilarity(s.productName, obj.productName) < 0.6);
             return [valuedItem, ...filtered].slice(0, 3);
           });
 
-          scanExpiryTimerRef.current = setTimeout(() => {
-            setActiveScans([]);
-          }, 3500);
+          // Strict Grail Alert Engine: requires genuine positive net profit ($50+ minimum, and $80+ or 250%+ ROI with MUST_COP)
+          const isGrailHit =
+            estimatedProfit >= 50 &&
+            (estimatedProfit >= 80 || estRoi >= 250) &&
+            copVerdict === "MUST_COP";
 
-          const isGrailHit = estimatedProfit >= 80 || estRoi >= 250;
-
-          // Grail Alert Triggering Engine ($80+ Profit or 250%+ ROI)
           if (isGrailHit && grailMode) {
             if (typeof navigator !== "undefined" && navigator.vibrate) {
               navigator.vibrate([100, 50, 200]);
@@ -3012,7 +3045,7 @@ function SpadasLensCameraCore({
             setTimeout(() => {
               setActiveGrailAlert(null);
             }, 4500);
-          } else if (estimatedProfit >= minProfitThreshold && estRoi >= minRoiThreshold) {
+          } else if (estimatedProfit >= minProfitThreshold && estRoi >= minRoiThreshold && copVerdict !== "PASS_RISKY") {
             const lastChimed = lastChimedRef.current;
             const isSameProduct = lastChimed && getKeywordSimilarity(lastChimed.name, obj.productName) >= 0.55;
             const isCooldownActive = lastChimed && (now - lastChimed.time < 15000);
@@ -3021,7 +3054,6 @@ function SpadasLensCameraCore({
               if (typeof navigator !== "undefined" && navigator.vibrate) {
                 navigator.vibrate(80);
               }
-              playChime(estimatedProfit);
               speakCue(`High profit hit: ${obj.productName}. Profit ${fmtMoney(estimatedProfit)}.`);
               lastChimedRef.current = { name: obj.productName, time: now };
             }
@@ -4163,23 +4195,23 @@ function SpadasLensCameraCore({
               </div>
             </div>
 
-            {/* Sleek Minimalist AR Bounding Box Target Indicator */}
+            {/* Sleek Minimalist AR Bounding Box Target Indicator with OCR Telemetry */}
             {activeScans.slice(0, 1).map((scan) => (
               <div
                 key={scan.id}
                 style={{
-                  left: `${scan.bbox.x}%`,
-                  top: `${scan.bbox.y}%`,
-                  width: `${scan.bbox.width}%`,
-                  height: `${scan.bbox.height}%`,
+                  left: `${Math.max(2, Math.min(80, scan.bbox.x))}%`,
+                  top: `${Math.max(2, Math.min(80, scan.bbox.y))}%`,
+                  width: `${Math.max(15, Math.min(95, scan.bbox.width))}%`,
+                  height: `${Math.max(15, Math.min(95, scan.bbox.height))}%`,
                 }}
                 className={`absolute z-20 pointer-events-none transition-all duration-300 border-2 rounded-2xl ${
                   scan.status === "valued"
                     ? "border-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.7)]"
                     : "border-cyan-400 animate-pulse shadow-[0_0_10px_rgba(34,211,238,0.5)]"
-                }`}
+                } ${cameraMoving ? "opacity-75 scale-[0.99]" : "opacity-100 scale-100"}`}
               >
-                {/* Subtle AR Reticle Tag */}
+                {/* Subtle AR Reticle Tag with OCR Telemetry */}
                 <div className="absolute -top-7 left-0 flex items-center gap-1.5 bg-slate-950/90 text-white border border-cyan-400/30 rounded-lg px-2 py-0.5 text-[10px] font-bold shadow-lg backdrop-blur-md">
                   <span className={`h-1.5 w-1.5 rounded-full ${scan.status === "valued" ? "bg-emerald-400" : "bg-cyan-400 animate-pulse"}`} />
                   <span className="text-cyan-300 font-mono text-[9px] uppercase tracking-wider">
@@ -4188,6 +4220,11 @@ function SpadasLensCameraCore({
                   <span className="text-white font-extrabold truncate max-w-[130px]">
                     {scan.productName}
                   </span>
+                  {scan.ocrText && scan.ocrText.length > 0 && (
+                    <span className="hidden xs:inline text-amber-300 font-mono text-[8px] bg-amber-400/10 px-1 rounded border border-amber-400/30 max-w-[90px] truncate">
+                      OCR: {scan.ocrText[0]}
+                    </span>
+                  )}
                 </div>
               </div>
             ))}

@@ -133,5 +133,6 @@ export interface ActiveScanItem {
   roiPercentage?: number;
   copVerdict?: CopVerdict;
   image?: string | null;
+  ocrText?: string[];
   timestamp: number;
 }
