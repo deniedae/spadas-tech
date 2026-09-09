@@ -67,6 +67,12 @@ import { quickSnapQueue, useQuickSnapQueue } from "@/lib/quick-snap-queue";
 import { RapidThriftDrawer } from "@/components/rapid-thrift-drawer";
 import { QuickHistoryDrawer } from "@/components/quick-history-drawer";
 import { calculateSalesVelocity } from "@/lib/turnover-velocity-engine";
+import { LensIntelPanel } from "@/components/lens-intel-panel";
+import {
+  generateTacticalIntel,
+  LensIntelData,
+  fetchMarketplaceIntelligenceAsync,
+} from "@/lib/lens-intel-engine";
 import type { DetectedHit, ActiveScanItem, CopVerdict } from "@/types/lens";
 export type { DetectedHit, ActiveScanItem, CopVerdict } from "@/types/lens";
 import { processFrameForVision, poolConsecutiveFrames, createMultiFrameComposite } from "@/lib/image-preprocessor";
@@ -508,6 +514,19 @@ function SpadasLensCameraCore({
   const { pendingCount: quickSnapPendingCount } = useQuickSnapQueue();
   const [quickSnapFlash, setQuickSnapFlash] = useState<boolean>(false);
   const [isQuickSnapping, setIsQuickSnapping] = useState<boolean>(false);
+  const [selectedCurrency, setSelectedCurrency] = useState<SupportedCurrency>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("spadas_selected_currency");
+      if (saved && (saved === "AUD" || saved === "USD" || saved === "EUR" || saved === "GBP")) {
+        return saved as SupportedCurrency;
+      }
+    }
+    return detectGeoCurrency().currency;
+  });
+  const [isIntelModeActive, setIsIntelModeActive] = useState<boolean>(false);
+  const [activeIntelData, setActiveIntelData] = useState<LensIntelData | null>(null);
+  const [isIntelPanelOpen, setIsIntelPanelOpen] = useState<boolean>(false);
+  const [isIntelAnalyzing, setIsIntelAnalyzing] = useState<boolean>(false);
   const [isRapidDrawerOpen, setIsRapidDrawerOpen] = useState<boolean>(false);
   const rapidQueueRef = useRef<Array<{ item: RapidThriftItem; blob: Blob }>>([]);
   const activeRapidWorkersRef = useRef<number>(0);
@@ -923,8 +942,75 @@ function SpadasLensCameraCore({
       valuationExpiryTimerRef.current = setTimeout(() => {
         setActiveValuationHit(null);
       }, 8500);
+
+      // 6. If Intel Mode is active, precompute tactical & local marketplace intel asynchronously without stalling UI
+      if (isIntelModeActive) {
+        setTimeout(() => {
+          try {
+            const intel = generateTacticalIntel(hit, selectedCurrency);
+            setActiveIntelData(intel);
+            void fetchMarketplaceIntelligenceAsync({
+              image: previewImage || (hit as any).image || undefined,
+              productName: hit.name,
+              brand: hit.brand,
+              category: hit.category,
+              estimatedValue: hit.estimatedValue,
+              currency: selectedCurrency,
+            }).then((p2p) => {
+              if (p2p) {
+                setActiveIntelData((prev) =>
+                  prev ? { ...prev, marketplaceIntelligence: p2p } : prev
+                );
+              }
+            });
+          } catch {}
+        }, 60);
+      }
     },
-    [soundEnabled, playChime, minProfitThreshold]
+    [soundEnabled, playChime, minProfitThreshold, isIntelModeActive, selectedCurrency]
+  );
+
+  // Open Tactical Intel Panel (Deep multi-prompt resell & P2P marketplace insights on demand)
+  const handleOpenTacticalIntel = useCallback(
+    (hit?: DetectedHit | null, imageSnapshot?: string) => {
+      const target = hit || activeValuationHit;
+      if (!target) {
+        toast.info("Aim camera and scan an item to view tactical intel.");
+        return;
+      }
+
+      setIsIntelPanelOpen(true);
+      setIsIntelAnalyzing(true);
+
+      // Asynchronously generate deep reseller intel without blocking camera animation loop
+      setTimeout(() => {
+        try {
+          const intel = generateTacticalIntel(target, selectedCurrency);
+          setActiveIntelData(intel);
+
+          void fetchMarketplaceIntelligenceAsync({
+            image: imageSnapshot || frozenFrameUrl || (target as any).image,
+            productName: target.name,
+            brand: target.brand,
+            category: target.category,
+            estimatedValue: target.estimatedValue,
+            currency: selectedCurrency,
+          }).then((p2p) => {
+            if (p2p) {
+              setActiveIntelData((prev) =>
+                prev ? { ...prev, marketplaceIntelligence: p2p } : prev
+              );
+            }
+          });
+        } catch (err) {
+          console.error("[Spadas Lens] Tactical intel generation error:", err);
+          toast.error("Could not generate tactical intel.");
+        } finally {
+          setIsIntelAnalyzing(false);
+        }
+      }, 50);
+    },
+    [activeValuationHit, selectedCurrency, frozenFrameUrl]
   );
 
   // Continuous 60 FPS Native Barcode Scanner Loop
@@ -1158,15 +1244,7 @@ function SpadasLensCameraCore({
     }
   };
 
-  const [selectedCurrency, setSelectedCurrency] = useState<SupportedCurrency>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("spadas_selected_currency");
-      if (saved && (saved === "AUD" || saved === "USD" || saved === "EUR" || saved === "GBP")) {
-        return saved as SupportedCurrency;
-      }
-    }
-    return detectGeoCurrency().currency;
-  });
+
   const prevFramePixelsRef = useRef<Uint8ClampedArray | null>(null);
   const lastScanTimeRef = useRef<number>(0);
   const lastRecognizedSignatureRef = useRef<{ name: string; timestamp: number } | null>(null);
@@ -3776,6 +3854,33 @@ function SpadasLensCameraCore({
                   <Sparkles className="h-3.5 w-3.5" />
                 </button>
 
+                {/* Tactical Intel Mode Toggle Button (Zero-latency isolated state) */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const next = !isIntelModeActive;
+                    setIsIntelModeActive(next);
+                    if (next) {
+                      toast.success("⚡ Intel Mode ON: Local P2P & Marketplace Intelligence active");
+                    } else {
+                      toast.info("Intel Mode OFF: Standard rapid scan active");
+                    }
+                  }}
+                  aria-label={isIntelModeActive ? "Disable Intel Mode" : "Enable Intel Mode"}
+                  className={`h-8 px-2.5 rounded-full border flex items-center gap-1.5 transition backdrop-blur-md shadow-lg cursor-pointer ${
+                    isIntelModeActive
+                      ? "bg-cyan-500/25 border-cyan-400 text-cyan-300 shadow-[0_0_12px_rgba(6,182,212,0.4)]"
+                      : "bg-slate-950/80 border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-500"
+                  }`}
+                  title={isIntelModeActive ? "Intel Mode Active (Local P2P & Resell Intel)" : "Enable Intel Mode"}
+                >
+                  <Zap className={`h-3.5 w-3.5 ${isIntelModeActive ? "text-cyan-400 fill-cyan-400" : "text-slate-400"}`} />
+                  <span className="text-[10px] font-black uppercase tracking-wider hidden xs:inline">
+                    {isIntelModeActive ? "Intel ON" : "Intel"}
+                  </span>
+                </button>
+
                 {/* Camera Power Toggle Button */}
                 <button
                   type="button"
@@ -4040,6 +4145,20 @@ function SpadasLensCameraCore({
                           >
                             <TrendingUp className="h-3.5 w-3.5 text-cyan-400" />
                             <span>Comps</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleOpenTacticalIntel(activeValuationHit, frozenFrameUrl || activeValuationHit.image || undefined)}
+                            className={`inline-flex items-center gap-1 border px-2.5 py-1.5 rounded-xl text-[11px] font-black transition cursor-pointer active:scale-95 ${
+                              isIntelModeActive
+                                ? "bg-cyan-500/25 hover:bg-cyan-500/35 text-cyan-300 border-cyan-400/60 shadow-sm shadow-cyan-500/20"
+                                : "bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700"
+                            }`}
+                            title="Local P2P Cash Liquidity & Tactical Intelligence"
+                          >
+                            <Zap className="h-3.5 w-3.5 text-cyan-400" />
+                            <span>Intel</span>
                           </button>
 
                           {checkNeedsVerification({
@@ -4754,6 +4873,32 @@ function SpadasLensCameraCore({
         pendingSyncCount={pendingSyncCount}
         currency={selectedCurrency}
         onNavigateFullHistory={() => router.push("/history")}
+      />
+
+      {/* Tactical Reseller & Local Marketplace Intelligence Overlay */}
+      <LensIntelPanel
+        isOpen={isIntelPanelOpen}
+        onClose={() => setIsIntelPanelOpen(false)}
+        intel={activeIntelData}
+        isLoading={isIntelAnalyzing}
+        onAddToHaul={
+          activeValuationHit
+            ? () => {
+                void handleSaveDraftHit(activeValuationHit);
+                setActiveValuationHit(null);
+                setFrozenFrameUrl(null);
+              }
+            : undefined
+        }
+        onViewComps={
+          activeValuationHit
+            ? () => {
+                setActiveCompsHit(activeValuationHit);
+                setActiveValuationHit(null);
+              }
+            : undefined
+        }
+        currency={selectedCurrency}
       />
     </div>
   );
