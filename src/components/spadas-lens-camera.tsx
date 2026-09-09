@@ -546,7 +546,7 @@ function SpadasLensCameraCore({
       }
 
       // Guard against race conditions: Never wipe valuation results if preserveValuation is requested
-      if (!options?.preserveValuation && !isCompsModalOpenRef.current) {
+      if (!options?.preserveValuation && !isCompsModalOpenRef.current && !isIntelPanelOpenRef.current) {
         setActiveValuationHit(null);
       }
       setActiveScans([]);
@@ -559,12 +559,14 @@ function SpadasLensCameraCore({
         _setActiveCompsHit(null);
         _setIsCompsModalOpen(false);
         isCompsModalOpenRef.current = false;
+        _setIsIntelPanelOpen(false);
+        isIntelPanelOpenRef.current = false;
       }
 
       setScanStage(targetStage);
       setScanRetryPrompt(null);
       setScanFeedback(null);
-      if (!options?.preserveValuation && !isCompsModalOpenRef.current) {
+      if (!options?.preserveValuation && !isCompsModalOpenRef.current && !isIntelPanelOpenRef.current) {
         setFrozenFrameUrl(null);
       }
       setLatestApiError(null);
@@ -572,7 +574,7 @@ function SpadasLensCameraCore({
       setRetakeRecommendation(null);
       setSecondaryImagePayload(null);
       setConfidencePercent(94);
-      if (!isCompsModalOpenRef.current) {
+      if (!isCompsModalOpenRef.current && !isIntelPanelOpenRef.current) {
         setIsScanPaused(false);
       }
       setAnalyzingRealFrame(false);
@@ -618,9 +620,21 @@ function SpadasLensCameraCore({
     }
     return detectGeoCurrency().currency;
   });
-  const [isIntelModeActive, setIsIntelModeActive] = useState<boolean>(false);
+
+  const [isIntelModeActive, _setIsIntelModeActive] = useState<boolean>(false);
+  const isIntelModeActiveRef = useRef<boolean>(false);
+  const setIsIntelModeActive = useCallback((active: boolean) => {
+    isIntelModeActiveRef.current = active;
+    _setIsIntelModeActive(active);
+  }, []);
+
   const [activeIntelData, setActiveIntelData] = useState<LensIntelData | null>(null);
-  const [isIntelPanelOpen, setIsIntelPanelOpen] = useState<boolean>(false);
+  const [isIntelPanelOpen, _setIsIntelPanelOpen] = useState<boolean>(false);
+  const isIntelPanelOpenRef = useRef<boolean>(false);
+  const setIsIntelPanelOpen = useCallback((open: boolean) => {
+    isIntelPanelOpenRef.current = open;
+    _setIsIntelPanelOpen(open);
+  }, []);
   const [isIntelAnalyzing, setIsIntelAnalyzing] = useState<boolean>(false);
   const [isRapidDrawerOpen, setIsRapidDrawerOpen] = useState<boolean>(false);
   const rapidQueueRef = useRef<Array<{ item: RapidThriftItem; blob: Blob }>>([]);
@@ -1030,12 +1044,20 @@ function SpadasLensCameraCore({
       }, 50);
 
       // 5. Explicit Final Step Callback Execution:
-      // Immediately execute guaranteed state update sequence:
-      // setting setActiveCompsHit(hit), storing lastCompsHitRef.current = hit,
-      // and explicitly forcing setIsCompsModalOpen(true) with zero dependency on background scanning loop state
-      lastCompsHitRef.current = hit;
-      setActiveCompsHit(hit);
-      setIsCompsModalOpen(true);
+      // Immediately execute guaranteed state update sequence based on active engine mode:
+      if (isIntelModeActiveRef.current || isIntelModeActive) {
+        // Intel Mode: Route cleanly to P2P valuation & Tactical Intel panel
+        try {
+          const baselineIntel = generateTacticalIntel(hit, selectedCurrency);
+          setActiveIntelData(baselineIntel);
+        } catch {}
+        setIsIntelPanelOpen(true);
+      } else {
+        // Standard Mode: Route to full-screen / bottom-sheet eBay Comps Modal
+        lastCompsHitRef.current = hit;
+        setActiveCompsHit(hit);
+        setIsCompsModalOpen(true);
+      }
       setIsScanPaused(true);
 
       // 6. Generous auto-expiry timer so the user has ample time to inspect comps, ROI, and actions
@@ -1043,19 +1065,10 @@ function SpadasLensCameraCore({
         clearTimeout(valuationExpiryTimerRef.current);
       }
       valuationExpiryTimerRef.current = setTimeout(() => {
-        if (!isCompsModalOpenRef.current) {
+        if (!isCompsModalOpenRef.current && !isIntelPanelOpenRef.current) {
           setActiveValuationHit(null);
         }
       }, 8500);
-
-      // 6. Standard Lens AR appraisal preserves pure historical eBay sold comps pipeline.
-      // If Intel Mode is active, prepare instant 0ms offline baseline heuristics without calling /api/marketplace-intel over network
-      if (isIntelModeActive) {
-        try {
-          const baselineIntel = generateTacticalIntel(hit, selectedCurrency);
-          setActiveIntelData(baselineIntel);
-        } catch {}
-      }
     },
     [soundEnabled, playChime, minProfitThreshold, isIntelModeActive, selectedCurrency]
   );
@@ -1071,11 +1084,19 @@ function SpadasLensCameraCore({
 
       setIsIntelPanelOpen(true);
 
-      // Instantly seed baseline 0ms heuristics if not already populated
-      try {
-        const baseline = generateTacticalIntel(target, selectedCurrency);
-        setActiveIntelData((prev) => prev || baseline);
-      } catch {}
+      const targetP2p = (target as any).marketplaceIntelligence || (target as any).marketplace_intelligence || (target as any).p2p_intel;
+      if (targetP2p) {
+        try {
+          const base = generateTacticalIntel(target, selectedCurrency);
+          setActiveIntelData({ ...base, marketplaceIntelligence: targetP2p });
+        } catch {}
+      } else {
+        // Instantly seed baseline 0ms heuristics if not already populated
+        try {
+          const baseline = generateTacticalIntel(target, selectedCurrency);
+          setActiveIntelData((prev) => prev || baseline);
+        } catch {}
+      }
 
       // Fire secondary marketplace & off-market intelligence pipeline strictly on-demand
       setIsIntelAnalyzing(true);
@@ -1143,11 +1164,14 @@ function SpadasLensCameraCore({
             brand: trimmedBrand,
             model: trimmedModel,
             itemTitle: combinedQuery,
-            predictedQuery: combinedQuery,
+            predictedQuery: (isIntelModeActiveRef.current || isIntelModeActive) ? undefined : combinedQuery,
             category: activeValuationHit.category || "General Resale",
             tagPrice: cleanTagPrice,
             currency: selectedCurrency,
             isArScan: true,
+            mode: (isIntelModeActiveRef.current || isIntelModeActive) ? "intel" : scanMode,
+            activeEngine: (isIntelModeActiveRef.current || isIntelModeActive) ? "intel" : "ebay",
+            isIntelMode: (isIntelModeActiveRef.current || isIntelModeActive),
             imageUrls: frozenFrameUrl || activeValuationHit.image ? [frozenFrameUrl || activeValuationHit.image!] : [],
           }),
         },
@@ -2726,9 +2750,11 @@ function SpadasLensCameraCore({
         imagePayloads = [secondaryImagePayload, ...imagePayloads];
       }
 
-      // Intelligent Prefetch Queue: Retrieve cached category query template and fire parallel comps query
+      // Intelligent Prefetch Queue: Retrieve cached category query template and fire parallel comps query (Only when NOT Intel Mode)
       const predictiveQuery = getPredictiveQueryForCategory(categoryBias);
-      void fireParallelCompsQuery(predictiveQuery, selectedCurrency);
+      if (!isIntelModeActiveRef.current && !isIntelModeActive) {
+        void fireParallelCompsQuery(predictiveQuery, selectedCurrency);
+      }
 
       let res: Response | null = null;
       console.log('[Spadas Lens]', cycleId, 'Starting resilient fetch for frame with analyzingRealFrame:', analyzingRealFrame);
@@ -2753,11 +2779,13 @@ function SpadasLensCameraCore({
           imageUrls: imagePayloads,
           isArScan: true,
           currency: selectedCurrency,
-          mode: scanMode,
+          mode: (isIntelModeActiveRef.current || isIntelModeActive) ? "intel" : scanMode,
+          activeEngine: (isIntelModeActiveRef.current || isIntelModeActive) ? "intel" : "ebay",
+          isIntelMode: (isIntelModeActiveRef.current || isIntelModeActive),
           stream: true,
           spatialMetadata,
           categoryBias,
-          predictedQuery: predictiveQuery,
+          predictedQuery: (isIntelModeActiveRef.current || isIntelModeActive) ? undefined : predictiveQuery,
         }),
       }, { maxRetries: 2, initialDelayMs: 300 }).catch((e) => {
         if (e?.name === "AbortError" || abortController.signal.aborted) {
@@ -3483,12 +3511,14 @@ function SpadasLensCameraCore({
           }
 
           // Explicit Final Step Callback Execution:
-          // Immediately upon receiving resolved comps payload, execute guaranteed state update sequence:
-          // setting setActiveCompsHit(verifiedHit), storing lastCompsHitRef.current = verifiedHit,
-          // and explicitly forcing setIsCompsModalOpen(true) with zero dependency on background scanning loop state
-          setActiveCompsHit(verifiedHit);
-          lastCompsHitRef.current = verifiedHit;
-          setIsCompsModalOpen(true);
+          // Immediately upon receiving resolved comps/intel payload, execute guaranteed state update sequence:
+          if (isIntelModeActiveRef.current || isIntelModeActive) {
+            handleOpenTacticalIntel(verifiedHit, snapshotImage || frozenFrameUrl || undefined);
+          } else {
+            setActiveCompsHit(verifiedHit);
+            lastCompsHitRef.current = verifiedHit;
+            setIsCompsModalOpen(true);
+          }
           setIsScanPaused(true);
 
           // Automatically trigger active result state so the valuation card slides into view instantly
@@ -3732,7 +3762,7 @@ function SpadasLensCameraCore({
 
   // Active Auto-Scan & Scene Change Watcher with Frame-Skip Delay & Sampling Interval
   useEffect(() => {
-    if (!stream || !!deepVerifyItem || isScanPaused || !!activeCompsHit || isCompsModalOpen) return;
+    if (!stream || !!deepVerifyItem || isScanPaused || !!activeCompsHit || isCompsModalOpen || isIntelPanelOpen) return;
 
     let isDestroyed = false;
     const offCanvas = document.createElement("canvas");
@@ -3844,7 +3874,7 @@ function SpadasLensCameraCore({
       isDestroyed = true;
       clearInterval(interval);
     };
-  }, [stream, autoScanActive, scanMode, deepVerifyItem, isScanPaused, activeCompsHit, isCompsModalOpen, isRapidScanMode]);
+  }, [stream, autoScanActive, scanMode, deepVerifyItem, isScanPaused, activeCompsHit, isCompsModalOpen, isIntelPanelOpen, isRapidScanMode]);
 
   useEffect(() => {
     return () => {

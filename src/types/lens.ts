@@ -65,7 +65,7 @@ export interface DetectedHit {
   /** Number of eBay listings found (active or sold depending on compsSource) */
   ebayCompsCount?: number;
   /** Data source used for price comps — drives the UI label */
-  compsSource?: "browse_api" | "sold_comps_api" | "ai_estimate";
+  compsSource?: "browse_api" | "sold_comps_api" | "ai_estimate" | "intel_p2p";
   /** Underlying real sold listings for full auditability */
   rawComps?: RawSoldComp[];
   /** Min, max, and median price distribution */
@@ -114,7 +114,7 @@ export interface ActiveScanItem {
   suggestedPriceMax?: number;
   confidenceScore?: number;
   ebayCompsCount?: number;
-  compsSource?: "browse_api" | "sold_comps_api" | "ai_estimate";
+  compsSource?: "browse_api" | "sold_comps_api" | "ai_estimate" | "intel_p2p";
   rawComps?: RawSoldComp[];
   compsRange?: {
     min: number;

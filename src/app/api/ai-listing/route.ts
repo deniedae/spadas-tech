@@ -18,6 +18,8 @@ import { detectGeoCurrency, SupportedCurrency } from "@/app/lib/currency-routing
 import { saveProductToCache, getCachedProductScan } from "@/app/lib/cache/product-cache";
 import { appraiseItemLocally } from "@/app/lib/offline/offline-engine";
 import { estimateCategoryShippingCost, detectThriftTrap, calculateThriftCopVerdict } from "@/lib/thrift-cop-engine";
+import { computeLocalMarketplaceIntelligence } from "@/lib/lens-intel-engine";
+import { computeOffMarketIntelligence } from "@/lib/off-market-engine";
 import type { AiListingResult } from "@/types/ai-listing";
 
 export const preferredRegion = "syd1";
@@ -166,6 +168,7 @@ export async function POST(request: Request) {
       imageUrls,
       isArScan,
       mode,
+      activeEngine,
       stream: isStreamRequested,
       spatialMetadata,
       categoryBias,
@@ -173,7 +176,8 @@ export async function POST(request: Request) {
     } = body as {
       imageUrls?: string[];
       isArScan?: boolean;
-      mode?: "sweep" | "deep" | "live" | "focus" | "standard" | "snap";
+      mode?: "sweep" | "deep" | "live" | "focus" | "standard" | "snap" | "intel";
+      activeEngine?: "intel" | "ebay";
       stream?: boolean;
       spatialMetadata?: {
         latitude?: number;
@@ -187,6 +191,13 @@ export async function POST(request: Request) {
     };
     const isManualOverride = Boolean((body as any)?.manualOverride);
 
+    // ── ISOLATED ENGINE BRANCH DETECTION ──
+    const isIntelMode =
+      activeEngine === "intel" ||
+      mode === "intel" ||
+      Boolean((body as any)?.isIntelMode) ||
+      Boolean((body as any)?.isIntelModeActive);
+
     if (!isManualOverride && (!imageUrls || imageUrls.length === 0)) {
       return NextResponse.json(createEmptyScanResult());
     }
@@ -196,10 +207,10 @@ export async function POST(request: Request) {
     const targetCurrency: SupportedCurrency = (body.currency as SupportedCurrency) || geoInfo.currency;
     const initialTargetCurrency: SupportedCurrency = targetCurrency;
 
-    // ── INTELLIGENT PREFETCH: Fire parallel eBay sold comps query the instant optical composite is received ──
+    // ── INTELLIGENT PREFETCH: Fire parallel eBay sold comps query ONLY for eBay comps mode (bypassed in Intel Mode) ──
     let parallelCompsPromise: Promise<any> | null = null;
     const initialPrefetchQuery = (predictedQuery || (body as any).query || "").trim();
-    if (initialPrefetchQuery.length >= 3) {
+    if (!isIntelMode && initialPrefetchQuery.length >= 3) {
       parallelCompsPromise = fetchEbayAustraliaSoldComps(initialPrefetchQuery, initialTargetCurrency).catch((err) => {
         console.warn("[ai-listing] Parallel comps prefetch warning:", err);
         return null;
@@ -455,6 +466,9 @@ Perform deep OCR inspection of all text, brand logos, model plates, serial numbe
         : mode === "sweep"
         ? `SCAN MODE: MULTI-ITEM SCENE SCAN.
 Identify distinct physical products visible in the scene. If no distinct object is in frame, return product_name: "NO_CENTER_ITEM".`
+        : isIntelMode
+        ? `SCAN MODE: TACTICAL INTEL & LOCAL P2P ARBITRAGE SCAN.
+Identify the centered physical item specifically for peer-to-peer local resale (Facebook Marketplace, Gumtree AU), off-market dealer buyout, and private collector acquisition. Extract brand, exact model, category, and physical bulk/shipping profile.`
         : `SCAN MODE: TARGETED CENTER RETICLE FOCUS & MULTI-FRAME OPTICAL COMPOSITE.
 Identify ONLY the single primary physical item positioned in the center target reticle (Image 1 is a high-resolution composite synthesized from rapid consecutive frames pooled during movement to eliminate blur, with macro detail insets). Disregard hands, table, floor, and room background.`;
 
@@ -881,77 +895,176 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
           }
 
           const verifiedName = result.analysis.product_name;
-          let ebayComps: any = null;
 
-          // 1. INTELLIGENT PREFETCH: Check if parallel background comps query finished and matches verified product
-          if (parallelCompsPromise && initialPrefetchQuery) {
+          if (isIntelMode) {
+            // ── ISOLATED ENGINE BRANCH: LOCAL P2P, BUYOUT & LIQUIDATION INTELLIGENCE PARSER ──
+            // Explicitly bypass eBay sold-comps query builder and run dedicated local marketplace & off-market appraisal
+            console.log(`[ai-listing] Executing isolated Intel Mode P2P & Liquidation Engine for: "${verifiedName}"`);
             try {
-              const prefetchHasGen = !generationSuffixDetected || initialPrefetchQuery.toLowerCase().includes(generationSuffixDetected.toLowerCase());
-              if (prefetchHasGen) {
-                const precomputed = await parallelCompsPromise;
-                const cleanInitial = initialPrefetchQuery.toLowerCase();
-                const cleanVerified = verifiedName.toLowerCase();
-                const wordsMatch = cleanInitial.split(/\s+/).some((w: string) => w.length > 2 && cleanVerified.includes(w));
-                if (precomputed && precomputed.count > 0 && (wordsMatch || cleanVerified.includes(cleanInitial))) {
-                  ebayComps = precomputed;
-                  console.log(`[ai-listing] Parallel comps prefetch hit (0ms latency): "${initialPrefetchQuery}" for "${verifiedName}"`);
-                }
-              } else {
-                console.log(`[ai-listing] Rejecting prefetch comps because generation "${generationSuffixDetected}" was missing from initial query`);
-              }
-            } catch {}
-          }
+              const rawEstVal = Number(result.suggested_price_median) || 40;
+              const p2pIntel = computeLocalMarketplaceIntelligence(
+                verifiedName,
+                result.analysis.brand || null,
+                result.analysis.category || null,
+                rawEstVal,
+                targetCurrency
+              );
 
-          // 2. Fallback fetch if parallel comps differed or yielded 0 comps
-          if (!ebayComps) {
-            ebayComps = await fetchEbayAustraliaSoldComps(verifiedName, targetCurrency, generationSuffixDetected);
-          }
-          if (
-            ebayComps &&
-            typeof ebayComps.median === "number" &&
-            !isNaN(ebayComps.median) &&
-            ebayComps.median > 0 &&
-            ebayComps.count > 0
-          ) {
-            // Single-Source Guardrail: Strict normalized baseline unit value assignment (never accumulated across response nodes)
-            result.suggested_price_min = ebayComps.min;
-            result.suggested_price_max = ebayComps.max;
-            result.suggested_price_median = ebayComps.median;
-            result.ebay_comps_count = ebayComps.count;
-            (result as any).comps_source = ebayComps.source;
-            result.raw_sold_comps = (ebayComps.rawComps || []).map((c: any) => ({
-              id: c.id,
-              title: c.title,
-              price: c.price,
-              condition: c.condition,
-              sold_date: c.soldDate,
-              shipping_included: c.shippingIncluded,
-              shipping_price: c.shippingPrice,
-              url: c.url,
-              thumbnail: c.thumbnail,
-            }));
-            result.comps_range = {
-              min: ebayComps.min,
-              max: ebayComps.max,
-              median: ebayComps.median,
-            };
-            if (result.detected_objects && result.detected_objects.length > 0) {
-              result.detected_objects[0].ebay_comps_count = ebayComps.count;
-              (result.detected_objects[0] as any).comps_source = ebayComps.source;
-              result.detected_objects[0].raw_sold_comps = result.raw_sold_comps;
+              // Extract P2P and off-market liquidation valuation metrics
+              const targetCash = p2pIntel.p2pEstimatedCashPrice;
+              const floorPrice = p2pIntel.cashNegotiationBuffer.floorPrice;
+              const listPrice = p2pIntel.cashNegotiationBuffer.listPrice;
+              const buyoutPrice = p2pIntel.offMarketIntelligence.cashBuyoutPrice;
+              const collectorPrice = p2pIntel.offMarketIntelligence.privateCollectorTargetPrice;
+
+              result.suggested_price_min = floorPrice;
+              result.suggested_price_max = listPrice;
+              result.suggested_price_median = targetCash;
+              (result as any).comps_source = "intel_p2p";
+              (result as any).marketplace_intelligence = p2pIntel;
+              (result as any).off_market_intelligence = p2pIntel.offMarketIntelligence;
+              (result as any).p2p_intel = p2pIntel;
+
+              result.comps_range = {
+                min: floorPrice,
+                max: listPrice,
+                median: targetCash,
+              };
+
+              // Build deterministic P2P and Liquidation channel comps for full auditability
+              result.raw_sold_comps = [
+                {
+                  id: `p2p-target-${Date.now()}`,
+                  title: `${p2pIntel.primaryLocalChannel} Local Cash Target`,
+                  price: targetCash,
+                  condition: "Local Cash / In-Person Pickup",
+                  sold_date: "High Liquidity (1-3 days)",
+                  shipping_included: true,
+                  shipping_price: 0,
+                },
+                {
+                  id: `p2p-dealer-${Date.now()}`,
+                  title: "Dealer Instant Cash Buyout",
+                  price: buyoutPrice,
+                  condition: "Immediate Same-Day Liquidation",
+                  sold_date: "Instant 0ms Settlement",
+                  shipping_included: true,
+                  shipping_price: 0,
+                },
+                {
+                  id: `p2p-collector-${Date.now()}`,
+                  title: "Private Collector Network Target",
+                  price: collectorPrice,
+                  condition: "Direct Collector Peer-to-Peer",
+                  sold_date: "Zero Platform Fees",
+                  shipping_included: true,
+                  shipping_price: 0,
+                },
+                {
+                  id: `p2p-list-${Date.now()}`,
+                  title: "Negotiation List Price (with Buffer)",
+                  price: listPrice,
+                  condition: "Includes Counter-Offer Buffer",
+                  sold_date: "Suggested Asking Price",
+                  shipping_included: true,
+                  shipping_price: 0,
+                },
+              ];
+
+              if (result.detected_objects && result.detected_objects.length > 0) {
+                (result.detected_objects[0] as any).comps_source = "intel_p2p";
+                (result.detected_objects[0] as any).p2p_intel = p2pIntel;
+                (result.detected_objects[0] as any).marketplace_intelligence = p2pIntel;
+                result.detected_objects[0].raw_sold_comps = result.raw_sold_comps;
+                (result.detected_objects[0] as any).suggested_price_min = floorPrice;
+                (result.detected_objects[0] as any).suggested_price_max = listPrice;
+                (result.detected_objects[0] as any).suggested_price_median = targetCash;
+              }
+            } catch (intelErr) {
+              console.warn("[ai-listing] Intel Mode P2P appraisal warning:", intelErr);
+              // Guaranteed independent fallback: Never redirect or fallback to eBay comps
+              (result as any).comps_source = "intel_p2p";
+              const fallbackVal = Number(result.suggested_price_median) || 35;
+              result.suggested_price_min = Math.round(fallbackVal * 0.75);
+              result.suggested_price_max = Math.round(fallbackVal * 1.15);
+              result.suggested_price_median = Math.round(fallbackVal * 0.9);
             }
           } else {
-            result.ebay_comps_count = undefined;
-            (result as any).comps_source = "ai_estimate";
-            if (result.detected_objects && result.detected_objects.length > 0) {
-              result.detected_objects[0].ebay_comps_count = undefined;
-              (result.detected_objects[0] as any).comps_source = "ai_estimate";
+            // ── STANDARD ENGINE BRANCH: REAL-TIME REGIONAL EBAY SOLD COMPS ──
+            let ebayComps: any = null;
+
+            // 1. INTELLIGENT PREFETCH: Check if parallel background comps query finished and matches verified product
+            if (parallelCompsPromise && initialPrefetchQuery) {
+              try {
+                const prefetchHasGen = !generationSuffixDetected || initialPrefetchQuery.toLowerCase().includes(generationSuffixDetected.toLowerCase());
+                if (prefetchHasGen) {
+                  const precomputed = await parallelCompsPromise;
+                  const cleanInitial = initialPrefetchQuery.toLowerCase();
+                  const cleanVerified = verifiedName.toLowerCase();
+                  const wordsMatch = cleanInitial.split(/\s+/).some((w: string) => w.length > 2 && cleanVerified.includes(w));
+                  if (precomputed && precomputed.count > 0 && (wordsMatch || cleanVerified.includes(cleanInitial))) {
+                    ebayComps = precomputed;
+                    console.log(`[ai-listing] Parallel comps prefetch hit (0ms latency): "${initialPrefetchQuery}" for "${verifiedName}"`);
+                  }
+                } else {
+                  console.log(`[ai-listing] Rejecting prefetch comps because generation "${generationSuffixDetected}" was missing from initial query`);
+                }
+              } catch {}
+            }
+
+            // 2. Fallback fetch if parallel comps differed or yielded 0 comps
+            if (!ebayComps) {
+              ebayComps = await fetchEbayAustraliaSoldComps(verifiedName, targetCurrency, generationSuffixDetected);
+            }
+            if (
+              ebayComps &&
+              typeof ebayComps.median === "number" &&
+              !isNaN(ebayComps.median) &&
+              ebayComps.median > 0 &&
+              ebayComps.count > 0
+            ) {
+              // Single-Source Guardrail: Strict normalized baseline unit value assignment (never accumulated across response nodes)
+              result.suggested_price_min = ebayComps.min;
+              result.suggested_price_max = ebayComps.max;
+              result.suggested_price_median = ebayComps.median;
+              result.ebay_comps_count = ebayComps.count;
+              (result as any).comps_source = ebayComps.source;
+              result.raw_sold_comps = (ebayComps.rawComps || []).map((c: any) => ({
+                id: c.id,
+                title: c.title,
+                price: c.price,
+                condition: c.condition,
+                sold_date: c.soldDate,
+                shipping_included: c.shippingIncluded,
+                shipping_price: c.shippingPrice,
+                url: c.url,
+                thumbnail: c.thumbnail,
+              }));
+              result.comps_range = {
+                min: ebayComps.min,
+                max: ebayComps.max,
+                median: ebayComps.median,
+              };
+              if (result.detected_objects && result.detected_objects.length > 0) {
+                result.detected_objects[0].ebay_comps_count = ebayComps.count;
+                (result.detected_objects[0] as any).comps_source = ebayComps.source;
+                result.detected_objects[0].raw_sold_comps = result.raw_sold_comps;
+              }
+            } else {
+              result.ebay_comps_count = undefined;
+              (result as any).comps_source = "ai_estimate";
+              if (result.detected_objects && result.detected_objects.length > 0) {
+                result.detected_objects[0].ebay_comps_count = undefined;
+                (result.detected_objects[0] as any).comps_source = "ai_estimate";
+              }
             }
           }
         } catch (compErr) {
-          console.warn("[ai-listing] Live eBay comps lookup warning:", compErr);
-          result.ebay_comps_count = undefined;
-          (result as any).comps_source = "ai_estimate";
+          console.warn("[ai-listing] Live comps lookup warning:", compErr);
+          if (!isIntelMode) {
+            result.ebay_comps_count = undefined;
+            (result as any).comps_source = "ai_estimate";
+          }
         }
       }
 
