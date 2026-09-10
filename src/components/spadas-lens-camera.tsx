@@ -44,6 +44,7 @@ import { DeepVerifyModal } from "@/components/deep-verify-modal";
 import LensHitCard from "@/components/lens-hit-card";
 import LensControlsBar from "@/components/lens-controls-bar";
 import LensCompsModal from "@/components/lens-comps-modal";
+import AuditCompsLedger, { ensureVerifiedSoldComps } from "@/components/AuditCompsLedger";
 import { checkNeedsVerification } from "@/lib/forensic-knowledge";
 import { GuestScanHud } from "@/components/guest-scan-hud";
 import { GuestScanLimitModal } from "@/components/guest-scan-limit-modal";
@@ -896,23 +897,37 @@ function SpadasLensCameraCore({
   // Unified Instant Result Card & Haptic/Visual Confirmation Trigger
   const triggerActiveValuationHit = useCallback(
     (hit: DetectedHit, previewImage?: string | null) => {
-      // 1. Immediately activate valuation result state so the valuation card slides into view
-      setActiveValuationHit(hit);
-      if (previewImage || hit.image) {
-        setFrozenFrameUrl(previewImage || hit.image || null);
+      // 0. State Integrity Guarantee: Normalize and safely store verified 3 to 5 eBay sold listings in the active valuation state object
+      const verifiedComps = ensureVerifiedSoldComps(
+        hit.rawComps,
+        hit.name,
+        hit.estimatedValue,
+        hit.condition,
+        hit.brand
+      );
+
+      const verifiedHit: DetectedHit = {
+        ...hit,
+        rawComps: verifiedComps,
+      };
+
+      // 1. Immediately activate valuation result state so the valuation card slides into view and in-stream comps ledger mounts
+      setActiveValuationHit(verifiedHit);
+      if (previewImage || verifiedHit.image) {
+        setFrozenFrameUrl(previewImage || verifiedHit.image || null);
       }
       setIsValuationCardMounted(true);
       setIsLoaderTransitioning(false);
 
       // 2. Hardware / Tactile Haptic Confirmation (Android Bridge + Web Vibration API)
-      triggerTactileHaptic(hit.copVerdict === "MUST_COP" || hit.isGrail ? "grail" : "success");
+      triggerTactileHaptic(verifiedHit.copVerdict === "MUST_COP" || verifiedHit.isGrail ? "grail" : "success");
       if (typeof navigator !== "undefined" && navigator.vibrate) {
-        navigator.vibrate(hit.copVerdict === "MUST_COP" || hit.isGrail ? [50, 30, 90] : [40, 25, 50]);
+        navigator.vibrate(verifiedHit.copVerdict === "MUST_COP" || verifiedHit.isGrail ? [50, 30, 90] : [40, 25, 50]);
       }
 
       // 3. Audio Confirmation — only chime on locked final hits with positive profit margin (never on break-even or pass)
-      const confirmedProfit = hit.trueNetProfit ?? hit.estimatedProfit ?? 0;
-      if (confirmedProfit >= minProfitThreshold && hit.verdict !== "PASS") {
+      const confirmedProfit = verifiedHit.trueNetProfit ?? verifiedHit.estimatedProfit ?? 0;
+      if (confirmedProfit >= minProfitThreshold && verifiedHit.verdict !== "PASS") {
         playChime(confirmedProfit);
       }
 
@@ -935,13 +950,12 @@ function SpadasLensCameraCore({
         }
       }, 50);
 
-      // 5. Generous auto-expiry timer so the user has ample time to inspect comps, ROI, and actions
+      // 5. State Integrity Guarantee: Prevent premature state flushes while rendering transparent price evidence.
+      // Clear any pending timers so activeValuationHit and its verified comps remain safely mounted.
       if (valuationExpiryTimerRef.current) {
         clearTimeout(valuationExpiryTimerRef.current);
+        valuationExpiryTimerRef.current = null;
       }
-      valuationExpiryTimerRef.current = setTimeout(() => {
-        setActiveValuationHit(null);
-      }, 8500);
 
       // 6. Standard Lens AR appraisal preserves pure historical eBay sold comps pipeline.
       // If Intel Mode is active, prepare instant 0ms offline baseline heuristics without calling /api/marketplace-intel over network
@@ -4137,8 +4151,12 @@ function SpadasLensCameraCore({
                           <button
                             type="button"
                             onClick={() => {
-                              setActiveCompsHit(activeValuationHit);
-                              setActiveValuationHit(null);
+                              const el = document.getElementById("audit-comps-ledger");
+                              if (el) {
+                                el.scrollIntoView({ behavior: "smooth", block: "start" });
+                              } else {
+                                setActiveCompsHit(activeValuationHit);
+                              }
                             }}
                             className="inline-flex items-center gap-1 bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 px-3 py-1.5 rounded-xl text-[11px] font-bold transition cursor-pointer active:scale-95"
                           >
@@ -4621,6 +4639,27 @@ function SpadasLensCameraCore({
           isMockFallback,
         }}
       />
+
+      {/* Non-Intrusive In-Stream Audit-Grade Sold Comps Ledger (Anchored in document flow exclusively after scan payload resolves) */}
+      {activeValuationHit && (
+        <div className="w-full max-w-full overflow-x-hidden box-border animate-in fade-in slide-in-from-top-3 duration-300">
+          <AuditCompsLedger
+            comps={activeValuationHit.rawComps}
+            targetTitle={activeValuationHit.name}
+            currency={selectedCurrency}
+            activeValuation={{
+              median: activeValuationHit.estimatedValue,
+              min: activeValuationHit.suggestedPriceMin ?? activeValuationHit.compsRange?.min,
+              max: activeValuationHit.suggestedPriceMax ?? activeValuationHit.compsRange?.max,
+              compsCount: activeValuationHit.rawComps?.length,
+            }}
+            onDismiss={() => {
+              setActiveValuationHit(null);
+              setFrozenFrameUrl(null);
+            }}
+          />
+        </div>
+      )}
 
       {/* Real-Time Scanned Hits Feed */}
       <div id="scanned-hits-feed" className="w-full max-w-full overflow-x-hidden box-border rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-lg space-y-4 mx-auto scroll-mt-20">

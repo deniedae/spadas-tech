@@ -13,6 +13,7 @@ export interface RawSoldComp {
   shippingPrice?: number;
   url?: string;
   thumbnail?: string;
+  matchPercentage?: number;
 }
 
 export interface VariantAudit {
@@ -40,6 +41,8 @@ export interface DetectedHit {
   defectNotes?: string[];
   asIsDisclaimer?: string;
   estimatedValue: number;
+  suggestedPriceMin?: number;
+  suggestedPriceMax?: number;
   estCost: number;
   estimatedProfit: number;
   estRoi: number;

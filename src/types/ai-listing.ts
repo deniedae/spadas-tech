@@ -103,10 +103,13 @@ export interface RawSoldCompRecord {
   price: number;
   condition?: string;
   sold_date?: string;
+  soldDate?: string;
   shipping_included?: boolean;
   shipping_price?: number;
   url?: string;
   thumbnail?: string;
+  match_percentage?: number;
+  matchPercentage?: number;
 }
 
 export interface VariantAuditRecord {
