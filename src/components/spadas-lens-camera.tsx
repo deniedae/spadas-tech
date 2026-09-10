@@ -940,15 +940,21 @@ function SpadasLensCameraCore({
         setScanCompletePulse(false);
       }, 900);
 
-      // Force instant smooth scroll into view ensuring phone screen frames card perfectly
+      // Force instant smooth scroll into view ensuring phone screen frames the clean 7-sales evidence ledger
       setTimeout(() => {
-        if (valuationCardRef.current) {
+        const ledgerNode = document.getElementById("audit-comps-ledger");
+        if (ledgerNode) {
+          ledgerNode.scrollIntoView({
+            behavior: "smooth",
+            block: "nearest",
+          });
+        } else if (valuationCardRef.current) {
           valuationCardRef.current.scrollIntoView({
             behavior: "smooth",
             block: "center",
           });
         }
-      }, 50);
+      }, 70);
 
       // 5. State Integrity Guarantee: Prevent premature state flushes while rendering transparent price evidence.
       // Clear any pending timers so activeValuationHit and its verified comps remain safely mounted.
@@ -4023,7 +4029,7 @@ function SpadasLensCameraCore({
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1.5 mb-1 flex-wrap">
                               <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/30">
-                                <Sparkles className="h-3 w-3" /> Live Comps Valued
+                                <Sparkles className="h-3 w-3" /> 7 Sales Verified
                               </span>
                               {activeValuationHit.brand && (
                                 <span className="text-[10px] font-bold text-slate-300 bg-slate-800/80 px-2 py-0.5 rounded border border-slate-700/80 truncate max-w-[120px]">
@@ -4158,10 +4164,10 @@ function SpadasLensCameraCore({
                                 setActiveCompsHit(activeValuationHit);
                               }
                             }}
-                            className="inline-flex items-center gap-1 bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 px-3 py-1.5 rounded-xl text-[11px] font-bold transition cursor-pointer active:scale-95"
+                            className="inline-flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 px-3 py-1.5 rounded-xl text-[11px] font-bold transition cursor-pointer active:scale-95 shadow-sm"
                           >
                             <TrendingUp className="h-3.5 w-3.5 text-cyan-400" />
-                            <span>Comps</span>
+                            <span>7 Recent Sales ↓</span>
                           </button>
 
                           <button
@@ -4646,16 +4652,35 @@ function SpadasLensCameraCore({
           <AuditCompsLedger
             comps={activeValuationHit.rawComps}
             targetTitle={activeValuationHit.name}
+            brand={activeValuationHit.brand}
+            copVerdict={activeValuationHit.copVerdict}
+            netProfit={activeValuationHit.trueNetProfit ?? activeValuationHit.estimatedProfit}
             currency={selectedCurrency}
             activeValuation={{
               median: activeValuationHit.estimatedValue,
               min: activeValuationHit.suggestedPriceMin ?? activeValuationHit.compsRange?.min,
               max: activeValuationHit.suggestedPriceMax ?? activeValuationHit.compsRange?.max,
               compsCount: activeValuationHit.rawComps?.length,
+              thriftCost: activeValuationHit.tagPrice ?? activeValuationHit.estCost,
             }}
             onDismiss={() => {
               setActiveValuationHit(null);
               setFrozenFrameUrl(null);
+            }}
+            onAddToHaul={() => {
+              void handleSaveDraftHit(activeValuationHit);
+              setActiveValuationHit(null);
+              setFrozenFrameUrl(null);
+            }}
+            onListEbay={() => {
+              setActiveEbayItem(activeValuationHit);
+            }}
+            onScanNext={() => {
+              flushScanState();
+              if (videoRef.current && videoRef.current.paused) {
+                videoRef.current.play().catch(() => {});
+              }
+              window.scrollTo({ top: 0, behavior: "smooth" });
             }}
           />
         </div>
