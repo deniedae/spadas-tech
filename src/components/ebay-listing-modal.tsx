@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   ShoppingBag,
   CheckCircle2,
@@ -12,6 +12,8 @@ import {
   Copy,
   Zap,
   Link2,
+  Camera,
+  Plus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/app/lib/supabase";
@@ -37,6 +39,7 @@ interface EbayListingModalProps {
   condition?: string;
   description?: string;
   imageUrls?: string[];
+  activeScanImage?: string;
   isConnected?: boolean;
 }
 
@@ -50,9 +53,36 @@ export default function EbayListingModal({
   condition: initialCondition = "Used - Good",
   description: initialDescription = "",
   imageUrls = [],
+  activeScanImage,
 }: EbayListingModalProps) {
   const [loading, setLoading] = useState(false);
   const [savingLocal, setSavingLocal] = useState(false);
+
+  // 1. Strict Image Transmission: Cleanly inherit original scan image as primary listing photo
+  const initialImagesList = useMemo(() => {
+    const resolved: string[] = [];
+    if (activeScanImage && typeof activeScanImage === "string" && activeScanImage.trim()) {
+      resolved.push(activeScanImage.trim());
+    }
+    if (Array.isArray(imageUrls)) {
+      for (const url of imageUrls) {
+        if (typeof url === "string" && url.trim() && !resolved.includes(url.trim())) {
+          resolved.push(url.trim());
+        }
+      }
+    }
+    return resolved;
+  }, [activeScanImage, imageUrls]);
+
+  const [images, setImages] = useState<string[]>(initialImagesList);
+  const [lastInitialImages, setLastInitialImages] = useState<string[]>(initialImagesList);
+
+  if (initialImagesList !== lastInitialImages) {
+    setLastInitialImages(initialImagesList);
+    setImages(initialImagesList);
+  }
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [publishedUrl, setPublishedUrl] = useState<string | null>(null);
   const [publishedSku, setPublishedSku] = useState<string | null>(null);
@@ -68,8 +98,10 @@ export default function EbayListingModal({
       `Authentic ${initialBrand} ${initialTitle}.\n\n• Brand: ${initialBrand}\n• Model: ${initialTitle}\n• Material/Color: Standard finish\n• Condition: ${initialCondition}. Tested and operating as intended.\n\nPlease review all photos for exact details.`
   );
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (isOpen) {
+
       let initialCurr = (initialCurrency || "").toUpperCase();
       if (!["AUD", "USD", "GBP"].includes(initialCurr)) {
         if (typeof window !== "undefined") {
@@ -103,7 +135,8 @@ export default function EbayListingModal({
       setPublishedSku(null);
       setIsLiveListing(false);
     }
-  }, [isOpen, initialTitle, initialPrice, initialCondition, initialDescription, initialBrand, initialCurrency]);
+  }, [isOpen, initialTitle, initialPrice, initialCondition, initialDescription, initialBrand, initialCurrency, activeScanImage, imageUrls]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   if (!isOpen) return null;
 
@@ -144,7 +177,59 @@ export default function EbayListingModal({
     window.open(prefillUrl, "_blank");
   };
 
+  // Additive Multi-Photo Attachment Handler
+  const handleAddPhotos = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const fileList = Array.from(files);
+    let loaded = 0;
+    const added: string[] = [];
+
+    fileList.forEach((file) => {
+      if (!file.type.startsWith("image/")) {
+        toast.error(`"${file.name}" is not an image file.`);
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const result = event.target?.result;
+        if (typeof result === "string") {
+          added.push(result);
+        }
+        loaded++;
+        if (loaded === fileList.length) {
+          if (added.length > 0) {
+            setImages((prev) => {
+              const next = [...prev];
+              added.forEach((img) => {
+                if (!next.includes(img)) {
+                  next.push(img);
+                }
+              });
+              return next;
+            });
+            toast.success(`Attached ${added.length} additional photo angle${added.length > 1 ? "s" : ""}!`);
+          }
+          if (fileInputRef.current) {
+            fileInputRef.current.value = "";
+          }
+        }
+      };
+      reader.onerror = () => {
+        loaded++;
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleRemovePhoto = (indexToRemove: number) => {
+    setImages((prev) => prev.filter((_, idx) => idx !== indexToRemove));
+  };
+
   const handleSaveDraftLocal = async () => {
+    const finalImages = images.filter((img) => typeof img === "string" && img.trim().length > 0);
     setSavingLocal(true);
     try {
       const {
@@ -158,6 +243,7 @@ export default function EbayListingModal({
           price: Number(inputPrice),
           description: inputDescription,
           status: "Draft",
+          image: finalImages[0] || undefined,
         });
         toast.success("💾 Saved draft to your Spadas AI Listings tab!");
         onClose();
@@ -174,6 +260,16 @@ export default function EbayListingModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Safety check to prevent empty submissions
+    const finalImages = images.filter((img) => typeof img === "string" && img.trim().length > 0);
+    if (finalImages.length === 0) {
+      toast.warning("Please attach at least one photo for your eBay listing.", {
+        id: "empty-photos-warning",
+      });
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -184,7 +280,7 @@ export default function EbayListingModal({
       currency: selectedCurrency,
       condition: inputCondition,
       description: inputDescription,
-      imageUrls,
+      imageUrls: finalImages, // Strict Guarantee: Primary listing photo is finalImages[0]
     };
 
     try {
@@ -384,6 +480,92 @@ export default function EbayListingModal({
                   </div>
                 </div>
               )}
+
+              {/* Additive Multi-Photo Attachment Row */}
+              <div className="space-y-2 p-3 bg-slate-950/70 border border-slate-800/90 rounded-2xl">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <Camera className="w-4 h-4 text-cyan-400" />
+                    <span className="text-xs font-bold text-slate-200">
+                      Listing Photos ({images.length})
+                    </span>
+                    <span className="text-[10px] text-slate-500 hidden sm:inline">
+                      • 1st photo is eBay primary
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-[11px] font-bold transition cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add Angle</span>
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={handleAddPhotos}
+                  />
+                </div>
+
+                {/* Horizontal Scrollable Thumbnail Strip */}
+                <div className="flex items-center gap-2.5 overflow-x-auto pb-1 pt-0.5 scrollbar-thin scrollbar-thumb-slate-800">
+                  {images.map((img, idx) => (
+                    <div
+                      key={`photo-${idx}`}
+                      className="relative h-16 w-16 sm:h-20 sm:w-20 shrink-0 rounded-xl overflow-hidden border border-slate-700/80 bg-slate-900 group shadow-md"
+                    >
+                      <img
+                        src={img}
+                        alt={`Listing angle ${idx + 1}`}
+                        className="h-full w-full object-cover"
+                      />
+                      {idx === 0 ? (
+                        <div className="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-emerald-500/90 text-slate-950 text-[9px] font-black uppercase tracking-wider shadow-sm flex items-center gap-0.5 pointer-events-none">
+                          <CheckCircle2 className="w-2.5 h-2.5" />
+                          <span>Primary</span>
+                        </div>
+                      ) : (
+                        <div className="absolute top-1 left-1 px-1 py-0.5 rounded bg-slate-900/80 text-slate-300 text-[9px] font-mono pointer-events-none">
+                          #{idx + 1}
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemovePhoto(idx);
+                        }}
+                        className="absolute top-1 right-1 p-1 rounded-full bg-slate-950/80 hover:bg-rose-600 text-slate-300 hover:text-white transition cursor-pointer opacity-80 hover:opacity-100"
+                        title="Remove photo"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+
+                  {/* Add Photo Button Tile */}
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="h-16 w-16 sm:h-20 sm:w-20 shrink-0 rounded-xl border-2 border-dashed border-slate-700/90 hover:border-cyan-400/60 bg-slate-900/50 hover:bg-slate-800/80 flex flex-col items-center justify-center gap-1 text-slate-400 hover:text-cyan-300 transition cursor-pointer"
+                    title="Tap to select additional photos from gallery"
+                  >
+                    <Plus className="w-4 h-4 text-cyan-400" />
+                    <span className="text-[10px] font-bold">Add Photo</span>
+                  </button>
+                </div>
+
+                {images.length === 0 && (
+                  <p className="text-[11px] text-amber-300 flex items-center gap-1">
+                    <AlertCircle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                    <span>No photo attached yet. Tap &quot;Add Angle&quot; to attach photos before publishing.</span>
+                  </p>
+                )}
+              </div>
 
               {/* eBay Title */}
               <div className="space-y-1">

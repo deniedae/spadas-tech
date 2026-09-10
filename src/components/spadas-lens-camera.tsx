@@ -4782,11 +4782,25 @@ function SpadasLensCameraCore({
           title={activeEbayItem.productName || activeEbayItem.name || "Scanned Item"}
           brand={activeEbayItem.brand || "Authentic"}
           price={activeEbayItem.estimatedValue || 25}
-          currency={activeEbayItem.currency}
+          currency={activeEbayItem.currency || selectedCurrency}
           condition={activeEbayItem.condition || "Used - Good"}
           description={
             activeEbayItem.description ||
             `Authentic ${activeEbayItem.brand || ""} ${activeEbayItem.productName || activeEbayItem.name || "Scanned Item"} in clean condition.\n\n• Brand: ${activeEbayItem.brand || "Authentic"}\n• Model: ${activeEbayItem.productName || activeEbayItem.name || "Item"}\n• Material/Color: Standard finish\n• Condition: ${activeEbayItem.condition || "Used - Good"}. Tested and operating as intended.\n\nPlease review all photos for exact details.`
+          }
+          activeScanImage={
+            activeEbayItem.image ||
+            (activeEbayItem.id === activeValuationHit?.id ? frozenFrameUrl : null) ||
+            frozenFrameUrl ||
+            undefined
+          }
+          imageUrls={
+            activeEbayItem.imageUrls ||
+            (activeEbayItem.image
+              ? [activeEbayItem.image]
+              : frozenFrameUrl
+              ? [frozenFrameUrl]
+              : [])
           }
         />
       )}
