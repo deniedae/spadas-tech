@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { listing, product, description, price, currency, condition, brand, category, imageUrls } = body;
+    const { listing, product, description, price, currency, condition, brand, category, imageUrls, sessionId } = body;
 
     const targetProduct = product || listing?.product || "AI Scanned Item";
     const targetDesc = description || listing?.seo_description || listing?.detailed_description || "";
@@ -41,7 +41,11 @@ export async function POST(req: NextRequest) {
     // Convert Base64 image payloads to public Supabase Storage URLs so eBay can ingest them
     let publicImages: string[] = targetImages;
     try {
-      publicImages = await convertBase64ToPublicUrls(targetImages, user.id, `ebay_${Date.now()}`);
+      publicImages = await convertBase64ToPublicUrls(
+        targetImages,
+        user.id,
+        sessionId || listing?.id || `ebay_${Date.now()}`
+      );
     } catch (storageErr) {
       console.warn("Could not convert Base64 images to Supabase Storage URLs:", storageErr);
     }

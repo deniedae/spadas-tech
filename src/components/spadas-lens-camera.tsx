@@ -4673,7 +4673,16 @@ function SpadasLensCameraCore({
               setFrozenFrameUrl(null);
             }}
             onListEbay={() => {
-              setActiveEbayItem(activeValuationHit);
+              const isolatedCapture = activeValuationHit?.image || frozenFrameUrl || undefined;
+              setActiveEbayItem(
+                activeValuationHit
+                  ? {
+                      ...activeValuationHit,
+                      image: isolatedCapture,
+                      sessionId: activeValuationHit.id || `hit_${Date.now()}`,
+                    }
+                  : null
+              );
             }}
             onScanNext={() => {
               flushScanState();
@@ -4727,7 +4736,14 @@ function SpadasLensCameraCore({
               onSelect={toggleSelectHit}
               onSaveDraft={handleSaveDraftHit}
               onDeepVerify={(hit) => handleOpenDeepVerify(hit)}
-              onListEbay={(hit) => setActiveEbayItem(hit)}
+              onListEbay={(hit) => {
+                const isolatedCapture = hit.image || (hit.id === activeValuationHit?.id ? frozenFrameUrl : undefined);
+                setActiveEbayItem({
+                  ...hit,
+                  image: isolatedCapture,
+                  sessionId: hit.id || `hit_${Date.now()}`,
+                });
+              }}
               onReport={(id, name) => {
                 void fetch("/api/scans/report", {
                   method: "POST",
@@ -4779,6 +4795,7 @@ function SpadasLensCameraCore({
         <EbayListingModal
           isOpen={!!activeEbayItem}
           onClose={() => setActiveEbayItem(null)}
+          sessionId={activeEbayItem.sessionId || activeEbayItem.id || `session_${activeEbayItem.timestamp || Date.now()}`}
           title={activeEbayItem.productName || activeEbayItem.name || "Scanned Item"}
           brand={activeEbayItem.brand || "Authentic"}
           price={activeEbayItem.estimatedValue || 25}
@@ -4790,15 +4807,15 @@ function SpadasLensCameraCore({
           }
           activeScanImage={
             activeEbayItem.image ||
-            (activeEbayItem.id === activeValuationHit?.id ? frozenFrameUrl : null) ||
-            frozenFrameUrl ||
+            (activeEbayItem.id && activeEbayItem.id === activeValuationHit?.id ? (frozenFrameUrl || activeValuationHit?.image) : undefined) ||
+            capturedLog.find((h) => h.id === activeEbayItem.id)?.image ||
             undefined
           }
           imageUrls={
             activeEbayItem.imageUrls ||
             (activeEbayItem.image
               ? [activeEbayItem.image]
-              : frozenFrameUrl
+              : activeEbayItem.id && activeEbayItem.id === activeValuationHit?.id && frozenFrameUrl
               ? [frozenFrameUrl]
               : [])
           }
@@ -4823,7 +4840,18 @@ function SpadasLensCameraCore({
         frozenFrameUrl={frozenFrameUrl}
         onClose={() => setActiveCompsHit(null)}
         onResumeScan={handleResumeScanning}
-        onListEbay={(hit: any) => setActiveEbayItem(hit)}
+        onListEbay={(hit: any) => {
+          const isolatedCapture = hit?.image || (hit?.id === activeValuationHit?.id ? frozenFrameUrl : undefined);
+          setActiveEbayItem(
+            hit
+              ? {
+                  ...hit,
+                  image: isolatedCapture,
+                  sessionId: hit.id || `hit_${Date.now()}`,
+                }
+              : null
+          );
+        }}
         onDeepVerify={(hit: any) => handleOpenDeepVerify(hit)}
         onTriggerBarcodeScan={() => {
           setActiveCompsHit(null);

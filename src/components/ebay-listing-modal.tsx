@@ -11,7 +11,6 @@ import {
   Bookmark,
   Copy,
   Zap,
-  Link2,
   Camera,
   Plus,
 } from "lucide-react";
@@ -32,6 +31,7 @@ export type EbayRegionCode = (typeof REGION_OPTIONS)[number]["id"];
 interface EbayListingModalProps {
   isOpen: boolean;
   onClose: () => void;
+  sessionId?: string;
   title: string;
   brand?: string;
   price?: number;
@@ -46,6 +46,7 @@ interface EbayListingModalProps {
 export default function EbayListingModal({
   isOpen,
   onClose,
+  sessionId,
   title: initialTitle,
   brand: initialBrand = "Authentic",
   price: initialPrice = 25,
@@ -58,35 +59,51 @@ export default function EbayListingModal({
   const [loading, setLoading] = useState(false);
   const [savingLocal, setSavingLocal] = useState(false);
 
-  // 1. Strict Image Transmission: Cleanly inherit original scan image as primary listing photo
-  const initialImagesList = useMemo(() => {
-    const resolved: string[] = [];
+  // 1. Isolate Image State Reference: Bind the primary listing thumbnail strictly to unique session ID
+  const resolvedScanImage = useMemo(() => {
     if (activeScanImage && typeof activeScanImage === "string" && activeScanImage.trim()) {
-      resolved.push(activeScanImage.trim());
+      return activeScanImage.trim();
     }
-    if (Array.isArray(imageUrls)) {
-      for (const url of imageUrls) {
-        if (typeof url === "string" && url.trim() && !resolved.includes(url.trim())) {
-          resolved.push(url.trim());
-        }
-      }
+    if (Array.isArray(imageUrls) && imageUrls.length > 0 && typeof imageUrls[0] === "string" && imageUrls[0].trim()) {
+      return imageUrls[0].trim();
     }
-    return resolved;
+    return null;
   }, [activeScanImage, imageUrls]);
 
-  const [images, setImages] = useState<string[]>(initialImagesList);
-  const [lastInitialImages, setLastInitialImages] = useState<string[]>(initialImagesList);
+  // Primary scan capture blob permanently anchored to current session ID
+  const [primaryScanBlob, setPrimaryScanBlob] = useState<string | null>(resolvedScanImage);
 
-  if (initialImagesList !== lastInitialImages) {
-    setLastInitialImages(initialImagesList);
-    setImages(initialImagesList);
+  // Separate array for additional user-added angles (cannot clobber primary scan photo)
+  const [galleryPhotos, setGalleryPhotos] = useState<string[]>(() => {
+    if (Array.isArray(imageUrls) && imageUrls.length > 1) {
+      return imageUrls
+        .slice(1)
+        .filter((url) => typeof url === "string" && url.trim() && url.trim() !== resolvedScanImage);
+    }
+    return [];
+  });
+
+  const [trackedSessionId, setTrackedSessionId] = useState<string>(sessionId || "");
+
+  // Render-time state synchronization when session ID changes
+  if (sessionId && sessionId !== trackedSessionId) {
+    setTrackedSessionId(sessionId);
+    setPrimaryScanBlob(resolvedScanImage);
+    setGalleryPhotos(
+      Array.isArray(imageUrls) && imageUrls.length > 1
+        ? imageUrls
+            .slice(1)
+            .filter((url) => typeof url === "string" && url.trim() && url.trim() !== resolvedScanImage)
+        : []
+    );
+  } else if (!primaryScanBlob && resolvedScanImage) {
+    setPrimaryScanBlob(resolvedScanImage);
   }
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [publishedUrl, setPublishedUrl] = useState<string | null>(null);
   const [publishedSku, setPublishedSku] = useState<string | null>(null);
-  const [isDemo, setIsDemo] = useState<boolean>(false);
   const [isLiveListing, setIsLiveListing] = useState<boolean>(false);
 
   const [selectedCurrency, setSelectedCurrency] = useState<string>("AUD");
@@ -101,7 +118,6 @@ export default function EbayListingModal({
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (isOpen) {
-
       let initialCurr = (initialCurrency || "").toUpperCase();
       if (!["AUD", "USD", "GBP"].includes(initialCurr)) {
         if (typeof window !== "undefined") {
@@ -177,7 +193,7 @@ export default function EbayListingModal({
     window.open(prefillUrl, "_blank");
   };
 
-  // Additive Multi-Photo Attachment Handler
+  // Additive Multi-Photo Attachment Handler (isolated to gallery, never clobbers primary scan blob)
   const handleAddPhotos = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -195,21 +211,35 @@ export default function EbayListingModal({
       const reader = new FileReader();
       reader.onload = (event) => {
         const result = event.target?.result;
-        if (typeof result === "string") {
-          added.push(result);
+        if (typeof result === "string" && result.trim()) {
+          added.push(result.trim());
         }
         loaded++;
         if (loaded === fileList.length) {
           if (added.length > 0) {
-            setImages((prev) => {
-              const next = [...prev];
-              added.forEach((img) => {
-                if (!next.includes(img)) {
-                  next.push(img);
-                }
+            if (!primaryScanBlob) {
+              setPrimaryScanBlob(added[0]);
+              const remaining = added.slice(1);
+              if (remaining.length > 0) {
+                setGalleryPhotos((prev) => {
+                  const next = [...prev];
+                  remaining.forEach((img) => {
+                    if (!next.includes(img) && img !== added[0]) next.push(img);
+                  });
+                  return next;
+                });
+              }
+            } else {
+              setGalleryPhotos((prev) => {
+                const next = [...prev];
+                added.forEach((img) => {
+                  if (!next.includes(img) && img !== primaryScanBlob) {
+                    next.push(img);
+                  }
+                });
+                return next;
               });
-              return next;
-            });
+            }
             toast.success(`Attached ${added.length} additional photo angle${added.length > 1 ? "s" : ""}!`);
           }
           if (fileInputRef.current) {
@@ -224,12 +254,34 @@ export default function EbayListingModal({
     });
   };
 
-  const handleRemovePhoto = (indexToRemove: number) => {
-    setImages((prev) => prev.filter((_, idx) => idx !== indexToRemove));
+  const handleRemoveGalleryPhoto = (indexToRemove: number) => {
+    setGalleryPhotos((prev) => prev.filter((_, idx) => idx !== indexToRemove));
+  };
+
+  const handlePromoteGalleryToPrimary = (indexToPromote: number) => {
+    const candidate = galleryPhotos[indexToPromote];
+    if (!candidate) return;
+    const oldPrimary = primaryScanBlob;
+    setPrimaryScanBlob(candidate);
+    setGalleryPhotos((prev) => {
+      const filtered = prev.filter((_, idx) => idx !== indexToPromote);
+      return oldPrimary ? [oldPrimary, ...filtered] : filtered;
+    });
+    toast.success("Set selected angle as primary listing photo!");
+  };
+
+  const handleRemovePrimaryPhoto = () => {
+    if (galleryPhotos.length > 0) {
+      const nextPrimary = galleryPhotos[0];
+      setPrimaryScanBlob(nextPrimary);
+      setGalleryPhotos((prev) => prev.slice(1));
+    } else {
+      setPrimaryScanBlob(null);
+    }
   };
 
   const handleSaveDraftLocal = async () => {
-    const finalImages = images.filter((img) => typeof img === "string" && img.trim().length > 0);
+    const primaryBlob = primaryScanBlob?.trim() || activeScanImage?.trim() || null;
     setSavingLocal(true);
     try {
       const {
@@ -243,7 +295,7 @@ export default function EbayListingModal({
           price: Number(inputPrice),
           description: inputDescription,
           status: "Draft",
-          image: finalImages[0] || undefined,
+          image: primaryBlob || undefined,
         });
         toast.success("💾 Saved draft to your Spadas AI Listings tab!");
         onClose();
@@ -261,14 +313,25 @@ export default function EbayListingModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Safety check to prevent empty submissions
-    const finalImages = images.filter((img) => typeof img === "string" && img.trim().length > 0);
-    if (finalImages.length === 0) {
-      toast.warning("Please attach at least one photo for your eBay listing.", {
-        id: "empty-photos-warning",
+    // 2. Fix Payload Mapping for eBay API:
+    // Strictly verify that index [0] explicitly pulls the active scan capture blob
+    const primaryBlob = primaryScanBlob?.trim() || activeScanImage?.trim() || null;
+
+    // Safety check: verify primary photo is not missing or a placeholder asset
+    if (!primaryBlob || primaryBlob.includes("unsplash.com") || primaryBlob.includes("placeholder")) {
+      toast.warning("No active scan capture blob found. Please capture or attach a photo before syncing to eBay.", {
+        id: "empty-primary-photo-warning",
       });
       return;
     }
+
+    // Filter secondary gallery photos (guaranteeing no duplicates of primaryBlob)
+    const validGallery = galleryPhotos.filter(
+      (img) => typeof img === "string" && img.trim().length > 0 && img.trim() !== primaryBlob
+    );
+
+    // Final payload array: Index [0] is GUARANTEED to be the active scan capture blob
+    const submissionImageUrls = [primaryBlob, ...validGallery];
 
     setLoading(true);
     setError(null);
@@ -280,7 +343,8 @@ export default function EbayListingModal({
       currency: selectedCurrency,
       condition: inputCondition,
       description: inputDescription,
-      imageUrls: finalImages, // Strict Guarantee: Primary listing photo is finalImages[0]
+      imageUrls: submissionImageUrls, // Index [0] explicitly pulls active scan capture blob
+      sessionId: sessionId || trackedSessionId || "scan_session",
     };
 
     try {
@@ -305,7 +369,6 @@ export default function EbayListingModal({
       if (data.success) {
         setPublishedUrl(data.listingUrl || `https://www.${activeRegion.site}/sh/lst/active`);
         setPublishedSku(data.sku || null);
-        setIsDemo(!!data.isDemoMode);
         setIsLiveListing(!!data.isLive);
 
         // Also save to Spadas AI local listings for convenience
@@ -320,6 +383,7 @@ export default function EbayListingModal({
               price: Number(inputPrice),
               description: inputDescription,
               status: "Active",
+              image: primaryBlob || undefined,
             });
           }
         } catch {
@@ -327,7 +391,7 @@ export default function EbayListingModal({
         }
 
         if (data.isLive) {
-          toast.success(`🚀 Live on ${activeRegion.label}! Listing published successfully.`);
+          toast.success(`🚀 Live on ${activeRegion.label}! Listing published successfully with verified scan photo.`);
         } else {
           toast.success(`📋 Draft saved in ${activeRegion.label} Seller Hub!`);
         }
@@ -340,6 +404,8 @@ export default function EbayListingModal({
       setLoading(false);
     }
   };
+
+  const totalPhotoCount = (primaryScanBlob ? 1 : 0) + galleryPhotos.length;
 
   return (
     <div className="fixed inset-0 z-[70] overflow-y-auto bg-slate-950/85 backdrop-blur-md p-2 sm:p-4 pb-[calc(env(safe-area-inset-bottom,0px)+5rem)] sm:pb-4 flex min-h-full items-center justify-center overscroll-contain animate-fade-in">
@@ -423,74 +489,70 @@ export default function EbayListingModal({
                         key={region.id}
                         type="button"
                         onClick={() => handleRegionChange(region.id)}
-                        className={`flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        className={`py-1.5 px-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 ${
                           isSelected
-                            ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 shadow-md shadow-cyan-500/20"
-                            : "text-slate-400 hover:text-slate-200 hover:bg-slate-900"
+                            ? "bg-cyan-500 text-slate-950 shadow-md"
+                            : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
                         }`}
                       >
-                        <span className="text-sm">{region.flag}</span>
-                        <span className="truncate">{region.id} ({region.symbol})</span>
+                        <span>{region.flag}</span>
+                        <span>{region.id}</span>
                       </button>
                     );
                   })}
                 </div>
               </div>
 
-              {/* Quick 1-Tap Fast-List Option Banner */}
-              <div className="p-3.5 bg-gradient-to-r from-amber-500/10 via-cyan-500/10 to-blue-500/10 border border-amber-500/30 rounded-xl text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-amber-200">
-                <div className="flex items-center gap-2">
-                  <Zap className="w-4 h-4 shrink-0 text-amber-400" />
-                  <span className="text-slate-200 text-xs">
-                    Zero setup needed: opens official {activeRegion.label} listing form pre-filled in {activeRegion.code}.
-                  </span>
+              {/* 1-Tap Fast-List Quick Trigger Bar */}
+              <div className="p-3 bg-gradient-to-r from-blue-950/40 via-cyan-950/30 to-slate-900/60 border border-cyan-500/25 rounded-2xl flex items-center justify-between gap-3 shadow-inner">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-1 text-[11px] font-bold text-cyan-300">
+                    <Zap className="w-3.5 h-3.5 fill-cyan-400 text-cyan-400" />
+                    <span>Instant eBay Wizard Bypass</span>
+                  </div>
+                  <p className="text-[10px] text-slate-400">
+                    Pre-fills price &amp; title on official {activeRegion.label}
+                  </p>
                 </div>
                 <button
                   type="button"
                   onClick={handleFastList}
-                  className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-lg text-xs shrink-0 flex items-center justify-center gap-1.5 transition cursor-pointer shadow-md shadow-amber-500/20 active:scale-95"
+                  className="px-3 py-1.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black rounded-xl text-xs transition shadow-md flex items-center gap-1 cursor-pointer shrink-0"
                 >
-                  <Zap className="w-3.5 h-3.5" />
-                  <span>⚡ 1-Tap Fast-List ({activeRegion.id})</span>
+                  <span>1-Tap Fast-List</span>
+                  <ExternalLink className="w-3 h-3" />
                 </button>
               </div>
 
+              {/* Error Notice */}
               {error && (
-                <div className="p-3.5 bg-rose-500/10 border border-rose-500/30 rounded-xl text-xs space-y-2">
-                  <div className="flex items-center gap-2 text-rose-300 font-bold">
-                    <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
-                    <span>{error}</span>
-                  </div>
-                  <div className="flex flex-wrap gap-2 pt-1">
+                <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl flex items-start gap-2 text-rose-300 text-xs">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-400" />
+                  <div className="space-y-1">
+                    <p className="font-semibold">Publish Note</p>
+                    <p className="text-[11px] text-rose-200/90 leading-relaxed">{error}</p>
                     <button
                       type="button"
                       onClick={handleFastList}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-lg text-xs transition cursor-pointer"
+                      className="text-[11px] text-cyan-400 underline hover:text-cyan-300 inline-flex items-center gap-1 mt-1 cursor-pointer font-bold"
                     >
-                      <Zap className="w-3.5 h-3.5" />
-                      <span>Open in 1-Tap Fast-List ({activeRegion.id})</span>
+                      <span>Click to 1-Tap Fast-List directly on eBay</span>
+                      <ExternalLink className="w-3 h-3" />
                     </button>
-                    <a
-                      href="/api/auth/ebay/connect?prompt=login"
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-cyan-300 font-bold rounded-lg text-xs transition cursor-pointer border border-cyan-500/30"
-                    >
-                      <Link2 className="w-3.5 h-3.5" />
-                      <span>Connect eBay Account</span>
-                    </a>
                   </div>
                 </div>
               )}
 
-              {/* Additive Multi-Photo Attachment Row */}
+              {/* Isolated Photo Binding Gallery Row */}
               <div className="space-y-2 p-3 bg-slate-950/70 border border-slate-800/90 rounded-2xl">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
                     <Camera className="w-4 h-4 text-cyan-400" />
                     <span className="text-xs font-bold text-slate-200">
-                      Listing Photos ({images.length})
+                      Listing Photos ({totalPhotoCount})
                     </span>
                     <span className="text-[10px] text-slate-500 hidden sm:inline">
-                      • 1st photo is eBay primary
+                      • Scan capture locked to session ID
                     </span>
                   </div>
                   <button
@@ -513,32 +575,59 @@ export default function EbayListingModal({
 
                 {/* Horizontal Scrollable Thumbnail Strip */}
                 <div className="flex items-center gap-2.5 overflow-x-auto pb-1 pt-0.5 scrollbar-thin scrollbar-thumb-slate-800">
-                  {images.map((img, idx) => (
-                    <div
-                      key={`photo-${idx}`}
-                      className="relative h-16 w-16 sm:h-20 sm:w-20 shrink-0 rounded-xl overflow-hidden border border-slate-700/80 bg-slate-900 group shadow-md"
-                    >
+                  {/* Slot 1: Primary Scan Photo (Strictly Bound to Session ID) */}
+                  {primaryScanBlob ? (
+                    <div className="relative h-16 w-16 sm:h-20 sm:w-20 shrink-0 rounded-xl overflow-hidden border-2 border-emerald-500/80 bg-slate-900 group shadow-md">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
-                        src={img}
-                        alt={`Listing angle ${idx + 1}`}
+                        src={primaryScanBlob}
+                        alt="Primary Scan Lock"
                         className="h-full w-full object-cover"
                       />
-                      {idx === 0 ? (
-                        <div className="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-emerald-500/90 text-slate-950 text-[9px] font-black uppercase tracking-wider shadow-sm flex items-center gap-0.5 pointer-events-none">
-                          <CheckCircle2 className="w-2.5 h-2.5" />
-                          <span>Primary</span>
-                        </div>
-                      ) : (
-                        <div className="absolute top-1 left-1 px-1 py-0.5 rounded bg-slate-900/80 text-slate-300 text-[9px] font-mono pointer-events-none">
-                          #{idx + 1}
-                        </div>
-                      )}
+                      <div className="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-emerald-500/90 text-slate-950 text-[9px] font-black uppercase tracking-wider shadow-sm flex items-center gap-0.5 pointer-events-none">
+                        <CheckCircle2 className="w-2.5 h-2.5" />
+                        <span>Primary</span>
+                      </div>
+                      <div className="absolute bottom-1 left-1 px-1 py-0.5 rounded bg-slate-950/80 text-emerald-400 text-[8px] font-mono pointer-events-none truncate max-w-[56px]">
+                        {sessionId ? sessionId.slice(0, 8) : "Scan Lock"}
+                      </div>
                       <button
                         type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleRemovePhoto(idx);
-                        }}
+                        onClick={handleRemovePrimaryPhoto}
+                        className="absolute top-1 right-1 p-1 rounded-full bg-slate-950/80 hover:bg-rose-600 text-slate-300 hover:text-white transition cursor-pointer opacity-80 hover:opacity-100"
+                        title="Remove primary photo"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ) : null}
+
+                  {/* Slots 2+: Gallery Appended Photos */}
+                  {galleryPhotos.map((img, idx) => (
+                    <div
+                      key={`gallery-photo-${idx}`}
+                      className="relative h-16 w-16 sm:h-20 sm:w-20 shrink-0 rounded-xl overflow-hidden border border-slate-700/80 bg-slate-900 group shadow-md"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={img}
+                        alt={`Listing angle ${idx + 2}`}
+                        className="h-full w-full object-cover"
+                      />
+                      <div className="absolute top-1 left-1 px-1 py-0.5 rounded bg-slate-900/80 text-slate-300 text-[9px] font-mono pointer-events-none">
+                        #{idx + (primaryScanBlob ? 2 : 1)}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handlePromoteGalleryToPrimary(idx)}
+                        className="absolute bottom-1 left-1 px-1 py-0.5 rounded bg-cyan-950/90 text-cyan-300 text-[8px] font-bold border border-cyan-500/40 opacity-0 group-hover:opacity-100 transition cursor-pointer hover:bg-cyan-600 hover:text-white"
+                        title="Set as primary eBay listing photo"
+                      >
+                        Main
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveGalleryPhoto(idx)}
                         className="absolute top-1 right-1 p-1 rounded-full bg-slate-950/80 hover:bg-rose-600 text-slate-300 hover:text-white transition cursor-pointer opacity-80 hover:opacity-100"
                         title="Remove photo"
                       >
@@ -559,10 +648,10 @@ export default function EbayListingModal({
                   </button>
                 </div>
 
-                {images.length === 0 && (
+                {!primaryScanBlob && galleryPhotos.length === 0 && (
                   <p className="text-[11px] text-amber-300 flex items-center gap-1">
                     <AlertCircle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                    <span>No photo attached yet. Tap &quot;Add Angle&quot; to attach photos before publishing.</span>
+                    <span>No photo attached. Tap &quot;Add Angle&quot; to attach a photo before publishing.</span>
                   </p>
                 )}
               </div>
