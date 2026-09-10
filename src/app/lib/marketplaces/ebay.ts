@@ -510,6 +510,8 @@ export async function publishToEbayInventory(
     brand?: string;
     category?: string;
     imageUrls?: string[];
+    publishMode?: "live" | "draft";
+    forceLive?: boolean;
   }
 ) {
   const apiHost = getApiHost();
@@ -669,8 +671,10 @@ export async function publishToEbayInventory(
     const offerData = await offerRes.json();
     offerId = offerData.offerId || null;
 
-    // 6. If offer created, publish it live
-    if (offerId) {
+    const isExplicitDraft = listing.publishMode === "draft" && !listing.forceLive;
+
+    // 6. Target active publish action unless explicitly requested as draft
+    if (offerId && !isExplicitDraft) {
       const pubRes = await fetch(`https://${apiHost}/sell/inventory/v1/offer/${offerId}/publish`, {
         method: "POST",
         headers: {
@@ -703,18 +707,30 @@ export async function publishToEbayInventory(
       } else {
         const pubErrJson = await pubRes.json().catch(() => null);
         const errMsg = pubErrJson?.errors?.[0]?.message || `eBay publish returned status ${pubRes.status}`;
-        console.warn("eBay publish warning:", errMsg, pubErrJson);
+        console.warn("eBay live publish failed:", errMsg, pubErrJson);
 
         return {
-          success: true,
+          success: false,
           sku,
           offerId,
           isLive: false,
           listingId: null,
-          message: `Saved as draft in eBay Seller Hub (${currencyCode}). Open Seller Hub drafts to review and activate!`,
+          error: errMsg,
+          message: `Could not publish live to eBay: ${errMsg}. Use 1-Tap Fast-List to publish directly!`,
           listingUrl: `https://${isProduction ? "www" : "sandbox"}.${ebayDomain}/sh/lst/drafts`,
         };
       }
+    } else if (offerId && isExplicitDraft) {
+      // Explicitly requested draft save
+      return {
+        success: true,
+        sku,
+        offerId,
+        isLive: false,
+        listingId: null,
+        message: `Saved as draft in eBay Seller Hub (${currencyCode}).`,
+        listingUrl: `https://${isProduction ? "www" : "sandbox"}.${ebayDomain}/sh/lst/drafts`,
+      };
     }
   } catch (offerErr: any) {
     console.warn("Offer creation/publish warning:", offerErr);

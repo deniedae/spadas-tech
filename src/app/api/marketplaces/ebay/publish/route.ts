@@ -27,7 +27,20 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { listing, product, description, price, currency, condition, brand, category, imageUrls, sessionId } = body;
+    const {
+      listing,
+      product,
+      description,
+      price,
+      currency,
+      condition,
+      brand,
+      category,
+      imageUrls,
+      sessionId,
+      publishMode,
+      forceLive,
+    } = body;
 
     const targetProduct = product || listing?.product || "AI Scanned Item";
     const targetDesc = description || listing?.seo_description || listing?.detailed_description || "";
@@ -37,6 +50,10 @@ export async function POST(req: NextRequest) {
     const targetBrand = brand || listing?.analysis?.brand || "Unbranded";
     const targetCategory = category || listing?.category || listing?.analysis?.category || "Accessories";
     const targetImages = imageUrls || listing?.imageUrls || [];
+
+    // Force live publish unless user explicitly requested a draft save
+    const isExplicitDraft = publishMode === "draft" && !forceLive;
+    const shouldForceLive = !isExplicitDraft;
 
     // Convert Base64 image payloads to public Supabase Storage URLs so eBay can ingest them
     let publicImages: string[] = targetImages;
@@ -113,10 +130,19 @@ export async function POST(req: NextRequest) {
       brand: targetBrand,
       category: targetCategory,
       imageUrls: publicImages,
+      publishMode: isExplicitDraft ? "draft" : "live",
+      forceLive: shouldForceLive,
     });
 
-    if (!result.success) {
-      return NextResponse.json(result, { status: 400 });
+    if (!result.success || (shouldForceLive && !result.isLive)) {
+      return NextResponse.json(
+        {
+          ...result,
+          success: false,
+          error: result.error || result.message || "Failed to publish live listing to eBay.",
+        },
+        { status: 400 }
+      );
     }
 
     return NextResponse.json(result);

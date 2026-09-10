@@ -406,6 +406,8 @@ export default function EbayListingModal({
       description: inputDescription,
       imageUrls: submissionImageUrls, // Index [0] explicitly pulls active scan capture blob
       sessionId: sessionId || prevSessionIdRef.current || "scan_session",
+      publishMode: "live", // Force active publish action rather than draft-save
+      forceLive: true,
     };
 
     try {
@@ -423,14 +425,15 @@ export default function EbayListingModal({
 
       const data = await res.json().catch(() => ({}));
 
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || data.message || "Failed to publish listing to eBay.");
+      // Force Live Sync: Ensure submission targets active publish action
+      if (!res.ok || !data.success || !data.isLive) {
+        throw new Error(data.error || data.message || "Failed to publish live listing to eBay.");
       }
 
-      if (data.success) {
+      if (data.success && data.isLive) {
         setPublishedUrl(data.listingUrl || `https://www.${activeRegion.site}/sh/lst/active`);
         setPublishedSku(data.sku || null);
-        setIsLiveListing(!!data.isLive);
+        setIsLiveListing(true);
 
         // Also save to Spadas AI local listings for convenience
         try {
@@ -451,11 +454,7 @@ export default function EbayListingModal({
           // ignore local save error if published to eBay
         }
 
-        if (data.isLive) {
-          toast.success(`🚀 Live on ${activeRegion.label}! Listing published successfully with verified scan photo.`);
-        } else {
-          toast.success(`📋 Draft saved in ${activeRegion.label} Seller Hub!`);
-        }
+        toast.success(`🚀 Live on ${activeRegion.label}! Listing published successfully with verified scan photo.`);
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Publish request failed";
@@ -901,12 +900,12 @@ export default function EbayListingModal({
                   {loading ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
-                      <span>Syncing {activeRegion.label}...</span>
+                      <span>Publishing Live to {activeRegion.label}...</span>
                     </>
                   ) : (
                     <>
                       <ShoppingBag className="w-4 h-4" />
-                      <span>Sync to {activeRegion.label}</span>
+                      <span>Publish Live to {activeRegion.label}</span>
                     </>
                   )}
                 </button>
