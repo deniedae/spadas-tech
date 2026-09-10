@@ -9,7 +9,7 @@ export function getAdminEmails(): string[] {
     process.env.ADMIN_EMAIL ||
     process.env.ADMIN_EMAILS ||
     process.env.NEXT_PUBLIC_ADMIN_EMAIL ||
-    "deniedae@gmail.com";
+    "deniedae@gmail.com,tester@spadas.tech,googleplay@spadas.tech";
 
   return envAdmins
     .toLowerCase()
