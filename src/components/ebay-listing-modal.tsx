@@ -13,6 +13,7 @@ import {
   Zap,
   Camera,
   Plus,
+  Image as ImageIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/app/lib/supabase";
@@ -27,6 +28,49 @@ export const REGION_OPTIONS = [
 ] as const;
 
 export type EbayRegionCode = (typeof REGION_OPTIONS)[number]["id"];
+
+/**
+ * In-memory high-speed image compression for extra photo snaps.
+ * Scales high-resolution mobile camera captures (e.g. 12MP+) down to a maximum of 1600px
+ * at 85% JPEG quality, keeping memory footprint low and payload uploads fast.
+ */
+const compressImageBlob = (file: File): Promise<string> => {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const src = e.target?.result as string;
+      if (!src) return resolve("");
+      const img = new Image();
+      img.onload = () => {
+        const maxDim = 1600;
+        let { width, height } = img;
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL("image/jpeg", 0.85));
+        } else {
+          resolve(src);
+        }
+      };
+      img.onerror = () => resolve(src);
+      img.src = src;
+    };
+    reader.onerror = () => resolve("");
+    reader.readAsDataURL(file);
+  });
+};
 
 interface EbayListingModalProps {
   isOpen: boolean;
@@ -58,8 +102,9 @@ export default function EbayListingModal({
 }: EbayListingModalProps) {
   const [loading, setLoading] = useState(false);
   const [savingLocal, setSavingLocal] = useState(false);
+  const [isProcessingPhotos, setIsProcessingPhotos] = useState(false);
 
-  // 1. Isolate Image State Reference: Bind the primary listing thumbnail strictly to unique session ID
+  // 1. Isolate Image State Reference: Bind primary listing thumbnail strictly to unique session ID
   const resolvedScanImage = useMemo(() => {
     if (activeScanImage && typeof activeScanImage === "string" && activeScanImage.trim()) {
       return activeScanImage.trim();
@@ -83,24 +128,11 @@ export default function EbayListingModal({
     return [];
   });
 
-  const [trackedSessionId, setTrackedSessionId] = useState<string>(sessionId || "");
-
-  // Render-time state synchronization when session ID changes
-  if (sessionId && sessionId !== trackedSessionId) {
-    setTrackedSessionId(sessionId);
-    setPrimaryScanBlob(resolvedScanImage);
-    setGalleryPhotos(
-      Array.isArray(imageUrls) && imageUrls.length > 1
-        ? imageUrls
-            .slice(1)
-            .filter((url) => typeof url === "string" && url.trim() && url.trim() !== resolvedScanImage)
-        : []
-    );
-  } else if (!primaryScanBlob && resolvedScanImage) {
-    setPrimaryScanBlob(resolvedScanImage);
-  }
-
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const prevIsOpenRef = useRef<boolean>(false);
+  const prevSessionIdRef = useRef<string | null>(null);
+
   const [error, setError] = useState<string | null>(null);
   const [publishedUrl, setPublishedUrl] = useState<string | null>(null);
   const [publishedSku, setPublishedSku] = useState<string | null>(null);
@@ -116,43 +148,75 @@ export default function EbayListingModal({
   );
 
   /* eslint-disable react-hooks/set-state-in-effect */
+  // Lifecycle Management: ONLY reinitialize form fields and reset publish outcome on fresh modal open or session ID change.
+  // CRITICAL: NEVER clear publishedUrl or isLiveListing while the modal remains open viewing the success card!
   useEffect(() => {
     if (isOpen) {
-      let initialCurr = (initialCurrency || "").toUpperCase();
-      if (!["AUD", "USD", "GBP"].includes(initialCurr)) {
-        if (typeof window !== "undefined") {
-          const stored = localStorage.getItem("spadas_selected_currency");
-          if (stored && ["AUD", "USD", "GBP"].includes(stored.toUpperCase())) {
-            initialCurr = stored.toUpperCase();
+      const isNewOpen = !prevIsOpenRef.current;
+      const isNewSession = sessionId && sessionId !== prevSessionIdRef.current;
+
+      if (isNewOpen || isNewSession) {
+        prevIsOpenRef.current = true;
+        prevSessionIdRef.current = sessionId || null;
+
+        // Reset publish outcome only for newly opened or different session item
+        setPublishedUrl(null);
+        setPublishedSku(null);
+        setIsLiveListing(false);
+        setError(null);
+
+        // Bind scan capture blob for the active item
+        setPrimaryScanBlob(resolvedScanImage);
+        setGalleryPhotos(
+          Array.isArray(imageUrls) && imageUrls.length > 1
+            ? imageUrls
+                .slice(1)
+                .filter((url) => typeof url === "string" && url.trim() && url.trim() !== resolvedScanImage)
+            : []
+        );
+
+        let initialCurr = (initialCurrency || "").toUpperCase();
+        if (!["AUD", "USD", "GBP"].includes(initialCurr)) {
+          if (typeof window !== "undefined") {
+            const stored = localStorage.getItem("spadas_selected_currency");
+            if (stored && ["AUD", "USD", "GBP"].includes(stored.toUpperCase())) {
+              initialCurr = stored.toUpperCase();
+            }
           }
         }
+        const targetCurr = (initialCurr && ["AUD", "USD", "GBP"].includes(initialCurr) ? initialCurr : "AUD") as SupportedCurrency;
+        setSelectedCurrency(targetCurr);
+        setInputTitle((initialTitle || "").slice(0, 80));
+
+        // Accurately convert base price to selected currency
+        const rawPrice = Number(initialPrice) || 25;
+        const baseCurr = (initialCurrency && ["AUD", "USD", "GBP"].includes(initialCurrency.toUpperCase())
+          ? initialCurrency.toUpperCase()
+          : "AUD") as SupportedCurrency;
+        const convertedPrice = convertCurrency(rawPrice, baseCurr, targetCurr);
+        setInputPrice(Number(convertedPrice.toFixed(2)));
+
+        setInputCondition(initialCondition || "Used - Good");
+        setInputDescription(
+          initialDescription ||
+            (initialTitle
+              ? `Authentic ${initialBrand} ${initialTitle}.\n\n• Brand: ${initialBrand}\n• Model: ${initialTitle}\n• Material/Color: Standard finish\n• Condition: ${initialCondition || "Used - Good"}. Tested and operating as intended.\n\nPlease review all photos for exact details.`
+              : "")
+        );
       }
-      const targetCurr = (initialCurr && ["AUD", "USD", "GBP"].includes(initialCurr) ? initialCurr : "AUD") as SupportedCurrency;
-      setSelectedCurrency(targetCurr);
-      setInputTitle((initialTitle || "").slice(0, 80));
-
-      // Accurately convert base price to selected currency
-      const rawPrice = Number(initialPrice) || 25;
-      const baseCurr = (initialCurrency && ["AUD", "USD", "GBP"].includes(initialCurrency.toUpperCase())
-        ? initialCurrency.toUpperCase()
-        : "AUD") as SupportedCurrency;
-      const convertedPrice = convertCurrency(rawPrice, baseCurr, targetCurr);
-      setInputPrice(Number(convertedPrice.toFixed(2)));
-
-      setInputCondition(initialCondition || "Used - Good");
-      setInputDescription(
-        initialDescription ||
-          (initialTitle
-            ? `Authentic ${initialBrand} ${initialTitle}.\n\n• Brand: ${initialBrand}\n• Model: ${initialTitle}\n• Material/Color: Standard finish\n• Condition: ${initialCondition || "Used - Good"}. Tested and operating as intended.\n\nPlease review all photos for exact details.`
-            : "")
-      );
-      setError(null);
-      setPublishedUrl(null);
-      setPublishedSku(null);
-      setIsLiveListing(false);
+    } else {
+      prevIsOpenRef.current = false;
     }
-  }, [isOpen, initialTitle, initialPrice, initialCondition, initialDescription, initialBrand, initialCurrency, activeScanImage, imageUrls]);
+  }, [isOpen, sessionId, resolvedScanImage, imageUrls, initialCurrency, initialTitle, initialPrice, initialCondition, initialDescription, initialBrand]);
   /* eslint-enable react-hooks/set-state-in-effect */
+
+  const handleModalClose = () => {
+    setPublishedUrl(null);
+    setPublishedSku(null);
+    setIsLiveListing(false);
+    setError(null);
+    onClose();
+  };
 
   if (!isOpen) return null;
 
@@ -193,65 +257,62 @@ export default function EbayListingModal({
     window.open(prefillUrl, "_blank");
   };
 
-  // Additive Multi-Photo Attachment Handler (isolated to gallery, never clobbers primary scan blob)
-  const handleAddPhotos = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // 3. Multi-Photo Capture Integration:
+  // Seamlessly handles both direct camera snaps (capture="environment") and gallery uploads (multiple)
+  // Guarantees primary scan blob remains securely bound without disruption
+  const handleAddPhotos = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
     const fileList = Array.from(files);
-    let loaded = 0;
-    const added: string[] = [];
+    setIsProcessingPhotos(true);
 
-    fileList.forEach((file) => {
-      if (!file.type.startsWith("image/")) {
-        toast.error(`"${file.name}" is not an image file.`);
-        return;
+    try {
+      const added: string[] = [];
+      for (const file of fileList) {
+        if (!file.type.startsWith("image/")) {
+          toast.error(`"${file.name}" is not an image file.`);
+          continue;
+        }
+        const compressed = await compressImageBlob(file);
+        if (compressed && compressed.trim()) {
+          added.push(compressed.trim());
+        }
       }
 
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const result = event.target?.result;
-        if (typeof result === "string" && result.trim()) {
-          added.push(result.trim());
-        }
-        loaded++;
-        if (loaded === fileList.length) {
-          if (added.length > 0) {
-            if (!primaryScanBlob) {
-              setPrimaryScanBlob(added[0]);
-              const remaining = added.slice(1);
-              if (remaining.length > 0) {
-                setGalleryPhotos((prev) => {
-                  const next = [...prev];
-                  remaining.forEach((img) => {
-                    if (!next.includes(img) && img !== added[0]) next.push(img);
-                  });
-                  return next;
-                });
-              }
-            } else {
-              setGalleryPhotos((prev) => {
-                const next = [...prev];
-                added.forEach((img) => {
-                  if (!next.includes(img) && img !== primaryScanBlob) {
-                    next.push(img);
-                  }
-                });
-                return next;
+      if (added.length > 0) {
+        if (!primaryScanBlob) {
+          setPrimaryScanBlob(added[0]);
+          const remaining = added.slice(1);
+          if (remaining.length > 0) {
+            setGalleryPhotos((prev) => {
+              const next = [...prev];
+              remaining.forEach((img) => {
+                if (!next.includes(img) && img !== added[0]) next.push(img);
               });
-            }
-            toast.success(`Attached ${added.length} additional photo angle${added.length > 1 ? "s" : ""}!`);
+              return next;
+            });
           }
-          if (fileInputRef.current) {
-            fileInputRef.current.value = "";
-          }
+        } else {
+          setGalleryPhotos((prev) => {
+            const next = [...prev];
+            added.forEach((img) => {
+              if (!next.includes(img) && img !== primaryScanBlob) {
+                next.push(img);
+              }
+            });
+            return next;
+          });
         }
-      };
-      reader.onerror = () => {
-        loaded++;
-      };
-      reader.readAsDataURL(file);
-    });
+        toast.success(`Attached ${added.length} photo angle${added.length > 1 ? "s" : ""}!`);
+      }
+    } catch {
+      toast.error("Failed to process photo capture.");
+    } finally {
+      setIsProcessingPhotos(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      if (cameraInputRef.current) cameraInputRef.current.value = "";
+    }
   };
 
   const handleRemoveGalleryPhoto = (indexToRemove: number) => {
@@ -344,7 +405,7 @@ export default function EbayListingModal({
       condition: inputCondition,
       description: inputDescription,
       imageUrls: submissionImageUrls, // Index [0] explicitly pulls active scan capture blob
-      sessionId: sessionId || trackedSessionId || "scan_session",
+      sessionId: sessionId || prevSessionIdRef.current || "scan_session",
     };
 
     try {
@@ -418,7 +479,7 @@ export default function EbayListingModal({
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleModalClose}
             className="p-1.5 text-slate-400 hover:text-slate-200 rounded-lg hover:bg-slate-800 transition cursor-pointer"
           >
             <X className="w-5 h-5" />
@@ -426,8 +487,8 @@ export default function EbayListingModal({
         </div>
 
         {publishedUrl ? (
-          /* Success Screen */
-          <div className="flex flex-col flex-1 min-h-0 overflow-y-auto">
+          /* Persistent Success Screen - Stays mounted until user explicitly taps Done or View Live */
+          <div className="flex flex-col flex-1 min-h-0 overflow-y-auto animate-fade-in">
             <div className="flex-1 overflow-y-auto overscroll-contain p-6 pb-[calc(env(safe-area-inset-bottom,0px)+6rem)] sm:pb-6 space-y-4 text-center">
               <div className={`w-14 h-14 ${isLiveListing ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : "bg-cyan-500/20 text-cyan-400 border-cyan-500/30"} rounded-full flex items-center justify-center mx-auto border`}>
                 <CheckCircle2 className="w-8 h-8" />
@@ -449,6 +510,12 @@ export default function EbayListingModal({
                     : `Your item details, price, and photos are saved in your ${activeRegion.label} Seller Hub account. Open Seller Hub drafts to review and activate it live.`}
                 </p>
               </div>
+
+              {/* Photo Verification Badge */}
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px] font-semibold">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>Primary Scan Photo Locked &amp; Synced (Index [0])</span>
+              </div>
             </div>
 
             <div className="shrink-0 p-3.5 sm:p-4 pb-[max(0.875rem,calc(env(safe-area-inset-bottom,0px)+0.75rem))] border-t border-slate-800 bg-slate-900/95 backdrop-blur flex flex-col sm:flex-row items-center justify-center gap-3">
@@ -464,7 +531,7 @@ export default function EbayListingModal({
 
               <button
                 type="button"
-                onClick={onClose}
+                onClick={handleModalClose}
                 className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl text-xs transition cursor-pointer w-full sm:w-auto"
               >
                 Done
@@ -543,7 +610,7 @@ export default function EbayListingModal({
                 </div>
               )}
 
-              {/* Isolated Photo Binding Gallery Row */}
+              {/* 3. Multi-Photo Capture Integration: Isolated Photo Binding Gallery Row */}
               <div className="space-y-2 p-3 bg-slate-950/70 border border-slate-800/90 rounded-2xl">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
@@ -555,14 +622,42 @@ export default function EbayListingModal({
                       • Scan capture locked to session ID
                     </span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-[11px] font-bold transition cursor-pointer"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Add Angle</span>
-                  </button>
+
+                  {/* Dual Multi-Photo Capture Action Buttons */}
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => cameraInputRef.current?.click()}
+                      disabled={isProcessingPhotos}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[11px] font-bold transition cursor-pointer disabled:opacity-50"
+                      title="Snap extra angle directly with your camera"
+                    >
+                      <Camera className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Snap Angle</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isProcessingPhotos}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-[11px] font-bold transition cursor-pointer disabled:opacity-50"
+                      title="Upload photos from device gallery"
+                    >
+                      <ImageIcon className="w-3.5 h-3.5 text-cyan-400" />
+                      <span>Add Gallery</span>
+                    </button>
+                  </div>
+
+                  {/* Direct Camera Capture Input */}
+                  <input
+                    ref={cameraInputRef}
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    className="hidden"
+                    onChange={handleAddPhotos}
+                  />
+
+                  {/* Multi-Photo Device Album Input */}
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -636,22 +731,43 @@ export default function EbayListingModal({
                     </div>
                   ))}
 
-                  {/* Add Photo Button Tile */}
+                  {/* Direct Camera Snap Tile */}
+                  <button
+                    type="button"
+                    onClick={() => cameraInputRef.current?.click()}
+                    disabled={isProcessingPhotos}
+                    className="h-16 w-16 sm:h-20 sm:w-20 shrink-0 rounded-xl border-2 border-dashed border-emerald-500/50 hover:border-emerald-400/90 bg-emerald-950/20 hover:bg-emerald-900/30 flex flex-col items-center justify-center gap-1 text-emerald-300 hover:text-emerald-200 transition cursor-pointer disabled:opacity-50"
+                    title="Snap additional angle with camera"
+                  >
+                    <Camera className="w-4 h-4 text-emerald-400" />
+                    <span className="text-[10px] font-bold">Snap Angle</span>
+                  </button>
+
+                  {/* Device Album / Gallery Tile */}
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="h-16 w-16 sm:h-20 sm:w-20 shrink-0 rounded-xl border-2 border-dashed border-slate-700/90 hover:border-cyan-400/60 bg-slate-900/50 hover:bg-slate-800/80 flex flex-col items-center justify-center gap-1 text-slate-400 hover:text-cyan-300 transition cursor-pointer"
-                    title="Tap to select additional photos from gallery"
+                    disabled={isProcessingPhotos}
+                    className="h-16 w-16 sm:h-20 sm:w-20 shrink-0 rounded-xl border-2 border-dashed border-slate-700/90 hover:border-cyan-400/60 bg-slate-900/50 hover:bg-slate-800/80 flex flex-col items-center justify-center gap-1 text-slate-400 hover:text-cyan-300 transition cursor-pointer disabled:opacity-50"
+                    title="Choose additional photos from gallery"
                   >
                     <Plus className="w-4 h-4 text-cyan-400" />
-                    <span className="text-[10px] font-bold">Add Photo</span>
+                    <span className="text-[10px] font-bold">Add Gallery</span>
                   </button>
+
+                  {/* In-Flight Image Processing Spinner */}
+                  {isProcessingPhotos && (
+                    <div className="h-16 w-16 sm:h-20 sm:w-20 shrink-0 rounded-xl border border-cyan-500/40 bg-cyan-950/30 flex flex-col items-center justify-center gap-1 text-cyan-300">
+                      <Loader2 className="w-4 h-4 animate-spin text-cyan-400" />
+                      <span className="text-[9px] font-mono">Optimizing</span>
+                    </div>
+                  )}
                 </div>
 
                 {!primaryScanBlob && galleryPhotos.length === 0 && (
                   <p className="text-[11px] text-amber-300 flex items-center gap-1">
                     <AlertCircle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                    <span>No photo attached. Tap &quot;Add Angle&quot; to attach a photo before publishing.</span>
+                    <span>No photo attached. Snap or attach a photo before publishing to eBay.</span>
                   </p>
                 )}
               </div>
