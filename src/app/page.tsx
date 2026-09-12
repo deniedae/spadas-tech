@@ -10,6 +10,15 @@ import {
   Cpu,
   Layers,
   Sparkles,
+  Smartphone,
+  Zap,
+  ShieldCheck,
+  CheckCircle2,
+  ArrowRight,
+  Gauge,
+  Vibrate,
+  Camera,
+  PackageCheck,
 } from "lucide-react";
 
 export default function Home() {
@@ -57,12 +66,19 @@ export default function Home() {
         {/* Hero Section */}
         <section className="pt-10 pb-12 md:pt-16 md:pb-16">
           <div className="max-w-3xl mx-auto text-center space-y-5">
-            {/* Telemetry Status Line */}
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-900/90 border border-white/[0.08] font-mono text-[11px] text-zinc-400">
-              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span>60 FPS OPTICAL VISION ACTIVE</span>
-              <span className="text-zinc-700">|</span>
-              <span className="text-cyan-400">ZERO SIGN-UP GUEST SCAN</span>
+            {/* Telemetry Status Line & New APK Release Pill */}
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-900/90 border border-white/[0.08] font-mono text-[11px] text-zinc-400">
+                <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span>60 FPS OPTICAL VISION ACTIVE</span>
+                <span className="text-zinc-700">|</span>
+                <span className="text-cyan-400">ZERO SIGN-UP GUEST SCAN</span>
+              </div>
+
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 font-mono text-[11px] font-bold shadow-[0_0_12px_rgba(16,185,129,0.2)]">
+                <Smartphone className="h-3 w-3 text-emerald-400" />
+                <span>NEW ANDROID APK v1.2.1</span>
+              </div>
             </div>
 
             {/* Direct Field Headline */}
@@ -87,11 +103,11 @@ export default function Home() {
 
               <a
                 href="/spadas-ai.apk"
-                download
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-zinc-900/90 hover:bg-zinc-800 text-zinc-200 font-semibold px-5 py-3 text-xs transition active:scale-95 font-mono cursor-pointer"
+                download="Spadas-AI.apk"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-950/40 hover:bg-emerald-900/50 text-emerald-200 font-bold px-5 py-3 text-xs transition active:scale-95 font-mono cursor-pointer shadow-[0_0_20px_rgba(16,185,129,0.15)] group"
               >
-                <Download className="h-4 w-4 text-emerald-400" />
-                <span>Download .APK (~982 KB)</span>
+                <Download className="h-4 w-4 text-emerald-400 group-hover:scale-110 transition-transform" />
+                <span>Download New APK (~900 KB)</span>
               </a>
             </div>
 
@@ -213,6 +229,104 @@ export default function Home() {
           <LandingInteractiveDemo />
         </section>
 
+        {/* NEW: Mobile Web & Android APK Speed Release Showcase Section */}
+        <section className="py-12 border-t border-white/[0.08]">
+          <div className="max-w-3xl mb-8">
+            <div className="flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="font-mono text-xs text-emerald-400 uppercase font-bold tracking-wider">
+                FIELD PERFORMANCE SUITE // RELEASE v1.2.1
+              </span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-white mt-1.5 tracking-tight">
+              Optimized for Mobile Web & Native Android APK.
+            </h2>
+            <p className="text-sm text-zinc-400 mt-1 leading-relaxed">
+              Engineered to run faster, lighter, and smoother in the field. Seamlessly switch between the installable APK package and the mobile web app without losing a beat.
+            </p>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {/* Optimization 1: Zero Latency & Prefetching */}
+            <div className="p-5 rounded-2xl bg-[#0A0D15]/80 border border-white/[0.08] hover:border-emerald-500/30 transition-all space-y-2.5">
+              <div className="h-9 w-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                <Gauge className="h-5 w-5" />
+              </div>
+              <h3 className="text-sm font-bold text-white">Instant Route Transitions</h3>
+              <p className="text-xs text-zinc-400 leading-relaxed">
+                Background-warmed tab prefetching across Home, Haul, Lens AR, Listings, and History delivers zero-lag navigation inside the APK.
+              </p>
+            </div>
+
+            {/* Optimization 2: Native Android Haptics */}
+            <div className="p-5 rounded-2xl bg-[#0A0D15]/80 border border-white/[0.08] hover:border-cyan-500/30 transition-all space-y-2.5">
+              <div className="h-9 w-9 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
+                <Vibrate className="h-5 w-5" />
+              </div>
+              <h3 className="text-sm font-bold text-white">Native Haptic Bridge</h3>
+              <p className="text-xs text-zinc-400 leading-relaxed">
+                Direct integration with the Android Kotlin Companion Bridge triggers tactile pulses on high-margin flips, caution flags, and grails.
+              </p>
+            </div>
+
+            {/* Optimization 3: Touch & Scroll Ergonomics */}
+            <div className="p-5 rounded-2xl bg-[#0A0D15]/80 border border-white/[0.08] hover:border-amber-500/30 transition-all space-y-2.5">
+              <div className="h-9 w-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+                <Zap className="h-5 w-5" />
+              </div>
+              <h3 className="text-sm font-bold text-white">Zero-Delay Fluid Scrolling</h3>
+              <p className="text-xs text-zinc-400 leading-relaxed">
+                Native document scrolling with zero tap lag and pull-to-refresh overscroll containment stops unwanted page bounces while scanning.
+              </p>
+            </div>
+
+            {/* Optimization 4: Rapid Shelf Snapper */}
+            <div className="p-5 rounded-2xl bg-[#0A0D15]/80 border border-white/[0.08] hover:border-indigo-500/30 transition-all space-y-2.5">
+              <div className="h-9 w-9 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+                <Camera className="h-5 w-5" />
+              </div>
+              <h3 className="text-sm font-bold text-white">1-Tap Rapid Shelf Snapper</h3>
+              <p className="text-xs text-zinc-400 leading-relaxed">
+                Rapid-fire snaps directly from the live camera stream into the background valuation queue without disrupting your scanning stride.
+              </p>
+            </div>
+
+            {/* Optimization 5: Spadas Uploader */}
+            <div className="p-5 rounded-2xl bg-[#0A0D15]/80 border border-white/[0.08] hover:border-purple-500/30 transition-all space-y-2.5">
+              <div className="h-9 w-9 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
+                <PackageCheck className="h-5 w-5" />
+              </div>
+              <h3 className="text-sm font-bold text-white">Spadas Uploader Flow</h3>
+              <p className="text-xs text-zinc-400 leading-relaxed">
+                Multi-photo capture, automated postage/returns/payment policy detection, and 1-tap live publishing directly to your eBay inventory.
+              </p>
+            </div>
+
+            {/* Optimization 6: Install Card */}
+            <div className="p-5 rounded-2xl bg-gradient-to-br from-emerald-950/40 via-zinc-900/80 to-[#0A0D15] border border-emerald-500/30 space-y-3 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center gap-1.5 text-xs font-mono font-bold text-emerald-400">
+                  <Smartphone className="h-4 w-4" />
+                  <span>NATIVE APK PACKAGE</span>
+                </div>
+                <h3 className="text-sm font-bold text-white mt-1">Get the New Android APK</h3>
+                <p className="text-xs text-zinc-400 mt-1">
+                  Download the official ~900 KB standalone APK package or use it as an installable mobile PWA.
+                </p>
+              </div>
+
+              <a
+                href="/spadas-ai.apk"
+                download="Spadas-AI.apk"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black px-4 py-2.5 text-xs transition active:scale-95 shadow-lg shadow-emerald-500/20 cursor-pointer"
+              >
+                <Download className="h-4 w-4" />
+                <span>Download .APK Now</span>
+              </a>
+            </div>
+          </div>
+        </section>
+
         {/* Core Product Capabilities */}
         <section className="py-10 border-t border-white/[0.08]">
           <LandingProductTabs />
@@ -277,8 +391,8 @@ export default function Home() {
           <div className="flex items-center gap-4">
             <Link href="/privacy" className="hover:text-zinc-300 transition">Privacy</Link>
             <Link href="/terms" className="hover:text-zinc-300 transition">Terms</Link>
-            <a href="/spadas-ai.apk" download className="text-emerald-400 hover:underline font-bold">
-              Download APK
+            <a href="/spadas-ai.apk" download="Spadas-AI.apk" className="text-emerald-400 hover:underline font-bold">
+              Download New APK (v1.2.1)
             </a>
           </div>
         </footer>
