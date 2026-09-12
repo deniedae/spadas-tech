@@ -310,8 +310,11 @@ export default function Home() {
                   <span>NATIVE APK PACKAGE</span>
                 </div>
                 <h3 className="text-sm font-bold text-white mt-1">Get the New Android APK</h3>
-                <p className="text-xs text-zinc-400 mt-1">
-                  Download the official ~900 KB standalone APK package or use it as an installable mobile PWA.
+                <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
+                  Official ~900 KB standalone APK package. If updating, uninstall any previous test build first to avoid Android signature conflicts.
+                </p>
+                <p className="text-[11px] font-mono text-emerald-400/90 mt-1">
+                  💡 Tip: You can also tap browser menu (⋮) → &quot;Install App&quot; / &quot;Add to Home Screen&quot;.
                 </p>
               </div>
 
