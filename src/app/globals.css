@@ -328,3 +328,18 @@ body::-webkit-scrollbar-track {
 .safe-pt {
   padding-top: max(0.75rem, env(safe-area-inset-top, 0px));
 }
+
+/* Lens scanner sweep beam */
+@keyframes scanBeam {
+  0%   { opacity: 0.3; transform: scaleX(0.6); }
+  50%  { opacity: 1;   transform: scaleX(1); }
+  100% { opacity: 0.3; transform: scaleX(0.6); }
+}
+
+/* Spin used on eBay upload loading button */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.animate-spin-fast {
+  animation: spin 0.6s linear infinite;
+}

@@ -178,6 +178,7 @@ function SpadasLensCameraCore({
   const [isPaywallOpen, setIsPaywallOpen] = useState<boolean>(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(false);
   const [activeEbayItem, setActiveEbayItem] = useState<any | null>(null);
+  const [isUploadingEbayPhoto, setIsUploadingEbayPhoto] = useState(false);
   const [deepVerifyItem, setDeepVerifyItem] = useState<DetectedHit | ActiveScanItem | null>(null);
   const [isOwner, setIsOwner] = useState<boolean>(false);
   const [isPro, setIsPro] = useState<boolean>(false);
@@ -3778,49 +3779,36 @@ function SpadasLensCameraCore({
                       setIsValuationCardMounted(true);
                     }
                   }}
-                  className={`w-full transition-all duration-300 ease-out ${
-                    scanCompletePulse
-                      ? "ring-2 ring-emerald-400/80 shadow-[0_0_40px_rgba(16,185,129,0.5)]"
-                      : ""
-                  }`}
+                  className={`w-full transition-all duration-500 ease-out ${scanCompletePulse ? "ring-2 ring-emerald-400/90 shadow-[0_0_50px_rgba(16,185,129,0.6)]" : ""}`}
                 >
                   <ValuationCardErrorBoundary
                     onRetry={() => void processCurrentFrame(true)}
-                    onDismiss={() => {
-                      setActiveValuationHit(null);
-                      setFrozenFrameUrl(null);
-                    }}
+                    onDismiss={() => { setActiveValuationHit(null); setFrozenFrameUrl(null); }}
                   >
-                    <div
-                      className="w-full rounded-3xl bg-slate-950/95 border border-emerald-500/60 p-4 shadow-[0_15px_45px_rgba(0,0,0,0.8),0_0_30px_rgba(16,185,129,0.25)] backdrop-blur-2xl select-none"
-                    >
+                    <div className="w-full rounded-3xl bg-[#080c14]/96 border border-emerald-500/50 p-4 shadow-[0_20px_60px_rgba(0,0,0,0.9),0_0_40px_rgba(16,185,129,0.2)] backdrop-blur-2xl select-none">
                       {/* Top Header: Thumbnail Anchor, Title, Brand & Cop Verdict */}
-                      <div className="flex items-start justify-between gap-2.5 mb-2">
-                        <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-3 mb-3">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
                           {(frozenFrameUrl || activeValuationHit.image) && (
-                            <div className="relative h-8 w-8 rounded-xl overflow-hidden border border-emerald-400/50 shadow-md shrink-0 bg-slate-900">
+                            <div className="relative h-14 w-14 rounded-2xl overflow-hidden border-2 border-emerald-400/60 shadow-[0_0_16px_rgba(16,185,129,0.3)] shrink-0 bg-slate-900">
                               <img
                                 src={frozenFrameUrl || activeValuationHit.image || ""}
                                 alt={activeValuationHit.name}
                                 className="h-full w-full object-cover"
                               />
-                              <div className="absolute inset-0 ring-1 ring-inset ring-white/20" />
+                              <div className="absolute inset-0 ring-1 ring-inset ring-white/10" />
                             </div>
                           )}
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
+                            <div className="flex items-center gap-1.5 mb-1 flex-wrap">
                               <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/30">
-                                <Sparkles className="h-2.5 w-2.5" /> 7 Sales Verified
+                                <Sparkles className="h-2.5 w-2.5" /> 7 Sales
                               </span>
                               {activeValuationHit.brand && (
-                                <span className="text-[10px] font-bold text-slate-300 bg-slate-800/80 px-2 py-0.5 rounded border border-slate-700/80 truncate max-w-[120px]">
-                                  {activeValuationHit.brand}
-                                </span>
+                                <span className="text-[10px] font-semibold text-slate-400 truncate max-w-[100px]">{activeValuationHit.brand}</span>
                               )}
                             </div>
-                            <h4 className="text-sm font-black text-white truncate leading-tight">
-                              {activeValuationHit.name}
-                            </h4>
+                            <h4 className="text-sm font-black text-white line-clamp-2 leading-snug">{activeValuationHit.name}</h4>
                           </div>
                         </div>
 
@@ -3849,37 +3837,22 @@ function SpadasLensCameraCore({
                         )}
                       </div>
 
-                      {/* 2. Critical Metrics Upfront: EST Value, Net Profit, and Match Confidence */}
-                      <div className="grid grid-cols-3 gap-2 py-2 px-3 rounded-2xl bg-slate-900/90 border border-slate-800/90 my-2 shadow-inner">
+                      {/* Critical Metrics — hero profit front and centre */}
+                      <div className="flex items-center justify-between gap-3 py-3 px-4 rounded-2xl bg-gradient-to-br from-slate-900/80 to-slate-950/80 border border-slate-800/60 my-2 shadow-inner">
                         <div className="flex flex-col">
-                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Est Value</span>
-                          <span className="text-xs sm:text-sm font-black text-cyan-300 font-mono">
-                            {fmtMoney(activeValuationHit.estimatedValue || 0)}
-                          </span>
+                          <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">Est. Value</span>
+                          <span className="text-base font-black text-cyan-300 font-mono tracking-tight">{fmtMoney(activeValuationHit.estimatedValue || 0)}</span>
                         </div>
-
-                        <div className="flex flex-col text-center">
-                          <span className="text-[9px] font-bold text-emerald-400 uppercase tracking-wider">Net Profit</span>
-                          <span className="text-xs sm:text-sm font-black text-emerald-400 font-mono">
+                        <div className="flex flex-col items-center">
+                          <span className="text-[9px] font-bold text-emerald-400 uppercase tracking-widest mb-0.5">Net Profit</span>
+                          <span className="text-xl font-black text-emerald-400 font-mono tracking-tight drop-shadow-[0_0_12px_rgba(52,211,153,0.5)]">
                             +{fmtMoney(activeValuationHit.trueNetProfit || activeValuationHit.estimatedProfit || 0)}
                           </span>
                         </div>
-
-                        <div className="flex flex-col text-right">
-                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Match Confidence</span>
-                          <span className="text-xs sm:text-sm font-black text-purple-300 font-mono flex items-center justify-end gap-0.5">
-                            <Sparkles className="w-3 h-3 text-purple-400 shrink-0" />
-                            <span>
-                              {typeof activeValuationHit.confidence === "number"
-                                ? activeValuationHit.confidence <= 1
-                                  ? `${Math.round(activeValuationHit.confidence * 100)}%`
-                                  : `${Math.round(activeValuationHit.confidence)}%`
-                                : activeValuationHit.copVerdict === "MUST_COP"
-                                ? "98%"
-                                : activeValuationHit.copVerdict === "QUICK_FLIP"
-                                ? "92%"
-                                : "88%"}
-                            </span>
+                        <div className="flex flex-col items-end">
+                          <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">ROI</span>
+                          <span className="text-base font-black text-purple-300 font-mono">
+                            {activeValuationHit.roiPercentage || activeValuationHit.estRoi || 0}%
                           </span>
                         </div>
                       </div>
@@ -3978,6 +3951,8 @@ function SpadasLensCameraCore({
                           <button
                             type="button"
                             onClick={async () => {
+                              if (isUploadingEbayPhoto) return;
+                              setIsUploadingEbayPhoto(true);
                               // 1. Capture centered 1080×1080 JPEG crop from live feed
                               let publicImageUrl: string | undefined;
                               try {
@@ -3991,6 +3966,8 @@ function SpadasLensCameraCore({
                                 if (uploaded) publicImageUrl = uploaded;
                               } catch {
                                 // Fall through to frozen frame fallback
+                              } finally {
+                                setIsUploadingEbayPhoto(false);
                               }
 
                               // 2. Fallback chain: uploaded URL → frozen frame → hit image
@@ -4007,11 +3984,16 @@ function SpadasLensCameraCore({
                                 sessionId: activeValuationHit.id || `hit_${Date.now()}`,
                               });
                             }}
-                            className="inline-flex items-center gap-1 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition cursor-pointer active:scale-95 shadow-sm"
+                            disabled={isUploadingEbayPhoto}
+                            className={`inline-flex items-center gap-1.5 border px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition cursor-pointer active:scale-95 shadow-sm ${
+                              isUploadingEbayPhoto
+                                ? "bg-cyan-500/10 border-cyan-500/20 text-cyan-500/50 cursor-not-allowed"
+                                : "bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border-cyan-500/40"
+                            }`}
                             title="List this item to eBay AU"
                           >
-                            <ShoppingBag className="h-3.5 w-3.5 text-cyan-400" />
-                            <span>List on eBay</span>
+                            <ShoppingBag className={`h-3.5 w-3.5 ${isUploadingEbayPhoto ? "animate-spin-fast" : "text-cyan-400"}`} />
+                            <span>{isUploadingEbayPhoto ? "Uploading…" : "List on eBay"}</span>
                           </button>
 
                           <button
@@ -4079,30 +4061,32 @@ function SpadasLensCameraCore({
               </div>
             )}
 
-            {/* Minimalist Scanning Beam Indicator */}
+            {/* Scanning Beam — animated sweep line with glow */}
             {analyzingRealFrame && (
-              <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 z-25 pointer-events-none flex flex-col items-center justify-center">
-                <div className="w-full h-[2px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent shadow-[0_0_20px_#22d3ee] animate-pulse" />
+              <div className="absolute inset-x-0 z-25 pointer-events-none" style={{ top: "50%", transform: "translateY(-50%)" }}>
+                <div className="relative">
+                  <div className="w-full h-[2px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent shadow-[0_0_24px_#22d3ee,0_0_8px_#67e8f9]"
+                    style={{ animation: "scanBeam 1.4s ease-in-out infinite" }} />
+                  <div className="absolute inset-0 w-full h-[2px] bg-gradient-to-r from-transparent via-white/40 to-transparent blur-[1px]" />
+                </div>
               </div>
             )}
 
-            {/* Holographic AR Grail Alert Overlay */}
+            {/* Grail Alert — compact slide-up toast (doesn't block viewfinder) */}
             {activeGrailAlert && (
-              <div className="absolute inset-0 z-40 flex items-center justify-center p-4 pointer-events-none bg-gradient-to-t from-amber-950/90 via-red-950/80 to-slate-950/90 backdrop-blur-sm animate-pulse border-4 border-amber-400/80 shadow-[0_0_100px_rgba(245,158,11,0.8)]">
-                <div className="text-center space-y-3 p-6 rounded-3xl bg-slate-950/90 border-2 border-amber-400 shadow-2xl max-w-sm w-full mx-auto pointer-events-auto">
-                  <div className="inline-flex items-center gap-2 rounded-full bg-amber-400 px-4 py-1.5 text-xs font-black text-slate-950 shadow-lg animate-bounce">
-                    <Trophy className="h-4 w-4 text-slate-950" />
-                    🚨 GRAIL FIND DETECTED!
+              <div className="absolute bottom-[calc(env(safe-area-inset-bottom,0px)+1rem)] left-1/2 -translate-x-1/2 z-50 w-[92%] max-w-sm pointer-events-auto animate-in slide-in-from-bottom-4 fade-in duration-300">
+                <div className="flex items-center gap-3 p-3.5 rounded-2xl bg-amber-950/95 border-2 border-amber-400/80 shadow-[0_0_40px_rgba(245,158,11,0.5)] backdrop-blur-xl">
+                  <div className="h-10 w-10 rounded-xl bg-amber-400 flex items-center justify-center shrink-0 shadow-lg shadow-amber-500/40">
+                    <Trophy className="h-5 w-5 text-slate-950" />
                   </div>
-                  <h3 className="text-xl sm:text-2xl font-black text-white line-clamp-2 leading-tight">
-                    {activeGrailAlert.name}
-                  </h3>
-                  <div className="inline-block rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-400 px-6 py-2 text-2xl font-black text-slate-950 shadow-xl">
-                    +${activeGrailAlert.profit.toFixed(2)} AUD PROFIT
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] font-black text-amber-300 uppercase tracking-wider">👑 Grail Find</p>
+                    <p className="text-sm font-black text-white truncate">{activeGrailAlert.name}</p>
+                    <p className="text-[11px] font-bold text-emerald-400 font-mono">+${activeGrailAlert.profit.toFixed(2)} • {activeGrailAlert.roi.toFixed(0)}% ROI</p>
                   </div>
-                  <p className="text-xs font-extrabold text-amber-300">
-                    High Demand Flip • {activeGrailAlert.roi.toFixed(0)}% Estimated ROI
-                  </p>
+                  <button type="button" onClick={() => setActiveGrailAlert(null)} className="p-1.5 rounded-lg text-amber-400 hover:text-white hover:bg-white/10 transition shrink-0">
+                    <X className="h-4 w-4" />
+                  </button>
                 </div>
               </div>
             )}
@@ -4165,19 +4149,19 @@ function SpadasLensCameraCore({
               </div>
             )}
 
-            {/* Immediate Scan Feedback Flash Ring */}
+            {/* Scan Feedback Flash — brief full-frame color wash */}
             {scanFeedback === "HIT" && (
-              <div className="absolute inset-0 z-30 pointer-events-none border-4 border-emerald-400 bg-emerald-500/10 transition-all duration-300 animate-pulse shadow-[inset_0_0_50px_rgba(52,211,153,0.6)]" />
+              <div className="absolute inset-0 z-30 pointer-events-none animate-in fade-in duration-100 animate-out fade-out duration-500 shadow-[inset_0_0_80px_rgba(52,211,153,0.5)] border-[3px] border-emerald-400/80 bg-emerald-500/8" />
             )}
             {scanFeedback === "MISS" && (
-              <div className="absolute inset-0 z-30 pointer-events-none border-4 border-rose-500 bg-rose-500/10 transition-all duration-300 animate-pulse shadow-[inset_0_0_50px_rgba(244,63,94,0.6)]" />
+              <div className="absolute inset-0 z-30 pointer-events-none animate-in fade-in duration-100 animate-out fade-out duration-500 shadow-[inset_0_0_80px_rgba(244,63,94,0.4)] border-[3px] border-rose-500/60 bg-rose-500/5" />
             )}
 
-            {/* Minimalist Glassmorphic Corner Viewfinder Ticks (Unobstructed View) */}
+            {/* Corner Viewfinder Ticks — pulse during scan */}
             <div className="absolute inset-0 z-15 pointer-events-none flex items-center justify-center p-8">
-              <div className="relative w-full h-full max-w-[420px] max-h-[500px] pointer-events-none">
-                <div className="absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2 border-cyan-400/70 rounded-tl-lg" />
-                <div className="absolute top-0 right-0 w-6 h-6 border-t-2 border-r-2 border-cyan-400/70 rounded-tr-lg" />
+              <div className={`relative w-full h-full max-w-[420px] max-h-[500px] pointer-events-none transition-all duration-300 ${analyzingRealFrame ? "scale-[1.02]" : "scale-100"}`}>
+                <div className={`absolute top-0 left-0 w-7 h-7 border-t-2 border-l-2 rounded-tl-lg transition-colors duration-300 ${analyzingRealFrame ? "border-cyan-300 shadow-[0_0_8px_rgba(34,211,238,0.8)]" : "border-cyan-400/60"}`} />
+                <div className={`absolute top-0 right-0 w-7 h-7 border-t-2 border-r-2 rounded-tr-lg transition-colors duration-300 ${analyzingRealFrame ? "border-cyan-300 shadow-[0_0_8px_rgba(34,211,238,0.8)]" : "border-cyan-400/60"}`} />
                 <div className="absolute bottom-0 left-0 w-6 h-6 border-b-2 border-l-2 border-cyan-400/70 rounded-bl-lg" />
                 <div className="absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 border-cyan-400/70 rounded-br-lg" />
               </div>
