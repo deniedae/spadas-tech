@@ -179,3 +179,48 @@ export async function captureAndCropPhoto(videoElement: HTMLVideoElement): Promi
     }, 'image/jpeg', 0.9);
   });
 }
+
+/**
+ * Crops the video frame to match the active AR reticle/bounding box before
+ * sending to AI — the model only sees the product region, not background noise.
+ *
+ * @param videoElement - The live <video> element
+ * @param boxRect      - DOMRect of the on-screen reticle (getBoundingClientRect())
+ * @returns JPEG Blob of the cropped region at native video resolution
+ */
+export async function captureTargetBox(
+  videoElement: HTMLVideoElement,
+  boxRect: DOMRect
+): Promise<Blob> {
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+
+  // Scale screen coordinates → actual video pixel coordinates
+  const scaleX = videoElement.videoWidth / videoElement.clientWidth;
+  const scaleY = videoElement.videoHeight / videoElement.clientHeight;
+
+  canvas.width  = Math.round(boxRect.width  * scaleX);
+  canvas.height = Math.round(boxRect.height * scaleY);
+
+  if (ctx) {
+    ctx.drawImage(
+      videoElement,
+      Math.round(boxRect.left * scaleX),  // Source x
+      Math.round(boxRect.top  * scaleY),  // Source y
+      canvas.width,                        // Source w
+      canvas.height,                       // Source h
+      0, 0, canvas.width, canvas.height   // Destination (1:1)
+    );
+  }
+
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (blob) resolve(blob);
+        else reject(new Error('Target box crop failed'));
+      },
+      'image/jpeg',
+      0.85
+    );
+  });
+}
