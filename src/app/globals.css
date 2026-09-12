@@ -11,14 +11,16 @@
 }
 
 html {
-  overflow-x: clip;
+  overflow-x: hidden;
+  overflow-y: auto;
   scroll-behavior: smooth;
 }
 
 body {
   min-height: 100vh;
   min-height: 100dvh;
-  overflow-x: clip;
+  overflow-x: hidden;
+  overflow-y: auto;
   background-color: #090A0F;
   color: #F4F4F5;
   -webkit-font-smoothing: antialiased;
