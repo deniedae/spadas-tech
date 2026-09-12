@@ -59,17 +59,20 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  const prevSidebarOpenRef = useRef(sidebarOpen);
+
   useEffect(() => {
     if (sidebarOpen && isMobile) {
       const firstLink = document.querySelector("nav a");
       if (firstLink instanceof HTMLElement) firstLink.focus();
       document.body.style.overflow = "hidden";
     } else {
-      if (isMobile) {
+      if (prevSidebarOpenRef.current && isMobile) {
         hamburgerButtonRef.current?.focus();
       }
       document.body.style.overflow = "";
     }
+    prevSidebarOpenRef.current = sidebarOpen;
     return () => {
       document.body.style.overflow = "";
     };
