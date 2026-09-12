@@ -106,6 +106,7 @@ import {
   cleanConditionText,
   captureVideoFrame,
   captureAndCropPhoto,
+  captureTargetBox,
 } from "@/lib/lens-utils";
 import { uploadBlobToStorage } from "@/app/lib/marketplaces/ebay-storage";
 
@@ -124,6 +125,8 @@ function SpadasLensCameraCore({
   const router = useRouter();
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  /** Ref to the inner viewfinder reticle box — used for captureTargetBox crop */
+  const reticleRef = useRef<HTMLDivElement | null>(null);
   const [scanMode, setScanMode] = useState<"snap" | "sweep" | "barcode" | "live">("snap");
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [isCameraPoweredOn, setIsCameraPoweredOn] = useState<boolean>(true);
@@ -1910,8 +1913,29 @@ function SpadasLensCameraCore({
     }
 
     // Instantly freeze the live viewfinder with the captured frame (0ms transition to progressive loader)
-    if (instantSnapshotUrl && (forceManual || scanMode === "snap")) {
-      setFrozenFrameUrl(instantSnapshotUrl);
+    // If the reticle is visible, also grab a tight crop of just the product region for the AI
+    let reticleCropUrl: string | null = null;
+    if (video && video.readyState >= 2 && reticleRef.current) {
+      try {
+        const boxRect = reticleRef.current.getBoundingClientRect();
+        if (boxRect.width > 40 && boxRect.height > 40) {
+          const cropBlob = await captureTargetBox(video, boxRect);
+          reticleCropUrl = await new Promise<string>((res) => {
+            const reader = new FileReader();
+            reader.onloadend = () => res(reader.result as string);
+            reader.readAsDataURL(cropBlob);
+          });
+        }
+      } catch {
+        // Non-fatal — fall back to full-frame snapshot
+      }
+    }
+
+    // Use reticle crop as the primary frozen frame (sharper, focused); fall back to full-frame
+    const preferredSnapshotUrl = reticleCropUrl || instantSnapshotUrl;
+
+    if (preferredSnapshotUrl && (forceManual || scanMode === "snap")) {
+      setFrozenFrameUrl(preferredSnapshotUrl);
       setIsScanPaused(true);
     }
 
@@ -4159,7 +4183,10 @@ function SpadasLensCameraCore({
 
             {/* Corner Viewfinder Ticks — pulse during scan */}
             <div className="absolute inset-0 z-15 pointer-events-none flex items-center justify-center p-8">
-              <div className={`relative w-full h-full max-w-[420px] max-h-[500px] pointer-events-none transition-all duration-300 ${analyzingRealFrame ? "scale-[1.02]" : "scale-100"}`}>
+              <div
+                ref={reticleRef}
+                className={`relative w-full h-full max-w-[420px] max-h-[500px] pointer-events-none transition-all duration-300 ${analyzingRealFrame ? "scale-[1.02]" : "scale-100"}`}
+              >
                 <div className={`absolute top-0 left-0 w-7 h-7 border-t-2 border-l-2 rounded-tl-lg transition-colors duration-300 ${analyzingRealFrame ? "border-cyan-300 shadow-[0_0_8px_rgba(34,211,238,0.8)]" : "border-cyan-400/60"}`} />
                 <div className={`absolute top-0 right-0 w-7 h-7 border-t-2 border-r-2 rounded-tr-lg transition-colors duration-300 ${analyzingRealFrame ? "border-cyan-300 shadow-[0_0_8px_rgba(34,211,238,0.8)]" : "border-cyan-400/60"}`} />
                 <div className="absolute bottom-0 left-0 w-6 h-6 border-b-2 border-l-2 border-cyan-400/70 rounded-bl-lg" />
