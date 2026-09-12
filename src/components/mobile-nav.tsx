@@ -10,17 +10,14 @@ import {
   ShoppingBag,
 } from "lucide-react";
 import { useHaulStore } from "@/lib/haul-store";
+import { triggerTactileHaptic } from "@/lib/android-bridge";
 
 export default function MobileNav() {
   const pathname = usePathname();
   const { haulCount } = useHaulStore();
 
-  const triggerHaptic = () => {
-    if (typeof window !== "undefined" && "vibrate" in navigator) {
-      try {
-        navigator.vibrate(12);
-      } catch {}
-    }
+  const handleNavClick = () => {
+    triggerTactileHaptic("light");
   };
 
   const navItems = [
@@ -64,7 +61,7 @@ export default function MobileNav() {
   return (
     <nav
       aria-label="Native Mobile Navigation"
-      className="fixed bottom-0 left-0 right-0 z-50 border-t border-slate-800/90 bg-slate-950/95 backdrop-blur-xl md:hidden px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-10px_30px_rgba(0,0,0,0.5)] select-none"
+      className="fixed bottom-0 left-0 right-0 z-50 border-t border-slate-800/90 bg-slate-950/95 backdrop-blur-xl md:hidden px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-10px_30px_rgba(0,0,0,0.5)] select-none gpu-accelerated touch-manipulation"
     >
       <div className="flex items-center justify-between max-w-md mx-auto relative">
         {navItems.map(({ href, label, icon: Icon, isCenter, badge }) => {
@@ -75,8 +72,9 @@ export default function MobileNav() {
               <Link
                 key={href}
                 href={href}
-                onClick={triggerHaptic}
-                className="relative -top-4 flex flex-col items-center justify-center cursor-pointer group active:scale-95 transition-transform"
+                prefetch={true}
+                onClick={handleNavClick}
+                className="relative -top-4 flex flex-col items-center justify-center cursor-pointer group active:scale-95 transition-transform touch-manipulation"
                 aria-label="Open Spadas Lens AR Camera"
               >
                 <div
@@ -97,8 +95,9 @@ export default function MobileNav() {
             <Link
               key={href}
               href={href}
-              onClick={triggerHaptic}
-              className={`flex flex-1 flex-col items-center justify-center py-1 text-xs font-semibold transition-all active:scale-95 cursor-pointer min-h-[44px] ${
+              prefetch={true}
+              onClick={handleNavClick}
+              className={`flex flex-1 flex-col items-center justify-center py-1 text-xs font-semibold transition-all active:scale-95 cursor-pointer min-h-[44px] touch-manipulation ${
                 active
                   ? "text-cyan-400 font-extrabold"
                   : "text-slate-400 hover:text-slate-200"

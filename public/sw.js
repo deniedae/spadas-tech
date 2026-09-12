@@ -1,16 +1,19 @@
-const CACHE_NAME = "spadas-ai-v6";
+const CACHE_NAME = "spadas-ai-v7";
+const STATIC_CACHE_NAME = "spadas-static-v1";
 const OFFLINE_URL = "/offline.html";
 
 const PRECACHE_ASSETS = [
   "/offline.html",
   "/manifest.json",
+  "/manifest.webmanifest",
   "/icon-192.png",
   "/icon-512.png",
   "/maskable-192.png",
   "/maskable-512.png",
+  "/favicon.ico",
 ];
 
-// Install Event
+// Install Event - Pre-cache critical offline shell
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
@@ -20,13 +23,14 @@ self.addEventListener("install", (event) => {
   self.skipWaiting();
 });
 
-// Activate Event - aggressively wipe ALL legacy caches
+// Activate Event - Clean up stale caches while retaining static bundle cache
 self.addEventListener("activate", (event) => {
+  const currentCaches = [CACHE_NAME, STATIC_CACHE_NAME];
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
+          if (!currentCaches.includes(cacheName)) {
             return caches.delete(cacheName);
           }
         })
@@ -42,53 +46,100 @@ self.addEventListener("message", (event) => {
   }
 });
 
-// Fetch Event - Network first for all app routes & Next.js chunks, offline fallback only
+// Fetch Event - Optimized for mobile speed & APK instant responsiveness
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET" && event.request.method !== "HEAD") {
     return;
   }
 
-  // Never cache API routes, Next.js dynamic assets, or 3rd party providers
+  let url;
   try {
-    const url = new URL(event.request.url);
-    if (
-      url.pathname.startsWith("/api/") ||
-      url.pathname.startsWith("/auth/") ||
-      url.pathname.startsWith("/_next/") ||
-      url.hostname.includes("supabase.co") ||
-      url.hostname.includes("ebay.com") ||
-      url.hostname.includes("googleapis.com")
-    ) {
-      return; // Direct browser network pass-through
-    }
-  } catch (e) {}
+    url = new URL(event.request.url);
+  } catch (e) {
+    return;
+  }
 
-  if (event.request.mode === "navigate") {
+  // 1. Strict Network Bypass: Never cache dynamic API routes, auth, Supabase, eBay, or Google APIs
+  if (
+    url.pathname.startsWith("/api/") ||
+    url.pathname.startsWith("/auth/") ||
+    url.hostname.includes("supabase.co") ||
+    url.hostname.includes("ebay.com") ||
+    url.hostname.includes("googleapis.com")
+  ) {
+    return; // Direct browser network pass-through
+  }
+
+  // 2. Cache-First for Immutable Next.js Static Chunks (/_next/static/*)
+  // These chunks contain cryptographic hashes and never change once deployed.
+  // Serving from disk gives instant 0-2ms response times inside the APK/TWA and mobile browsers.
+  if (url.pathname.startsWith("/_next/static/")) {
     event.respondWith(
-      fetch(event.request).catch(() => {
-        return caches.match(OFFLINE_URL);
+      caches.open(STATIC_CACHE_NAME).then((cache) => {
+        return cache.match(event.request).then((cachedResponse) => {
+          if (cachedResponse) {
+            return cachedResponse;
+          }
+          return fetch(event.request).then((networkResponse) => {
+            if (networkResponse && networkResponse.status === 200) {
+              cache.put(event.request, networkResponse.clone());
+            }
+            return networkResponse;
+          });
+        });
       })
     );
     return;
   }
 
-  // Network-first with cache fallback for static shell assets
-  event.respondWith(
-    fetch(event.request)
-      .then((response) => {
-        if (!response || response.status !== 200 || response.type !== "basic") {
-          return response;
-        }
-        const responseToCache = response.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, responseToCache).catch(() => {});
-        });
-        return response;
+  // 3. Navigation Requests (HTML pages): Network-First with Cache Fallback for instant resilience
+  if (event.request.mode === "navigate") {
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const responseClone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseClone);
+            });
+          }
+          return networkResponse;
+        })
+        .catch(() => {
+          return caches.match(event.request).then((cachedResponse) => {
+            return cachedResponse || caches.match(OFFLINE_URL);
+          });
+        })
+    );
+    return;
+  }
+
+  // 4. Other Static Assets (Icons, Images, Fonts): Stale-While-Revalidate
+  if (
+    url.pathname.match(/\.(png|jpg|jpeg|svg|webp|avif|ico|woff|woff2|ttf|css|js)$/i) ||
+    PRECACHE_ASSETS.includes(url.pathname)
+  ) {
+    event.respondWith(
+      caches.match(event.request).then((cachedResponse) => {
+        const fetchPromise = fetch(event.request)
+          .then((networkResponse) => {
+            if (networkResponse && networkResponse.status === 200) {
+              const responseToCache = networkResponse.clone();
+              caches.open(CACHE_NAME).then((cache) => {
+                cache.put(event.request, responseToCache).catch(() => {});
+              });
+            }
+            return networkResponse;
+          })
+          .catch(() => cachedResponse);
+
+        return cachedResponse || fetchPromise;
       })
-      .catch(() => {
-        return caches.match(event.request);
-      })
-  );
+    );
+    return;
+  }
+
+  // Default network pass-through
 });
 
 // Background Sync Event (PWABuilder Audit)

@@ -82,12 +82,19 @@ export const metadata: Metadata = {
     statusBarStyle: "black-translucent",
     title: "Spadas Lens",
   },
+  formatDetection: {
+    telephone: false,
+    date: false,
+    address: false,
+    email: false,
+  },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
+  userScalable: false,
   viewportFit: "cover",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#ffffff" },
@@ -120,6 +127,8 @@ export default function RootLayout({
         />
         <link rel="canonical" href="https://spadas.ai" />
         <meta property="og:image" content="https://spadas.ai/og-preview.jpg" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-touch-fullscreen" content="yes" />
         <script
           dangerouslySetInnerHTML={{
             __html: `

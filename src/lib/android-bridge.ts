@@ -105,3 +105,24 @@ export function isAndroidPlatform(): boolean {
   if (typeof window === "undefined") return false;
   return /android/i.test(navigator.userAgent || "");
 }
+
+/**
+ * Detects if the app is installed and running in standalone display mode
+ * (Android APK / TWA container or PWA Home Screen standalone).
+ */
+export function isStandaloneApp(): boolean {
+  if (typeof window === "undefined") return false;
+  return (
+    window.matchMedia("(display-mode: standalone)").matches ||
+    (window.navigator as unknown as { standalone?: boolean }).standalone === true ||
+    Boolean(window.AndroidBridge)
+  );
+}
+
+/**
+ * Detects specifically if the user is in the compiled Android APK container.
+ */
+export function isApkWrapper(): boolean {
+  if (typeof window === "undefined") return false;
+  return Boolean(window.AndroidBridge) || (isAndroidPlatform() && isStandaloneApp());
+}
