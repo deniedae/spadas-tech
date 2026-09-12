@@ -1,4 +1,4 @@
-import React, { Component, ReactNode, useEffect, useRef, useState, useCallback, useMemo } from "react";
+import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
   Camera,
@@ -91,279 +91,24 @@ import {
   type SpatialMetadata,
 } from "@/lib/comps-prefetch-engine";
 
-// Catch-All React Error Boundary for Live Camera & Hit List Stability
-interface ErrorBoundaryProps {
-  children: ReactNode;
-}
+// Error boundaries extracted to lens-error-boundaries.tsx
+import {
+  CameraErrorBoundary,
+  ValuationCardErrorBoundary,
+  CameraViewportErrorBoundary,
+} from "@/components/lens-error-boundaries";
 
-interface ErrorBoundaryState {
-  hasError: boolean;
-}
+// Utilities extracted to lib/lens-utils.ts
+import {
+  STOP_WORDS,
+  getKeywordSimilarity,
+  isVagueOrPartialRead,
+  cleanConditionText,
+  captureVideoFrame,
+} from "@/lib/lens-utils";
 
-class CameraErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  constructor(props: ErrorBoundaryProps) {
-    super(props);
-    this.state = { hasError: false };
-  }
-
-  static getDerivedStateFromError(): ErrorBoundaryState {
-    return { hasError: true };
-  }
-
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error("[CameraErrorBoundary] Caught unhandled camera UI error:", error, errorInfo);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="w-full box-border rounded-3xl border border-amber-500/40 bg-slate-950 p-6 text-center text-slate-200 shadow-2xl my-4 space-y-3">
-          <ShieldAlert className="mx-auto h-12 w-12 text-amber-400" />
-          <h4 className="font-bold text-lg text-slate-100">Scanner Recovered From Temporary Exception</h4>
-          <p className="text-xs text-slate-400 max-w-md mx-auto">
-            The AR camera feed caught an invalid frame payload or API error and reset safely without breaking the main app.
-          </p>
-          <button
-            type="button"
-            onClick={() => this.setState({ hasError: false })}
-            className="inline-flex h-10 items-center gap-2 rounded-xl bg-cyan-600 px-5 text-xs font-bold text-white hover:bg-cyan-500 shadow-lg"
-          >
-            <RefreshCw className="h-4 w-4" /> Restart Camera Feed
-          </button>
-        </div>
-      );
-    }
-
-    return this.props.children;
-  }
-}
-
-interface ValuationCardErrorBoundaryProps {
-  children: ReactNode;
-  onRetry?: () => void;
-  onDismiss?: () => void;
-}
-
-interface ValuationCardErrorBoundaryState {
-  hasError: boolean;
-}
-
-class ValuationCardErrorBoundary extends Component<
-  ValuationCardErrorBoundaryProps,
-  ValuationCardErrorBoundaryState
-> {
-  constructor(props: ValuationCardErrorBoundaryProps) {
-    super(props);
-    this.state = { hasError: false };
-  }
-
-  static getDerivedStateFromError(): ValuationCardErrorBoundaryState {
-    return { hasError: true };
-  }
-
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error("[ValuationCardErrorBoundary] Caught valuation card rendering error:", error, errorInfo);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="w-full rounded-2xl bg-slate-950/95 border border-amber-500/50 p-3 shadow-xl backdrop-blur-xl flex items-center justify-between gap-2.5 animate-in fade-in zoom-in-95 select-none">
-          <div className="flex items-center gap-2 min-w-0">
-            <ShieldAlert className="h-4 w-4 text-amber-400 shrink-0" />
-            <div className="flex flex-col min-w-0">
-              <span className="text-xs font-bold text-slate-100 truncate">
-                Valuation data issue
-              </span>
-              <span className="text-[10px] text-slate-400 truncate">
-                Isolated safely • Session preserved
-              </span>
-            </div>
-          </div>
-          <div className="flex items-center gap-1.5 shrink-0">
-            {this.props.onRetry && (
-              <button
-                type="button"
-                onClick={() => {
-                  this.setState({ hasError: false });
-                  this.props.onRetry?.();
-                }}
-                className="inline-flex items-center gap-1 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black px-2.5 py-1 rounded-lg text-[10px] transition cursor-pointer active:scale-95"
-              >
-                <RefreshCw className="h-3 w-3" />
-                <span>Retry</span>
-              </button>
-            )}
-            {this.props.onDismiss && (
-              <button
-                type="button"
-                onClick={() => {
-                  this.setState({ hasError: false });
-                  this.props.onDismiss?.();
-                }}
-                className="text-slate-400 hover:text-white p-1"
-                title="Dismiss"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            )}
-          </div>
-        </div>
-      );
-    }
-
-    return this.props.children;
-  }
-}
-
-interface CameraViewportErrorBoundaryProps {
-  children: ReactNode;
-  onRestart?: () => void;
-}
-
-interface CameraViewportErrorBoundaryState {
-  hasError: boolean;
-}
-
-class CameraViewportErrorBoundary extends Component<
-  CameraViewportErrorBoundaryProps,
-  CameraViewportErrorBoundaryState
-> {
-  constructor(props: CameraViewportErrorBoundaryProps) {
-    super(props);
-    this.state = { hasError: false };
-  }
-
-  static getDerivedStateFromError(): CameraViewportErrorBoundaryState {
-    return { hasError: true };
-  }
-
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error("[CameraViewportErrorBoundary] Caught viewport error:", error, errorInfo);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center p-6 text-center bg-slate-950 text-slate-200 space-y-3">
-          <ShieldAlert className="h-10 w-10 text-amber-400" />
-          <h4 className="font-bold text-sm text-slate-100">Camera Viewport Recovered</h4>
-          <p className="text-xs text-slate-400 max-w-xs">
-            A camera frame rendering glitch occurred and was isolated safely.
-          </p>
-          <button
-            type="button"
-            onClick={() => {
-              this.setState({ hasError: false });
-              this.props.onRestart?.();
-            }}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-cyan-600 px-4 py-2 text-xs font-bold text-white hover:bg-cyan-500 shadow-lg cursor-pointer"
-          >
-            <RefreshCw className="h-3.5 w-3.5" /> Resume Viewport
-          </button>
-        </div>
-      );
-    }
-
-    return this.props.children;
-  }
-}
-
-// Stop-words list for debouncer filtering
-const STOP_WORDS = new Set([
-  "with", "in", "the", "and", "a", "an", "of", "for", "to", "on", "at", "by",
-  "mens", "womens", "original", "box", "item", "used", "new", "style", "type",
-  "authentic", "vintage", "retro", "brand", "edition", "set", "pack", "lot"
-]);
-
-// Keyword Similarity Checker with Stop-Word Filtering
-function getKeywordSimilarity(str1: string, str2: string): number {
-  const normalize = (s: string) =>
-    s
-      .toLowerCase()
-      .replace(/'s\b/g, "")
-      .replace(/[^a-z0-9\s]/g, "")
-      .split(/\s+/)
-      .filter((w) => w.length >= 2 && !STOP_WORDS.has(w));
-
-  const words1 = normalize(str1);
-  const words2 = normalize(str2);
-
-  if (words1.length === 0 || words2.length === 0) {
-    const raw1 = str1.toLowerCase().replace(/[^a-z0-9\s]/g, "").split(/\s+/).filter((w) => w.length >= 2);
-    const raw2 = str2.toLowerCase().replace(/[^a-z0-9\s]/g, "").split(/\s+/).filter((w) => w.length >= 2);
-    if (raw1.length === 0 || raw2.length === 0) return 0;
-    const s1 = new Set(raw1);
-    const s2 = new Set(raw2);
-    let common = 0;
-    s1.forEach((w) => { if (s2.has(w)) common++; });
-    return common / Math.max(s1.size, s2.size);
-  }
-
-  const set1 = new Set(words1);
-  const set2 = new Set(words2);
-
-  let common = 0;
-  set1.forEach((w) => {
-    if (set2.has(w)) common++;
-  });
-
-  const minSize = Math.min(set1.size, set2.size);
-  const maxSize = Math.max(set1.size, set2.size);
-  const dice = (2 * common) / (set1.size + set2.size);
-  const minOverlap = common / minSize;
-  const maxOverlap = common / maxSize;
-
-  return Math.max(dice, minOverlap, maxOverlap);
-}
 // Module-level persistent media stream cache to prevent camera hardware stream teardown across tabs/views
 let persistentMediaStream: MediaStream | null = null;
-// Strict Vague / Partial Read Detector (Rejects punctuation-only, short noise, and placeholder titles)
-function isVagueOrPartialRead(productName?: string | null): boolean {
-  if (!productName || typeof productName !== "string") return true;
-  const trimmed = productName.trim();
-  if (trimmed.length < 3) return true;
-  if (/^[.\/_\-–—:;,#@!$%^&*()+=~`\s]+$/.test(trimmed)) return true;
-  const alphanumeric = trimmed.replace(/[^a-zA-Z0-9]/g, "");
-  if (alphanumeric.length < 2) return true;
-
-  const lower = trimmed.toLowerCase();
-  const explicitFailures = [
-    "no_center_item",
-    "scanned item",
-    "scanned reseller item",
-    "resale item",
-    "unknown item",
-    "unidentified item",
-    "unidentified",
-    "unknown product",
-    "unknown title",
-    "could not be identified",
-    "cannot be determined",
-    "exact card details unclear",
-    "vintage electronics / resale item",
-    "null",
-    "undefined",
-    "object",
-    "item",
-  ];
-
-  return explicitFailures.some((phrase) => lower === phrase || lower === `.${phrase}` || lower.startsWith(`${phrase} `));
-}
-
-// Clean Condition Subtitle Helper (Strips internal AI reasoning notes)
-function cleanConditionText(rawCondition: string): string {
-  if (!rawCondition) return "Used";
-  return rawCondition
-    .replace(/\(.*?\)/g, "")
-    .replace(/assume.*$/i, "")
-    .replace(/untested.*$/i, "Used")
-    .replace(/faulty.*$/i, "Used")
-    .replace(/parts-only.*$/i, "Used")
-    .replace(/sold as-is.*$/i, "Used")
-    .replace(/ungraded.*$/i, "Used")
-    .trim() || "Used";
-}
 
 let cycleSeq = 0;
 
@@ -3964,6 +3709,16 @@ function SpadasLensCameraCore({
               </div>
             )}
 
+            {/* ── Offline Pending-Sync Queue Banner ─────────────────────── */}
+            {pendingSyncCount > 0 && (
+              <div className="absolute top-[max(2.5rem,calc(env(safe-area-inset-top,0px)+2.25rem))] left-1/2 -translate-x-1/2 z-40 pointer-events-none w-[92%] max-w-sm">
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/20 border border-amber-500/40 backdrop-blur-md shadow-lg text-[11px] font-mono font-bold text-amber-300">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse shrink-0" />
+                  <span>{pendingSyncCount} scan{pendingSyncCount !== 1 ? "s" : ""} queued — will sync when back online</span>
+                </div>
+              </div>
+            )}
+
             {/* Non-Obstructing Retry Prompt Layer */}
             {scanRetryPrompt && !activeValuationHit && (
               <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-35 w-[92%] max-w-sm mx-auto pointer-events-auto transition-all duration-300 ease-out">
@@ -4221,10 +3976,13 @@ function SpadasLensCameraCore({
                           <button
                             type="button"
                             onClick={() => {
-                              const isolatedCapture = activeValuationHit?.image || frozenFrameUrl || undefined;
+                              // Auto-capture live camera frame as primary listing photo
+                              const liveFrame = captureVideoFrame(videoRef.current);
+                              const isolatedCapture = liveFrame || activeValuationHit?.image || frozenFrameUrl || undefined;
                               setActiveEbayItem({
                                 ...activeValuationHit,
                                 image: isolatedCapture,
+                                imageUrls: isolatedCapture ? [isolatedCapture] : undefined,
                                 sessionId: activeValuationHit.id || `hit_${Date.now()}`,
                               });
                             }}

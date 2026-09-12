@@ -425,10 +425,19 @@ export default function EbayListingModal({
 
       const data = await res.json().catch(() => ({}));
 
+      // Specific: photo upload to Supabase failed before eBay was even called
+      if (data.image_upload_failed) {
+        throw new Error(
+          data.error ||
+            "Photo upload to Supabase Storage failed. Make sure the 'listing-images' bucket exists and is public in your Supabase project."
+        );
+      }
+
       // Force Live Sync: Ensure submission targets active publish action
       if (!res.ok || !data.success || !data.isLive) {
         throw new Error(data.error || data.message || "Failed to publish live listing to eBay.");
       }
+
 
       if (data.success && data.isLive) {
         setPublishedUrl(data.listingUrl || `https://www.${activeRegion.site}/sh/lst/active`);

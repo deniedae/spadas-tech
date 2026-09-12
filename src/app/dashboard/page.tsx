@@ -428,6 +428,31 @@ export default function DashboardPage() {
           </div>
         )}
 
+        {/* ── Hero Number: Total Net Profit ───────────────────────── */}
+        <div className="p-5 sm:p-6 border border-white/[0.08] bg-[#0A0D15]/90 backdrop-blur-sm rounded-xl shadow-sm">
+          <p className="text-[11px] font-mono font-semibold uppercase tracking-wider text-zinc-500 mb-1">
+            Total Net Profit
+          </p>
+          {loading ? (
+            <div className="h-12 w-40 rounded-lg bg-white/[0.05] animate-pulse" />
+          ) : (
+            <p className={`text-4xl sm:text-5xl font-mono font-black tracking-tight ${stats.profit >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+              {stats.profit >= 0 ? "+" : ""}{fmtMoney(stats.profit)}
+            </p>
+          )}
+          <div className="flex items-center gap-4 mt-2 text-xs font-mono text-zinc-500">
+            <span>{stats.sold} sold</span>
+            <span className="text-zinc-700">·</span>
+            <span>{stats.listings - stats.sold} in inventory</span>
+            {stats.revenue > 0 && (
+              <>
+                <span className="text-zinc-700">·</span>
+                <span>{fmtMoney(stats.revenue)} revenue</span>
+              </>
+            )}
+          </div>
+        </div>
+
         {/* Compact 4-Metric Grid (2x2 on mobile, 4-col on tablet/desktop) */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
           {(() => {

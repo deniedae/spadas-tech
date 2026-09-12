@@ -49,7 +49,9 @@ export async function POST(req: NextRequest) {
     const targetCondition = condition || listing?.analysis?.condition || "Used";
     const targetBrand = brand || listing?.analysis?.brand || "Unbranded";
     const targetCategory = category || listing?.category || listing?.analysis?.category || "Accessories";
-    const targetImages = imageUrls || listing?.imageUrls || [];
+    const targetImages: string[] = Array.isArray(imageUrls || listing?.imageUrls)
+      ? (imageUrls || listing?.imageUrls || []).filter((u: unknown) => typeof u === "string")
+      : [];
 
     // Force live publish unless user explicitly requested a draft save
     const isExplicitDraft = publishMode === "draft" && !forceLive;
@@ -57,15 +59,44 @@ export async function POST(req: NextRequest) {
 
     // Convert Base64 image payloads to public Supabase Storage URLs so eBay can ingest them
     let publicImages: string[] = targetImages;
-    try {
-      publicImages = await convertBase64ToPublicUrls(
-        targetImages,
-        user.id,
-        sessionId || listing?.id || `ebay_${Date.now()}`
+    const hasBase64 = targetImages.some(
+      (img) => typeof img === "string" && img.startsWith("data:")
+    );
+
+    if (hasBase64) {
+      try {
+        const { urls, allUploaded } = await convertBase64ToPublicUrls(
+          targetImages,
+          user.id,
+          sessionId || listing?.id || `ebay_${Date.now()}`
+        );
+        publicImages = urls;
+
+        if (!allUploaded) {
+          console.error("[eBay Publish] Base64 → Supabase upload failed. Images are not publicly accessible.");
+          return NextResponse.json(
+            {
+              error:
+                "Photo upload to storage failed. Please check that the 'listing-images' Supabase Storage bucket exists and is set to public, then try again.",
+              image_upload_failed: true,
+            },
+            { status: 400 }
+          );
+        }
+      } catch (storageErr) {
+        console.error("[eBay Publish] convertBase64ToPublicUrls threw:", storageErr);
+        return NextResponse.json(
+          { error: "Photo upload failed unexpectedly. Please try again." },
+          { status: 500 }
+        );
+      }
+    } else {
+      // Already-public URLs: pass through directly
+      publicImages = targetImages.filter(
+        (img) => typeof img === "string" && (img.startsWith("http://") || img.startsWith("https://"))
       );
-    } catch (storageErr) {
-      console.warn("Could not convert Base64 images to Supabase Storage URLs:", storageErr);
     }
+
 
     // Fetch user's eBay tokens from Supabase using admin client or SSR client
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
