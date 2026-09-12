@@ -94,3 +94,88 @@ export function captureVideoFrame(video: HTMLVideoElement | null, quality = 0.85
     return null;
   }
 }
+
+// Utility to auto-crop the snapshot video frame to a centered or targeted product area
+// Set target dimensions for a clean square product shot (e.g., 1080x1080)
+export function captureVideoFrameCropped(
+  video: HTMLVideoElement | null,
+  options: {
+    /** Output size in pixels — defaults to 1080×1080 */
+    size?: number;
+    /**
+     * Crop bias: 0.5 = dead center (default).
+     * < 0.5 pulls toward top, > 0.5 pulls toward bottom.
+     * Useful if the viewfinder reticle is offset from the video midpoint.
+     */
+    verticalBias?: number;
+    quality?: number;
+  } = {}
+): string | null {
+  if (!video || video.videoWidth === 0) return null;
+
+  const { size = 1080, verticalBias = 0.5, quality = 0.88 } = options;
+
+  try {
+    const vw = video.videoWidth;
+    const vh = video.videoHeight;
+
+    // Largest centered square that fits within the video frame
+    const cropSide = Math.min(vw, vh);
+
+    // Center horizontally; apply vertical bias for viewfinder alignment
+    const sx = Math.round((vw - cropSide) / 2);
+    const sy = Math.round((vh - cropSide) * verticalBias);
+
+    const canvas = document.createElement("canvas");
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return captureVideoFrame(video, quality); // graceful fallback
+
+    // Draw cropped region scaled to target size
+    ctx.drawImage(
+      video,
+      sx, sy, cropSide, cropSide, // source crop
+      0,  0,  size,     size      // destination (scaled)
+    );
+
+    return canvas.toDataURL("image/jpeg", quality);
+  } catch {
+    // Fall back to full-frame capture if anything fails
+    return captureVideoFrame(video, quality);
+  }
+}
+
+/**
+ * Captures a centered 1080×1080 square crop from a live video element
+ * and returns it as a JPEG Blob — ready for direct binary upload to
+ * Supabase Storage without any base64 encoding overhead.
+ *
+ * Identical crop logic to captureVideoFrameCropped() but Blob output
+ * makes it faster for upload paths that use FormData or fetch body.
+ */
+export async function captureAndCropPhoto(videoElement: HTMLVideoElement): Promise<Blob> {
+  const canvas = document.createElement('canvas');
+  canvas.width = 1080;
+  canvas.height = 1080;
+  const ctx = canvas.getContext('2d');
+
+  if (ctx) {
+    const size = Math.min(videoElement.videoWidth, videoElement.videoHeight);
+    const startX = (videoElement.videoWidth - size) / 2;
+    const startY = (videoElement.videoHeight - size) / 2;
+
+    ctx.drawImage(
+      videoElement,
+      startX, startY, size, size, // Source slice — centered square
+      0, 0, 1080, 1080            // Destination square
+    );
+  }
+
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error('Canvas to Blob conversion failed'));
+    }, 'image/jpeg', 0.9);
+  });
+}

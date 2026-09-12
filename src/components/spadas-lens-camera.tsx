@@ -105,7 +105,9 @@ import {
   isVagueOrPartialRead,
   cleanConditionText,
   captureVideoFrame,
+  captureAndCropPhoto,
 } from "@/lib/lens-utils";
+import { uploadBlobToStorage } from "@/app/lib/marketplaces/ebay-storage";
 
 // Module-level persistent media stream cache to prevent camera hardware stream teardown across tabs/views
 let persistentMediaStream: MediaStream | null = null;
@@ -3975,10 +3977,29 @@ function SpadasLensCameraCore({
                         <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
                           <button
                             type="button"
-                            onClick={() => {
-                              // Auto-capture live camera frame as primary listing photo
-                              const liveFrame = captureVideoFrame(videoRef.current);
-                              const isolatedCapture = liveFrame || activeValuationHit?.image || frozenFrameUrl || undefined;
+                            onClick={async () => {
+                              // 1. Capture centered 1080×1080 JPEG crop from live feed
+                              let publicImageUrl: string | undefined;
+                              try {
+                                const blob = await captureAndCropPhoto(videoRef.current!);
+                                const { data: { user } } = await supabase.auth.getUser();
+                                const uploaded = await uploadBlobToStorage(
+                                  blob,
+                                  user?.id || "guest",
+                                  activeValuationHit?.id || `hit_${Date.now()}`
+                                );
+                                if (uploaded) publicImageUrl = uploaded;
+                              } catch {
+                                // Fall through to frozen frame fallback
+                              }
+
+                              // 2. Fallback chain: uploaded URL → frozen frame → hit image
+                              const isolatedCapture =
+                                publicImageUrl ||
+                                frozenFrameUrl ||
+                                activeValuationHit?.image ||
+                                undefined;
+
                               setActiveEbayItem({
                                 ...activeValuationHit,
                                 image: isolatedCapture,

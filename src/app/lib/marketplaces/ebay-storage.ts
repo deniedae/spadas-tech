@@ -1,4 +1,4 @@
-﻿import { createClient } from "@supabase/supabase-js";
+import { createClient } from "@supabase/supabase-js";
 
 /**
  * High-resolution fallback placeholder so eBay API never rejects with
@@ -9,6 +9,56 @@ const DEFAULT_FALLBACK_IMAGE =
   "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=1200&auto=format&fit=crop&q=80";
 
 const PRIMARY_BUCKET = "listing-images";
+
+/**
+ * Uploads a raw Blob (e.g. from captureAndCropPhoto) directly to Supabase
+ * Storage and returns a public HTTPS URL.
+ *
+ * Use this instead of convertBase64ToPublicUrls when you already have a Blob
+ * — it's faster (no base64 decode) and avoids the 413 payload limit on the
+ * API route when images are large.
+ *
+ * Can be called from client components using the anon key; storage RLS must
+ * allow inserts, or use the service role key server-side.
+ */
+export async function uploadBlobToStorage(
+  blob: Blob,
+  userId = "user_default",
+  itemId = "item_default",
+  index = 0
+): Promise<string | null> {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key =
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !key) {
+    console.error("[ebay-storage] Missing Supabase config for blob upload.");
+    return null;
+  }
+
+  const supabase = createClient(supabaseUrl, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
+  const ext = blob.type.includes("png") ? "png" : "jpg";
+  const filePath = `listings/${userId}/${itemId}/photo_${index}_${Date.now()}.${ext}`;
+
+  const { data, error } = await supabase.storage
+    .from(PRIMARY_BUCKET)
+    .upload(filePath, blob, { contentType: blob.type, upsert: true });
+
+  if (error || !data) {
+    console.error("[ebay-storage] Blob upload failed:", error?.message);
+    return null;
+  }
+
+  const { data: publicData } = supabase.storage
+    .from(PRIMARY_BUCKET)
+    .getPublicUrl(data.path);
+
+  return publicData?.publicUrl ?? null;
+}
 
 /**
  * Converts Base64 data URLs to publicly accessible Supabase Storage HTTPS URLs
