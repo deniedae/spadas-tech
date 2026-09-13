@@ -8,11 +8,11 @@ import { Scan, Download, ArrowRight, Sparkles, CheckCircle2 } from "lucide-react
 export const metadata: Metadata = {
   title: "Spadas Lens — Turn Photos into Finished Reseller Listings in Seconds",
   description:
-    "Built for resellers moving 20+ items a week on eBay, Depop, Poshmark, and Facebook Marketplace. Turn a photo into a ready-to-post listing in seconds. Free while in beta.",
+    "Built for resellers moving 20+ items a week on eBay, Depop, Poshmark, and Facebook Marketplace. Turn a photo into a ready-to-post listing in seconds. 10 free scans daily.",
   openGraph: {
     title: "Spadas Lens — Turn Photos into Finished Reseller Listings in Seconds",
     description:
-      "Built for resellers moving 20+ items a week on eBay, Depop, Poshmark, and Facebook Marketplace. Turn a photo into a ready-to-post listing in seconds. Free while in beta.",
+      "Built for resellers moving 20+ items a week on eBay, Depop, Poshmark, and Facebook Marketplace. Turn a photo into a ready-to-post listing in seconds. 10 free scans daily.",
     url: "https://spadas-tech.vercel.app",
     siteName: "Spadas Lens",
     type: "website",
@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Spadas Lens — Turn Photos into Finished Reseller Listings in Seconds",
     description:
-      "Built for resellers moving 20+ items a week on eBay, Depop, Poshmark, and Facebook Marketplace. Turn a photo into a ready-to-post listing in seconds. Free while in beta.",
+      "Built for resellers moving 20+ items a week on eBay, Depop, Poshmark, and Facebook Marketplace. Turn a photo into a ready-to-post listing in seconds. 10 free scans daily.",
   },
 };
 
@@ -77,7 +77,7 @@ export default function Home() {
         {/* Status Pill */}
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-zinc-900/90 border border-white/[0.08] font-mono text-[11px] text-zinc-300 mb-6 shadow-sm">
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-          <span>Live eBay sold comps &middot; AI listing copywriter &middot; Free in beta</span>
+          <span>Live eBay sold comps &middot; AI listing copywriter &middot; 10 free scans daily</span>
         </div>
 
         {/* Audience & Outcome Headline */}
@@ -115,7 +115,7 @@ export default function Home() {
 
         {/* One-Line Trust/Status Note directly under CTA */}
         <p className="text-xs font-mono text-zinc-400 mt-3.5">
-          Free while in beta &mdash; no card required
+          10 free scans daily &mdash; no card required
         </p>
 
         {/* ── "Works with" Marketplace Badges Strip ─────────────────── */}
@@ -164,7 +164,7 @@ export default function Home() {
       {/* ── Features Section (Workflow-focused) ──────────────────── */}
       <LandingFeatures />
 
-      {/* ── Pricing Section (Free beta tier) ─────────────────────── */}
+      {/* ── Pricing Section (Free & Pro tiers) ────────────────────── */}
       <LandingPricing />
 
       {/* ── Final High-Converting CTA Strip ──────────────────────── */}
@@ -191,7 +191,7 @@ export default function Home() {
             </Link>
           </div>
           <p className="text-xs font-mono text-zinc-400 pt-1">
-            Free while in beta &mdash; no card required
+            10 free scans daily &mdash; no card required
           </p>
         </div>
       </section>
