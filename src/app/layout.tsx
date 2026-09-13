@@ -29,7 +29,7 @@ export const metadata: Metadata = {
     canonical: "https://spadas.ai",
   },
   applicationName: "Spadas Lens",
-  authors: [{ name: "SpadasTechnology" }],
+  authors: [{ name: "Spadas Lens" }],
   keywords: [
     "reseller scanner",
     "spadas lens",
