@@ -10,29 +10,29 @@ export interface ScanStep {
   progress: number;
 }
 
-export type ScanStage = "vision" | "comps" | "profit" | "complete";
+export type ScanStage = "vision" | "confirmation" | "comps" | "profit" | "complete";
 
 const STANDARD_STEPS: ScanStep[] = [
   {
-    label: "Analyzing image...",
+    label: "Checking photo quality…",
     sublabel: "Visual feature detection",
     icon: Camera,
     progress: 25,
   },
   {
-    label: "Extracting brand & tags...",
+    label: "Identifying item…",
     sublabel: "OCR & condition appraisal",
     icon: Tag,
     progress: 55,
   },
   {
-    label: "Querying historical eBay sold comps...",
+    label: "Finding sold listings…",
     sublabel: "Live eBay cleared sold listings",
     icon: TrendingUp,
     progress: 82,
   },
   {
-    label: "Calculating net profit & verdict...",
+    label: "Building your listing…",
     sublabel: "Platform fees, shipping & cop rating",
     icon: Zap,
     progress: 95,
@@ -41,25 +41,25 @@ const STANDARD_STEPS: ScanStep[] = [
 
 const INTEL_STEPS: ScanStep[] = [
   {
-    label: "Analyzing image...",
+    label: "Checking photo quality…",
     sublabel: "Visual feature detection",
     icon: Camera,
     progress: 25,
   },
   {
-    label: "Extracting brand & tags...",
+    label: "Identifying item…",
     sublabel: "OCR & condition appraisal",
     icon: Tag,
     progress: 55,
   },
   {
-    label: "Querying marketplace & local P2P comps...",
+    label: "Finding sold listings…",
     sublabel: "Aggregating eBay comps & marketplace intel",
     icon: TrendingUp,
     progress: 82,
   },
   {
-    label: "Calculating net profit & verdict...",
+    label: "Building your listing…",
     sublabel: "Platform fees, shipping & cop rating",
     icon: Zap,
     progress: 95,
@@ -97,6 +97,11 @@ export function ScanProgressiveLoader({
   useEffect(() => {
     if (!isActive) {
       setCurrentStepIndex(0);
+      return;
+    }
+
+    if (stage === "confirmation") {
+      setCurrentStepIndex(1); // "Identifying item..."
       return;
     }
 

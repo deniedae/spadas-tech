@@ -30,11 +30,12 @@ import {
   getPhotoBlob,
 } from "@/lib/rapid-thrift-engine";
 import { useHaulStore } from "@/lib/haul-store";
-import { useQuickSnapQueue } from "@/lib/quick-snap-queue";
+import { useQuickSnapQueue, quickSnapQueue } from "@/lib/quick-snap-queue";
 import { calculateSalesVelocity } from "@/lib/turnover-velocity-engine";
 import { toast } from "sonner";
 import EbayListingModal from "@/components/ebay-listing-modal";
 import { DeepVerifyModal } from "@/components/deep-verify-modal";
+import RawCompsModal from "@/components/raw-comps-modal";
 import { supabase } from "@/app/lib/supabase";
 import { triggerTactileHaptic } from "@/lib/android-bridge";
 import { isMeaningfulMeta } from "@/lib/lens-utils";
@@ -56,11 +57,15 @@ export function SpadasHaulSection({
     totalGrossValue,
     totalProfit,
     aggregateRoi,
+    addItem,
     removeItem,
     clearHaul,
     setItems,
+    updateItem,
     refresh: refreshItems,
   } = useHaulStore();
+
+  const [activeCompsItem, setActiveCompsItem] = useState<RapidThriftItem | null>(null);
 
   const photoUrlsRef = React.useRef<Record<string, string>>({});
   const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({});
@@ -627,16 +632,45 @@ export function SpadasHaulSection({
               Launch the Camera to scan items, and they will automatically aggregate here with real-time sell-through comps and net profit calculations.
             </p>
           </div>
-          {onSwitchToLens && (
+          <div className="flex justify-center gap-3 mt-4">
+            {onSwitchToLens && (
+              <button
+                type="button"
+                onClick={onSwitchToLens}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg font-medium text-xs transition cursor-pointer shadow-sm active:scale-95"
+              >
+                <Scan className="h-3.5 w-3.5" />
+                <span>Launch Scanner</span>
+              </button>
+            )}
             <button
               type="button"
-              onClick={onSwitchToLens}
-              className="inline-flex items-center gap-2 mt-4 px-4 py-2 bg-white hover:bg-zinc-200 text-zinc-950 rounded-lg font-medium text-xs transition cursor-pointer shadow-sm active:scale-95"
+              onClick={() => {
+                const sampleItem: RapidThriftItem = {
+                  id: `sample-${Date.now()}`,
+                  photoId: `photo-sample`,
+                  status: "completed",
+                  productName: "Vintage Nike Embroidered Swoosh Crewneck",
+                  brand: "Nike",
+                  category: "Streetwear & Apparel",
+                  condition: "Used - Good",
+                  estimatedValue: 85,
+                  thriftCost: 8,
+                  trueNetProfit: 65,
+                  roiPercentage: 812,
+                  copVerdict: "MUST_COP",
+                  isGrail: true,
+                  timestamp: Date.now(),
+                  syncStatus: "synced"
+                };
+                addItem(sampleItem);
+                toast.success("Sample scan added to Haul!");
+              }}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-lg font-medium text-xs transition cursor-pointer shadow-sm active:scale-95"
             >
-              <Scan className="h-3.5 w-3.5" />
-              <span>Launch Scanner</span>
+              <span>View Sample Scan</span>
             </button>
-          )}
+          </div>
         </div>
       ) : filteredItems.length === 0 ? (
         <div className="py-12 text-center rounded-2xl bg-[#0A0D15]/60 border border-white/[0.08] text-zinc-500 font-mono text-xs">
@@ -719,9 +753,12 @@ export function SpadasHaulSection({
                         </span>
                       )}
                       {item.syncStatus === "pending" && (
-                        <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300 border border-zinc-700 flex items-center gap-1">
-                          <WifiOff className="h-2.5 w-2.5" /> PENDING SYNC
-                        </span>
+                        <button 
+                          onClick={() => quickSnapQueue.retryItem(item.id)}
+                          className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300 border border-zinc-700 flex items-center gap-1 hover:bg-zinc-700 transition-colors cursor-pointer"
+                        >
+                          <WifiOff className="h-2.5 w-2.5" /> RETRY SYNC
+                        </button>
                       )}
                     </div>
 
@@ -752,10 +789,21 @@ export function SpadasHaulSection({
                       </div>
                       
                       {item.compsCount ? (
-                        <div className="text-[10px] text-zinc-500 font-mono flex items-center gap-1.5">
-                          <span>Based on {item.compsCount} sold comps</span>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <div className="text-[10px] text-zinc-500 font-mono">
+                            Based on {item.compsCount} sold comps
+                          </div>
                           <span className="text-zinc-700">|</span>
-                          <span>Range: ${item.minPrice?.toFixed(2)} – ${item.maxPrice?.toFixed(2)}</span>
+                          <div className="text-[10px] text-zinc-500 font-mono">
+                            Range: ${item.minPrice?.toFixed(2)} – ${item.maxPrice?.toFixed(2)}
+                          </div>
+                          <span className="text-zinc-700">|</span>
+                          <button 
+                            onClick={() => setActiveCompsItem(item)}
+                            className="text-[10px] font-mono text-indigo-400 hover:text-indigo-300 font-bold underline cursor-pointer"
+                          >
+                            View Comps
+                          </button>
                         </div>
                       ) : (
                         <div className="text-[10px] text-zinc-600 font-mono italic">
@@ -861,6 +909,26 @@ export function SpadasHaulSection({
           brand={verifyItem.brand || "Designer Brand"}
           category={verifyItem.category || "Luxury / Fashion"}
           initialImage={photoUrls[verifyItem.photoId] || undefined}
+        />
+      )}
+
+      {/* Raw Comps Modal */}
+      {activeCompsItem && (
+        <RawCompsModal
+          isOpen={!!activeCompsItem}
+          onClose={() => setActiveCompsItem(null)}
+          scanId={activeCompsItem.id}
+          initialComps={Array.isArray(activeCompsItem.rawComps) ? activeCompsItem.rawComps : []}
+          currencySymbol="$"
+          onRecalculate={(newMin, newMax, newAvg, activeCount) => {
+            updateItem(activeCompsItem.id, {
+              minPrice: newMin,
+              maxPrice: newMax,
+              estimatedValue: newAvg,
+              compsCount: activeCount,
+              trueNetProfit: newAvg - (activeCompsItem.thriftCost || 0)
+            });
+          }}
         />
       )}
     </div>

@@ -220,6 +220,7 @@ class QuickSnapQueueService {
             image: base64Data,
             imageUrl: base64Data,
             syncStatus: isOfflineSyncPending ? "pending" : "synced",
+            rawComps: data.comps || [],
           });
 
           // Haptic alert on high-value grails
@@ -259,6 +260,24 @@ class QuickSnapQueueService {
       reader.readAsDataURL(blob);
     });
   }
+  public retryItem = async (id: string) => {
+    const item = haulStore.getState().find((i: RapidThriftItem) => i.id === id);
+    if (!item) return;
+    
+    if (this.queue.some((q) => q.id === item.id)) return;
+      
+    const blob = await getPhotoBlob(item.photoId);
+    if (blob) {
+      this.queue.push({
+        id: item.id,
+        photoId: item.photoId,
+        blob,
+        currency: "AUD"
+      });
+      this.notify();
+      void this.processQueue();
+    }
+  };
 
   public retryPendingOfflineItems = async () => {
     if (typeof window === "undefined" || !window.navigator.onLine) return;

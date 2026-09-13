@@ -147,7 +147,7 @@ function SpadasLensCameraCore({
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [autoScanActive, setAutoScanActive] = useState(false);
   const [analyzingRealFrame, setAnalyzingRealFrame] = useState(false);
-  const [scanStage, setScanStage] = useState<"vision" | "comps" | "profit" | "complete">("vision");
+  const [scanStage, setScanStage] = useState<"vision" | "confirmation" | "comps" | "profit" | "complete">("vision");
   const [pendingIdentifiedItem, setPendingIdentifiedItem] = useState<{
     productName: string;
     brand?: string;
@@ -281,6 +281,7 @@ function SpadasLensCameraCore({
     removeItem,
     clearHaul,
   } = useHaulStore();
+  const offlinePendingCount = rapidItems.filter((i) => i.syncStatus === "pending").length;
   const { pendingCount: quickSnapPendingCount } = useQuickSnapQueue();
   const [quickSnapFlash, setQuickSnapFlash] = useState<boolean>(false);
   const [isQuickSnapping, setIsQuickSnapping] = useState<boolean>(false);
@@ -302,6 +303,10 @@ function SpadasLensCameraCore({
   const activeRapidWorkersRef = useRef<number>(0);
   const MAX_RAPID_CONCURRENCY = 2; // Capped at 2 concurrent background requests
   const wakeLockRef = useRef<any>(null);
+  const latestStreamDataRef = useRef<any>(null);
+
+  // Confirmation Gate Resolver
+  const confirmGateResolverRef = useRef<((value: boolean) => void) | null>(null);
 
   // Reliable Non-Blocking Supabase Auth & Subscription Check on Mount
   useEffect(() => {
@@ -2417,7 +2422,7 @@ function SpadasLensCameraCore({
                     // Vision processing finished! Immediately transition progressive loader to comps and render card skeleton
                     const rawPName = chunk.product_name || chunk.analysis?.product_name || "";
                     if (rawPName && !isVagueOrPartialRead(rawPName)) {
-                      setScanStage("comps");
+                      setScanStage("confirmation");
                       const pendingObj = {
                         productName: rawPName,
                         brand: chunk.brand || chunk.analysis?.brand || "Authentic",
@@ -2426,6 +2431,18 @@ function SpadasLensCameraCore({
                         bbox: chunk.detected_objects?.[0]?.bbox || { x: 20, y: 20, width: 60, height: 60 },
                       };
                       setPendingIdentifiedItem(pendingObj);
+
+                      // Wait for user confirmation
+                      const confirmed = await new Promise<boolean>((resolve) => {
+                        confirmGateResolverRef.current = resolve;
+                      });
+
+                      if (!confirmed) {
+                        if (abortController) abortController.abort();
+                        throw new Error("User rejected identification");
+                      }
+
+                      setScanStage("comps");
 
                       // Instantly render lightweight pending card skeleton on camera HUD
                       const pendingScan: ActiveScanItem = {
@@ -2565,6 +2582,13 @@ function SpadasLensCameraCore({
         return;
       }
 
+      if (data?.error && typeof data.error === 'string' && data.error.toLowerCase().includes("dark")) {
+        setScanRetryPrompt({ message: "Photo too dark. Please improve lighting or move closer.", canRetry: true });
+        toast.error("Photo too dark. Please improve lighting.", { id: "photo-dark" });
+        setAnalyzingRealFrame(false);
+        return;
+      }
+
       if (!data || data.error || !res) {
         // 1. Try best cached valuation fallback first (from LRU or persistent local storage)
         const queryText = pendingIdentifiedItem?.productName || lastDetectedBarcodeRef.current || undefined;
@@ -2601,7 +2625,13 @@ function SpadasLensCameraCore({
           setCapturedLog((prev) => [cachedHit, ...prev.filter((h) => h.name !== cachedHit.name)].slice(0, 50));
           setSessionScanCount((prev) => prev + 1);
           triggerActiveValuationHit(cachedHit, frozenFrameUrl);
-          toast.info(`⚡ Cached Comps: Loaded "${cachedHit.name}" (Offline Fallback)`);
+          
+          if (!isOffline && res) {
+            toast.warning(`eBay timeout. Using cached data (Last updated 2h ago).`, { duration: 4000 });
+          } else {
+            toast.info(`⚡ Cached Comps: Loaded "${cachedHit.name}" (Offline Fallback)`);
+          }
+          
           setAnalyzingRealFrame(false);
           return;
         }
@@ -3780,11 +3810,42 @@ function SpadasLensCameraCore({
             )}
 
             {/* ── Offline Pending-Sync Queue Banner ─────────────────────── */}
-            {pendingSyncCount > 0 && (
+            {offlinePendingCount > 0 && scanStage !== "confirmation" && (
               <div className="absolute top-[max(2.5rem,calc(env(safe-area-inset-top,0px)+2.25rem))] left-1/2 -translate-x-1/2 z-40 pointer-events-none w-[92%] max-w-sm">
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full glass text-zinc-300 backdrop-blur-md shadow-lg text-[11px] font-mono font-bold">
-                  <div className="status-loading-dot" />
-                  <span>{pendingSyncCount} scan{pendingSyncCount !== 1 ? "s" : ""} queued — will sync when back online</span>
+                <div className="flex items-center justify-center gap-2 px-3 py-1.5 rounded-full glass text-zinc-300 backdrop-blur-md shadow-lg text-[11px] font-mono font-bold">
+                  <div className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+                  <span>{offlinePendingCount} item{offlinePendingCount !== 1 ? "s" : ""} pending — waiting for network</span>
+                </div>
+              </div>
+            )}
+
+            {/* Confirmation Gate UI */}
+            {scanStage === "confirmation" && pendingIdentifiedItem && (
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[85%] max-w-sm glass backdrop-blur-xl border border-white/20 p-5 rounded-3xl shadow-[0_0_40px_rgba(0,0,0,0.8)] z-50 text-center animate-in zoom-in duration-200 pointer-events-auto">
+                <div className="mx-auto w-12 h-12 bg-indigo-500/20 rounded-full flex items-center justify-center mb-3 border border-indigo-500/30">
+                  <CheckCircle2 className="w-6 h-6 text-indigo-400" />
+                </div>
+                <h3 className="text-zinc-100 font-bold text-lg mb-1">Identified Item</h3>
+                <p className="text-zinc-300 text-sm mb-5 font-mono truncate px-2">{pendingIdentifiedItem.productName}</p>
+                <div className="flex gap-3">
+                  <button 
+                    onClick={() => {
+                      if (confirmGateResolverRef.current) confirmGateResolverRef.current(false);
+                      confirmGateResolverRef.current = null;
+                    }}
+                    className="flex-1 py-3 rounded-xl bg-zinc-800/80 hover:bg-zinc-800 text-zinc-300 font-bold transition border border-white/10"
+                  >
+                    Incorrect
+                  </button>
+                  <button 
+                    onClick={() => {
+                      if (confirmGateResolverRef.current) confirmGateResolverRef.current(true);
+                      confirmGateResolverRef.current = null;
+                    }}
+                    className="flex-1 py-3 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white font-bold transition shadow-[0_0_20px_rgba(99,102,241,0.4)] border border-indigo-400"
+                  >
+                    Correct
+                  </button>
                 </div>
               </div>
             )}

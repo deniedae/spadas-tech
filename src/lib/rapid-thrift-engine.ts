@@ -32,6 +32,7 @@ export interface RapidThriftItem {
   minPrice?: number;
   maxPrice?: number;
   syncStatus?: "synced" | "pending" | "failed";
+  rawComps?: any[];
 }
 
 export interface RapidSessionStats {

@@ -17,6 +17,7 @@ import { DeleteScanButton } from "./delete-button";
 import EbayListingModal from "@/components/ebay-listing-modal";
 import CrossListModal from "@/components/cross-list-modal";
 import SubscriptionPaywallModal from "@/components/subscription-paywall-modal";
+import RawCompsModal from "@/components/raw-comps-modal";
 import { supabase } from "@/app/lib/supabase";
 import { triggerTactileHaptic } from "@/lib/android-bridge";
 import { sanitizeMetaText, cleanBrandText, cleanCategoryText, cleanConditionText } from "@/lib/lens-utils";
@@ -116,9 +117,12 @@ export function ScanItemCard({
   const validCategory = sanitizeMetaText(res?.analysis?.category || res?.category);
   const category = validCategory || "Secondary Asset";
 
-  const minPrice = res?.suggested_price_min || 0;
-  const maxPrice = res?.suggested_price_max || 0;
-  const compsCount = Array.isArray(res?.comps) ? res.comps.length : 0;
+  // Dynamic pricing state for live recalculation
+  const [minPrice, setMinPrice] = useState<number>(res?.suggested_price_min || 0);
+  const [maxPrice, setMaxPrice] = useState<number>(res?.suggested_price_max || 0);
+  const [activeCompsCount, setActiveCompsCount] = useState<number>(Array.isArray(res?.comps) ? res.comps.length : 0);
+  const [isCompsModalOpen, setIsCompsModalOpen] = useState(false);
+
   const isFailed = scan.status === "failed";
   const formattedDate = new Date(scan.created_at).toLocaleString("en-AU", {
     dateStyle: "medium",
@@ -233,9 +237,17 @@ export function ScanItemCard({
               <div className="font-mono text-[#CCFF00] font-black text-base tabular-nums drop-shadow-[0_0_10px_rgba(204,255,0,0.35)]">
                 ${minPrice.toFixed(2)} – ${maxPrice.toFixed(2)} AUD
               </div>
-              {compsCount > 0 && (
-                <div className="text-[9px] font-mono text-zinc-500 mt-1">
-                  Based on {compsCount} sold listings
+              {activeCompsCount > 0 && (
+                <div className="flex items-center justify-start md:justify-end gap-2 mt-1">
+                  <div className="text-[9px] font-mono text-zinc-500">
+                    Based on {activeCompsCount} sold listings
+                  </div>
+                  <button 
+                    onClick={() => setIsCompsModalOpen(true)}
+                    className="text-[9px] font-mono text-indigo-400 hover:text-indigo-300 font-bold underline cursor-pointer"
+                  >
+                    View Comps
+                  </button>
                 </div>
               )}
             </div>
@@ -339,6 +351,19 @@ export function ScanItemCard({
         isOpen={isPaywallOpen}
         onClose={() => setIsPaywallOpen(false)}
         currentScans={10}
+      />
+
+      <RawCompsModal
+        isOpen={isCompsModalOpen}
+        onClose={() => setIsCompsModalOpen(false)}
+        scanId={scan.id}
+        initialComps={Array.isArray(res?.comps) ? res.comps : []}
+        currencySymbol="$"
+        onRecalculate={(newMin, newMax, newAvg, activeCount) => {
+          setMinPrice(newMin);
+          setMaxPrice(newMax);
+          setActiveCompsCount(activeCount);
+        }}
       />
     </>
   );

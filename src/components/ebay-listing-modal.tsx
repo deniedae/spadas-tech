@@ -190,31 +190,68 @@ export default function EbayListingModal({
           }
         }
         const targetCurr = (initialCurr && ["AUD", "USD", "GBP"].includes(initialCurr) ? initialCurr : "AUD") as SupportedCurrency;
-        setSelectedCurrency(targetCurr);
-        const safeTitle = (initialTitle && isMeaningfulMeta(initialTitle) ? initialTitle : "Scanned Item").slice(0, 80);
-        const safeBrand = cleanBrandText(initialBrand, "Unbranded") || "Unbranded";
-        const safeCond = cleanConditionText(initialCondition, "Used - Good");
-        setInputTitle(safeTitle);
+        
+        // Draft Rehydration
+        let draft: any = null;
+        if (sessionId && typeof window !== "undefined") {
+          try {
+            const draftStr = localStorage.getItem(`spadas_draft_${sessionId}`);
+            if (draftStr) draft = JSON.parse(draftStr);
+          } catch (e) {}
+        }
 
-        // Accurately convert base price to selected currency
-        const rawPrice = Number(initialPrice) || 25;
-        const baseCurr = (initialCurrency && ["AUD", "USD", "GBP"].includes(initialCurrency.toUpperCase())
-          ? initialCurrency.toUpperCase()
-          : "AUD") as SupportedCurrency;
-        const convertedPrice = convertCurrency(rawPrice, baseCurr, targetCurr);
-        setInputPrice(Number(convertedPrice.toFixed(2)));
+        if (draft) {
+          setSelectedCurrency(draft.currency || targetCurr);
+          setInputTitle(draft.title || "");
+          setInputPrice(Number(draft.price) || 25);
+          setInputCondition(draft.condition || "");
+          setInputDescription(draft.description || "");
+          if (draft.galleryPhotos && Array.isArray(draft.galleryPhotos)) {
+            setGalleryPhotos(draft.galleryPhotos);
+          }
+        } else {
+          // Normal Initialization
+          setSelectedCurrency(targetCurr);
+          const safeTitle = (initialTitle && isMeaningfulMeta(initialTitle) ? initialTitle : "Scanned Item").slice(0, 80);
+          const safeBrand = cleanBrandText(initialBrand, "Unbranded") || "Unbranded";
+          const safeCond = cleanConditionText(initialCondition, "Used - Good");
+          setInputTitle(safeTitle);
 
-        setInputCondition(safeCond);
-        setInputDescription(
-          initialDescription ||
-            `Authentic ${safeBrand !== "Unbranded" ? safeBrand : ""} ${safeTitle}.\n\n• Brand: ${safeBrand}\n• Model: ${safeTitle}\n• Material/Color: Standard finish\n• Condition: ${safeCond}. Tested and operating as intended.\n\nPlease review all photos for exact details.`
-        );
+          // Accurately convert base price to selected currency
+          const rawPrice = Number(initialPrice) || 25;
+          const baseCurr = (initialCurrency && ["AUD", "USD", "GBP"].includes(initialCurrency.toUpperCase())
+            ? initialCurrency.toUpperCase()
+            : "AUD") as SupportedCurrency;
+          const convertedPrice = convertCurrency(rawPrice, baseCurr, targetCurr);
+          setInputPrice(Number(convertedPrice.toFixed(2)));
+
+          setInputCondition(safeCond);
+          setInputDescription(
+            initialDescription ||
+              `Authentic ${safeBrand !== "Unbranded" ? safeBrand : ""} ${safeTitle}.\n\n• Brand: ${safeBrand}\n• Model: ${safeTitle}\n• Material/Color: Standard finish\n• Condition: ${safeCond}. Tested and operating as intended.\n\nPlease review all photos for exact details.`
+          );
+        }
       }
     } else {
       prevIsOpenRef.current = false;
     }
   }, [isOpen, sessionId, resolvedScanImage, imageUrls, initialCurrency, initialTitle, initialPrice, initialCondition, initialDescription, initialBrand]);
   /* eslint-enable react-hooks/set-state-in-effect */
+
+  // Auto-save drafts to localStorage
+  useEffect(() => {
+    if (isOpen && sessionId && !isLiveListing && !loading) {
+      const draft = {
+        title: inputTitle,
+        price: inputPrice,
+        condition: inputCondition,
+        description: inputDescription,
+        currency: selectedCurrency,
+        galleryPhotos: galleryPhotos,
+      };
+      localStorage.setItem(`spadas_draft_${sessionId}`, JSON.stringify(draft));
+    }
+  }, [inputTitle, inputPrice, inputCondition, inputDescription, selectedCurrency, galleryPhotos, isOpen, sessionId, isLiveListing, loading]);
 
   const handleModalClose = () => {
     setPublishedUrl(null);
