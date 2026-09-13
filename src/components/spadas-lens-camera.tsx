@@ -3430,7 +3430,7 @@ function SpadasLensCameraCore({
           </div>
         ) : cameraError ? (
           <div className="flex h-full flex-col items-center justify-center p-6 text-center space-y-3 text-slate-300">
-            <ShieldAlert className="h-12 w-12 text-amber-400" />
+            <ShieldAlert className="h-12 w-12 text-zinc-400" />
             <p className="text-sm font-semibold">{cameraError}</p>
             <button
               type="button"
@@ -3479,20 +3479,20 @@ function SpadasLensCameraCore({
                 <div
                   className={`h-2 w-2 rounded-full shrink-0 transition-colors ${
                     confidencePercent >= 90
-                      ? "bg-emerald-400 shadow-[0_0_6px_#34d399]"
+                      ? "bg-[#00F2FE] shadow-[0_0_6px_rgba(0,242,254,0.8)]"
                       : confidencePercent >= 75
                       ? "bg-cyan-400"
-                      : "bg-amber-400"
+                      : "bg-zinc-500"
                   }`}
                 />
                 <span className="hud-label">AI Focus</span>
                 <span
                   className={`hud-value text-[11px] ${
                     confidencePercent >= 90
-                      ? "text-emerald-400"
+                      ? "text-[#00F2FE]"
                       : confidencePercent >= 75
                       ? "text-cyan-300"
-                      : "text-amber-300"
+                      : "text-zinc-400"
                   }`}
                 >
                   {confidencePercent}%
@@ -3573,8 +3573,8 @@ function SpadasLensCameraCore({
               <div className="flex items-center gap-2 pointer-events-auto">
                 {/* Network Latency & Offline Status Hint */}
                 {isOffline ? (
-                  <div className="flex items-center gap-1 text-[10px] font-mono font-bold px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 backdrop-blur-md shadow-lg">
-                    <WifiOff className="h-3 w-3 shrink-0 text-amber-400" />
+                  <div className="flex items-center gap-1 text-[10px] font-mono font-bold px-2.5 py-1 rounded-full glass text-zinc-300 backdrop-blur-md shadow-lg">
+                    <WifiOff className="h-3 w-3 shrink-0 text-zinc-400" />
                     <span className="hidden sm:inline">OFFLINE (LOCAL AI)</span>
                     <span className="sm:hidden">OFFLINE</span>
                   </div>
@@ -3632,14 +3632,14 @@ function SpadasLensCameraCore({
                       {torchSupported && (
                         <div className="flex items-center justify-between py-1">
                           <span className="text-xs text-slate-300 font-medium flex items-center gap-1.5">
-                            <Zap className="h-3.5 w-3.5 text-amber-400" /> Flashlight
+                            <Zap className="h-3.5 w-3.5 text-[#00F2FE]" /> Flashlight
                           </span>
                           <button
                             type="button"
                             onClick={() => void toggleTorch()}
                             className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition cursor-pointer border ${
                               torchEnabled
-                                ? "bg-amber-400 text-slate-950 border-amber-300 shadow-md shadow-amber-400/30"
+                                ? "bg-[#00F2FE]/10 text-[#00F2FE] border-[#00F2FE]/30"
                                 : "bg-slate-900 text-slate-400 border-slate-800 hover:text-white"
                             }`}
                           >
@@ -3735,8 +3735,8 @@ function SpadasLensCameraCore({
             {/* ── Offline Pending-Sync Queue Banner ─────────────────────── */}
             {pendingSyncCount > 0 && (
               <div className="absolute top-[max(2.5rem,calc(env(safe-area-inset-top,0px)+2.25rem))] left-1/2 -translate-x-1/2 z-40 pointer-events-none w-[92%] max-w-sm">
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/20 border border-amber-500/40 backdrop-blur-md shadow-lg text-[11px] font-mono font-bold text-amber-300">
-                  <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse shrink-0" />
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full glass text-zinc-300 backdrop-blur-md shadow-lg text-[11px] font-mono font-bold">
+                  <div className="status-loading-dot" />
                   <span>{pendingSyncCount} scan{pendingSyncCount !== 1 ? "s" : ""} queued — will sync when back online</span>
                 </div>
               </div>
@@ -3747,10 +3747,10 @@ function SpadasLensCameraCore({
               <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-35 w-[92%] max-w-sm mx-auto pointer-events-auto transition-all duration-300 ease-out">
                 <div
                   key="lens-retry-prompt"
-                  className="w-full rounded-2xl bg-slate-950/95 border border-amber-500/50 p-3 shadow-xl backdrop-blur-xl flex items-center justify-between gap-2.5 animate-in fade-in zoom-in-95 select-none"
+                  className="w-full rounded-2xl glass-card border border-white/[0.08] p-3 shadow-xl backdrop-blur-xl flex items-center justify-between gap-2.5 animate-in fade-in zoom-in-95 select-none"
                 >
                   <div className="flex items-center gap-2 min-w-0">
-                    <WifiOff className="h-4 w-4 text-amber-400 shrink-0" />
+                    <WifiOff className="h-4 w-4 text-zinc-400 shrink-0" />
                     <div className="flex flex-col min-w-0">
                       <span className="text-xs font-bold text-slate-100 truncate">
                         {scanRetryPrompt.message}
@@ -4095,16 +4095,16 @@ function SpadasLensCameraCore({
             {/* Grail Alert — compact slide-up toast (doesn't block viewfinder) */}
             {activeGrailAlert && (
               <div className="absolute bottom-[calc(env(safe-area-inset-bottom,0px)+1rem)] left-1/2 -translate-x-1/2 z-50 w-[92%] max-w-sm pointer-events-auto animate-in slide-in-from-bottom-4 fade-in duration-300">
-                <div className="flex items-center gap-3 p-3.5 rounded-2xl bg-amber-950/95 border-2 border-amber-400/80 shadow-[0_0_40px_rgba(245,158,11,0.5)] backdrop-blur-xl">
-                  <div className="h-10 w-10 rounded-xl bg-amber-400 flex items-center justify-center shrink-0 shadow-lg shadow-amber-500/40">
-                    <Trophy className="h-5 w-5 text-slate-950" />
+                <div className="flex items-center gap-3 p-3.5 rounded-2xl glass-hud border border-[#00F2FE]/20 shadow-[0_0_40px_rgba(0,242,254,0.15)] backdrop-blur-xl">
+                  <div className="h-10 w-10 rounded-xl bg-[#00F2FE]/10 border border-[#00F2FE]/30 flex items-center justify-center shrink-0">
+                    <Trophy className="h-5 w-5 text-[#00F2FE]" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-[10px] font-black text-amber-300 uppercase tracking-wider">👑 Grail Find</p>
+                    <p className="hud-chip text-[#00F2FE]">👑 Grail Find</p>
                     <p className="text-sm font-black text-white truncate">{activeGrailAlert.name}</p>
                     <p className="text-[11px] font-bold text-emerald-400 font-mono">+${activeGrailAlert.profit.toFixed(2)} • {activeGrailAlert.roi.toFixed(0)}% ROI</p>
                   </div>
-                  <button type="button" onClick={() => setActiveGrailAlert(null)} className="p-1.5 rounded-lg text-amber-400 hover:text-white hover:bg-white/10 transition shrink-0">
+                  <button type="button" onClick={() => setActiveGrailAlert(null)} className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 transition shrink-0">
                     <X className="h-4 w-4" />
                   </button>
                 </div>

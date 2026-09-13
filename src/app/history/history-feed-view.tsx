@@ -301,11 +301,11 @@ export function HistoryFeedView({
 
       {/* Error Banner */}
       {error && (
-        <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-amber-300 text-xs font-mono flex items-center gap-3">
-          <AlertTriangle className="w-5 h-5 shrink-0 text-amber-400" />
+        <div className="p-4 glass border border-white/[0.06] rounded-2xl text-xs flex gap-3 items-start">
+          <div className="status-loading-dot mt-1" />
           <div>
-            <div className="font-bold text-amber-200">Database Scan History Status</div>
-            <div className="text-amber-400/80 mt-0.5">
+            <div className="font-bold text-zinc-300">Database Scan History Status</div>
+            <div className="text-zinc-500 mt-0.5">
               {error.message || "Unable to retrieve scan history records."}
             </div>
           </div>
@@ -386,7 +386,7 @@ export function HistoryFeedView({
           >
             <Scale className="w-4 h-4 text-slate-950" />
             <span>Compare Selected ({selectedIds.length} Items)</span>
-            <span className="bg-slate-950/80 text-amber-300 border border-amber-400/40 text-[10px] px-1.5 py-0.5 rounded-full font-black flex items-center gap-1">
+            <span className="bg-slate-950/80 text-zinc-300 border border-zinc-700 text-[10px] px-1.5 py-0.5 rounded-full font-black flex items-center gap-1">
               <Lock className="w-2.5 h-2.5" /> PRO
             </span>
           </button>

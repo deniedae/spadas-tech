@@ -405,16 +405,16 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
                 className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 text-xs font-medium text-emerald-400 hover:bg-emerald-500/15 transition cursor-pointer"
                 title="eBay Account Connected - 1-Click Publishing Active"
               >
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="status-active-dot pulse" />
                 <span>eBay Synchronized</span>
               </Link>
             ) : (
               <Link
                 href="/settings"
-                className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 px-3 py-1 text-xs font-medium text-amber-400 hover:bg-amber-500/15 transition cursor-pointer"
+                className="badge-info cursor-pointer hover:border-white/20 transition"
                 title="Click to Connect your eBay Seller Hub"
               >
-                <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+                <span className="status-loading-dot" />
                 <span>Connect eBay</span>
               </Link>
             )}
