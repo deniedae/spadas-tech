@@ -4587,13 +4587,15 @@ function SpadasLensCameraCore({
               setFrozenFrameUrl(null);
             }}
             onListEbay={() => {
+              setIsScanPaused(true);
               const isolatedCapture = activeValuationHit?.image || frozenFrameUrl || undefined;
+              const stableSessionId = activeValuationHit?.id || (activeValuationHit?.timestamp ? `hit_${activeValuationHit.timestamp}` : "hit_active");
               setActiveEbayItem(
                 activeValuationHit
                   ? {
                       ...activeValuationHit,
                       image: isolatedCapture,
-                      sessionId: activeValuationHit.id || `hit_${Date.now()}`,
+                      sessionId: stableSessionId,
                     }
                   : null
               );
@@ -4710,8 +4712,11 @@ function SpadasLensCameraCore({
       {activeEbayItem && (
         <EbayListingModal
           isOpen={!!activeEbayItem}
-          onClose={() => setActiveEbayItem(null)}
-          sessionId={activeEbayItem.sessionId || activeEbayItem.id || `session_${activeEbayItem.timestamp || Date.now()}`}
+          onClose={() => {
+            setActiveEbayItem(null);
+            setIsScanPaused(false);
+          }}
+          sessionId={activeEbayItem.sessionId || activeEbayItem.id || `session_${activeEbayItem.timestamp || "item"}`}
           title={activeEbayItem.productName || activeEbayItem.name || "Scanned Item"}
           brand={activeEbayItem.brand || "Authentic"}
           price={activeEbayItem.estimatedValue || 25}

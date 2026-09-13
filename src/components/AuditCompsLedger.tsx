@@ -690,7 +690,8 @@ export default function AuditCompsLedger({
               {onListEbay && (
                 <button
                   type="button"
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.stopPropagation();
                     triggerTactileHaptic("medium");
                     onListEbay();
                   }}

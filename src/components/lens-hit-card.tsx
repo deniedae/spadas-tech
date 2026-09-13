@@ -312,7 +312,8 @@ export default function LensHitCard({
           )}
           <button
             type="button"
-            onClick={() => {
+            onClick={(e) => {
+              e.stopPropagation();
               triggerTactileHaptic("light");
               onListEbay(item);
             }}

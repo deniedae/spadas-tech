@@ -76,7 +76,7 @@ interface EbayListingModalProps {
   isOpen: boolean;
   onClose: () => void;
   sessionId?: string;
-  title: string;
+  title?: string;
   brand?: string;
   price?: number;
   currency?: string;
@@ -91,7 +91,7 @@ export default function EbayListingModal({
   isOpen,
   onClose,
   sessionId,
-  title: initialTitle,
+  title: initialTitle = "Scanned Item",
   brand: initialBrand = "Authentic",
   price: initialPrice = 25,
   currency: initialCurrency,
@@ -139,12 +139,12 @@ export default function EbayListingModal({
   const [isLiveListing, setIsLiveListing] = useState<boolean>(false);
 
   const [selectedCurrency, setSelectedCurrency] = useState<string>("AUD");
-  const [inputTitle, setInputTitle] = useState(initialTitle.slice(0, 80));
-  const [inputPrice, setInputPrice] = useState(initialPrice);
-  const [inputCondition, setInputCondition] = useState(initialCondition);
+  const [inputTitle, setInputTitle] = useState((initialTitle || "Scanned Item").slice(0, 80));
+  const [inputPrice, setInputPrice] = useState(Number(initialPrice) || 25);
+  const [inputCondition, setInputCondition] = useState(initialCondition || "Used - Good");
   const [inputDescription, setInputDescription] = useState(
     initialDescription ||
-      `Authentic ${initialBrand} ${initialTitle}.\n\n• Brand: ${initialBrand}\n• Model: ${initialTitle}\n• Material/Color: Standard finish\n• Condition: ${initialCondition}. Tested and operating as intended.\n\nPlease review all photos for exact details.`
+      `Authentic ${initialBrand || "Authentic"} ${initialTitle || "Scanned Item"}.\n\n• Brand: ${initialBrand || "Authentic"}\n• Model: ${initialTitle || "Scanned Item"}\n• Material/Color: Standard finish\n• Condition: ${initialCondition || "Used - Good"}. Tested and operating as intended.\n\nPlease review all photos for exact details.`
   );
 
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -477,8 +477,18 @@ export default function EbayListingModal({
   const totalPhotoCount = (primaryScanBlob ? 1 : 0) + galleryPhotos.length;
 
   return (
-    <div className="fixed inset-0 z-[70] overflow-y-auto bg-slate-950/85 backdrop-blur-md p-2 sm:p-4 pb-[calc(env(safe-area-inset-bottom,0px)+5rem)] sm:pb-4 flex min-h-full items-center justify-center overscroll-contain animate-fade-in">
-      <div className="relative w-full max-w-lg rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl flex flex-col max-h-[92dvh] sm:max-h-[88vh] overflow-y-auto text-slate-100">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          handleModalClose();
+        }
+      }}
+      className="fixed inset-0 z-[80] overflow-y-auto bg-slate-950/85 backdrop-blur-md p-2 sm:p-4 pb-[calc(env(safe-area-inset-bottom,0px)+5rem)] sm:pb-4 flex min-h-full items-center justify-center overscroll-contain animate-fade-in"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="relative w-full max-w-lg rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl flex flex-col max-h-[92dvh] sm:max-h-[88vh] overflow-y-auto text-slate-100"
+      >
         {/* Pinned Header */}
         <div className="shrink-0 flex items-center justify-between border-b border-slate-800 px-4 sm:px-6 py-3.5 sm:py-4 bg-slate-900/95 backdrop-blur">
           <div className="flex items-center gap-2 text-cyan-400 font-bold text-sm sm:text-base">
