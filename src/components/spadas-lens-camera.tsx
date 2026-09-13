@@ -4271,7 +4271,7 @@ function SpadasLensCameraCore({
                       id: "daily-limit-toast",
                     });
                   }}
-                  className="group relative flex items-center gap-2 rounded-full bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500 px-6 py-3 text-xs sm:text-sm font-black text-slate-950 shadow-[0_0_30px_rgba(245,158,11,0.7)] active:scale-95 transition-all duration-200 cursor-pointer animate-pulse"
+                  className="group relative flex items-center gap-2 rounded-full bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500 px-6 py-3 text-xs sm:text-sm font-black text-slate-950 shadow-[0_0_30px_rgba(245,158,11,0.7)] active:scale-95 transition-transform duration-75 cursor-pointer animate-pulse"
                   title="Daily limit reached — Upgrade to Spadas Pro"
                 >
                   <Crown className="h-4 w-4 shrink-0 text-slate-950" />
@@ -4284,7 +4284,7 @@ function SpadasLensCameraCore({
                     e.stopPropagation();
                     handleResumeScanning();
                   }}
-                  className="group relative flex items-center gap-2 rounded-full bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 px-6 py-3 text-xs sm:text-sm font-black text-slate-950 shadow-[0_0_30px_rgba(52,211,153,0.7)] active:scale-95 transition-all duration-200 cursor-pointer"
+                  className="group relative flex items-center gap-2 rounded-full bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 px-6 py-3 text-xs sm:text-sm font-black text-slate-950 shadow-[0_0_30px_rgba(52,211,153,0.7)] active:scale-95 transition-transform duration-75 cursor-pointer"
                   title="Resume live continuous AR camera"
                 >
                   <RefreshCw className="h-4 w-4 shrink-0 text-slate-950 group-hover:rotate-180 transition-transform duration-300" />
@@ -4306,7 +4306,7 @@ function SpadasLensCameraCore({
                     flushScanState();
                     void processCurrentFrame(true);
                   }}
-                  className="group relative flex items-center justify-center h-16 w-16 sm:h-20 sm:w-20 rounded-full p-1 active:scale-95 transition-all duration-200 cursor-pointer bg-gradient-to-tr from-amber-400 via-yellow-500 to-amber-300 shadow-[0_0_35px_rgba(251,191,36,0.7)]"
+                  className="group relative flex items-center justify-center h-16 w-16 sm:h-20 sm:w-20 rounded-full p-1 active:scale-90 transition-transform duration-75 cursor-pointer bg-gradient-to-tr from-amber-400 via-yellow-500 to-amber-300 shadow-[0_0_35px_rgba(251,191,36,0.7)]"
                   title="⚡ Instant Multi-Frame Snap & Value (Tap to scan)"
                 >
                   <div className="flex h-full w-full items-center justify-center rounded-full bg-slate-950/90 border-2 border-white/90 group-hover:bg-slate-900 transition">
@@ -4338,7 +4338,7 @@ function SpadasLensCameraCore({
                   e.stopPropagation();
                 }}
                 disabled={isQuickSnapping}
-                className="group flex min-h-[44px] min-w-[44px] touch-manipulation items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-950/90 border border-amber-500/50 hover:border-amber-400 shadow-lg shadow-amber-500/10 backdrop-blur-md transition cursor-pointer active:scale-95 text-slate-300 hover:text-white"
+                className="group flex min-h-[44px] min-w-[44px] touch-manipulation items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-950/90 border border-amber-500/50 hover:border-amber-400 shadow-lg shadow-amber-500/10 backdrop-blur-md transition-transform duration-75 cursor-pointer active:scale-95 text-slate-300 hover:text-white"
                 title="Rapid-fire shelf photo directly from live camera stream into background valuation queue"
                 aria-label="Quick Snap frame to Haul"
               >

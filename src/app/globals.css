@@ -4,11 +4,45 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Industrial Field Instrument: Touch Mechanics & Ergonomics */
+/* ============================================================
+   Zero-Latency Tactile Feedback System
+   — Kills 300ms iOS tap delay, enforces 75ms press response
+   ============================================================ */
+
+/* 1. Eliminate 300ms tap delay on all interactive elements */
+button,
+a,
+[role="button"],
+input[type="submit"],
+input[type="reset"],
+label[for] {
+  touch-action: manipulation;
+}
+
+/* 2. Instant transform response — 75ms is imperceptible as delay
+      but makes press feedback feel physically immediate */
+button,
+[role="button"] {
+  transition: transform 75ms ease, opacity 75ms ease;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* 3. Nav links: same instant press contract */
+nav a,
+nav button {
+  transition: transform 75ms ease, color 120ms ease;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Legacy global tap reset */
 * {
   -webkit-tap-highlight-color: transparent;
   box-sizing: border-box;
 }
+
 
 html {
   overflow-x: hidden;

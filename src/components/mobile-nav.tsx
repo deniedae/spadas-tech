@@ -74,7 +74,7 @@ export default function MobileNav() {
                 href={href}
                 prefetch={true}
                 onClick={handleNavClick}
-                className="relative -top-4 flex flex-col items-center justify-center cursor-pointer group active:scale-95 transition-transform"
+                className="relative -top-4 flex flex-col items-center justify-center cursor-pointer group active:scale-95 transition-transform duration-75"
                 aria-label="Open Spadas Lens AR Camera"
               >
                 <div
@@ -97,7 +97,7 @@ export default function MobileNav() {
               href={href}
               prefetch={true}
               onClick={handleNavClick}
-              className={`flex flex-1 flex-col items-center justify-center py-1 text-xs font-semibold transition-all active:scale-95 cursor-pointer min-h-[44px] ${
+              className={`flex flex-1 flex-col items-center justify-center py-1 text-xs font-semibold transition-transform duration-75 active:scale-95 cursor-pointer min-h-[44px] ${
                 active
                   ? "text-cyan-400 font-extrabold"
                   : "text-slate-400 hover:text-slate-200"

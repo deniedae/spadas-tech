@@ -237,7 +237,7 @@ export function HistoryFeedView({
         <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
           <Link
             href="/history?status=all"
-            className={`px-3 py-2 rounded-xl text-xs font-mono font-bold transition shrink-0 ${
+            className={`px-3 py-2 rounded-xl text-xs font-mono font-bold transition-transform duration-75 shrink-0 active:scale-95 ${
               activeStatus === "all"
                 ? "bg-white text-zinc-950 shadow-sm"
                 : "text-zinc-400 hover:text-white bg-zinc-900/60"
@@ -247,7 +247,7 @@ export function HistoryFeedView({
           </Link>
           <Link
             href="/history?status=completed"
-            className={`px-3 py-2 rounded-xl text-xs font-mono font-bold transition shrink-0 ${
+            className={`px-3 py-2 rounded-xl text-xs font-mono font-bold transition-transform duration-75 shrink-0 active:scale-95 ${
               activeStatus === "completed"
                 ? "bg-emerald-500 text-slate-950 font-black shadow-sm"
                 : "text-zinc-400 hover:text-emerald-400 bg-zinc-900/60"
@@ -257,7 +257,7 @@ export function HistoryFeedView({
           </Link>
           <Link
             href="/history?status=failed"
-            className={`px-3 py-2 rounded-xl text-xs font-mono font-bold transition shrink-0 ${
+            className={`px-3 py-2 rounded-xl text-xs font-mono font-bold transition-transform duration-75 shrink-0 active:scale-95 ${
               activeStatus === "failed"
                 ? "bg-rose-500 text-white font-black shadow-sm"
                 : "text-zinc-400 hover:text-rose-400 bg-zinc-900/60"
@@ -270,7 +270,7 @@ export function HistoryFeedView({
             <button
               type="button"
               onClick={selectAll}
-              className="px-3 py-2 rounded-xl text-[11px] font-mono text-zinc-400 hover:text-zinc-200 bg-zinc-900/40 border border-white/[0.06] transition cursor-pointer shrink-0 ml-1"
+              className="px-3 py-2 rounded-xl text-[11px] font-mono text-zinc-400 hover:text-zinc-200 bg-zinc-900/40 border border-white/[0.06] transition-transform duration-75 cursor-pointer shrink-0 ml-1 active:scale-95"
             >
               {selectedIds.length === filteredItems.length ? "Deselect" : "Select All"}
             </button>

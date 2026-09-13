@@ -515,7 +515,7 @@ export default function DashboardPage() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
           <Link
             href="/lens"
-            className="p-4 border border-white/[0.08] hover:border-white/[0.18] bg-[#0A0D15]/80 rounded-xl transition flex items-center justify-between group cursor-pointer"
+            className="p-4 border border-white/[0.08] hover:border-white/[0.18] bg-[#0A0D15]/80 rounded-xl transition-transform duration-75 flex items-center justify-between group cursor-pointer active:scale-[0.97]"
           >
             <div className="flex items-center gap-3 min-w-0">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 shrink-0">
@@ -599,7 +599,7 @@ export default function DashboardPage() {
               <button
                 type="button"
                 onClick={() => setGridFilter("ALL")}
-                className={`px-3 py-1 rounded-md font-mono text-xs transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
+                className={`px-3 py-1 rounded-md font-mono text-xs transition-transform duration-75 flex items-center gap-1.5 cursor-pointer shrink-0 active:scale-95 ${
                   gridFilter === "ALL"
                     ? "bg-white/[0.1] text-white font-bold border border-white/[0.12] shadow-sm"
                     : "text-zinc-400 hover:text-zinc-200 border border-transparent font-medium"
@@ -611,7 +611,7 @@ export default function DashboardPage() {
               <button
                 type="button"
                 onClick={() => setGridFilter("FAST_FLIPS")}
-                className={`px-3 py-1 rounded-md font-mono text-xs transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
+                className={`px-3 py-1 rounded-md font-mono text-xs transition-transform duration-75 flex items-center gap-1.5 cursor-pointer shrink-0 active:scale-95 ${
                   gridFilter === "FAST_FLIPS"
                     ? "bg-emerald-500/15 text-emerald-300 font-bold border border-emerald-500/30 shadow-sm"
                     : "text-zinc-400 hover:text-emerald-300 border border-transparent font-medium"
@@ -624,7 +624,7 @@ export default function DashboardPage() {
               <button
                 type="button"
                 onClick={() => setGridFilter("TRAPS")}
-                className={`px-3 py-1 rounded-md font-mono text-xs transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
+                className={`px-3 py-1 rounded-md font-mono text-xs transition-transform duration-75 flex items-center gap-1.5 cursor-pointer shrink-0 active:scale-95 ${
                   gridFilter === "TRAPS"
                     ? "bg-rose-500/15 text-rose-300 font-bold border border-rose-500/30 shadow-sm"
                     : "text-zinc-400 hover:text-rose-300 border border-transparent font-medium"
@@ -637,7 +637,7 @@ export default function DashboardPage() {
               <button
                 type="button"
                 onClick={() => setGridFilter("SOLD")}
-                className={`px-3 py-1 rounded-md font-mono text-xs transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
+                className={`px-3 py-1 rounded-md font-mono text-xs transition-transform duration-75 flex items-center gap-1.5 cursor-pointer shrink-0 active:scale-95 ${
                   gridFilter === "SOLD"
                     ? "bg-white/[0.1] text-zinc-100 font-bold border border-white/[0.12] shadow-sm"
                     : "text-zinc-400 hover:text-zinc-200 border border-transparent font-medium"
