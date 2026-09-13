@@ -142,24 +142,24 @@ export function HistoryFeedView({
   return (
     <div className="space-y-6 pb-32 sm:pb-36 pb-[calc(env(safe-area-inset-bottom,0px)+8rem)]">
       {/* Executive Operational Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-5 rounded-2xl bg-[#0A0D15]/90 border border-white/[0.08] shadow-2xl backdrop-blur-md">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-4 rounded-2xl bg-[#0A0D15]/90 border border-white/[0.08] shadow-2xl backdrop-blur-md">
         <div className="space-y-1">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/[0.08] border border-white/[0.12] text-zinc-100 font-black shadow-md">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/[0.08] border border-white/[0.12] text-zinc-100 font-black shadow-md shrink-0">
               <History className="h-5 w-5 text-cyan-400" />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-lg sm:text-xl font-bold tracking-tight text-white">
-                  Scan History & Comps Feed
+                  Scan History
                 </h1>
                 <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-[10px] font-mono font-bold text-emerald-400">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  Telemetry Archive
+                  Live Archive
                 </span>
               </div>
-              <p className="text-xs text-zinc-400">
-                Historical optical computer vision sessions, valuation comps & secondary market listings.
+              <p className="text-xs text-zinc-500 mt-0.5">
+                Vision sessions, valuation comps &amp; secondary market listings.
               </p>
             </div>
           </div>
@@ -173,7 +173,7 @@ export function HistoryFeedView({
 
           <Link
             href="/lens"
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-zinc-200 text-zinc-950 font-black text-xs transition shadow-md active:scale-95 cursor-pointer"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white hover:bg-zinc-200 text-zinc-950 font-black text-xs transition shadow-md active:scale-95 cursor-pointer"
           >
             <Scan className="h-4 w-4" />
             <span>Launch Lens AR</span>
@@ -181,54 +181,48 @@ export function HistoryFeedView({
         </div>
       </div>
 
-      {/* Quantitative Executive Stat Bar */}
+      {/* Stat Bar — 8pt grid p-4 */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="p-3.5 rounded-2xl bg-[#0A0D15]/80 border border-white/[0.08] shadow-sm flex flex-col justify-between">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400">
-            Total Scans Logged
+        <div className="p-4 rounded-2xl bg-[#0A0D15]/80 border border-white/[0.08] shadow-sm flex flex-col gap-2">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500">
+            Total Scans
           </span>
-          <div className="mt-1.5">
-            <span className="text-2xl font-black text-white font-mono tabular-nums">
-              {totalCount}
-            </span>
-          </div>
+          <span className="text-2xl font-black text-white font-mono tabular-nums leading-none">
+            {totalCount}
+          </span>
         </div>
 
-        <div className="p-3.5 rounded-2xl bg-[#0A0D15]/80 border border-white/[0.08] shadow-sm flex flex-col justify-between">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400">
-            Current Page Range
+        <div className="p-4 rounded-2xl bg-[#0A0D15]/80 border border-white/[0.08] shadow-sm flex flex-col gap-2">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500">
+            Pagination
           </span>
-          <div className="mt-1.5">
-            <span className="text-lg font-bold text-zinc-200 font-mono">
-              Page {page} of {totalPages}
-            </span>
-          </div>
+          <span className="text-base font-bold text-zinc-200 font-mono leading-none">
+            {page} / {totalPages}
+          </span>
         </div>
 
-        <div className="p-3.5 rounded-2xl bg-[#0A0D15]/80 border border-white/[0.08] shadow-sm flex flex-col justify-between">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400">
+        <div className="p-4 rounded-2xl bg-[#0A0D15]/80 border border-white/[0.08] shadow-sm flex flex-col gap-2">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500">
             Active Filter
           </span>
-          <div className="mt-1.5">
-            <span className="text-sm font-mono font-bold uppercase text-cyan-400">
-              {activeStatus === "all" ? "All Telemetry" : activeStatus}
-            </span>
-          </div>
+          <span className="text-sm font-mono font-bold uppercase text-cyan-400 leading-none">
+            {activeStatus === "all" ? "All" : activeStatus}
+          </span>
         </div>
 
-        <div className="p-3.5 rounded-2xl bg-[#0A0D15]/80 border border-white/[0.08] shadow-sm flex flex-col justify-between">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400">
-            Batch Selection
+        <div className="p-4 rounded-2xl bg-[#0A0D15]/80 border border-white/[0.08] shadow-sm flex flex-col gap-2">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500">
+            Selected
           </span>
-          <div className="mt-1.5 flex items-baseline justify-between">
-            <span className="text-xl font-black text-emerald-400 font-mono tabular-nums">
+          <div className="flex items-baseline justify-between">
+            <span className="text-xl font-black text-emerald-400 font-mono tabular-nums leading-none">
               {selectedIds.length}
             </span>
             {selectedIds.length > 0 && (
               <button
                 type="button"
                 onClick={() => setSelectedIds([])}
-                className="text-[10px] font-mono text-zinc-400 hover:text-zinc-200 underline cursor-pointer"
+                className="text-[10px] font-mono text-zinc-500 hover:text-zinc-200 underline cursor-pointer"
               >
                 Clear
               </button>
@@ -237,23 +231,23 @@ export function HistoryFeedView({
         </div>
       </div>
 
-      {/* Filter Tabs & Search Bar */}
+      {/* Filter Tabs & Search Bar — 8pt grid */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 rounded-2xl bg-[#0A0D15]/60 border border-white/[0.08]">
         {/* Status Filter Tabs */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
           <Link
             href="/history?status=all"
-            className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition shrink-0 ${
+            className={`px-3 py-2 rounded-xl text-xs font-mono font-bold transition shrink-0 ${
               activeStatus === "all"
                 ? "bg-white text-zinc-950 shadow-sm"
                 : "text-zinc-400 hover:text-white bg-zinc-900/60"
             }`}
           >
-            All Audits
+            All
           </Link>
           <Link
             href="/history?status=completed"
-            className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition shrink-0 ${
+            className={`px-3 py-2 rounded-xl text-xs font-mono font-bold transition shrink-0 ${
               activeStatus === "completed"
                 ? "bg-emerald-500 text-slate-950 font-black shadow-sm"
                 : "text-zinc-400 hover:text-emerald-400 bg-zinc-900/60"
@@ -263,43 +257,43 @@ export function HistoryFeedView({
           </Link>
           <Link
             href="/history?status=failed"
-            className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition shrink-0 ${
+            className={`px-3 py-2 rounded-xl text-xs font-mono font-bold transition shrink-0 ${
               activeStatus === "failed"
                 ? "bg-rose-500 text-white font-black shadow-sm"
                 : "text-zinc-400 hover:text-rose-400 bg-zinc-900/60"
             }`}
           >
-            Flags / Unresolved
+            Flagged
           </Link>
 
           {filteredItems.length > 0 && (
             <button
               type="button"
               onClick={selectAll}
-              className="px-2.5 py-1.5 rounded-xl text-[11px] font-mono text-zinc-400 hover:text-zinc-200 bg-zinc-900/40 border border-white/[0.06] transition cursor-pointer shrink-0 ml-1"
+              className="px-3 py-2 rounded-xl text-[11px] font-mono text-zinc-400 hover:text-zinc-200 bg-zinc-900/40 border border-white/[0.06] transition cursor-pointer shrink-0 ml-1"
             >
-              {selectedIds.length === filteredItems.length ? "Deselect Page" : "Select Page"}
+              {selectedIds.length === filteredItems.length ? "Deselect" : "Select All"}
             </button>
           )}
         </div>
 
         {/* Search Input */}
         <div className="relative min-w-[200px] sm:w-64">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search history by title or brand..."
-            className="w-full h-8 pl-8 pr-8 rounded-xl bg-zinc-900/90 border border-zinc-800 text-xs font-mono text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-cyan-500"
+            placeholder="Search by title or brand..."
+            className="w-full h-9 pl-9 pr-8 rounded-xl bg-zinc-900/90 border border-zinc-800 text-xs font-mono text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-cyan-500"
           />
           {searchQuery && (
             <button
               type="button"
               onClick={() => setSearchQuery("")}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 text-xs"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300"
             >
-              ×
+              <X className="h-3.5 w-3.5" />
             </button>
           )}
         </div>

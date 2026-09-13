@@ -79,17 +79,17 @@ function StatCard({
   loading: boolean;
 }) {
   return (
-    <div className="p-3.5 sm:p-4 border border-white/[0.08] hover:border-white/[0.14] bg-[#0A0D15]/80 backdrop-blur-sm relative overflow-hidden rounded-xl transition-all shadow-sm">
-      <div className="flex items-center justify-between gap-1">
-        <p className="text-[10px] sm:text-[11px] font-semibold tracking-wider uppercase text-zinc-400 truncate">{label}</p>
+    <div className="p-4 border border-white/[0.08] hover:border-white/[0.14] bg-[#0A0D15]/80 backdrop-blur-sm relative overflow-hidden rounded-xl transition-all shadow-sm">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[10px] sm:text-[11px] font-semibold tracking-wider uppercase text-zinc-500 truncate">{label}</p>
         {Icon && (
-          <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-white/[0.04] border border-white/[0.08] text-zinc-300 shrink-0">
+          <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-white/[0.04] border border-white/[0.08] text-zinc-400 shrink-0">
             <Icon className="h-3.5 w-3.5" aria-hidden="true" />
           </div>
         )}
       </div>
       {loading ? (
-        <div className="mt-2.5 h-7 w-20 animate-pulse rounded bg-white/[0.05]" />
+        <div className="mt-3 h-7 w-20 animate-pulse rounded bg-white/[0.05]" />
       ) : (
         <div className="mt-2 flex items-baseline justify-between gap-1">
           <h2 className={`text-xl sm:text-2xl font-mono font-bold tabular-nums tracking-tight truncate ${valueClassName}`}>
@@ -333,12 +333,12 @@ export default function DashboardPage() {
   return (
     <PullToRefresh onRefresh={handleRefresh}>
       <div className="space-y-3 sm:space-y-4 max-w-7xl mx-auto pb-32 sm:pb-36 pb-[calc(env(safe-area-inset-bottom,0px)+8rem)] text-zinc-100">
-        {/* Executive Portfolio & Telemetry Header */}
+        {/* Portfolio & Sourcing Header */}
         <div className="p-4 sm:p-5 border border-white/[0.08] bg-[#0A0D15]/90 backdrop-blur-sm relative rounded-xl shadow-sm">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <div className="inline-flex items-center gap-1.5 rounded-md bg-white/[0.04] border border-white/[0.08] px-2.5 py-1 text-[11px] font-semibold text-zinc-300">
+                <div className="inline-flex items-center gap-2 rounded-md bg-white/[0.04] border border-white/[0.08] px-2.5 py-1 text-[11px] font-semibold text-zinc-400">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
                   <span>Optical Sourcing Engine</span>
                 </div>
@@ -351,10 +351,10 @@ export default function DashboardPage() {
                 ) : (
                   <Link
                     href="/api/auth/ebay/connect?prompt=login"
-                    className="inline-flex items-center gap-1.5 rounded-md bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.1] px-2 py-0.5 text-[10px] font-medium text-zinc-300 transition"
+                    className="inline-flex items-center gap-1.5 rounded-md bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.1] px-2 py-0.5 text-[10px] font-medium text-zinc-400 transition"
                   >
                     <ShoppingCart className="h-2.5 w-2.5" />
-                    <span>Connect eBay Hub</span>
+                    <span>Connect eBay</span>
                   </Link>
                 )}
 
@@ -368,7 +368,7 @@ export default function DashboardPage() {
                   <button
                     type="button"
                     onClick={() => setIsPaywallOpen(true)}
-                    className="inline-flex items-center gap-1 rounded-md bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.12] px-2 py-0.5 text-[10px] font-medium text-zinc-200 transition cursor-pointer"
+                    className="inline-flex items-center gap-1 rounded-md bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.12] px-2 py-0.5 text-[10px] font-medium text-zinc-300 transition cursor-pointer"
                   >
                     Upgrade Plan
                   </button>
@@ -377,21 +377,21 @@ export default function DashboardPage() {
 
               <div className="flex items-baseline gap-3 mt-2">
                 <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
-                  Portfolio & Sourcing Operations
+                  Portfolio &amp; Sourcing
                 </h1>
-                <span className="text-xs font-mono text-zinc-400">
-                  {allListings.length} Active Positions
+                <span className="text-xs font-mono text-zinc-500">
+                  {allListings.length} positions
                 </span>
               </div>
-              <p className="text-xs text-zinc-400 mt-1 max-w-xl">
+              <p className="text-xs text-zinc-500 mt-1 max-w-xl">
                 Real-time yield analytics, liquidity velocity, and direct marketplace dispatch.
               </p>
             </div>
 
-            <div className="flex items-center gap-2.5 shrink-0">
+            <div className="flex items-center gap-3 shrink-0">
               <Link
                 href="/lens"
-                className="h-9 px-3.5 text-xs font-semibold gap-2 rounded-lg bg-white text-zinc-950 hover:bg-zinc-200 transition-all flex items-center shadow-sm active:scale-95 cursor-pointer"
+                className="h-9 px-4 text-xs font-semibold gap-2 rounded-lg bg-white text-zinc-950 hover:bg-zinc-200 transition-all flex items-center shadow-sm active:scale-95 cursor-pointer"
               >
                 <Camera className="h-3.5 w-3.5" />
                 <span>Launch Lens AR</span>
@@ -399,7 +399,7 @@ export default function DashboardPage() {
 
               <NewListingDialog
                 trigger={
-                  <button className="h-9 px-3.5 text-xs font-medium rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.1] text-zinc-200 transition cursor-pointer flex items-center gap-1.5">
+                  <button className="h-9 px-4 text-xs font-medium rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.1] text-zinc-300 transition cursor-pointer flex items-center gap-2">
                     <span>+ Intake Lot</span>
                   </button>
                 }
@@ -428,7 +428,7 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* ── Hero Number: Total Net Profit ───────────────────────── */}
+        {/* ── Hero Number: Total Net Profit */}
         <div className="p-5 sm:p-6 border border-white/[0.08] bg-[#0A0D15]/90 backdrop-blur-sm rounded-xl shadow-sm">
           <p className="text-[11px] font-mono font-semibold uppercase tracking-wider text-zinc-500 mb-1">
             Total Net Profit
@@ -442,11 +442,11 @@ export default function DashboardPage() {
           )}
           <div className="flex items-center gap-4 mt-2 text-xs font-mono text-zinc-500">
             <span>{stats.sold} sold</span>
-            <span className="text-zinc-700">·</span>
+            <span className="text-zinc-700">&middot;</span>
             <span>{stats.listings - stats.sold} in inventory</span>
             {stats.revenue > 0 && (
               <>
-                <span className="text-zinc-700">·</span>
+                <span className="text-zinc-700">&middot;</span>
                 <span>{fmtMoney(stats.revenue)} revenue</span>
               </>
             )}
@@ -511,19 +511,19 @@ export default function DashboardPage() {
           })()}
         </div>
 
-        {/* Core Operational Modules */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+        {/* Core Operational Modules — p-4 grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
           <Link
             href="/lens"
-            className="p-3 border border-white/[0.08] hover:border-white/[0.18] bg-[#0A0D15]/80 rounded-xl transition flex items-center justify-between group cursor-pointer"
+            className="p-4 border border-white/[0.08] hover:border-white/[0.18] bg-[#0A0D15]/80 rounded-xl transition flex items-center justify-between group cursor-pointer"
           >
-            <div className="flex items-center gap-2.5 min-w-0">
+            <div className="flex items-center gap-3 min-w-0">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 shrink-0">
                 <Camera className="h-4 w-4" />
               </div>
               <div className="min-w-0">
                 <p className="text-xs font-semibold text-white group-hover:text-cyan-400 transition truncate">Spadas Lens</p>
-                <p className="text-[10px] text-zinc-400 truncate">60 FPS Optical Comps</p>
+                <p className="text-[10px] text-zinc-500 truncate">60 FPS Optical Comps</p>
               </div>
             </div>
             <ArrowRight className="h-3 w-3 text-zinc-600 group-hover:text-zinc-300 group-hover:translate-x-0.5 transition shrink-0" />
@@ -531,15 +531,15 @@ export default function DashboardPage() {
 
           <Link
             href="/ironman"
-            className="p-3 border border-white/[0.08] hover:border-white/[0.18] bg-[#0A0D15]/80 rounded-xl transition flex items-center justify-between group cursor-pointer"
+            className="p-4 border border-white/[0.08] hover:border-white/[0.18] bg-[#0A0D15]/80 rounded-xl transition flex items-center justify-between group cursor-pointer"
           >
-            <div className="flex items-center gap-2.5 min-w-0">
+            <div className="flex items-center gap-3 min-w-0">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 shrink-0">
                 <Crosshair className="h-4 w-4" />
               </div>
               <div className="min-w-0">
                 <p className="text-xs font-semibold text-white group-hover:text-cyan-400 transition truncate">Spatial Field HUD</p>
-                <p className="text-[10px] text-zinc-400 truncate">3D Anchored Valuations</p>
+                <p className="text-[10px] text-zinc-500 truncate">3D Anchored Valuations</p>
               </div>
             </div>
             <ArrowRight className="h-3 w-3 text-zinc-600 group-hover:text-zinc-300 group-hover:translate-x-0.5 transition shrink-0" />
@@ -547,15 +547,15 @@ export default function DashboardPage() {
 
           <Link
             href="/sourcing"
-            className="p-3 border border-white/[0.08] hover:border-white/[0.18] bg-[#0A0D15]/80 rounded-xl transition flex items-center justify-between group cursor-pointer"
+            className="p-4 border border-white/[0.08] hover:border-white/[0.18] bg-[#0A0D15]/80 rounded-xl transition flex items-center justify-between group cursor-pointer"
           >
-            <div className="flex items-center gap-2.5 min-w-0">
+            <div className="flex items-center gap-3 min-w-0">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 shrink-0">
                 <Zap className="h-4 w-4" />
               </div>
               <div className="min-w-0">
                 <p className="text-xs font-semibold text-white group-hover:text-amber-300 transition truncate">Underwriting Engine</p>
-                <p className="text-[10px] text-zinc-400 truncate">STR & Margin Audit</p>
+                <p className="text-[10px] text-zinc-500 truncate">STR &amp; Margin Audit</p>
               </div>
             </div>
             <ArrowRight className="h-3 w-3 text-zinc-600 group-hover:text-zinc-300 group-hover:translate-x-0.5 transition shrink-0" />
@@ -563,35 +563,33 @@ export default function DashboardPage() {
 
           <Link
             href="/history"
-            className="p-3 border border-white/[0.08] hover:border-white/[0.18] bg-[#0A0D15]/80 rounded-xl transition flex items-center justify-between group cursor-pointer"
+            className="p-4 border border-white/[0.08] hover:border-white/[0.18] bg-[#0A0D15]/80 rounded-xl transition flex items-center justify-between group cursor-pointer"
           >
-            <div className="flex items-center gap-2.5 min-w-0">
+            <div className="flex items-center gap-3 min-w-0">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400 shrink-0">
                 <ListPlus className="h-4 w-4" />
               </div>
               <div className="min-w-0">
                 <p className="text-xs font-semibold text-white group-hover:text-blue-300 transition truncate">Session Audit Logs</p>
-                <p className="text-[10px] text-zinc-400 truncate">Historical Comps Feed</p>
+                <p className="text-[10px] text-zinc-500 truncate">Historical Comps Feed</p>
               </div>
             </div>
             <ArrowRight className="h-3 w-3 text-zinc-600 group-hover:text-zinc-300 group-hover:translate-x-0.5 transition shrink-0" />
           </Link>
         </div>
 
-        {/* ====================================================================
-            THE HIGH-DENSITY INVENTORY PORTFOLIO DATA GRID
-            ==================================================================== */}
-        <div className="p-4 sm:p-5 border border-white/[0.08] bg-[#0A0D15]/90 rounded-xl space-y-4 shadow-sm">
+        {/* Inventory Grid Section */}
+        <div className="p-4 sm:p-6 border border-white/[0.08] bg-[#0A0D15]/90 rounded-xl space-y-4 shadow-sm">
           {/* Header & Controls */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3.5 border-b border-white/[0.08]">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-4 border-b border-white/[0.08]">
             <div>
               <div className="flex items-center gap-2 text-xs font-semibold text-zinc-300">
                 <span className="h-2 w-2 rounded-sm bg-cyan-400" />
                 <span className="uppercase tracking-wider">Portfolio Intelligence</span>
-                <span className="text-zinc-600">·</span>
-                <span className="text-zinc-400 font-mono">{allListings.length} Total Units</span>
+                <span className="text-zinc-600">&middot;</span>
+                <span className="text-zinc-500 font-mono">{allListings.length} units</span>
               </div>
-              <p className="text-xs text-zinc-400 mt-0.5">
+              <p className="text-xs text-zinc-500 mt-1">
                 Liquidity turnover velocity, real-time margin realization, and marketplace dispatch.
               </p>
             </div>
