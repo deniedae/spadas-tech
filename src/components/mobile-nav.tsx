@@ -36,7 +36,7 @@ export default function MobileNav() {
     },
     {
       href: "/lens",
-      label: "Lens AR",
+      label: "Scan",
       icon: Camera,
       isCenter: true,
     },
@@ -60,10 +60,10 @@ export default function MobileNav() {
 
   return (
     <nav
-      aria-label="Native Mobile Navigation"
-      className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/[0.08] glass-nav md:hidden px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-10px_30px_rgba(0,0,0,0.5)] select-none"
+      aria-label="Main navigation"
+      className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/[0.08] glass-nav md:hidden px-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-1.5 select-none"
     >
-      <div className="flex items-center justify-between max-w-md mx-auto relative">
+      <div className="flex items-center justify-around max-w-md mx-auto relative">
         {navItems.map(({ href, label, icon: Icon, isCenter, badge }) => {
           const active = isActiveLink(href);
 
@@ -74,18 +74,18 @@ export default function MobileNav() {
                 href={href}
                 prefetch={true}
                 onClick={handleNavClick}
-                className="relative -top-4 flex flex-col items-center justify-center cursor-pointer group active:scale-95 transition-transform duration-75"
-                aria-label="Open Spadas Lens AR Camera"
+                className="relative -top-3 flex flex-col items-center justify-center cursor-pointer group active:scale-95 transition-transform duration-75"
+                aria-label="Open Spadas Lens camera"
               >
                 <div
-                  className={`flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-tr from-cyan-500 via-blue-600 to-indigo-600 shadow-[0_0_24px_rgba(6,182,212,0.6)] border-2 border-cyan-300/60 transition-all ${
-                    active ? "ring-4 ring-cyan-400/40 scale-105" : "group-hover:scale-105"
+                  className={`flex h-12 w-12 items-center justify-center rounded-full bg-cyan-500 shadow-lg shadow-cyan-500/20 transition-transform ${
+                    active ? "scale-105" : "group-hover:scale-105"
                   }`}
                 >
-                  <Camera className="h-7 w-7 text-white animate-pulse" />
+                  <Camera className="h-5.5 w-5.5 text-white" />
                 </div>
-                <span className="hud-tab text-cyan-300 mt-1">
-                  Lens AR
+                <span className={`text-[10px] font-semibold mt-1 ${active ? "text-cyan-400" : "text-zinc-400"}`}>
+                  {label}
                 </span>
               </Link>
             );
@@ -97,29 +97,32 @@ export default function MobileNav() {
               href={href}
               prefetch={true}
               onClick={handleNavClick}
-              className={`flex flex-1 flex-col items-center justify-center py-1 text-xs font-semibold transition-transform duration-75 active:scale-95 cursor-pointer min-h-[44px] ${
+              className={`flex flex-1 flex-col items-center justify-center py-1.5 transition-transform duration-75 active:scale-95 cursor-pointer min-h-[44px] ${
                 active
-                  ? "text-cyan-400 font-extrabold"
-                  : "text-slate-400 hover:text-slate-200"
+                  ? "text-cyan-400"
+                  : "text-zinc-500 hover:text-zinc-300"
               }`}
               aria-current={active ? "page" : undefined}
             >
               <div className="relative flex items-center justify-center">
                 <Icon
-                  className={`h-5 w-5 mb-1 transition-transform ${
-                    active ? "scale-110 text-cyan-400 drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]" : ""
+                  className={`h-5 w-5 mb-0.5 ${
+                    active ? "text-cyan-400" : ""
                   }`}
                   aria-hidden="true"
                 />
                 {badge !== undefined && badge > 0 && (
-                  <span className="absolute -top-1 -right-2.5 px-1 min-w-[15px] h-3.5 rounded-full bg-emerald-400 text-slate-950 text-[8.5px] font-mono font-black flex items-center justify-center shadow-[0_0_8px_rgba(52,211,153,0.8)] leading-none pointer-events-none">
+                  <span className="absolute -top-1 -right-2.5 px-1 min-w-[14px] h-3.5 rounded-full bg-emerald-500 text-white text-[8px] font-mono font-bold flex items-center justify-center leading-none pointer-events-none">
                     {badge > 99 ? "99+" : badge}
                   </span>
                 )}
               </div>
-              <span className={`hud-tab mt-0.5 ${active ? "text-cyan-400" : "text-slate-400"}`}>
+              <span className={`text-[10px] font-semibold mt-0.5 ${active ? "text-cyan-400" : "text-zinc-500"}`}>
                 {label}
               </span>
+              {active && (
+                <span className="absolute bottom-[max(0.25rem,env(safe-area-inset-bottom))] h-0.5 w-4 rounded-full bg-cyan-400" />
+              )}
             </Link>
           );
         })}

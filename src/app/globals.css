@@ -159,7 +159,7 @@ body {
 .hud-chip,
 .hud-tab,
 .data-readout {
-  text-rendering: optimizeSpeed;
+  /* Rely on browser default sub-pixel hinting for best legibility on mobile */
 }
 
 /**
@@ -256,10 +256,9 @@ body {
  * Spec: 9px / 800 / uppercase / tracking-[0.12em] / condensed
  */
 .hud-tab {
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
   line-height: 1;
   font-feature-settings: "ss01" 1;
 }
@@ -430,17 +429,17 @@ body {
 
 /* Hyper-Vibrant Neon Accents & Glows for High-Value Triggers */
 .neon-glow-cyan {
-  border-color: rgba(0, 242, 254, 0.6) !important;
+  border-color: rgba(0, 242, 254, 0.6);
   box-shadow:
     0 0 25px rgba(0, 242, 254, 0.4),
-    inset 0 1px 0 rgba(0, 242, 254, 0.3) !important;
+    inset 0 1px 0 rgba(0, 242, 254, 0.3);
 }
 
 .neon-glow-lime {
-  border-color: rgba(204, 255, 0, 0.65) !important;
+  border-color: rgba(204, 255, 0, 0.65);
   box-shadow:
     0 0 28px rgba(204, 255, 0, 0.45),
-    inset 0 1px 0 rgba(204, 255, 0, 0.35) !important;
+    inset 0 1px 0 rgba(204, 255, 0, 0.35);
 }
 
 .text-neon-cyan {
@@ -1217,31 +1216,10 @@ body::-webkit-scrollbar-track {
 }
 
 /* ==========================================================================
-   Smooth State Transition & Micro-Interaction Engine
-   — Native spring physics, zero-jank crossfades, shutter feedback, morphing
+   Supplemental State Transitions & Instrument Animations
    ========================================================================== */
 
-/* 1. Spring-loaded Card Entry */
-.lens-card-enter {
-  animation: lensCardEnter 340ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  will-change: transform, opacity;
-}
-@keyframes lensCardEnter {
-  0% {
-    opacity: 0;
-    transform: translateY(20px) scale(0.96);
-  }
-  60% {
-    opacity: 1;
-    transform: translateY(-2px) scale(1.005);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-/* 2. Graceful Card Dismissal */
+/* Graceful Card Dismissal */
 .lens-card-exit {
   animation: lensCardExit 220ms cubic-bezier(0.4, 0, 1, 1) forwards;
   will-change: transform, opacity;
@@ -1257,54 +1235,7 @@ body::-webkit-scrollbar-track {
   }
 }
 
-/* 3. Valuation Bloom & Success Radiance */
-.lens-hit-bloom {
-  animation: lensHitBloom 650ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-@keyframes lensHitBloom {
-  0% {
-    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.5), 0 4px 20px rgba(0, 0, 0, 0.5);
-  }
-  50% {
-    box-shadow: 0 0 24px 6px rgba(16, 185, 129, 0.35), 0 8px 32px rgba(0, 0, 0, 0.7);
-  }
-  100% {
-    box-shadow: 0 0 16px 2px rgba(16, 185, 129, 0.15), 0 4px 24px rgba(0, 0, 0, 0.6);
-  }
-}
-
-/* 4. Non-jarring Miss / Dismiss Fade */
-.lens-miss-fade {
-  animation: lensMissFade 240ms ease-out forwards;
-}
-@keyframes lensMissFade {
-  0% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  100% {
-    opacity: 0;
-    transform: scale(0.95);
-  }
-}
-
-/* 5. Seamless Tab & Viewport Crossfade */
-.lens-crossfade {
-  animation: lensCrossfade 260ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  will-change: opacity, transform;
-}
-@keyframes lensCrossfade {
-  0% {
-    opacity: 0;
-    transform: translateY(6px) scale(0.99);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-/* 6. Tactile Camera Shutter Flash */
+/* Tactile Camera Shutter Flash */
 .lens-shutter-flash {
   animation: lensShutterFlash 120ms ease-out forwards;
 }
@@ -1319,7 +1250,7 @@ body::-webkit-scrollbar-track {
   }
 }
 
-/* 7. Progressive Stage Text Morph */
+/* Progressive Stage Text Morph */
 .lens-stage-morph {
   animation: lensStageMorph 220ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
@@ -1334,7 +1265,7 @@ body::-webkit-scrollbar-track {
   }
 }
 
-/* 8. Bottom Action Bar Spring Slide */
+/* Bottom Action Bar Spring Slide */
 .selection-bar-enter {
   animation: selectionBarEnter 300ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
   will-change: transform, opacity;
@@ -1350,7 +1281,7 @@ body::-webkit-scrollbar-track {
   }
 }
 
-/* 9. Glowing Laser Shimmer */
+/* Laser Shimmer */
 .laser-shimmer {
   position: relative;
   overflow: hidden;
@@ -1376,10 +1307,10 @@ body::-webkit-scrollbar-track {
 }
 
 /* ==========================================================================
-   Bespoke Native Instrument & Physical Weight System
+   Camera Instrument & Physical Feedback System
    ========================================================================== */
 
-/* 10. Machined Metal Shutter Button with Physical Recoil Physics */
+/* Machined Metal Shutter Button with Physical Recoil */
 .machined-shutter-trigger {
   position: relative;
   transition: transform 90ms cubic-bezier(0.175, 0.885, 0.32, 1.275), filter 120ms ease, box-shadow 120ms ease;
@@ -1390,7 +1321,7 @@ body::-webkit-scrollbar-track {
   box-shadow: 0 0 15px rgba(251, 191, 36, 0.35) !important;
 }
 
-/* 11. Optical Iris Shutter Aperture Contraction */
+/* Optical Iris Shutter Aperture Contraction */
 @keyframes irisContraction {
   0% {
     clip-path: circle(100% at 50% 50%);
@@ -1409,7 +1340,7 @@ body::-webkit-scrollbar-track {
   animation: irisContraction 180ms cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
 }
 
-/* 12. Certified Grading Slab Holographic Authenticity Sheen */
+/* Holographic Authenticity Sheen */
 .hologram-sheen {
   position: relative;
   overflow: hidden;
@@ -1435,7 +1366,7 @@ body::-webkit-scrollbar-track {
   35%, 100% { transform: rotate(-25deg) translateY(120%); }
 }
 
-/* 13. Dynamic Laser Radar Grid Scan Line */
+/* Laser Scan Lines */
 @keyframes laserSweepVertical {
   0% { top: 0%; opacity: 0.8; }
   50% { top: 100%; opacity: 1; }
@@ -1452,59 +1383,31 @@ body::-webkit-scrollbar-track {
   pointer-events: none;
 }
 
-/* 14. Pulsing Laser Line Skeleton Scanning */
 @keyframes laserScanLineYAnim {
-  0% {
-    top: 0%;
-    opacity: 0.2;
-  }
-  15% {
-    opacity: 1;
-  }
-  50% {
-    top: 98%;
-    opacity: 0.9;
-  }
-  85% {
-    opacity: 1;
-  }
-  100% {
-    top: 0%;
-    opacity: 0.2;
-  }
+  0% { top: 0%; opacity: 0.2; }
+  15% { opacity: 1; }
+  50% { top: 98%; opacity: 0.9; }
+  85% { opacity: 1; }
+  100% { top: 0%; opacity: 0.2; }
 }
 .laser-scan-line-y {
   animation: laserScanLineYAnim 2.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
 @keyframes laserScanLineXAnim {
-  0% {
-    left: -20%;
-    opacity: 0;
-  }
-  20% {
-    opacity: 1;
-  }
-  80% {
-    opacity: 1;
-  }
-  100% {
-    left: 110%;
-    opacity: 0;
-  }
+  0% { left: -20%; opacity: 0; }
+  20% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { left: 110%; opacity: 0; }
 }
 .laser-scan-line-x {
   animation: laserScanLineXAnim 1.8s ease-in-out infinite;
 }
 
-/* 15. Subtle Radar Sweep 360-Degree Conical Beam */
+/* Radar Sweep */
 @keyframes radarSweepRotateAnim {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 .radar-sweep-cone {
   background: conic-gradient(
@@ -1519,23 +1422,15 @@ body::-webkit-scrollbar-track {
 }
 
 @keyframes radarRingExpandAnim {
-  0% {
-    transform: scale(0.2);
-    opacity: 0.8;
-  }
-  50% {
-    opacity: 0.4;
-  }
-  100% {
-    transform: scale(1.4);
-    opacity: 0;
-  }
+  0% { transform: scale(0.2); opacity: 0.8; }
+  50% { opacity: 0.4; }
+  100% { transform: scale(1.4); opacity: 0; }
 }
 .radar-ring-expand {
   animation: radarRingExpandAnim 2.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite;
 }
 
-/* 16. Cyber Glass Skeleton Bone */
+/* Cyber Glass Skeleton */
 .laser-skeleton {
   background: linear-gradient(
     90deg,
@@ -1546,7 +1441,3 @@ body::-webkit-scrollbar-track {
   background-size: 200% 100%;
   animation: skeleton-sweep 1.8s ease-in-out infinite;
 }
-
-
-
-

@@ -190,13 +190,13 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
 
   // Executive navigation hierarchy with precision SVG icons
   const navItems = [
-    { href: "/lens", label: "Spadas Lens", icon: Scan, tag: "60 FPS" },
-    { href: "/haul", label: "Spadas Haul", icon: ShoppingBag, tag: "Lot Batch" },
-    { href: "/ironman", label: "Spatial Field HUD", icon: Layers, tag: "3D AR" },
-    { href: "/studio", label: "Studio Intake", icon: Camera },
-    { href: "/history", label: "Scan History", icon: History },
-    { href: "/dashboard", label: "Portfolio", icon: LayoutDashboard },
-    { href: "/listings", label: "Active Listings", icon: Package },
+    { href: "/lens", label: "Lens", icon: Scan },
+    { href: "/haul", label: "Sourcing Haul", icon: ShoppingBag },
+    { href: "/ironman", label: "Spatial HUD", icon: Layers },
+    { href: "/studio", label: "Studio", icon: Camera },
+    { href: "/history", label: "History", icon: History },
+    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/listings", label: "Listings", icon: Package },
     { href: "/settings", label: "Settings", icon: Settings },
   ];
 
@@ -206,17 +206,17 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
 
   // Dynamic page titles for header
   const pageTitleMap: Record<string, string> = {
-    "/lens": "Spadas Lens · Optical Sourcing",
-    "/haul": "Spadas Haul · Lot Sourcing Batch",
-    "/ironman": "Spatial Field HUD",
-    "/studio": "Multi-Angle Studio Intake",
-    "/snap": "Multi-Angle Studio Intake",
-    "/history": "Scan History & Comps Feed",
-    "/dashboard": "Portfolio Overview",
-    "/listings": "Active Portfolio",
+    "/lens": "Lens",
+    "/haul": "Sourcing Haul",
+    "/ironman": "Spatial HUD",
+    "/studio": "Studio",
+    "/snap": "Studio",
+    "/history": "History",
+    "/dashboard": "Dashboard",
+    "/listings": "Listings",
     "/generator": "AI Listing Studio",
-    "/calculator": "Margin & Yield Models",
-    "/settings": "System Settings",
+    "/calculator": "Calculator",
+    "/settings": "Settings",
   };
   const pageTitle = pageTitleMap[pathname] || "Spadas Lens";
 
@@ -288,26 +288,25 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
           {/* Executive Branding */}
           <div className="p-5 pt-[max(1.5rem,calc(env(safe-area-inset-top)+1rem))] border-b border-white/[0.08] relative">
             <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-cyan-500/20 via-blue-500/10 to-indigo-500/20 border border-cyan-400/30 p-1.5 flex items-center justify-center shadow-inner shrink-0">
+              <div className="h-9 w-9 rounded-xl bg-zinc-900 border border-white/10 p-1.5 flex items-center justify-center shrink-0">
                 <Image src="/icon-192.png" alt="Spadas Lens" width={24} height={24} className="rounded-lg object-contain" />
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">
                   <h1 className="text-base font-bold text-white tracking-tight truncate">Spadas Lens</h1>
-                  <span className="text-[9px] font-mono font-semibold px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
-                    PRO
-                  </span>
+                  {isProUser && (
+                    <span className="text-[9px] font-mono font-semibold px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                      PRO
+                    </span>
+                  )}
                 </div>
-                <p className="text-[10px] text-zinc-400 font-medium tracking-wide uppercase truncate mt-0.5">
-                  Secondary Market OS
-                </p>
               </div>
             </div>
 
             {/* Close button only visible on mobile */}
             <button
               type="button"
-              className="absolute top-[max(1rem,calc(env(safe-area-inset-top)+0.5rem))] right-4 md:hidden p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/[0.06] focus:outline-none transition-colors cursor-pointer active:scale-95"
+              className="absolute top-[max(1.5rem,calc(env(safe-area-inset-top)+1rem))] right-4 md:hidden p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/[0.06] focus:outline-none transition-colors cursor-pointer active:scale-95"
               aria-label="Close sidebar"
               onClick={() => {
                 triggerTactileHaptic("tap");
@@ -319,17 +318,17 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
           </div>
 
           {/* Navigation menu */}
-          <nav aria-label="Main navigation" className="flex-1 p-3 space-y-1 overflow-y-auto">
-            {navItems.map(({ href, label, icon: Icon, tag }) => {
+          <nav aria-label="Main navigation" className="flex-1 p-3 space-y-0.5 overflow-y-auto">
+            {navItems.map(({ href, label, icon: Icon }) => {
               const active = isActiveLink(href);
               return (
                 <Link
                   key={href}
                   href={href}
-                  className={`flex items-center justify-between rounded-lg min-h-[40px] px-3 py-2 text-xs font-medium transition-all group focus:outline-none active:scale-98 ${
+                  className={`flex items-center rounded-lg min-h-[40px] px-3 py-2 text-[13px] transition-all group focus:outline-none active:scale-[0.98] ${
                     active
-                      ? "bg-white/[0.08] text-white font-semibold border-l-2 border-cyan-400 pl-[10px] shadow-sm"
-                      : "text-zinc-400 hover:text-zinc-100 hover:bg-white/[0.04]"
+                      ? "bg-white/[0.08] text-white font-semibold"
+                      : "text-zinc-400 hover:text-zinc-100 hover:bg-white/[0.04] font-medium"
                   }`}
                   aria-current={active ? "page" : undefined}
                   onClick={() => {
@@ -338,20 +337,11 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
                   }}
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <Icon className={`h-4 w-4 shrink-0 transition-colors ${
-                      active ? "text-cyan-400" : "text-zinc-400 group-hover:text-zinc-200"
+                    <Icon className={`h-4 w-4 shrink-0 ${
+                      active ? "text-cyan-400" : "text-zinc-500 group-hover:text-zinc-300"
                     }`} />
                     <span className="truncate">{label}</span>
                   </div>
-                  {tag && (
-                    <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded ${
-                      active
-                        ? "bg-cyan-500/20 text-cyan-300 font-semibold"
-                        : "bg-zinc-800/80 text-zinc-400 group-hover:text-zinc-300"
-                    }`}>
-                      {tag}
-                    </span>
-                  )}
                 </Link>
               );
             })}
@@ -364,15 +354,12 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
                 {(userEmail || "U")[0].toUpperCase()}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-xs font-semibold text-zinc-200 truncate">
-                  {userEmail || "Operator Account"}
+                <p className="text-xs font-medium text-zinc-200 truncate">
+                  {userEmail || "Account"}
                 </p>
-                <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                  <p className="text-[10px] text-zinc-400 font-medium truncate">
-                    {isProUser ? "Enterprise Tier" : "Standard Operator"}
-                  </p>
-                </div>
+                <p className="text-[10px] text-zinc-500 truncate mt-0.5">
+                  {isProUser ? "Pro" : "Free plan"}
+                </p>
               </div>
             </div>
           </div>
