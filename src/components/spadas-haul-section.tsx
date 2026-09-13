@@ -353,10 +353,10 @@ export function SpadasHaulSection({
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-lg sm:text-xl font-bold tracking-tight text-white">
-                  Spadas Haul
+                  Haul
                 </h1>
-                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-[10px] font-mono font-bold text-emerald-400">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 text-[10px] font-medium text-emerald-400">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
                   Active Sourcing Lot
                 </span>
               </div>
@@ -373,8 +373,8 @@ export function SpadasHaulSection({
             <button
               type="button"
               onClick={onSwitchToLens}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-cyan-500 via-teal-500 to-emerald-500 hover:opacity-90 text-slate-950 font-black text-xs transition shadow-md shadow-cyan-500/20 cursor-pointer active:scale-95"
-              title="Launch Lens AR Camera to rapid-fire photos directly from the active live stream"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-semibold text-xs transition shadow-sm cursor-pointer active:scale-95"
+              title="Launch Scanner to rapid-fire photos directly from the active live stream"
             >
               {isProcessing ? (
                 <Loader2 className="h-4 w-4 animate-spin text-slate-950" />
@@ -414,7 +414,7 @@ export function SpadasHaulSection({
               handleExportCsv();
             }}
             disabled={items.length === 0}
-            className="inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700 hover:bg-zinc-800 text-zinc-300 font-mono font-bold text-xs transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
+            className="inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700 hover:bg-zinc-800 text-zinc-300 font-semibold text-xs transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
             title="Export Manifest CSV"
           >
             <Download className="h-3.5 w-3.5" />

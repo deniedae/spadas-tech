@@ -4447,7 +4447,7 @@ function SpadasLensCameraCore({
                     e.stopPropagation();
                   }}
                   className="group flex min-h-[44px] min-w-[44px] touch-manipulation items-center gap-2 px-3 py-1.5 rounded-xl glass-hud border border-white/[0.08] hover:border-[#00F2FE]/40 shadow-lg backdrop-blur-md transition cursor-pointer active:scale-95"
-                  title="Open Spadas Haul Lot Review"
+                  title="Open Haul Review"
                   aria-label={`Haul telemetry: ${haulCount} items collected. Tap to open haul review.`}
                 >
                   <div className="flex items-center gap-1.5 font-mono">

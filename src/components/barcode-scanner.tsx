@@ -413,7 +413,7 @@ export default function BarcodeScanner({
 
           {hasNativeDetector && (
             <span className="hidden sm:inline-flex items-center gap-1 rounded-md badge-info px-2 py-0.5 text-[10px] font-bold">
-              ⚡ 60 FPS GPU
+              ⚡ Camera GPU
             </span>
           )}
         </div>

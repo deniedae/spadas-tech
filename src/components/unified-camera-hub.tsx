@@ -52,7 +52,7 @@ export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraH
             <span className="hud-tab truncate">Lens AR</span>
           </button>
 
-          {/* Mode 2: Spatial Field HUD */}
+          {/* Mode 2: Scanner */}
           <button
             type="button"
             onClick={() => handleTabChange("ironman")}
@@ -63,7 +63,7 @@ export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraH
             }`}
           >
             <Layers className="h-3.5 w-3.5 shrink-0" />
-            <span className="hud-tab truncate">Spatial HUD</span>
+            <span className="hud-tab truncate">Scanner</span>
             {activeTab !== "ironman" && (
               <span className="absolute -top-1 -right-1 flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#00F2FE] opacity-75"></span>
@@ -83,10 +83,10 @@ export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraH
             }`}
           >
             <Camera className="h-3.5 w-3.5 shrink-0" />
-            <span className="hud-tab truncate">Snap Studio</span>
+            <span className="hud-tab truncate">AR Studio</span>
           </button>
 
-          {/* Mode 4: Spadas Haul (Routes to standalone /haul service) */}
+          {/* Mode 4: Haul (Routes to standalone /haul service) */}
           <button
             type="button"
             onClick={() => {
@@ -94,12 +94,12 @@ export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraH
               router.push("/haul");
             }}
             className="py-2 px-1 rounded-xl text-[10.5px] sm:text-xs font-black transition-all duration-150 flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer text-center relative text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 active:scale-95"
-            title="Open Spadas Haul Lot Batch Manager & Quick Snap Intake"
+            title="Open Haul Batch Manager & Quick Snap Intake"
           >
             <ShoppingBag className="h-3.5 w-3.5 shrink-0" />
             <span className="hud-tab truncate">Haul</span>
             {haulCount > 0 && (
-              <span className="ml-0.5 px-1.5 py-0.2 rounded-full text-[9px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+              <span className="ml-0.5 px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
                 {haulCount}
               </span>
             )}

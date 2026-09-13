@@ -154,13 +154,7 @@ export function SpadasAuthCard({ initialMode = "signup" }: Props) {
           <div>
             <div className="flex items-center gap-1.5">
               <span className="text-sm font-bold tracking-tight text-white">Spadas Lens</span>
-              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 font-semibold">
-                PRO
-              </span>
             </div>
-            <p className="text-[10px] text-zinc-500 font-mono uppercase tracking-wider">
-              Secondary Market OS
-            </p>
           </div>
         </Link>
 
@@ -330,7 +324,7 @@ export function SpadasAuthCard({ initialMode = "signup" }: Props) {
           <div className="border-t border-white/[0.08] pt-3 space-y-1.5 text-[11px] text-zinc-400">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-3 h-3 text-cyan-400 shrink-0" />
-              <span>60 FPS continuous AR camera scanner with sold comps</span>
+              <span>Continuous camera scanner with sold comps</span>
             </div>
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />
@@ -342,7 +336,7 @@ export function SpadasAuthCard({ initialMode = "signup" }: Props) {
 
       {/* Footer */}
       <footer className="w-full max-w-5xl mx-auto py-4 text-center text-xs font-mono text-zinc-600">
-        Spadas Lens · Secondary Market OS · All rights reserved.
+        Spadas Lens · All rights reserved.
       </footer>
     </div>
   );

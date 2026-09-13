@@ -191,9 +191,9 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
   // Executive navigation hierarchy with precision SVG icons
   const navItems = [
     { href: "/lens", label: "Lens", icon: Scan },
-    { href: "/haul", label: "Sourcing Haul", icon: ShoppingBag },
-    { href: "/ironman", label: "Spatial HUD", icon: Layers },
-    { href: "/studio", label: "Studio", icon: Camera },
+    { href: "/haul", label: "Haul", icon: ShoppingBag },
+    { href: "/ironman", label: "Scanner", icon: Layers },
+    { href: "/studio", label: "AR Studio", icon: Camera },
     { href: "/history", label: "History", icon: History },
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/listings", label: "Listings", icon: Package },
@@ -207,10 +207,10 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
   // Dynamic page titles for header
   const pageTitleMap: Record<string, string> = {
     "/lens": "Lens",
-    "/haul": "Sourcing Haul",
-    "/ironman": "Spatial HUD",
-    "/studio": "Studio",
-    "/snap": "Studio",
+    "/haul": "Haul",
+    "/ironman": "Scanner",
+    "/studio": "AR Studio",
+    "/snap": "AR Studio",
     "/history": "History",
     "/dashboard": "Dashboard",
     "/listings": "Listings",
@@ -294,11 +294,6 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">
                   <h1 className="text-base font-bold text-white tracking-tight truncate">Spadas Lens</h1>
-                  {isProUser && (
-                    <span className="text-[9px] font-mono font-semibold px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
-                      PRO
-                    </span>
-                  )}
                 </div>
               </div>
             </div>
@@ -427,12 +422,12 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
                         ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-[0_0_12px_rgba(52,211,153,0.3)]"
                         : "bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
                     }`}
-                    title="Open Spadas Haul Lot Batch Manager & CSV Export"
+                    title="Open Haul Batch Manager & CSV Export"
                   >
                     <ShoppingBag className="h-3.5 w-3.5" />
-                    <span>Spadas Haul</span>
+                    <span>Haul</span>
                     {haulCount > 0 && (
-                      <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold bg-emerald-500/30 text-emerald-200">
+                      <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-emerald-500/30 text-emerald-200">
                         {haulCount}
                       </span>
                     )}
