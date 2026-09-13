@@ -81,7 +81,7 @@ function StatCard({
   return (
     <div className="p-4 border border-white/[0.08] hover:border-white/[0.14] bg-[#0A0D15]/80 backdrop-blur-sm relative overflow-hidden rounded-xl transition-all shadow-sm">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-[10px] sm:text-[11px] font-semibold tracking-wider uppercase text-zinc-500 truncate">{label}</p>
+        <p className="hud-label truncate">{label}</p>
         {Icon && (
           <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-white/[0.04] border border-white/[0.08] text-zinc-400 shrink-0">
             <Icon className="h-3.5 w-3.5" aria-hidden="true" />

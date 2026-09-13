@@ -3475,19 +3475,19 @@ function SpadasLensCameraCore({
             {/* Top HUD Bar: Dynamic Confidence Indicator, Credit Badge & Camera Controls with Safe-Area Insets */}
             <div className="absolute top-[max(0.875rem,calc(env(safe-area-inset-top,0px)+0.75rem))] left-[max(0.875rem,env(safe-area-inset-left,0px))] right-[max(0.875rem,env(safe-area-inset-right,0px))] z-30 flex flex-wrap items-center justify-between gap-2 pointer-events-none transition-all">
               {/* Dynamic Real-Time Focus & AI Confidence Indicator */}
-              <div className="inline-flex items-center gap-1.5 rounded-full bg-slate-950/90 border border-cyan-500/40 px-3.5 py-1 text-[11px] font-black text-cyan-300 shadow-xl backdrop-blur-md pointer-events-auto">
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-slate-950/90 border border-cyan-500/40 px-3 py-1 shadow-xl backdrop-blur-md pointer-events-auto">
                 <div
-                  className={`h-2.5 w-2.5 rounded-full transition-colors ${
+                  className={`h-2 w-2 rounded-full shrink-0 transition-colors ${
                     confidencePercent >= 90
-                      ? "bg-emerald-400 animate-pulse shadow-[0_0_8px_#34d399]"
+                      ? "bg-emerald-400 shadow-[0_0_6px_#34d399]"
                       : confidencePercent >= 75
                       ? "bg-cyan-400"
                       : "bg-amber-400"
                   }`}
                 />
-                <span className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">AI Focus:</span>
+                <span className="hud-label">AI Focus</span>
                 <span
-                  className={`font-black ${
+                  className={`hud-value text-[11px] ${
                     confidencePercent >= 90
                       ? "text-emerald-400"
                       : confidencePercent >= 75
@@ -3497,19 +3497,17 @@ function SpadasLensCameraCore({
                 >
                   {confidencePercent}%
                 </span>
-                <span className="text-slate-600">•</span>
-                <span className="text-slate-200 font-medium text-[10px]">
-                  {isScanPaused ? "🎯 Locked" : cameraMoving ? "Panning..." : "Steady"}
+                <span className="text-white/20 text-[8px]">|</span>
+                <span className="hud-chip text-slate-300">
+                  {isScanPaused ? "Locked" : cameraMoving ? "Panning" : "Steady"}
                 </span>
-                <span className="text-slate-600">•</span>
+                <span className="text-white/20 text-[8px]">|</span>
                 {isIntelModeActive ? (
-                  <span className="text-cyan-400 font-black text-[10px] tracking-wider uppercase inline-flex items-center gap-1 animate-pulse">
-                    <Zap className="h-2.5 w-2.5 fill-cyan-400 text-cyan-400" /> Intel Mode
+                  <span className="hud-chip text-cyan-400 inline-flex items-center gap-1 animate-pulse">
+                    <Zap className="h-2.5 w-2.5 fill-cyan-400" /> Intel
                   </span>
                 ) : (
-                  <span className="text-slate-400 font-bold text-[10px] tracking-wider uppercase">
-                    eBay Comps
-                  </span>
+                  <span className="hud-chip text-slate-400">eBay</span>
                 )}
               </div>
 

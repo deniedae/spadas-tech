@@ -184,7 +184,7 @@ export function HistoryFeedView({
       {/* Stat Bar — 8pt grid p-4 */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="p-4 rounded-2xl bg-[#0A0D15]/80 border border-white/[0.08] shadow-sm flex flex-col gap-2">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500">
+          <span className="hud-label">
             Total Scans
           </span>
           <span className="text-2xl font-black text-white font-mono tabular-nums leading-none">
@@ -193,7 +193,7 @@ export function HistoryFeedView({
         </div>
 
         <div className="p-4 rounded-2xl bg-[#0A0D15]/80 border border-white/[0.08] shadow-sm flex flex-col gap-2">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500">
+          <span className="hud-label">
             Pagination
           </span>
           <span className="text-base font-bold text-zinc-200 font-mono leading-none">
@@ -202,7 +202,7 @@ export function HistoryFeedView({
         </div>
 
         <div className="p-4 rounded-2xl bg-[#0A0D15]/80 border border-white/[0.08] shadow-sm flex flex-col gap-2">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500">
+          <span className="hud-label">
             Active Filter
           </span>
           <span className="text-sm font-mono font-bold uppercase text-cyan-400 leading-none">
@@ -211,7 +211,7 @@ export function HistoryFeedView({
         </div>
 
         <div className="p-4 rounded-2xl bg-[#0A0D15]/80 border border-white/[0.08] shadow-sm flex flex-col gap-2">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500">
+          <span className="hud-label">
             Selected
           </span>
           <div className="flex items-baseline justify-between">

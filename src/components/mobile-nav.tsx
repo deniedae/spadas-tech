@@ -84,7 +84,7 @@ export default function MobileNav() {
                 >
                   <Camera className="h-7 w-7 text-white animate-pulse" />
                 </div>
-                <span className="text-[10px] font-black text-cyan-300 mt-1 tracking-tight">
+                <span className="hud-tab text-cyan-300 mt-1">
                   Lens AR
                 </span>
               </Link>
@@ -117,7 +117,7 @@ export default function MobileNav() {
                   </span>
                 )}
               </div>
-              <span className="truncate text-[10px] tracking-tight">
+              <span className={`hud-tab mt-0.5 ${active ? "text-cyan-400" : "text-slate-400"}`}>
                 {label}
               </span>
             </Link>

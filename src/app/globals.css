@@ -75,6 +75,82 @@ body {
 }
 
 /* ==========================================================================
+   Native System Bar Typography Tokens
+   — Mirrors iOS SF Pro Display / Android Roboto system bar conventions
+   ========================================================================== */
+
+/**
+ * .hud-label — Secondary metadata label (iOS UIFont.systemFont caption2 equiv.)
+ * Usage: "AI FOCUS", "TOTAL SCANS", section eyebrows, stat card labels
+ * Spec: 10px / 700 / uppercase / tracking-widest / text-white/40
+ */
+.hud-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;      /* tracking-widest */
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.4);
+  line-height: 1;
+  font-feature-settings: "ss01" 1;
+}
+
+/**
+ * .hud-label-active — Same as hud-label but for the active/selected state.
+ * Bumps opacity to 60% and weight to 800.
+ */
+.hud-label-active {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.6);
+  line-height: 1;
+}
+
+/**
+ * .hud-value — Primary data readout (iOS UIFont.monospacedDigitSystemFont equiv.)
+ * Usage: prices, percentages, confidence scores, counts
+ * Spec: tracking-tight / font-black / tabular-nums
+ */
+.hud-value {
+  font-family: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-weight: 900;
+  letter-spacing: -0.04em;    /* tracking-tight+ */
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "zero" 1;
+  line-height: 1;
+}
+
+/**
+ * .hud-tab — Camera/nav mode tab label (Android Material You NavigationBar equiv.)
+ * Usage: "LENS AR", "STUDIO", "HOME", "HISTORY" nav items
+ * Spec: 9px / 800 / uppercase / tracking-[0.12em] / condensed
+ */
+.hud-tab {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  line-height: 1;
+  font-feature-settings: "ss01" 1;
+}
+
+/**
+ * .hud-chip — HUD pill/badge label (system status chip)
+ * Usage: "LIVE", "LOCKED", "STEADY", "eBay Comps"
+ * Spec: 10px / 700 / uppercase / tracking-wider / color inherited
+ */
+.hud-chip {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+
+
+/* ==========================================================================
    Tactile Hardware Control Tokens (Teenage Engineering & Leica Inspired)
    ========================================================================== */
 

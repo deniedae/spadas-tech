@@ -41,7 +41,7 @@ export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraH
             }`}
           >
             <Zap className="h-3.5 w-3.5 shrink-0" />
-            <span className="truncate">Lens AR</span>
+            <span className="hud-tab truncate">Lens AR</span>
           </button>
 
           {/* Mode 2: Spatial Field HUD */}
@@ -55,7 +55,7 @@ export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraH
             }`}
           >
             <Layers className="h-3.5 w-3.5 shrink-0" />
-            <span className="truncate">Spatial HUD</span>
+            <span className="hud-tab truncate">Spatial HUD</span>
             {activeTab !== "ironman" && (
               <span className="absolute -top-1 -right-1 flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
@@ -75,7 +75,7 @@ export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraH
             }`}
           >
             <Camera className="h-3.5 w-3.5 shrink-0" />
-            <span className="truncate">Snap Studio</span>
+            <span className="hud-tab truncate">Snap Studio</span>
           </button>
 
           {/* Mode 4: Spadas Haul (Routes to standalone /haul service) */}
@@ -86,7 +86,7 @@ export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraH
             title="Open Spadas Haul Lot Batch Manager & Quick Snap Intake"
           >
             <ShoppingBag className="h-3.5 w-3.5 shrink-0" />
-            <span className="truncate">Spadas Haul</span>
+            <span className="hud-tab truncate">Haul</span>
             {haulCount > 0 && (
               <span className="ml-0.5 px-1.5 py-0.2 rounded-full text-[9px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
                 {haulCount}
