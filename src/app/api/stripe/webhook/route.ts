@@ -33,13 +33,30 @@ async function resolveUserId(
     if (data?.user_id) return data.user_id as string;
   }
 
-  // 3. Email lookup — only used as fallback for checkout.session.completed
+  // 3. Email lookup — used as fallback for checkout.session.completed
   if (opts.customerEmail) {
     const { data: userData } = await supabaseAdmin.auth.admin.listUsers();
     const match = userData?.users?.find(
       (u) => u.email?.toLowerCase() === opts.customerEmail!.toLowerCase()
     );
     if (match) return match.id;
+
+    // 4. Auto-provision user if they purchased as a guest from landing page
+    try {
+      const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
+        email: opts.customerEmail,
+        email_confirm: true,
+      });
+      if (newUser?.user?.id) {
+        console.log(`[stripe/webhook] Auto-created user ${newUser.user.id} for guest checkout (${opts.customerEmail})`);
+        return newUser.user.id;
+      }
+      if (createError) {
+        console.error("[stripe/webhook] Could not auto-create user for guest checkout:", createError);
+      }
+    } catch (e) {
+      console.error("[stripe/webhook] Error in guest user auto-provisioning:", e);
+    }
   }
 
   return null;

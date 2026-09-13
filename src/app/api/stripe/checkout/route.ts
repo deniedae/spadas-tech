@@ -49,21 +49,19 @@ export async function POST(request: Request) {
       user = sessionUser;
     }
 
-    if (!user) {
-      return NextResponse.json({ message: "You must be logged in to upgrade." }, { status: 401 });
-    }
-
     const stripe = new Stripe(secretKey);
 
     const rawReturnPath = typeof body?.returnPath === "string" ? body.returnPath.replace(/^\/+/, "") : "settings";
     const targetReturnPath = rawReturnPath ? `/${rawReturnPath}` : "/settings";
 
+    const customerEmail = user?.email || (typeof body?.email === "string" && body.email.trim() ? body.email.trim() : undefined);
+
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
-      customer_email: user.email || undefined,
+      customer_email: customerEmail,
       // client_reference_id is Stripe's first-class field for associating a checkout with your own user ID.
       // The webhook reads this to reliably look up the user — no email-matching fragility.
-      client_reference_id: user.id,
+      client_reference_id: user?.id || undefined,
       line_items: [
         {
           price: targetPriceId,
@@ -77,8 +75,8 @@ export async function POST(request: Request) {
         app: "spadas-ai",
         plan_id: planId,
         price_id: targetPriceId,
-        user_id: user.id,
-        user_email: user.email || "",
+        user_id: user?.id || "",
+        user_email: user?.email || customerEmail || "",
       },
     });
 

@@ -1,8 +1,50 @@
-import React from "react";
-import { Check, Sparkles, ArrowRight, Zap, Crown } from "lucide-react";
+"use client";
+
+import React, { useState } from "react";
+import { Check, Sparkles, ArrowRight, Zap, Crown, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { supabase } from "@/app/lib/supabase";
+import { toast } from "sonner";
 
 export default function LandingPricing() {
+  const [loadingPro, setLoadingPro] = useState(false);
+
+  async function handleGetPro() {
+    if (loadingPro) return;
+    setLoadingPro(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (session?.access_token) {
+        headers["Authorization"] = `Bearer ${session.access_token}`;
+      }
+
+      const res = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          planId: "starter",
+          returnPath: "/lens",
+          email: session?.user?.email || undefined,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.url) {
+        toast.success("Redirecting to Stripe Checkout ($10 AUD/mo)...");
+        window.location.href = data.url;
+        return;
+      }
+
+      toast.error(data?.message || "Failed to initiate Stripe checkout. Please try again.");
+      setLoadingPro(false);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Network error. Please try again.";
+      toast.error(message);
+      setLoadingPro(false);
+    }
+  }
+
   const freePerks = [
     "10 free camera scans & appraisals every day",
     "Real-time completed eBay sold comps & price ranges",
@@ -130,13 +172,24 @@ export default function LandingPricing() {
             </div>
 
             <div className="pt-2">
-              <Link
-                href="/lens"
-                className="w-full inline-flex items-center justify-center gap-2 py-3.5 px-6 rounded-2xl bg-gradient-to-r from-cyan-400 via-cyan-300 to-blue-400 hover:from-cyan-300 hover:to-blue-300 text-zinc-950 font-black text-sm transition active:scale-95 shadow-lg shadow-cyan-500/25"
+              <button
+                type="button"
+                onClick={handleGetPro}
+                disabled={loadingPro}
+                className="w-full inline-flex items-center justify-center gap-2 py-3.5 px-6 rounded-2xl bg-gradient-to-r from-cyan-400 via-cyan-300 to-blue-400 hover:from-cyan-300 hover:to-blue-300 text-zinc-950 font-black text-sm transition active:scale-95 shadow-lg shadow-cyan-500/25 disabled:opacity-75 disabled:cursor-not-allowed cursor-pointer"
               >
-                <span>Get Spadas Pro</span>
-                <ArrowRight className="h-4 w-4" />
-              </Link>
+                {loadingPro ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin text-zinc-950" />
+                    <span>Redirecting to Stripe...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Get Spadas Pro</span>
+                    <ArrowRight className="h-4 w-4" />
+                  </>
+                )}
+              </button>
               <p className="text-[11px] font-mono text-cyan-400/80 text-center mt-2">
                 Instant activation &middot; Cancel anytime
               </p>
