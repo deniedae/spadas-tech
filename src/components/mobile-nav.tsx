@@ -84,9 +84,6 @@ export default function MobileNav() {
                 >
                   <Camera className="h-5.5 w-5.5 text-white" />
                 </div>
-                <span className={`text-[10px] font-semibold mt-1 ${active ? "text-cyan-400" : "text-zinc-400"}`}>
-                  {label}
-                </span>
               </Link>
             );
           }

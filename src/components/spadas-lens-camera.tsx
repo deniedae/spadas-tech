@@ -3796,7 +3796,7 @@ function SpadasLensCameraCore({
             </div>
 
             {/* Streamlined Non-Obstructing Top Docked Scanning Telemetry (z-35) */}
-            {(analyzingRealFrame || isLoaderTransitioning) && !activeValuationHit && (
+            {(analyzingRealFrame || isLoaderTransitioning) && !activeValuationHit && scanStage !== "confirmation" && !scanRetryPrompt && (
               <div className="absolute top-[max(3.5rem,calc(env(safe-area-inset-top,0px)+3.25rem))] left-1/2 -translate-x-1/2 z-35 pointer-events-auto transition-all duration-300 ease-out">
                 <ScanProgressiveLoader
                   isActive={true}
@@ -3821,8 +3821,10 @@ function SpadasLensCameraCore({
 
             {/* Confirmation Gate UI */}
             {scanStage === "confirmation" && pendingIdentifiedItem && (
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[85%] max-w-sm glass backdrop-blur-xl border border-white/20 p-5 rounded-3xl shadow-[0_0_40px_rgba(0,0,0,0.8)] z-50 text-center animate-in zoom-in duration-200 pointer-events-auto">
-                <div className="mx-auto w-12 h-12 bg-indigo-500/20 rounded-full flex items-center justify-center mb-3 border border-indigo-500/30">
+              <>
+                <div className="fixed inset-0 z-[998] bg-black/60 backdrop-blur-sm pointer-events-auto" />
+                <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[85%] max-w-sm glass backdrop-blur-xl border border-white/20 p-5 rounded-3xl shadow-[0_0_40px_rgba(0,0,0,0.8)] z-[999] text-center animate-in zoom-in duration-200 pointer-events-auto">
+                  <div className="mx-auto w-12 h-12 bg-indigo-500/20 rounded-full flex items-center justify-center mb-3 border border-indigo-500/30">
                   <CheckCircle2 className="w-6 h-6 text-indigo-400" />
                 </div>
                 <h3 className="text-zinc-100 font-bold text-lg mb-1">Identified Item</h3>
@@ -3848,6 +3850,7 @@ function SpadasLensCameraCore({
                   </button>
                 </div>
               </div>
+              </>
             )}
 
             {/* Non-Obstructing Retry Prompt Layer */}
@@ -4687,7 +4690,7 @@ function SpadasLensCameraCore({
       )}
 
       {/* Real-Time Scanned Hits Feed */}
-      <div className="w-full px-3 sm:px-0">
+      <div className="w-full px-3 sm:px-0 pb-[calc(env(safe-area-inset-bottom)+4.5rem)]">
         <div id="scanned-hits-feed" className="mt-4 w-full max-w-full overflow-x-hidden box-border rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-lg space-y-4 mx-auto scroll-mt-20">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
           <h3 className="text-sm font-bold flex items-center gap-2">
