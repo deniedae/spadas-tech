@@ -562,7 +562,7 @@ export function IronmanHudCamera() {
   return (
     <div className="relative w-full max-w-5xl mx-auto rounded-none sm:rounded-3xl overflow-hidden bg-slate-950 border-0 sm:border sm:border-cyan-500/40 sm:shadow-[0_0_50px_rgba(6,182,212,0.25)] select-none">
       {/* ── 1. Live Video Viewfinder ────────────────────────────────────────── */}
-      <div className="relative w-full min-h-[72dvh] sm:min-h-[550px] sm:aspect-[16/9] bg-black overflow-hidden">
+      <div className="relative w-full h-[55vh] min-h-[380px] max-h-[620px] sm:h-auto sm:min-h-[550px] sm:aspect-[16/9] bg-black overflow-hidden">
         <video
           ref={videoRef}
           playsInline

@@ -3421,7 +3421,7 @@ function SpadasLensCameraCore({
   }, []);
 
   return (
-    <div className="spadas-lens-camera camera-slot w-full max-w-full overflow-x-hidden box-border pb-24 mx-auto animate-fade-in touch-pan-y">
+    <div className="spadas-lens-camera w-full max-w-full overflow-x-hidden box-border pb-24 mx-auto animate-fade-in">
       {/* Video Viewport Container (Tap Anywhere to Focus, Snap, or Dismiss Card) */}
       <div
         onClick={() => {
@@ -3434,7 +3434,7 @@ function SpadasLensCameraCore({
             void processCurrentFrame(true);
           }
         }}
-        className="relative w-full min-h-[72dvh] sm:min-h-[60svh] sm:aspect-[16/9] max-w-full box-border overflow-hidden rounded-none sm:rounded-3xl border-0 sm:border sm:border-cyan-500/30 bg-slate-950 sm:shadow-[0_0_50px_rgba(6,182,212,0.15)] cursor-pointer touch-pan-y"
+        className="relative w-full h-[55vh] min-h-[380px] max-h-[620px] sm:h-auto sm:min-h-[50svh] sm:aspect-[16/9] max-w-full box-border overflow-hidden rounded-none sm:rounded-3xl border-0 sm:border sm:border-cyan-500/30 bg-slate-950 sm:shadow-[0_0_50px_rgba(6,182,212,0.15)] cursor-pointer"
       >
         <CameraViewportErrorBoundary onRestart={startCamera}>
         {deepVerifyItem ? (

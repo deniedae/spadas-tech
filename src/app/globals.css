@@ -54,8 +54,6 @@ html {
   overflow-x: hidden;
   overflow-y: auto;
   scroll-behavior: smooth;
-  /* Kill scroll chaining — prevents parent scroll from absorbing child swipes */
-  overscroll-behavior: none;
   background-color: #030305;
 }
 
@@ -70,9 +68,6 @@ body {
   -moz-osx-font-smoothing: grayscale;
   /* Momentum scrolling for the root document on iOS */
   -webkit-overflow-scrolling: touch;
-  overscroll-behavior-y: none;
-  /* Hint compositor to promote body to its own layer */
-  transform: translateZ(0);
 }
 
 /* Safe Area Inset Helpers for Edge-to-Edge Notch & Bottom Bar Flow */
@@ -98,14 +93,8 @@ body {
 /* Fullscreen Edge-to-Edge Camera Viewport Container */
 .camera-viewport-fullscreen {
   width: 100%;
-  min-height: 72dvh;
   position: relative;
   overflow: hidden;
-  contain: strict;
-  transform: translateZ(0);
-  -webkit-transform: translateZ(0);
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
 }
 
 /* ============================================================
@@ -120,7 +109,6 @@ body {
  */
 .scroll-touch {
   -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
   scroll-behavior: smooth;
 }
 
@@ -142,40 +130,23 @@ body {
 
 /**
  * Feed card paint isolation — critical for long lists.
- * contain: layout style paint tells the browser each card's
- * internal layout, style, and painting are self-contained.
- * Prevents one card's re-render from triggering full-list repaint.
  */
 .feed-card {
-  contain: layout style paint;
   will-change: auto;  /* reset when not animating — prevents memory pressure */
 }
 
 /**
- * Page slot compositor promotion.
- * The <main> element gets its own GPU compositor layer so that
- * route transitions (crossfades) happen entirely on the GPU
- * without triggering document-level paint.
+ * Page slot promotion.
  */
 .page-slot {
   position: relative;
-  isolation: isolate;
-  transform: translateZ(0);
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
 }
 
 /**
- * Camera viewport — full compositor isolation.
- * The camera surface must never cause the document to repaint.
- * contain: strict = layout + style + paint + size isolation.
+ * Camera viewport container.
  */
 .camera-slot {
-  contain: strict;
-  transform: translateZ(0);
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
-  will-change: contents;
+  position: relative;
 }
 
 /**
@@ -697,9 +668,6 @@ body {
   height: 100%;
   position: relative;
   overflow: hidden;
-  touch-action: manipulation;
-  contain: strict;
-  isolation: isolate;
 }
 
 .safe-inset-top {
