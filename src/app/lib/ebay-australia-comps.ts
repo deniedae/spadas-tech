@@ -101,6 +101,7 @@ export interface EbaySoldCompItem {
   shippingPrice?: number;
   url?: string;
   thumbnail?: string;
+  rawDate?: number;
 }
 
 export interface EbayCompsResult {
@@ -269,6 +270,7 @@ export async function fetchEbayAustraliaSoldComps(
                 price: Math.round(rawPrice * 100) / 100,
                 condition: String(item.condition || "Pre-Owned"),
                 soldDate: item.endedAt ? new Date(item.endedAt).toLocaleDateString("en-AU", { month: "short", day: "numeric" }) : (item.dateEnded ? new Date(item.dateEnded).toLocaleDateString("en-AU", { month: "short", day: "numeric" }) : "Recent"),
+                rawDate: item.endedAt ? new Date(item.endedAt).getTime() : (item.dateEnded ? new Date(item.dateEnded).getTime() : 0),
                 shippingIncluded: item.shippingType === "free" || Number(item.shippingPrice) === 0 || item.shippingCost === 0 || item.freeShipping === true,
                 shippingPrice: Number(item.shippingPrice) || Number(item.shippingCost) || 0,
                 url: item.url || item.viewItemUrl || (item.itemId ? `https://www.ebay.com.au/itm/${item.itemId}` : undefined),
@@ -291,7 +293,9 @@ export async function fetchEbayAustraliaSoldComps(
               count: valid.length,
               currency: targetCurrency,
               source: "sold_comps_api",
-              rawComps: (filteredComps.length > 0 ? filteredComps : validCompItems).slice(0, 10),
+              rawComps: (filteredComps.length > 0 ? filteredComps : validCompItems)
+                .sort((a, b) => (b.rawDate || 0) - (a.rawDate || 0))
+                .slice(0, 5),
               iqrBounds: { lower: lowerBound, upper: upperBound },
             };
           }

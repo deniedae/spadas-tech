@@ -2423,7 +2423,6 @@ function SpadasLensCameraCore({
                     // Vision processing finished! Immediately transition progressive loader to comps and render card skeleton
                     const rawPName = chunk.product_name || chunk.analysis?.product_name || "";
                     if (rawPName && !isVagueOrPartialRead(rawPName)) {
-                      setScanStage("confirmation");
                       const pendingObj = {
                         productName: rawPName,
                         brand: chunk.brand || chunk.analysis?.brand || "Authentic",
@@ -2431,17 +2430,6 @@ function SpadasLensCameraCore({
                         condition: chunk.condition || chunk.analysis?.condition || "Used",
                         bbox: chunk.detected_objects?.[0]?.bbox || { x: 20, y: 20, width: 60, height: 60 },
                       };
-                      setPendingIdentifiedItem(pendingObj);
-
-                      // Wait for user confirmation
-                      const confirmed = await new Promise<boolean>((resolve) => {
-                        confirmGateResolverRef.current = resolve;
-                      });
-
-                      if (!confirmed) {
-                        if (abortController) abortController.abort();
-                        throw new Error("User rejected identification");
-                      }
 
                       setScanStage("comps");
 
