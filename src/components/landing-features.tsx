@@ -7,8 +7,6 @@ import {
   ArrowRight,
   CheckCircle2,
   Zap,
-  BarChart3,
-  FileSpreadsheet,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -16,6 +14,7 @@ interface FeatureCard {
   id: string;
   badge: string;
   headline: string;
+  subdetail: string;
   detail: string;
   bullets: string[];
   icon: React.ReactNode;
@@ -26,8 +25,9 @@ const FEATURES: FeatureCard[] = [
     id: "photo-to-listing",
     badge: "AI COPYWRITING",
     headline: "Photo to ready-to-post listing",
+    subdetail: "Title, description, and suggested price generated in seconds",
     detail:
-      "Converts a single camera snapshot into 80-character SEO titles, bulleted condition notes, and platform-specific formats for eBay, Depop, Poshmark, and Facebook in seconds.",
+      "Converts a single camera snapshot into 80-character SEO titles, bulleted condition notes, and platform-specific formats for eBay, Depop, Poshmark, and Facebook.",
     bullets: [
       "Optimized 80-char eBay SEO titles",
       "Tailored tags & descriptions for Depop & Poshmark",
@@ -38,7 +38,8 @@ const FEATURES: FeatureCard[] = [
   {
     id: "sold-comps",
     badge: "PRICE WITH CERTAINTY",
-    headline: "Real-time sold comps & true net profit",
+    headline: "Real-time sold comps & profit tracking",
+    subdetail: "Cost, fees, shipping and net margin per item",
     detail:
       "Instant market valuation based on realized 30-day sold comps across marketplaces. Automatically deducts platform fees and postage so you know your exact take-home profit before buying.",
     bullets: [
@@ -52,8 +53,9 @@ const FEATURES: FeatureCard[] = [
     id: "ebay-drafts",
     badge: "1-TAP DIRECT PUBLISH",
     headline: "Direct-to-eBay Seller Hub drafts",
+    subdetail: "Photos, categories, item specifics and pricing pushed in one tap",
     detail:
-      "Push photos, category IDs, item specifics, and price straight to your eBay drafts in the background. Review and launch live without copy-pasting across tabs.",
+      "Push complete listings straight to your eBay account drafts in the background. Review and launch live without copy-pasting across tabs.",
     bullets: [
       "Zero manual data entry from store aisles",
       "Pre-filled item specifics and condition grades",
@@ -65,6 +67,7 @@ const FEATURES: FeatureCard[] = [
     id: "batch-haul",
     badge: "HAUL SOURCING MODE",
     headline: "Batch haul & inventory tracking",
+    subdetail: "Shelf-to-manifest logging with instant CSV export",
     detail:
       "Walk the thrift aisles in Rapid Mode, continuously snapping shelf items. The app aggregates your entire day's sourcing haul into a live ledger with one-click CSV export.",
     bullets: [
@@ -113,7 +116,10 @@ export default function LandingFeatures() {
                 <h3 className="text-xl font-bold text-white group-hover:text-cyan-300 transition">
                   {feature.headline}
                 </h3>
-                <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed">
+                <p className="text-xs sm:text-sm font-mono text-cyan-400/90 font-medium">
+                  {feature.subdetail}
+                </p>
+                <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed pt-0.5">
                   {feature.detail}
                 </p>
               </div>
