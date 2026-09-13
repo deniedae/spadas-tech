@@ -234,7 +234,7 @@ export function HistoryFeedView({
       {/* Filter Tabs & Search Bar — 8pt grid */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 rounded-2xl glass">
         {/* Status Filter Tabs */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
+        <div className="scroll-x-snap flex items-center gap-2 pb-1 sm:pb-0">
           <Link
             href="/history?status=all"
             className={`px-3 py-2 rounded-xl text-xs font-mono font-bold transition-transform duration-75 shrink-0 active:scale-95 ${
@@ -341,7 +341,7 @@ export function HistoryFeedView({
           {filteredItems.map((scan) => {
             const isSelected = selectedIds.includes(scan.id);
             return (
-              <div key={scan.id} className="relative flex items-center gap-3">
+              <div key={scan.id} className="feed-card relative flex items-center gap-3">
                 <button
                   type="button"
                   onClick={() => toggleSelect(scan.id)}

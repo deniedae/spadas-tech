@@ -48,6 +48,8 @@ html {
   overflow-x: hidden;
   overflow-y: auto;
   scroll-behavior: smooth;
+  /* Kill scroll chaining — prevents parent scroll from absorbing child swipes */
+  overscroll-behavior: none;
 }
 
 body {
@@ -59,7 +61,123 @@ body {
   color: #F4F4F5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Momentum scrolling for the root document on iOS */
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: none;
+  /* Hint compositor to promote body to its own layer */
+  transform: translateZ(0);
 }
+
+/* ============================================================
+   Native Motion & Zero-Jank UX System
+   — GPU compositing, paint containment, momentum scroll,
+     reduced-motion safety, route crossfade promotion
+   ============================================================ */
+
+/**
+ * Momentum scrolling container — apply to any overflow scroll element
+ * for native-feeling iOS deceleration physics
+ */
+.scroll-touch {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  scroll-behavior: smooth;
+}
+
+/**
+ * Horizontal scroll strip — filter tabs, chip rows
+ * scroll-snap-type ensures chips snap to clean grid positions
+ */
+.scroll-x-snap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;  /* hide scrollbar — native UX */
+}
+.scroll-x-snap::-webkit-scrollbar { display: none; }
+.scroll-x-snap > * {
+  scroll-snap-align: start;
+}
+
+/**
+ * Feed card paint isolation — critical for long lists.
+ * contain: layout style paint tells the browser each card's
+ * internal layout, style, and painting are self-contained.
+ * Prevents one card's re-render from triggering full-list repaint.
+ */
+.feed-card {
+  contain: layout style paint;
+  will-change: auto;  /* reset when not animating — prevents memory pressure */
+}
+
+/**
+ * Page slot compositor promotion.
+ * The <main> element gets its own GPU compositor layer so that
+ * route transitions (crossfades) happen entirely on the GPU
+ * without triggering document-level paint.
+ */
+.page-slot {
+  position: relative;
+  isolation: isolate;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+/**
+ * Camera viewport — full compositor isolation.
+ * The camera surface must never cause the document to repaint.
+ * contain: strict = layout + style + paint + size isolation.
+ */
+.camera-slot {
+  contain: strict;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  will-change: contents;
+}
+
+/**
+ * Optimise text rendering on data-dense HUD elements.
+ * optimizeSpeed prevents sub-pixel hinting recalculation
+ * on every frame during scroll/animation.
+ */
+.hud-label,
+.hud-value,
+.hud-chip,
+.hud-tab,
+.data-readout {
+  text-rendering: optimizeSpeed;
+}
+
+/**
+ * Prefers-reduced-motion safety net.
+ * Collapses all animation/transition durations to 10ms — fast enough
+ * to be imperceptible as animation while still preserving state changes.
+ * Does NOT use `animation: none` which breaks JS-driven state transitions.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 10ms !important;
+    animation-delay: 0ms !important;
+    transition-duration: 10ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Specifically collapse our spring animation classes */
+  .lens-card-enter,
+  .lens-hit-bloom,
+  .lens-miss-fade,
+  .lens-ring-pulse,
+  .lens-crossfade {
+    animation-duration: 10ms !important;
+  }
+}
+
+
 
 .flex, .grid, .inline-flex {
   min-width: 0;

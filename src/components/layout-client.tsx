@@ -373,12 +373,12 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
       </aside>
 
       {/* Main content container */}
-      <div className="flex-1 flex flex-col min-w-0 min-h-screen bg-[#07090E] text-white">
+      <div className="flex-1 flex flex-col min-w-0 min-h-screen bg-[#030305] text-white">
         {/* Owner Account AI Credits Health Banner (Only visible for deniedae@gmail.com) */}
         <OwnerAiStatusBanner />
 
         {/* Header (Hidden on mobile for /lens to provide native full-screen camera viewport) */}
-        <header className={`bg-[#090C13]/90 backdrop-blur-xl border-b border-white/[0.08] px-4 pt-[max(0.75rem,calc(env(safe-area-inset-top)+0.5rem))] pb-3 flex items-center justify-between md:px-8 md:py-3.5 shadow-sm ${
+        <header className={`bg-[#030305]/90 backdrop-blur-2xl border-b border-white/[0.06] px-4 pt-[max(0.75rem,calc(env(safe-area-inset-top)+0.5rem))] pb-3 flex items-center justify-between md:px-8 md:py-3.5 shadow-sm ${
           pathname === "/lens" ? "hidden md:flex" : "flex"
         }`}>
           {/* Mobile hamburger & Title */}
@@ -448,7 +448,7 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
         </header>
 
         {/* Page content with safe-area padding when header is hidden on mobile */}
-        <main className={`flex-1 p-3 sm:p-4 md:p-8 pb-32 md:pb-8 ${
+        <main className={`page-slot scroll-touch flex-1 p-3 sm:p-4 md:p-8 pb-32 md:pb-8 ${
           pathname === "/lens"
             ? "pt-[max(0.75rem,calc(env(safe-area-inset-top)+0.25rem))] md:pt-8"
             : ""

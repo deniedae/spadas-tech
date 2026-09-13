@@ -3404,7 +3404,7 @@ function SpadasLensCameraCore({
   }, []);
 
   return (
-    <div className="spadas-lens-camera w-full max-w-full overflow-x-hidden box-border pb-24 mx-auto animate-fade-in touch-pan-y">
+    <div className="spadas-lens-camera camera-slot w-full max-w-full overflow-x-hidden box-border pb-24 mx-auto animate-fade-in touch-pan-y">
       {/* Video Viewport Container (Tap Anywhere to Focus, Snap, or Dismiss Card) */}
       <div
         onClick={() => {
