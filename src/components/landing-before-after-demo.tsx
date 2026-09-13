@@ -288,15 +288,11 @@ export default function LandingBeforeAfterDemo() {
   return (
     <section id="demo" className="my-16 scroll-mt-20">
       <div className="text-center space-y-3 max-w-2xl mx-auto mb-8 px-4">
-        <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/30 bg-cyan-500/10 px-3.5 py-1 text-xs font-mono font-bold text-cyan-300">
-          <Sparkles className="h-3.5 w-3.5 text-cyan-400" />
-          The Live Transformation
-        </div>
         <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
-          Turn a photo into a finished listing in seconds
+          See it in action
         </h2>
         <p className="text-sm text-zinc-400 leading-relaxed">
-          Snap a photo of any item. Spadas Lens calculates live sold comps, predicts platform fees, and writes finished, ready-to-post listings.
+          Snap a photo of any item. Spadas Lens pulls live sold comps, calculates fees, and writes finished listings.
         </p>
       </div>
 
@@ -329,12 +325,9 @@ export default function LandingBeforeAfterDemo() {
             {/* ── LEFT COLUMN: The Thrift Snap (Before) ───────────────── */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-mono font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
-                  <Camera className="h-3.5 w-3.5 text-cyan-400" />
-                  Your Photo
-                </span>
-                <span className="text-[11px] font-mono text-zinc-500">
-                  Raw camera snapshot
+                <span className="text-xs font-medium text-zinc-400 flex items-center gap-1.5">
+                  <Camera className="h-3.5 w-3.5 text-zinc-500" />
+                  Your photo
                 </span>
               </div>
 
@@ -349,28 +342,28 @@ export default function LandingBeforeAfterDemo() {
                 />
 
                 {/* Shutter Telemetry Pill Overlay */}
-                <div className="absolute top-3 left-3 bg-black/75 backdrop-blur-md px-2.5 py-1 rounded-lg border border-white/10 flex items-center gap-1.5">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  <span className="text-[10px] font-mono font-bold text-zinc-200">
-                    Auto-Identified in 1.1s
+                <div className="absolute top-3 left-3 bg-black/70 backdrop-blur-md px-2.5 py-1 rounded-lg border border-white/10 flex items-center gap-1.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                  <span className="text-[10px] font-medium text-zinc-200">
+                    Identified in 1.1s
                   </span>
                 </div>
 
                 {/* Sourcing Cost Badge */}
-                <div className="absolute bottom-3 left-3 right-3 bg-black/80 backdrop-blur-md p-2.5 rounded-xl border border-white/10 flex items-center justify-between text-xs font-mono">
-                  <div className="text-zinc-400">
-                    <span className="block text-[9px] uppercase tracking-wider text-zinc-500">
-                      Sourced At
+                <div className="absolute bottom-3 left-3 right-3 bg-black/75 backdrop-blur-md p-2.5 rounded-xl border border-white/10 flex items-center justify-between text-xs">
+                  <div>
+                    <span className="block text-[10px] text-zinc-500">
+                      Sourced at
                     </span>
                     <span className="font-bold text-zinc-200">
                       ${selectedItem.thriftCost.toFixed(2)} AUD
                     </span>
                   </div>
                   <div className="text-right">
-                    <span className="block text-[9px] uppercase tracking-wider text-zinc-500">
-                      Sold Comps Range
+                    <span className="block text-[10px] text-zinc-500">
+                      Sold comps range
                     </span>
-                    <span className="font-bold text-cyan-300">
+                    <span className="font-bold text-cyan-400">
                       {selectedItem.priceRange}
                     </span>
                   </div>
@@ -378,17 +371,17 @@ export default function LandingBeforeAfterDemo() {
               </div>
 
               {/* Sourcing Context Subtitle */}
-              <p className="text-[11px] font-mono text-zinc-500 text-center">
-                {selectedItem.photoCaption} &middot; Real-time AI object detection
+              <p className="text-[11px] text-zinc-500 text-center">
+                {selectedItem.photoCaption}
               </p>
             </div>
 
             {/* ── RIGHT COLUMN: The Finished Listing (After) ───────────── */}
             <div className="space-y-3">
               <div className="flex items-center justify-between flex-wrap gap-2">
-                <span className="text-xs font-mono font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-                  Ready-to-Post Listing
+                <span className="text-xs font-medium text-emerald-400 flex items-center gap-1.5">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  Ready-to-post listing
                 </span>
                 
                 {/* Platform Selector Mini Tabs */}
@@ -416,11 +409,8 @@ export default function LandingBeforeAfterDemo() {
                 {/* Header: Platform & Profit Badge */}
                 <div className="flex items-center justify-between pb-3 border-b border-white/[0.08]">
                   <div className="flex items-center gap-2">
-                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-extrabold uppercase border ${activeListing.badgeColor}`}>
+                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${activeListing.badgeColor}`}>
                       {activeListing.platformName}
-                    </span>
-                    <span className="text-[10px] font-mono text-zinc-500">
-                      SEO Optimized
                     </span>
                   </div>
                   
@@ -433,8 +423,8 @@ export default function LandingBeforeAfterDemo() {
 
                 {/* Listing Title */}
                 <div className="space-y-1">
-                  <div className="flex items-center justify-between text-[11px] font-mono text-zinc-400">
-                    <span>Listing Title</span>
+                  <div className="flex items-center justify-between text-[11px] text-zinc-400">
+                    <span>Listing title</span>
                     <span className="text-zinc-500">{activeListing.charCount} chars</span>
                   </div>
                   <p className="text-sm sm:text-base font-bold text-white bg-zinc-950/90 p-3 rounded-xl border border-white/[0.08] leading-snug">
@@ -445,42 +435,42 @@ export default function LandingBeforeAfterDemo() {
                 {/* Price & Sold Comps Snapshot */}
                 <div className="grid grid-cols-2 gap-2">
                   <div className="bg-zinc-950/70 p-2.5 rounded-xl border border-white/[0.06]">
-                    <span className="text-[10px] font-mono uppercase text-zinc-500 block">
-                      Target Listing Price
+                    <span className="text-[10px] text-zinc-500 block">
+                      Listing price
                     </span>
-                    <span className="text-base font-black text-white font-mono">
+                    <span className="text-base font-bold text-white">
                       {activeListing.price}
                     </span>
                   </div>
                   <div className="bg-zinc-950/70 p-2.5 rounded-xl border border-white/[0.06]">
-                    <span className="text-[10px] font-mono uppercase text-zinc-500 block">
-                      30-Day Completed Comps
+                    <span className="text-[10px] text-zinc-500 block">
+                      30-day sold median
                     </span>
-                    <span className="text-xs font-bold text-cyan-300 font-mono">
-                      Median ${selectedItem.medianPrice.toFixed(2)} AUD
+                    <span className="text-xs font-bold text-cyan-400">
+                      ${selectedItem.medianPrice.toFixed(2)} AUD
                     </span>
                   </div>
                 </div>
 
                 {/* Item Specifics Row */}
-                <div className="flex items-center gap-1.5 flex-wrap text-[10px] font-mono text-zinc-400">
+                <div className="flex items-center gap-1.5 flex-wrap text-[10px] text-zinc-400">
                   <span className="px-2 py-0.5 rounded bg-zinc-800/80 border border-white/[0.06] text-zinc-300">
-                    Brand: <strong className="text-white">{selectedItem.brand}</strong>
+                    {selectedItem.brand}
                   </span>
                   {selectedItem.size && (
                     <span className="px-2 py-0.5 rounded bg-zinc-800/80 border border-white/[0.06] text-zinc-300">
-                      Size: <strong className="text-white">{selectedItem.size}</strong>
+                      {selectedItem.size}
                     </span>
                   )}
                   <span className="px-2 py-0.5 rounded bg-zinc-800/80 border border-white/[0.06] text-zinc-300">
-                    Condition: <strong className="text-white">{selectedItem.condition}</strong>
+                    {selectedItem.condition}
                   </span>
                 </div>
 
                 {/* Listing Description Preview */}
                 <div className="space-y-1">
-                  <span className="text-[11px] font-mono text-zinc-400 block">
-                    Item Description Preview
+                  <span className="text-[11px] text-zinc-400 block">
+                    Description
                   </span>
                   <div className="text-xs text-zinc-300 whitespace-pre-wrap leading-relaxed bg-zinc-950/90 p-3 rounded-xl border border-white/[0.08] max-h-28 overflow-y-auto font-sans">
                     {activeListing.description}
