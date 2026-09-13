@@ -127,6 +127,8 @@ export default function RootLayout({
         <meta property="og:image" content="https://spadas.ai/og-preview.jpg" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-touch-fullscreen" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <script
           dangerouslySetInnerHTML={{
             __html: `

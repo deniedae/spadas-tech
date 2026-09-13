@@ -34,7 +34,7 @@ export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraH
           <button
             type="button"
             onClick={() => setActiveTab("lens")}
-            className={`py-2 px-1 rounded-xl text-[10.5px] sm:text-xs font-black transition-all flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer text-center ${
+            className={`py-2 px-1 rounded-xl text-[10.5px] sm:text-xs font-black transition-transform duration-75 flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer text-center active:scale-95 ${
               activeTab === "lens"
                 ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 shadow-[0_0_15px_rgba(6,182,212,0.4)]"
                 : "text-slate-400 hover:text-white"
@@ -68,7 +68,7 @@ export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraH
           <button
             type="button"
             onClick={() => setActiveTab("studio")}
-            className={`py-2 px-1 rounded-xl text-[10.5px] sm:text-xs font-black transition-all flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer text-center ${
+            className={`py-2 px-1 rounded-xl text-[10.5px] sm:text-xs font-black transition-transform duration-75 flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer text-center active:scale-95 ${
               activeTab === "studio"
                 ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 shadow-[0_0_15px_rgba(6,182,212,0.4)]"
                 : "text-slate-400 hover:text-white"
@@ -99,7 +99,7 @@ export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraH
       {/* Dynamic Mode Viewport — Clean camera hardware lifecycle release on mode switch */}
       <div className="flex-1 w-full flex flex-col">
         {activeTab === "lens" && (
-          <div className="p-2 sm:p-4 max-w-5xl mx-auto w-full animate-fade-in">
+          <div className="w-full animate-fade-in">
             <SpadasLensCamera
               onOpenHaulTab={() => router.push("/haul")}
               onOpenSnapStudio={() => setActiveTab("studio")}

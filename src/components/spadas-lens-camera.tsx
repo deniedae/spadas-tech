@@ -3404,7 +3404,7 @@ function SpadasLensCameraCore({
   }, []);
 
   return (
-    <div className="spadas-lens-camera w-full max-w-full overflow-x-hidden box-border space-y-6 pb-24 mx-auto animate-fade-in touch-pan-y pt-[max(0.5rem,calc(env(safe-area-inset-top,0px)+0.25rem))] sm:pt-0">
+    <div className="spadas-lens-camera w-full max-w-full overflow-x-hidden box-border pb-24 mx-auto animate-fade-in touch-pan-y">
       {/* Video Viewport Container (Tap Anywhere to Focus, Snap, or Dismiss Card) */}
       <div
         onClick={() => {
@@ -3417,7 +3417,7 @@ function SpadasLensCameraCore({
             void processCurrentFrame(true);
           }
         }}
-        className="relative aspect-[4/3] sm:aspect-[16/9] w-full max-w-full box-border overflow-hidden rounded-3xl border border-cyan-500/30 bg-slate-950 shadow-[0_0_50px_rgba(6,182,212,0.15)] backdrop-blur-xl cursor-pointer touch-pan-y"
+        className="relative w-full min-h-[65svh] sm:min-h-[60svh] sm:aspect-[16/9] max-w-full box-border overflow-hidden rounded-none sm:rounded-3xl border-0 sm:border sm:border-cyan-500/30 bg-slate-950 sm:shadow-[0_0_50px_rgba(6,182,212,0.15)] cursor-pointer touch-pan-y"
       >
         <CameraViewportErrorBoundary onRestart={startCamera}>
         {deepVerifyItem ? (
@@ -4503,7 +4503,7 @@ function SpadasLensCameraCore({
 
       {/* Non-Intrusive In-Stream Audit-Grade Sold Comps Ledger (Anchored in document flow exclusively after scan payload resolves) */}
       {activeValuationHit && (
-        <div className="w-full max-w-full overflow-x-hidden box-border animate-in fade-in slide-in-from-top-3 duration-300">
+        <div className="mt-4 w-full max-w-full overflow-x-hidden box-border animate-in fade-in slide-in-from-top-3 duration-300">
           <AuditCompsLedger
             comps={activeValuationHit.rawComps}
             targetTitle={activeValuationHit.name}
@@ -4551,7 +4551,7 @@ function SpadasLensCameraCore({
       )}
 
       {/* Real-Time Scanned Hits Feed */}
-      <div id="scanned-hits-feed" className="w-full max-w-full overflow-x-hidden box-border rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-lg space-y-4 mx-auto scroll-mt-20">
+      <div id="scanned-hits-feed" className="mt-4 w-full max-w-full overflow-x-hidden box-border rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-lg space-y-4 mx-auto scroll-mt-20">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
           <h3 className="text-sm font-bold flex items-center gap-2">
             <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />

@@ -12,7 +12,7 @@ export default function LensPage() {
   ];
 
   return (
-    <div className="w-full max-w-full overflow-x-hidden box-border space-y-8 animate-fade-in pb-16">
+    <div className="w-full max-w-full overflow-x-hidden box-border animate-fade-in">
       {/* Spadas Lens Unified Camera Hub (Lens AR + Snap Studio) */}
       <UnifiedCameraHub />
 
