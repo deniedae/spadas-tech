@@ -3840,7 +3840,7 @@ function SpadasLensCameraCore({
                                 : activeValuationHit.copVerdict === "QUICK_FLIP"
                                 ? "bg-cyan-500 text-slate-950 shadow-cyan-500/30"
                                 : activeValuationHit.copVerdict === "VERIFY_FIRST"
-                                ? "bg-amber-500/20 text-amber-300 border border-amber-500/50 shadow-amber-500/20"
+                                ? "glass border border-white/[0.12] text-zinc-300"
                                 : activeValuationHit.copVerdict === "PASS_RISKY"
                                 ? "bg-rose-500/20 text-rose-300 border border-rose-500/40"
                                 : "bg-slate-800 text-slate-300"
@@ -4136,16 +4136,16 @@ function SpadasLensCameraCore({
                 )}
 
                 {scanErrorState.type === "rate_limit_upstream" && (
-                  <div className="flex items-center gap-2 rounded-xl bg-yellow-400/95 backdrop-blur-md px-4 py-2.5 text-xs font-extrabold text-slate-950 shadow-2xl border border-yellow-300/60">
-                    <RefreshCw className="h-4 w-4 shrink-0 animate-spin" />
-                    <span>Busy right now. Try again in a few seconds.</span>
+                  <div className="flex items-center gap-2 rounded-2xl glass-hud px-4 py-2.5 text-xs font-bold text-zinc-300 shadow-xl">
+                    <RefreshCw className="h-3.5 w-3.5 shrink-0 text-zinc-400 animate-spin" />
+                    <span>Processing. Retrying in a moment.</span>
                   </div>
                 )}
 
                 {scanErrorState.type === "unauthorized" && !isGuestUser && (
                   <div className="flex items-center justify-between gap-3 rounded-xl bg-slate-800/95 backdrop-blur-md px-4 py-2.5 text-xs font-extrabold text-slate-200 shadow-2xl border border-slate-600/60 pointer-events-auto w-full">
                     <div className="flex items-center gap-2">
-                      <ShieldAlert className="h-4 w-4 shrink-0 text-amber-400" />
+                      <ShieldAlert className="h-4 w-4 shrink-0 text-zinc-400" />
                       <span>Session expired. Please sign in to continue.</span>
                     </div>
                     <button
@@ -4161,9 +4161,9 @@ function SpadasLensCameraCore({
 
 
                 {scanErrorState.type === "generic" && (
-                  <div className="flex items-center gap-2 rounded-xl bg-red-950/95 backdrop-blur-md px-4 py-2.5 text-xs font-extrabold text-red-200 shadow-2xl border border-red-500/50">
-                    <ShieldAlert className="h-4 w-4 shrink-0 text-red-400" />
-                    <span>Scan error. Raw payload logged on server.</span>
+                  <div className="flex items-center gap-2 rounded-2xl glass-hud px-4 py-2.5 text-xs font-bold text-zinc-300 shadow-xl">
+                    <ShieldAlert className="h-3.5 w-3.5 shrink-0 text-rose-400" />
+                    <span>Scan error. Active session preserved.</span>
                   </div>
                 )}
               </div>

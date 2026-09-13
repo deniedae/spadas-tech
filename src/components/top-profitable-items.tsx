@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/app/lib/supabase";
+import { Trophy } from "lucide-react";
 
 type Listing = {
   id: number;
@@ -53,29 +54,36 @@ export default function TopProfitableItems() {
   }, []);
 
   return (
-    <div className="rounded-xl border bg-white p-6 shadow-sm">
-      <h2 className="mb-4 text-xl font-bold">
-        🏆 Top Profitable Items
-      </h2>
+    <div className="glass-card rounded-2xl p-5 space-y-1">
+      {/* Header */}
+      <div className="flex items-center gap-2 mb-4">
+        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/10 border border-emerald-500/20 shrink-0">
+          <Trophy className="h-3.5 w-3.5 text-emerald-400" />
+        </div>
+        <h2 className="text-sm font-bold text-zinc-100 tracking-tight">Top Profitable Items</h2>
+      </div>
 
-      <div className="space-y-3">
+      <div className="space-y-1">
         {items.map((item, index) => (
           <div
             key={index}
-            className="flex items-center justify-between rounded-lg border p-3"
+            className="feed-card flex items-center justify-between rounded-xl px-3 py-2.5 hover:bg-white/[0.03] transition-colors"
           >
-            <div>
-              <p className="font-medium">{item.product}</p>
+            <div className="flex items-center gap-3 min-w-0">
+              <span className="hud-value text-[11px] text-zinc-600 w-4 shrink-0">
+                {index + 1}
+              </span>
+              <p className="text-xs font-medium text-zinc-200 truncate">{item.product}</p>
             </div>
 
-            <span className="font-bold text-green-600">
-              ${item.profit.toFixed(2)}
+            <span className="hud-value text-[12px] text-emerald-400 shrink-0 ml-3">
+              +${item.profit.toFixed(2)}
             </span>
           </div>
         ))}
 
         {items.length === 0 && (
-          <p className="text-gray-500">
+          <p className="hud-label py-4 text-center" style={{ textTransform: "none", letterSpacing: "normal", fontSize: "11px" }}>
             No sold listings yet.
           </p>
         )}

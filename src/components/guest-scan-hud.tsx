@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { Zap, Sparkles, UserPlus, ShieldAlert } from "lucide-react";
+import { Zap, UserPlus } from "lucide-react";
 import { MAX_GUEST_SCANS } from "@/lib/guest-scan-tracker";
 
 interface GuestScanHudProps {
@@ -20,26 +20,25 @@ export function GuestScanHud({
 
   return (
     <div
-      className={`inline-flex items-center gap-2 rounded-full border border-orange-500/40 bg-black/75 px-3 py-1.5 shadow-xl backdrop-blur-md text-zinc-200 transition ${className}`}
+      className={`inline-flex items-center gap-2.5 rounded-full glass px-3 py-1.5 shadow-xl text-zinc-200 transition ${className}`}
     >
+      {/* Label */}
       <div className="flex items-center gap-1.5">
-        <span className="flex h-2 w-2 rounded-full bg-orange-400 animate-ping" />
-        <Zap className="h-3.5 w-3.5 text-orange-400 fill-orange-400" />
-        <span className="text-[11px] font-black uppercase tracking-wider text-orange-300">
-          Guest Mode:
-        </span>
+        <div className="status-active-dot pulse" />
+        <span className="hud-chip text-[#00F2FE]">Guest</span>
       </div>
 
+      {/* Pip counter */}
       <div className="flex items-center gap-1">
         {Array.from({ length: MAX_GUEST_SCANS }).map((_, idx) => {
           const isFilled = idx < scansUsed;
           return (
             <div
               key={idx}
-              className={`h-2 w-3 rounded-sm transition-all duration-300 ${
+              className={`h-1.5 w-2.5 rounded-sm transition-all duration-300 ${
                 isFilled
-                  ? "bg-zinc-600"
-                  : "bg-orange-400 shadow-[0_0_8px_rgba(251,146,60,0.8)]"
+                  ? "bg-zinc-800"
+                  : "bg-[#00F2FE]/70 shadow-[0_0_6px_rgba(0,242,254,0.5)]"
               }`}
               title={`Scan ${idx + 1}`}
             />
@@ -47,17 +46,19 @@ export function GuestScanHud({
         })}
       </div>
 
-      <span className="text-[11px] font-bold text-white pl-0.5">
-        {remainingScans} / {MAX_GUEST_SCANS} Left
+      {/* Count readout */}
+      <span className="hud-value text-[11px] text-white">
+        {remainingScans}/{MAX_GUEST_SCANS}
       </span>
 
+      {/* Unlock CTA */}
       <button
         type="button"
         onClick={onOpenAuthModal}
-        className="ml-1 inline-flex items-center gap-1 rounded-full bg-orange-500/20 hover:bg-orange-500/30 border border-orange-500/40 px-2 py-0.5 text-[10px] font-bold text-orange-300 hover:text-white transition"
+        className="badge-active cursor-pointer hover:bg-[#00F2FE]/15 transition active:scale-95"
       >
-        <UserPlus className="h-3 w-3" />
-        <span>Unlock 10</span>
+        <UserPlus className="h-2.5 w-2.5" />
+        <span>Unlock</span>
       </button>
     </div>
   );
