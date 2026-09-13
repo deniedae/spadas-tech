@@ -118,6 +118,7 @@ export function ScanItemCard({
 
   const minPrice = res?.suggested_price_min || 0;
   const maxPrice = res?.suggested_price_max || 0;
+  const compsCount = Array.isArray(res?.comps) ? res.comps.length : 0;
   const isFailed = scan.status === "failed";
   const formattedDate = new Date(scan.created_at).toLocaleString("en-AU", {
     dateStyle: "medium",
@@ -226,12 +227,17 @@ export function ScanItemCard({
         <div className="flex items-center justify-between md:justify-end gap-3 pt-2 md:pt-0 border-t md:border-t-0 border-white/10 flex-wrap">
           {!isFailed && (minPrice > 0 || maxPrice > 0) ? (
             <div className="text-left md:text-right pr-2">
-              <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider">
+              <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider mb-1">
                 Resale Valuation
               </div>
               <div className="font-mono text-[#CCFF00] font-black text-base tabular-nums drop-shadow-[0_0_10px_rgba(204,255,0,0.35)]">
                 ${minPrice.toFixed(2)} – ${maxPrice.toFixed(2)} AUD
               </div>
+              {compsCount > 0 && (
+                <div className="text-[9px] font-mono text-zinc-500 mt-1">
+                  Based on {compsCount} sold listings
+                </div>
+              )}
             </div>
           ) : (
             <div className="text-left md:text-right pr-2">

@@ -23,6 +23,7 @@ import {
   ChevronRight,
   Tag,
   Loader2,
+  WifiOff,
 } from "lucide-react";
 import {
   RapidThriftItem,
@@ -717,6 +718,11 @@ export function SpadasHaulSection({
                           <ShieldCheck className="h-2.5 w-2.5" /> VERIFY REQUIRED
                         </span>
                       )}
+                      {item.syncStatus === "pending" && (
+                        <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300 border border-zinc-700 flex items-center gap-1">
+                          <WifiOff className="h-2.5 w-2.5" /> PENDING SYNC
+                        </span>
+                      )}
                     </div>
 
                     <h3 className="text-sm font-bold text-zinc-100 truncate">
@@ -724,24 +730,38 @@ export function SpadasHaulSection({
                     </h3>
 
                     {/* Financial Metrics Row */}
-                    <div className="flex items-center gap-2 font-mono text-xs flex-wrap">
-                      <span className="text-zinc-400">
-                        Cost: <strong className="text-zinc-200">${(item.thriftCost || 0).toFixed(2)}</strong>
-                      </span>
-                      <span className="text-zinc-600">→</span>
-                      <span className="text-zinc-400">
-                        Comps: <strong className="text-zinc-200">${(item.estimatedValue || 0).toFixed(2)}</strong>
-                      </span>
-                      <span className="text-zinc-600">•</span>
-                      <span
-                        className={`font-black ${
-                          (item.trueNetProfit || 0) > 0 ? "text-emerald-400" : "text-rose-400"
-                        }`}
-                      >
-                        {(item.trueNetProfit || 0) > 0
-                          ? `+$${(item.trueNetProfit || 0).toFixed(2)} Net`
-                          : `$${(item.trueNetProfit || 0).toFixed(2)} Net`}
-                      </span>
+                    <div className="flex flex-col gap-1.5 mt-2">
+                      <div className="flex items-center gap-2 font-mono text-xs flex-wrap">
+                        <span className="text-zinc-400">
+                          Cost: <strong className="text-zinc-200">${(item.thriftCost || 0).toFixed(2)}</strong>
+                        </span>
+                        <span className="text-zinc-600">→</span>
+                        <span className="text-zinc-400">
+                          Value: <strong className="text-zinc-200">${(item.estimatedValue || 0).toFixed(2)}</strong>
+                        </span>
+                        <span className="text-zinc-600">•</span>
+                        <span
+                          className={`font-black ${
+                            (item.trueNetProfit || 0) > 0 ? "text-emerald-400" : "text-rose-400"
+                          }`}
+                        >
+                          {(item.trueNetProfit || 0) > 0
+                            ? `+$${(item.trueNetProfit || 0).toFixed(2)} Net`
+                            : `$${(item.trueNetProfit || 0).toFixed(2)} Net`}
+                        </span>
+                      </div>
+                      
+                      {item.compsCount ? (
+                        <div className="text-[10px] text-zinc-500 font-mono flex items-center gap-1.5">
+                          <span>Based on {item.compsCount} sold comps</span>
+                          <span className="text-zinc-700">|</span>
+                          <span>Range: ${item.minPrice?.toFixed(2)} – ${item.maxPrice?.toFixed(2)}</span>
+                        </div>
+                      ) : (
+                        <div className="text-[10px] text-zinc-600 font-mono italic">
+                          Comp data unavailable
+                        </div>
+                      )}
                     </div>
 
                     {/* Velocity Pill */}

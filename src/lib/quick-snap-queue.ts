@@ -5,6 +5,7 @@ import { haulStore } from "./haul-store";
 import {
   RapidThriftItem,
   savePhotoBlob,
+  getPhotoBlob,
   triggerPocketAlert,
 } from "./rapid-thrift-engine";
 import { resilientFetch } from "@/app/lib/resilient-fetch";
@@ -178,8 +179,10 @@ class QuickSnapQueueService {
             data = await res.json().catch(() => null);
           }
 
+          let isOfflineSyncPending = false;
           // Fallback to local offline catalog if network dropped or rate limited
           if (!data || data.error) {
+            isOfflineSyncPending = true;
             const offline = appraiseItemLocally();
             data = {
               product_name: offline.productName,
@@ -216,6 +219,7 @@ class QuickSnapQueueService {
             thumbnailUrl: base64Data,
             image: base64Data,
             imageUrl: base64Data,
+            syncStatus: isOfflineSyncPending ? "pending" : "synced",
           });
 
           // Haptic alert on high-value grails
@@ -236,6 +240,7 @@ class QuickSnapQueueService {
             roiPercentage: offline.roiPercentage,
             copVerdict: offline.copVerdict,
             isGrail: offline.trueNetProfit >= 50,
+            syncStatus: "pending",
           });
         } finally {
           this.activeWorkers = Math.max(0, this.activeWorkers - 1);
@@ -253,6 +258,40 @@ class QuickSnapQueueService {
       reader.onerror = reject;
       reader.readAsDataURL(blob);
     });
+  }
+
+  public retryPendingOfflineItems = async () => {
+    if (typeof window === "undefined" || !window.navigator.onLine) return;
+    
+    const items = haulStore.getState().filter((item: RapidThriftItem) => item.syncStatus === "pending");
+    if (items.length === 0) return;
+
+    console.log(`[QuickSnapQueue] Retrying ${items.length} offline pending items...`);
+    
+    for (const item of items) {
+      if (this.queue.some((q) => q.id === item.id)) continue;
+      
+      const blob = await getPhotoBlob(item.photoId);
+      if (blob) {
+        this.queue.push({
+          id: item.id,
+          photoId: item.photoId,
+          blob,
+          currency: "AUD"
+        });
+      }
+    }
+    
+    if (this.queue.length > 0) {
+      this.notify();
+      void this.processQueue();
+    }
+  };
+
+  constructor() {
+    if (typeof window !== "undefined") {
+      window.addEventListener("online", this.retryPendingOfflineItems);
+    }
   }
 }
 

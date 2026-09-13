@@ -28,6 +28,10 @@ export interface RapidThriftItem {
   image?: string;
   imageUrl?: string;
   thumbnailUrl?: string;
+  compsCount?: number;
+  minPrice?: number;
+  maxPrice?: number;
+  syncStatus?: "synced" | "pending" | "failed";
 }
 
 export interface RapidSessionStats {
