@@ -268,11 +268,11 @@ export async function fetchEbayAustraliaSoldComps(
                 title,
                 price: Math.round(rawPrice * 100) / 100,
                 condition: String(item.condition || "Pre-Owned"),
-                soldDate: item.dateEnded ? new Date(item.dateEnded).toLocaleDateString("en-AU", { month: "short", day: "numeric" }) : "Recent",
-                shippingIncluded: item.shippingCost === 0 || item.freeShipping === true,
-                shippingPrice: Number(item.shippingCost) || 0,
-                url: item.viewItemUrl || item.url || (item.itemId ? `https://www.ebay.com.au/itm/${item.itemId}` : undefined),
-                thumbnail: item.galleryURL || item.image,
+                soldDate: item.endedAt ? new Date(item.endedAt).toLocaleDateString("en-AU", { month: "short", day: "numeric" }) : (item.dateEnded ? new Date(item.dateEnded).toLocaleDateString("en-AU", { month: "short", day: "numeric" }) : "Recent"),
+                shippingIncluded: item.shippingType === "free" || Number(item.shippingPrice) === 0 || item.shippingCost === 0 || item.freeShipping === true,
+                shippingPrice: Number(item.shippingPrice) || Number(item.shippingCost) || 0,
+                url: item.url || item.viewItemUrl || (item.itemId ? `https://www.ebay.com.au/itm/${item.itemId}` : undefined),
+                thumbnail: item.thumbnailUrl || item.galleryURL || item.image,
               };
               validCompItems.push(compItem);
             }

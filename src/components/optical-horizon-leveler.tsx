@@ -32,9 +32,6 @@ export default function OpticalHorizonLeveler({ soundEnabled = true }: OpticalHo
 
         if (level && !wasLevelRef.current) {
           triggerLevelLockHaptic();
-          if (soundEnabled) {
-            playLevelLockSound();
-          }
         }
         wasLevelRef.current = level;
       }

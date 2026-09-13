@@ -254,6 +254,7 @@ function SpadasLensCameraCore({
     setRetakeRecommendation(null);
     setSecondaryImagePayload(null);
     setConfidencePercent(94);
+    setIsLoaderTransitioning(false);
     setIsScanPaused(false);
     setAnalyzingRealFrame(false);
     analyzingRef.current = false;
