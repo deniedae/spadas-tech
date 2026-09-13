@@ -18,6 +18,7 @@ import EbayListingModal from "@/components/ebay-listing-modal";
 import CrossListModal from "@/components/cross-list-modal";
 import SubscriptionPaywallModal from "@/components/subscription-paywall-modal";
 import { supabase } from "@/app/lib/supabase";
+import { triggerTactileHaptic } from "@/lib/android-bridge";
 
 interface ScanRecord {
   id: string;
@@ -45,6 +46,7 @@ export function ScanItemCard({
   if (deleted) return null;
 
   const submitRating = async (value: "up" | "down") => {
+    triggerTactileHaptic(value === "up" ? "success" : "warning");
     setRating(value);
     await fetch("/api/scans/rate", {
       method: "POST",
@@ -54,11 +56,13 @@ export function ScanItemCard({
   };
 
   const handleDeleted = () => {
+    triggerTactileHaptic("medium");
     setDeleted(true);
     if (onDeleted) onDeleted();
   };
 
   const handleCrossListClick = async () => {
+    triggerTactileHaptic("light");
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const authHeaders: Record<string, string> = {};
@@ -70,6 +74,7 @@ export function ScanItemCard({
       const data = await res.json().catch(() => ({}));
       const isPro = Boolean(data?.active || data?.plan === "Pro");
       if (!isPro && scan.user_id !== "owner") {
+        triggerTactileHaptic("warning");
         setIsPaywallOpen(true);
         return;
       }
@@ -127,15 +132,15 @@ export function ScanItemCard({
   return (
     <>
       <div
-        className={`p-3.5 sm:p-4 rounded-2xl border transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 ${
+        className={`p-3.5 sm:p-4 rounded-2xl border transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 backdrop-blur-xl ${
           isFailed
-            ? "bg-[#140C0E] border-rose-500/30"
-            : "bg-[#0A0D15]/80 border-white/[0.08] hover:border-white/[0.14] shadow-sm"
+            ? "bg-[#140C0E]/90 border-rose-500/30"
+            : "bg-white/[0.03] border-white/10 hover:border-white/20 hover:bg-white/[0.05] shadow-[0_8px_32px_0_rgba(0,0,0,0.5)]"
         }`}
       >
         {/* Left Side: Thumbnail & Title Telemetry */}
         <div className="flex items-start gap-3.5 min-w-0 flex-1">
-          <div className="relative h-14 w-14 sm:h-16 sm:w-16 rounded-xl overflow-hidden bg-zinc-950 border border-white/[0.08] shrink-0 flex items-center justify-center">
+          <div className="relative h-14 w-14 sm:h-16 sm:w-16 rounded-xl overflow-hidden bg-black/80 border border-white/10 shrink-0 flex items-center justify-center">
             {scan.image_url ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -166,7 +171,7 @@ export function ScanItemCard({
                 className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider flex items-center gap-1 ${
                   isFailed
                     ? "bg-rose-500/10 text-rose-400 border border-rose-500/20"
-                    : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                    : "bg-[#CCFF00]/10 text-[#CCFF00] border border-[#CCFF00]/30 shadow-[0_0_8px_rgba(204,255,0,0.2)]"
                 }`}
               >
                 {isFailed ? (
@@ -197,13 +202,13 @@ export function ScanItemCard({
         </div>
 
         {/* Right Side: Resale Valuation & Action Suite */}
-        <div className="flex items-center justify-between md:justify-end gap-3 pt-2 md:pt-0 border-t md:border-t-0 border-white/[0.06] flex-wrap">
+        <div className="flex items-center justify-between md:justify-end gap-3 pt-2 md:pt-0 border-t md:border-t-0 border-white/10 flex-wrap">
           {!isFailed && (minPrice > 0 || maxPrice > 0) ? (
             <div className="text-left md:text-right pr-2">
               <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider">
                 Resale Valuation
               </div>
-              <div className="font-mono text-emerald-400 font-bold text-base tabular-nums">
+              <div className="font-mono text-[#CCFF00] font-black text-base tabular-nums drop-shadow-[0_0_10px_rgba(204,255,0,0.35)]">
                 ${minPrice.toFixed(2)} – ${maxPrice.toFixed(2)} AUD
               </div>
             </div>
@@ -222,7 +227,10 @@ export function ScanItemCard({
             <div className="flex items-center gap-1.5">
               <button
                 type="button"
-                onClick={() => setIsEbayModalOpen(true)}
+                onClick={() => {
+                  triggerTactileHaptic("light");
+                  setIsEbayModalOpen(true);
+                }}
                 className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-[#F97316]/15 to-amber-500/15 hover:from-[#F97316]/30 hover:to-amber-500/30 text-[#F97316] hover:text-amber-200 border border-[#F97316]/40 text-xs font-mono font-bold transition cursor-pointer"
                 title="Publish directly to eBay Australia"
               >
@@ -233,12 +241,12 @@ export function ScanItemCard({
               <button
                 type="button"
                 onClick={handleCrossListClick}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-700 text-xs font-mono font-bold transition cursor-pointer"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-black/60 hover:bg-black/80 text-zinc-300 border border-white/10 text-xs font-mono font-bold transition cursor-pointer"
                 title="Cross-list across multiple marketplaces (PRO)"
               >
                 <Share2 className="w-3 h-3" />
                 <span>CROSS-LIST</span>
-                <span className="bg-amber-400/20 text-amber-300 border border-amber-400/40 text-[9px] px-1 py-0.2 rounded font-black">
+                <span className="bg-[#00F2FE]/20 text-[#00F2FE] border border-[#00F2FE]/40 text-[9px] px-1 py-0.2 rounded font-black shadow-[0_0_6px_rgba(0,242,254,0.3)]">
                   PRO
                 </span>
               </button>

@@ -176,7 +176,7 @@ export default function SubscriptionPaywallModal({
                   plan.popular
                     ? "bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 text-white hover:opacity-90 shadow-cyan-500/25"
                     : plan.id === "enterprise"
-                    ? "bg-gradient-to-r from-amber-500 to-orange-600 text-white hover:opacity-90"
+                    ? "bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 text-white hover:opacity-90 shadow-violet-600/25"
                     : "bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700"
                 }`}
               >

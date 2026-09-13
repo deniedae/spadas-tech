@@ -168,15 +168,15 @@ export default function AnalyticsPage() {
       {error && (
         <div
           role="alert"
-          className="flex items-start gap-3 rounded-2xl border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive"
+          className="flex items-start gap-3 rounded-2xl border border-rose-500/30 bg-rose-950/30 p-4 text-xs font-mono text-rose-300"
         >
-          <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0" aria-hidden="true" />
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-400" aria-hidden="true" />
           <p className="flex-1">{error}</p>
           <button
             type="button"
             onClick={() => setError(null)}
             aria-label="Dismiss"
-            className="rounded p-1 text-destructive hover:bg-destructive/15"
+            className="rounded p-1 text-rose-300 hover:bg-rose-500/20"
           >
             <X className="h-4 w-4" />
           </button>
@@ -254,7 +254,7 @@ export default function AnalyticsPage() {
       <div className="grid gap-6 md:grid-cols-3">
         <div className="rounded-2xl border border-border bg-card p-5 shadow-sm space-y-1">
           <p className="text-xs font-medium text-muted-foreground">Total Platform Fees Paid</p>
-          <p className="text-xl font-bold tabular-nums text-red-600 dark:text-red-400">
+          <p className="text-xl font-bold tabular-nums text-rose-400">
             −{fmtMoney(stats.totalFees)}
           </p>
         </div>

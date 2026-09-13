@@ -21,6 +21,8 @@ import {
 import { fmtMoney } from "@/app/lib/listings";
 import type { RawSoldComp } from "@/types/lens";
 import type { RawSoldCompRecord } from "@/types/ai-listing";
+import { CompsLedgerSkeleton } from "@/components/ui/comps-skeleton-loader";
+import { triggerTactileHaptic } from "@/lib/android-bridge";
 
 export interface AuditCompRecord {
   id?: string;
@@ -42,6 +44,8 @@ export interface AuditCompRecord {
 export type AuditCompItem = RawSoldComp | RawSoldCompRecord | AuditCompRecord;
 
 export interface AuditCompsLedgerProps {
+  /** Whether comps are actively being queried / calibrated */
+  isLoading?: boolean;
   /** Verified array of recent eBay sold listings (target: 7 sales) */
   comps?: AuditCompItem[];
   /** Target title / item name */
@@ -302,6 +306,7 @@ export function getMatchBadgeStyle(percentage: number): {
  * Displays ~7 verified recent sales with rich evidence and zero cramped feeling.
  */
 export default function AuditCompsLedger({
+  isLoading = false,
   comps = [],
   targetTitle = "",
   brand,
@@ -319,6 +324,10 @@ export default function AuditCompsLedger({
 }: AuditCompsLedgerProps) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const [filterQuery, setFilterQuery] = useState("");
+
+  if (isLoading) {
+    return <CompsLedgerSkeleton targetTitle={targetTitle} className={className} />;
+  }
 
   // Normalizes and enforces 7 verified sold listings
   const verifiedListings = useMemo(() => {
@@ -397,7 +406,7 @@ export default function AuditCompsLedger({
 
   return (
     <div
-      className={`rounded-3xl bg-slate-950/95 backdrop-blur-2xl border-2 border-emerald-500/40 shadow-[0_20px_60px_rgba(0,0,0,0.9),0_0_35px_rgba(16,185,129,0.2)] overflow-hidden transition-all duration-300 w-full ${className}`}
+      className={`rounded-3xl bg-slate-950/95 backdrop-blur-2xl border-2 border-emerald-500/40 shadow-[0_20px_60px_rgba(0,0,0,0.9),0_0_35px_rgba(16,185,129,0.2)] overflow-hidden transition-all duration-300 w-full ledger-expand-glide ${className}`}
       id="audit-comps-ledger"
     >
       {/* Top Banner: Item Name, Verdict, & Net Profit Highlight */}
@@ -453,8 +462,11 @@ export default function AuditCompsLedger({
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => setIsExpanded(!isExpanded)}
-                className="px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-white/[0.1] text-xs font-bold text-cyan-300 hover:text-cyan-200 transition flex items-center gap-1.5 cursor-pointer shadow-sm"
+                onClick={() => {
+                  triggerTactileHaptic("light");
+                  setIsExpanded(!isExpanded);
+                }}
+                className="px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-white/[0.1] text-xs font-bold text-cyan-300 hover:text-cyan-200 transition flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95"
                 aria-expanded={isExpanded}
                 aria-controls="comps-ledger-content"
               >
@@ -465,8 +477,11 @@ export default function AuditCompsLedger({
               {onDismiss && (
                 <button
                   type="button"
-                  onClick={onDismiss}
-                  className="p-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-white/[0.1] text-zinc-400 hover:text-white transition cursor-pointer"
+                  onClick={() => {
+                    triggerTactileHaptic("light");
+                    onDismiss();
+                  }}
+                  className="p-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-white/[0.1] text-zinc-400 hover:text-white transition cursor-pointer active:scale-95"
                   title="Close Evidence Ledger"
                 >
                   <X className="h-4 w-4" />
@@ -477,9 +492,12 @@ export default function AuditCompsLedger({
         </div>
       </div>
 
-      {/* Expanded Open Content */}
-      {isExpanded && (
-        <div id="comps-ledger-content" className="p-4 sm:p-5 space-y-4">
+      {/* Zero Layout Shift Accordion Grid Body */}
+      <div
+        id="comps-ledger-content"
+        className={`accordion-grid-container ${isExpanded ? "is-expanded" : ""}`}
+      >
+        <div className="accordion-grid-inner p-4 sm:p-5 space-y-4">
           {/* Trust-The-Process Telemetry Strip */}
           {stats && (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 p-3 rounded-2xl bg-[#090D17] border border-white/[0.06] text-center shadow-inner">
@@ -532,7 +550,7 @@ export default function AuditCompsLedger({
             />
           </div>
 
-          {/* 7 Recent Sales Clean List */}
+          {/* 7 Recent Sales Clean List with Staggered Fluid Gliding */}
           <div className="space-y-2.5">
             {filteredListings.length > 0 ? (
               filteredListings.map((comp, idx) => {
@@ -540,8 +558,12 @@ export default function AuditCompsLedger({
                 return (
                   <div
                     key={comp.id}
-                    onClick={() => onSelectComp?.(comp.raw)}
-                    className="group relative p-3.5 sm:p-4 rounded-2xl bg-[#0A0E1A] hover:bg-[#111728] border border-white/[0.06] hover:border-cyan-500/40 transition-all duration-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md"
+                    onClick={() => {
+                      triggerTactileHaptic("selection");
+                      onSelectComp?.(comp.raw);
+                    }}
+                    style={{ animationDelay: `${idx * 45}ms` }}
+                    className="group relative p-3.5 sm:p-4 rounded-2xl bg-[#0A0E1A] hover:bg-[#111728] border border-white/[0.06] hover:border-cyan-500/40 transition-all duration-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md comp-row-glide cursor-pointer"
                   >
                     {/* Left: Index + Match Badge + Title + Conditions */}
                     <div className="min-w-0 flex-1 space-y-2">
@@ -654,7 +676,10 @@ export default function AuditCompsLedger({
               {onAddToHaul && (
                 <button
                   type="button"
-                  onClick={onAddToHaul}
+                  onClick={() => {
+                    triggerTactileHaptic("success");
+                    onAddToHaul();
+                  }}
                   className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs shadow-lg shadow-emerald-500/20 transition cursor-pointer active:scale-95"
                 >
                   <CheckCircle2 className="h-4 w-4" />
@@ -665,7 +690,10 @@ export default function AuditCompsLedger({
               {onListEbay && (
                 <button
                   type="button"
-                  onClick={onListEbay}
+                  onClick={() => {
+                    triggerTactileHaptic("medium");
+                    onListEbay();
+                  }}
                   className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-md transition cursor-pointer active:scale-95"
                 >
                   <ShoppingBag className="h-4 w-4" />
@@ -677,7 +705,8 @@ export default function AuditCompsLedger({
                 href={globalEbayRegistryUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-white/[0.08] text-xs font-semibold text-zinc-300 hover:text-white transition cursor-pointer"
+                onClick={() => triggerTactileHaptic("light")}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-white/[0.08] text-xs font-semibold text-zinc-300 hover:text-white transition cursor-pointer active:scale-95"
               >
                 <span>Search eBay AU</span>
                 <ExternalLink className="h-3.5 w-3.5" />
@@ -687,7 +716,10 @@ export default function AuditCompsLedger({
             {onScanNext && (
               <button
                 type="button"
-                onClick={onScanNext}
+                onClick={() => {
+                  triggerTactileHaptic("light");
+                  onScanNext();
+                }}
                 className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 text-xs font-bold transition cursor-pointer active:scale-95 ml-auto"
               >
                 <Camera className="h-4 w-4 text-cyan-400" />
@@ -696,7 +728,7 @@ export default function AuditCompsLedger({
             )}
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }

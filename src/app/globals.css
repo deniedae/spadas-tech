@@ -43,6 +43,12 @@ nav button {
   box-sizing: border-box;
 }
 
+:root {
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+}
 
 html {
   overflow-x: hidden;
@@ -50,6 +56,7 @@ html {
   scroll-behavior: smooth;
   /* Kill scroll chaining — prevents parent scroll from absorbing child swipes */
   overscroll-behavior: none;
+  background-color: #030305;
 }
 
 body {
@@ -66,6 +73,39 @@ body {
   overscroll-behavior-y: none;
   /* Hint compositor to promote body to its own layer */
   transform: translateZ(0);
+}
+
+/* Safe Area Inset Helpers for Edge-to-Edge Notch & Bottom Bar Flow */
+.pt-safe {
+  padding-top: max(0.75rem, env(safe-area-inset-top, 0px));
+}
+.pb-safe {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
+}
+.pl-safe {
+  padding-left: max(0.75rem, env(safe-area-inset-left, 0px));
+}
+.pr-safe {
+  padding-right: max(0.75rem, env(safe-area-inset-right, 0px));
+}
+.top-safe {
+  top: max(0.75rem, env(safe-area-inset-top, 0px));
+}
+.bottom-safe {
+  bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
+}
+
+/* Fullscreen Edge-to-Edge Camera Viewport Container */
+.camera-viewport-fullscreen {
+  width: 100%;
+  min-height: 72dvh;
+  position: relative;
+  overflow: hidden;
+  contain: strict;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 
 /* ============================================================
@@ -272,7 +312,7 @@ body {
    Tactile Hardware Control Tokens (Teenage Engineering & Leica Inspired)
    ========================================================================== */
 
-/* Primary Action: Safety Orange Machined Hardware Button */
+/* Primary Action: Electric Cyan Machined Hardware Button */
 .btn-primary {
   display: inline-flex;
   height: 2.75rem;
@@ -280,21 +320,22 @@ body {
   justify-content: center;
   gap: 0.5rem;
   border-radius: 0.625rem;
-  background-color: #F97316;
-  border: 1px solid rgba(251, 146, 60, 0.6);
+  background: linear-gradient(135deg, #00F2FE 0%, #0284C7 100%);
+  border: 1px solid rgba(0, 242, 254, 0.6);
   padding-left: 1.5rem;
   padding-right: 1.5rem;
   font-size: 0.875rem;
   font-weight: 800;
-  color: #090A0F;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 2px 4px rgba(0, 0, 0, 0.6);
-  transition: transform 0.08s ease, background-color 0.15s ease, border-color 0.15s ease;
+  color: #030305;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 0 20px rgba(0, 242, 254, 0.25), 0 2px 4px rgba(0, 0, 0, 0.6);
+  transition: transform 0.08s ease, filter 0.15s ease, border-color 0.15s ease;
   cursor: pointer;
 }
 
 .btn-primary:hover {
-  background-color: #EA580C;
-  border-color: rgba(251, 146, 60, 0.8);
+  filter: brightness(1.1);
+  border-color: rgba(0, 242, 254, 0.9);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 0 25px rgba(0, 242, 254, 0.4);
 }
 
 .btn-primary:active {
@@ -335,65 +376,192 @@ body {
 
 /* ==========================================================================
    OLED Glassmorphism Surface System
-   — backdrop-blur-2xl + ultra-thin bg-white/[0.02..0.06] layers over #030305
+   — backdrop-blur-xl + deep bg-white/[0.03] panels with crisp border-white/10 over absolute #05050a / #000000
    ========================================================================== */
 
 /**
  * .glass — thinnest layer: HUD pills, chips, floating badges
- * bg: white/2% | blur: 16px | border: white/8%
+ * bg: white/3% | blur: 20px | border: white/10%
  */
 .glass {
-  background: rgba(255, 255, 255, 0.02);
-  backdrop-filter: blur(16px) saturate(180%);
-  -webkit-backdrop-filter: blur(16px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
 }
 
 /**
- * .glass-card — standard card surface: stat cards, module tiles, section panels
- * bg: white/3% | blur: 24px | border: white/8% | inset highlight on top edge
+ * .glass-card / .glass-panel — standard deep glassmorphic panel
+ * bg: white/3% | blur: 24px | border: white/10% | subtle top inset highlight
  */
-.glass-card {
+.glass-card,
+.glass-panel {
   background: rgba(255, 255, 255, 0.03);
-  backdrop-filter: blur(24px) saturate(160%);
-  -webkit-backdrop-filter: blur(24px) saturate(160%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(24px) saturate(170%);
+  -webkit-backdrop-filter: blur(24px) saturate(170%);
+  border: 1px solid rgba(255, 255, 255, 0.10);
   box-shadow:
-    0 8px 32px 0 rgba(0, 0, 0, 0.37),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    0 8px 32px 0 rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 /**
  * .glass-card:hover — subtle brightening on pointer-over
  */
-.glass-card:hover {
-  border-color: rgba(255, 255, 255, 0.14);
+.glass-card:hover,
+.glass-panel:hover {
+  border-color: rgba(255, 255, 255, 0.18);
   background: rgba(255, 255, 255, 0.05);
 }
 
 /**
- * .glass-nav — nav bar / tab bar: needs stronger opacity for legibility
- * bg: black/85% | blur: 40px | border-top: white/8%
+ * .glass-nav — nav bar / tab bar: deep black blur with crisp border
+ * bg: black/85% | blur: 40px | border-top: white/10%
  */
 .glass-nav {
-  background: rgba(0, 0, 0, 0.85);
+  background: rgba(0, 0, 0, 0.88);
   backdrop-filter: blur(40px) saturate(200%);
   -webkit-backdrop-filter: blur(40px) saturate(200%);
-  border-color: rgba(255, 255, 255, 0.08);
-  box-shadow: 0 -8px 32px 0 rgba(0, 0, 0, 0.5);
+  border-color: rgba(255, 255, 255, 0.10);
+  box-shadow: 0 -8px 32px 0 rgba(0, 0, 0, 0.6);
 }
 
 /**
- * .glass-hud — floating camera HUD overlays: strong blur, minimal bg
- * bg: black/70% | blur: 32px
+ * .glass-hud — floating camera HUD overlays: strong blur, minimal dark bg
+ * bg: black/75% | blur: 32px | border: white/10%
  */
 .glass-hud {
-  background: rgba(0, 0, 0, 0.70);
+  background: rgba(0, 0, 0, 0.75);
   backdrop-filter: blur(32px) saturate(180%);
   -webkit-backdrop-filter: blur(32px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7);
+}
+
+/**
+ * .cyber-glass — deep tactical OLED glass surface
+ */
+.cyber-glass {
+  background: rgba(5, 5, 10, 0.85);
+  backdrop-filter: blur(24px) saturate(190%);
+  -webkit-backdrop-filter: blur(24px) saturate(190%);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  box-shadow:
+    0 8px 32px 0 rgba(0, 0, 0, 0.7),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.cyber-glass:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(10, 12, 20, 0.90);
+}
+
+/* Hyper-Vibrant Neon Accents & Glows for High-Value Triggers */
+.neon-glow-cyan {
+  border-color: rgba(0, 242, 254, 0.6) !important;
+  box-shadow:
+    0 0 25px rgba(0, 242, 254, 0.4),
+    inset 0 1px 0 rgba(0, 242, 254, 0.3) !important;
+}
+
+.neon-glow-lime {
+  border-color: rgba(204, 255, 0, 0.65) !important;
+  box-shadow:
+    0 0 28px rgba(204, 255, 0, 0.45),
+    inset 0 1px 0 rgba(204, 255, 0, 0.35) !important;
+}
+
+.text-neon-cyan {
+  color: #00F2FE;
+}
+
+.text-neon-lime {
+  color: #CCFF00;
+}
+
+.bg-neon-lime {
+  background-color: #CCFF00;
+}
+
+.bg-neon-cyan {
+  background-color: #00F2FE;
+}
+
+/* High-value Trigger Buttons */
+.neon-trigger-cyan {
+  background: linear-gradient(135deg, #00F2FE 0%, #00B4D8 100%);
+  color: #000000;
+  font-weight: 900;
+  box-shadow: 0 0 24px rgba(0, 242, 254, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(0, 242, 254, 0.8);
+  transition: transform 0.08s ease, box-shadow 0.15s ease;
+}
+
+.neon-trigger-cyan:hover {
+  box-shadow: 0 0 32px rgba(0, 242, 254, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  transform: scale(1.02);
+}
+
+.neon-trigger-cyan:active {
+  transform: scale(0.97);
+}
+
+.neon-trigger-lime {
+  background: linear-gradient(135deg, #CCFF00 0%, #A3E635 100%);
+  color: #000000;
+  font-weight: 900;
+  box-shadow: 0 0 28px rgba(204, 255, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(204, 255, 0, 0.85);
+  transition: transform 0.08s ease, box-shadow 0.15s ease;
+}
+
+.neon-trigger-lime:hover {
+  box-shadow: 0 0 36px rgba(204, 255, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  transform: scale(1.02);
+}
+
+.neon-trigger-lime:active {
+  transform: scale(0.97);
+}
+
+.badge-neon-lime {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: rgba(204, 255, 0, 0.12);
+  border: 1px solid rgba(204, 255, 0, 0.35);
+  color: #CCFF00;
+  box-shadow: 0 0 12px rgba(204, 255, 0, 0.2);
+}
+
+.badge-neon-cyan {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: rgba(0, 242, 254, 0.12);
+  border: 1px solid rgba(0, 242, 254, 0.35);
+  color: #00F2FE;
+  box-shadow: 0 0 12px rgba(0, 242, 254, 0.2);
+}
+
+.cyber-glow-amber {
+  border-color: rgba(245, 158, 11, 0.4) !important;
+  box-shadow:
+    0 0 25px rgba(245, 158, 11, 0.18),
+    inset 0 1px 0 rgba(245, 158, 11, 0.2) !important;
 }
 
 /* Tactile Hardware Specimen / Telemetry Panel — updated to OLED black */
@@ -406,8 +574,6 @@ body {
   position: relative;
 }
 
-
-
 /* Mechanical Corner Crosshair Notch (Subtle Hardware Precision Marker) */
 .hardware-corner-notch::before {
   content: "";
@@ -416,17 +582,139 @@ body {
   left: 0;
   width: 6px;
   height: 6px;
-  border-top: 2px solid #F97316;
-  border-left: 2px solid #F97316;
+  border-top: 2px solid #00F2FE;
+  border-left: 2px solid #00F2FE;
   pointer-events: none;
 }
 
 /* Legacy fallback class redirected to hardware panel */
 .saas-card {
-  background-color: #0E1118;
+  background-color: #080808;
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 4px 12px rgba(0, 0, 0, 0.5);
 }
+
+/* ==========================================================================
+   Anti-Boilerplate Pro Tactical Glass & Status Optics Suite
+   — Purges generic warning oranges, boxy cards, and plain system text
+   ========================================================================== */
+
+/* 1. Tactical Status Pills (Replaces raw bg-orange-500, bg-green-500, etc.) */
+.status-pill-emerald,
+.status-pill-profit {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.2rem 0.625rem;
+  border-radius: 9999px;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #00F59B;
+  background: rgba(0, 245, 155, 0.08);
+  border: 1px solid rgba(0, 245, 155, 0.35);
+  box-shadow: 0 0 16px rgba(0, 245, 155, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.status-pill-cyan,
+.status-pill-active {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.2rem 0.625rem;
+  border-radius: 9999px;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #00F2FE;
+  background: rgba(0, 242, 254, 0.08);
+  border: 1px solid rgba(0, 242, 254, 0.35);
+  box-shadow: 0 0 16px rgba(0, 242, 254, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.status-pill-gold,
+.status-pill-caution {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.2rem 0.625rem;
+  border-radius: 9999px;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #FBBF24;
+  background: rgba(251, 191, 36, 0.08);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  box-shadow: 0 0 16px rgba(251, 191, 36, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.status-pill-crimson,
+.status-pill-drop {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.2rem 0.625rem;
+  border-radius: 9999px;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #F43F5E;
+  background: rgba(244, 63, 94, 0.08);
+  border: 1px solid rgba(244, 63, 94, 0.35);
+  box-shadow: 0 0 16px rgba(244, 63, 94, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* 2. Tactical Frosted Callout Banner (Replaces ugly, blocky alert boxes) */
+.tactical-alert-box {
+  background: rgba(5, 5, 10, 0.85);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.875rem;
+  padding: 0.75rem 1rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+/* 3. Native Edge-to-Edge Camera Viewport Padding Helpers */
+.camera-viewport-native {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+  touch-action: manipulation;
+  contain: strict;
+  isolation: isolate;
+}
+
+.safe-inset-top {
+  padding-top: max(0.75rem, env(safe-area-inset-top, 0px));
+}
+
+.safe-inset-bottom {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
+}
+
+.safe-inset-x {
+  padding-left: max(0.75rem, env(safe-area-inset-left, 0px));
+  padding-right: max(0.75rem, env(safe-area-inset-right, 0px));
+}
+
 
 @theme inline {
   --color-background: var(--background);
@@ -436,9 +724,9 @@ body {
   --font-heading: var(--font-sans);
   
   /* Premium Color Hierarchy */
-  --color-tool-orange: #F97316;       /* Primary CTA only — not for status */
+  --color-tool-cyan: #00F2FE;         /* Primary Action / Focus */
   --color-signal-emerald: #22C55E;    /* Success / profit */
-  --color-hazard-crimson: #DC2626;    /* Destructive / error */
+  --color-hazard-rose: #F43F5E;       /* Destructive / error */
   --color-active-cyan: #00F2FE;       /* Active state, scan-live, selected */
   --color-loading: #52525B;           /* Monochrome loading pulse (zinc-600) */
   --color-radar-amber: #F59E0B;       /* Chart use only — NOT for UI status */
@@ -451,8 +739,8 @@ body {
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar: var(--sidebar);
-  --color-chart-5: #F97316;
-  --color-chart-4: #E11D48;
+  --color-chart-5: #00F2FE;
+  --color-chart-4: #F43F5E;
   --color-chart-3: #F59E0B;
   --color-chart-2: #22C55E;
   --color-chart-1: #38BDF8;
@@ -483,62 +771,62 @@ body {
 
 /* Light / Fallback tokens */
 :root {
-  --background: #030305;
+  --background: #05050a;
   --foreground: #F4F4F5;
-  --card: #080808;
+  --card: #08080c;
   --card-foreground: #F4F4F5;
-  --popover: #0E1118;
+  --popover: #0a0a10;
   --popover-foreground: #F4F4F5;
-  --primary: #F97316;
-  --primary-foreground: #090A0F;
-  --secondary: #161922;
+  --primary: #00F2FE;
+  --primary-foreground: #030305;
+  --secondary: #12151e;
   --secondary-foreground: #E4E4E7;
-  --muted: #161922;
+  --muted: #12151e;
   --muted-foreground: #A1A1AA;
-  --accent: #1F2430;
+  --accent: #1a1e2a;
   --accent-foreground: #F4F4F5;
-  --destructive: #DC2626;
-  --border: rgba(255, 255, 255, 0.08);
+  --destructive: #F43F5E;
+  --border: rgba(255, 255, 255, 0.10);
   --input: rgba(255, 255, 255, 0.12);
-  --ring: #F97316;
+  --ring: #00F2FE;
   --radius: 0.625rem;
-  --sidebar: #0B0D13;
+  --sidebar: #05050a;
   --sidebar-foreground: #F4F4F5;
-  --sidebar-primary: #F97316;
-  --sidebar-primary-foreground: #090A0F;
-  --sidebar-accent: #161922;
+  --sidebar-primary: #00F2FE;
+  --sidebar-primary-foreground: #000000;
+  --sidebar-accent: #12151e;
   --sidebar-accent-foreground: #F4F4F5;
-  --sidebar-border: rgba(255, 255, 255, 0.08);
-  --sidebar-ring: #F97316;
+  --sidebar-border: rgba(255, 255, 255, 0.10);
+  --sidebar-ring: #00F2FE;
 }
 
 .dark {
-  --background: #030305;
+  --background: #05050a;
   --foreground: #F4F4F5;
-  --card: #080808;
+  --card: #08080c;
   --card-foreground: #F4F4F5;
-  --popover: #0E1118;
+  --popover: #0a0a10;
   --popover-foreground: #F4F4F5;
-  --primary: #F97316;
-  --primary-foreground: #090A0F;
-  --secondary: #161922;
+  --primary: #00F2FE;
+  --primary-foreground: #030305;
+  --secondary: #12151e;
   --secondary-foreground: #E4E4E7;
-  --muted: #161922;
+  --muted: #12151e;
   --muted-foreground: #A1A1AA;
-  --accent: #1F2430;
+  --accent: #1a1e2a;
   --accent-foreground: #F4F4F5;
-  --destructive: #DC2626;
-  --border: rgba(255, 255, 255, 0.08);
+  --destructive: #F43F5E;
+  --border: rgba(255, 255, 255, 0.10);
   --input: rgba(255, 255, 255, 0.12);
-  --ring: #F97316;
-  --sidebar: #0B0D13;
+  --ring: #00F2FE;
+  --sidebar: #05050a;
   --sidebar-foreground: #F4F4F5;
-  --sidebar-primary: #F97316;
-  --sidebar-primary-foreground: #090A0F;
-  --sidebar-accent: #161922;
+  --sidebar-primary: #00F2FE;
+  --sidebar-primary-foreground: #000000;
+  --sidebar-accent: #12151e;
   --sidebar-accent-foreground: #F4F4F5;
-  --sidebar-border: rgba(255, 255, 255, 0.08);
-  --sidebar-ring: #F97316;
+  --sidebar-border: rgba(255, 255, 255, 0.10);
+  --sidebar-ring: #00F2FE;
 }
 
 @layer base {
@@ -556,7 +844,7 @@ body {
   }
 
   :focus-visible {
-    outline: 2px solid var(--color-tool-orange);
+    outline: 2px solid var(--color-tool-cyan);
     outline-offset: 2px;
   }
 }
@@ -620,9 +908,11 @@ body::-webkit-scrollbar-track {
   0% {
     opacity: 0;
     transform: translateY(24px) scale(0.92);
+    filter: blur(3px);
   }
   60% {
     opacity: 1;
+    filter: blur(0px);
     transform: translateY(-3px) scale(1.012);
   }
   80% {
@@ -631,11 +921,95 @@ body::-webkit-scrollbar-track {
   100% {
     opacity: 1;
     transform: translateY(0) scale(1);
+    filter: blur(0px);
   }
 }
 .lens-card-enter {
   animation: lens-card-enter 380ms cubic-bezier(0.34, 1.56, 0.64, 1.0) forwards;
+  will-change: transform, opacity, filter;
+  transform-origin: center bottom;
+}
+
+/**
+ * Card Morph & Smooth Glide Entrance — scales up organically from tap point
+ * with zero layout popping or frame drop
+ */
+@keyframes card-morph-glide {
+  0% {
+    opacity: 0;
+    transform: translateY(32px) scale(0.92);
+    filter: blur(4px);
+  }
+  65% {
+    opacity: 1;
+    filter: blur(0px);
+    transform: translateY(-2px) scale(1.008);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0px);
+  }
+}
+.lens-card-morph-enter {
+  animation: card-morph-glide 420ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity, filter;
+  transform-origin: center bottom;
+}
+
+/**
+ * Staggered Comp Item Glide — each sold comp cascades into view gracefully
+ */
+@keyframes comp-row-glide {
+  0% {
+    opacity: 0;
+    transform: translateY(14px) scale(0.97);
+    filter: blur(2px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0px);
+  }
+}
+.comp-row-glide {
+  animation: comp-row-glide 380ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  will-change: transform, opacity, filter;
+}
+
+/**
+ * In-stream Evidence Ledger Smooth Glide
+ */
+@keyframes ledger-expand-glide {
+  0% {
+    opacity: 0;
+    transform: translateY(18px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.ledger-expand-glide {
+  animation: ledger-expand-glide 400ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
   will-change: transform, opacity;
+}
+
+/**
+ * Zero Layout Shift Accordion Transition using CSS Grid
+ */
+.accordion-grid-container {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition: grid-template-rows 360ms cubic-bezier(0.16, 1, 0.3, 1), opacity 280ms ease;
+}
+.accordion-grid-container.is-expanded {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+.accordion-grid-inner {
+  overflow: hidden;
 }
 
 /**
@@ -873,5 +1247,338 @@ body::-webkit-scrollbar-track {
   0%   { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
+
+/* ==========================================================================
+   Smooth State Transition & Micro-Interaction Engine
+   — Native spring physics, zero-jank crossfades, shutter feedback, morphing
+   ========================================================================== */
+
+/* 1. Spring-loaded Card Entry */
+.lens-card-enter {
+  animation: lensCardEnter 340ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+@keyframes lensCardEnter {
+  0% {
+    opacity: 0;
+    transform: translateY(20px) scale(0.96);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(-2px) scale(1.005);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* 2. Graceful Card Dismissal */
+.lens-card-exit {
+  animation: lensCardExit 220ms cubic-bezier(0.4, 0, 1, 1) forwards;
+  will-change: transform, opacity;
+}
+@keyframes lensCardExit {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(16px) scale(0.96);
+  }
+}
+
+/* 3. Valuation Bloom & Success Radiance */
+.lens-hit-bloom {
+  animation: lensHitBloom 650ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+@keyframes lensHitBloom {
+  0% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.5), 0 4px 20px rgba(0, 0, 0, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 24px 6px rgba(16, 185, 129, 0.35), 0 8px 32px rgba(0, 0, 0, 0.7);
+  }
+  100% {
+    box-shadow: 0 0 16px 2px rgba(16, 185, 129, 0.15), 0 4px 24px rgba(0, 0, 0, 0.6);
+  }
+}
+
+/* 4. Non-jarring Miss / Dismiss Fade */
+.lens-miss-fade {
+  animation: lensMissFade 240ms ease-out forwards;
+}
+@keyframes lensMissFade {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+}
+
+/* 5. Seamless Tab & Viewport Crossfade */
+.lens-crossfade {
+  animation: lensCrossfade 260ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: opacity, transform;
+}
+@keyframes lensCrossfade {
+  0% {
+    opacity: 0;
+    transform: translateY(6px) scale(0.99);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* 6. Tactile Camera Shutter Flash */
+.lens-shutter-flash {
+  animation: lensShutterFlash 120ms ease-out forwards;
+}
+@keyframes lensShutterFlash {
+  0% {
+    opacity: 0.75;
+    background-color: white;
+  }
+  100% {
+    opacity: 0;
+    background-color: transparent;
+  }
+}
+
+/* 7. Progressive Stage Text Morph */
+.lens-stage-morph {
+  animation: lensStageMorph 220ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+@keyframes lensStageMorph {
+  0% {
+    opacity: 0;
+    transform: translateY(4px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* 8. Bottom Action Bar Spring Slide */
+.selection-bar-enter {
+  animation: selectionBarEnter 300ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+@keyframes selectionBarEnter {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 24px) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+}
+
+/* 9. Glowing Laser Shimmer */
+.laser-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+.laser-shimmer::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.4) 50%,
+    transparent 100%
+  );
+  animation: laserShimmerSweep 1.8s infinite;
+}
+@keyframes laserShimmerSweep {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(200%); }
+}
+
+/* ==========================================================================
+   Bespoke Native Instrument & Physical Weight System
+   ========================================================================== */
+
+/* 10. Machined Metal Shutter Button with Physical Recoil Physics */
+.machined-shutter-trigger {
+  position: relative;
+  transition: transform 90ms cubic-bezier(0.175, 0.885, 0.32, 1.275), filter 120ms ease, box-shadow 120ms ease;
+  will-change: transform;
+}
+.machined-shutter-trigger:active {
+  transform: scale(0.88) translateY(2px);
+  box-shadow: 0 0 15px rgba(251, 191, 36, 0.35) !important;
+}
+
+/* 11. Optical Iris Shutter Aperture Contraction */
+@keyframes irisContraction {
+  0% {
+    clip-path: circle(100% at 50% 50%);
+    opacity: 0.9;
+  }
+  40% {
+    clip-path: circle(25% at 50% 50%);
+    opacity: 0.4;
+  }
+  100% {
+    clip-path: circle(100% at 50% 50%);
+    opacity: 0;
+  }
+}
+.lens-iris-snap {
+  animation: irisContraction 180ms cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+/* 12. Certified Grading Slab Holographic Authenticity Sheen */
+.hologram-sheen {
+  position: relative;
+  overflow: hidden;
+}
+.hologram-sheen::after {
+  content: "";
+  position: absolute;
+  inset: -50%;
+  background: linear-gradient(
+    115deg,
+    transparent 20%,
+    rgba(0, 242, 254, 0.08) 35%,
+    rgba(168, 85, 247, 0.08) 45%,
+    rgba(52, 211, 153, 0.12) 55%,
+    transparent 70%
+  );
+  transform: rotate(-25deg) translateY(-100%);
+  animation: hologramSweep 6s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes hologramSweep {
+  0% { transform: rotate(-25deg) translateY(-120%); }
+  35%, 100% { transform: rotate(-25deg) translateY(120%); }
+}
+
+/* 13. Dynamic Laser Radar Grid Scan Line */
+@keyframes laserSweepVertical {
+  0% { top: 0%; opacity: 0.8; }
+  50% { top: 100%; opacity: 1; }
+  100% { top: 0%; opacity: 0.8; }
+}
+.lens-laser-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent 0%, rgba(0, 242, 254, 0.8) 20%, #00F2FE 50%, rgba(0, 242, 254, 0.8) 80%, transparent 100%);
+  box-shadow: 0 0 15px #00F2FE, 0 0 30px rgba(0, 242, 254, 0.6);
+  animation: laserSweepVertical 2.2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* 14. Pulsing Laser Line Skeleton Scanning */
+@keyframes laserScanLineYAnim {
+  0% {
+    top: 0%;
+    opacity: 0.2;
+  }
+  15% {
+    opacity: 1;
+  }
+  50% {
+    top: 98%;
+    opacity: 0.9;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    top: 0%;
+    opacity: 0.2;
+  }
+}
+.laser-scan-line-y {
+  animation: laserScanLineYAnim 2.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes laserScanLineXAnim {
+  0% {
+    left: -20%;
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    left: 110%;
+    opacity: 0;
+  }
+}
+.laser-scan-line-x {
+  animation: laserScanLineXAnim 1.8s ease-in-out infinite;
+}
+
+/* 15. Subtle Radar Sweep 360-Degree Conical Beam */
+@keyframes radarSweepRotateAnim {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+.radar-sweep-cone {
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    transparent 280deg,
+    rgba(6, 182, 212, 0.05) 320deg,
+    rgba(6, 182, 212, 0.35) 360deg
+  );
+  animation: radarSweepRotateAnim 2.2s linear infinite;
+  transform-origin: center center;
+}
+
+@keyframes radarRingExpandAnim {
+  0% {
+    transform: scale(0.2);
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 0.4;
+  }
+  100% {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+}
+.radar-ring-expand {
+  animation: radarRingExpandAnim 2.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite;
+}
+
+/* 16. Cyber Glass Skeleton Bone */
+.laser-skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.03) 0%,
+    rgba(6, 182, 212, 0.08) 50%,
+    rgba(255, 255, 255, 0.03) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-sweep 1.8s ease-in-out infinite;
+}
+
+
 
 

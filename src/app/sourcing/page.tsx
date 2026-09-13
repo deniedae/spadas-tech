@@ -49,23 +49,23 @@ const verdictConfig = {
   buy: {
     label: "BUY",
     icon: CheckCircle2,
-    className: "bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-400",
-    border: "border-green-500/40",
-    bg: "bg-green-50 dark:bg-green-500/10",
+    className: "bg-emerald-500/15 text-emerald-400 font-black tracking-wider",
+    border: "border-emerald-500/40",
+    bg: "bg-emerald-950/40",
   },
   caution: {
     label: "CAUTION",
     icon: AlertCircle,
-    className: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400",
+    className: "bg-amber-500/15 text-amber-300 font-black tracking-wider",
     border: "border-amber-500/40",
-    bg: "bg-amber-50 dark:bg-amber-500/10",
+    bg: "bg-amber-950/40",
   },
   pass: {
     label: "PASS",
     icon: XCircle,
-    className: "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-400",
-    border: "border-red-500/40",
-    bg: "bg-red-50 dark:bg-red-500/10",
+    className: "bg-rose-500/15 text-rose-400 font-black tracking-wider",
+    border: "border-rose-500/40",
+    bg: "bg-rose-950/40",
   },
 };
 
@@ -213,9 +213,9 @@ export default function SourcingPage() {
           </button>
 
           {error && (
-            <div className="flex items-start gap-3 rounded-2xl border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">
-              <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0" />
-              <p>{error}</p>
+            <div className="flex items-start gap-3 rounded-2xl border border-rose-500/30 bg-rose-950/30 p-4 text-xs font-mono text-rose-300">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-400" />
+              <p className="flex-1">{error}</p>
             </div>
           )}
         </>
@@ -430,8 +430,8 @@ function Row({
       </span>
       <span
         className={`tabular-nums ${strong ? "font-bold" : ""} ${
-          strong && positive ? "text-green-600 dark:text-green-400" : ""
-        } ${strong && !positive ? "text-red-600 dark:text-red-400" : ""}`}
+          strong && positive ? "text-emerald-400" : ""
+        } ${strong && !positive ? "text-rose-400" : ""}`}
       >
         {value}
       </span>

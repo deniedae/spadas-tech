@@ -240,17 +240,17 @@ export function GuestScanLimitModal({
   }
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-lg overflow-hidden rounded-3xl border border-zinc-800 bg-[#0E1017] shadow-2xl text-zinc-100 p-6 sm:p-8 space-y-6">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl animate-in fade-in duration-200">
+      <div className="relative w-full max-w-lg overflow-hidden rounded-3xl glass-card bg-[#05050a]/95 border border-white/10 shadow-2xl text-zinc-100 p-6 sm:p-8 space-y-6">
         {/* Glow ambient background */}
-        <div className="absolute -top-24 -right-24 h-48 w-48 rounded-full bg-orange-500/20 blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-24 -left-24 h-48 w-48 rounded-full bg-cyan-500/15 blur-3xl pointer-events-none" />
+        <div className="absolute -top-24 -right-24 h-48 w-48 rounded-full bg-[#00F2FE]/10 blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-24 -left-24 h-48 w-48 rounded-full bg-cyan-500/10 blur-3xl pointer-events-none" />
 
         {/* Header with pill badge */}
         <div className="flex items-start justify-between">
           <div className="space-y-2">
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-orange-500/10 border border-orange-500/30 px-3 py-1 text-xs font-black tracking-wider text-orange-400 uppercase">
-              <Zap className="h-3.5 w-3.5 fill-orange-400" />
+            <div className="badge-active inline-flex items-center gap-1.5 px-3 py-1 text-xs font-bold tracking-wider uppercase">
+              <Zap className="h-3.5 w-3.5 text-[#00F2FE]" />
               <span>3 of 3 Guest Scans Used</span>
             </div>
             <h2 className="text-2xl font-black tracking-tight text-white sm:text-3xl">
@@ -260,7 +260,7 @@ export function GuestScanLimitModal({
           {onClose && (
             <button
               onClick={onClose}
-              className="rounded-full p-1.5 text-zinc-400 hover:text-white hover:bg-zinc-800 transition"
+              className="rounded-full p-1.5 text-zinc-400 hover:text-white hover:bg-white/[0.06] transition"
               aria-label="Close"
             >
               <X className="h-5 w-5" />
@@ -270,26 +270,26 @@ export function GuestScanLimitModal({
 
         {/* Scanned Item Preserved Teaser Card */}
         {displayItem && (
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-3.5 flex items-center gap-3.5">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-orange-500/15 text-orange-400 border border-orange-500/30">
+          <div className="rounded-2xl glass border border-white/[0.08] p-3.5 flex items-center gap-3.5">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl glass text-[#00F2FE] border border-white/[0.08]">
               <Camera className="h-5 w-5" />
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 font-bold">
+                <span className="hud-chip">
                   Last Scanned
                 </span>
                 <span className="text-[10px] font-bold text-emerald-400 flex items-center gap-0.5">
                   <TrendingUp className="h-3 w-3" /> Profit Comp Saved
                 </span>
               </div>
-              <p className="text-sm font-bold text-white truncate">
+              <p className="text-sm font-bold text-white truncate mt-0.5">
                 {displayItem.name || displayItem.productName || "Scanned Item"}
               </p>
             </div>
             {displayItem.estimatedProfit && (
               <div className="text-right">
-                <span className="text-[10px] text-zinc-500 block font-mono">Net Profit</span>
+                <span className="hud-label block">Net Profit</span>
                 <span className="text-sm font-extrabold text-emerald-400">
                   +${Number(displayItem.estimatedProfit).toFixed(2)}
                 </span>
@@ -300,29 +300,29 @@ export function GuestScanLimitModal({
 
         {/* Benefits Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs text-zinc-300">
-          <div className="flex items-center gap-2 bg-zinc-900/40 border border-zinc-800/80 rounded-xl p-2.5">
-            <CheckCircle2 className="h-4 w-4 text-orange-400 shrink-0" />
+          <div className="flex items-center gap-2 glass border border-white/[0.06] rounded-xl p-2.5">
+            <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
             <span><strong>10 Scans/Day</strong> (Free Forever)</span>
           </div>
-          <div className="flex items-center gap-2 bg-zinc-900/40 border border-zinc-800/80 rounded-xl p-2.5">
-            <CheckCircle2 className="h-4 w-4 text-orange-400 shrink-0" />
+          <div className="flex items-center gap-2 glass border border-white/[0.06] rounded-xl p-2.5">
+            <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
             <span><strong>Save Drafts</strong> to inventory</span>
           </div>
-          <div className="flex items-center gap-2 bg-zinc-900/40 border border-zinc-800/80 rounded-xl p-2.5">
-            <CheckCircle2 className="h-4 w-4 text-orange-400 shrink-0" />
+          <div className="flex items-center gap-2 glass border border-white/[0.06] rounded-xl p-2.5">
+            <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
             <span><strong>1-Tap eBay</strong> auto-listing</span>
           </div>
-          <div className="flex items-center gap-2 bg-zinc-900/40 border border-zinc-800/80 rounded-xl p-2.5">
-            <CheckCircle2 className="h-4 w-4 text-orange-400 shrink-0" />
+          <div className="flex items-center gap-2 glass border border-white/[0.06] rounded-xl p-2.5">
+            <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
             <span><strong>Offline Mode</strong> for thrift stores</span>
           </div>
         </div>
 
         {/* Power Seller Pro Instant Unlock Banner */}
-        <div className="rounded-2xl border border-amber-500/30 bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-amber-500/10 p-3.5 flex items-center justify-between gap-3 shadow-lg">
+        <div className="rounded-2xl border border-[#00F2FE]/30 bg-gradient-to-r from-[#00F2FE]/5 via-cyan-500/5 to-blue-500/5 p-3.5 flex items-center justify-between gap-3 shadow-lg">
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5 text-amber-400 font-extrabold text-[11px] tracking-wide uppercase">
-              <Sparkles className="h-3 w-3 fill-amber-400" />
+            <div className="flex items-center gap-1.5 text-[#00F2FE] font-extrabold text-[11px] tracking-wide uppercase">
+              <Sparkles className="h-3 w-3 fill-[#00F2FE]" />
               <span>Power Seller Option</span>
             </div>
             <p className="text-xs font-bold text-white truncate">
@@ -334,7 +334,7 @@ export function GuestScanLimitModal({
             type="button"
             onClick={handleUpgradeToPro}
             disabled={upgradingToPro}
-            className="shrink-0 flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 px-3.5 py-2 text-xs font-black text-slate-950 hover:brightness-110 shadow-md transition disabled:opacity-50"
+            className="shrink-0 flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-3.5 py-2 text-xs font-black text-slate-950 hover:brightness-110 shadow-md transition active:scale-95 disabled:opacity-50 cursor-pointer"
           >
             {upgradingToPro ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -351,7 +351,7 @@ export function GuestScanLimitModal({
             type="button"
             onClick={handleGoogleSignIn}
             disabled={googleLoading}
-            className="w-full flex items-center justify-center gap-3 rounded-xl bg-white text-zinc-900 font-bold py-3 px-4 text-sm hover:bg-zinc-100 transition shadow-md disabled:opacity-50"
+            className="w-full flex items-center justify-center gap-3 rounded-xl glass hover:bg-white/[0.08] border border-white/[0.1] text-white font-bold py-3 px-4 text-sm transition shadow-md disabled:opacity-50 active:scale-98 cursor-pointer"
           >
             <svg className="h-4 w-4" viewBox="0 0 24 24">
               <path
@@ -376,9 +376,9 @@ export function GuestScanLimitModal({
 
           <div className="relative flex items-center justify-center py-1">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-zinc-800" />
+              <div className="w-full border-t border-white/[0.06]" />
             </div>
-            <span className="relative bg-[#0E1017] px-3 text-[11px] font-mono text-zinc-500 uppercase tracking-wider">
+            <span className="relative bg-[#030305] px-3 hud-label">
               Or Create with Email
             </span>
           </div>
@@ -390,7 +390,7 @@ export function GuestScanLimitModal({
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full rounded-xl border border-zinc-800 bg-zinc-900/80 px-4 py-2.5 text-sm text-white placeholder-zinc-500 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500 transition"
+              className="w-full rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-2.5 text-sm text-white placeholder-zinc-500 focus:border-[#00F2FE] focus:outline-none focus:ring-1 focus:ring-[#00F2FE] transition"
             />
             <input
               type="password"
@@ -398,7 +398,7 @@ export function GuestScanLimitModal({
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="w-full rounded-xl border border-zinc-800 bg-zinc-900/80 px-4 py-2.5 text-sm text-white placeholder-zinc-500 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500 transition"
+              className="w-full rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-2.5 text-sm text-white placeholder-zinc-500 focus:border-[#00F2FE] focus:outline-none focus:ring-1 focus:ring-[#00F2FE] transition"
             />
 
             {errorMsg && (
@@ -408,7 +408,7 @@ export function GuestScanLimitModal({
             <button
               type="submit"
               disabled={loading}
-              className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 py-3 px-4 text-sm font-black text-white hover:brightness-110 transition shadow-lg disabled:opacity-50"
+              className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 py-3 px-4 text-sm font-black text-slate-950 hover:brightness-110 transition shadow-lg active:scale-98 disabled:opacity-50 cursor-pointer"
             >
               {loading ? (
                 <span>Creating Account...</span>
@@ -428,7 +428,7 @@ export function GuestScanLimitModal({
             <button
               type="button"
               onClick={() => router.push(`/login?redirect=${encodeURIComponent("/lens")}`)}
-              className="text-orange-400 font-bold hover:underline"
+              className="text-[#00F2FE] font-bold hover:underline cursor-pointer"
             >
               Sign In
             </button>

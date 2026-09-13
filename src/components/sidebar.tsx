@@ -17,7 +17,7 @@ export default function Sidebar() {
   ];
 
   return (
-    <aside className="w-64 min-h-screen bg-[#030305] border-r border-white/[0.06] text-white p-4 flex flex-col">
+    <aside className="w-64 min-h-screen bg-[#05050a] border-r border-white/10 text-white p-4 flex flex-col">
       {/* Wordmark */}
       <div className="mb-8 flex items-center gap-3 px-2 pt-2">
         <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#00F2FE]/10 border border-[#00F2FE]/20 shadow-[0_0_16px_rgba(0,242,254,0.15)] shrink-0">

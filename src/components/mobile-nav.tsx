@@ -17,7 +17,7 @@ export default function MobileNav() {
   const { haulCount } = useHaulStore();
 
   const handleNavClick = () => {
-    triggerTactileHaptic("light");
+    triggerTactileHaptic("tap");
   };
 
   const navItems = [

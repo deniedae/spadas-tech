@@ -93,10 +93,12 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+    { media: "(prefers-color-scheme: light)", color: "#030305" },
+    { media: "(prefers-color-scheme: dark)", color: "#030305" },
   ],
 };
 
@@ -125,6 +127,8 @@ export default function RootLayout({
         />
         <link rel="canonical" href="https://spadas.ai" />
         <meta property="og:image" content="https://spadas.ai/og-preview.jpg" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+        <meta name="theme-color" content="#030305" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-touch-fullscreen" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -143,7 +147,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="min-h-screen bg-[#090A0F] text-zinc-100 antialiased selection:bg-orange-500/30 selection:text-orange-200">
+      <body className="min-h-screen bg-[#090A0F] text-zinc-100 antialiased selection:bg-cyan-500/30 selection:text-cyan-200">
         <LayoutClient>{children}</LayoutClient>
         <Analytics />
         <SpeedInsights />

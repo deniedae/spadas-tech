@@ -7,7 +7,6 @@ import {
   History,
   ChevronLeft,
   ChevronRight,
-  AlertTriangle,
   Scale,
   CheckSquare,
   Square,
@@ -23,6 +22,7 @@ import ItemComparisonModal, { ComparisonItem } from "@/components/item-compariso
 import EbayListingModal from "@/components/ebay-listing-modal";
 import SubscriptionPaywallModal from "@/components/subscription-paywall-modal";
 import { supabase } from "@/app/lib/supabase";
+import { triggerTactileHaptic } from "@/lib/android-bridge";
 
 interface ScanRecord {
   id: string;
@@ -80,12 +80,14 @@ export function HistoryFeedView({
   }, []);
 
   const toggleSelect = (id: string) => {
+    triggerTactileHaptic("selection");
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
     );
   };
 
   const selectAll = () => {
+    triggerTactileHaptic("selection");
     if (selectedIds.length === filteredItems.length) {
       setSelectedIds([]);
     } else {
@@ -173,9 +175,10 @@ export function HistoryFeedView({
 
           <Link
             href="/lens"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white hover:bg-zinc-200 text-zinc-950 font-black text-xs transition shadow-md active:scale-95 cursor-pointer"
+            onClick={() => triggerTactileHaptic("medium")}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-400 via-teal-400 to-emerald-400 hover:brightness-110 text-slate-950 font-black text-xs transition shadow-[0_0_15px_rgba(0,242,254,0.3)] active:scale-95 cursor-pointer"
           >
-            <Scan className="h-4 w-4" />
+            <Scan className="h-4 w-4 text-slate-950" />
             <span>Launch Lens AR</span>
           </Link>
         </div>
@@ -205,7 +208,7 @@ export function HistoryFeedView({
           <span className="hud-label">
             Active Filter
           </span>
-          <span className="text-sm font-mono font-bold uppercase text-cyan-400 leading-none">
+          <span className="text-sm font-mono font-black uppercase text-[#00F2FE] drop-shadow-[0_0_8px_rgba(0,242,254,0.4)] leading-none">
             {activeStatus === "all" ? "All" : activeStatus}
           </span>
         </div>
@@ -215,13 +218,16 @@ export function HistoryFeedView({
             Selected
           </span>
           <div className="flex items-baseline justify-between">
-            <span className="text-xl font-black text-emerald-400 font-mono tabular-nums leading-none">
+            <span className="text-xl font-black text-[#CCFF00] font-mono tabular-nums leading-none drop-shadow-[0_0_8px_rgba(204,255,0,0.4)]">
               {selectedIds.length}
             </span>
             {selectedIds.length > 0 && (
               <button
                 type="button"
-                onClick={() => setSelectedIds([])}
+                onClick={() => {
+                  triggerTactileHaptic("light");
+                  setSelectedIds([]);
+                }}
                 className="text-[10px] font-mono text-zinc-500 hover:text-zinc-200 underline cursor-pointer"
               >
                 Clear
@@ -232,35 +238,38 @@ export function HistoryFeedView({
       </div>
 
       {/* Filter Tabs & Search Bar — 8pt grid */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 rounded-2xl glass">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 rounded-2xl glass-card backdrop-blur-xl bg-white/[0.03] border border-white/10">
         {/* Status Filter Tabs */}
         <div className="scroll-x-snap flex items-center gap-2 pb-1 sm:pb-0">
           <Link
             href="/history?status=all"
+            onClick={() => triggerTactileHaptic("selection")}
             className={`px-3 py-2 rounded-xl text-xs font-mono font-bold transition-transform duration-75 shrink-0 active:scale-95 ${
               activeStatus === "all"
-                ? "bg-white text-zinc-950 shadow-sm"
-                : "text-zinc-400 hover:text-white bg-zinc-900/60"
+                ? "bg-white text-zinc-950 shadow-sm font-black"
+                : "text-zinc-400 hover:text-white bg-black/40 border border-white/5"
             }`}
           >
             All
           </Link>
           <Link
             href="/history?status=completed"
+            onClick={() => triggerTactileHaptic("selection")}
             className={`px-3 py-2 rounded-xl text-xs font-mono font-bold transition-transform duration-75 shrink-0 active:scale-95 ${
               activeStatus === "completed"
-                ? "bg-emerald-500 text-slate-950 font-black shadow-sm"
-                : "text-zinc-400 hover:text-emerald-400 bg-zinc-900/60"
+                ? "bg-[#CCFF00] text-black font-black shadow-[0_0_16px_rgba(204,255,0,0.4)]"
+                : "text-zinc-400 hover:text-[#CCFF00] bg-black/40 border border-white/5"
             }`}
           >
             Completed
           </Link>
           <Link
             href="/history?status=failed"
+            onClick={() => triggerTactileHaptic("selection")}
             className={`px-3 py-2 rounded-xl text-xs font-mono font-bold transition-transform duration-75 shrink-0 active:scale-95 ${
               activeStatus === "failed"
-                ? "bg-rose-500 text-white font-black shadow-sm"
-                : "text-zinc-400 hover:text-rose-400 bg-zinc-900/60"
+                ? "bg-rose-500 text-white font-black shadow-[0_0_16px_rgba(244,63,94,0.4)]"
+                : "text-zinc-400 hover:text-rose-400 bg-black/40 border border-white/5"
             }`}
           >
             Flagged
@@ -270,7 +279,7 @@ export function HistoryFeedView({
             <button
               type="button"
               onClick={selectAll}
-              className="px-3 py-2 rounded-xl text-[11px] font-mono text-zinc-400 hover:text-zinc-200 bg-zinc-900/40 border border-white/[0.06] transition-transform duration-75 cursor-pointer shrink-0 ml-1 active:scale-95"
+              className="px-3 py-2 rounded-xl text-[11px] font-mono text-zinc-400 hover:text-zinc-200 bg-black/40 border border-white/10 transition-transform duration-75 cursor-pointer shrink-0 ml-1 active:scale-95"
             >
               {selectedIds.length === filteredItems.length ? "Deselect" : "Select All"}
             </button>
@@ -285,7 +294,7 @@ export function HistoryFeedView({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search by title or brand..."
-            className="w-full h-9 pl-9 pr-8 rounded-xl bg-zinc-900/90 border border-zinc-800 text-xs font-mono text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-cyan-500"
+            className="w-full h-9 pl-9 pr-8 rounded-xl bg-black/60 border border-white/10 text-xs font-mono text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-[#00F2FE] focus:ring-1 focus:ring-[#00F2FE]/50 transition"
           />
           {searchQuery && (
             <button
@@ -326,7 +335,7 @@ export function HistoryFeedView({
           </p>
           <Link
             href="/lens"
-            className="inline-flex items-center gap-2 mt-2 px-4 py-2 bg-white hover:bg-zinc-200 text-zinc-950 font-black text-xs rounded-xl transition-colors shadow-md"
+            className="inline-flex items-center gap-2 mt-2 px-4 py-2 badge-active rounded-xl text-xs font-semibold hover:bg-[#00F2FE]/15 transition active:scale-95 cursor-pointer shadow-sm"
           >
             <Scan className="w-4 h-4" />
             <span>Scan Your First Item</span>
@@ -372,22 +381,24 @@ export function HistoryFeedView({
 
       {/* Sticky Bottom Comparison Floating Toolbar */}
       {selectedIds.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[55] animate-in fade-in slide-in-from-bottom-3 duration-200 max-w-[92vw]">
+        <div className="fixed bottom-6 left-1/2 z-[55] selection-bar-enter max-w-[92vw]">
           <button
             type="button"
             onClick={() => {
               if (!isPro) {
+                triggerTactileHaptic("warning");
                 setIsPaywallOpen(true);
                 return;
               }
+              triggerTactileHaptic("medium");
               setIsCompareOpen(true);
             }}
-            className="inline-flex items-center gap-2.5 rounded-full bg-gradient-to-r from-cyan-500 via-teal-500 to-emerald-500 px-6 py-3 text-xs sm:text-sm font-extrabold text-slate-950 shadow-[0_0_30px_rgba(6,182,212,0.6)] hover:scale-105 active:scale-95 transition cursor-pointer whitespace-nowrap"
+            className="inline-flex items-center gap-2.5 rounded-full bg-gradient-to-r from-[#00F2FE] via-teal-400 to-[#CCFF00] px-6 py-3 text-xs sm:text-sm font-black text-black shadow-[0_0_35px_rgba(0,242,254,0.55)] border border-white/20 hover:scale-105 active:scale-95 transition cursor-pointer whitespace-nowrap"
           >
-            <Scale className="w-4 h-4 text-slate-950" />
+            <Scale className="w-4 h-4 text-black" />
             <span>Compare Selected ({selectedIds.length} Items)</span>
-            <span className="bg-slate-950/80 text-zinc-300 border border-zinc-700 text-[10px] px-1.5 py-0.5 rounded-full font-black flex items-center gap-1">
-              <Lock className="w-2.5 h-2.5" /> PRO
+            <span className="bg-black/90 text-[#00F2FE] border border-[#00F2FE]/40 text-[10px] px-2 py-0.5 rounded-full font-black flex items-center gap-1 shadow-[0_0_8px_rgba(0,242,254,0.3)]">
+              <Lock className="w-2.5 h-2.5 text-[#00F2FE]" /> PRO
             </span>
           </button>
         </div>

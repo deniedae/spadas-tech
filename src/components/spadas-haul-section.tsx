@@ -35,6 +35,7 @@ import { toast } from "sonner";
 import EbayListingModal from "@/components/ebay-listing-modal";
 import { DeepVerifyModal } from "@/components/deep-verify-modal";
 import { supabase } from "@/app/lib/supabase";
+import { triggerTactileHaptic } from "@/lib/android-bridge";
 
 interface SpadasHaulSectionProps {
   onSwitchToLens?: () => void;
@@ -371,7 +372,7 @@ export function SpadasHaulSection({
             <button
               type="button"
               onClick={onSwitchToLens}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black text-xs transition shadow-md shadow-amber-500/20 cursor-pointer active:scale-95"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-cyan-500 via-teal-500 to-emerald-500 hover:opacity-90 text-slate-950 font-black text-xs transition shadow-md shadow-cyan-500/20 cursor-pointer active:scale-95"
               title="Launch Lens AR Camera to rapid-fire photos directly from the active live stream"
             >
               {isProcessing ? (
@@ -381,7 +382,7 @@ export function SpadasHaulSection({
               )}
               <span>Quick Snap Camera</span>
               {pendingCount > 0 && (
-                <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold bg-slate-950 text-amber-300">
+                <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold bg-slate-950 text-cyan-300">
                   {pendingCount}
                 </span>
               )}
@@ -390,7 +391,10 @@ export function SpadasHaulSection({
 
           <button
             type="button"
-            onClick={handleBatchCommitToInventory}
+            onClick={() => {
+              triggerTactileHaptic("medium");
+              void handleBatchCommitToInventory();
+            }}
             disabled={items.length === 0 || isBatchCommitting}
             className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-zinc-200 text-zinc-950 font-black text-xs transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-md active:scale-95"
           >
@@ -404,9 +408,12 @@ export function SpadasHaulSection({
 
           <button
             type="button"
-            onClick={handleExportCsv}
+            onClick={() => {
+              triggerTactileHaptic("tap");
+              handleExportCsv();
+            }}
             disabled={items.length === 0}
-            className="inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700 hover:bg-zinc-800 text-zinc-300 font-mono font-bold text-xs transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            className="inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700 hover:bg-zinc-800 text-zinc-300 font-mono font-bold text-xs transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
             title="Export Manifest CSV"
           >
             <Download className="h-3.5 w-3.5" />
@@ -416,8 +423,11 @@ export function SpadasHaulSection({
           {items.length > 0 && (
             <button
               type="button"
-              onClick={handleClearSession}
-              className="inline-flex items-center gap-1 px-2.5 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 text-xs font-bold transition cursor-pointer"
+              onClick={() => {
+                triggerTactileHaptic("warning");
+                void handleClearSession();
+              }}
+              className="inline-flex items-center gap-1 px-2.5 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 text-xs font-bold transition cursor-pointer active:scale-95"
               title="Clear Sourcing Run"
             >
               <Trash2 className="h-3.5 w-3.5" />
@@ -526,8 +536,11 @@ export function SpadasHaulSection({
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
           <button
             type="button"
-            onClick={() => setActiveTabFilter("all")}
-            className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition cursor-pointer shrink-0 ${
+            onClick={() => {
+              triggerTactileHaptic("selection");
+              setActiveTabFilter("all");
+            }}
+            className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition cursor-pointer shrink-0 active:scale-95 ${
               activeTabFilter === "all"
                 ? "bg-white text-slate-950 shadow-sm"
                 : "text-zinc-400 hover:text-white bg-zinc-900/60"
@@ -537,8 +550,11 @@ export function SpadasHaulSection({
           </button>
           <button
             type="button"
-            onClick={() => setActiveTabFilter("profitable")}
-            className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition cursor-pointer shrink-0 ${
+            onClick={() => {
+              triggerTactileHaptic("selection");
+              setActiveTabFilter("profitable");
+            }}
+            className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition cursor-pointer shrink-0 active:scale-95 ${
               activeTabFilter === "profitable"
                 ? "bg-emerald-500 text-slate-950 font-black shadow-sm"
                 : "text-zinc-400 hover:text-emerald-400 bg-zinc-900/60"
@@ -548,8 +564,11 @@ export function SpadasHaulSection({
           </button>
           <button
             type="button"
-            onClick={() => setActiveTabFilter("grails")}
-            className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition cursor-pointer shrink-0 ${
+            onClick={() => {
+              triggerTactileHaptic("selection");
+              setActiveTabFilter("grails");
+            }}
+            className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition cursor-pointer shrink-0 active:scale-95 ${
               activeTabFilter === "grails"
                 ? "bg-amber-400 text-slate-950 font-black shadow-sm"
                 : "text-zinc-400 hover:text-amber-300 bg-zinc-900/60"
@@ -559,8 +578,11 @@ export function SpadasHaulSection({
           </button>
           <button
             type="button"
-            onClick={() => setActiveTabFilter("traps")}
-            className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition cursor-pointer shrink-0 ${
+            onClick={() => {
+              triggerTactileHaptic("selection");
+              setActiveTabFilter("traps");
+            }}
+            className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition cursor-pointer shrink-0 active:scale-95 ${
               activeTabFilter === "traps"
                 ? "bg-rose-500 text-white font-black shadow-sm"
                 : "text-zinc-400 hover:text-rose-400 bg-zinc-900/60"

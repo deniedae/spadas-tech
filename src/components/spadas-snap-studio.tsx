@@ -283,9 +283,7 @@ export function SpadasSnapStudio() {
       if (dataUrl && dataUrl.length > 2000) {
         setCapturedPhotos((prev) => [...prev, dataUrl]);
         setRetakePrompt(null);
-        if (typeof navigator !== "undefined" && navigator.vibrate) {
-          navigator.vibrate(60);
-        }
+        triggerTactileHaptic("shutter");
         toast.success(`Photo ${capturedPhotos.length + 1} captured!`, { duration: 1200 });
       }
     } catch (err) {
@@ -301,6 +299,7 @@ export function SpadasSnapStudio() {
       const dataUrl = canvas.toDataURL("image/jpeg", 0.75);
       if (dataUrl && dataUrl.length > 2000) {
         setCapturedPhotos((prev) => [...prev, dataUrl]);
+        triggerTactileHaptic("shutter");
         toast.success(`Photo ${capturedPhotos.length + 1} captured!`, { duration: 1200 });
       }
     }
@@ -762,7 +761,10 @@ export function SpadasSnapStudio() {
               <img src={img} alt={`Thumbnail ${idx + 1}`} className="h-full w-full object-cover" />
               <button
                 type="button"
-                onClick={() => removePhoto(idx)}
+                onClick={() => {
+                  triggerTactileHaptic("light");
+                  removePhoto(idx);
+                }}
                 className="absolute top-1 right-1 h-5 w-5 rounded-full bg-slate-950/90 text-white flex items-center justify-center text-[10px] font-black border border-slate-700 hover:bg-rose-600 transition cursor-pointer"
               >
                 ✕
@@ -782,8 +784,11 @@ export function SpadasSnapStudio() {
           {/* Upload Button */}
           <button
             type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="flex flex-col items-center gap-1 text-slate-400 hover:text-white transition cursor-pointer"
+            onClick={() => {
+              triggerTactileHaptic("tap");
+              fileInputRef.current?.click();
+            }}
+            className="flex flex-col items-center gap-1 text-slate-400 hover:text-white transition cursor-pointer active:scale-95"
           >
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-900 border border-slate-800">
               <ImageIcon className="h-5 w-5" />
@@ -805,8 +810,11 @@ export function SpadasSnapStudio() {
             <button
               type="button"
               disabled={isAnalyzing}
-              onClick={handleAnalyzeItem}
-              className="flex flex-col items-center gap-1 text-cyan-400 hover:text-cyan-300 transition cursor-pointer"
+              onClick={() => {
+                triggerTactileHaptic("medium");
+                void handleAnalyzeItem();
+              }}
+              className="flex flex-col items-center gap-1 text-cyan-400 hover:text-cyan-300 transition cursor-pointer active:scale-95"
             >
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 text-slate-950 font-black shadow-[0_0_20px_rgba(34,211,238,0.5)] animate-pulse">
                 {isAnalyzing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
@@ -816,8 +824,11 @@ export function SpadasSnapStudio() {
           ) : (
             <button
               type="button"
-              onClick={toggleCameraFacing}
-              className="flex flex-col items-center gap-1 text-slate-400 hover:text-white transition cursor-pointer"
+              onClick={() => {
+                triggerTactileHaptic("tap");
+                toggleCameraFacing();
+              }}
+              className="flex flex-col items-center gap-1 text-slate-400 hover:text-white transition cursor-pointer active:scale-95"
             >
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-900 border border-slate-800">
                 <RefreshCw className="h-5 w-5" />

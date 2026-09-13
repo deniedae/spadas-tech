@@ -69,8 +69,8 @@ export default function UsageBadge({
   return (
     <>
       {usage.isPro ? (
-        <div className="inline-flex items-center gap-1.5 rounded-full bg-cyan-500/15 px-3 py-1 text-xs font-black text-cyan-300 border border-cyan-400/30">
-          <Sparkles className="h-3.5 w-3.5 text-cyan-400" />
+        <div className="badge-active inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold">
+          <Sparkles className="h-3.5 w-3.5 text-[#00F2FE]" />
           <span>Pro Plan — Unlimited</span>
         </div>
       ) : (
@@ -78,10 +78,10 @@ export default function UsageBadge({
           <button
             type="button"
             onClick={() => setShowUpgradeModal(true)}
-            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-black transition cursor-pointer border ${
+            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold transition cursor-pointer border active:scale-95 ${
               usage.limitReached
-                ? "bg-rose-500/20 text-rose-300 border-rose-500/40 animate-pulse"
-                : "bg-amber-500/15 text-amber-300 border-amber-500/30 hover:bg-amber-500/25"
+                ? "badge-error animate-pulse"
+                : "badge-info hover:bg-white/[0.08]"
             }`}
           >
             <Zap className="h-3.5 w-3.5" />
@@ -96,9 +96,9 @@ export default function UsageBadge({
 
       {/* Upgrade Modal */}
       {showUpgradeModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-xl p-4 animate-fade-in">
-          <div className="w-full max-w-md rounded-3xl bg-slate-900 border border-slate-800 p-6 sm:p-8 shadow-2xl space-y-5 text-center text-slate-100">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-cyan-500/15 text-cyan-400 border border-cyan-400/30">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-xl p-4 animate-fade-in">
+          <div className="w-full max-w-md rounded-3xl glass-card bg-[#030305]/95 border border-white/[0.08] p-6 sm:p-8 shadow-2xl space-y-5 text-center text-zinc-100">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl glass text-[#00F2FE] border border-white/[0.08]">
               <ShieldAlert className="h-7 w-7" />
             </div>
 
@@ -108,21 +108,21 @@ export default function UsageBadge({
                   ? "Daily Free Scan Limit Reached"
                   : "Upgrade to Spadas Pro"}
               </h3>
-              <p className="text-xs text-slate-300">
+              <p className="text-xs text-zinc-400">
                 {usage.limitReached
                   ? `You've used all ${usage.maxFreeUses} free scans for today. Upgrade to Spadas Pro for unlimited 60FPS AR camera scans, live sold comps, and 1-click eBay publishing.`
                   : "Unlock unlimited AI generations, 60FPS continuous camera scanner, and 1-click publishing."}
               </p>
             </div>
 
-            <div className="rounded-2xl bg-slate-950 p-4 text-left space-y-2 text-xs border border-slate-800">
-              <div className="flex items-center gap-2 font-bold text-slate-200">
+            <div className="rounded-2xl glass p-4 text-left space-y-2 text-xs border border-white/[0.06]">
+              <div className="flex items-center gap-2 font-bold text-zinc-200">
                 ✓ Unlimited 60FPS Continuous AR Camera Scans
               </div>
-              <div className="flex items-center gap-2 font-bold text-slate-200">
+              <div className="flex items-center gap-2 font-bold text-zinc-200">
                 ✓ Live Australia 30-Day Completed eBay Comps
               </div>
-              <div className="flex items-center gap-2 font-bold text-slate-200">
+              <div className="flex items-center gap-2 font-bold text-zinc-200">
                 ✓ 1-Click Automated Background Publishing to eBay AU
               </div>
             </div>
@@ -132,7 +132,7 @@ export default function UsageBadge({
                 type="button"
                 onClick={handleUpgrade}
                 disabled={upgrading}
-                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 font-black text-xs text-slate-950 shadow-xl shadow-cyan-500/30 hover:scale-[1.02] active:scale-[0.98] transition cursor-pointer disabled:opacity-50"
+                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 font-black text-xs text-slate-950 shadow-xl shadow-cyan-500/20 hover:brightness-110 active:scale-95 transition cursor-pointer disabled:opacity-50"
               >
                 {upgrading ? (
                   <Loader2 className="h-5 w-5 animate-spin text-slate-950" />
@@ -145,7 +145,7 @@ export default function UsageBadge({
               <button
                 type="button"
                 onClick={() => setShowUpgradeModal(false)}
-                className="text-xs text-slate-400 hover:text-white py-1 transition cursor-pointer"
+                className="text-xs text-zinc-400 hover:text-white py-1 transition cursor-pointer"
               >
                 Dismiss
               </button>

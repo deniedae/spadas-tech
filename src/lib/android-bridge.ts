@@ -59,11 +59,25 @@ export function syncProfitToAndroidWidget(totalProfit: number, itemCount = 0): v
   } catch {}
 }
 
+export type HapticType =
+  | "tap"
+  | "click"
+  | "selection"
+  | "shutter"
+  | "light"
+  | "medium"
+  | "heavy"
+  | "success"
+  | "warning"
+  | "grail"
+  | "error";
+
 /**
  * Trigger tactile native haptic feedback patterns.
+ * Supports native Android WebView bridge wrapper as well as navigator.vibrate.
  */
 export function triggerTactileHaptic(
-  type: "light" | "medium" | "heavy" | "success" | "warning" | "grail" = "success"
+  type: HapticType = "tap"
 ): void {
   if (typeof window === "undefined") return;
 
@@ -75,28 +89,52 @@ export function triggerTactileHaptic(
   }
 
   if ("vibrate" in navigator && typeof navigator.vibrate === "function") {
-    switch (type) {
-      case "light":
-        navigator.vibrate(20);
-        break;
-      case "medium":
-        navigator.vibrate(40);
-        break;
-      case "heavy":
-        navigator.vibrate(70);
-        break;
-      case "success":
-        navigator.vibrate([40, 25, 40]);
-        break;
-      case "warning":
-        navigator.vibrate([60, 40, 60, 40, 60]);
-        break;
-      case "grail":
-        navigator.vibrate([40, 30, 40, 30, 80]);
-        break;
-    }
+    try {
+      switch (type) {
+        case "tap":
+        case "click":
+          navigator.vibrate(10);
+          break;
+        case "selection":
+          navigator.vibrate(12);
+          break;
+        case "shutter":
+          navigator.vibrate(15);
+          break;
+        case "light":
+          navigator.vibrate(15);
+          break;
+        case "medium":
+          navigator.vibrate(35);
+          break;
+        case "heavy":
+          navigator.vibrate(60);
+          break;
+        case "success":
+          navigator.vibrate([30, 20, 30]);
+          break;
+        case "warning":
+          navigator.vibrate([40, 30, 40, 30, 50]);
+          break;
+        case "grail":
+          navigator.vibrate([40, 30, 40, 30, 100]);
+          break;
+        case "error":
+          navigator.vibrate([70, 40, 70, 40, 110]);
+          break;
+        default:
+          navigator.vibrate(10);
+      }
+    } catch {}
   }
 }
+
+/** Convenience shortcut for quick button presses and tab switches (10ms pulse) */
+export const triggerTapHaptic = () => triggerTactileHaptic("tap");
+/** Convenience shortcut for camera snapshot shutter (15ms pulse) */
+export const triggerShutterHaptic = () => triggerTactileHaptic("shutter");
+/** Convenience shortcut for tab/filter selections (12ms pulse) */
+export const triggerSelectionHaptic = () => triggerTactileHaptic("selection");
 
 /**
  * Check if the user is running on an Android device or Android TWA wrapper.

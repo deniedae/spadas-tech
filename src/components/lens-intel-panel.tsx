@@ -25,6 +25,8 @@ import {
 } from "lucide-react";
 import { LensIntelData } from "@/lib/lens-intel-engine";
 import { toast } from "sonner";
+import { RadarSweepSkeleton, CompsCardSkeleton } from "@/components/ui/comps-skeleton-loader";
+import { triggerTactileHaptic } from "@/lib/android-bridge";
 
 export interface LensIntelPanelProps {
   isOpen: boolean;
@@ -70,6 +72,7 @@ export const LensIntelPanel: React.FC<LensIntelPanelProps> = ({
 
   const handleCopyListingHook = (text: string) => {
     if (!navigator.clipboard) return;
+    triggerTactileHaptic("success");
     navigator.clipboard.writeText(text);
     setCopiedHook(true);
     toast.success("Copied Marketplace listing hook!");
@@ -78,6 +81,7 @@ export const LensIntelPanel: React.FC<LensIntelPanelProps> = ({
 
   const handleCopyDealerScript = (text: string) => {
     if (!navigator.clipboard) return;
+    triggerTactileHaptic("success");
     navigator.clipboard.writeText(text);
     setCopiedDealerScript(true);
     toast.success("Copied dealer cash negotiation script!");
@@ -121,7 +125,10 @@ export const LensIntelPanel: React.FC<LensIntelPanelProps> = ({
 
           <button
             type="button"
-            onClick={onClose}
+            onClick={() => {
+              triggerTactileHaptic("light");
+              onClose();
+            }}
             className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer shrink-0"
             title="Close Intel Overlay"
           >
@@ -133,8 +140,11 @@ export const LensIntelPanel: React.FC<LensIntelPanelProps> = ({
         <div className="grid grid-cols-3 gap-1 p-1 bg-slate-900/90 rounded-2xl border border-slate-800 text-[11px] font-black">
           <button
             type="button"
-            onClick={() => setActiveTab("off_market")}
-            className={`flex items-center justify-center gap-1 py-2 px-2 rounded-xl transition cursor-pointer ${
+            onClick={() => {
+              triggerTactileHaptic("selection");
+              setActiveTab("off_market");
+            }}
+            className={`flex items-center justify-center gap-1 py-2 px-2 rounded-xl transition cursor-pointer active:scale-95 ${
               activeTab === "off_market"
                 ? "bg-purple-500/20 text-purple-300 border border-purple-500/40 shadow-sm"
                 : "text-slate-400 hover:text-slate-200"
@@ -145,8 +155,11 @@ export const LensIntelPanel: React.FC<LensIntelPanelProps> = ({
           </button>
           <button
             type="button"
-            onClick={() => setActiveTab("local_p2p")}
-            className={`flex items-center justify-center gap-1 py-2 px-2 rounded-xl transition cursor-pointer ${
+            onClick={() => {
+              triggerTactileHaptic("selection");
+              setActiveTab("local_p2p");
+            }}
+            className={`flex items-center justify-center gap-1 py-2 px-2 rounded-xl transition cursor-pointer active:scale-95 ${
               activeTab === "local_p2p"
                 ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm"
                 : "text-slate-400 hover:text-slate-200"
@@ -157,8 +170,11 @@ export const LensIntelPanel: React.FC<LensIntelPanelProps> = ({
           </button>
           <button
             type="button"
-            onClick={() => setActiveTab("global_comps")}
-            className={`flex items-center justify-center gap-1 py-2 px-2 rounded-xl transition cursor-pointer ${
+            onClick={() => {
+              triggerTactileHaptic("selection");
+              setActiveTab("global_comps");
+            }}
+            className={`flex items-center justify-center gap-1 py-2 px-2 rounded-xl transition cursor-pointer active:scale-95 ${
               activeTab === "global_comps"
                 ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm"
                 : "text-slate-400 hover:text-slate-200"
@@ -170,11 +186,13 @@ export const LensIntelPanel: React.FC<LensIntelPanelProps> = ({
         </div>
 
         {isLoading || !intel ? (
-          <div className="py-12 flex flex-col items-center justify-center space-y-3 text-center">
-            <div className="h-10 w-10 rounded-full border-2 border-cyan-400 border-t-transparent animate-spin" />
-            <p className="text-xs font-mono font-bold text-cyan-300 tracking-wider">
-              PARSING TACTICAL RESELLER INTELLIGENCE...
-            </p>
+          <div className="py-6 space-y-4">
+            <RadarSweepSkeleton
+              title="Querying Market & eBay Sold Comps..."
+              subtitle="Calibrating 30-Day Clearance Matrix & Net Profit"
+              size="md"
+            />
+            <CompsCardSkeleton showTitle={false} />
           </div>
         ) : activeTab === "off_market" ? (
           /* =========================================================================
@@ -798,6 +816,7 @@ export const LensIntelPanel: React.FC<LensIntelPanelProps> = ({
             <button
               type="button"
               onClick={() => {
+                triggerTactileHaptic("success");
                 onAddToHaul();
                 onClose();
               }}
@@ -812,6 +831,7 @@ export const LensIntelPanel: React.FC<LensIntelPanelProps> = ({
             <button
               type="button"
               onClick={() => {
+                triggerTactileHaptic("medium");
                 onViewComps();
                 onClose();
               }}
@@ -824,8 +844,11 @@ export const LensIntelPanel: React.FC<LensIntelPanelProps> = ({
 
           <button
             type="button"
-            onClick={onClose}
-            className="py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white font-bold text-xs transition cursor-pointer"
+            onClick={() => {
+              triggerTactileHaptic("light");
+              onClose();
+            }}
+            className="py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white font-bold text-xs transition cursor-pointer active:scale-95"
           >
             Close
           </button>

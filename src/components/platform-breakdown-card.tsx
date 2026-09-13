@@ -17,7 +17,7 @@ export default function PlatformBreakdownCard({ items }: { items: ListingItem[] 
     { name: "eBay", rateText: "13.25%", key: "ebay", color: "bg-blue-500 text-blue-500" },
     { name: "Poshmark", rateText: "20.0%", key: "poshmark", color: "bg-pink-500 text-pink-500" },
     { name: "Mercari", rateText: "10.0%", key: "mercari", color: "bg-purple-500 text-purple-500" },
-    { name: "Depop", rateText: "10.0%", key: "depop", color: "bg-red-500 text-red-500" },
+    { name: "Depop", rateText: "10.0%", key: "depop", color: "bg-rose-500 text-rose-400" },
     { name: "Facebook Marketplace", rateText: "5.0%", key: "facebook", color: "bg-cyan-500 text-cyan-500" },
   ];
 
@@ -83,7 +83,7 @@ export default function PlatformBreakdownCard({ items }: { items: ListingItem[] 
 
               <div className="text-right">
                 <p className="text-[11px] text-muted-foreground">Est. Platform Fees</p>
-                <p className="text-sm font-semibold tabular-nums text-red-600 dark:text-red-400">
+                <p className="text-sm font-semibold tabular-nums text-rose-400">
                   −{fmtMoney(p.estimatedFees)}
                 </p>
               </div>

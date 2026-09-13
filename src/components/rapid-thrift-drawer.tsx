@@ -27,6 +27,7 @@ import {
 import { useHaulStore, getStatsSnapshot } from "@/lib/haul-store";
 import { calculateSalesVelocity } from "@/lib/turnover-velocity-engine";
 import { toast } from "sonner";
+import { CompsMiniLaserPill } from "@/components/ui/comps-skeleton-loader";
 
 interface RapidThriftDrawerProps {
   isOpen: boolean;
@@ -416,9 +417,9 @@ export const RapidThriftDrawer: React.FC<RapidThriftDrawerProps> = ({
                         );
                       })()
                     ) : (
-                      <p className="text-xs text-amber-300/80 italic mt-0.5">
-                        Evaluating comps & thrift margin...
-                      </p>
+                      <div className="mt-1">
+                        <CompsMiniLaserPill label="Querying eBay comps & margin..." />
+                      </div>
                     )}
                   </div>
 

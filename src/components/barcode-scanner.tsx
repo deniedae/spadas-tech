@@ -367,13 +367,13 @@ export default function BarcodeScanner({
           <button
             type="button"
             onClick={() => setBatchMode(!batchMode)}
-            className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-black transition-all border ${
+            className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-black transition-all border cursor-pointer active:scale-95 ${
               batchMode
-                ? "bg-amber-500/20 text-amber-400 border-amber-500/40 shadow-sm"
-                : "bg-muted text-muted-foreground border-transparent hover:text-foreground"
+                ? "badge-active text-[#00F2FE]"
+                : "glass border-white/[0.08] text-zinc-400 hover:text-white"
             }`}
           >
-            <Zap className={`h-3.5 w-3.5 ${batchMode ? "text-amber-400 fill-amber-400" : ""}`} />
+            <Zap className={`h-3.5 w-3.5 ${batchMode ? "text-[#00F2FE] fill-[#00F2FE]" : ""}`} />
             <span>Turbo Batch {batchMode ? "ON" : "OFF"}</span>
           </button>
         </div>
@@ -385,10 +385,10 @@ export default function BarcodeScanner({
               type="button"
               onClick={handleTorchToggle}
               title="Toggle Flashlight"
-              className={`rounded-xl p-2 border transition-all ${
+              className={`rounded-xl p-2 border transition-all cursor-pointer active:scale-95 ${
                 torchOn
-                  ? "bg-amber-500 text-black border-amber-400 shadow-md"
-                  : "bg-muted text-muted-foreground border-border hover:text-foreground"
+                  ? "badge-active text-[#00F2FE]"
+                  : "glass border-white/[0.08] text-zinc-400 hover:text-white"
               }`}
             >
               <Flashlight className="h-4 w-4" />
@@ -399,13 +399,13 @@ export default function BarcodeScanner({
             type="button"
             onClick={() => setSoundEnabled(!soundEnabled)}
             title="Toggle Scan Beep Sound"
-            className="rounded-xl p-2 border border-border bg-muted text-muted-foreground hover:text-foreground transition-all"
+            className="rounded-xl p-2 border border-white/[0.08] glass text-zinc-400 hover:text-white transition-all cursor-pointer active:scale-95"
           >
             {soundEnabled ? <Volume2 className="h-4 w-4 text-emerald-400" /> : <VolumeX className="h-4 w-4" />}
           </button>
 
           {hasNativeDetector && (
-            <span className="hidden sm:inline-flex items-center gap-1 rounded-md bg-cyan-500/10 px-2 py-0.5 text-[10px] font-bold text-cyan-400 border border-cyan-500/20">
+            <span className="hidden sm:inline-flex items-center gap-1 rounded-md badge-info px-2 py-0.5 text-[10px] font-bold">
               ⚡ 60 FPS GPU
             </span>
           )}
@@ -414,7 +414,7 @@ export default function BarcodeScanner({
 
       {/* Error Notice */}
       {scanError && (
-        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 text-sm text-amber-300 flex items-start gap-2">
+        <div className="rounded-xl border border-rose-500/30 glass-hud p-3.5 text-sm text-rose-300 flex items-start gap-2">
           <div className="mt-0.5 text-base">⚠️</div>
           <div>{scanError}</div>
         </div>
@@ -422,7 +422,7 @@ export default function BarcodeScanner({
 
       {/* Live Viewfinder Viewport */}
       {scanning && (
-        <div className="relative w-full overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 aspect-video max-h-[340px] flex items-center justify-center shadow-inner">
+        <div className="relative w-full overflow-hidden rounded-2xl border border-white/[0.08] glass aspect-video max-h-[340px] flex items-center justify-center shadow-inner">
           {hasNativeDetector ? (
             <video
               ref={videoRef}
@@ -437,12 +437,12 @@ export default function BarcodeScanner({
 
           {/* AR Target Reticle Overlay */}
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            <div className="relative h-44 w-64 rounded-xl border-2 border-dashed border-cyan-400/80 bg-cyan-500/5 shadow-[0_0_20px_rgba(6,182,212,0.25)] flex flex-col items-center justify-between p-2">
-              <div className="text-[10px] font-black uppercase tracking-widest text-cyan-300">
+            <div className="relative h-44 w-64 rounded-xl border-2 border-dashed border-[#00F2FE]/80 bg-[#00F2FE]/5 shadow-[0_0_20px_rgba(0,242,254,0.25)] flex flex-col items-center justify-between p-2">
+              <div className="text-[10px] font-black uppercase tracking-widest text-[#00F2FE]">
                 {batchMode ? "⚡ Continuous Scan Reticle" : "Align Barcode"}
               </div>
-              <div className="h-0.5 w-full bg-gradient-to-r from-transparent via-cyan-400 to-transparent animate-pulse" />
-              <div className="text-[10px] text-cyan-400/70 font-mono">Spadas Hardware Lens</div>
+              <div className="h-0.5 w-full bg-gradient-to-r from-transparent via-[#00F2FE] to-transparent animate-pulse" />
+              <div className="text-[10px] text-[#00F2FE]/70 font-mono">Spadas Hardware Lens</div>
             </div>
           </div>
         </div>
@@ -450,7 +450,7 @@ export default function BarcodeScanner({
 
       {/* Manual Barcode Input */}
       <form onSubmit={handleManualSubmit} className="space-y-2">
-        <label htmlFor="manual-barcode" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+        <label htmlFor="manual-barcode" className="hud-label">
           Or Enter Barcode Manually
         </label>
         <div className="flex gap-2">
@@ -459,7 +459,7 @@ export default function BarcodeScanner({
             value={manualBarcode}
             onChange={(e) => setManualBarcode(e.target.value)}
             placeholder="e.g. 0194252033005"
-            className="h-11 flex-1 rounded-xl border border-input bg-background px-3.5 text-sm shadow-sm placeholder:text-muted-foreground focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
+            className="h-11 flex-1 rounded-xl border border-white/[0.08] glass bg-white/[0.02] px-3.5 text-sm text-white shadow-sm placeholder:text-zinc-500 focus:border-[#00F2FE] focus:outline-none focus:ring-1 focus:ring-[#00F2FE]"
           />
           <Button type="submit" variant="outline" className="font-bold">
             Lookup
@@ -469,11 +469,11 @@ export default function BarcodeScanner({
 
       {/* Turbo Batch Queue Drawer */}
       {batchMode && scannedBatch.length > 0 && (
-        <div className="rounded-2xl border border-amber-500/30 bg-amber-950/10 p-4 space-y-3">
+        <div className="rounded-2xl border border-white/[0.08] glass p-4 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Layers className="h-4 w-4 text-amber-400" />
-              <h4 className="text-sm font-extrabold text-foreground">
+              <Layers className="h-4 w-4 text-[#00F2FE]" />
+              <h4 className="text-sm font-extrabold text-white">
                 Active Scanned Batch ({scannedBatch.length} Items)
               </h4>
             </div>

@@ -195,23 +195,23 @@ export default function ExportListingDialog({
       <DialogTrigger>
         <button
           type="button"
-          className="inline-flex items-center gap-1 px-2 py-1 rounded bg-[#12151E] hover:bg-[#1A1F2C] text-zinc-300 hover:text-white text-[10px] font-mono font-bold border border-zinc-700/80 hover:border-cyan-500/40 transition cursor-pointer active:scale-95 shadow-sm"
+          className="inline-flex items-center gap-1 px-2 py-1 rounded-lg glass text-zinc-300 hover:text-white text-[10px] font-mono font-bold border border-white/[0.08] hover:border-[#00F2FE]/40 transition cursor-pointer active:scale-95 shadow-sm"
           title={`Cross-list ${listing.product}`}
         >
-          <Share2 className="w-2.5 h-2.5 text-cyan-400" />
+          <Share2 className="w-2.5 h-2.5 text-[#00F2FE]" />
           <span>CROSS-LIST</span>
         </button>
       </DialogTrigger>
 
-      <DialogContent className="sm:max-w-xl rounded-3xl border-slate-800 bg-slate-900 p-6 shadow-2xl text-slate-100">
+      <DialogContent className="sm:max-w-xl rounded-3xl border border-white/[0.08] glass-card bg-[#030305]/95 p-6 shadow-2xl text-zinc-100">
         <DialogHeader>
           <div className="flex items-center gap-2.5">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl glass text-[#00F2FE] border border-white/[0.08]">
               <Layers className="h-5 w-5" />
             </div>
             <div>
-              <DialogTitle className="text-xl font-bold text-slate-100">Auto-Post & Cross-List</DialogTitle>
-              <p className="text-xs text-slate-400">
+              <DialogTitle className="text-xl font-bold text-white">Auto-Post & Cross-List</DialogTitle>
+              <p className="text-xs text-zinc-400">
                 1-Click formatted listing copy for eBay, Facebook Marketplace, Depop, & Vinted.
               </p>
             </div>
@@ -229,10 +229,10 @@ export default function ExportListingDialog({
                   key={key}
                   type="button"
                   onClick={() => setPlatform(key)}
-                  className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold transition cursor-pointer ${
+                  className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold transition cursor-pointer active:scale-95 ${
                     isSelected
-                      ? "bg-cyan-500 text-slate-950 font-black shadow-md shadow-cyan-500/20"
-                      : "bg-slate-950 text-slate-400 hover:text-white border border-slate-800"
+                      ? "badge-active text-[#00F2FE]"
+                      : "glass text-zinc-400 hover:text-white border border-white/[0.08]"
                   }`}
                 >
                   <span>{p.icon}</span>
@@ -243,38 +243,38 @@ export default function ExportListingDialog({
           </div>
 
           {/* Formatted Listing Preview */}
-          <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4 space-y-3">
-            <div className="flex items-center justify-between gap-2 border-b border-slate-800 pb-2.5">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
-                <Sparkles className="h-3.5 w-3.5 text-cyan-400" />
+          <div className="rounded-2xl border border-white/[0.08] glass p-4 space-y-3">
+            <div className="flex items-center justify-between gap-2 border-b border-white/[0.06] pb-2.5">
+              <span className="hud-label flex items-center gap-1">
+                <Sparkles className="h-3.5 w-3.5 text-[#00F2FE]" />
                 {currentData.name} Title
               </span>
               <span
                 className={`text-[11px] font-mono px-2 py-0.5 rounded-full ${
                   isTitleOverLimit
-                    ? "bg-red-500/20 text-red-400 border border-red-500/30 font-bold"
-                    : "bg-emerald-500/15 text-emerald-400 font-semibold"
+                    ? "badge-error"
+                    : "badge-info"
                 }`}
               >
                 {titleCharCount} / {currentData.maxTitleChars} chars
               </span>
             </div>
 
-            <p className="text-sm font-bold text-slate-100 leading-snug">
+            <p className="text-sm font-bold text-white leading-snug">
               {currentData.title}
             </p>
 
-            <div className="border-t border-slate-800 pt-2.5 space-y-1">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+            <div className="border-t border-white/[0.06] pt-2.5 space-y-1">
+              <span className="hud-label">
                 Description Body
               </span>
-              <p className="text-xs text-slate-300 whitespace-pre-wrap leading-relaxed max-h-32 overflow-y-auto font-sans bg-slate-900/60 p-2.5 rounded-xl border border-slate-800/80">
+              <p className="text-xs text-zinc-300 whitespace-pre-wrap leading-relaxed max-h-32 overflow-y-auto font-sans glass bg-white/[0.02] p-2.5 rounded-xl border border-white/[0.06]">
                 {currentData.description}
               </p>
             </div>
 
-            <div className="flex items-center justify-between border-t border-slate-800 pt-2.5 text-xs">
-              <span className="text-slate-400">Asking Price:</span>
+            <div className="flex items-center justify-between border-t border-white/[0.06] pt-2.5 text-xs">
+              <span className="hud-label">Asking Price:</span>
               <span className="text-base font-black text-emerald-400">
                 ${priceValue.toFixed(2)} AUD
               </span>
@@ -285,7 +285,7 @@ export default function ExportListingDialog({
           <button
             type="button"
             onClick={launchPlatformListing}
-            className="h-12 w-full flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 font-black text-xs text-slate-950 shadow-lg shadow-cyan-500/20 transition hover:opacity-95 cursor-pointer"
+            className="h-12 w-full flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 font-black text-xs text-slate-950 shadow-lg shadow-cyan-500/20 transition hover:brightness-110 active:scale-98 cursor-pointer"
           >
             <Sparkles className="h-4 w-4" />
             <span>🚀 Open {currentData.name} & Copy Listing</span>
@@ -296,18 +296,18 @@ export default function ExportListingDialog({
             <button
               type="button"
               onClick={() => copyToClipboard(currentData.title, "title")}
-              className="h-10 flex items-center justify-center gap-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 transition cursor-pointer"
+              className="h-10 flex items-center justify-center gap-1.5 rounded-xl glass hover:bg-white/[0.06] text-zinc-200 text-xs font-bold border border-white/[0.08] transition cursor-pointer active:scale-95"
             >
-              {copiedTitle ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5 text-slate-400" />}
+              {copiedTitle ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5 text-zinc-400" />}
               <span>{copiedTitle ? "Title Copied!" : "Copy Title"}</span>
             </button>
 
             <button
               type="button"
               onClick={() => copyToClipboard(currentData.description, "desc")}
-              className="h-10 flex items-center justify-center gap-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 transition cursor-pointer"
+              className="h-10 flex items-center justify-center gap-1.5 rounded-xl glass hover:bg-white/[0.06] text-zinc-200 text-xs font-bold border border-white/[0.08] transition cursor-pointer active:scale-95"
             >
-              {copiedDesc ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5 text-slate-400" />}
+              {copiedDesc ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5 text-zinc-400" />}
               <span>{copiedDesc ? "Desc Copied!" : "Copy Description"}</span>
             </button>
           </div>
@@ -321,18 +321,18 @@ export default function ExportListingDialog({
                   "all"
                 )
               }
-              className="h-10 flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 transition cursor-pointer"
+              className="h-10 flex-1 flex items-center justify-center gap-1.5 rounded-xl glass hover:bg-white/[0.06] text-zinc-200 text-xs font-bold border border-white/[0.08] transition cursor-pointer active:scale-95"
             >
-              {copiedAll ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5 text-slate-400" />}
+              {copiedAll ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5 text-zinc-400" />}
               <span>{copiedAll ? "Package Copied!" : "⚡ Copy Full Package"}</span>
             </button>
 
             <button
               type="button"
               onClick={downloadCSV}
-              className="h-10 px-4 flex items-center justify-center gap-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 transition cursor-pointer"
+              className="h-10 px-4 flex items-center justify-center gap-1.5 rounded-xl glass hover:bg-white/[0.06] text-zinc-200 text-xs font-bold border border-white/[0.08] transition cursor-pointer active:scale-95"
             >
-              <Download className="h-3.5 w-3.5 text-slate-400" />
+              <Download className="h-3.5 w-3.5 text-zinc-400" />
               <span>CSV</span>
             </button>
           </div>

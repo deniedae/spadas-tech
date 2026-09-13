@@ -40,10 +40,10 @@ export default function LensHitCard({
   // ── Verdict colour ──────────────────────────────────────────────────────────
   const verdictStyle =
     item.verdict === "BUY"
-      ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+      ? "status-pill-emerald"
       : item.verdict === "CAUTION"
-      ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
-      : "bg-rose-500/20 text-rose-300 border-rose-500/40";
+      ? "status-pill-gold"
+      : "status-pill-crimson";
 
   // ── Sales speed pill ────────────────────────────────────────────────────────
   const speedLabel =
@@ -57,10 +57,10 @@ export default function LensHitCard({
 
   const speedStyle =
     item.salesVelocity?.sell_speed === "FAST_FLIP"
-      ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+      ? "status-pill-emerald"
       : item.salesVelocity?.sell_speed === "MODERATE"
-      ? "bg-cyan-500/15 text-cyan-300 border-cyan-500/30"
-      : "bg-amber-500/15 text-amber-300 border-amber-500/30";
+      ? "status-pill-cyan"
+      : "status-pill-gold";
 
   // ── eBay comps label — honest about data source ────────────────────────────
   const hasRealComps = item.ebayCompsCount && item.ebayCompsCount > 0;
@@ -82,10 +82,10 @@ export default function LensHitCard({
   return (
     <div
       onClick={() => onSelect(item.id)}
-      className={`relative w-full min-w-0 box-border overflow-hidden cursor-pointer transition-all duration-200 rounded-2xl border p-4 space-y-3 ${
+      className={`relative w-full min-w-0 box-border overflow-hidden cursor-pointer transition-all duration-200 rounded-2xl p-4 space-y-3 comp-row-glide ${
         isSelected
-          ? "border-emerald-500/70 bg-emerald-500/8 shadow-[0_0_20px_rgba(16,185,129,0.18)] ring-1 ring-emerald-500/50"
-          : "border-slate-800 bg-slate-900/80 hover:border-slate-700 hover:bg-slate-900"
+          ? "cyber-glow-emerald border border-emerald-500/60 bg-emerald-500/10 shadow-[0_0_25px_rgba(34,197,94,0.2)]"
+          : "cyber-glass hover:border-white/[0.14]"
       }`}
     >
       {/* ── Row 1: Name + Verdict ─────────────────────────────────────────── */}
@@ -96,7 +96,7 @@ export default function LensHitCard({
             checked={isSelected}
             onChange={() => onSelect(item.id)}
             onClick={(e) => e.stopPropagation()}
-            className="h-3.5 w-3.5 mt-0.5 rounded border-slate-700 bg-slate-900 text-emerald-500 focus:ring-emerald-400 cursor-pointer shrink-0 accent-emerald-500"
+            className="h-3.5 w-3.5 mt-0.5 rounded border-white/20 bg-black/60 text-emerald-500 focus:ring-emerald-400 cursor-pointer shrink-0 accent-emerald-500"
           />
           <div className="min-w-0 flex-1">
             <h4 className="text-xs font-bold text-white leading-snug line-clamp-2">
@@ -109,21 +109,21 @@ export default function LensHitCard({
             {/* Visual Identification Badges */}
             <div className="flex flex-wrap items-center gap-1.5 mt-1">
               {item.brand ? (
-                <span className="inline-flex items-center text-[9px] font-extrabold bg-cyan-950/70 border border-cyan-500/30 text-cyan-300 px-1.5 py-0.5 rounded">
+                <span className="inline-flex items-center text-[9px] font-extrabold bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 px-1.5 py-0.5 rounded">
                   🏷️ {item.brand}
                 </span>
               ) : (
-                <span className="inline-flex items-center text-[9px] font-semibold bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded">
+                <span className="inline-flex items-center text-[9px] font-semibold bg-white/[0.04] text-zinc-400 px-1.5 py-0.5 rounded border border-white/[0.06]">
                   Generic / Unbranded
                 </span>
               )}
               {item.category && (
-                <span className="inline-flex items-center text-[9px] font-semibold bg-slate-800/80 text-slate-300 px-1.5 py-0.5 rounded">
+                <span className="inline-flex items-center text-[9px] font-semibold bg-white/[0.04] text-zinc-300 px-1.5 py-0.5 rounded border border-white/[0.06]">
                   {item.category}
                 </span>
               )}
               {item.condition && (
-                <span className="inline-flex items-center text-[9px] font-medium text-slate-400">
+                <span className="inline-flex items-center text-[9px] font-medium text-zinc-400">
                   • {item.condition}
                 </span>
               )}
@@ -139,14 +139,14 @@ export default function LensHitCard({
 
             {/* OCR Evidence Snippet */}
             {item.visualReasoning?.visible_text_detected && item.visualReasoning.visible_text_detected.length > 0 && (
-              <p className="text-[9px] text-slate-400 truncate mt-0.5 font-mono">
+              <p className="text-[9px] text-zinc-400 truncate mt-0.5 font-mono">
                 🔤 OCR: {item.visualReasoning.visible_text_detected.slice(0, 3).join(" • ")}
               </p>
             )}
           </div>
         </div>
         <span
-          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black border shrink-0 ${verdictStyle}`}
+          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-mono font-black border shrink-0 ${verdictStyle}`}
         >
           {item.verdict}
         </span>
@@ -155,40 +155,40 @@ export default function LensHitCard({
       {/* ── Row 2: Dominant Profit + Secondary Stats ──────────────────────── */}
       <div className="flex items-end justify-between gap-3">
         <div>
-          <div className="text-[9px] font-semibold text-slate-500 uppercase tracking-widest mb-0.5 flex items-center gap-1.5">
-            <span>Net Profit</span>
+          <div className="text-[9px] font-semibold text-zinc-500 uppercase tracking-widest mb-0.5 flex items-center gap-1.5">
+            <span className="hud-label">Net Profit</span>
             {item.copVerdict && (
               <span className={`px-1.5 py-0.2 rounded font-black text-[9px] ${
                 item.copVerdict === "MUST_COP"
                   ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
                   : item.copVerdict === "QUICK_FLIP"
                   ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/30"
-                  : "bg-slate-800 text-slate-400"
+                  : "bg-white/[0.04] text-zinc-400 border border-white/[0.06]"
               }`}>
                 {item.copVerdict === "MUST_COP" ? "👑 MUST COP" : item.copVerdict === "QUICK_FLIP" ? "⚡ QUICK FLIP" : "⛔ PASS"}
               </span>
             )}
           </div>
-          <div className="text-3xl font-black text-emerald-400 leading-none tracking-tight">
+          <div className="text-3xl font-black text-emerald-400 leading-none tracking-tight font-mono tabular-nums">
             +{fmtMoney(item.trueNetProfit || item.estimatedProfit)}
           </div>
         </div>
-        <div className="flex flex-col items-end gap-0.5 text-[10px] text-slate-400 shrink-0">
+        <div className="flex flex-col items-end gap-0.5 text-[10px] text-zinc-400 shrink-0 font-mono">
           <span>
             Sell{" "}
-            <span className="font-bold text-cyan-300">
+            <span className="font-bold text-cyan-300 tabular-nums">
               {fmtMoney(item.estimatedValue)}
             </span>
           </span>
           <span>
             {item.tagPrice ? "🏷️ Tag " : "Cost "}
-            <span className="font-bold text-amber-300">
+            <span className="font-bold text-amber-300 tabular-nums">
               {fmtMoney(item.tagPrice || item.estCost)}
             </span>
           </span>
           <span>
             ROI{" "}
-            <span className="font-bold text-emerald-300">
+            <span className="font-bold text-emerald-300 tabular-nums">
               {item.roiPercentage || item.estRoi}%
             </span>
           </span>
@@ -248,7 +248,7 @@ export default function LensHitCard({
             </span>
           </button>
           {grailExpanded && (
-            <div className="px-2.5 pb-2 pt-1.5 flex items-center justify-between text-[10px] text-slate-300 border-t border-purple-500/20">
+            <div className="px-2.5 pb-2 pt-1.5 flex items-center justify-between text-[10px] text-zinc-300 border-t border-purple-500/20">
               <span>
                 Now: <strong>{fmtMoney(item.estimatedValue)}</strong>
               </span>
@@ -263,21 +263,21 @@ export default function LensHitCard({
 
       {/* ── Actions ──────────────────────────────────────────────────────── */}
       <div
-        className="flex flex-wrap items-center justify-between gap-2 pt-2.5 border-t border-slate-800/70"
+        className="flex flex-wrap items-center justify-between gap-2 pt-2.5 border-t border-white/[0.08]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex flex-wrap items-center gap-1.5">
           <button
             type="button"
             onClick={() => onSaveDraft(item)}
-            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-slate-950 text-[10px] font-black transition cursor-pointer shadow-sm shadow-emerald-500/20"
+            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:brightness-110 active:scale-95 text-slate-950 text-[10px] font-black transition cursor-pointer shadow-[0_0_12px_rgba(34,197,94,0.3)]"
           >
             + Save Draft
           </button>
           <button
             type="button"
             onClick={() => setShowCompareModal(true)}
-            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 active:scale-95 text-cyan-300 border border-cyan-500/40 text-[10px] font-black transition cursor-pointer shadow-sm shadow-cyan-500/10"
+            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 active:scale-95 text-cyan-300 border border-cyan-500/40 text-[10px] font-black transition cursor-pointer shadow-[0_0_10px_rgba(0,242,254,0.15)]"
             title="Compare The Market: Net payouts & comps on eBay, Depop, Poshmark, Mercari & FB"
           >
             <Scale className="w-3 h-3 text-cyan-400" />
@@ -296,7 +296,7 @@ export default function LensHitCard({
           <button
             type="button"
             onClick={() => onListEbay(item)}
-            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 active:scale-95 text-amber-300 border border-amber-500/40 text-[10px] font-black transition cursor-pointer"
+            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 active:scale-95 text-amber-300 border border-amber-500/40 text-[10px] font-black transition cursor-pointer shadow-[0_0_10px_rgba(245,158,11,0.15)]"
           >
             eBay List
           </button>
@@ -304,7 +304,7 @@ export default function LensHitCard({
         <button
           type="button"
           onClick={() => onReport(item.id, item.name)}
-          className="inline-flex items-center gap-0.5 text-[9px] font-semibold text-slate-600 hover:text-amber-400 transition cursor-pointer"
+          className="inline-flex items-center gap-0.5 text-[9px] font-semibold text-zinc-500 hover:text-amber-400 transition cursor-pointer"
         >
           <ShieldAlert className="h-3 w-3" />
           Report

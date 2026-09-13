@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { CURRENCY_CONFIGS, SupportedCurrency } from "@/app/lib/currency-routing";
 import { toast } from "sonner";
+import { triggerTactileHaptic } from "@/lib/android-bridge";
 
 export interface LensControlsBarProps {
   scan: {
@@ -86,18 +87,21 @@ export default function LensControlsBar({
   const [isMoreOpen, setIsMoreOpen] = useState(false);
 
   return (
-    <div className="w-full box-border rounded-2xl bg-slate-950/95 backdrop-blur-md p-3 sm:p-4 border border-slate-800/80 shadow-2xl space-y-3">
+    <div className="w-full box-border rounded-2xl glass-hud backdrop-blur-xl bg-black/80 p-3 sm:p-4 border border-white/10 shadow-2xl space-y-3">
       {/* ── ROW 1: Focused Primary Controls (Always Visible) ────────────────── */}
       <div className="flex flex-wrap items-center justify-between gap-2.5">
         {/* Left: Scan Frame Primary Action */}
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={scan.onScanNow}
+            onClick={() => {
+              triggerTactileHaptic("medium");
+              scan.onScanNow();
+            }}
             disabled={scan.isAnalyzing}
-            className="inline-flex h-9 items-center gap-2 rounded-xl px-4 sm:px-5 text-xs sm:text-sm font-black bg-gradient-to-r from-indigo-600 via-indigo-500 to-cyan-600 hover:brightness-110 active:scale-95 text-white shadow-md shadow-indigo-600/30 transition cursor-pointer disabled:opacity-70"
+            className="inline-flex h-9 items-center gap-2 rounded-xl px-4 sm:px-5 text-xs sm:text-sm font-black bg-gradient-to-r from-[#00F2FE] via-cyan-400 to-teal-400 hover:brightness-110 active:scale-95 text-black shadow-[0_0_25px_rgba(0,242,254,0.45)] border border-[#00F2FE]/60 transition cursor-pointer disabled:opacity-70"
           >
-            <RefreshCw className={`h-4 w-4 ${scan.isAnalyzing ? "animate-spin text-cyan-200" : "text-white"}`} />
+            <RefreshCw className={`h-4 w-4 ${scan.isAnalyzing ? "animate-spin text-black" : "text-black"}`} />
             <span>{scan.isAnalyzing ? "Analyzing Frame..." : "Scan Frame"}</span>
           </button>
         </div>
@@ -108,16 +112,18 @@ export default function LensControlsBar({
           <button
             type="button"
             onClick={() => {
-              prefs.setGrailMode(!prefs.grailMode);
+              const nextGrail = !prefs.grailMode;
+              triggerTactileHaptic(nextGrail ? "grail" : "light");
+              prefs.setGrailMode(nextGrail);
               toast.success(
-                !prefs.grailMode ? "🚨 AR Grail Detector Active ($80+ Alert)!" : "Grail Detector muted."
+                nextGrail ? "🚨 AR Grail Detector Active ($80+ Alert)!" : "Grail Detector muted."
               );
             }}
             title={prefs.grailMode ? "Grail Mode ON ($80+ Alert)" : "Grail Mode OFF"}
-            className={`inline-flex h-9 w-9 items-center justify-center rounded-xl border transition cursor-pointer ${
+            className={`inline-flex h-9 w-9 items-center justify-center rounded-xl border transition cursor-pointer active:scale-95 ${
               prefs.grailMode
-                ? "bg-amber-400 text-slate-950 border-amber-300 shadow-md shadow-amber-400/30 animate-pulse"
-                : "bg-white/10 text-slate-400 border-white/20 hover:bg-white/20 hover:text-white"
+                ? "bg-[#CCFF00] text-black border-[#CCFF00] shadow-[0_0_20px_rgba(204,255,0,0.55)] animate-pulse font-black"
+                : "glass text-zinc-400 border-white/10 hover:bg-white/[0.06] hover:text-white"
             }`}
           >
             <Trophy className="h-4 w-4" />
@@ -126,14 +132,17 @@ export default function LensControlsBar({
           {/* Expandable Options Drawer Toggle ("⚙️ More") */}
           <button
             type="button"
-            onClick={() => setIsMoreOpen(!isMoreOpen)}
-            className={`inline-flex h-9 items-center gap-1.5 rounded-xl border px-3 text-xs font-bold transition cursor-pointer ${
+            onClick={() => {
+              triggerTactileHaptic("selection");
+              setIsMoreOpen(!isMoreOpen);
+            }}
+            className={`inline-flex h-9 items-center gap-1.5 rounded-xl border px-3 text-xs font-bold transition cursor-pointer active:scale-95 ${
               isMoreOpen
-                ? "bg-cyan-500/20 text-cyan-300 border-cyan-500/40"
-                : "bg-white/10 text-slate-300 border-white/20 hover:bg-white/20 hover:text-white"
+                ? "badge-neon-cyan"
+                : "glass text-zinc-300 border-white/10 hover:bg-white/[0.06] hover:text-white"
             }`}
           >
-            <Settings2 className="h-3.5 w-3.5 text-cyan-400" />
+            <Settings2 className="h-3.5 w-3.5 text-[#00F2FE]" />
             <span>Options</span>
             {isMoreOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
           </button>
@@ -141,8 +150,11 @@ export default function LensControlsBar({
           {/* Stop Camera Button */}
           <button
             type="button"
-            onClick={scan.onStop}
-            className="inline-flex h-9 items-center gap-1 rounded-xl bg-red-600/90 hover:bg-red-500 px-3 text-xs font-bold text-white cursor-pointer transition active:scale-95"
+            onClick={() => {
+              triggerTactileHaptic("warning");
+              scan.onStop();
+            }}
+            className="inline-flex h-9 items-center gap-1 rounded-xl badge-error px-3 text-xs font-bold cursor-pointer transition active:scale-95 hover:bg-rose-500/20"
             title="Stop Camera Stream"
           >
             <Square className="h-3 w-3 fill-current" />
@@ -162,15 +174,18 @@ export default function LensControlsBar({
               {hardware.torchSupported && (
                 <button
                   type="button"
-                  onClick={hardware.onToggleTorch}
+                  onClick={() => {
+                    triggerTactileHaptic("light");
+                    hardware.onToggleTorch();
+                  }}
                   title={hardware.torchEnabled ? "Turn Flashlight OFF" : "Turn Flashlight ON"}
-                  className={`inline-flex h-8 items-center gap-1.5 rounded-xl border px-2.5 text-xs font-bold transition cursor-pointer ${
+                  className={`inline-flex h-8 items-center gap-1.5 rounded-xl border px-2.5 text-xs font-bold transition cursor-pointer active:scale-95 ${
                     hardware.torchEnabled
-                      ? "bg-amber-400 text-slate-950 border-amber-300 shadow-md shadow-amber-400/30"
-                      : "bg-slate-900 border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800"
+                      ? "badge-active text-[#00F2FE]"
+                      : "glass border-white/[0.08] text-zinc-300 hover:text-white hover:bg-white/[0.06]"
                   }`}
                 >
-                  <Sun className={`h-3.5 w-3.5 ${hardware.torchEnabled ? "text-slate-950 animate-pulse" : "text-amber-400"}`} />
+                  <Sun className={`h-3.5 w-3.5 ${hardware.torchEnabled ? "text-[#00F2FE] animate-pulse" : "text-[#00F2FE]"}`} />
                   <span>{hardware.torchEnabled ? "Torch ON" : "Torch"}</span>
                 </button>
               )}
@@ -178,28 +193,34 @@ export default function LensControlsBar({
               {/* Sound Cues Toggle */}
               <button
                 type="button"
-                onClick={audio.onToggleSound}
-                className={`inline-flex h-8 items-center gap-1.5 rounded-xl border px-2.5 text-xs font-semibold transition cursor-pointer ${
+                onClick={() => {
+                  triggerTactileHaptic("light");
+                  audio.onToggleSound();
+                }}
+                className={`inline-flex h-8 items-center gap-1.5 rounded-xl border px-2.5 text-xs font-semibold transition cursor-pointer active:scale-95 ${
                   audio.soundEnabled
-                    ? "bg-slate-900 border-cyan-500/40 text-cyan-300"
-                    : "bg-slate-900 border-slate-700 text-slate-400 hover:text-slate-200"
+                    ? "badge-active text-[#00F2FE]"
+                    : "glass border-white/[0.08] text-zinc-400 hover:text-zinc-200"
                 }`}
               >
-                {audio.soundEnabled ? <Volume2 className="h-3.5 w-3.5 text-cyan-400" /> : <VolumeX className="h-3.5 w-3.5 text-slate-500" />}
+                {audio.soundEnabled ? <Volume2 className="h-3.5 w-3.5 text-[#00F2FE]" /> : <VolumeX className="h-3.5 w-3.5 text-zinc-500" />}
                 <span>{audio.soundEnabled ? "Audio ON" : "Muted"}</span>
               </button>
 
               {/* Voice Control Toggle */}
               <button
                 type="button"
-                onClick={audio.onToggleVoice}
-                className={`inline-flex h-8 items-center gap-1.5 rounded-xl border px-2.5 text-xs font-semibold transition cursor-pointer ${
+                onClick={() => {
+                  triggerTactileHaptic("light");
+                  audio.onToggleVoice();
+                }}
+                className={`inline-flex h-8 items-center gap-1.5 rounded-xl border px-2.5 text-xs font-semibold transition cursor-pointer active:scale-95 ${
                   audio.voiceListening
-                    ? "bg-emerald-500/25 text-emerald-300 border-emerald-500/50 shadow-sm shadow-emerald-500/20"
-                    : "bg-slate-900 border-slate-700 text-slate-400 hover:text-slate-200"
+                    ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-sm"
+                    : "glass border-white/[0.08] text-zinc-400 hover:text-zinc-200"
                 }`}
               >
-                {audio.voiceListening ? <Mic className="h-3.5 w-3.5 text-emerald-400 animate-pulse" /> : <MicOff className="h-3.5 w-3.5 text-slate-500" />}
+                {audio.voiceListening ? <Mic className="h-3.5 w-3.5 text-emerald-400 animate-pulse" /> : <MicOff className="h-3.5 w-3.5 text-zinc-500" />}
                 <span>{audio.voiceListening ? "Voice Active" : "Voice"}</span>
               </button>
             </div>
@@ -207,7 +228,7 @@ export default function LensControlsBar({
             {/* Right group: Currency, Nav, Pro */}
             <div className="flex flex-wrap items-center gap-2">
               {/* Currency Selector */}
-              <div className="flex items-center gap-0.5 bg-slate-900 border border-slate-700 rounded-xl p-0.5">
+              <div className="flex items-center gap-0.5 glass border border-white/[0.08] rounded-xl p-0.5">
                 {(["AUD", "USD", "EUR", "GBP"] as SupportedCurrency[]).map((c) => {
                   const conf = CURRENCY_CONFIGS[c];
                   return (
@@ -215,16 +236,17 @@ export default function LensControlsBar({
                       key={c}
                       type="button"
                       onClick={() => {
+                        triggerTactileHaptic("selection");
                         prefs.setCurrency(c);
                         if (typeof window !== "undefined") {
                           localStorage.setItem("spadas_selected_currency", c);
                         }
                         toast.success(`Switched Comps to ${conf.flag} ${c} (${conf.ebaySite})`);
                       }}
-                      className={`px-2 py-0.5 rounded-lg text-xs font-black transition cursor-pointer flex items-center gap-1 ${
+                      className={`px-2 py-0.5 rounded-lg text-xs font-black transition cursor-pointer flex items-center gap-1 active:scale-95 ${
                         prefs.currency === c
-                          ? "bg-emerald-500 text-slate-950 shadow-sm"
-                          : "text-slate-400 hover:text-white"
+                          ? "badge-active text-[#00F2FE]"
+                          : "text-zinc-400 hover:text-white"
                       }`}
                       title={`Switch to ${c} (${conf.ebaySite})`}
                     >
@@ -238,19 +260,25 @@ export default function LensControlsBar({
               {/* Guide Button */}
               <button
                 type="button"
-                onClick={nav.onGuide}
-                className="inline-flex h-8 items-center gap-1 rounded-xl border border-slate-700 bg-slate-900 px-2.5 text-xs font-bold text-slate-300 hover:text-white hover:bg-slate-800 cursor-pointer transition"
+                onClick={() => {
+                  triggerTactileHaptic("light");
+                  nav.onGuide();
+                }}
+                className="inline-flex h-8 items-center gap-1 rounded-xl border border-white/[0.08] glass px-2.5 text-xs font-bold text-zinc-300 hover:text-white hover:bg-white/[0.06] cursor-pointer transition active:scale-95"
                 title="Open AR Camera Framing Guide"
               >
-                <HelpCircle className="h-3.5 w-3.5 text-cyan-400" />
+                <HelpCircle className="h-3.5 w-3.5 text-[#00F2FE]" />
                 <span>Guide</span>
               </button>
 
               {/* History Button */}
               <button
                 type="button"
-                onClick={nav.onHistory}
-                className="inline-flex h-8 items-center gap-1 rounded-xl border border-emerald-500/40 bg-emerald-500/15 px-2.5 text-xs font-bold text-emerald-300 hover:bg-emerald-500/25 cursor-pointer transition shadow-sm shadow-emerald-500/20"
+                onClick={() => {
+                  triggerTactileHaptic("light");
+                  nav.onHistory();
+                }}
+                className="inline-flex h-8 items-center gap-1 rounded-xl border border-white/[0.08] glass px-2.5 text-xs font-bold text-zinc-300 hover:text-white hover:bg-white/[0.06] cursor-pointer transition active:scale-95"
                 title="Open Scan History Feed"
               >
                 <History className="h-3.5 w-3.5 text-emerald-400" />
@@ -266,8 +294,11 @@ export default function LensControlsBar({
               ) : (
                 <button
                   type="button"
-                  onClick={prefs.onUpgrade}
-                  className="inline-flex h-8 items-center gap-1 rounded-xl bg-gradient-to-r from-amber-500 to-cyan-500 px-3 text-xs font-black text-slate-950 shadow-md shadow-amber-500/20 hover:scale-105 transition cursor-pointer"
+                  onClick={() => {
+                    triggerTactileHaptic("medium");
+                    prefs.onUpgrade();
+                  }}
+                  className="inline-flex h-8 items-center gap-1 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-3 text-xs font-black text-slate-950 shadow-md hover:brightness-110 active:scale-95 transition cursor-pointer"
                 >
                   <Sparkles className="h-3 w-3 text-slate-950 animate-pulse" />
                   <span>Upgrade Pro</span>
@@ -278,14 +309,17 @@ export default function LensControlsBar({
               {debug?.isOwner && (
                 <button
                   type="button"
-                  onClick={() => debug.setShowDebugDrawer(!debug.showDebugDrawer)}
-                  className={`inline-flex h-8 items-center gap-1 rounded-xl border px-2 text-xs font-bold transition cursor-pointer ${
+                  onClick={() => {
+                    triggerTactileHaptic("light");
+                    debug.setShowDebugDrawer(!debug.showDebugDrawer);
+                  }}
+                  className={`inline-flex h-8 items-center gap-1 rounded-xl border px-2 text-xs font-bold transition cursor-pointer active:scale-95 ${
                     debug.showDebugDrawer
-                      ? "bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-sm"
-                      : "bg-slate-900 border-slate-700 text-slate-400 hover:text-white"
+                      ? "badge-active text-[#00F2FE]"
+                      : "glass border-white/[0.08] text-zinc-400 hover:text-white"
                   }`}
                 >
-                  <Bug className="h-3 w-3 text-amber-400" />
+                  <Bug className="h-3 w-3 text-[#00F2FE]" />
                   <span>Debug</span>
                 </button>
               )}
@@ -293,11 +327,11 @@ export default function LensControlsBar({
           </div>
 
           {/* Profit Threshold Slider & Presets Row */}
-          <div className="pt-2 flex flex-wrap items-center justify-between gap-3 border-t border-slate-800/60">
+          <div className="pt-2 flex flex-wrap items-center justify-between gap-3 border-t border-white/[0.06]">
             <div className="flex items-center gap-2 text-xs">
               <Sliders className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-              <span className="font-semibold text-slate-300 text-[11px]">Chime Min Profit:</span>
-              <span className="font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-1.5 py-0.5 rounded text-xs">
+              <span className="hud-label">Chime Min Profit:</span>
+              <span className="hud-chip text-emerald-400 border-emerald-500/30">
                 ${prefs.minProfitThreshold} {prefs.currency}
               </span>
             </div>
@@ -309,22 +343,28 @@ export default function LensControlsBar({
                 max="100"
                 step="5"
                 value={prefs.minProfitThreshold}
-                onChange={(e) => prefs.updateProfitThreshold(Number(e.target.value))}
-                className="w-full accent-emerald-400 h-1.5 bg-slate-800 rounded-lg cursor-pointer"
+                onChange={(e) => {
+                  triggerTactileHaptic("selection");
+                  prefs.updateProfitThreshold(Number(e.target.value));
+                }}
+                className="w-full accent-emerald-400 h-1.5 bg-zinc-800 rounded-lg cursor-pointer"
               />
             </div>
 
             <div className="flex items-center gap-1">
-              <span className="text-[10px] text-slate-500 font-bold mr-1">Presets:</span>
+              <span className="hud-label mr-1">Presets:</span>
               {[10, 20, 30, 50].map((preset) => (
                 <button
                   key={preset}
                   type="button"
-                  onClick={() => prefs.updateProfitThreshold(preset)}
-                  className={`px-2 py-0.5 rounded text-[10px] font-black transition cursor-pointer ${
+                  onClick={() => {
+                    triggerTactileHaptic("selection");
+                    prefs.updateProfitThreshold(preset);
+                  }}
+                  className={`px-2 py-0.5 rounded text-[10px] font-black transition cursor-pointer active:scale-95 ${
                     prefs.minProfitThreshold === preset
-                      ? "bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20"
-                      : "bg-slate-900 border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800"
+                      ? "badge-active text-[#00F2FE]"
+                      : "glass border border-white/[0.08] text-zinc-400 hover:text-white"
                   }`}
                 >
                   ${preset}
@@ -335,18 +375,18 @@ export default function LensControlsBar({
 
           {/* Owner Diagnostics Drawer Panel */}
           {debug?.isOwner && debug?.showDebugDrawer && (
-            <div className="w-full rounded-xl bg-slate-950 border border-amber-500/30 p-3 shadow-2xl space-y-2.5 backdrop-blur-md mt-2">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+            <div className="w-full rounded-xl glass-hud border border-white/[0.08] p-3 shadow-2xl space-y-2.5 mt-2">
+              <div className="flex items-center justify-between border-b border-white/[0.06] pb-2">
                 <div className="flex items-center gap-1.5">
-                  <Terminal className="h-3.5 w-3.5 text-amber-400 shrink-0" />
-                  <h4 className="text-[11px] font-black text-amber-300 uppercase tracking-wider">
+                  <Terminal className="h-3.5 w-3.5 text-[#00F2FE] shrink-0" />
+                  <h4 className="hud-label text-zinc-200">
                     Live AR Scan Diagnostics & Debugger
                   </h4>
                 </div>
                 <span
                   className={`text-[9px] font-black px-2 py-0.5 rounded-full border ${
                     debug.isMockFallback
-                      ? "bg-amber-500/20 text-amber-300 border-amber-500/30"
+                      ? "badge-info"
                       : "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
                   }`}
                 >
@@ -357,8 +397,8 @@ export default function LensControlsBar({
               {debug.lastRawApiResponse ? (
                 <div className="space-y-2">
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                    <div className="bg-slate-900 border border-slate-800 rounded-lg p-2 space-y-0.5">
-                      <span className="text-[9px] text-slate-400 font-semibold block">Detected Item</span>
+                    <div className="glass border border-white/[0.06] rounded-lg p-2 space-y-0.5">
+                      <span className="hud-label block">Detected Item</span>
                       <span className="font-bold text-white truncate block text-[11px]">
                         {debug.lastRawApiResponse.analysis?.product_name ||
                           debug.lastRawApiResponse.detected_objects?.[0]?.product_name ||
@@ -366,15 +406,15 @@ export default function LensControlsBar({
                       </span>
                     </div>
 
-                    <div className="bg-slate-900 border border-slate-800 rounded-lg p-2 space-y-0.5">
-                      <span className="text-[9px] text-slate-400 font-semibold block">Market Comp</span>
-                      <span className="font-extrabold text-cyan-300 block text-[11px]">
+                    <div className="glass border border-white/[0.06] rounded-lg p-2 space-y-0.5">
+                      <span className="hud-label block">Market Comp</span>
+                      <span className="font-extrabold text-[#00F2FE] block text-[11px]">
                         ${debug.lastRawApiResponse.suggested_price_min || 0} - ${debug.lastRawApiResponse.suggested_price_max || 0} {debug.lastRawApiResponse.suggested_price_currency || "AUD"}
                       </span>
                     </div>
 
-                    <div className="bg-slate-900 border border-slate-800 rounded-lg p-2 space-y-0.5">
-                      <span className="text-[9px] text-slate-400 font-semibold block">Comps Source</span>
+                    <div className="glass border border-white/[0.06] rounded-lg p-2 space-y-0.5">
+                      <span className="hud-label block">Comps Source</span>
                       <span className="font-bold text-emerald-400 block text-[11px]">
                         {debug.lastRawApiResponse.comps_source === "browse_api"
                           ? "eBay Browse API"
@@ -384,31 +424,31 @@ export default function LensControlsBar({
                       </span>
                     </div>
 
-                    <div className="bg-slate-900 border border-slate-800 rounded-lg p-2 space-y-0.5">
-                      <span className="text-[9px] text-slate-400 font-semibold block">Scan Engine</span>
-                      <span className="font-bold text-amber-300 block text-[11px]">
+                    <div className="glass border border-white/[0.06] rounded-lg p-2 space-y-0.5">
+                      <span className="hud-label block">Scan Engine</span>
+                      <span className="font-bold text-zinc-300 block text-[11px]">
                         {debug.lastRawApiResponse.isMockFallback ? "Simulated Catalog" : "OpenAI GPT-4o Vision"}
                       </span>
                     </div>
                   </div>
 
                   {debug.latestApiError && (
-                    <div className="bg-red-950/60 border border-red-500/40 rounded-lg p-2 space-y-0.5">
-                      <span className="text-[9px] font-bold text-red-300 uppercase tracking-wider block">
+                    <div className="glass-hud border border-rose-500/30 rounded-lg p-2 space-y-0.5">
+                      <span className="text-[9px] font-bold text-rose-400 uppercase tracking-wider block">
                         Latest API Error:
                       </span>
-                      <span className="text-xs font-mono text-red-200 block break-words">
+                      <span className="text-xs font-mono text-rose-300 block break-words">
                         {debug.latestApiError}
                       </span>
                     </div>
                   )}
 
-                  <pre className="text-[9px] text-emerald-400 bg-slate-900 border border-slate-800 rounded-lg p-2 font-mono overflow-x-auto max-h-32">
+                  <pre className="text-[9px] text-emerald-400 glass border border-white/[0.06] rounded-lg p-2 font-mono overflow-x-auto max-h-32">
                     {JSON.stringify(debug.lastRawApiResponse, null, 2)}
                   </pre>
                 </div>
               ) : (
-                <div className="text-center py-2 text-slate-500 text-[11px]">
+                <div className="text-center py-2 text-zinc-500 text-[11px]">
                   No frame scan payload recorded yet. Tap "Scan Now" to capture diagnostics.
                 </div>
               )}
