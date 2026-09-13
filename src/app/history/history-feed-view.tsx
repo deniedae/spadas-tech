@@ -367,21 +367,21 @@ export function HistoryFeedView({
       {/* Scan List */}
       {items.length === 0 ? (
         <div className="text-center py-16 px-6 glass-card border border-white/[0.06] rounded-2xl space-y-3">
-          <div className="flex h-14 w-14 mx-auto items-center justify-center rounded-2xl bg-zinc-900 border border-zinc-800 text-zinc-500">
-            <Scan className="w-7 h-7 stroke-1 text-zinc-400" />
+          <div className="flex h-14 w-14 mx-auto items-center justify-center rounded-full bg-white/[0.02] border border-white/[0.05] text-zinc-500">
+            <Scan className="w-6 h-6 stroke-1 text-zinc-400" />
           </div>
-          <h3 className="text-base font-bold text-white">No Scan Records Found</h3>
-          <p className="text-zinc-400 text-xs max-w-md mx-auto">
+          <h3 className="text-sm font-semibold text-white">No scans found</h3>
+          <p className="text-zinc-500 text-xs max-w-sm mx-auto leading-relaxed">
             {activeStatus === "all"
-              ? "Items scanned using Spadas Lens AR will automatically persist to your account history feed with full comps."
-              : `No historical scan records match status filter: '${activeStatus}'.`}
+              ? "Items scanned using the Camera will automatically persist to your history feed with full valuations."
+              : `No scans match the current status filter: '${activeStatus}'.`}
           </p>
           <Link
             href="/lens"
-            className="inline-flex items-center gap-2 mt-2 px-4 py-2 badge-active rounded-xl text-xs font-semibold hover:bg-[#00F2FE]/15 transition active:scale-95 cursor-pointer shadow-sm"
+            className="inline-flex items-center gap-2 mt-4 px-4 py-2 bg-white hover:bg-zinc-200 text-zinc-950 rounded-lg text-xs font-medium transition active:scale-95 cursor-pointer shadow-sm"
           >
-            <Scan className="w-4 h-4" />
-            <span>Scan Your First Item</span>
+            <Scan className="w-3.5 h-3.5" />
+            <span>Scan your first item</span>
           </Link>
         </div>
       ) : filteredItems.length === 0 ? (

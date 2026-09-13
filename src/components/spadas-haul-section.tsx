@@ -617,23 +617,23 @@ export function SpadasHaulSection({
       {/* Lot Manifest List / Empty State */}
       {items.length === 0 ? (
         <div className="py-16 px-6 text-center rounded-3xl bg-[#0A0D15]/60 border border-white/[0.08] space-y-4">
-          <div className="flex h-16 w-16 mx-auto items-center justify-center rounded-2xl bg-zinc-900/80 border border-zinc-800 text-zinc-500">
-            <ShoppingBag className="h-8 w-8 stroke-1 text-zinc-400" />
+          <div className="flex h-14 w-14 mx-auto items-center justify-center rounded-full bg-white/[0.02] border border-white/[0.05] text-zinc-500">
+            <ShoppingBag className="h-6 w-6 stroke-1 text-zinc-400" />
           </div>
           <div className="max-w-md mx-auto space-y-1.5">
-            <h3 className="text-base font-bold text-white">No Sourcing Lot Units Logged</h3>
-            <p className="text-xs text-zinc-400 leading-relaxed">
-              Launch Spadas Lens AR, scan thrift aisles or apparel racks, and every captured item will automatically aggregate here with real-time sell-through comps and net profit calculations.
+            <h3 className="text-sm font-semibold text-white">No items in Haul</h3>
+            <p className="text-xs text-zinc-500 leading-relaxed">
+              Launch the Camera to scan items, and they will automatically aggregate here with real-time sell-through comps and net profit calculations.
             </p>
           </div>
           {onSwitchToLens && (
             <button
               type="button"
               onClick={onSwitchToLens}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black text-xs transition shadow-lg shadow-cyan-500/20 cursor-pointer active:scale-95"
+              className="inline-flex items-center gap-2 mt-4 px-4 py-2 bg-white hover:bg-zinc-200 text-zinc-950 rounded-lg font-medium text-xs transition cursor-pointer shadow-sm active:scale-95"
             >
-              <Scan className="h-4 w-4" />
-              <span>Launch Lens AR Scanner</span>
+              <Scan className="h-3.5 w-3.5" />
+              <span>Launch Scanner</span>
             </button>
           )}
         </div>

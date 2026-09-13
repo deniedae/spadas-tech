@@ -2,7 +2,7 @@ import { cn } from "@/lib/utils";
 
 function Skeleton({
   className,
-  variant = "laser",
+  variant = "shimmer",
   ...props
 }: React.HTMLAttributes<HTMLDivElement> & {
   variant?: "laser" | "shimmer" | "pulse";

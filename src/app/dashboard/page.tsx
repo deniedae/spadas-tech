@@ -338,9 +338,9 @@ export default function DashboardPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <div className="inline-flex items-center gap-2 rounded-md bg-white/[0.04] border border-white/[0.08] px-2.5 py-1 text-[11px] font-semibold text-zinc-400">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  <span>Optical Sourcing Engine</span>
+                <div className="inline-flex items-center gap-2 rounded-md bg-white/[0.04] border border-white/[0.08] px-2.5 py-1 text-[11px] font-medium text-zinc-400">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                  <span>Sourcing Hub</span>
                 </div>
 
                 {isEbayConnected ? (
@@ -361,7 +361,7 @@ export default function DashboardPage() {
                 {proLoading ? (
                   <span className="h-5 w-16 rounded bg-white/[0.05] animate-pulse" />
                 ) : isPro ? (
-                  <span className="inline-flex items-center gap-1 rounded-md bg-cyan-500/10 border border-cyan-500/25 px-2 py-0.5 font-mono text-[10px] font-bold text-cyan-400">
+                  <span className="inline-flex items-center gap-1 rounded-md bg-cyan-500/10 border border-cyan-500/25 px-2 py-0.5 text-[10px] font-medium text-cyan-400">
                     Enterprise Tier
                   </span>
                 ) : (
@@ -379,7 +379,7 @@ export default function DashboardPage() {
                 <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
                   Portfolio &amp; Sourcing
                 </h1>
-                <span className="text-xs font-mono text-zinc-500">
+                <span className="text-xs font-medium text-zinc-500">
                   {allListings.length} positions
                 </span>
               </div>
@@ -430,17 +430,17 @@ export default function DashboardPage() {
 
         {/* ── Hero Number: Total Net Profit */}
         <div className="p-5 sm:p-6 glass-card backdrop-blur-sm rounded-xl shadow-sm">
-          <p className="text-[11px] font-mono font-semibold uppercase tracking-wider text-zinc-500 mb-1">
+          <p className="text-xs font-medium text-zinc-500 mb-1">
             Total Net Profit
           </p>
           {loading ? (
             <div className="h-12 w-40 rounded-lg bg-white/[0.05] animate-pulse" />
           ) : (
-            <p className={`text-4xl sm:text-5xl font-mono font-black tracking-tight ${stats.profit >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+            <p className={`text-4xl sm:text-5xl font-bold tabular-nums tracking-tight ${stats.profit >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
               {stats.profit >= 0 ? "+" : ""}{fmtMoney(stats.profit)}
             </p>
           )}
-          <div className="flex items-center gap-4 mt-2 text-xs font-mono text-zinc-500">
+          <div className="flex items-center gap-4 mt-2 text-xs font-medium text-zinc-500 tabular-nums">
             <span>{stats.sold} sold</span>
             <span className="text-zinc-700">&middot;</span>
             <span>{stats.listings - stats.sold} in inventory</span>
@@ -522,8 +522,8 @@ export default function DashboardPage() {
                 <Camera className="h-4 w-4" />
               </div>
               <div className="min-w-0">
-                <p className="text-xs font-semibold text-white group-hover:text-cyan-400 transition truncate">Spadas Lens</p>
-                <p className="text-[10px] text-zinc-500 truncate">60 FPS Optical Comps</p>
+                <p className="text-xs font-semibold text-white group-hover:text-cyan-400 transition truncate">Lens Camera</p>
+                <p className="text-[10px] text-zinc-500 truncate">Scan items for live comps</p>
               </div>
             </div>
             <ArrowRight className="h-3 w-3 text-zinc-600 group-hover:text-zinc-300 group-hover:translate-x-0.5 transition shrink-0" />
@@ -538,15 +538,15 @@ export default function DashboardPage() {
                 <Crosshair className="h-4 w-4" />
               </div>
               <div className="min-w-0">
-                <p className="text-xs font-semibold text-white group-hover:text-cyan-400 transition truncate">Spatial Field HUD</p>
-                <p className="text-[10px] text-zinc-500 truncate">3D Anchored Valuations</p>
+                <p className="text-xs font-semibold text-white group-hover:text-cyan-400 transition truncate">Scanner</p>
+                <p className="text-[10px] text-zinc-500 truncate">Real-time valuations</p>
               </div>
             </div>
             <ArrowRight className="h-3 w-3 text-zinc-600 group-hover:text-zinc-300 group-hover:translate-x-0.5 transition shrink-0" />
           </Link>
 
           <Link
-            href="/sourcing"
+            href="/haul"
             className="p-4 border border-white/[0.08] hover:border-white/[0.18] bg-[#0A0D15]/80 rounded-xl transition flex items-center justify-between group cursor-pointer"
           >
             <div className="flex items-center gap-3 min-w-0">
@@ -554,8 +554,8 @@ export default function DashboardPage() {
                 <Zap className="h-4 w-4" />
               </div>
               <div className="min-w-0">
-                <p className="text-xs font-semibold text-white group-hover:text-amber-300 transition truncate">Underwriting Engine</p>
-                <p className="text-[10px] text-zinc-500 truncate">STR &amp; Margin Audit</p>
+                <p className="text-xs font-semibold text-white group-hover:text-amber-300 transition truncate">Haul Calculator</p>
+                <p className="text-[10px] text-zinc-500 truncate">Profit tracking</p>
               </div>
             </div>
             <ArrowRight className="h-3 w-3 text-zinc-600 group-hover:text-zinc-300 group-hover:translate-x-0.5 transition shrink-0" />
@@ -570,8 +570,8 @@ export default function DashboardPage() {
                 <ListPlus className="h-4 w-4" />
               </div>
               <div className="min-w-0">
-                <p className="text-xs font-semibold text-white group-hover:text-blue-300 transition truncate">Session Audit Logs</p>
-                <p className="text-[10px] text-zinc-500 truncate">Historical Comps Feed</p>
+                <p className="text-xs font-semibold text-white group-hover:text-blue-300 transition truncate">History</p>
+                <p className="text-[10px] text-zinc-500 truncate">View past scans</p>
               </div>
             </div>
             <ArrowRight className="h-3 w-3 text-zinc-600 group-hover:text-zinc-300 group-hover:translate-x-0.5 transition shrink-0" />
@@ -583,11 +583,11 @@ export default function DashboardPage() {
           {/* Header & Controls */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-4 border-b border-white/[0.08]">
             <div>
-              <div className="flex items-center gap-2 text-xs font-semibold text-zinc-300">
+              <div className="flex items-center gap-2 text-xs font-medium text-zinc-300">
                 <span className="h-2 w-2 rounded-sm bg-cyan-400" />
-                <span className="uppercase tracking-wider">Portfolio Intelligence</span>
+                <span>Inventory</span>
                 <span className="text-zinc-600">&middot;</span>
-                <span className="text-zinc-500 font-mono">{allListings.length} units</span>
+                <span className="text-zinc-500 font-medium">{allListings.length} units</span>
               </div>
               <p className="text-xs text-zinc-500 mt-1">
                 Liquidity turnover velocity, real-time margin realization, and marketplace dispatch.
