@@ -55,7 +55,7 @@ body {
   min-height: 100dvh;
   overflow-x: hidden;
   overflow-y: auto;
-  background-color: #090A0F;
+  background-color: #030305;
   color: #F4F4F5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -215,15 +215,80 @@ body {
   box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4);
 }
 
-/* Tactile Hardware Specimen / Telemetry Panel */
+/* ==========================================================================
+   OLED Glassmorphism Surface System
+   — backdrop-blur-2xl + ultra-thin bg-white/[0.02..0.06] layers over #030305
+   ========================================================================== */
+
+/**
+ * .glass — thinnest layer: HUD pills, chips, floating badges
+ * bg: white/2% | blur: 16px | border: white/8%
+ */
+.glass {
+  background: rgba(255, 255, 255, 0.02);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+/**
+ * .glass-card — standard card surface: stat cards, module tiles, section panels
+ * bg: white/3% | blur: 24px | border: white/8% | inset highlight on top edge
+ */
+.glass-card {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 8px 32px 0 rgba(0, 0, 0, 0.37),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+/**
+ * .glass-card:hover — subtle brightening on pointer-over
+ */
+.glass-card:hover {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/**
+ * .glass-nav — nav bar / tab bar: needs stronger opacity for legibility
+ * bg: black/85% | blur: 40px | border-top: white/8%
+ */
+.glass-nav {
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(40px) saturate(200%);
+  -webkit-backdrop-filter: blur(40px) saturate(200%);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 -8px 32px 0 rgba(0, 0, 0, 0.5);
+}
+
+/**
+ * .glass-hud — floating camera HUD overlays: strong blur, minimal bg
+ * bg: black/70% | blur: 32px
+ */
+.glass-hud {
+  background: rgba(0, 0, 0, 0.70);
+  backdrop-filter: blur(32px) saturate(180%);
+  -webkit-backdrop-filter: blur(32px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.6);
+}
+
+/* Tactile Hardware Specimen / Telemetry Panel — updated to OLED black */
 .specimen-card,
 .hardware-panel {
-  background-color: #0E1118;
+  background-color: #080808;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 0.75rem;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 4px 12px rgba(0, 0, 0, 0.5);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 4px 12px rgba(0, 0, 0, 0.7);
   position: relative;
 }
+
+
 
 /* Mechanical Corner Crosshair Notch (Subtle Hardware Precision Marker) */
 .hardware-corner-notch::before {
@@ -298,9 +363,9 @@ body {
 
 /* Light / Fallback tokens */
 :root {
-  --background: #090A0F;
+  --background: #030305;
   --foreground: #F4F4F5;
-  --card: #0E1118;
+  --card: #080808;
   --card-foreground: #F4F4F5;
   --popover: #0E1118;
   --popover-foreground: #F4F4F5;
@@ -328,9 +393,9 @@ body {
 }
 
 .dark {
-  --background: #090A0F;
+  --background: #030305;
   --foreground: #F4F4F5;
-  --card: #0E1118;
+  --card: #080808;
   --card-foreground: #F4F4F5;
   --popover: #0E1118;
   --popover-foreground: #F4F4F5;
@@ -387,7 +452,7 @@ body::-webkit-scrollbar-thumb {
 }
 
 body::-webkit-scrollbar-track {
-  background-color: #090A0F;
+  background-color: #030305;
 }
 
 * {

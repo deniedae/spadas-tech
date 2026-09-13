@@ -142,7 +142,7 @@ export function HistoryFeedView({
   return (
     <div className="space-y-6 pb-32 sm:pb-36 pb-[calc(env(safe-area-inset-bottom,0px)+8rem)]">
       {/* Executive Operational Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-4 rounded-2xl bg-[#0A0D15]/90 border border-white/[0.08] shadow-2xl backdrop-blur-md">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-4 rounded-2xl glass-card shadow-2xl backdrop-blur-md">
         <div className="space-y-1">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/[0.08] border border-white/[0.12] text-zinc-100 font-black shadow-md shrink-0">
@@ -183,7 +183,7 @@ export function HistoryFeedView({
 
       {/* Stat Bar — 8pt grid p-4 */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="p-4 rounded-2xl bg-[#0A0D15]/80 border border-white/[0.08] shadow-sm flex flex-col gap-2">
+        <div className="p-4 rounded-2xl glass-card shadow-sm flex flex-col gap-2">
           <span className="hud-label">
             Total Scans
           </span>
@@ -192,7 +192,7 @@ export function HistoryFeedView({
           </span>
         </div>
 
-        <div className="p-4 rounded-2xl bg-[#0A0D15]/80 border border-white/[0.08] shadow-sm flex flex-col gap-2">
+        <div className="p-4 rounded-2xl glass-card shadow-sm flex flex-col gap-2">
           <span className="hud-label">
             Pagination
           </span>
@@ -201,7 +201,7 @@ export function HistoryFeedView({
           </span>
         </div>
 
-        <div className="p-4 rounded-2xl bg-[#0A0D15]/80 border border-white/[0.08] shadow-sm flex flex-col gap-2">
+        <div className="p-4 rounded-2xl glass-card shadow-sm flex flex-col gap-2">
           <span className="hud-label">
             Active Filter
           </span>
@@ -210,7 +210,7 @@ export function HistoryFeedView({
           </span>
         </div>
 
-        <div className="p-4 rounded-2xl bg-[#0A0D15]/80 border border-white/[0.08] shadow-sm flex flex-col gap-2">
+        <div className="p-4 rounded-2xl glass-card shadow-sm flex flex-col gap-2">
           <span className="hud-label">
             Selected
           </span>
@@ -232,7 +232,7 @@ export function HistoryFeedView({
       </div>
 
       {/* Filter Tabs & Search Bar — 8pt grid */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 rounded-2xl bg-[#0A0D15]/60 border border-white/[0.08]">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 rounded-2xl glass">
         {/* Status Filter Tabs */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
           <Link
@@ -314,7 +314,7 @@ export function HistoryFeedView({
 
       {/* Scan List */}
       {items.length === 0 ? (
-        <div className="text-center py-16 px-6 bg-[#0A0D15]/60 border border-white/[0.08] rounded-3xl space-y-3">
+        <div className="text-center py-16 px-6 glass-card border border-white/[0.06] rounded-2xl space-y-3">
           <div className="flex h-14 w-14 mx-auto items-center justify-center rounded-2xl bg-zinc-900 border border-zinc-800 text-zinc-500">
             <Scan className="w-7 h-7 stroke-1 text-zinc-400" />
           </div>
@@ -333,7 +333,7 @@ export function HistoryFeedView({
           </Link>
         </div>
       ) : filteredItems.length === 0 ? (
-        <div className="py-12 text-center rounded-2xl bg-[#0A0D15]/60 border border-white/[0.08] text-zinc-500 font-mono text-xs">
+        <div className="py-12 text-center rounded-2xl glass-card border border-white/[0.06] text-zinc-500 font-mono text-xs">
           No scan records match current search filter: &quot;{searchQuery}&quot;
         </div>
       ) : (

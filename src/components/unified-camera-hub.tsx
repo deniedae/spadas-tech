@@ -28,8 +28,8 @@ export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraH
   return (
     <div className="relative w-full bg-black text-white flex flex-col">
       {/* Top Segmented Mode Slider — Executive 3-Camera Suite & Haul Service Link */}
-      <div className="sticky top-0 z-40 w-full px-2.5 sm:px-3 pt-[max(0.75rem,calc(env(safe-area-inset-top)+0.5rem))] pb-2.5 sm:pb-3 sm:pt-3 bg-slate-950/90 backdrop-blur-md border-b border-slate-800/80 flex items-center justify-center">
-        <div className="grid grid-cols-4 gap-1 p-1 rounded-2xl bg-slate-900/95 border border-slate-800 shadow-xl max-w-2xl w-full">
+      <div className="sticky top-0 z-40 w-full px-2.5 sm:px-3 pt-[max(0.75rem,calc(env(safe-area-inset-top)+0.5rem))] pb-2.5 sm:pb-3 sm:pt-3 glass-nav border-b border-white/[0.08] flex items-center justify-center">
+        <div className="grid grid-cols-4 gap-1 p-1 rounded-2xl glass border-white/[0.06] shadow-xl max-w-2xl w-full">
           {/* Mode 1: Lens AR */}
           <button
             type="button"

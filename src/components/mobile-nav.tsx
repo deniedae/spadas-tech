@@ -61,7 +61,7 @@ export default function MobileNav() {
   return (
     <nav
       aria-label="Native Mobile Navigation"
-      className="fixed bottom-0 left-0 right-0 z-50 border-t border-slate-800/90 bg-slate-950/95 backdrop-blur-xl md:hidden px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-10px_30px_rgba(0,0,0,0.5)] select-none"
+      className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/[0.08] glass-nav md:hidden px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-10px_30px_rgba(0,0,0,0.5)] select-none"
     >
       <div className="flex items-center justify-between max-w-md mx-auto relative">
         {navItems.map(({ href, label, icon: Icon, isCenter, badge }) => {
