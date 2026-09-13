@@ -3458,7 +3458,7 @@ function SpadasLensCameraCore({
 
             {/* Continuous Visual Anchor: Captured item snapshot remains continuously visible beneath progressive loader, handoff, and valuation steps with ZERO black flashes */}
             {frozenFrameUrl && (analyzingRealFrame || isLoaderTransitioning || activeValuationHit || isScanPaused) && (
-              <div className="absolute inset-0 z-10 transition-opacity duration-300 pointer-events-none select-none animate-in fade-in duration-150">
+              <div className="absolute inset-0 z-10 pointer-events-none select-none lens-crossfade">
                 <img
                   src={frozenFrameUrl}
                   alt="Captured Scanned Frame"
@@ -3469,9 +3469,7 @@ function SpadasLensCameraCore({
 
             {/* Instant Target Lock & Scan Completion Feedback (Perimeter Laser Ring - Never blocks center) */}
             {scanCompletePulse && (
-              <div className="absolute inset-0 z-30 pointer-events-none select-none animate-in fade-in duration-150">
-                <div className="absolute inset-0 rounded-3xl border-2 border-emerald-400 bg-emerald-500/10 shadow-[inset_0_0_50px_rgba(16,185,129,0.3)] animate-pulse" />
-              </div>
+              <div className="absolute inset-0 z-30 pointer-events-none select-none lens-ring-pulse rounded-[inherit]" />
             )}
 
             {/* Top HUD Bar: Dynamic Confidence Indicator, Credit Badge & Camera Controls with Safe-Area Insets */}
@@ -3792,7 +3790,7 @@ function SpadasLensCameraCore({
             {/* Instant Non-Obstructing Bottom-Docked Valuation Card (z-40) */}
             {activeValuationHit && (
               <div
-                className="absolute bottom-3 sm:bottom-4 left-1/2 -translate-x-1/2 z-40 w-[95%] max-w-md pointer-events-auto transition-all duration-300 ease-out animate-in slide-in-from-bottom-4 fade-in"
+                className="absolute bottom-3 sm:bottom-4 left-1/2 -translate-x-1/2 z-40 w-[95%] max-w-md pointer-events-auto lens-card-enter"
                 onClick={(e) => e.stopPropagation()}
               >
                 <div
@@ -4173,12 +4171,12 @@ function SpadasLensCameraCore({
               </div>
             )}
 
-            {/* Scan Feedback Flash — brief full-frame color wash */}
+            {/* Scan Feedback — spring bloom/fade, no hard color pops */}
             {scanFeedback === "HIT" && (
-              <div className="absolute inset-0 z-30 pointer-events-none animate-in fade-in duration-100 animate-out fade-out duration-500 shadow-[inset_0_0_80px_rgba(52,211,153,0.5)] border-[3px] border-emerald-400/80 bg-emerald-500/8" />
+              <div className="absolute inset-0 z-30 pointer-events-none lens-hit-bloom lens-hit-bloom-active" />
             )}
             {scanFeedback === "MISS" && (
-              <div className="absolute inset-0 z-30 pointer-events-none animate-in fade-in duration-100 animate-out fade-out duration-500 shadow-[inset_0_0_80px_rgba(244,63,94,0.4)] border-[3px] border-rose-500/60 bg-rose-500/5" />
+              <div className="absolute inset-0 z-30 pointer-events-none lens-miss-fade bg-rose-500/[0.07] shadow-[inset_0_0_60px_rgba(244,63,94,0.25)]" />
             )}
 
             {/* Corner Viewfinder Ticks — pulse during scan */}
@@ -4204,11 +4202,11 @@ function SpadasLensCameraCore({
                   width: `${Math.max(15, Math.min(95, scan.bbox.width))}%`,
                   height: `${Math.max(15, Math.min(95, scan.bbox.height))}%`,
                 }}
-                className={`absolute z-20 pointer-events-none transition-all duration-300 border-2 rounded-2xl ${
+                className={`absolute z-20 pointer-events-none lens-bbox border-2 rounded-2xl ${
                   scan.status === "valued"
-                    ? "border-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.7)]"
-                    : "border-cyan-400 animate-pulse shadow-[0_0_10px_rgba(34,211,238,0.5)]"
-                } ${cameraMoving ? "opacity-75 scale-[0.99]" : "opacity-100 scale-100"}`}
+                    ? "border-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.5)]"
+                    : "border-cyan-400/80 shadow-[0_0_10px_rgba(34,211,238,0.4)]"
+                } ${cameraMoving ? "opacity-75" : "opacity-100"}`}
               >
                 {/* Subtle AR Reticle Tag with OCR Telemetry */}
                 <div className="absolute -top-7 left-0 flex items-center gap-1.5 bg-slate-950/90 text-white border border-cyan-400/30 rounded-lg px-2 py-0.5 text-[10px] font-bold shadow-lg backdrop-blur-md">
