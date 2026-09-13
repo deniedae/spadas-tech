@@ -4631,6 +4631,7 @@ function SpadasLensCameraCore({
       {activeValuationHit && (
         <div className="mt-4 w-full max-w-full px-3 sm:px-0 overflow-x-hidden box-border ledger-expand-glide">
           <AuditCompsLedger
+            isLoading={activeValuationHit.status === "pending"}
             comps={activeValuationHit.rawComps}
             targetTitle={activeValuationHit.name}
             brand={activeValuationHit.brand}
