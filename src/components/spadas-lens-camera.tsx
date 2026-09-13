@@ -114,7 +114,11 @@ import {
   STOP_WORDS,
   getKeywordSimilarity,
   isVagueOrPartialRead,
+  isMeaningfulMeta,
+  sanitizeMetaText,
   cleanConditionText,
+  cleanBrandText,
+  cleanCategoryText,
   captureVideoFrame,
   captureTargetBox,
 } from "@/lib/lens-utils";
@@ -878,9 +882,9 @@ function SpadasLensCameraCore({
             const verifiedHit: DetectedHit = {
               id: `hit-${Date.now()}`,
               name: pName,
-              brand: bData.product.brand || "Authentic",
-              category: bData.product.category || (isGrocery ? "Groceries & Beverages" : "Barcode Find"),
-              condition: "Used - Good",
+              brand: cleanBrandText(bData.product.brand, "Unbranded") || "Unbranded",
+              category: cleanCategoryText(bData.product.category, isGrocery ? "Groceries & Beverages" : "Barcode Find") || "Barcode Find",
+              condition: cleanConditionText(bData.product.condition, "Used - Good"),
               estimatedValue: estValue,
               estCost,
               estimatedProfit: estProfit,
@@ -902,6 +906,28 @@ function SpadasLensCameraCore({
             setActiveScans([scanObj]);
             setCapturedLog((prev) => [verifiedHit, ...prev.filter((h) => h.name !== pName)].slice(0, 50));
             setSessionScanCount((prev) => prev + 1);
+
+            const rapidBarcodeItem: RapidThriftItem = {
+              id: verifiedHit.id,
+              photoId: `photo_${verifiedHit.id}`,
+              timestamp: verifiedHit.timestamp,
+              status: "completed",
+              productName: verifiedHit.name,
+              brand: cleanBrandText(verifiedHit.brand, "Unbranded"),
+              category: cleanCategoryText(verifiedHit.category, "Barcode Find"),
+              condition: cleanConditionText(verifiedHit.condition, "Used - Good"),
+              estimatedValue: verifiedHit.estimatedValue || 0,
+              thriftCost: verifiedHit.tagPrice || verifiedHit.estCost || 0,
+              trueNetProfit: verifiedHit.trueNetProfit || verifiedHit.estimatedProfit || 0,
+              roiPercentage: verifiedHit.roiPercentage || verifiedHit.estRoi || 0,
+              copVerdict: verifiedHit.copVerdict === "MUST_COP" ? "MUST_COP" : "QUICK_FLIP",
+              isGrail: Boolean(verifiedHit.isGrail),
+              thumbnailUrl: snapshotUrl || productImg || undefined,
+              image: snapshotUrl || productImg || undefined,
+              imageUrl: snapshotUrl || productImg || undefined,
+            };
+            setRapidItems((prev) => [rapidBarcodeItem, ...prev.filter((i) => i.id !== rapidBarcodeItem.id)]);
+
             triggerActiveValuationHit(verifiedHit, snapshotUrl || productImg);
             setConfidencePercent(99);
             toast.success(`⚡ Barcode Lock: ${pName.slice(0, 24)}... (+$${estProfit} Net)`);
@@ -1167,11 +1193,7 @@ function SpadasLensCameraCore({
       const scanRecord = {
         id: hit.id,
         timestamp: hit.timestamp,
-        image_url: hit.image
-          ? hit.image.startsWith("data:")
-            ? `data:image/jpeg;base64,...(${hit.image.length} bytes)`
-            : hit.image
-          : null,
+        image_url: hit.image || null,
         result_json: rawResultJson || {
           product_name: hit.name,
           brand: hit.brand,
@@ -2649,14 +2671,18 @@ function SpadasLensCameraCore({
             timestamp: verifiedHit.timestamp,
             status: "completed",
             productName: verifiedHit.name,
-            brand: verifiedHit.brand || "Authentic",
-            category: verifiedHit.category || "General",
-            condition: verifiedHit.condition || "Used - Good",
+            brand: cleanBrandText(verifiedHit.brand, "Unbranded"),
+            category: cleanCategoryText(verifiedHit.category, "General"),
+            condition: cleanConditionText(verifiedHit.condition, "Used - Good"),
             estimatedValue: verifiedHit.estimatedValue || 0,
             thriftCost: verifiedHit.tagPrice || verifiedHit.estCost || 0,
             trueNetProfit: verifiedHit.trueNetProfit || verifiedHit.estimatedProfit || 0,
+            roiPercentage: verifiedHit.roiPercentage || verifiedHit.estRoi || 0,
             copVerdict: verifiedHit.copVerdict === "MUST_COP" ? "MUST_COP" : "QUICK_FLIP",
             isGrail: Boolean(verifiedHit.isGrail),
+            thumbnailUrl: frozenFrameUrl || verifiedHit.image || undefined,
+            image: frozenFrameUrl || verifiedHit.image || undefined,
+            imageUrl: frozenFrameUrl || verifiedHit.image || undefined,
           };
           setRapidItems((prev) => [offlineRapidItem, ...prev.filter((i) => i.id !== offlineRapidItem.id)]);
           if (frozenFrameUrl) {
@@ -2757,9 +2783,9 @@ function SpadasLensCameraCore({
               {
                 id: `obj-${Date.now()}`,
                 product_name: pName,
-                brand: data?.analysis?.brand || data?.brand || "Authentic",
-                category: data?.analysis?.category || data?.category || "General Resale",
-                condition: data?.analysis?.condition || data?.condition || "Used - Good",
+                brand: cleanBrandText(data?.analysis?.brand || data?.brand, "Unbranded"),
+                category: cleanCategoryText(data?.analysis?.category || data?.category, "General"),
+                condition: cleanConditionText(data?.analysis?.condition || data?.condition, "Used - Good"),
                 bbox: { x: 20, y: 15, width: 60, height: 70 },
                 confidence_score: data?.analysis?.confidence_score || 0.95,
               },
@@ -2771,7 +2797,7 @@ function SpadasLensCameraCore({
 
       for (const item of detected) {
         let pName = (item.product_name || "").trim();
-        const cat = item.category || "General Resale";
+        const cat = cleanCategoryText(item.category, "General") || "General";
 
         // Clean out internal AI notes from title instead of dropping the scan hit
         pName = pName
@@ -2790,9 +2816,9 @@ function SpadasLensCameraCore({
         const scanObj: ActiveScanItem = {
           id: item.id || `scan-${now}-${Math.random().toString(36).substring(2, 6)}`,
           productName: pName,
-          brand: item.brand,
+          brand: sanitizeMetaText(item.brand),
           category: cat,
-          condition: cleanConditionText(item.condition || "Used"),
+          condition: cleanConditionText(item.condition, "Used"),
           inventoryCondition: data.inventory_condition || "used_working",
           defectNotes: data.defect_notes || [],
           asIsDisclaimer: data.as_is_disclaimer || "",
@@ -2941,9 +2967,9 @@ function SpadasLensCameraCore({
           const verifiedHit: DetectedHit = {
             id: `hit-${now}-${Math.random().toString(36).substring(2, 8)}`,
             name: obj.productName,
-            brand: obj.brand || data?.analysis?.brand || null,
-            category: obj.category,
-            condition: itemCondition,
+            brand: sanitizeMetaText(obj.brand) || sanitizeMetaText(data?.analysis?.brand) || null,
+            category: cleanCategoryText(obj.category, "General") || "General",
+            condition: cleanConditionText(itemCondition, "Used"),
             conditionGrade: data?.condition_grade || data?.analysis?.condition_grade || "Good",
             wearInspection: data?.wear_inspection || data?.analysis?.wear_inspection || null,
             conditionModifier: data?.condition_modifier || data?.analysis?.condition_modifier || 1.0,
@@ -3021,18 +3047,20 @@ function SpadasLensCameraCore({
           recordCategoryTemplateQuery(verifiedHit.name, verifiedHit.category, categoryBias);
 
           // Mirror hit to Rapid Thrift Haul items for real-time telemetry badge updates
+          const snapImg = snapshotImage || frozenFrameUrl || (verifiedHit as any).image;
           const rapidMirrorItem: RapidThriftItem = {
             id: verifiedHit.id || `rapid_${Date.now()}`,
             photoId: verifiedHit.id ? `photo_${verifiedHit.id}` : `photo_${Date.now()}`,
             timestamp: verifiedHit.timestamp,
             status: "completed",
             productName: verifiedHit.name,
-            brand: verifiedHit.brand || "Authentic",
-            category: verifiedHit.category || "General",
-            condition: verifiedHit.condition || "Used - Good",
+            brand: cleanBrandText(verifiedHit.brand, "Unbranded"),
+            category: cleanCategoryText(verifiedHit.category, "General"),
+            condition: cleanConditionText(verifiedHit.condition, "Used - Good"),
             estimatedValue: verifiedHit.estimatedValue || 0,
             thriftCost: verifiedHit.tagPrice || verifiedHit.estCost || 0,
             trueNetProfit: verifiedHit.trueNetProfit || verifiedHit.estimatedProfit || 0,
+            roiPercentage: verifiedHit.roiPercentage || verifiedHit.estRoi || 0,
             copVerdict:
               verifiedHit.copVerdict === "MUST_COP"
                 ? "MUST_COP"
@@ -3042,11 +3070,13 @@ function SpadasLensCameraCore({
                 ? "PASS_RISKY"
                 : "QUICK_FLIP",
             isGrail: Boolean(verifiedHit.isGrail),
+            thumbnailUrl: typeof snapImg === "string" ? snapImg : undefined,
+            image: typeof snapImg === "string" ? snapImg : undefined,
+            imageUrl: typeof snapImg === "string" ? snapImg : undefined,
           };
           setRapidItems((prev) => [rapidMirrorItem, ...prev.filter((i) => i.id !== rapidMirrorItem.id)]);
 
           // Cache captured image blob to IndexedDB for instant Spadas Haul thumbnail rendering
-          const snapImg = snapshotImage || frozenFrameUrl || (verifiedHit as any).image;
           if (snapImg && typeof snapImg === "string") {
             try {
               const blob = dataUriToBlob(snapImg);
@@ -3212,9 +3242,9 @@ function SpadasLensCameraCore({
                     ...i,
                     status: "completed",
                     productName: data.product_name || "Thrift Item",
-                    brand: data.brand || "Authentic",
-                    category: data.category || "General",
-                    condition: data.condition || "Used - Good",
+                    brand: cleanBrandText(data.brand, "Unbranded"),
+                    category: cleanCategoryText(data.category, "General"),
+                    condition: cleanConditionText(data.condition, "Used - Good"),
                     estimatedValue: Number(data.estimated_value) || 20,
                     thriftCost: Number(data.thrift_cost) || 3,
                     trueNetProfit: profit,
@@ -3223,6 +3253,9 @@ function SpadasLensCameraCore({
                     isGrail: profit >= 50 || Boolean(data.is_grail),
                     needsVerification: isHighRisk,
                     notes: data.notes,
+                    thumbnailUrl: base64Data,
+                    image: base64Data,
+                    imageUrl: base64Data,
                   }
                 : i
             )
@@ -3838,8 +3871,8 @@ function SpadasLensCameraCore({
                               <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/30">
                                 <Sparkles className="h-2.5 w-2.5" /> 7 Sales
                               </span>
-                              {activeValuationHit.brand && (
-                                <span className="text-[10px] font-semibold text-slate-400 truncate max-w-[100px]">{activeValuationHit.brand}</span>
+                              {isMeaningfulMeta(activeValuationHit.brand) && (
+                                <span className="text-[10px] font-semibold text-slate-400 truncate max-w-[100px]">{activeValuationHit.brand.trim()}</span>
                               )}
                             </div>
                             <h4 className="text-sm font-black text-white line-clamp-2 leading-snug">{activeValuationHit.name}</h4>
@@ -3928,10 +3961,14 @@ function SpadasLensCameraCore({
                               </div>
                             </div>
 
-                            {(activeValuationHit.brand || activeValuationHit.category) && (
-                              <div className="flex items-center justify-between text-[10px] px-2 py-1 rounded-lg bg-slate-900/60 border border-slate-800/60 text-slate-400">
-                                <span>Category: {activeValuationHit.category || "General Thrift"}</span>
-                                <span>Brand: {activeValuationHit.brand || "Authentic"}</span>
+                            {(isMeaningfulMeta(activeValuationHit.brand) || isMeaningfulMeta(activeValuationHit.category)) && (
+                              <div className="flex items-center justify-between text-[10px] px-2 py-1 rounded-lg bg-slate-900/60 border border-slate-800/60 text-slate-400 gap-2">
+                                {isMeaningfulMeta(activeValuationHit.category) && (
+                                  <span>Category: {activeValuationHit.category.trim()}</span>
+                                )}
+                                {isMeaningfulMeta(activeValuationHit.brand) && (
+                                  <span>Brand: {activeValuationHit.brand.trim()}</span>
+                                )}
                               </div>
                             )}
 
@@ -4698,13 +4735,13 @@ function SpadasLensCameraCore({
           }}
           sessionId={activeEbayItem.sessionId || activeEbayItem.id || `session_${activeEbayItem.timestamp || "item"}`}
           title={activeEbayItem.productName || activeEbayItem.name || "Scanned Item"}
-          brand={activeEbayItem.brand || "Authentic"}
-          price={activeEbayItem.estimatedValue || 25}
+          brand={cleanBrandText(activeEbayItem.brand, "Unbranded") || "Unbranded"}
+          price={Number(activeEbayItem.estimatedValue) || 25}
           currency={activeEbayItem.currency || selectedCurrency}
-          condition={activeEbayItem.condition || "Used - Good"}
+          condition={cleanConditionText(activeEbayItem.condition, "Used - Good")}
           description={
             activeEbayItem.description ||
-            `Authentic ${activeEbayItem.brand || ""} ${activeEbayItem.productName || activeEbayItem.name || "Scanned Item"} in clean condition.\n\n• Brand: ${activeEbayItem.brand || "Authentic"}\n• Model: ${activeEbayItem.productName || activeEbayItem.name || "Item"}\n• Material/Color: Standard finish\n• Condition: ${activeEbayItem.condition || "Used - Good"}. Tested and operating as intended.\n\nPlease review all photos for exact details.`
+            `Authentic ${cleanBrandText(activeEbayItem.brand, "") || ""} ${activeEbayItem.productName || activeEbayItem.name || "Scanned Item"}.\n\n• Brand: ${cleanBrandText(activeEbayItem.brand, "Unbranded")}\n• Model: ${activeEbayItem.productName || activeEbayItem.name || "Item"}\n• Material/Color: Standard finish\n• Condition: ${cleanConditionText(activeEbayItem.condition, "Used - Good")}. Tested and operating as intended.\n\nPlease review all photos for exact details.`
           }
           activeScanImage={
             activeEbayItem.image ||

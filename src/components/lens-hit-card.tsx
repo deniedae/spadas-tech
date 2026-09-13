@@ -15,6 +15,7 @@ import type { DetectedHit } from "@/types/lens";
 import { OmniMarketplaceCompareModal } from "@/components/omni-marketplace-compare-card";
 import { checkNeedsVerification } from "@/lib/forensic-knowledge";
 import { triggerTactileHaptic } from "@/lib/android-bridge";
+import { sanitizeMetaText, cleanConditionText } from "@/lib/lens-utils";
 
 interface LensHitCardProps {
   item: DetectedHit;
@@ -72,11 +73,16 @@ export default function LensHitCard({
     : "AI Price Estimate";
   const compsStyle = hasRealComps ? "text-emerald-400" : "text-slate-500";
 
+  // ── Sanitized Metadata Attributes (Completely hide unpopulated payload fields) ──
+  const validBrand = sanitizeMetaText(item.brand);
+  const validCategory = sanitizeMetaText(item.category);
+  const validCondition = sanitizeMetaText(item.condition);
+
   // ── Intelligent AI Verification Triage ────────────────────────────────────
   const verificationReq = checkNeedsVerification({
     name: item.name,
-    brand: item.brand || undefined,
-    category: item.category || undefined,
+    brand: validBrand || undefined,
+    category: validCategory || undefined,
     estimatedValue: item.estimatedValue,
   });
 
@@ -113,28 +119,26 @@ export default function LensHitCard({
               {item.name}
             </h4>
 
-            {/* Visual Identification Badges */}
-            <div className="flex flex-wrap items-center gap-1.5 mt-1">
-              {item.brand ? (
-                <span className="inline-flex items-center text-[9px] font-extrabold bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 px-1.5 py-0.5 rounded">
-                  🏷️ {item.brand}
-                </span>
-              ) : (
-                <span className="inline-flex items-center text-[9px] font-semibold bg-white/[0.04] text-zinc-400 px-1.5 py-0.5 rounded border border-white/[0.06]">
-                  Generic / Unbranded
-                </span>
-              )}
-              {item.category && (
-                <span className="inline-flex items-center text-[9px] font-semibold bg-white/[0.04] text-zinc-300 px-1.5 py-0.5 rounded border border-white/[0.06]">
-                  {item.category}
-                </span>
-              )}
-              {item.condition && (
-                <span className="inline-flex items-center text-[9px] font-medium text-zinc-400">
-                  • {item.condition}
-                </span>
-              )}
-            </div>
+            {/* Visual Identification Badges - Completely hidden if attributes are missing from payload */}
+            {(validBrand || validCategory || validCondition) && (
+              <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                {validBrand && (
+                  <span className="inline-flex items-center text-[9px] font-extrabold bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 px-1.5 py-0.5 rounded">
+                    🏷️ {validBrand}
+                  </span>
+                )}
+                {validCategory && (
+                  <span className="inline-flex items-center text-[9px] font-semibold bg-white/[0.04] text-zinc-300 px-1.5 py-0.5 rounded border border-white/[0.06]">
+                    {validCategory}
+                  </span>
+                )}
+                {validCondition && (
+                  <span className="inline-flex items-center text-[9px] font-medium text-zinc-400">
+                    • {validCondition}
+                  </span>
+                )}
+              </div>
+            )}
 
             {/* AI Verification Requirement Alert (Only for items that actually need it) */}
             {verificationReq.needsVerification && (

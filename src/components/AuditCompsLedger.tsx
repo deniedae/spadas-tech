@@ -23,6 +23,7 @@ import type { RawSoldComp } from "@/types/lens";
 import type { RawSoldCompRecord } from "@/types/ai-listing";
 import { CompsLedgerSkeleton } from "@/components/ui/comps-skeleton-loader";
 import { triggerTactileHaptic } from "@/lib/android-bridge";
+import { isMeaningfulMeta, sanitizeMetaText, cleanBrandText, cleanConditionText } from "@/lib/lens-utils";
 
 export interface AuditCompRecord {
   id?: string;
@@ -182,6 +183,8 @@ export function ensureVerifiedSoldComps(
   brand?: string | null
 ): RawSoldComp[] {
   const cleanTitle = (targetTitle || "Vintage Item").trim();
+  const safeBrand = cleanBrandText(brand);
+  const safeCondition = cleanConditionText(condition, "Used - Good");
   const baseEncoded = encodeURIComponent(`${cleanTitle} sold`);
   const fallbackUrl = `https://www.ebay.com.au/sch/i.html?_nkw=${baseEncoded}&LH_Sold=1&LH_Complete=1`;
 
@@ -194,14 +197,14 @@ export function ensureVerifiedSoldComps(
     return valid.slice(0, 7).map((c, idx) => {
       const explicitMatch = getCompMatch(c);
       const soldDate = getCompSoldDate(c) || getRecentDate((idx + 1) * 3);
-      const title = c.title || `${brand ? brand + " " : ""}${cleanTitle}`;
+      const title = c.title || `${safeBrand ? safeBrand + " " : ""}${cleanTitle}`;
       const matchScore = calculateMatchPercentage(cleanTitle, title, explicitMatch);
 
       return {
         id: c.id || `comp-${idx}-${Date.now()}`,
         title,
         price: Number(c.price) || Math.round(estimatedPrice * (0.88 + idx * 0.04)),
-        condition: c.condition || condition || "Pre-Owned",
+        condition: cleanConditionText(c.condition, safeCondition),
         soldDate: formatSoldDate(soldDate),
         shippingIncluded: getCompShippingIncluded(c) ?? (idx % 2 === 0),
         shippingPrice: getCompShippingPrice(c) ?? (idx % 2 === 0 ? 0 : 9.5),
@@ -235,7 +238,7 @@ export function ensureVerifiedSoldComps(
       id: c.id || `comp-${i}-${Date.now()}`,
       title,
       price: Number(c.price) || base,
-      condition: c.condition || condition,
+      condition: cleanConditionText(c.condition, safeCondition),
       soldDate: formatSoldDate(getCompSoldDate(c) || getRecentDate((i + 1) * 3)),
       shippingIncluded: getCompShippingIncluded(c) ?? true,
       shippingPrice: getCompShippingPrice(c) ?? 0,
@@ -250,7 +253,7 @@ export function ensureVerifiedSoldComps(
   while (result.length < 7 && varIdx < fallbackVariations.length) {
     const v = fallbackVariations[varIdx];
     const realizedPrice = Math.max(5, Math.round(base * v.priceFactor * 100) / 100);
-    const title = `${brand && !cleanTitle.toLowerCase().includes(brand.toLowerCase()) ? brand + " " : ""}${cleanTitle}`;
+    const title = `${safeBrand && !cleanTitle.toLowerCase().includes(safeBrand.toLowerCase()) ? safeBrand + " " : ""}${cleanTitle}`;
     result.push({
       id: `ebay-sold-audit-${varIdx}-${Date.now()}`,
       title,
@@ -418,9 +421,9 @@ export default function AuditCompsLedger({
                 <Sparkles className="h-3.5 w-3.5 text-emerald-400" />
                 <span>{verifiedListings.length} Cleared Recent Sales</span>
               </span>
-              {brand && (
+              {isMeaningfulMeta(brand) && (
                 <span className="px-2 py-0.5 rounded-md bg-white/[0.04] border border-white/[0.08] text-[10px] font-bold text-zinc-300">
-                  {brand}
+                  {brand.trim()}
                 </span>
               )}
               {copVerdict && (
@@ -598,17 +601,21 @@ export default function AuditCompsLedger({
 
                       {/* Metadata Pill Row: Condition + Sold Date + Postage */}
                       <div className="flex flex-wrap items-center gap-2 text-[11px] text-zinc-400 font-mono ml-8.5">
-                        {/* 2. Item Condition */}
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/[0.04] border border-white/[0.06] text-zinc-200 font-semibold">
-                          <Tag className="h-3 w-3 text-zinc-400" />
-                          <span>{comp.condition}</span>
-                        </span>
+                        {/* 2. Item Condition - completely hide badge container if unpopulated */}
+                        {isMeaningfulMeta(comp.condition) && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/[0.04] border border-white/[0.06] text-zinc-200 font-semibold">
+                            <Tag className="h-3 w-3 text-zinc-400" />
+                            <span>{comp.condition.trim()}</span>
+                          </span>
+                        )}
 
-                        {/* 3. Sold Date */}
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/[0.04] border border-white/[0.06] text-zinc-300">
-                          <Calendar className="h-3 w-3 text-zinc-500" />
-                          <span>Sold {comp.soldDate}</span>
-                        </span>
+                        {/* 3. Sold Date - completely hide badge container if unpopulated */}
+                        {isMeaningfulMeta(comp.soldDate) && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/[0.04] border border-white/[0.06] text-zinc-300">
+                            <Calendar className="h-3 w-3 text-zinc-500" />
+                            <span>Sold {comp.soldDate.trim()}</span>
+                          </span>
+                        )}
 
                         {/* Shipping */}
                         <span className="text-zinc-500 font-medium">

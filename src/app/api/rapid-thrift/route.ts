@@ -295,10 +295,42 @@ Output ONLY valid JSON adhering strictly to:
               })
             : supabase;
 
+        let finalImageUrl = image;
+        if (image.startsWith("data:")) {
+          try {
+            const matches = image.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+            if (matches && matches.length === 3) {
+              const mimeType = matches[1];
+              const base64Data = matches[2];
+              const buffer = Buffer.from(base64Data, "base64");
+              const ext = mimeType.split("/")[1] || "jpeg";
+              const filename = `scans/${user.id}-${Date.now()}.${ext}`;
+
+              const { data: uploadData, error: uploadErr } = await dbClient.storage
+                .from("listing-images")
+                .upload(filename, buffer, {
+                  contentType: mimeType,
+                  upsert: true,
+                });
+
+              if (!uploadErr && uploadData) {
+                const { data: publicUrlData } = dbClient.storage
+                  .from("listing-images")
+                  .getPublicUrl(filename);
+                if (publicUrlData?.publicUrl) {
+                  finalImageUrl = publicUrlData.publicUrl;
+                }
+              }
+            }
+          } catch {
+            // Keep full image data URL if storage upload not available
+          }
+        }
+
         await dbClient.from("scans").insert([
           {
             user_id: user.id,
-            image_url: image.startsWith("data:") ? `data:image/jpeg;base64,...(${image.length} bytes)` : image,
+            image_url: finalImageUrl,
             result_json: result,
             token_count: 500,
             status: "completed",

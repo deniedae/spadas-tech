@@ -23,6 +23,7 @@ import EbayListingModal from "@/components/ebay-listing-modal";
 import SubscriptionPaywallModal from "@/components/subscription-paywall-modal";
 import { supabase } from "@/app/lib/supabase";
 import { triggerTactileHaptic } from "@/lib/android-bridge";
+import { cleanBrandText, cleanConditionText } from "@/lib/lens-utils";
 
 interface ScanRecord {
   id: string;
@@ -79,6 +80,48 @@ export function HistoryFeedView({
     void checkPro();
   }, []);
 
+  // Reconcile and restore thumbnails from local storage cache if database stored truncated data URLs
+  useEffect(() => {
+    try {
+      const cachedStr = localStorage.getItem("spadas_cached_lens_hits");
+      if (!cachedStr) return;
+      const cachedHits: any[] = JSON.parse(cachedStr);
+      if (!Array.isArray(cachedHits) || cachedHits.length === 0) return;
+
+      setItems((prevItems) => {
+        let hasChanges = false;
+        const updated = prevItems.map((scan) => {
+          const isCorrupted =
+            !scan.image_url ||
+            /^data:image\/[a-z]+;base64,\.\.\./i.test(scan.image_url);
+
+          if (isCorrupted) {
+            const scanTitle = (
+              scan.result_json?.analysis?.product_name ||
+              scan.result_json?.product_name ||
+              ""
+            )
+              .trim()
+              .toLowerCase();
+
+            const match = cachedHits.find(
+              (h) =>
+                (h.id && h.id === scan.id) ||
+                (h.name && scanTitle && h.name.trim().toLowerCase() === scanTitle)
+            );
+
+            if (match?.image && !/^data:image\/[a-z]+;base64,\.\.\./i.test(match.image)) {
+              hasChanges = true;
+              return { ...scan, image_url: match.image };
+            }
+          }
+          return scan;
+        });
+        return hasChanges ? updated : prevItems;
+      });
+    } catch {}
+  }, []);
+
   const toggleSelect = (id: string) => {
     triggerTactileHaptic("selection");
     setSelectedIds((prev) =>
@@ -122,8 +165,8 @@ export function HistoryFeedView({
         res.detected_objects?.[0]?.product_name ||
         res.product_name ||
         "Scanned Item";
-      const brand = res.analysis?.brand || res.brand || "Generic";
-      const condition = res.analysis?.condition || "Used - Good";
+      const brand = cleanBrandText(res.analysis?.brand || res.brand, "Unbranded") || "Unbranded";
+      const condition = cleanConditionText(res.analysis?.condition, "Used - Good");
       const estimatedValue = res.suggested_price_max || res.suggested_price_min || 25;
       const estimatedProfit = res.estimated_profit || Math.round(estimatedValue * 0.7 * 100) / 100;
 
@@ -428,11 +471,11 @@ export function HistoryFeedView({
           isOpen={!!activeEbayItem}
           onClose={() => setActiveEbayItem(null)}
           title={activeEbayItem.name}
-          brand={activeEbayItem.brand}
-          price={activeEbayItem.estimatedValue}
+          brand={cleanBrandText(activeEbayItem.brand, "Unbranded") || "Unbranded"}
+          price={Number(activeEbayItem.estimatedValue) || 25}
           currency={(activeEbayItem as any).currency}
-          condition={activeEbayItem.condition}
-          description={`Authentic ${activeEbayItem.brand || ""} ${activeEbayItem.name}. Clean pre-owned condition, tested & working.`}
+          condition={cleanConditionText(activeEbayItem.condition, "Used - Good")}
+          description={`Authentic ${cleanBrandText(activeEbayItem.brand, "") || ""} ${activeEbayItem.name}. Clean pre-owned condition, tested & working.`}
           imageUrls={activeEbayItem.imageUrl ? [activeEbayItem.imageUrl] : []}
         />
       )}

@@ -213,6 +213,9 @@ class QuickSnapQueueService {
             isGrail: profit >= 50 || Boolean(data.is_grail),
             needsVerification: isHighRisk,
             notes: data.notes || undefined,
+            thumbnailUrl: base64Data,
+            image: base64Data,
+            imageUrl: base64Data,
           });
 
           // Haptic alert on high-value grails

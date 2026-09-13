@@ -33,6 +33,7 @@ import { fmtMoney } from "@/app/lib/listings";
 import { createListing } from "@/app/lib/createlisting";
 import { supabase } from "@/app/lib/supabase";
 import { toast } from "sonner";
+import { isMeaningfulMeta, sanitizeMetaText, cleanBrandText, cleanCategoryText, cleanConditionText } from "@/lib/lens-utils";
 import { triggerTactileHaptic, syncProfitToAndroidWidget } from "@/lib/android-bridge";
 import {
   estimateCategoryShippingCost,
@@ -81,9 +82,9 @@ export default function LensCompsModal({
   if (!isOpen || !item) return null;
 
   const title = (item as any).name || (item as any).productName || "Scanned Item";
-  const brand = item.brand || "Authentic";
-  const category = item.category || "General Resale";
-  const condition = item.condition || "Used - Good";
+  const brand = cleanBrandText(item.brand, "Unbranded") || "Unbranded";
+  const category = cleanCategoryText(item.category, "General Resale") || "General Resale";
+  const condition = cleanConditionText(item.condition, "Used - Good");
   const estValue = initialEstValue;
 
   // Effective tag cost after store color tag discounts
@@ -304,17 +305,25 @@ export default function LensCompsModal({
             )}
 
             <div className="flex-1 min-w-0 space-y-1">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="rounded bg-cyan-500/20 px-2 py-0.5 text-[9px] font-extrabold text-cyan-300 border border-cyan-500/30">
-                  {brand}
-                </span>
-                <span className="rounded bg-zinc-800 px-2 py-0.5 text-[9px] font-semibold text-zinc-300">
-                  {category}
-                </span>
-                <span className="rounded bg-zinc-800 px-2 py-0.5 text-[9px] font-semibold text-zinc-300">
-                  {condition}
-                </span>
-              </div>
+              {(isMeaningfulMeta(item.brand) || isMeaningfulMeta(item.category) || isMeaningfulMeta(item.condition)) && (
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {isMeaningfulMeta(item.brand) && (
+                    <span className="rounded bg-cyan-500/20 px-2 py-0.5 text-[9px] font-extrabold text-cyan-300 border border-cyan-500/30">
+                      {item.brand.trim()}
+                    </span>
+                  )}
+                  {isMeaningfulMeta(item.category) && (
+                    <span className="rounded bg-zinc-800 px-2 py-0.5 text-[9px] font-semibold text-zinc-300">
+                      {item.category.trim()}
+                    </span>
+                  )}
+                  {isMeaningfulMeta(item.condition) && (
+                    <span className="rounded bg-zinc-800 px-2 py-0.5 text-[9px] font-semibold text-zinc-300">
+                      {cleanConditionText(item.condition, "Used")}
+                    </span>
+                  )}
+                </div>
+              )}
 
               <h3
                 onClick={handleCopyTitle}

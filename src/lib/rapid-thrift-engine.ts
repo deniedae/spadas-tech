@@ -25,6 +25,9 @@ export interface RapidThriftItem {
   needsVerification?: boolean;
   notes?: string;
   errorMessage?: string;
+  image?: string;
+  imageUrl?: string;
+  thumbnailUrl?: string;
 }
 
 export interface RapidSessionStats {

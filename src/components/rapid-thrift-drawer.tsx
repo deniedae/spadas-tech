@@ -29,6 +29,7 @@ import { calculateSalesVelocity } from "@/lib/turnover-velocity-engine";
 import { toast } from "sonner";
 import { CompsMiniLaserPill } from "@/components/ui/comps-skeleton-loader";
 import { triggerTactileHaptic } from "@/lib/android-bridge";
+import { isMeaningfulMeta } from "@/lib/lens-utils";
 
 interface RapidThriftDrawerProps {
   isOpen: boolean;
@@ -338,12 +339,12 @@ export const RapidThriftDrawer: React.FC<RapidThriftDrawerProps> = ({
                       : "bg-slate-900/60 border-slate-800"
                   }`}
                 >
-                  {/* Photo Thumbnail from IndexedDB */}
+                  {/* Photo Thumbnail from IndexedDB or direct attached image */}
                   <div className="relative h-18 w-18 sm:h-20 sm:w-20 shrink-0 rounded-xl overflow-hidden bg-slate-950 border border-slate-800 flex items-center justify-center">
-                    {photoUrl ? (
+                    {photoUrl || item.thumbnailUrl || item.image || item.imageUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
-                        src={photoUrl}
+                        src={photoUrl || item.thumbnailUrl || item.image || item.imageUrl}
                         alt={item.productName || "Scanned Thrift Photo"}
                         className="h-full w-full object-cover"
                       />
@@ -364,9 +365,11 @@ export const RapidThriftDrawer: React.FC<RapidThriftDrawerProps> = ({
                   {/* Item Details */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
-                        {item.brand || "Authentic"}
-                      </span>
+                      {isMeaningfulMeta(item.brand) && (
+                        <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+                          {item.brand.trim()}
+                        </span>
+                      )}
                       {item.copVerdict && (
                         <span
                           className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider ${
@@ -390,7 +393,7 @@ export const RapidThriftDrawer: React.FC<RapidThriftDrawerProps> = ({
                     </div>
 
                     <h4 className="text-xs sm:text-sm font-bold text-white truncate mt-0.5">
-                      {item.productName || "Analyzing thrift item..."}
+                      {item.productName || (item.status === "completed" ? "Sourced Thrift Item" : "Analyzing thrift item...")}
                     </h4>
 
                     {/* Financial Rollup & Turnover Velocity */}

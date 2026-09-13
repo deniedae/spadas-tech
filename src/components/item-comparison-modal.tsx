@@ -3,6 +3,7 @@
 import React from "react";
 import { Scale, Trophy, Sparkles, X, ShoppingBag } from "lucide-react";
 import { fmtMoney } from "@/app/lib/listings";
+import { isMeaningfulMeta, cleanConditionText } from "@/lib/lens-utils";
 
 export interface ComparisonItem {
   id: string;
@@ -110,11 +111,19 @@ export default function ItemComparisonModal({
                     )}
                   </div>
 
-                  <div className="text-xs text-slate-400 flex items-center gap-2">
-                    <span>Brand: <strong className="text-slate-200">{item.brand || "Generic"}</strong></span>
-                    <span>•</span>
-                    <span>{item.condition || "Used - Good"}</span>
-                  </div>
+                  {(isMeaningfulMeta(item.brand) || isMeaningfulMeta(item.condition)) && (
+                    <div className="text-xs text-slate-400 flex items-center gap-2">
+                      {isMeaningfulMeta(item.brand) && (
+                        <span>Brand: <strong className="text-slate-200">{item.brand.trim()}</strong></span>
+                      )}
+                      {isMeaningfulMeta(item.brand) && isMeaningfulMeta(item.condition) && (
+                        <span>•</span>
+                      )}
+                      {isMeaningfulMeta(item.condition) && (
+                        <span>{cleanConditionText(item.condition, "Used - Good")}</span>
+                      )}
+                    </div>
+                  )}
 
                   {/* Profit & Resale Value */}
                   <div className="p-2.5 rounded-lg bg-slate-900 border border-slate-800 space-y-1">

@@ -63,20 +63,49 @@ export function isVagueOrPartialRead(productName?: string | null): boolean {
   );
 }
 
-// Clean Condition Subtitle Helper (Strips internal AI reasoning notes)
-export function cleanConditionText(rawCondition: string): string {
-  if (!rawCondition) return "Used";
-  return (
-    rawCondition
-      .replace(/\(.*?\)/g, "")
-      .replace(/assume.*$/i, "")
-      .replace(/untested.*$/i, "Used")
-      .replace(/faulty.*$/i, "Used")
-      .replace(/parts-only.*$/i, "Used")
-      .replace(/sold as-is.*$/i, "Used")
-      .replace(/ungraded.*$/i, "Used")
-      .trim() || "Used"
-  );
+// Sentinel pattern for checking if a metadata string represents a missing or literal null/undefined value
+export const NULL_OR_EMPTY_META_REGEX = /^(null|undefined|none|n\/a|na|unknown|unbranded|generic|not specified|unspecified|\[object\s+object\]|[.\/_\-–—:;,\s]+)$/i;
+
+// Checks if a metadata string contains meaningful human-readable information (not "null", "undefined", etc.)
+export function isMeaningfulMeta(val?: unknown): val is string {
+  if (typeof val !== "string") return false;
+  const trimmed = val.trim();
+  if (!trimmed || trimmed.length < 2) return false;
+  return !NULL_OR_EMPTY_META_REGEX.test(trimmed);
+}
+
+// Normalizes and sanitizes a metadata text field.
+// Returns the cleaned string if meaningful, or undefined if missing/null/sentinel.
+export function sanitizeMetaText(val?: unknown): string | undefined {
+  if (!isMeaningfulMeta(val)) return undefined;
+  return val.trim();
+}
+
+// Clean Condition Subtitle Helper (Strips internal AI reasoning notes & handles nulls)
+export function cleanConditionText(rawCondition?: unknown, fallback = "Used"): string {
+  if (!isMeaningfulMeta(rawCondition)) return fallback;
+  const cleaned = rawCondition
+    .replace(/\(.*?\)/g, "")
+    .replace(/assume.*$/i, "")
+    .replace(/untested.*$/i, fallback)
+    .replace(/faulty.*$/i, fallback)
+    .replace(/parts-only.*$/i, fallback)
+    .replace(/sold as-is.*$/i, fallback)
+    .replace(/ungraded.*$/i, fallback)
+    .trim();
+  return isMeaningfulMeta(cleaned) ? cleaned : fallback;
+}
+
+// Clean Brand Helper (returns clean brand or optional fallback)
+export function cleanBrandText(rawBrand?: unknown, fallback?: string): string | undefined {
+  if (isMeaningfulMeta(rawBrand)) return rawBrand.trim();
+  return fallback;
+}
+
+// Clean Category Helper (returns clean category or optional fallback)
+export function cleanCategoryText(rawCategory?: unknown, fallback?: string): string | undefined {
+  if (isMeaningfulMeta(rawCategory)) return rawCategory.trim();
+  return fallback;
 }
 
 // Capture a JPEG frame from a live HTMLVideoElement, returns a data URL or null

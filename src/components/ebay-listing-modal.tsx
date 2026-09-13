@@ -20,6 +20,7 @@ import { supabase } from "@/app/lib/supabase";
 import { createListing } from "@/app/lib/createlisting";
 import { generateEbayPrefillUrl } from "@/app/lib/marketplaces/ebay-prefill";
 import { convertCurrency, SupportedCurrency } from "@/app/lib/currency-routing";
+import { isMeaningfulMeta, cleanBrandText, cleanConditionText } from "@/lib/lens-utils";
 
 export const REGION_OPTIONS = [
   { id: "AUD", label: "eBay AU", country: "Australia", flag: "🇦🇺", code: "AUD", symbol: "$", site: "ebay.com.au" },
@@ -92,7 +93,7 @@ export default function EbayListingModal({
   onClose,
   sessionId,
   title: initialTitle = "Scanned Item",
-  brand: initialBrand = "Authentic",
+  brand: initialBrand = "Unbranded",
   price: initialPrice = 25,
   currency: initialCurrency,
   condition: initialCondition = "Used - Good",
@@ -138,13 +139,17 @@ export default function EbayListingModal({
   const [publishedSku, setPublishedSku] = useState<string | null>(null);
   const [isLiveListing, setIsLiveListing] = useState<boolean>(false);
 
+  const safeInitBrand = cleanBrandText(initialBrand, "Unbranded") || "Unbranded";
+  const safeInitCond = cleanConditionText(initialCondition, "Used - Good");
+  const safeInitTitle = (initialTitle && isMeaningfulMeta(initialTitle) ? initialTitle : "Scanned Item").slice(0, 80);
+
   const [selectedCurrency, setSelectedCurrency] = useState<string>("AUD");
-  const [inputTitle, setInputTitle] = useState((initialTitle || "Scanned Item").slice(0, 80));
+  const [inputTitle, setInputTitle] = useState(safeInitTitle);
   const [inputPrice, setInputPrice] = useState(Number(initialPrice) || 25);
-  const [inputCondition, setInputCondition] = useState(initialCondition || "Used - Good");
+  const [inputCondition, setInputCondition] = useState(safeInitCond);
   const [inputDescription, setInputDescription] = useState(
     initialDescription ||
-      `Authentic ${initialBrand || "Authentic"} ${initialTitle || "Scanned Item"}.\n\n• Brand: ${initialBrand || "Authentic"}\n• Model: ${initialTitle || "Scanned Item"}\n• Material/Color: Standard finish\n• Condition: ${initialCondition || "Used - Good"}. Tested and operating as intended.\n\nPlease review all photos for exact details.`
+      `Authentic ${safeInitBrand !== "Unbranded" ? safeInitBrand : ""} ${safeInitTitle}.\n\n• Brand: ${safeInitBrand}\n• Model: ${safeInitTitle}\n• Material/Color: Standard finish\n• Condition: ${safeInitCond}. Tested and operating as intended.\n\nPlease review all photos for exact details.`
   );
 
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -186,7 +191,10 @@ export default function EbayListingModal({
         }
         const targetCurr = (initialCurr && ["AUD", "USD", "GBP"].includes(initialCurr) ? initialCurr : "AUD") as SupportedCurrency;
         setSelectedCurrency(targetCurr);
-        setInputTitle((initialTitle || "").slice(0, 80));
+        const safeTitle = (initialTitle && isMeaningfulMeta(initialTitle) ? initialTitle : "Scanned Item").slice(0, 80);
+        const safeBrand = cleanBrandText(initialBrand, "Unbranded") || "Unbranded";
+        const safeCond = cleanConditionText(initialCondition, "Used - Good");
+        setInputTitle(safeTitle);
 
         // Accurately convert base price to selected currency
         const rawPrice = Number(initialPrice) || 25;
@@ -196,12 +204,10 @@ export default function EbayListingModal({
         const convertedPrice = convertCurrency(rawPrice, baseCurr, targetCurr);
         setInputPrice(Number(convertedPrice.toFixed(2)));
 
-        setInputCondition(initialCondition || "Used - Good");
+        setInputCondition(safeCond);
         setInputDescription(
           initialDescription ||
-            (initialTitle
-              ? `Authentic ${initialBrand} ${initialTitle}.\n\n• Brand: ${initialBrand}\n• Model: ${initialTitle}\n• Material/Color: Standard finish\n• Condition: ${initialCondition || "Used - Good"}. Tested and operating as intended.\n\nPlease review all photos for exact details.`
-              : "")
+            `Authentic ${safeBrand !== "Unbranded" ? safeBrand : ""} ${safeTitle}.\n\n• Brand: ${safeBrand}\n• Model: ${safeTitle}\n• Material/Color: Standard finish\n• Condition: ${safeCond}. Tested and operating as intended.\n\nPlease review all photos for exact details.`
         );
       }
     } else {
@@ -243,13 +249,15 @@ export default function EbayListingModal({
   };
 
   const handleFastList = () => {
-    const copyPayload = `Title: ${inputTitle}\nPrice: ${activeRegion.symbol}${Number(inputPrice).toFixed(2)} ${activeRegion.code}\nCondition: ${inputCondition}\nBrand: ${initialBrand}\n\nDescription:\n${inputDescription}`;
+    const safeBrandForList = cleanBrandText(initialBrand, "Unbranded") || "Unbranded";
+    const safeCondForList = cleanConditionText(inputCondition, "Used - Good");
+    const copyPayload = `Title: ${inputTitle}\nPrice: ${activeRegion.symbol}${Number(inputPrice).toFixed(2)} ${activeRegion.code}\nCondition: ${safeCondForList}\nBrand: ${safeBrandForList}\n\nDescription:\n${inputDescription}`;
     navigator.clipboard.writeText(copyPayload);
 
     const prefillUrl = generateEbayPrefillUrl({
       title: inputTitle,
       priceAud: Number(inputPrice),
-      brand: initialBrand,
+      brand: safeBrandForList,
       currency: activeRegion.code,
     });
 
@@ -399,10 +407,10 @@ export default function EbayListingModal({
 
     const payload = {
       product: inputTitle,
-      brand: initialBrand,
+      brand: cleanBrandText(initialBrand, "Unbranded") || "Unbranded",
       price: Number(inputPrice),
       currency: selectedCurrency,
-      condition: inputCondition,
+      condition: cleanConditionText(inputCondition, "Used - Good"),
       description: inputDescription,
       imageUrls: submissionImageUrls, // Index [0] explicitly pulls active scan capture blob
       sessionId: sessionId || prevSessionIdRef.current || "scan_session",

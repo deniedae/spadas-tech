@@ -1066,16 +1066,7 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
     if (user && !isSentinelScan) {
       try {
         const firstImg = imageUrls[0] || "";
-        const sanitizedUrl = firstImg.startsWith("data:")
-          ? `data:image/jpeg;base64,...(${firstImg.length} bytes)`
-          : firstImg;
-
-        console.log('[Spadas Lens] Inserting scan record:', {
-          userId: user.id,
-          imageUrl: sanitizedUrl,
-          tokenCount: 2600,
-          status: "completed"
-        });
+        let finalImageUrl = firstImg;
 
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
         const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -1086,10 +1077,49 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
               })
             : supabase;
 
+        // If base64, attempt uploading to Supabase Storage 'listing-images' bucket for permanent hosting
+        if (firstImg.startsWith("data:")) {
+          try {
+            const matches = firstImg.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+            if (matches && matches.length === 3) {
+              const mimeType = matches[1];
+              const base64Data = matches[2];
+              const buffer = Buffer.from(base64Data, "base64");
+              const ext = mimeType.split("/")[1] || "jpeg";
+              const filename = `scans/${user.id}-${Date.now()}.${ext}`;
+
+              const { data: uploadData, error: uploadErr } = await dbClient.storage
+                .from("listing-images")
+                .upload(filename, buffer, {
+                  contentType: mimeType,
+                  upsert: true,
+                });
+
+              if (!uploadErr && uploadData) {
+                const { data: publicUrlData } = dbClient.storage
+                  .from("listing-images")
+                  .getPublicUrl(filename);
+                if (publicUrlData?.publicUrl) {
+                  finalImageUrl = publicUrlData.publicUrl;
+                }
+              }
+            }
+          } catch {
+            // If storage upload fails, preserve firstImg directly
+          }
+        }
+
+        console.log('[Spadas Lens] Inserting scan record:', {
+          userId: user.id,
+          imageUrl: finalImageUrl.startsWith("data:") ? `data:image/jpeg;base64,...(${finalImageUrl.length} bytes)` : finalImageUrl,
+          tokenCount: 2600,
+          status: "completed"
+        });
+
         await dbClient.from("scans").insert([
           {
             user_id: user.id,
-            image_url: sanitizedUrl,
+            image_url: finalImageUrl,
             result_json: result,
             token_count: 2600,
             status: "completed",

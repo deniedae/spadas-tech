@@ -19,6 +19,7 @@ import CrossListModal from "@/components/cross-list-modal";
 import SubscriptionPaywallModal from "@/components/subscription-paywall-modal";
 import { supabase } from "@/app/lib/supabase";
 import { triggerTactileHaptic } from "@/lib/android-bridge";
+import { sanitizeMetaText, cleanBrandText, cleanCategoryText, cleanConditionText } from "@/lib/lens-utils";
 
 interface ScanRecord {
   id: string;
@@ -109,17 +110,11 @@ export function ScanItemCard({
     }
   }
 
-  let rawBrand = res?.analysis?.brand || res?.brand || "";
-  if (!rawBrand || /^(n\/a|unknown|none|[.\/_\-–—:;,\s]+)$/i.test(rawBrand.trim())) {
-    rawBrand = "Unbranded";
-  }
-  const brand = rawBrand;
+  const validBrand = sanitizeMetaText(res?.analysis?.brand || res?.brand);
+  const brand = validBrand || "Unbranded";
 
-  let rawCategory = res?.analysis?.category || res?.category || "";
-  if (!rawCategory || /^(n\/a|unknown|none|[.\/_\-–—:;,\s]+)$/i.test(rawCategory.trim())) {
-    rawCategory = "Secondary Asset";
-  }
-  const category = rawCategory;
+  const validCategory = sanitizeMetaText(res?.analysis?.category || res?.category);
+  const category = validCategory || "Secondary Asset";
 
   const minPrice = res?.suggested_price_min || 0;
   const maxPrice = res?.suggested_price_max || 0;
@@ -128,6 +123,24 @@ export function ScanItemCard({
     dateStyle: "medium",
     timeStyle: "short",
   });
+
+  const isCorruptedDataUrl = (url?: string | null): boolean => {
+    if (!url || typeof url !== "string") return true;
+    return /^data:image\/[a-z]+;base64,\.\.\./i.test(url.trim());
+  };
+
+  const resolvedThumbnail = (() => {
+    if (scan.image_url && !isCorruptedDataUrl(scan.image_url)) return scan.image_url;
+    if (res?.image && !isCorruptedDataUrl(res.image)) return res.image;
+    if (res?.imageUrl && !isCorruptedDataUrl(res.imageUrl)) return res.imageUrl;
+    if (res?.image_url && !isCorruptedDataUrl(res.image_url)) return res.image_url;
+    if (res?.thumbnail && !isCorruptedDataUrl(res.thumbnail)) return res.thumbnail;
+    if (res?.photoUrl && !isCorruptedDataUrl(res.photoUrl)) return res.photoUrl;
+    if (res?.analysis?.image && !isCorruptedDataUrl(res.analysis.image)) return res.analysis.image;
+    if (res?.comps?.[0]?.image && !isCorruptedDataUrl(res.comps[0].image)) return res.comps[0].image;
+    if (res?.comps?.[0]?.thumbnail && !isCorruptedDataUrl(res.comps[0].thumbnail)) return res.comps[0].thumbnail;
+    return null;
+  })();
 
   return (
     <>
@@ -141,10 +154,10 @@ export function ScanItemCard({
         {/* Left Side: Thumbnail & Title Telemetry */}
         <div className="flex items-start gap-3.5 min-w-0 flex-1">
           <div className="relative h-14 w-14 sm:h-16 sm:w-16 rounded-xl overflow-hidden bg-black/80 border border-white/10 shrink-0 flex items-center justify-center">
-            {scan.image_url ? (
+            {resolvedThumbnail ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={scan.image_url}
+                src={resolvedThumbnail}
                 alt={title}
                 className="h-full w-full object-cover"
               />
@@ -189,10 +202,18 @@ export function ScanItemCard({
             </div>
 
             <div className="flex items-center gap-2 font-mono text-[11px] text-zinc-400 flex-wrap">
-              <span className="font-semibold text-zinc-300">{brand}</span>
-              <span className="text-zinc-600">•</span>
-              <span className="text-zinc-400">{category}</span>
-              <span className="text-zinc-600">•</span>
+              {validBrand && (
+                <>
+                  <span className="font-semibold text-zinc-300">{validBrand}</span>
+                  <span className="text-zinc-600">•</span>
+                </>
+              )}
+              {validCategory && (
+                <>
+                  <span className="text-zinc-400">{validCategory}</span>
+                  <span className="text-zinc-600">•</span>
+                </>
+              )}
               <span className="flex items-center gap-1 text-zinc-500 text-[10px]">
                 <Clock className="w-2.5 h-2.5" />
                 {formattedDate}
@@ -292,7 +313,7 @@ export function ScanItemCard({
         brand={brand}
         price={maxPrice || minPrice || 25}
         currency={res?.currency}
-        condition={res?.analysis?.condition || "Used - Good"}
+        condition={cleanConditionText(res?.analysis?.condition, "Used - Good")}
         description={res?.seo_description || res?.detailed_description || ""}
         imageUrls={scan.image_url ? [scan.image_url] : []}
       />
@@ -303,7 +324,7 @@ export function ScanItemCard({
         productName={title}
         brand={brand}
         price={maxPrice || minPrice || 25}
-        condition={res?.analysis?.condition || "Used - Good"}
+        condition={cleanConditionText(res?.analysis?.condition, "Used - Good")}
         category={category}
         description={res?.seo_description || res?.detailed_description || ""}
       />

@@ -36,6 +36,7 @@ import EbayListingModal from "@/components/ebay-listing-modal";
 import { DeepVerifyModal } from "@/components/deep-verify-modal";
 import { supabase } from "@/app/lib/supabase";
 import { triggerTactileHaptic } from "@/lib/android-bridge";
+import { isMeaningfulMeta } from "@/lib/lens-utils";
 
 interface SpadasHaulSectionProps {
   onSwitchToLens?: () => void;
@@ -204,7 +205,7 @@ export function SpadasHaulSection({
           confidence: 0.95,
           currency: currency,
           cost_price: item.thriftCost || 5,
-          image_url: photoUrls[item.photoId] || null,
+          image_url: item.thumbnailUrl || item.image || item.imageUrl || photoUrls[item.photoId] || null,
         };
 
         const { error } = await supabase.from("listings").insert([listingPayload]);
@@ -248,7 +249,7 @@ export function SpadasHaulSection({
         confidence: 0.95,
         currency: currency,
         cost_price: item.thriftCost || 5,
-        image_url: photoUrls[item.photoId] || null,
+        image_url: item.thumbnailUrl || item.image || item.imageUrl || photoUrls[item.photoId] || null,
       }));
 
       const { error } = await supabase.from("listings").insert(payloads);
@@ -669,10 +670,10 @@ export function SpadasHaulSection({
                 {/* Left Side: Thumbnail & Identification */}
                 <div className="flex items-start gap-3.5 min-w-0 flex-1">
                   <div className="relative h-16 w-16 sm:h-20 sm:w-20 rounded-xl overflow-hidden bg-zinc-950 border border-zinc-800 shrink-0 flex items-center justify-center">
-                    {photoUrl ? (
+                    {photoUrl || item.thumbnailUrl || item.image || item.imageUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
-                        src={photoUrl}
+                        src={photoUrl || item.thumbnailUrl || item.image || item.imageUrl}
                         alt={item.productName || "Haul Item"}
                         className="h-full w-full object-cover"
                       />
@@ -691,9 +692,11 @@ export function SpadasHaulSection({
 
                   <div className="min-w-0 flex-1 space-y-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-[10px] font-mono font-black uppercase tracking-wider text-zinc-400">
-                        {item.brand || "AUTHENTIC"}
-                      </span>
+                      {isMeaningfulMeta(item.brand) && (
+                        <span className="text-[10px] font-mono font-black uppercase tracking-wider text-zinc-400">
+                          {item.brand.trim()}
+                        </span>
+                      )}
                       {item.copVerdict && (
                         <span
                           className={`text-[9px] font-mono font-black px-2 py-0.5 rounded-full uppercase tracking-wider ${
@@ -717,7 +720,7 @@ export function SpadasHaulSection({
                     </div>
 
                     <h3 className="text-sm font-bold text-zinc-100 truncate">
-                      {item.productName || "Scanned Sourcing Item"}
+                      {item.productName || (item.status === "completed" ? "Sourced Thrift Item" : "Analyzing Thrift Item...")}
                     </h3>
 
                     {/* Financial Metrics Row */}
