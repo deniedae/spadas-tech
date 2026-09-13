@@ -378,7 +378,7 @@ export function HistoryFeedView({
 
       {/* Sticky Bottom Comparison Floating Toolbar */}
       {selectedIds.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 animate-in fade-in slide-in-from-bottom-3 duration-200 max-w-[92vw]">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[55] animate-in fade-in slide-in-from-bottom-3 duration-200 max-w-[92vw]">
           <button
             type="button"
             onClick={() => {
