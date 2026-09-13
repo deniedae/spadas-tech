@@ -116,10 +116,8 @@ import {
   isVagueOrPartialRead,
   cleanConditionText,
   captureVideoFrame,
-  captureAndCropPhoto,
   captureTargetBox,
 } from "@/lib/lens-utils";
-import { uploadBlobToStorage } from "@/app/lib/marketplaces/ebay-storage";
 
 // Module-level persistent media stream cache to prevent camera hardware stream teardown across tabs/views
 let persistentMediaStream: MediaStream | null = null;
@@ -192,7 +190,6 @@ function SpadasLensCameraCore({
   const [isPaywallOpen, setIsPaywallOpen] = useState<boolean>(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(false);
   const [activeEbayItem, setActiveEbayItem] = useState<any | null>(null);
-  const [isUploadingEbayPhoto, setIsUploadingEbayPhoto] = useState(false);
   const [deepVerifyItem, setDeepVerifyItem] = useState<DetectedHit | ActiveScanItem | null>(null);
   const [isOwner, setIsOwner] = useState<boolean>(false);
   const [isPro, setIsPro] = useState<boolean>(false);
@@ -3987,50 +3984,30 @@ function SpadasLensCameraCore({
                         <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
                           <button
                             type="button"
-                            onClick={async () => {
-                              if (isUploadingEbayPhoto) return;
-                              setIsUploadingEbayPhoto(true);
-                              // 1. Capture centered 1080×1080 JPEG crop from live feed
-                              let publicImageUrl: string | undefined;
-                              try {
-                                const blob = await captureAndCropPhoto(videoRef.current!);
-                                const { data: { user } } = await supabase.auth.getUser();
-                                const uploaded = await uploadBlobToStorage(
-                                  blob,
-                                  user?.id || "guest",
-                                  activeValuationHit?.id || `hit_${Date.now()}`
-                                );
-                                if (uploaded) publicImageUrl = uploaded;
-                              } catch {
-                                // Fall through to frozen frame fallback
-                              } finally {
-                                setIsUploadingEbayPhoto(false);
-                              }
-
-                              // 2. Fallback chain: uploaded URL → frozen frame → hit image
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              triggerTactileHaptic("medium");
+                              setIsScanPaused(true);
                               const isolatedCapture =
-                                publicImageUrl ||
                                 frozenFrameUrl ||
                                 activeValuationHit?.image ||
                                 undefined;
+                              const stableSessionId =
+                                activeValuationHit?.id ||
+                                (activeValuationHit?.timestamp ? `hit_${activeValuationHit.timestamp}` : "hit_active");
 
                               setActiveEbayItem({
                                 ...activeValuationHit,
                                 image: isolatedCapture,
                                 imageUrls: isolatedCapture ? [isolatedCapture] : undefined,
-                                sessionId: activeValuationHit.id || `hit_${Date.now()}`,
+                                sessionId: stableSessionId,
                               });
                             }}
-                            disabled={isUploadingEbayPhoto}
-                            className={`inline-flex items-center gap-1.5 border px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition cursor-pointer active:scale-95 shadow-sm ${
-                              isUploadingEbayPhoto
-                                ? "bg-cyan-500/10 border-cyan-500/20 text-cyan-500/50 cursor-not-allowed"
-                                : "bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border-cyan-500/40"
-                            }`}
+                            className="inline-flex items-center gap-1.5 border px-3 py-1.5 rounded-xl text-[11px] font-bold transition cursor-pointer active:scale-95 shadow-sm bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border-amber-500/40"
                             title="List this item to eBay AU"
                           >
-                            <ShoppingBag className={`h-3.5 w-3.5 ${isUploadingEbayPhoto ? "animate-spin-fast" : "text-cyan-400"}`} />
-                            <span>{isUploadingEbayPhoto ? "Uploading…" : "List on eBay"}</span>
+                            <ShoppingBag className="h-3.5 w-3.5 text-amber-400" />
+                            <span>List on eBay</span>
                           </button>
 
                           <button
@@ -4654,11 +4631,14 @@ function SpadasLensCameraCore({
               onSaveDraft={handleSaveDraftHit}
               onDeepVerify={(hit) => handleOpenDeepVerify(hit)}
               onListEbay={(hit) => {
+                setIsScanPaused(true);
                 const isolatedCapture = hit.image || (hit.id === activeValuationHit?.id ? frozenFrameUrl : undefined);
+                const stableSessionId = hit.id || (hit.timestamp ? `hit_${hit.timestamp}` : "hit_feed");
                 setActiveEbayItem({
                   ...hit,
                   image: isolatedCapture,
-                  sessionId: hit.id || `hit_${Date.now()}`,
+                  imageUrls: isolatedCapture ? [isolatedCapture] : undefined,
+                  sessionId: stableSessionId,
                 });
               }}
               onReport={(id, name) => {
@@ -4762,13 +4742,16 @@ function SpadasLensCameraCore({
         onClose={() => setActiveCompsHit(null)}
         onResumeScan={handleResumeScanning}
         onListEbay={(hit: any) => {
+          setIsScanPaused(true);
           const isolatedCapture = hit?.image || (hit?.id === activeValuationHit?.id ? frozenFrameUrl : undefined);
+          const stableSessionId = hit?.id || (hit?.timestamp ? `hit_${hit.timestamp}` : "hit_comps");
           setActiveEbayItem(
             hit
               ? {
                   ...hit,
                   image: isolatedCapture,
-                  sessionId: hit.id || `hit_${Date.now()}`,
+                  imageUrls: isolatedCapture ? [isolatedCapture] : undefined,
+                  sessionId: stableSessionId,
                 }
               : null
           );

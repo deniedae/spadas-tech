@@ -483,7 +483,7 @@ export default function EbayListingModal({
           handleModalClose();
         }
       }}
-      className="fixed inset-0 z-[80] overflow-y-auto bg-slate-950/85 backdrop-blur-md p-2 sm:p-4 pb-[calc(env(safe-area-inset-bottom,0px)+5rem)] sm:pb-4 flex min-h-full items-center justify-center overscroll-contain animate-fade-in"
+      className="fixed inset-0 z-[120] overflow-y-auto bg-slate-950/85 backdrop-blur-md p-2 sm:p-4 pb-[calc(env(safe-area-inset-bottom,0px)+5rem)] sm:pb-4 flex min-h-full items-center justify-center overscroll-contain animate-fade-in"
     >
       <div
         onClick={(e) => e.stopPropagation()}
