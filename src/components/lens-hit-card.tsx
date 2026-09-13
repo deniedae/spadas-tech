@@ -14,6 +14,7 @@ import { fmtMoney } from "@/app/lib/listings";
 import type { DetectedHit } from "@/types/lens";
 import { OmniMarketplaceCompareModal } from "@/components/omni-marketplace-compare-card";
 import { checkNeedsVerification } from "@/lib/forensic-knowledge";
+import { triggerTactileHaptic } from "@/lib/android-bridge";
 
 interface LensHitCardProps {
   item: DetectedHit;
@@ -81,7 +82,10 @@ export default function LensHitCard({
 
   return (
     <div
-      onClick={() => onSelect(item.id)}
+      onClick={() => {
+        triggerTactileHaptic("selection");
+        onSelect(item.id);
+      }}
       className={`relative w-full min-w-0 box-border overflow-hidden cursor-pointer transition-all duration-200 rounded-2xl p-4 space-y-3 comp-row-glide ${
         isSelected
           ? "cyber-glow-emerald border border-emerald-500/60 bg-emerald-500/10 shadow-[0_0_25px_rgba(34,197,94,0.2)]"
@@ -94,7 +98,10 @@ export default function LensHitCard({
           <input
             type="checkbox"
             checked={isSelected}
-            onChange={() => onSelect(item.id)}
+            onChange={() => {
+              triggerTactileHaptic("selection");
+              onSelect(item.id);
+            }}
             onClick={(e) => e.stopPropagation()}
             className="h-3.5 w-3.5 mt-0.5 rounded border-white/20 bg-black/60 text-emerald-500 focus:ring-emerald-400 cursor-pointer shrink-0 accent-emerald-500"
           />
@@ -169,14 +176,14 @@ export default function LensHitCard({
               </span>
             )}
           </div>
-          <div className="text-3xl font-black text-emerald-400 leading-none tracking-tight font-mono tabular-nums">
+          <div className="text-3xl font-black text-[#CCFF00] leading-none tracking-tight font-mono tabular-nums drop-shadow-[0_0_12px_rgba(204,255,0,0.4)]">
             +{fmtMoney(item.trueNetProfit || item.estimatedProfit)}
           </div>
         </div>
         <div className="flex flex-col items-end gap-0.5 text-[10px] text-zinc-400 shrink-0 font-mono">
           <span>
             Sell{" "}
-            <span className="font-bold text-cyan-300 tabular-nums">
+            <span className="font-bold text-[#00F2FE] tabular-nums">
               {fmtMoney(item.estimatedValue)}
             </span>
           </span>
@@ -228,9 +235,10 @@ export default function LensHitCard({
             type="button"
             onClick={(e) => {
               e.stopPropagation();
+              triggerTactileHaptic("light");
               setGrailExpanded((v) => !v);
             }}
-            className="w-full flex items-center justify-between px-2.5 py-1.5 text-[10px] font-black text-purple-300 cursor-pointer hover:bg-purple-950/60 transition"
+            className="w-full flex items-center justify-between px-2.5 py-1.5 text-[10px] font-black text-purple-300 cursor-pointer hover:bg-purple-950/60 transition active:scale-95"
           >
             <span className="flex items-center gap-1">
               <Sparkles className="h-3 w-3 text-fuchsia-400 animate-pulse" />
@@ -269,24 +277,33 @@ export default function LensHitCard({
         <div className="flex flex-wrap items-center gap-1.5">
           <button
             type="button"
-            onClick={() => onSaveDraft(item)}
-            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:brightness-110 active:scale-95 text-slate-950 text-[10px] font-black transition cursor-pointer shadow-[0_0_12px_rgba(34,197,94,0.3)]"
+            onClick={() => {
+              triggerTactileHaptic("success");
+              onSaveDraft(item);
+            }}
+            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#CCFF00] to-emerald-400 hover:brightness-110 active:scale-95 text-black text-[10px] font-black transition cursor-pointer shadow-[0_0_16px_rgba(204,255,0,0.35)]"
           >
             + Save Draft
           </button>
           <button
             type="button"
-            onClick={() => setShowCompareModal(true)}
-            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 active:scale-95 text-cyan-300 border border-cyan-500/40 text-[10px] font-black transition cursor-pointer shadow-[0_0_10px_rgba(0,242,254,0.15)]"
+            onClick={() => {
+              triggerTactileHaptic("medium");
+              setShowCompareModal(true);
+            }}
+            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-[#00F2FE]/15 hover:bg-[#00F2FE]/25 active:scale-95 text-[#00F2FE] border border-[#00F2FE]/40 text-[10px] font-black transition cursor-pointer shadow-[0_0_10px_rgba(0,242,254,0.2)]"
             title="Compare The Market: Net payouts & comps on eBay, Depop, Poshmark, Mercari & FB"
           >
-            <Scale className="w-3 h-3 text-cyan-400" />
+            <Scale className="w-3 h-3 text-[#00F2FE]" />
             Compare
           </button>
           {verificationReq.needsVerification && (
             <button
               type="button"
-              onClick={() => onDeepVerify(item)}
+              onClick={() => {
+                triggerTactileHaptic("heavy");
+                onDeepVerify(item);
+              }}
               className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 active:scale-95 text-white text-[10px] font-black transition cursor-pointer shadow-md shadow-purple-900/30 border border-purple-400/40 animate-pulse"
             >
               <ShieldCheck className="w-3 h-3 text-white" />
@@ -295,7 +312,10 @@ export default function LensHitCard({
           )}
           <button
             type="button"
-            onClick={() => onListEbay(item)}
+            onClick={() => {
+              triggerTactileHaptic("light");
+              onListEbay(item);
+            }}
             className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 active:scale-95 text-amber-300 border border-amber-500/40 text-[10px] font-black transition cursor-pointer shadow-[0_0_10px_rgba(245,158,11,0.15)]"
           >
             eBay List
@@ -303,8 +323,11 @@ export default function LensHitCard({
         </div>
         <button
           type="button"
-          onClick={() => onReport(item.id, item.name)}
-          className="inline-flex items-center gap-0.5 text-[9px] font-semibold text-zinc-500 hover:text-amber-400 transition cursor-pointer"
+          onClick={() => {
+            triggerTactileHaptic("warning");
+            onReport(item.id, item.name);
+          }}
+          className="inline-flex items-center gap-0.5 text-[9px] font-semibold text-zinc-500 hover:text-amber-400 transition cursor-pointer active:scale-95"
         >
           <ShieldAlert className="h-3 w-3" />
           Report

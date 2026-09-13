@@ -573,7 +573,7 @@ export function SpadasSnapStudio() {
   }
 
   return (
-    <div className="relative min-h-screen w-full bg-black text-white flex flex-col justify-between overflow-hidden select-none pb-8">
+    <div className="relative h-[100dvh] min-h-[100dvh] w-full bg-black text-white flex flex-col justify-between overflow-hidden select-none">
       {/* Hidden File Input */}
       <input
         ref={fileInputRef}
@@ -585,7 +585,7 @@ export function SpadasSnapStudio() {
       />
 
       {/* Top Header Navigation with Safe-Area Inset */}
-      <header className="absolute top-0 inset-x-0 z-30 flex items-center justify-between px-4 pt-[max(1rem,calc(env(safe-area-inset-top,0px)+0.75rem))] pb-3 bg-gradient-to-b from-black/80 to-transparent backdrop-blur-[2px]">
+      <header className="absolute top-0 inset-x-0 z-30 flex items-center justify-between px-4 pt-[max(0.75rem,calc(env(safe-area-inset-top,0px)+0.5rem))] pb-3 bg-gradient-to-b from-black/80 to-transparent backdrop-blur-[2px]">
         <button
           type="button"
           onClick={() => window.history.back()}
@@ -730,7 +730,7 @@ export function SpadasSnapStudio() {
       </div>
 
       {/* Bottom Controls Stage */}
-      <div className="w-full bg-slate-950 border-t border-slate-900 p-4 space-y-3 z-30">
+      <div className="w-full bg-slate-950 border-t border-slate-900 p-4 pb-[max(1.25rem,calc(env(safe-area-inset-bottom,0px)+1rem))] space-y-3 z-30">
         {/* AI Studio Background Enhancer Banner */}
         {capturedPhotos.length > 0 && (
           <div className="flex items-center justify-between px-1">

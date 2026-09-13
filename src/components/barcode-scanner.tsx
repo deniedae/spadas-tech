@@ -341,12 +341,13 @@ export default function BarcodeScanner({
           <Button
             size="sm"
             onClick={async () => {
+              triggerTactileHaptic("tap");
               setProduct(null);
               setBarcode("");
               setScanError(null);
               setScanning(!scanning);
             }}
-            className={`font-bold transition-all shadow-md ${
+            className={`font-bold transition-all shadow-md active:scale-95 ${
               scanning
                 ? "bg-rose-600 hover:bg-rose-500 text-white"
                 : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white"
@@ -366,7 +367,10 @@ export default function BarcodeScanner({
           {/* Turbo Batch Mode Toggle */}
           <button
             type="button"
-            onClick={() => setBatchMode(!batchMode)}
+            onClick={() => {
+              triggerTactileHaptic("selection");
+              setBatchMode(!batchMode);
+            }}
             className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-black transition-all border cursor-pointer active:scale-95 ${
               batchMode
                 ? "badge-active text-[#00F2FE]"
@@ -397,7 +401,10 @@ export default function BarcodeScanner({
 
           <button
             type="button"
-            onClick={() => setSoundEnabled(!soundEnabled)}
+            onClick={() => {
+              triggerTactileHaptic("tap");
+              setSoundEnabled(!soundEnabled);
+            }}
             title="Toggle Scan Beep Sound"
             className="rounded-xl p-2 border border-white/[0.08] glass text-zinc-400 hover:text-white transition-all cursor-pointer active:scale-95"
           >

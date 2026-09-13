@@ -560,9 +560,9 @@ export function IronmanHudCamera() {
     : activeBeacons;
 
   return (
-    <div className="relative w-full max-w-5xl mx-auto rounded-3xl overflow-hidden bg-slate-950 border border-cyan-500/40 shadow-[0_0_50px_rgba(6,182,212,0.25)] select-none">
+    <div className="relative w-full max-w-5xl mx-auto rounded-none sm:rounded-3xl overflow-hidden bg-slate-950 border-0 sm:border sm:border-cyan-500/40 sm:shadow-[0_0_50px_rgba(6,182,212,0.25)] select-none">
       {/* ── 1. Live Video Viewfinder ────────────────────────────────────────── */}
-      <div className="relative w-full aspect-[4/3] sm:aspect-[16/9] bg-black overflow-hidden">
+      <div className="relative w-full min-h-[72dvh] sm:min-h-[550px] sm:aspect-[16/9] bg-black overflow-hidden">
         <video
           ref={videoRef}
           playsInline
@@ -577,7 +577,7 @@ export function IronmanHudCamera() {
 
         {/* ── 3. Outer HUD Telemetry Frame ───────────────────────────────────── */}
         {/* Top Header Bar with Safe-Area Inset */}
-        <div className="absolute top-[max(0.75rem,calc(env(safe-area-inset-top,0px)+0.75rem))] inset-x-3 flex items-center justify-between pointer-events-auto z-30">
+        <div className="absolute top-[max(0.625rem,calc(env(safe-area-inset-top,0px)+0.375rem))] left-[max(0.625rem,env(safe-area-inset-left,0px))] right-[max(0.625rem,env(safe-area-inset-right,0px))] flex items-center justify-between pointer-events-auto z-30">
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-950/80 backdrop-blur-md border border-cyan-500/50 shadow-lg shadow-cyan-500/20">
             <span className="flex h-2.5 w-2.5 relative">
               <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${isCameraActive && isScanning ? "bg-cyan-400" : "bg-zinc-600"} opacity-75`} />
@@ -593,8 +593,11 @@ export function IronmanHudCamera() {
             {/* Scan Power Toggle */}
             <button
               type="button"
-              onClick={() => setIsScanning((v) => !v)}
-              className={`p-2 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1 ${
+              onClick={() => {
+                triggerTactileHaptic("tap");
+                setIsScanning((v) => !v);
+              }}
+              className={`p-2 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1 active:scale-95 ${
                 isScanning && isCameraActive
                   ? "bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/40"
                   : "bg-slate-800 text-slate-400 hover:text-white"
@@ -609,8 +612,11 @@ export function IronmanHudCamera() {
 
             <button
               type="button"
-              onClick={() => setIsAudioEnabled((v) => !v)}
-              className={`p-2 rounded-lg text-xs font-bold transition cursor-pointer ${
+              onClick={() => {
+                triggerTactileHaptic("tap");
+                setIsAudioEnabled((v) => !v);
+              }}
+              className={`p-2 rounded-lg text-xs font-bold transition cursor-pointer active:scale-95 ${
                 isAudioEnabled ? "bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/40" : "text-slate-400 hover:text-white"
               }`}
               title="Toggle Audio Feedback"
@@ -620,8 +626,11 @@ export function IronmanHudCamera() {
 
             <button
               type="button"
-              onClick={() => setIsHideTraps((v) => !v)}
-              className={`p-2 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1 ${
+              onClick={() => {
+                triggerTactileHaptic("selection");
+                setIsHideTraps((v) => !v);
+              }}
+              className={`p-2 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1 active:scale-95 ${
                 isHideTraps ? "bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/40" : "text-slate-400 hover:text-white"
               }`}
               title="Filter Out Thrift & Hoarder Traps"
@@ -633,11 +642,12 @@ export function IronmanHudCamera() {
             <button
               type="button"
               onClick={() => {
+                triggerTactileHaptic("tap");
                 const next = facingMode === "environment" ? "user" : "environment";
                 setFacingMode(next);
                 void startCamera(next);
               }}
-              className="p-2 rounded-lg text-xs font-bold text-slate-400 hover:text-white transition cursor-pointer"
+              className="p-2 rounded-lg text-xs font-bold text-slate-400 hover:text-white transition cursor-pointer active:scale-95"
               title="Flip Camera"
             >
               <RefreshCw className="h-4 w-4" />
@@ -772,7 +782,7 @@ export function IronmanHudCamera() {
         })}
 
         {/* Bottom HUD Telemetry Strip */}
-        <div className="absolute bottom-3 inset-x-3 flex items-center justify-between text-[11px] font-mono text-cyan-400/80 pointer-events-none">
+        <div className="absolute bottom-[max(0.75rem,calc(env(safe-area-inset-bottom,0px)+0.5rem))] left-[max(0.75rem,env(safe-area-inset-left,0px))] right-[max(0.75rem,env(safe-area-inset-right,0px))] flex items-center justify-between text-[11px] font-mono text-cyan-400/80 pointer-events-none">
           <div className="bg-slate-950/75 backdrop-blur-md px-2.5 py-1 rounded-lg border border-cyan-500/30">
             SYSTEM: SPATIAL SLAM LOCK · ACTIVE TARGETS: {displayedBeacons.length}
           </div>
@@ -842,8 +852,11 @@ export function IronmanHudCamera() {
               <button
                 type="button"
                 disabled={publishingBeaconId === selectedBeacon.id}
-                onClick={() => handlePublishToEbay(selectedBeacon)}
-                className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 text-xs font-black transition cursor-pointer shadow-lg shadow-amber-500/30 disabled:opacity-50"
+                onClick={() => {
+                  triggerTactileHaptic("medium");
+                  void handlePublishToEbay(selectedBeacon);
+                }}
+                className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 text-xs font-black transition cursor-pointer shadow-lg shadow-amber-500/30 disabled:opacity-50 active:scale-95"
               >
                 {publishingBeaconId === selectedBeacon.id ? (
                   <>
@@ -861,8 +874,11 @@ export function IronmanHudCamera() {
 
             <button
               type="button"
-              onClick={() => setSelectedBeacon(null)}
-              className="px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition cursor-pointer"
+              onClick={() => {
+                triggerTactileHaptic("tap");
+                setSelectedBeacon(null);
+              }}
+              className="px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition cursor-pointer active:scale-95"
             >
               Dismiss
             </button>

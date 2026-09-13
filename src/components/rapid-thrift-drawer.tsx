@@ -28,6 +28,7 @@ import { useHaulStore, getStatsSnapshot } from "@/lib/haul-store";
 import { calculateSalesVelocity } from "@/lib/turnover-velocity-engine";
 import { toast } from "sonner";
 import { CompsMiniLaserPill } from "@/components/ui/comps-skeleton-loader";
+import { triggerTactileHaptic } from "@/lib/android-bridge";
 
 interface RapidThriftDrawerProps {
   isOpen: boolean;
@@ -55,6 +56,7 @@ export const RapidThriftDrawer: React.FC<RapidThriftDrawerProps> = ({
 
   const handleDeleteItem = React.useCallback(
     async (id: string) => {
+      triggerTactileHaptic("light");
       if (propOnDeleteItem) {
         propOnDeleteItem(id);
       } else {
@@ -66,6 +68,7 @@ export const RapidThriftDrawer: React.FC<RapidThriftDrawerProps> = ({
   );
 
   const handleClearSession = React.useCallback(async () => {
+    triggerTactileHaptic("warning");
     if (propOnClearSession) {
       propOnClearSession();
     } else {
@@ -156,9 +159,11 @@ export const RapidThriftDrawer: React.FC<RapidThriftDrawerProps> = ({
 
   const handleExportCsv = React.useCallback(() => {
     if (items.length === 0) {
+      triggerTactileHaptic("warning");
       toast.error("No items in session to export.");
       return;
     }
+    triggerTactileHaptic("light");
     const headers = ["Item Name", "Brand", "Category", "Condition", "Est Value", "Thrift Cost", "Net Profit", "Cop Verdict", "Timestamp"];
     const rows = items.map((itm) => [
       `"${(itm.productName || "Scanned Item").replace(/"/g, '""')}"`,
@@ -188,9 +193,11 @@ export const RapidThriftDrawer: React.FC<RapidThriftDrawerProps> = ({
   const handleBatchAddToInventory = React.useCallback(() => {
     const profitable = items.filter((i) => (i.trueNetProfit || 0) >= 10 && i.status === "completed");
     if (profitable.length === 0) {
+      triggerTactileHaptic("warning");
       toast.info("No completed profitable items to add.");
       return;
     }
+    triggerTactileHaptic("success");
     profitable.forEach((itm) => onAddToInventory?.(itm));
     toast.success(`Added ${profitable.length} profitable finds to inventory!`);
   }, [items, onAddToInventory]);
@@ -236,9 +243,12 @@ export const RapidThriftDrawer: React.FC<RapidThriftDrawerProps> = ({
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={onClose}
+              onClick={() => {
+                triggerTactileHaptic("light");
+                onClose();
+              }}
               aria-label="Close Rapid Thrift Haul"
-              className="h-8 w-8 rounded-full border border-slate-800 bg-slate-900/80 flex items-center justify-center text-slate-400 hover:text-white hover:border-slate-700 transition cursor-pointer"
+              className="h-8 w-8 rounded-full border border-slate-800 bg-slate-900/80 flex items-center justify-center text-slate-400 hover:text-white hover:border-slate-700 transition cursor-pointer active:scale-95"
             >
               <X className="h-4 w-4" />
             </button>
@@ -428,8 +438,11 @@ export const RapidThriftDrawer: React.FC<RapidThriftDrawerProps> = ({
                     {onAddToInventory && item.status === "completed" && (
                       <button
                         type="button"
-                        onClick={() => onAddToInventory(item)}
-                        className="px-2.5 py-1 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-[10px] font-black transition cursor-pointer flex items-center gap-1 shadow-sm"
+                        onClick={() => {
+                          triggerTactileHaptic("success");
+                          onAddToInventory(item);
+                        }}
+                        className="px-2.5 py-1 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-[10px] font-black transition cursor-pointer flex items-center gap-1 shadow-sm active:scale-95"
                         title="Add to Spadas Inventory"
                       >
                         <PackagePlus className="h-3 w-3" /> Add
@@ -438,8 +451,11 @@ export const RapidThriftDrawer: React.FC<RapidThriftDrawerProps> = ({
                     {item.needsVerification && onOpenVerify && (
                       <button
                         type="button"
-                        onClick={() => onOpenVerify(item)}
-                        className="px-2 py-1 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-[10px] font-black transition cursor-pointer flex items-center gap-1"
+                        onClick={() => {
+                          triggerTactileHaptic("heavy");
+                          onOpenVerify(item);
+                        }}
+                        className="px-2 py-1 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-[10px] font-black transition cursor-pointer flex items-center gap-1 active:scale-95"
                         title="Run Deep Forensic Verification"
                       >
                         <ShieldCheck className="h-3 w-3" /> Verify

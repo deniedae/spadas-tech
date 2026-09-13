@@ -406,31 +406,31 @@ export default function AuditCompsLedger({
 
   return (
     <div
-      className={`rounded-3xl bg-slate-950/95 backdrop-blur-2xl border-2 border-emerald-500/40 shadow-[0_20px_60px_rgba(0,0,0,0.9),0_0_35px_rgba(16,185,129,0.2)] overflow-hidden transition-all duration-300 w-full ledger-expand-glide ${className}`}
+      className={`rounded-3xl bg-black/90 backdrop-blur-2xl border border-emerald-500/40 shadow-[0_20px_60px_rgba(0,0,0,0.95),0_0_35px_rgba(16,185,129,0.15)] ring-1 ring-white/[0.06] overflow-hidden transition-all duration-300 w-full ledger-expand-glide ${className}`}
       id="audit-comps-ledger"
     >
       {/* Top Banner: Item Name, Verdict, & Net Profit Highlight */}
-      <div className="p-4 sm:p-5 bg-gradient-to-r from-slate-950 via-[#0C111D] to-slate-950 border-b border-white/[0.08]">
+      <div className="p-4 sm:p-5 bg-gradient-to-r from-black via-zinc-950/80 to-black border-b border-white/[0.08]">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="min-w-0 space-y-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-[11px] font-extrabold text-emerald-300 shadow-sm">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-[11px] font-extrabold text-emerald-300 shadow-[0_0_12px_rgba(34,197,94,0.15)] font-mono">
                 <Sparkles className="h-3.5 w-3.5 text-emerald-400" />
                 <span>{verifiedListings.length} Cleared Recent Sales</span>
               </span>
               {brand && (
-                <span className="px-2 py-0.5 rounded-md bg-slate-800/90 border border-slate-700 text-[10px] font-bold text-slate-300">
+                <span className="px-2 py-0.5 rounded-md bg-white/[0.04] border border-white/[0.08] text-[10px] font-bold text-zinc-300">
                   {brand}
                 </span>
               )}
               {copVerdict && (
                 <span
-                  className={`px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider ${
+                  className={`px-2.5 py-0.5 rounded-md text-[10px] font-mono font-black uppercase tracking-wider ${
                     copVerdict === "MUST_COP"
-                      ? "bg-emerald-500 text-slate-950 font-black"
+                      ? "bg-emerald-500 text-slate-950 font-black shadow-[0_0_12px_rgba(34,197,94,0.3)]"
                       : copVerdict === "QUICK_FLIP"
-                      ? "bg-cyan-500 text-slate-950 font-black"
-                      : "bg-slate-800 text-slate-300"
+                      ? "bg-cyan-500 text-slate-950 font-black shadow-[0_0_12px_rgba(0,242,254,0.3)]"
+                      : "bg-white/[0.04] text-zinc-300 border border-white/[0.08]"
                   }`}
                 >
                   {copVerdict === "MUST_COP" ? "👑 MUST COP" : copVerdict === "QUICK_FLIP" ? "⚡ QUICK FLIP" : copVerdict}
@@ -452,8 +452,8 @@ export default function AuditCompsLedger({
           <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-white/[0.05]">
             {typeof netProfit === "number" && (
               <div className="flex flex-col text-left sm:text-right">
-                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Estimated Profit</span>
-                <span className="text-lg sm:text-xl font-black text-emerald-400 font-mono">
+                <span className="hud-label">Estimated Profit</span>
+                <span className="text-lg sm:text-xl font-black text-emerald-400 font-mono tabular-nums">
                   +{fmtMoney(netProfit)}
                 </span>
               </div>
@@ -466,7 +466,7 @@ export default function AuditCompsLedger({
                   triggerTactileHaptic("light");
                   setIsExpanded(!isExpanded);
                 }}
-                className="px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-white/[0.1] text-xs font-bold text-cyan-300 hover:text-cyan-200 transition flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95"
+                className="px-3 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.1] text-xs font-bold text-cyan-300 hover:text-cyan-200 transition flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95"
                 aria-expanded={isExpanded}
                 aria-controls="comps-ledger-content"
               >
@@ -481,7 +481,7 @@ export default function AuditCompsLedger({
                     triggerTactileHaptic("light");
                     onDismiss();
                   }}
-                  className="p-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-white/[0.1] text-zinc-400 hover:text-white transition cursor-pointer active:scale-95"
+                  className="p-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.1] text-zinc-400 hover:text-white transition cursor-pointer active:scale-95"
                   title="Close Evidence Ledger"
                 >
                   <X className="h-4 w-4" />
@@ -500,12 +500,12 @@ export default function AuditCompsLedger({
         <div className="accordion-grid-inner p-4 sm:p-5 space-y-4">
           {/* Trust-The-Process Telemetry Strip */}
           {stats && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 p-3 rounded-2xl bg-[#090D17] border border-white/[0.06] text-center shadow-inner">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 p-3 rounded-2xl bg-white/[0.02] border border-white/[0.06] text-center shadow-inner">
               <div className="p-2">
                 <span className="text-[10px] font-mono uppercase text-zinc-400 font-bold block mb-0.5">
                   Cleared Median
                 </span>
-                <span className="text-base sm:text-lg font-black font-mono text-cyan-300">
+                <span className="text-base sm:text-lg font-black font-mono text-cyan-300 tabular-nums">
                   {fmtMoney(stats.median)}
                 </span>
               </div>
@@ -513,7 +513,7 @@ export default function AuditCompsLedger({
                 <span className="text-[10px] font-mono uppercase text-zinc-400 font-bold block mb-0.5">
                   Cleared Range
                 </span>
-                <span className="text-xs sm:text-sm font-bold font-mono text-zinc-200">
+                <span className="text-xs sm:text-sm font-bold font-mono text-zinc-200 tabular-nums">
                   {fmtMoney(stats.min)} – {fmtMoney(stats.max)}
                 </span>
               </div>
@@ -546,7 +546,7 @@ export default function AuditCompsLedger({
               placeholder="Search across these 7 sales (e.g. condition, title keyword, or date)..."
               value={filterQuery}
               onChange={(e) => setFilterQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-black/50 border border-white/[0.08] rounded-xl text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-cyan-500/50 font-medium transition"
+              className="w-full pl-10 pr-4 py-2 bg-black/60 border border-white/[0.08] rounded-xl text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-cyan-400/50 focus:ring-1 focus:ring-cyan-400/30 font-mono transition"
             />
           </div>
 
@@ -563,13 +563,13 @@ export default function AuditCompsLedger({
                       onSelectComp?.(comp.raw);
                     }}
                     style={{ animationDelay: `${idx * 45}ms` }}
-                    className="group relative p-3.5 sm:p-4 rounded-2xl bg-[#0A0E1A] hover:bg-[#111728] border border-white/[0.06] hover:border-cyan-500/40 transition-all duration-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md comp-row-glide cursor-pointer"
+                    className="group relative p-3.5 sm:p-4 rounded-2xl cyber-glass hover:border-cyan-500/40 transition-all duration-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md comp-row-glide cursor-pointer"
                   >
                     {/* Left: Index + Match Badge + Title + Conditions */}
                     <div className="min-w-0 flex-1 space-y-2">
                       <div className="flex items-start gap-2.5">
                         {/* Numerical Index for Evidence Trust */}
-                        <span className="shrink-0 h-6 w-6 rounded-lg bg-zinc-900 border border-white/[0.08] text-[11px] font-mono font-black text-zinc-400 flex items-center justify-center mt-0.5">
+                        <span className="shrink-0 h-6 w-6 rounded-lg bg-white/[0.04] border border-white/[0.08] text-[11px] font-mono font-black text-zinc-400 flex items-center justify-center mt-0.5">
                           #{idx + 1}
                         </span>
 
@@ -599,13 +599,13 @@ export default function AuditCompsLedger({
                       {/* Metadata Pill Row: Condition + Sold Date + Postage */}
                       <div className="flex flex-wrap items-center gap-2 text-[11px] text-zinc-400 font-mono ml-8.5">
                         {/* 2. Item Condition */}
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-zinc-800/90 border border-white/[0.06] text-zinc-200 font-semibold">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/[0.04] border border-white/[0.06] text-zinc-200 font-semibold">
                           <Tag className="h-3 w-3 text-zinc-400" />
                           <span>{comp.condition}</span>
                         </span>
 
                         {/* 3. Sold Date */}
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-zinc-900/90 border border-white/[0.06] text-zinc-300">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/[0.04] border border-white/[0.06] text-zinc-300">
                           <Calendar className="h-3 w-3 text-zinc-500" />
                           <span>Sold {comp.soldDate}</span>
                         </span>
@@ -627,7 +627,7 @@ export default function AuditCompsLedger({
                         <span className="text-[10px] font-mono uppercase text-zinc-500 block sm:hidden">
                           Realized Price:
                         </span>
-                        <span className="font-mono font-black text-cyan-300 text-base sm:text-lg tracking-tight">
+                        <span className="font-mono font-black text-cyan-300 text-base sm:text-lg tracking-tight tabular-nums">
                           {fmtMoney(comp.price)}
                         </span>
                       </div>
@@ -637,7 +637,7 @@ export default function AuditCompsLedger({
                         href={comp.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 hover:border-cyan-400/50 text-[11px] font-bold text-cyan-300 transition shadow-sm"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 hover:border-cyan-400/50 text-[11px] font-mono font-bold text-cyan-300 transition shadow-[0_0_10px_rgba(0,242,254,0.15)] active:scale-95"
                         title="Open verified cleared comp listing on eBay in new tab"
                         onClick={(e) => e.stopPropagation()}
                       >
@@ -649,7 +649,7 @@ export default function AuditCompsLedger({
                 );
               })
             ) : (
-              <div className="py-8 px-4 text-center space-y-2.5 rounded-2xl bg-zinc-950/60 border border-dashed border-white/[0.08]">
+              <div className="py-8 px-4 text-center space-y-2.5 rounded-2xl bg-white/[0.02] border border-dashed border-white/[0.08]">
                 <PackageCheck className="h-8 w-8 text-zinc-500 mx-auto" />
                 <p className="text-sm text-zinc-300 font-bold">
                   {filterQuery ? "No matching sales for this filter." : "Live cleared sales evidence calibrated from eBay registry."}
@@ -680,7 +680,7 @@ export default function AuditCompsLedger({
                     triggerTactileHaptic("success");
                     onAddToHaul();
                   }}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs shadow-lg shadow-emerald-500/20 transition cursor-pointer active:scale-95"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:brightness-110 text-slate-950 font-black text-xs shadow-[0_0_15px_rgba(34,197,94,0.3)] transition cursor-pointer active:scale-95"
                 >
                   <CheckCircle2 className="h-4 w-4" />
                   <span>+ Add Find to Haul</span>
@@ -694,7 +694,7 @@ export default function AuditCompsLedger({
                     triggerTactileHaptic("medium");
                     onListEbay();
                   }}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-md transition cursor-pointer active:scale-95"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/40 font-bold text-xs shadow-[0_0_12px_rgba(245,158,11,0.2)] transition cursor-pointer active:scale-95"
                 >
                   <ShoppingBag className="h-4 w-4" />
                   <span>List on eBay</span>
@@ -706,7 +706,7 @@ export default function AuditCompsLedger({
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => triggerTactileHaptic("light")}
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-white/[0.08] text-xs font-semibold text-zinc-300 hover:text-white transition cursor-pointer active:scale-95"
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-xs font-semibold text-zinc-300 hover:text-white transition cursor-pointer active:scale-95"
               >
                 <span>Search eBay AU</span>
                 <ExternalLink className="h-3.5 w-3.5" />
@@ -720,7 +720,7 @@ export default function AuditCompsLedger({
                   triggerTactileHaptic("light");
                   onScanNext();
                 }}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 text-xs font-bold transition cursor-pointer active:scale-95 ml-auto"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-cyan-300 border border-white/[0.08] text-xs font-bold transition cursor-pointer active:scale-95 ml-auto"
               >
                 <Camera className="h-4 w-4 text-cyan-400" />
                 <span>Scan Next Item</span>

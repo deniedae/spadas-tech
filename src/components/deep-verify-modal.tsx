@@ -808,7 +808,7 @@ Verified by Spadas AI Forensic Pre-Screening Assistant`;
                   ? "bg-teal-950/60 border-teal-500/50 shadow-[0_0_30px_rgba(20,184,166,0.2)]"
                   : isInconclusive
                   ? "bg-amber-950/60 border-amber-500/50 shadow-[0_0_30px_rgba(245,158,11,0.2)]"
-                  : "bg-red-950/60 border-red-500/50 shadow-[0_0_30px_rgba(239,68,68,0.2)]";
+                  : "bg-rose-950/50 border-rose-500/40 shadow-[0_0_30px_rgba(244,63,94,0.15)]";
 
                 return (
                   <div
@@ -821,7 +821,7 @@ Verified by Spadas AI Forensic Pre-Screening Assistant`;
                             ? "bg-emerald-500/20 border-emerald-400"
                             : isInconclusive
                             ? "bg-amber-500/20 border-amber-400"
-                            : "bg-red-500/20 border-red-400"
+                            : "bg-rose-500/20 border-rose-400"
                         }`}
                       >
                         {isAuthentic ? (
@@ -829,7 +829,7 @@ Verified by Spadas AI Forensic Pre-Screening Assistant`;
                         ) : isInconclusive ? (
                           <AlertTriangle className="h-7 w-7 text-amber-400" />
                         ) : (
-                          <ShieldAlert className="h-7 w-7 text-red-400" />
+                          <ShieldAlert className="h-7 w-7 text-rose-400" />
                         )}
                       </div>
                       <div>
@@ -1015,7 +1015,7 @@ Verified by Spadas AI Forensic Pre-Screening Assistant`;
                             isPassed
                               ? "bg-emerald-950/20 border-emerald-500/30"
                               : isFailed
-                              ? "bg-red-950/25 border-red-500/40"
+                              ? "bg-rose-950/25 border-rose-500/40"
                               : isInconclusive
                               ? "bg-amber-950/20 border-amber-500/30"
                               : "bg-slate-800/40 border-slate-700/60"
@@ -1026,7 +1026,7 @@ Verified by Spadas AI Forensic Pre-Screening Assistant`;
                               {isPassed ? (
                                 <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
                               ) : isFailed ? (
-                                <ShieldAlert className="h-4 w-4 text-red-400 shrink-0" />
+                                <ShieldAlert className="h-4 w-4 text-rose-400 shrink-0" />
                               ) : isInconclusive ? (
                                 <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0" />
                               ) : (
@@ -1039,7 +1039,7 @@ Verified by Spadas AI Forensic Pre-Screening Assistant`;
                                 isPassed
                                   ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
                                   : isFailed
-                                  ? "bg-red-500/20 text-red-300 border-red-500/40"
+                                  ? "bg-rose-500/20 text-rose-300 border-rose-500/40"
                                   : isInconclusive
                                   ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
                                   : "bg-slate-800 text-slate-400 border-slate-700"
@@ -1183,7 +1183,7 @@ Verified by Spadas AI Forensic Pre-Screening Assistant`;
                 </div>
 
                 {/* Red Flags / Risk Areas */}
-                <div className="p-3.5 rounded-xl bg-red-950/20 border border-red-500/30 space-y-2">
+                <div className="p-3.5 rounded-xl bg-rose-950/25 border border-rose-500/30 space-y-2">
                   <span className="font-extrabold text-rose-400 flex items-center gap-1.5 uppercase tracking-wide text-[10px]">
                     <AlertTriangle className="h-3.5 w-3.5" /> Counterfeit Red Flags ({result.red_flags.length})
                   </span>
@@ -1290,7 +1290,7 @@ Verified by Spadas AI Forensic Pre-Screening Assistant`;
 
                     {/* Counterfeit Zero-Value Clamp Warning */}
                     {isFake ? (
-                      <div className="p-3 rounded-xl bg-red-950/30 border border-red-500/50 flex items-start gap-2 text-xs text-rose-200">
+                      <div className="p-3 rounded-xl bg-rose-950/30 border border-rose-500/40 flex items-start gap-2 text-xs text-rose-200">
                         <ShieldAlert className="h-4 w-4 text-rose-400 shrink-0 mt-0.5" />
                         <div>
                           <strong className="text-rose-400 block font-black">
@@ -1656,7 +1656,7 @@ Verified by Spadas AI Forensic Pre-Screening Assistant`;
                         setCapturedImages(updated);
                         startCamera();
                       }}
-                      className="absolute top-3 right-3 bg-red-500/80 hover:bg-red-500 px-2.5 py-1 rounded-lg text-[10px] font-bold text-white transition cursor-pointer"
+                      className="absolute top-3 right-3 bg-rose-600/80 hover:bg-rose-500 px-2.5 py-1 rounded-lg text-[10px] font-bold text-white transition cursor-pointer"
                     >
                       Retake
                     </button>

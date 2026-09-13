@@ -327,11 +327,11 @@ export default function LensControlsBar({
           </div>
 
           {/* Profit Threshold Slider & Presets Row */}
-          <div className="pt-2 flex flex-wrap items-center justify-between gap-3 border-t border-white/[0.06]">
+          <div className="pt-2 flex flex-wrap items-center justify-between gap-3 border-t border-white/10">
             <div className="flex items-center gap-2 text-xs">
-              <Sliders className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+              <Sliders className="h-3.5 w-3.5 text-[#CCFF00] shrink-0" />
               <span className="hud-label">Chime Min Profit:</span>
-              <span className="hud-chip text-emerald-400 border-emerald-500/30">
+              <span className="badge-neon-lime">
                 ${prefs.minProfitThreshold} {prefs.currency}
               </span>
             </div>
@@ -347,7 +347,7 @@ export default function LensControlsBar({
                   triggerTactileHaptic("selection");
                   prefs.updateProfitThreshold(Number(e.target.value));
                 }}
-                className="w-full accent-emerald-400 h-1.5 bg-zinc-800 rounded-lg cursor-pointer"
+                className="w-full accent-[#CCFF00] h-1.5 bg-zinc-900 border border-white/10 rounded-lg cursor-pointer"
               />
             </div>
 
@@ -363,8 +363,8 @@ export default function LensControlsBar({
                   }}
                   className={`px-2 py-0.5 rounded text-[10px] font-black transition cursor-pointer active:scale-95 ${
                     prefs.minProfitThreshold === preset
-                      ? "badge-active text-[#00F2FE]"
-                      : "glass border border-white/[0.08] text-zinc-400 hover:text-white"
+                      ? "bg-[#CCFF00] text-black shadow-[0_0_12px_rgba(204,255,0,0.4)]"
+                      : "glass border border-white/10 text-zinc-400 hover:text-white"
                   }`}
                 >
                   ${preset}

@@ -17,7 +17,7 @@ export default function LensPage() {
       <UnifiedCameraHub />
 
       {/* Predictive Heatmap Sourcing Radar */}
-      <div className="space-y-4 pt-6 border-t border-border">
+      <div className="space-y-4 pt-6 mt-4 border-t border-border px-3 sm:px-0 pb-28 md:pb-8">
         <div className="flex items-center gap-2">
           <Flame className="h-5 w-5 text-amber-500" />
           <h2 className="text-xl font-bold tracking-tight">Predictive Heatmap Sourcing Radar</h2>

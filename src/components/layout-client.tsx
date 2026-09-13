@@ -307,9 +307,12 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
             {/* Close button only visible on mobile */}
             <button
               type="button"
-              className="absolute top-[max(1rem,calc(env(safe-area-inset-top)+0.5rem))] right-4 md:hidden p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/[0.06] focus:outline-none transition-colors cursor-pointer"
+              className="absolute top-[max(1rem,calc(env(safe-area-inset-top)+0.5rem))] right-4 md:hidden p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/[0.06] focus:outline-none transition-colors cursor-pointer active:scale-95"
               aria-label="Close sidebar"
-              onClick={() => setSidebarOpen(false)}
+              onClick={() => {
+                triggerTactileHaptic("tap");
+                setSidebarOpen(false);
+              }}
             >
               <X className="h-5 w-5" />
             </button>
@@ -323,13 +326,16 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
                 <Link
                   key={href}
                   href={href}
-                  className={`flex items-center justify-between rounded-lg min-h-[40px] px-3 py-2 text-xs font-medium transition-all group focus:outline-none ${
+                  className={`flex items-center justify-between rounded-lg min-h-[40px] px-3 py-2 text-xs font-medium transition-all group focus:outline-none active:scale-98 ${
                     active
                       ? "bg-white/[0.08] text-white font-semibold border-l-2 border-cyan-400 pl-[10px] shadow-sm"
                       : "text-zinc-400 hover:text-zinc-100 hover:bg-white/[0.04]"
                   }`}
                   aria-current={active ? "page" : undefined}
-                  onClick={() => setSidebarOpen(false)}
+                  onClick={() => {
+                    triggerTactileHaptic("tap");
+                    setSidebarOpen(false);
+                  }}
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
                     <Icon className={`h-4 w-4 shrink-0 transition-colors ${
@@ -390,10 +396,13 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
                 <div className="flex items-center gap-3">
                   <button
                     ref={hamburgerButtonRef}
-                    className="md:hidden p-2 rounded-lg text-zinc-400 hover:bg-white/[0.06] hover:text-white focus:outline-none transition-colors cursor-pointer"
+                    className="md:hidden p-2 rounded-lg text-zinc-400 hover:bg-white/[0.06] hover:text-white focus:outline-none transition-colors cursor-pointer active:scale-95"
                     aria-label="Open sidebar"
                     aria-expanded={sidebarOpen}
-                    onClick={() => setSidebarOpen(true)}
+                    onClick={() => {
+                      triggerTactileHaptic("tap");
+                      setSidebarOpen(true);
+                    }}
                   >
                     <AlignJustify className="h-5 w-5" />
                   </button>
