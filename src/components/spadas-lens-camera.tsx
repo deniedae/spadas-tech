@@ -3923,7 +3923,7 @@ function SpadasLensCameraCore({
                 >
                   <ValuationCardErrorBoundary
                     onRetry={() => void processCurrentFrame(true)}
-                    onDismiss={() => { setActiveValuationHit(null); setFrozenFrameUrl(null); }}
+                    onDismiss={() => { setActiveValuationHit(null); setFrozenFrameUrl(null); setIsScanPaused(false); }}
                   >
                     <div className="w-full rounded-3xl bg-[#080c14]/96 border border-emerald-500/50 p-4 shadow-[0_20px_60px_rgba(0,0,0,0.9),0_0_40px_rgba(16,185,129,0.2)] backdrop-blur-2xl select-none hologram-sheen">
                       {/* Top Header: Thumbnail Anchor, Title, Brand & Cop Verdict */}
@@ -4160,6 +4160,7 @@ function SpadasLensCameraCore({
                               void handleSaveDraftHit(activeValuationHit);
                               setActiveValuationHit(null);
                               setFrozenFrameUrl(null);
+                              setIsScanPaused(false);
                             }}
                             className="inline-flex items-center gap-1 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black px-3.5 py-1.5 rounded-xl text-[11px] shadow-lg shadow-emerald-500/20 transition cursor-pointer active:scale-95"
                           >
@@ -4171,6 +4172,7 @@ function SpadasLensCameraCore({
                             onClick={() => {
                               setActiveValuationHit(null);
                               setFrozenFrameUrl(null);
+                              setIsScanPaused(false);
                             }}
                             className="text-slate-400 hover:text-white p-1 rounded-lg transition cursor-pointer"
                             title="Dismiss"
@@ -4668,11 +4670,13 @@ function SpadasLensCameraCore({
             onDismiss={() => {
               setActiveValuationHit(null);
               setFrozenFrameUrl(null);
+              setIsScanPaused(false);
             }}
             onAddToHaul={() => {
               void handleSaveDraftHit(activeValuationHit);
               setActiveValuationHit(null);
               setFrozenFrameUrl(null);
+              setIsScanPaused(false);
             }}
             onListEbay={() => {
               setIsScanPaused(true);
