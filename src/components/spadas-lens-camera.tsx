@@ -3349,7 +3349,7 @@ function SpadasLensCameraCore({
 
   // Active Auto-Scan & Scene Change Watcher with Frame-Skip Delay & Sampling Interval
   useEffect(() => {
-    if (!stream || !!deepVerifyItem || isScanPaused || !!activeCompsHit) return;
+    if (!stream || !!deepVerifyItem || isScanPaused || !!activeCompsHit || !!activeValuationHit) return;
 
     let isDestroyed = false;
     const offCanvas = document.createElement("canvas");
@@ -3461,7 +3461,7 @@ function SpadasLensCameraCore({
       isDestroyed = true;
       clearInterval(interval);
     };
-  }, [stream, autoScanActive, scanMode, deepVerifyItem, isScanPaused, activeCompsHit, isRapidScanMode]);
+  }, [stream, autoScanActive, scanMode, deepVerifyItem, isScanPaused, activeCompsHit, activeValuationHit, isRapidScanMode]);
 
   useEffect(() => {
     return () => {
