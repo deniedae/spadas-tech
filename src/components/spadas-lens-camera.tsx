@@ -157,7 +157,15 @@ function SpadasLensCameraCore({
   } | null>(null);
   const [rateLimited, setRateLimited] = useState(false);
   const [activeScans, setActiveScans] = useState<ActiveScanItem[]>([]);
-  const [activeValuationHit, setActiveValuationHit] = useState<DetectedHit | null>(null);
+  const [activeValuationHit, setActiveValuationHitState] = useState<DetectedHit | null>(null);
+  const activeValuationHitRef = useRef<DetectedHit | null>(null);
+  const setActiveValuationHit = useCallback((hit: DetectedHit | null | ((prev: DetectedHit | null) => DetectedHit | null)) => {
+    setActiveValuationHitState((prev) => {
+      const next = typeof hit === "function" ? hit(prev) : hit;
+      activeValuationHitRef.current = next;
+      return next;
+    });
+  }, []);
   const valuationCardRef = useRef<HTMLDivElement | null>(null);
   const [scanCompletePulse, setScanCompletePulse] = useState<boolean>(false);
   const scanCompletePulseTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -482,7 +490,15 @@ function SpadasLensCameraCore({
   }, [releaseWakeLock]);
 
   // Scan Stabilization & Dynamic Confidence State
-  const [isScanPaused, setIsScanPaused] = useState<boolean>(false);
+  const [isScanPaused, setIsScanPausedState] = useState<boolean>(false);
+  const isScanPausedRef = useRef<boolean>(false);
+  const setIsScanPaused = useCallback((paused: boolean | ((prev: boolean) => boolean)) => {
+    setIsScanPausedState((prev) => {
+      const next = typeof paused === "function" ? paused(prev) : paused;
+      isScanPausedRef.current = next;
+      return next;
+    });
+  }, []);
   const [frozenFrameUrl, setFrozenFrameUrl] = useState<string | null>(null);
   const [activeCompsHit, setActiveCompsHit] = useState<DetectedHit | ActiveScanItem | null>(null);
   const [confidencePercent, setConfidencePercent] = useState<number>(94);
@@ -687,7 +703,10 @@ function SpadasLensCameraCore({
       };
 
       // 1. Immediately activate valuation result state so the valuation card slides into view and in-stream comps ledger mounts
+      activeValuationHitRef.current = verifiedHit;
       setActiveValuationHit(verifiedHit);
+      isScanPausedRef.current = true;
+      setIsScanPaused(true);
       if (previewImage || verifiedHit.image) {
         setFrozenFrameUrl(previewImage || verifiedHit.image || null);
       }
@@ -1877,8 +1896,8 @@ function SpadasLensCameraCore({
     // 1. Immediate State Flush on Manual Scan (via "Scan Next Item" or the shutter button)
     if (forceManual) {
       flushScanState();
-    } else if (analyzingRef.current) {
-      // In automatic mode, prevent concurrent overlapping fetches
+    } else if (analyzingRef.current || activeValuationHitRef.current || isScanPausedRef.current) {
+      // In automatic mode, prevent concurrent overlapping fetches AND never overwrite or clear an active valuation hit
       return;
     }
 
@@ -2431,6 +2450,7 @@ function SpadasLensCameraCore({
                         bbox: chunk.detected_objects?.[0]?.bbox || { x: 20, y: 20, width: 60, height: 60 },
                       };
 
+                      setPendingIdentifiedItem(pendingObj);
                       setScanStage("comps");
 
                       // Instantly render lightweight pending card skeleton on camera HUD
@@ -3365,7 +3385,7 @@ function SpadasLensCameraCore({
 
     const interval = setInterval(() => {
       if (isDestroyed) return;
-      if (analyzingRef.current || isScanPaused) return; // In-flight state lock: never trigger while a scan is processing or paused
+      if (analyzingRef.current || isScanPausedRef.current || activeValuationHitRef.current) return; // In-flight state lock: never trigger while a scan is processing, paused, or reviewing a valued item
 
       // Frame skip delay: skip every alternate tick if camera was in active motion
       frameSkipCounter++;
@@ -3474,9 +3494,9 @@ function SpadasLensCameraCore({
       {/* Video Viewport Container (Tap Anywhere to Focus, Snap, or Dismiss Card) */}
       <div
         onClick={() => {
-          if (activeValuationHit) {
-            setActiveValuationHit(null);
-            setFrozenFrameUrl(null);
+          if (activeValuationHitRef.current || activeValuationHit) {
+            // Keep valuation card solid — tapping viewfinder background must not dismiss active valuation
+            return;
           } else if (isScanPaused) {
             handleResumeScanning();
           } else if (!analyzingRealFrame) {
@@ -4631,7 +4651,7 @@ function SpadasLensCameraCore({
       {activeValuationHit && (
         <div className="mt-4 w-full max-w-full px-3 sm:px-0 overflow-x-hidden box-border ledger-expand-glide">
           <AuditCompsLedger
-            isLoading={activeValuationHit.status === "pending"}
+            isLoading={false}
             comps={activeValuationHit.rawComps}
             targetTitle={activeValuationHit.name}
             brand={activeValuationHit.brand}
