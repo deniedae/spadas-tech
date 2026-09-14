@@ -69,8 +69,8 @@ export default function UsageBadge({
   return (
     <>
       {usage.isPro ? (
-        <div className="badge-active inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold">
-          <Sparkles className="h-3.5 w-3.5 text-[#00F2FE]" />
+        <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 px-3 py-1 text-xs font-mono font-bold text-emerald-400">
+          <Sparkles className="h-3.5 w-3.5 text-emerald-400" />
           <span>Pro Plan — Unlimited</span>
         </div>
       ) : (
@@ -78,17 +78,17 @@ export default function UsageBadge({
           <button
             type="button"
             onClick={() => setShowUpgradeModal(true)}
-            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold transition cursor-pointer border active:scale-95 ${
+            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-mono font-medium transition cursor-pointer border active:scale-95 ${
               usage.limitReached
-                ? "badge-error animate-pulse"
-                : "badge-info hover:bg-white/[0.08]"
+                ? "bg-rose-500/10 text-rose-400 border-rose-500/30"
+                : "bg-white/[0.04] text-zinc-300 border-white/[0.10] hover:bg-white/[0.08] hover:text-white"
             }`}
           >
-            <Zap className="h-3.5 w-3.5" />
+            <Zap className="h-3.5 w-3.5 text-zinc-400" />
             <span>
               {usage.limitReached
-                ? `0 / ${usage.maxFreeUses} Free Scans Today (Limit Reached)`
-                : `${usage.usesLeft} / ${usage.maxFreeUses} Free Scans Today`}
+                ? `0 / ${usage.maxFreeUses} Scans (Limit Reached)`
+                : `${usage.usesLeft} / ${usage.maxFreeUses} Scans Today`}
             </span>
           </button>
         </div>
@@ -96,34 +96,34 @@ export default function UsageBadge({
 
       {/* Upgrade Modal */}
       {showUpgradeModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-xl p-4 animate-fade-in">
-          <div className="w-full max-w-md rounded-3xl glass-card bg-[#030305]/95 border border-white/[0.08] p-6 sm:p-8 shadow-2xl space-y-5 text-center text-zinc-100">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl glass text-[#00F2FE] border border-white/[0.08]">
-              <ShieldAlert className="h-7 w-7" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-xl p-4 animate-in fade-in">
+          <div className="w-full max-w-md rounded-2xl bg-[#0E1017] border border-white/[0.12] p-6 sm:p-8 shadow-2xl space-y-5 text-center text-zinc-100">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-white/[0.06] text-white border border-white/[0.10]">
+              <ShieldAlert className="h-6 w-6" />
             </div>
 
             <div className="space-y-1">
-              <h3 className="text-xl font-black text-white">
+              <h3 className="text-xl font-bold text-white tracking-tight">
                 {usage.limitReached
                   ? "Daily Free Scan Limit Reached"
                   : "Upgrade to Spadas Pro"}
               </h3>
-              <p className="text-xs text-zinc-400">
+              <p className="text-xs text-zinc-400 leading-relaxed">
                 {usage.limitReached
-                  ? `You've used all ${usage.maxFreeUses} free scans for today. Upgrade to Spadas Pro for unlimited 60FPS AR camera scans, live sold comps, and 1-click eBay publishing.`
+                  ? `You've used all ${usage.maxFreeUses} free scans for today. Upgrade to Spadas Pro for unlimited 60FPS camera scans, live eBay sold comps, and 1-click eBay publishing.`
                   : "Unlock unlimited AI generations, 60FPS continuous camera scanner, and 1-click publishing."}
               </p>
             </div>
 
-            <div className="rounded-2xl glass p-4 text-left space-y-2 text-xs border border-white/[0.06]">
-              <div className="flex items-center gap-2 font-bold text-zinc-200">
-                ✓ Unlimited 60FPS Continuous AR Camera Scans
+            <div className="rounded-xl bg-[#141721] p-4 text-left space-y-2 text-xs border border-white/[0.06]">
+              <div className="flex items-center gap-2 font-medium text-zinc-200">
+                <span className="text-emerald-400">✓</span> Unlimited Continuous Camera Scans
               </div>
-              <div className="flex items-center gap-2 font-bold text-zinc-200">
-                ✓ Live Australia 30-Day Completed eBay Comps
+              <div className="flex items-center gap-2 font-medium text-zinc-200">
+                <span className="text-emerald-400">✓</span> Live Australia 30-Day Completed eBay Comps
               </div>
-              <div className="flex items-center gap-2 font-bold text-zinc-200">
-                ✓ 1-Click Automated Background Publishing to eBay AU
+              <div className="flex items-center gap-2 font-medium text-zinc-200">
+                <span className="text-emerald-400">✓</span> 1-Click Automated Background Publishing to eBay AU
               </div>
             </div>
 
@@ -132,12 +132,12 @@ export default function UsageBadge({
                 type="button"
                 onClick={handleUpgrade}
                 disabled={upgrading}
-                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 font-black text-xs text-slate-950 shadow-xl shadow-cyan-500/20 hover:brightness-110 active:scale-95 transition cursor-pointer disabled:opacity-50"
+                className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-white hover:bg-zinc-200 font-bold text-xs text-zinc-950 shadow-md active:scale-95 transition cursor-pointer disabled:opacity-50"
               >
                 {upgrading ? (
-                  <Loader2 className="h-5 w-5 animate-spin text-slate-950" />
+                  <Loader2 className="h-4 w-4 animate-spin text-zinc-950" />
                 ) : (
-                  <Sparkles className="h-5 w-5" />
+                  <Sparkles className="h-4 w-4 text-zinc-950" />
                 )}
                 <span>Upgrade to Spadas Pro ($10 AUD/mo)</span>
               </button>

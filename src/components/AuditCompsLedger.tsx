@@ -278,29 +278,25 @@ export function getMatchBadgeStyle(percentage: number): {
   bg: string;
   text: string;
   border: string;
-  glow: string;
 } {
   if (percentage >= 92) {
     return {
-      bg: "bg-emerald-500/15",
-      text: "text-emerald-300",
-      border: "border-emerald-500/40",
-      glow: "shadow-[0_0_12px_rgba(16,185,129,0.25)]",
+      bg: "bg-emerald-500/10",
+      text: "text-emerald-400",
+      border: "border-emerald-500/30",
     };
   }
   if (percentage >= 85) {
     return {
-      bg: "bg-cyan-500/15",
-      text: "text-cyan-300",
-      border: "border-cyan-500/40",
-      glow: "shadow-[0_0_12px_rgba(6,182,212,0.25)]",
+      bg: "bg-white/[0.06]",
+      text: "text-zinc-200",
+      border: "border-white/[0.12]",
     };
   }
   return {
-    bg: "bg-amber-500/15",
+    bg: "bg-amber-500/10",
     text: "text-amber-300",
-    border: "border-amber-500/40",
-    glow: "shadow-[0_0_12px_rgba(245,158,11,0.25)]",
+    border: "border-amber-500/30",
   };
 }
 
@@ -409,54 +405,54 @@ export default function AuditCompsLedger({
 
   return (
     <div
-      className={`rounded-3xl bg-black/90 backdrop-blur-2xl border border-emerald-500/40 shadow-[0_20px_60px_rgba(0,0,0,0.95),0_0_35px_rgba(16,185,129,0.15)] ring-1 ring-white/[0.06] overflow-hidden transition-all duration-300 w-full ledger-expand-glide ${className}`}
+      className={`rounded-2xl bg-[#0F1117] border border-white/[0.10] shadow-[0_20px_50px_rgba(0,0,0,0.8)] overflow-hidden transition-all duration-200 w-full ${className}`}
       id="audit-comps-ledger"
     >
       {/* Top Banner: Item Name, Verdict, & Net Profit Highlight */}
-      <div className="p-4 sm:p-5 bg-gradient-to-r from-black via-zinc-950/80 to-black border-b border-white/[0.08]">
+      <div className="p-4 sm:p-5 bg-[#0C0E14] border-b border-white/[0.08]">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="min-w-0 space-y-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-[11px] font-extrabold text-emerald-300 shadow-[0_0_12px_rgba(34,197,94,0.15)] font-mono">
-                <Sparkles className="h-3.5 w-3.5 text-emerald-400" />
-                <span>{verifiedListings.length} Cleared Recent Sales</span>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/[0.04] border border-white/[0.08] text-[11px] font-mono font-medium text-zinc-300">
+                <Sparkles className="h-3 w-3 text-zinc-400" />
+                <span>{verifiedListings.length} Cleared Sales</span>
               </span>
               {isMeaningfulMeta(brand) && (
-                <span className="px-2 py-0.5 rounded-md bg-white/[0.04] border border-white/[0.08] text-[10px] font-bold text-zinc-300">
+                <span className="px-2 py-0.5 rounded bg-[#161822] border border-white/[0.08] text-[10px] font-mono font-medium text-zinc-300">
                   {brand.trim()}
                 </span>
               )}
               {copVerdict && (
                 <span
-                  className={`px-2.5 py-0.5 rounded-md text-[10px] font-mono font-black uppercase tracking-wider ${
-                    copVerdict === "MUST_COP"
-                      ? "bg-emerald-500 text-slate-950 font-black shadow-[0_0_12px_rgba(34,197,94,0.3)]"
-                      : copVerdict === "QUICK_FLIP"
-                      ? "bg-cyan-500 text-slate-950 font-black shadow-[0_0_12px_rgba(0,242,254,0.3)]"
-                      : "bg-white/[0.04] text-zinc-300 border border-white/[0.08]"
-                  }`}
+                  className={
+                    copVerdict === "MUST_COP" || copVerdict === "QUICK_FLIP"
+                      ? "badge-verdict-buy"
+                      : copVerdict === "VERIFY_FIRST"
+                      ? "badge-verdict-watch"
+                      : "badge-verdict-pass"
+                  }
                 >
-                  {copVerdict === "MUST_COP" ? "👑 MUST COP" : copVerdict === "QUICK_FLIP" ? "⚡ QUICK FLIP" : copVerdict}
+                  {copVerdict === "MUST_COP" ? "BUY" : copVerdict === "QUICK_FLIP" ? "QUICK FLIP" : copVerdict === "VERIFY_FIRST" ? "VERIFY" : "PASS"}
                 </span>
               )}
             </div>
 
-            <h3 className="text-base sm:text-lg font-black text-white tracking-tight leading-snug">
+            <h3 className="text-base sm:text-lg font-bold text-white tracking-tight leading-snug">
               {targetTitle || "Scanned Item Market Comps"}
             </h3>
 
             <p className="text-xs text-zinc-400 flex items-center gap-1.5 font-medium">
               <ShieldCheck className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-              <span>Trust The Process • Verified eBay Australia ({currency}) sold listings data</span>
+              <span>Verified eBay Australia ({currency}) sold listings data</span>
             </p>
           </div>
 
           {/* Realized Profit Badge & Quick Dismiss */}
           <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-white/[0.05]">
             {typeof netProfit === "number" && (
-              <div className="flex flex-col text-left sm:text-right">
-                <span className="hud-label">Estimated Profit</span>
-                <span className="text-lg sm:text-xl font-black text-emerald-400 font-mono tabular-nums">
+              <div className="flex flex-col text-left sm:text-right font-mono">
+                <span className="text-[9px] uppercase tracking-wider text-zinc-400 font-medium">Net Profit</span>
+                <span className="text-lg sm:text-xl font-bold text-emerald-400 tabular-nums">
                   +{fmtMoney(netProfit)}
                 </span>
               </div>
@@ -469,7 +465,7 @@ export default function AuditCompsLedger({
                   triggerTactileHaptic("light");
                   setIsExpanded(!isExpanded);
                 }}
-                className="px-3 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.1] text-xs font-bold text-cyan-300 hover:text-cyan-200 transition flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95"
+                className="px-3 py-1.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.10] border border-white/[0.10] text-xs font-medium text-zinc-200 hover:text-white transition flex items-center gap-1.5 cursor-pointer active:scale-95"
                 aria-expanded={isExpanded}
                 aria-controls="comps-ledger-content"
               >
@@ -484,7 +480,7 @@ export default function AuditCompsLedger({
                     triggerTactileHaptic("light");
                     onDismiss();
                   }}
-                  className="p-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.1] text-zinc-400 hover:text-white transition cursor-pointer active:scale-95"
+                  className="p-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-zinc-400 hover:text-white transition cursor-pointer active:scale-95"
                   title="Close Evidence Ledger"
                 >
                   <X className="h-4 w-4" />
@@ -501,41 +497,41 @@ export default function AuditCompsLedger({
         className={`accordion-grid-container ${isExpanded ? "is-expanded" : ""}`}
       >
         <div className="accordion-grid-inner p-4 sm:p-5 space-y-4">
-          {/* Trust-The-Process Telemetry Strip */}
+          {/* Telemetry Strip */}
           {stats && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 p-3 rounded-2xl bg-white/[0.02] border border-white/[0.06] text-center shadow-inner">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-3 rounded-xl bg-[#141721] border border-white/[0.06] text-center">
               <div className="p-2">
-                <span className="text-[10px] font-mono uppercase text-zinc-400 font-bold block mb-0.5">
+                <span className="text-[10px] font-mono uppercase text-zinc-400 font-medium block mb-0.5">
                   Cleared Median
                 </span>
-                <span className="text-base sm:text-lg font-black font-mono text-cyan-300 tabular-nums">
+                <span className="text-base sm:text-lg font-bold font-mono text-white tabular-nums">
                   {fmtMoney(stats.median)}
                 </span>
               </div>
               <div className="p-2 border-l border-white/[0.06]">
-                <span className="text-[10px] font-mono uppercase text-zinc-400 font-bold block mb-0.5">
+                <span className="text-[10px] font-mono uppercase text-zinc-400 font-medium block mb-0.5">
                   Cleared Range
                 </span>
-                <span className="text-xs sm:text-sm font-bold font-mono text-zinc-200 tabular-nums">
+                <span className="text-xs sm:text-sm font-semibold font-mono text-zinc-300 tabular-nums">
                   {fmtMoney(stats.min)} – {fmtMoney(stats.max)}
                 </span>
               </div>
               <div className="p-2 border-t sm:border-t-0 sm:border-l border-white/[0.06]">
-                <span className="text-[10px] font-mono uppercase text-zinc-400 font-bold block mb-0.5">
+                <span className="text-[10px] font-mono uppercase text-zinc-400 font-medium block mb-0.5">
                   Evidence Depth
                 </span>
-                <span className="text-xs sm:text-sm font-extrabold font-mono text-emerald-300 flex items-center justify-center gap-1">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-                  <span>{verifiedListings.length} Recent Sales</span>
+                <span className="text-xs sm:text-sm font-semibold font-mono text-zinc-200 flex items-center justify-center gap-1">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-zinc-400" />
+                  <span>{verifiedListings.length} Sales</span>
                 </span>
               </div>
               <div className="p-2 border-t sm:border-t-0 border-l border-white/[0.06]">
-                <span className="text-[10px] font-mono uppercase text-zinc-400 font-bold block mb-0.5">
+                <span className="text-[10px] font-mono uppercase text-zinc-400 font-medium block mb-0.5">
                   Match Integrity
                 </span>
-                <span className="text-xs sm:text-sm font-extrabold font-mono text-emerald-400 flex items-center justify-center gap-1">
+                <span className="text-xs sm:text-sm font-semibold font-mono text-emerald-400 flex items-center justify-center gap-1">
                   <Sparkles className="h-3.5 w-3.5" />
-                  <span>{stats.avgMatch}% Confidence</span>
+                  <span>{stats.avgMatch}% Match</span>
                 </span>
               </div>
             </div>
@@ -546,15 +542,15 @@ export default function AuditCompsLedger({
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
             <input
               type="text"
-              placeholder="Search across these 7 sales (e.g. condition, title keyword, or date)..."
+              placeholder="Filter these 7 sales (condition, keyword, date)..."
               value={filterQuery}
               onChange={(e) => setFilterQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-black/60 border border-white/[0.08] rounded-xl text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-cyan-400/50 focus:ring-1 focus:ring-cyan-400/30 font-mono transition"
+              className="w-full pl-10 pr-4 py-2 bg-[#0A0D14] border border-white/[0.08] rounded-xl text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-white/20 font-mono transition"
             />
           </div>
 
-          {/* 7 Recent Sales Clean List with Staggered Fluid Gliding */}
-          <div className="space-y-2.5">
+          {/* 7 Recent Sales Clean List */}
+          <div className="space-y-2">
             {filteredListings.length > 0 ? (
               filteredListings.map((comp, idx) => {
                 const badgeStyle = getMatchBadgeStyle(comp.matchPercentage);
@@ -565,23 +561,23 @@ export default function AuditCompsLedger({
                       triggerTactileHaptic("selection");
                       onSelectComp?.(comp.raw);
                     }}
-                    style={{ animationDelay: `${idx * 45}ms` }}
-                    className="group relative p-3.5 sm:p-4 rounded-2xl cyber-glass hover:border-cyan-500/40 transition-all duration-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md comp-row-glide cursor-pointer"
+                    style={{ animationDelay: `${idx * 40}ms` }}
+                    className="group relative p-3 sm:p-3.5 rounded-xl bg-[#141721] hover:bg-[#181C28] border border-white/[0.06] hover:border-white/[0.12] transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 comp-row-glide cursor-pointer"
                   >
                     {/* Left: Index + Match Badge + Title + Conditions */}
-                    <div className="min-w-0 flex-1 space-y-2">
-                      <div className="flex items-start gap-2.5">
+                    <div className="min-w-0 flex-1 space-y-1.5">
+                      <div className="flex items-start gap-2">
                         {/* Numerical Index for Evidence Trust */}
-                        <span className="shrink-0 h-6 w-6 rounded-lg bg-white/[0.04] border border-white/[0.08] text-[11px] font-mono font-black text-zinc-400 flex items-center justify-center mt-0.5">
-                          #{idx + 1}
+                        <span className="shrink-0 h-5 w-5 rounded bg-white/[0.04] border border-white/[0.08] text-[10px] font-mono font-medium text-zinc-400 flex items-center justify-center mt-0.5">
+                          {idx + 1}
                         </span>
 
                         {/* 1. Match Percentage Badge */}
                         <span
-                          className={`shrink-0 px-2.5 py-0.5 rounded-lg font-mono font-bold text-[11px] border flex items-center gap-1 ${badgeStyle.bg} ${badgeStyle.text} ${badgeStyle.border} ${badgeStyle.glow} mt-0.5`}
-                          title={`Algorithmic feature match confidence: ${comp.matchPercentage}%`}
+                          className={`shrink-0 px-2 py-0.5 rounded font-mono font-medium text-[10px] border flex items-center gap-1 ${badgeStyle.bg} ${badgeStyle.text} ${badgeStyle.border} mt-0.5`}
+                          title={`Feature match confidence: ${comp.matchPercentage}%`}
                         >
-                          <Percent className="h-3 w-3" />
+                          <Percent className="h-2.5 w-2.5" />
                           <span>{comp.matchPercentage}% Match</span>
                         </span>
 
@@ -590,37 +586,34 @@ export default function AuditCompsLedger({
                           href={comp.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="font-bold text-sm text-zinc-100 group-hover:text-cyan-300 line-clamp-1 leading-snug transition flex-1 hover:underline inline-flex items-center gap-1"
+                          className="font-semibold text-xs sm:text-sm text-zinc-100 group-hover:text-white line-clamp-1 leading-snug transition flex-1 hover:underline inline-flex items-center gap-1"
                           title={comp.title}
                           onClick={(e) => e.stopPropagation()}
                         >
                           <span className="truncate">{comp.title}</span>
-                          <ArrowUpRight className="h-3.5 w-3.5 text-zinc-500 group-hover:text-cyan-400 shrink-0" />
+                          <ArrowUpRight className="h-3.5 w-3.5 text-zinc-500 group-hover:text-zinc-300 shrink-0" />
                         </a>
                       </div>
 
                       {/* Metadata Pill Row: Condition + Sold Date + Postage */}
-                      <div className="flex flex-wrap items-center gap-2 text-[11px] text-zinc-400 font-mono ml-8.5">
-                        {/* 2. Item Condition - completely hide badge container if unpopulated */}
+                      <div className="flex flex-wrap items-center gap-2 text-[10px] text-zinc-400 font-mono ml-7">
                         {isMeaningfulMeta(comp.condition) && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/[0.04] border border-white/[0.06] text-zinc-200 font-semibold">
-                            <Tag className="h-3 w-3 text-zinc-400" />
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-white/[0.04] border border-white/[0.06] text-zinc-300">
+                            <Tag className="h-2.5 w-2.5 text-zinc-500" />
                             <span>{comp.condition.trim()}</span>
                           </span>
                         )}
 
-                        {/* 3. Sold Date - completely hide badge container if unpopulated */}
                         {isMeaningfulMeta(comp.soldDate) && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/[0.04] border border-white/[0.06] text-zinc-300">
-                            <Calendar className="h-3 w-3 text-zinc-500" />
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-white/[0.04] border border-white/[0.06] text-zinc-300">
+                            <Calendar className="h-2.5 w-2.5 text-zinc-500" />
                             <span>Sold {comp.soldDate.trim()}</span>
                           </span>
                         )}
 
-                        {/* Shipping */}
-                        <span className="text-zinc-500 font-medium">
+                        <span className="text-zinc-500">
                           {comp.shippingIncluded
-                            ? "📦 Free Post"
+                            ? "Free Post"
                             : comp.shippingPrice
                             ? `+${fmtMoney(comp.shippingPrice)} Post`
                             : "Postage calculated"}
@@ -629,12 +622,12 @@ export default function AuditCompsLedger({
                     </div>
 
                     {/* Right: Realized Price + Direct Outbound Link */}
-                    <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center shrink-0 border-t sm:border-t-0 pt-2.5 sm:pt-0 border-white/[0.06]">
-                      <div className="text-left sm:text-right">
-                        <span className="text-[10px] font-mono uppercase text-zinc-500 block sm:hidden">
+                    <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center shrink-0 border-t sm:border-t-0 pt-2 sm:pt-0 border-white/[0.06] gap-1.5">
+                      <div className="text-left sm:text-right font-mono">
+                        <span className="text-[10px] uppercase text-zinc-500 block sm:hidden">
                           Realized Price:
                         </span>
-                        <span className="font-mono font-black text-cyan-300 text-base sm:text-lg tracking-tight tabular-nums">
+                        <span className="font-bold text-white text-base sm:text-lg tracking-tight tabular-nums">
                           {fmtMoney(comp.price)}
                         </span>
                       </div>
@@ -644,40 +637,37 @@ export default function AuditCompsLedger({
                         href={comp.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 hover:border-cyan-400/50 text-[11px] font-mono font-bold text-cyan-300 transition shadow-[0_0_10px_rgba(0,242,254,0.15)] active:scale-95"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.10] text-[10px] font-mono font-medium text-zinc-200 hover:text-white transition active:scale-95"
                         title="Open verified cleared comp listing on eBay in new tab"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <span>View Comp</span>
-                        <ExternalLink className="h-3 w-3" />
+                        <ExternalLink className="h-3 w-3 text-zinc-400" />
                       </a>
                     </div>
                   </div>
                 );
               })
             ) : (
-              <div className="py-8 px-4 text-center space-y-2.5 rounded-2xl bg-white/[0.02] border border-dashed border-white/[0.08]">
-                <PackageCheck className="h-8 w-8 text-zinc-500 mx-auto" />
-                <p className="text-sm text-zinc-300 font-bold">
+              <div className="py-8 px-4 text-center space-y-2.5 rounded-xl bg-white/[0.02] border border-dashed border-white/[0.08]">
+                <PackageCheck className="h-7 w-7 text-zinc-500 mx-auto" />
+                <p className="text-sm text-zinc-300 font-medium">
                   {filterQuery ? "No matching sales for this filter." : "Live cleared sales evidence calibrated from eBay registry."}
-                </p>
-                <p className="text-xs text-zinc-500 max-w-sm mx-auto">
-                  Historical cleared sales records calibrated to verify exact market demand.
                 </p>
                 <a
                   href={globalEbayRegistryUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/40 text-xs font-bold text-cyan-300 transition"
+                  className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.10] border border-white/[0.10] text-xs font-medium text-zinc-200 hover:text-white transition"
                 >
                   <span>Search Live eBay AU Sold Records</span>
-                  <ExternalLink className="h-4 w-4" />
+                  <ExternalLink className="h-3.5 w-3.5" />
                 </a>
               </div>
             )}
           </div>
 
-          {/* Action Dock Bar right on the Ledger */}
+          {/* Action Dock Bar */}
           <div className="pt-2 border-t border-white/[0.06] flex flex-wrap items-center justify-between gap-2.5">
             <div className="flex items-center gap-2 flex-wrap">
               {onAddToHaul && (
@@ -687,7 +677,7 @@ export default function AuditCompsLedger({
                     triggerTactileHaptic("success");
                     onAddToHaul();
                   }}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:brightness-110 text-slate-950 font-black text-xs shadow-[0_0_15px_rgba(34,197,94,0.3)] transition cursor-pointer active:scale-95"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-xs shadow-sm transition cursor-pointer active:scale-95"
                 >
                   <CheckCircle2 className="h-4 w-4" />
                   <span>+ Add Find to Haul</span>
@@ -702,9 +692,9 @@ export default function AuditCompsLedger({
                     triggerTactileHaptic("medium");
                     onListEbay();
                   }}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/40 font-bold text-xs shadow-[0_0_12px_rgba(245,158,11,0.2)] transition cursor-pointer active:scale-95"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 font-semibold text-xs transition cursor-pointer active:scale-95"
                 >
-                  <ShoppingBag className="h-4 w-4" />
+                  <ShoppingBag className="h-4 w-4 text-amber-400" />
                   <span>List on eBay</span>
                 </button>
               )}
@@ -714,7 +704,7 @@ export default function AuditCompsLedger({
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => triggerTactileHaptic("light")}
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-xs font-semibold text-zinc-300 hover:text-white transition cursor-pointer active:scale-95"
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-xs font-medium text-zinc-300 hover:text-white transition cursor-pointer active:scale-95"
               >
                 <span>Search eBay AU</span>
                 <ExternalLink className="h-3.5 w-3.5" />
@@ -728,9 +718,9 @@ export default function AuditCompsLedger({
                   triggerTactileHaptic("light");
                   onScanNext();
                 }}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-cyan-300 border border-white/[0.08] text-xs font-bold transition cursor-pointer active:scale-95 ml-auto"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.10] text-zinc-200 hover:text-white border border-white/[0.10] text-xs font-medium transition cursor-pointer active:scale-95 ml-auto"
               >
-                <Camera className="h-4 w-4 text-cyan-400" />
+                <Camera className="h-4 w-4 text-zinc-300" />
                 <span>Scan Next Item</span>
               </button>
             )}

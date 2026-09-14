@@ -2,21 +2,20 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Camera, Zap, Layers, ShoppingBag } from "lucide-react";
+import { Camera, Zap, ShoppingBag } from "lucide-react";
 import SpadasLensCamera from "@/components/spadas-lens-camera";
 import { SpadasSnapStudio } from "@/components/spadas-snap-studio";
-import IronmanHudCamera from "@/components/ironman-hud-camera";
 import { useHaulStore } from "@/lib/haul-store";
 import { triggerTactileHaptic } from "@/lib/android-bridge";
 
 interface UnifiedCameraHubProps {
-  initialTab?: "lens" | "ironman" | "studio" | "haul";
+  initialTab?: "lens" | "studio" | "haul" | "ironman";
 }
 
 export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraHubProps) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"lens" | "ironman" | "studio">(
-    initialTab === "haul" ? "lens" : initialTab
+  const [activeTab, setActiveTab] = useState<"lens" | "studio">(
+    initialTab === "studio" ? "studio" : "lens"
   );
   const { haulCount } = useHaulStore();
 
@@ -26,7 +25,7 @@ export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraH
     }
   }, [initialTab, router]);
 
-  const handleTabChange = (tab: "lens" | "ironman" | "studio") => {
+  const handleTabChange = (tab: "lens" | "studio") => {
     if (activeTab !== tab) {
       triggerTactileHaptic("selection");
       setActiveTab(tab);
@@ -34,72 +33,52 @@ export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraH
   };
 
   return (
-    <div className="relative w-full bg-black text-white flex flex-col">
-      {/* Top Segmented Mode Slider — Executive 3-Camera Suite & Haul Service Link */}
-      <div className="sticky top-0 z-40 w-full px-2.5 sm:px-3 pt-[max(0.75rem,calc(env(safe-area-inset-top)+0.5rem))] pb-2.5 sm:pb-3 sm:pt-3 glass-nav border-b border-white/[0.08] flex items-center justify-center">
-        <div className="grid grid-cols-4 gap-1 p-1 rounded-2xl glass border-white/[0.06] shadow-xl max-w-2xl w-full">
+    <div className="relative w-full bg-[#08090D] text-white flex flex-col">
+      {/* Top Segmented Mode Slider — Pro Tool Workspace Bar */}
+      <div className="sticky top-0 z-40 w-full px-2.5 sm:px-3 pt-[max(0.75rem,calc(env(safe-area-inset-top)+0.5rem))] pb-2 sm:pb-2.5 glass-nav border-b border-white/[0.06] flex items-center justify-center">
+        <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-[#0D0F15] border border-white/[0.08] shadow-lg max-w-md w-full">
           {/* Mode 1: Lens AR */}
           <button
             type="button"
             onClick={() => handleTabChange("lens")}
-            className={`py-2 px-1 rounded-xl text-[10.5px] sm:text-xs font-black transition-all duration-150 flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer text-center active:scale-95 ${
+            className={`py-2 px-3 rounded-lg text-xs font-bold transition-all duration-150 flex items-center justify-center gap-1.5 cursor-pointer text-center active:scale-95 ${
               activeTab === "lens"
-                ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 shadow-[0_0_15px_rgba(6,182,212,0.4)]"
-                : "text-slate-400 hover:text-white"
+                ? "bg-[#1A1E29] text-white shadow-sm border border-white/[0.12]"
+                : "text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.03]"
             }`}
           >
-            <Zap className="h-3.5 w-3.5 shrink-0" />
-            <span className="hud-tab truncate">Lens AR</span>
+            <Zap className={`h-3.5 w-3.5 shrink-0 ${activeTab === "lens" ? "text-emerald-400" : "text-zinc-400"}`} />
+            <span className="truncate tracking-tight">Lens</span>
           </button>
 
-          {/* Mode 2: Scanner */}
-          <button
-            type="button"
-            onClick={() => handleTabChange("ironman")}
-            className={`py-2 px-1 rounded-xl text-[10.5px] sm:text-xs font-black transition-all duration-150 flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer text-center relative active:scale-95 ${
-              activeTab === "ironman"
-                ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 shadow-[0_0_15px_rgba(6,182,212,0.4)]"
-                : "text-slate-400 hover:text-white"
-            }`}
-          >
-            <Layers className="h-3.5 w-3.5 shrink-0" />
-            <span className="hud-tab truncate">Scanner</span>
-            {activeTab !== "ironman" && (
-              <span className="absolute -top-1 -right-1 flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#00F2FE] opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#00F2FE]"></span>
-              </span>
-            )}
-          </button>
-
-          {/* Mode 3: Snap Studio */}
+          {/* Mode 2: Studio */}
           <button
             type="button"
             onClick={() => handleTabChange("studio")}
-            className={`py-2 px-1 rounded-xl text-[10.5px] sm:text-xs font-black transition-all duration-150 flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer text-center active:scale-95 ${
+            className={`py-2 px-3 rounded-lg text-xs font-bold transition-all duration-150 flex items-center justify-center gap-1.5 cursor-pointer text-center active:scale-95 ${
               activeTab === "studio"
-                ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 shadow-[0_0_15px_rgba(6,182,212,0.4)]"
-                : "text-slate-400 hover:text-white"
+                ? "bg-[#1A1E29] text-white shadow-sm border border-white/[0.12]"
+                : "text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.03]"
             }`}
           >
-            <Camera className="h-3.5 w-3.5 shrink-0" />
-            <span className="hud-tab truncate">AR Studio</span>
+            <Camera className={`h-3.5 w-3.5 shrink-0 ${activeTab === "studio" ? "text-cyan-400" : "text-zinc-400"}`} />
+            <span className="truncate tracking-tight">Studio</span>
           </button>
 
-          {/* Mode 4: Haul (Routes to standalone /haul service) */}
+          {/* Mode 3: Haul (Navigates to standalone /haul intake) */}
           <button
             type="button"
             onClick={() => {
               triggerTactileHaptic("selection");
               router.push("/haul");
             }}
-            className="py-2 px-1 rounded-xl text-[10.5px] sm:text-xs font-black transition-all duration-150 flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer text-center relative text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 active:scale-95"
-            title="Open Haul Batch Manager & Quick Snap Intake"
+            className="py-2 px-3 rounded-lg text-xs font-bold transition-all duration-150 flex items-center justify-center gap-1.5 cursor-pointer text-center text-zinc-300 hover:text-white hover:bg-white/[0.04] active:scale-95"
+            title="Open Haul Session & Manifest"
           >
-            <ShoppingBag className="h-3.5 w-3.5 shrink-0" />
-            <span className="hud-tab truncate">Haul</span>
+            <ShoppingBag className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
+            <span className="truncate tracking-tight">Haul</span>
             {haulCount > 0 && (
-              <span className="ml-0.5 px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+              <span className="ml-1 px-1.5 py-0.2 rounded-md text-[10px] font-mono font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
                 {haulCount}
               </span>
             )}
@@ -107,7 +86,7 @@ export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraH
         </div>
       </div>
 
-      {/* Dynamic Mode Viewport — Smooth crossfade transition on mode change */}
+      {/* Dynamic Mode Viewport */}
       <div className="flex-1 w-full flex flex-col">
         {activeTab === "lens" && (
           <div key="lens-tab" className="w-full lens-crossfade">
@@ -115,11 +94,6 @@ export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraH
               onOpenHaulTab={() => router.push("/haul")}
               onOpenSnapStudio={() => handleTabChange("studio")}
             />
-          </div>
-        )}
-        {activeTab === "ironman" && (
-          <div key="ironman-tab" className="block w-full lens-crossfade">
-            <IronmanHudCamera />
           </div>
         )}
         {activeTab === "studio" && (

@@ -241,26 +241,22 @@ export function GuestScanLimitModal({
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl animate-in fade-in duration-200">
-      <div className="relative w-full max-w-lg overflow-hidden rounded-3xl glass-card bg-[#05050a]/95 border border-white/10 shadow-2xl text-zinc-100 p-6 sm:p-8 space-y-6">
-        {/* Glow ambient background */}
-        <div className="absolute -top-24 -right-24 h-48 w-48 rounded-full bg-[#00F2FE]/10 blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-24 -left-24 h-48 w-48 rounded-full bg-cyan-500/10 blur-3xl pointer-events-none" />
-
+      <div className="relative w-full max-w-lg overflow-hidden rounded-2xl bg-[#0F1117] border border-white/[0.10] shadow-2xl text-zinc-100 p-6 sm:p-8 space-y-6">
         {/* Header with pill badge */}
         <div className="flex items-start justify-between">
           <div className="space-y-2">
-            <div className="badge-active inline-flex items-center gap-1.5 px-3 py-1 text-xs font-bold tracking-wider uppercase">
-              <Zap className="h-3.5 w-3.5 text-[#00F2FE]" />
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-mono uppercase tracking-wider bg-white/[0.06] text-zinc-300 border border-white/[0.08]">
+              <Zap className="h-3 w-3 text-amber-400" />
               <span>3 of 3 Guest Scans Used</span>
             </div>
-            <h2 className="text-2xl font-black tracking-tight text-white sm:text-3xl">
+            <h2 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
               Unlock 10 Free Scans Daily
             </h2>
           </div>
           {onClose && (
             <button
               onClick={onClose}
-              className="rounded-full p-1.5 text-zinc-400 hover:text-white hover:bg-white/[0.06] transition"
+              className="rounded-lg p-1.5 text-zinc-400 hover:text-white hover:bg-white/[0.06] transition cursor-pointer"
               aria-label="Close"
             >
               <X className="h-5 w-5" />
@@ -270,27 +266,27 @@ export function GuestScanLimitModal({
 
         {/* Scanned Item Preserved Teaser Card */}
         {displayItem && (
-          <div className="rounded-2xl glass border border-white/[0.08] p-3.5 flex items-center gap-3.5">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl glass text-[#00F2FE] border border-white/[0.08]">
-              <Camera className="h-5 w-5" />
+          <div className="rounded-xl bg-[#141721] border border-white/[0.08] p-3.5 flex items-center gap-3.5">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-white/[0.04] text-white border border-white/[0.08]">
+              <Camera className="h-5 w-5 text-zinc-300" />
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <span className="hud-chip">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400">
                   Last Scanned
                 </span>
-                <span className="text-[10px] font-bold text-emerald-400 flex items-center gap-0.5">
+                <span className="text-[10px] font-mono font-semibold text-emerald-400 flex items-center gap-0.5">
                   <TrendingUp className="h-3 w-3" /> Profit Comp Saved
                 </span>
               </div>
-              <p className="text-sm font-bold text-white truncate mt-0.5">
+              <p className="text-sm font-semibold text-white truncate mt-0.5">
                 {displayItem.name || displayItem.productName || "Scanned Item"}
               </p>
             </div>
             {displayItem.estimatedProfit && (
-              <div className="text-right">
-                <span className="hud-label block">Net Profit</span>
-                <span className="text-sm font-extrabold text-emerald-400">
+              <div className="text-right font-mono">
+                <span className="text-[10px] uppercase text-zinc-500 block">Net Profit</span>
+                <span className="text-sm font-bold text-emerald-400">
                   +${Number(displayItem.estimatedProfit).toFixed(2)}
                 </span>
               </div>
@@ -299,49 +295,49 @@ export function GuestScanLimitModal({
         )}
 
         {/* Benefits Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs text-zinc-300">
-          <div className="flex items-center gap-2 glass border border-white/[0.06] rounded-xl p-2.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-zinc-300">
+          <div className="flex items-center gap-2 bg-[#141721] border border-white/[0.06] rounded-lg p-2.5">
             <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
             <span><strong>10 Scans/Day</strong> (Free Forever)</span>
           </div>
-          <div className="flex items-center gap-2 glass border border-white/[0.06] rounded-xl p-2.5">
+          <div className="flex items-center gap-2 bg-[#141721] border border-white/[0.06] rounded-lg p-2.5">
             <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
             <span><strong>Save Drafts</strong> to inventory</span>
           </div>
-          <div className="flex items-center gap-2 glass border border-white/[0.06] rounded-xl p-2.5">
+          <div className="flex items-center gap-2 bg-[#141721] border border-white/[0.06] rounded-lg p-2.5">
             <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
             <span><strong>1-Tap eBay</strong> auto-listing</span>
           </div>
-          <div className="flex items-center gap-2 glass border border-white/[0.06] rounded-xl p-2.5">
+          <div className="flex items-center gap-2 bg-[#141721] border border-white/[0.06] rounded-lg p-2.5">
             <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
             <span><strong>Offline Mode</strong> for thrift stores</span>
           </div>
         </div>
 
         {/* Power Seller Pro Instant Unlock Banner */}
-        <div className="rounded-2xl border border-[#00F2FE]/30 bg-gradient-to-r from-[#00F2FE]/5 via-cyan-500/5 to-blue-500/5 p-3.5 flex items-center justify-between gap-3 shadow-lg">
+        <div className="rounded-xl border border-white/[0.12] bg-[#141721] p-3.5 flex items-center justify-between gap-3 shadow-lg">
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5 text-[#00F2FE] font-extrabold text-[11px] tracking-wide uppercase">
-              <Sparkles className="h-3 w-3 fill-[#00F2FE]" />
+            <div className="flex items-center gap-1.5 text-zinc-300 font-mono text-[11px] uppercase tracking-wider">
+              <Sparkles className="h-3 w-3 text-amber-400" />
               <span>Power Seller Option</span>
             </div>
-            <p className="text-xs font-bold text-white truncate">
+            <p className="text-xs font-semibold text-white truncate mt-0.5">
               Unlimited Scans &bull; 1-Tap eBay Direct List
             </p>
-            <p className="text-[10px] text-zinc-400 font-mono">$29 AUD / mo &bull; Cancel anytime</p>
+            <p className="text-[10px] text-zinc-400 font-mono mt-0.5">$29 AUD / mo &bull; Cancel anytime</p>
           </div>
           <button
             type="button"
             onClick={handleUpgradeToPro}
             disabled={upgradingToPro}
-            className="shrink-0 flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-3.5 py-2 text-xs font-black text-slate-950 hover:brightness-110 shadow-md transition active:scale-95 disabled:opacity-50 cursor-pointer"
+            className="shrink-0 flex items-center gap-1.5 rounded-lg bg-white text-black px-3.5 py-2 text-xs font-bold hover:bg-zinc-200 transition active:scale-95 disabled:opacity-50 cursor-pointer"
           >
             {upgradingToPro ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
             ) : (
-              <Zap className="h-3.5 w-3.5 fill-slate-950" />
+              <Zap className="h-3.5 w-3.5 fill-black" />
             )}
-            <span>{upgradingToPro ? "Redirecting..." : "Go Pro ⚡"}</span>
+            <span>{upgradingToPro ? "Redirecting..." : "Go Pro"}</span>
           </button>
         </div>
 
@@ -351,7 +347,7 @@ export function GuestScanLimitModal({
             type="button"
             onClick={handleGoogleSignIn}
             disabled={googleLoading}
-            className="w-full flex items-center justify-center gap-3 rounded-xl glass hover:bg-white/[0.08] border border-white/[0.1] text-white font-bold py-3 px-4 text-sm transition shadow-md disabled:opacity-50 active:scale-98 cursor-pointer"
+            className="w-full flex items-center justify-center gap-3 rounded-lg bg-white/[0.05] hover:bg-white/[0.08] border border-white/[0.10] text-white font-semibold py-2.5 px-4 text-sm transition disabled:opacity-50 active:scale-98 cursor-pointer"
           >
             <svg className="h-4 w-4" viewBox="0 0 24 24">
               <path
@@ -376,9 +372,9 @@ export function GuestScanLimitModal({
 
           <div className="relative flex items-center justify-center py-1">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-white/[0.06]" />
+              <div className="w-full border-t border-white/[0.08]" />
             </div>
-            <span className="relative bg-[#030305] px-3 hud-label">
+            <span className="relative bg-[#0F1117] px-3 text-[11px] font-mono uppercase tracking-wider text-zinc-500">
               Or Create with Email
             </span>
           </div>
@@ -390,7 +386,7 @@ export function GuestScanLimitModal({
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-2.5 text-sm text-white placeholder-zinc-500 focus:border-[#00F2FE] focus:outline-none focus:ring-1 focus:ring-[#00F2FE] transition"
+              className="w-full rounded-lg border border-white/[0.10] bg-white/[0.03] px-3.5 py-2.5 text-sm text-white placeholder-zinc-500 focus:border-white/40 focus:outline-none focus:ring-1 focus:ring-white/40 transition"
             />
             <input
               type="password"
@@ -398,7 +394,7 @@ export function GuestScanLimitModal({
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="w-full rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-2.5 text-sm text-white placeholder-zinc-500 focus:border-[#00F2FE] focus:outline-none focus:ring-1 focus:ring-[#00F2FE] transition"
+              className="w-full rounded-lg border border-white/[0.10] bg-white/[0.03] px-3.5 py-2.5 text-sm text-white placeholder-zinc-500 focus:border-white/40 focus:outline-none focus:ring-1 focus:ring-white/40 transition"
             />
 
             {errorMsg && (
@@ -408,7 +404,7 @@ export function GuestScanLimitModal({
             <button
               type="submit"
               disabled={loading}
-              className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 py-3 px-4 text-sm font-black text-slate-950 hover:brightness-110 transition shadow-lg active:scale-98 disabled:opacity-50 cursor-pointer"
+              className="w-full flex items-center justify-center gap-2 rounded-lg bg-white text-black hover:bg-zinc-200 py-2.5 px-4 text-sm font-bold transition active:scale-98 disabled:opacity-50 cursor-pointer"
             >
               {loading ? (
                 <span>Creating Account...</span>
@@ -423,12 +419,12 @@ export function GuestScanLimitModal({
         </div>
 
         <div className="text-center">
-          <p className="text-[11px] text-zinc-500">
+          <p className="text-[11px] text-zinc-400">
             Already have an account?{" "}
             <button
               type="button"
               onClick={() => router.push(`/login?redirect=${encodeURIComponent("/lens")}`)}
-              className="text-[#00F2FE] font-bold hover:underline cursor-pointer"
+              className="text-white font-semibold underline hover:text-zinc-300 cursor-pointer"
             >
               Sign In
             </button>

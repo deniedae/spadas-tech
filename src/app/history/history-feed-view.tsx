@@ -247,21 +247,21 @@ export function HistoryFeedView({
           </span>
         </div>
 
-        <div className="p-4 rounded-2xl glass-card shadow-sm flex flex-col gap-2">
-          <span className="hud-label">
+        <div className="p-4 rounded-xl bg-[#0F1117] border border-white/[0.08] shadow-sm flex flex-col gap-1.5 font-mono">
+          <span className="text-[10px] uppercase tracking-wider text-zinc-400 font-medium">
             Active Filter
           </span>
-          <span className="text-sm font-mono font-black uppercase text-[#00F2FE] drop-shadow-[0_0_8px_rgba(0,242,254,0.4)] leading-none">
+          <span className="text-sm font-bold uppercase text-white leading-none">
             {activeStatus === "all" ? "All" : activeStatus}
           </span>
         </div>
 
-        <div className="p-4 rounded-2xl glass-card shadow-sm flex flex-col gap-2">
-          <span className="hud-label">
+        <div className="p-4 rounded-xl bg-[#0F1117] border border-white/[0.08] shadow-sm flex flex-col gap-1.5 font-mono">
+          <span className="text-[10px] uppercase tracking-wider text-zinc-400 font-medium">
             Selected
           </span>
           <div className="flex items-baseline justify-between">
-            <span className="text-xl font-black text-[#CCFF00] font-mono tabular-nums leading-none drop-shadow-[0_0_8px_rgba(204,255,0,0.4)]">
+            <span className="text-xl font-bold text-white tabular-nums leading-none">
               {selectedIds.length}
             </span>
             {selectedIds.length > 0 && (
@@ -300,8 +300,8 @@ export function HistoryFeedView({
             onClick={() => triggerTactileHaptic("selection")}
             className={`px-3 py-2 rounded-xl text-xs font-mono font-bold transition-transform duration-75 shrink-0 active:scale-95 ${
               activeStatus === "completed"
-                ? "bg-[#CCFF00] text-black font-black shadow-[0_0_16px_rgba(204,255,0,0.4)]"
-                : "text-zinc-400 hover:text-[#CCFF00] bg-black/40 border border-white/5"
+                ? "bg-white text-black font-bold"
+                : "text-zinc-400 hover:text-white bg-white/[0.04] border border-white/[0.08]"
             }`}
           >
             Completed
@@ -311,8 +311,8 @@ export function HistoryFeedView({
             onClick={() => triggerTactileHaptic("selection")}
             className={`px-3 py-2 rounded-xl text-xs font-mono font-bold transition-transform duration-75 shrink-0 active:scale-95 ${
               activeStatus === "failed"
-                ? "bg-rose-500 text-white font-black shadow-[0_0_16px_rgba(244,63,94,0.4)]"
-                : "text-zinc-400 hover:text-rose-400 bg-black/40 border border-white/5"
+                ? "bg-rose-500 text-white font-bold"
+                : "text-zinc-400 hover:text-rose-400 bg-white/[0.04] border border-white/[0.08]"
             }`}
           >
             Flagged
@@ -337,7 +337,7 @@ export function HistoryFeedView({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search by title or brand..."
-            className="w-full h-9 pl-9 pr-8 rounded-xl bg-black/60 border border-white/10 text-xs font-mono text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-[#00F2FE] focus:ring-1 focus:ring-[#00F2FE]/50 transition"
+            className="w-full h-9 pl-9 pr-8 rounded-xl bg-[#0A0D14] border border-white/10 text-xs font-mono text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-white/30 focus:ring-1 focus:ring-white/20 transition"
           />
           {searchQuery && (
             <button
@@ -436,12 +436,12 @@ export function HistoryFeedView({
               triggerTactileHaptic("medium");
               setIsCompareOpen(true);
             }}
-            className="inline-flex items-center gap-2.5 rounded-full bg-gradient-to-r from-[#00F2FE] via-teal-400 to-[#CCFF00] px-6 py-3 text-xs sm:text-sm font-black text-black shadow-[0_0_35px_rgba(0,242,254,0.55)] border border-white/20 hover:scale-105 active:scale-95 transition cursor-pointer whitespace-nowrap"
+            className="inline-flex items-center gap-2.5 rounded-xl bg-white hover:bg-zinc-200 px-5 py-2.5 text-xs sm:text-sm font-bold text-zinc-950 shadow-md active:scale-95 transition cursor-pointer whitespace-nowrap"
           >
-            <Scale className="w-4 h-4 text-black" />
+            <Scale className="w-4 h-4 text-zinc-950" />
             <span>Compare Selected ({selectedIds.length} Items)</span>
-            <span className="bg-black/90 text-[#00F2FE] border border-[#00F2FE]/40 text-[10px] px-2 py-0.5 rounded-full font-black flex items-center gap-1 shadow-[0_0_8px_rgba(0,242,254,0.3)]">
-              <Lock className="w-2.5 h-2.5 text-[#00F2FE]" /> PRO
+            <span className="bg-zinc-900 text-zinc-200 border border-zinc-700 text-[10px] font-mono px-2 py-0.5 rounded-md font-medium flex items-center gap-1">
+              <Lock className="w-2.5 h-2.5 text-zinc-400" /> PRO
             </span>
           </button>
         </div>

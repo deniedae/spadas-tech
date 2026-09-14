@@ -184,7 +184,7 @@ export default function RawCompsModal({
                   </div>
                   
                   <div className="flex items-center justify-between mt-2">
-                    <div className={`font-mono font-black ${isExcluded ? "text-zinc-600" : "text-[#CCFF00]"}`}>
+                    <div className={`font-mono font-bold ${isExcluded ? "text-zinc-600" : "text-emerald-400"}`}>
                       {currencySymbol}{price.toFixed(2)}
                     </div>
                     {comp.url && !isExcluded && (
@@ -192,7 +192,7 @@ export default function RawCompsModal({
                         href={comp.url} 
                         target="_blank" 
                         rel="noreferrer"
-                        className="text-[10px] text-indigo-400 hover:text-indigo-300 flex items-center gap-1 font-bold"
+                        className="text-[10px] font-mono text-zinc-400 hover:text-white flex items-center gap-1 font-semibold"
                         onClick={(e) => e.stopPropagation()}
                       >
                         VIEW ORIG <ExternalLink className="h-3 w-3" />

@@ -78,8 +78,8 @@ export default function MobileNav() {
                 aria-label="Open Spadas Lens camera"
               >
                 <div
-                  className={`flex h-12 w-12 items-center justify-center rounded-full bg-cyan-500 shadow-lg shadow-cyan-500/20 transition-transform ${
-                    active ? "scale-105" : "group-hover:scale-105"
+                  className={`flex h-12 w-12 items-center justify-center rounded-full bg-[#1A1E29] border border-white/20 shadow-lg transition-all ${
+                    active ? "ring-2 ring-white/30 scale-105" : "group-hover:scale-105"
                   }`}
                 >
                   <Camera className="h-5.5 w-5.5 text-white" />
@@ -96,7 +96,7 @@ export default function MobileNav() {
               onClick={handleNavClick}
               className={`flex flex-1 flex-col items-center justify-center py-1.5 transition-transform duration-75 active:scale-95 cursor-pointer min-h-[44px] ${
                 active
-                  ? "text-cyan-400"
+                  ? "text-white"
                   : "text-zinc-500 hover:text-zinc-300"
               }`}
               aria-current={active ? "page" : undefined}
@@ -104,21 +104,21 @@ export default function MobileNav() {
               <div className="relative flex items-center justify-center">
                 <Icon
                   className={`h-5 w-5 mb-0.5 ${
-                    active ? "text-cyan-400" : ""
+                    active ? "text-white" : ""
                   }`}
                   aria-hidden="true"
                 />
                 {badge !== undefined && badge > 0 && (
-                  <span className="absolute -top-1 -right-2.5 px-1 min-w-[14px] h-3.5 rounded-full bg-emerald-500 text-white text-[8px] font-mono font-bold flex items-center justify-center leading-none pointer-events-none">
+                  <span className="absolute -top-1 -right-2.5 px-1 min-w-[14px] h-3.5 rounded-full bg-emerald-500 text-slate-950 text-[8px] font-mono font-black flex items-center justify-center leading-none pointer-events-none">
                     {badge > 99 ? "99+" : badge}
                   </span>
                 )}
               </div>
-              <span className={`text-[10px] font-semibold mt-0.5 ${active ? "text-cyan-400" : "text-zinc-500"}`}>
+              <span className={`text-[10px] font-semibold mt-0.5 ${active ? "text-white font-bold" : "text-zinc-500"}`}>
                 {label}
               </span>
               {active && (
-                <span className="absolute bottom-[max(0.25rem,env(safe-area-inset-bottom))] h-0.5 w-4 rounded-full bg-cyan-400" />
+                <span className="absolute bottom-[max(0.25rem,env(safe-area-inset-bottom))] h-0.5 w-4 rounded-full bg-white/80" />
               )}
             </Link>
           );

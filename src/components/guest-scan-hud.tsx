@@ -20,12 +20,12 @@ export function GuestScanHud({
 
   return (
     <div
-      className={`inline-flex items-center gap-2.5 rounded-full glass px-3 py-1.5 shadow-xl text-zinc-200 transition ${className}`}
+      className={`inline-flex items-center gap-2.5 rounded-lg bg-[#0F1117]/90 border border-white/[0.10] px-2.5 py-1 text-zinc-200 backdrop-blur-md transition ${className}`}
     >
       {/* Label */}
       <div className="flex items-center gap-1.5">
-        <div className="status-active-dot pulse" />
-        <span className="hud-chip text-[#00F2FE]">Guest</span>
+        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+        <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400">Guest</span>
       </div>
 
       {/* Pip counter */}
@@ -35,10 +35,10 @@ export function GuestScanHud({
           return (
             <div
               key={idx}
-              className={`h-1.5 w-2.5 rounded-sm transition-all duration-300 ${
+              className={`h-1.5 w-2 rounded-[2px] transition-all duration-200 ${
                 isFilled
-                  ? "bg-zinc-800"
-                  : "bg-[#00F2FE]/70 shadow-[0_0_6px_rgba(0,242,254,0.5)]"
+                  ? "bg-zinc-700"
+                  : "bg-white/80"
               }`}
               title={`Scan ${idx + 1}`}
             />
@@ -47,7 +47,7 @@ export function GuestScanHud({
       </div>
 
       {/* Count readout */}
-      <span className="hud-value text-[11px] text-white">
+      <span className="font-mono text-[11px] font-semibold text-white">
         {remainingScans}/{MAX_GUEST_SCANS}
       </span>
 
@@ -55,7 +55,7 @@ export function GuestScanHud({
       <button
         type="button"
         onClick={onOpenAuthModal}
-        className="badge-active cursor-pointer hover:bg-[#00F2FE]/15 transition active:scale-95"
+        className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-white text-black text-[10px] font-bold hover:bg-zinc-200 transition cursor-pointer active:scale-95"
       >
         <UserPlus className="h-2.5 w-2.5" />
         <span>Unlock</span>

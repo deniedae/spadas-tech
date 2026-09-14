@@ -282,35 +282,33 @@ body {
    Tactile Hardware Control Tokens (Teenage Engineering & Leica Inspired)
    ========================================================================== */
 
-/* Primary Action: Electric Cyan Machined Hardware Button */
+/* Primary Action: High-Contrast Precision White Button */
 .btn-primary {
   display: inline-flex;
-  height: 2.75rem;
+  height: 2.5rem;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  border-radius: 0.625rem;
-  background: linear-gradient(135deg, #00F2FE 0%, #0284C7 100%);
-  border: 1px solid rgba(0, 242, 254, 0.6);
-  padding-left: 1.5rem;
-  padding-right: 1.5rem;
+  border-radius: 0.5rem;
+  background: #FFFFFF;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding-left: 1.25rem;
+  padding-right: 1.25rem;
   font-size: 0.875rem;
-  font-weight: 800;
-  color: #030305;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 0 20px rgba(0, 242, 254, 0.25), 0 2px 4px rgba(0, 0, 0, 0.6);
-  transition: transform 0.08s ease, filter 0.15s ease, border-color 0.15s ease;
+  font-weight: 700;
+  color: #08090D;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  transition: transform 0.08s ease, background 0.15s ease, border-color 0.15s ease;
   cursor: pointer;
 }
 
 .btn-primary:hover {
-  filter: brightness(1.1);
-  border-color: rgba(0, 242, 254, 0.9);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 0 25px rgba(0, 242, 254, 0.4);
+  background: #E4E4E7;
+  border-color: rgba(255, 255, 255, 0.4);
 }
 
 .btn-primary:active {
-  transform: scale(0.97) translateY(1px);
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4);
+  transform: scale(0.98);
 }
 
 /* Secondary Action: Dark Machined Alloy Button */
@@ -443,56 +441,56 @@ body {
 }
 
 .text-neon-cyan {
-  color: #00F2FE;
+  color: #FFFFFF;
 }
 
 .text-neon-lime {
-  color: #CCFF00;
+  color: #10B981;
 }
 
 .bg-neon-lime {
-  background-color: #CCFF00;
+  background-color: #10B981;
 }
 
 .bg-neon-cyan {
-  background-color: #00F2FE;
+  background-color: #FFFFFF;
 }
 
 /* High-value Trigger Buttons */
 .neon-trigger-cyan {
-  background: linear-gradient(135deg, #00F2FE 0%, #00B4D8 100%);
-  color: #000000;
-  font-weight: 900;
-  box-shadow: 0 0 24px rgba(0, 242, 254, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.5);
-  border: 1px solid rgba(0, 242, 254, 0.8);
-  transition: transform 0.08s ease, box-shadow 0.15s ease;
+  background: #FFFFFF;
+  color: #08090D;
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: transform 0.08s ease, background 0.15s ease;
 }
 
 .neon-trigger-cyan:hover {
-  box-shadow: 0 0 32px rgba(0, 242, 254, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.7);
-  transform: scale(1.02);
+  background: #E4E4E7;
+  transform: scale(1.01);
 }
 
 .neon-trigger-cyan:active {
-  transform: scale(0.97);
+  transform: scale(0.98);
 }
 
 .neon-trigger-lime {
-  background: linear-gradient(135deg, #CCFF00 0%, #A3E635 100%);
-  color: #000000;
-  font-weight: 900;
-  box-shadow: 0 0 28px rgba(204, 255, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.6);
-  border: 1px solid rgba(204, 255, 0, 0.85);
-  transition: transform 0.08s ease, box-shadow 0.15s ease;
+  background: #10B981;
+  color: #08090D;
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(16, 185, 129, 0.5);
+  transition: transform 0.08s ease, background 0.15s ease;
 }
 
 .neon-trigger-lime:hover {
-  box-shadow: 0 0 36px rgba(204, 255, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.8);
-  transform: scale(1.02);
+  background: #059669;
+  transform: scale(1.01);
 }
 
 .neon-trigger-lime:active {
-  transform: scale(0.97);
+  transform: scale(0.98);
 }
 
 .badge-neon-lime {
@@ -502,13 +500,12 @@ body {
   padding: 2px 8px;
   border-radius: 9999px;
   font-size: 10px;
-  font-weight: 900;
+  font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  background: rgba(204, 255, 0, 0.12);
-  border: 1px solid rgba(204, 255, 0, 0.35);
-  color: #CCFF00;
-  box-shadow: 0 0 12px rgba(204, 255, 0, 0.2);
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  color: #10B981;
 }
 
 .badge-neon-cyan {
@@ -518,13 +515,12 @@ body {
   padding: 2px 8px;
   border-radius: 9999px;
   font-size: 10px;
-  font-weight: 900;
+  font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  background: rgba(0, 242, 254, 0.12);
-  border: 1px solid rgba(0, 242, 254, 0.35);
-  color: #00F2FE;
-  box-shadow: 0 0 12px rgba(0, 242, 254, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #FFFFFF;
 }
 
 .cyber-glow-amber {
@@ -537,7 +533,7 @@ body {
 /* Tactile Hardware Specimen / Telemetry Panel — updated to OLED black */
 .specimen-card,
 .hardware-panel {
-  background-color: #080808;
+  background-color: #0F1117;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 0.75rem;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 4px 12px rgba(0, 0, 0, 0.7);
@@ -552,8 +548,8 @@ body {
   left: 0;
   width: 6px;
   height: 6px;
-  border-top: 2px solid #00F2FE;
-  border-left: 2px solid #00F2FE;
+  border-top: 1.5px solid rgba(255, 255, 255, 0.5);
+  border-left: 1.5px solid rgba(255, 255, 255, 0.5);
   pointer-events: none;
 }
 
@@ -599,13 +595,12 @@ body {
   border-radius: 9999px;
   font-family: var(--font-mono), ui-monospace, monospace;
   font-size: 0.6875rem;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #00F2FE;
-  background: rgba(0, 242, 254, 0.08);
-  border: 1px solid rgba(0, 242, 254, 0.35);
-  box-shadow: 0 0 16px rgba(0, 242, 254, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  color: #FFFFFF;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
@@ -690,13 +685,13 @@ body {
   --font-mono: var(--font-mono);
   --font-heading: var(--font-sans);
   
-  /* Premium Color Hierarchy */
-  --color-tool-cyan: #00F2FE;         /* Primary Action / Focus */
-  --color-signal-emerald: #22C55E;    /* Success / profit */
+  /* Industrial Color Hierarchy */
+  --color-tool-cyan: #FFFFFF;         /* Primary Action / Focus */
+  --color-signal-emerald: #10B981;    /* Success / profit */
   --color-hazard-rose: #F43F5E;       /* Destructive / error */
-  --color-active-cyan: #00F2FE;       /* Active state, scan-live, selected */
+  --color-active-cyan: #FFFFFF;       /* Active state, scan-live, selected */
   --color-loading: #52525B;           /* Monochrome loading pulse (zinc-600) */
-  --color-radar-amber: #F59E0B;       /* Chart use only — NOT for UI status */
+  --color-radar-amber: #F59E0B;       /* Warning / Tag */
   
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -706,10 +701,10 @@ body {
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar: var(--sidebar);
-  --color-chart-5: #00F2FE;
+  --color-chart-5: #FFFFFF;
   --color-chart-4: #F43F5E;
   --color-chart-3: #F59E0B;
-  --color-chart-2: #22C55E;
+  --color-chart-2: #10B981;
   --color-chart-1: #38BDF8;
   --color-ring: var(--ring);
   --color-input: var(--input);
@@ -736,64 +731,64 @@ body {
   --radius-4xl: 1.5rem;
 }
 
-/* Light / Fallback tokens */
+/* Bespoke Industrial Design System Root Variables */
 :root {
-  --background: #05050a;
+  --background: #08090D;
   --foreground: #F4F4F5;
-  --card: #08080c;
+  --card: #0F1117;
   --card-foreground: #F4F4F5;
-  --popover: #0a0a10;
+  --popover: #0F1117;
   --popover-foreground: #F4F4F5;
-  --primary: #00F2FE;
-  --primary-foreground: #030305;
-  --secondary: #12151e;
+  --primary: #FFFFFF;
+  --primary-foreground: #08090D;
+  --secondary: #141721;
   --secondary-foreground: #E4E4E7;
-  --muted: #12151e;
+  --muted: #141721;
   --muted-foreground: #A1A1AA;
-  --accent: #1a1e2a;
+  --accent: #1E2333;
   --accent-foreground: #F4F4F5;
   --destructive: #F43F5E;
   --border: rgba(255, 255, 255, 0.10);
   --input: rgba(255, 255, 255, 0.12);
-  --ring: #00F2FE;
-  --radius: 0.625rem;
-  --sidebar: #05050a;
+  --ring: rgba(255, 255, 255, 0.35);
+  --radius: 0.5rem;
+  --sidebar: #08090D;
   --sidebar-foreground: #F4F4F5;
-  --sidebar-primary: #00F2FE;
-  --sidebar-primary-foreground: #000000;
-  --sidebar-accent: #12151e;
+  --sidebar-primary: #FFFFFF;
+  --sidebar-primary-foreground: #08090D;
+  --sidebar-accent: #141721;
   --sidebar-accent-foreground: #F4F4F5;
   --sidebar-border: rgba(255, 255, 255, 0.10);
-  --sidebar-ring: #00F2FE;
+  --sidebar-ring: rgba(255, 255, 255, 0.35);
 }
 
 .dark {
-  --background: #05050a;
+  --background: #08090D;
   --foreground: #F4F4F5;
-  --card: #08080c;
+  --card: #0F1117;
   --card-foreground: #F4F4F5;
-  --popover: #0a0a10;
+  --popover: #0F1117;
   --popover-foreground: #F4F4F5;
-  --primary: #00F2FE;
-  --primary-foreground: #030305;
-  --secondary: #12151e;
+  --primary: #FFFFFF;
+  --primary-foreground: #08090D;
+  --secondary: #141721;
   --secondary-foreground: #E4E4E7;
-  --muted: #12151e;
+  --muted: #141721;
   --muted-foreground: #A1A1AA;
-  --accent: #1a1e2a;
+  --accent: #1E2333;
   --accent-foreground: #F4F4F5;
   --destructive: #F43F5E;
   --border: rgba(255, 255, 255, 0.10);
   --input: rgba(255, 255, 255, 0.12);
-  --ring: #00F2FE;
-  --sidebar: #05050a;
+  --ring: rgba(255, 255, 255, 0.35);
+  --sidebar: #08090D;
   --sidebar-foreground: #F4F4F5;
-  --sidebar-primary: #00F2FE;
-  --sidebar-primary-foreground: #000000;
-  --sidebar-accent: #12151e;
+  --sidebar-primary: #FFFFFF;
+  --sidebar-primary-foreground: #08090D;
+  --sidebar-accent: #141721;
   --sidebar-accent-foreground: #F4F4F5;
   --sidebar-border: rgba(255, 255, 255, 0.10);
-  --sidebar-ring: #00F2FE;
+  --sidebar-ring: rgba(255, 255, 255, 0.35);
 }
 
 @layer base {
@@ -1093,27 +1088,27 @@ body::-webkit-scrollbar-track {
    ========================================================================== */
 
 /**
- * .status-active — Electric cyan active state indicator
+ * .status-active — White/neutral active state indicator
  * Use for: live scan dot, active tab underline, connected status
  * Never: for warning or info messaging
  */
 .status-active {
-  color: #00F2FE;
+  color: #FFFFFF;
 }
 .status-active-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #00F2FE;
-  box-shadow: 0 0 6px rgba(0, 242, 254, 0.7);
+  background: #FFFFFF;
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.5);
   flex-shrink: 0;
 }
 .status-active-dot.pulse {
   animation: status-dot-pulse 2s ease-in-out infinite;
 }
 @keyframes status-dot-pulse {
-  0%, 100% { opacity: 1; box-shadow: 0 0 4px rgba(0, 242, 254, 0.6); }
-  50%       { opacity: 0.6; box-shadow: 0 0 10px rgba(0, 242, 254, 0.3); }
+  0%, 100% { opacity: 1; box-shadow: 0 0 4px rgba(255, 255, 255, 0.5); }
+  50%       { opacity: 0.5; box-shadow: 0 0 8px rgba(255, 255, 255, 0.2); }
 }
 
 /**
@@ -1158,7 +1153,7 @@ body::-webkit-scrollbar-track {
 }
 
 /**
- * .badge-active — Electric cyan active badge
+ * .badge-active — Clean neutral active badge
  * Use for: "LIVE", "SCANNING", "CONNECTED" states
  */
 .badge-active {
@@ -1171,9 +1166,9 @@ body::-webkit-scrollbar-track {
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  background: rgba(0, 242, 254, 0.08);
-  border: 1px solid rgba(0, 242, 254, 0.20);
-  color: #00F2FE;
+  background: rgba(255, 255, 255, 0.10);
+  border: 1px solid rgba(255, 255, 255, 0.20);
+  color: #FFFFFF;
   line-height: 1.4;
 }
 
@@ -1336,108 +1331,80 @@ body::-webkit-scrollbar-track {
     opacity: 0;
   }
 }
+/* Tool-Grade Optical Aperture Contraction */
 .lens-iris-snap {
-  animation: irisContraction 180ms cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+  animation: irisContraction 140ms cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
 }
 
-/* Holographic Authenticity Sheen */
+/* Neutral Clean Container (replaces hologram sheen) */
 .hologram-sheen {
   position: relative;
-  overflow: hidden;
-}
-.hologram-sheen::after {
-  content: "";
-  position: absolute;
-  inset: -50%;
-  background: linear-gradient(
-    115deg,
-    transparent 20%,
-    rgba(0, 242, 254, 0.08) 35%,
-    rgba(168, 85, 247, 0.08) 45%,
-    rgba(52, 211, 153, 0.12) 55%,
-    transparent 70%
-  );
-  transform: rotate(-25deg) translateY(-100%);
-  animation: hologramSweep 6s ease-in-out infinite;
-  pointer-events: none;
-}
-@keyframes hologramSweep {
-  0% { transform: rotate(-25deg) translateY(-120%); }
-  35%, 100% { transform: rotate(-25deg) translateY(120%); }
 }
 
-/* Laser Scan Lines */
-@keyframes laserSweepVertical {
-  0% { top: 0%; opacity: 0.8; }
-  50% { top: 100%; opacity: 1; }
-  100% { top: 0%; opacity: 0.8; }
-}
+/* Pro Viewfinder Reticle & Optical Framing */
 .lens-laser-line {
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, transparent 0%, rgba(0, 242, 254, 0.8) 20%, #00F2FE 50%, rgba(0, 242, 254, 0.8) 80%, transparent 100%);
-  box-shadow: 0 0 15px #00F2FE, 0 0 30px rgba(0, 242, 254, 0.6);
-  animation: laserSweepVertical 2.2s ease-in-out infinite;
-  pointer-events: none;
+  display: none;
 }
 
-@keyframes laserScanLineYAnim {
-  0% { top: 0%; opacity: 0.2; }
-  15% { opacity: 1; }
-  50% { top: 98%; opacity: 0.9; }
-  85% { opacity: 1; }
-  100% { top: 0%; opacity: 0.2; }
-}
-.laser-scan-line-y {
-  animation: laserScanLineYAnim 2.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-}
-
-@keyframes laserScanLineXAnim {
-  0% { left: -20%; opacity: 0; }
-  20% { opacity: 1; }
-  80% { opacity: 1; }
-  100% { left: 110%; opacity: 0; }
-}
+.laser-scan-line-y,
 .laser-scan-line-x {
-  animation: laserScanLineXAnim 1.8s ease-in-out infinite;
+  display: none;
 }
 
-/* Radar Sweep */
-@keyframes radarSweepRotateAnim {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-.radar-sweep-cone {
-  background: conic-gradient(
-    from 0deg,
-    transparent 0deg,
-    transparent 280deg,
-    rgba(6, 182, 212, 0.05) 320deg,
-    rgba(6, 182, 212, 0.35) 360deg
-  );
-  animation: radarSweepRotateAnim 2.2s linear infinite;
-  transform-origin: center center;
-}
-
-@keyframes radarRingExpandAnim {
-  0% { transform: scale(0.2); opacity: 0.8; }
-  50% { opacity: 0.4; }
-  100% { transform: scale(1.4); opacity: 0; }
-}
+.radar-sweep-cone,
 .radar-ring-expand {
-  animation: radarRingExpandAnim 2.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite;
+  display: none;
 }
 
-/* Cyber Glass Skeleton */
+/* Tool-Grade Skeleton */
 .laser-skeleton {
-  background: linear-gradient(
-    90deg,
-    rgba(255, 255, 255, 0.03) 0%,
-    rgba(6, 182, 212, 0.08) 50%,
-    rgba(255, 255, 255, 0.03) 100%
-  );
+  background: rgba(255, 255, 255, 0.04);
   background-size: 200% 100%;
   animation: skeleton-sweep 1.8s ease-in-out infinite;
 }
+
+/* ==========================================================================
+   Tool-Grade Design System Utilities (Linear / Leica Inspired)
+   ========================================================================== */
+
+.trade-ticket {
+  background-color: rgba(11, 13, 18, 0.97);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 1.25rem;
+  box-shadow: 0 12px 36px -4px rgba(0, 0, 0, 0.85);
+}
+
+.trade-ticket-header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.badge-verdict-buy {
+  background-color: rgba(16, 185, 129, 0.12);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.28);
+  font-family: var(--font-mono), monospace;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.badge-verdict-watch {
+  background-color: rgba(245, 158, 11, 0.12);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.28);
+  font-family: var(--font-mono), monospace;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.badge-verdict-pass {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: #a1a1aa;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-family: var(--font-mono), monospace;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
