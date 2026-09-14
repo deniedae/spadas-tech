@@ -1589,13 +1589,6 @@ function SpadasLensCameraCore({
       video.srcObject = stream;
       video.play().catch(() => {});
 
-      // Trigger immediate initial scan tick 800ms after video attaches (only in continuous sweep mode, never in rapid mode)
-      const initScanTimer = setTimeout(() => {
-        if (!isRapidScanMode && scanMode === "sweep") {
-          void processFrameRef.current(true);
-        }
-      }, 800);
-
       const watchdog = setTimeout(() => {
         if (video && (video.paused || video.readyState < 2)) {
           video.play().catch(() => {});
@@ -1603,7 +1596,6 @@ function SpadasLensCameraCore({
       }, 500);
 
       return () => {
-        clearTimeout(initScanTimer);
         clearTimeout(watchdog);
       };
     }
@@ -3483,9 +3475,10 @@ function SpadasLensCameraCore({
     };
   }, [stream, autoScanActive, scanMode, deepVerifyItem, isScanPaused, activeCompsHit, activeValuationHit, isRapidScanMode]);
 
+  // Preserve persistentMediaStream warm across tab switches and route re-renders
   useEffect(() => {
     return () => {
-      stopCamera();
+      streamRef.current = null;
     };
   }, []);
 
@@ -3506,7 +3499,51 @@ function SpadasLensCameraCore({
         className="relative w-full h-[55vh] min-h-[380px] max-h-[620px] sm:h-auto sm:min-h-[50svh] sm:aspect-[16/9] max-w-full box-border overflow-hidden rounded-none sm:rounded-3xl border-0 sm:border sm:border-cyan-500/30 bg-slate-950 sm:shadow-[0_0_50px_rgba(6,182,212,0.15)] cursor-pointer"
       >
         <CameraViewportErrorBoundary onRestart={startCamera}>
-        {deepVerifyItem ? (
+        {!isCameraPoweredOn ? (
+          /* Camera Standby / Hardware Released View (Only engaged when explicitly powered off by user) */
+          <div className="relative flex h-full w-full flex-col items-center justify-center p-6 text-center space-y-4 text-white bg-slate-950/95">
+            {/* Standby Top HUD Bar with Safe-Area Inset */}
+            <div className="absolute top-[max(0.875rem,calc(env(safe-area-inset-top,0px)+0.75rem))] left-[max(0.875rem,env(safe-area-inset-left,0px))] right-[max(0.875rem,env(safe-area-inset-right,0px))] z-30 flex items-center justify-between pointer-events-auto">
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-slate-900 border border-slate-700 px-3 py-1 text-[11px] font-bold text-slate-400 shadow-md">
+                <span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
+                <span>Camera Standby • Hardware Released</span>
+              </div>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleToggleCameraPower();
+                }}
+                className="h-8 px-3 rounded-full border border-emerald-500/40 bg-emerald-500/20 text-emerald-300 text-[11px] font-black flex items-center gap-1.5 hover:bg-emerald-500/30 transition shadow-lg cursor-pointer"
+                title="Power On Camera"
+              >
+                <Power className="h-3.5 w-3.5 text-emerald-400" />
+                <span>Power ON</span>
+              </button>
+            </div>
+
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-900 border border-slate-700 text-slate-400 shadow-[0_0_30px_rgba(0,0,0,0.5)]">
+              <Power className="h-8 w-8 text-slate-400" />
+            </div>
+            <div className="space-y-1.5 max-w-sm">
+              <h3 className="text-xl font-black text-white">Camera Standby (Hardware Released)</h3>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                Camera hardware is released to conserve device battery and eliminate conflicts when switching to Spadas Studio.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsCameraPoweredOn(true);
+                void startCamera();
+              }}
+              className="inline-flex h-12 items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 px-8 text-sm font-black text-slate-950 shadow-xl hover:brightness-110 active:scale-95 transition cursor-pointer"
+            >
+              <Power className="h-4 w-4" /> Power On Camera
+            </button>
+          </div>
+        ) : deepVerifyItem ? (
           <div className="flex h-full w-full flex-col items-center justify-center p-6 text-center space-y-3 text-slate-300 bg-slate-950">
             <ShieldCheck className="h-12 w-12 text-purple-400 animate-pulse" />
             <h4 className="text-sm font-black text-white">Camera Handed Off to Forensic Audit</h4>
@@ -3526,7 +3563,7 @@ function SpadasLensCameraCore({
               <RefreshCw className="h-4 w-4" /> Retry Camera Access
             </button>
           </div>
-        ) : stream ? (
+        ) : (
           <>
             {/* Raw Camera Video Stream running smooth at 60fps */}
             <video
@@ -3536,6 +3573,13 @@ function SpadasLensCameraCore({
               muted
               className="h-full w-full object-cover"
             />
+            {/* Connecting optical sensor placeholder if stream is currently binding */}
+            {!stream && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/80 text-slate-400 space-y-2 pointer-events-none">
+                <RefreshCw className="h-6 w-6 text-cyan-400 animate-spin" />
+                <span className="text-xs font-mono tracking-wider text-slate-400">CONNECTING OPTICAL SENSOR...</span>
+              </div>
+            )}
 
             {/* Quick Snap Viewfinder Shutter Flash (0ms visual feedback) */}
             {quickSnapFlash && (
@@ -4546,50 +4590,6 @@ function SpadasLensCameraCore({
               </div>
             )}
           </>
-        ) : (
-          /* Camera Standby / Hardware Released View */
-          <div className="relative flex h-full w-full flex-col items-center justify-center p-6 text-center space-y-4 text-white bg-slate-950/95">
-            {/* Standby Top HUD Bar with Safe-Area Inset */}
-            <div className="absolute top-[max(0.875rem,calc(env(safe-area-inset-top,0px)+0.75rem))] left-[max(0.875rem,env(safe-area-inset-left,0px))] right-[max(0.875rem,env(safe-area-inset-right,0px))] z-30 flex items-center justify-between pointer-events-auto">
-              <div className="inline-flex items-center gap-1.5 rounded-full bg-slate-900 border border-slate-700 px-3 py-1 text-[11px] font-bold text-slate-400 shadow-md">
-                <span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
-                <span>Camera Standby • Hardware Released</span>
-              </div>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleToggleCameraPower();
-                }}
-                className="h-8 px-3 rounded-full border border-emerald-500/40 bg-emerald-500/20 text-emerald-300 text-[11px] font-black flex items-center gap-1.5 hover:bg-emerald-500/30 transition shadow-lg cursor-pointer"
-                title="Power On Camera"
-              >
-                <Power className="h-3.5 w-3.5 text-emerald-400" />
-                <span>Power ON</span>
-              </button>
-            </div>
-
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-900 border border-slate-700 text-slate-400 shadow-[0_0_30px_rgba(0,0,0,0.5)]">
-              <Power className="h-8 w-8 text-slate-400" />
-            </div>
-            <div className="space-y-1.5 max-w-sm">
-              <h3 className="text-xl font-black text-white">Camera Standby (Hardware Released)</h3>
-              <p className="text-xs text-slate-300 leading-relaxed">
-                Camera hardware is released to conserve device battery and eliminate conflicts when switching to Spadas Studio.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsCameraPoweredOn(true);
-                void startCamera();
-              }}
-              className="inline-flex h-12 items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 px-8 text-sm font-black text-slate-950 shadow-xl hover:brightness-110 active:scale-95 transition cursor-pointer"
-            >
-              <Power className="h-4 w-4" /> Power On Camera
-            </button>
-          </div>
         )}
         </CameraViewportErrorBoundary>
       </div>
