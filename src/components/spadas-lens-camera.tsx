@@ -1184,37 +1184,67 @@ function SpadasLensCameraCore({
   const flushPendingSyncQueue = useCallback(async () => {
     if (typeof window === "undefined" || !navigator.onLine) return;
     try {
-      const queueStr = localStorage.getItem("spadas_pending_scans_queue");
-      if (!queueStr) return;
-      const queue: any[] = JSON.parse(queueStr);
-      if (!queue || queue.length === 0) return;
-
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) return;
 
-      const unSynced: any[] = [];
-      for (const item of queue) {
-        try {
-          const { error } = await supabase.from("scans").insert([
-            {
-              user_id: session.user.id,
-              image_url: item.image_url,
-              result_json: item.result_json,
-              token_count: 2600,
-              status: "completed",
-            },
-          ]);
-          if (error) {
-            console.warn("[Spadas Lens] Background scan sync insert warning:", error.message);
-            unSynced.push(item);
+      // 1. Flush pending scans queue to supabase.from("scans")
+      const queueStr = localStorage.getItem("spadas_pending_scans_queue");
+      if (queueStr) {
+        const queue: any[] = JSON.parse(queueStr);
+        if (Array.isArray(queue) && queue.length > 0) {
+          const unSynced: any[] = [];
+          for (const item of queue) {
+            try {
+              const { error } = await supabase.from("scans").insert([
+                {
+                  user_id: session.user.id,
+                  image_url: item.image_url,
+                  result_json: item.result_json,
+                  token_count: 2600,
+                  status: "completed",
+                },
+              ]);
+              if (error) {
+                console.warn("[Spadas Lens] Background scan sync insert warning:", error.message);
+                unSynced.push(item);
+              }
+            } catch {
+              unSynced.push(item);
+            }
           }
-        } catch {
-          unSynced.push(item);
+          localStorage.setItem("spadas_pending_scans_queue", JSON.stringify(unSynced));
+          setPendingSyncCount(unSynced.length);
         }
       }
 
-      localStorage.setItem("spadas_pending_scans_queue", JSON.stringify(unSynced));
-      setPendingSyncCount(unSynced.length);
+      // 2. Flush pending listings queue to supabase.from("listings")
+      const listQueueStr = localStorage.getItem("spadas_pending_listings_queue");
+      if (listQueueStr) {
+        const listQueue: any[] = JSON.parse(listQueueStr);
+        if (Array.isArray(listQueue) && listQueue.length > 0) {
+          const unSyncedListings: any[] = [];
+          for (const item of listQueue) {
+            try {
+              const { error } = await supabase.from("listings").insert([
+                {
+                  user_id: session.user.id,
+                  title: item.product,
+                  product: item.product,
+                  description: item.description ?? "",
+                  price: item.price ?? 0,
+                  cost: item.cost ?? 0,
+                  image_url: item.image_url ?? "",
+                  status: item.status ?? "Draft",
+                },
+              ]);
+              if (error) unSyncedListings.push(item);
+            } catch {
+              unSyncedListings.push(item);
+            }
+          }
+          localStorage.setItem("spadas_pending_listings_queue", JSON.stringify(unSyncedListings));
+        }
+      }
     } catch (err) {
       console.warn("[Spadas Lens] Sync queue flush error:", err);
     }
@@ -1275,7 +1305,45 @@ function SpadasLensCameraCore({
         console.warn("[Spadas Lens] LocalStorage persistence warning:", err);
       }
 
-      // 2. Queue for background Supabase sync
+      // 2. Auto-save identified item to listings table as Draft
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        let user: any = session?.user;
+        if (!user) {
+          const { data: userData } = await supabase.auth.getUser();
+          user = userData?.user;
+        }
+
+        const listingPayload = {
+          product: hit.name,
+          description: `Sourced via Spadas Lens AR. Category: ${hit.category || "General"}. Condition: ${hit.condition || "Used"}. Estimated profit: +$${(hit.trueNetProfit ?? hit.estimatedProfit ?? 0).toFixed(2)}.`,
+          price: hit.estimatedValue || 45,
+          cost: hit.tagPrice ?? hit.estCost ?? 10,
+          image: microThumbnail || hit.image || "",
+          status: "Draft" as const,
+        };
+
+        if (user?.id) {
+          void createListing({
+            userId: user.id,
+            ...listingPayload,
+          });
+        } else {
+          // If offline/unauthenticated, queue to pending listings queue
+          const pendingListingsStr = localStorage.getItem("spadas_pending_listings_queue");
+          const listQueue = pendingListingsStr ? JSON.parse(pendingListingsStr) : [];
+          listQueue.push({
+            ...listingPayload,
+            image_url: listingPayload.image,
+            timestamp: Date.now(),
+          });
+          localStorage.setItem("spadas_pending_listings_queue", JSON.stringify(listQueue.slice(-50)));
+        }
+      } catch (listErr) {
+        console.warn("[Spadas Lens] Auto-save to listings warning:", listErr);
+      }
+
+      // 3. Queue for background Supabase sync to scans table
       const scanRecord = {
         id: hit.id,
         timestamp: hit.timestamp,
@@ -1310,7 +1378,7 @@ function SpadasLensCameraCore({
         setPendingSyncCount(queue.length);
       } catch {}
 
-      // 3. Attempt immediate background sync if online
+      // 4. Attempt immediate background sync if online
       if (typeof navigator !== "undefined" && navigator.onLine) {
         void flushPendingSyncQueue();
       }
@@ -2494,27 +2562,6 @@ function SpadasLensCameraCore({
                         condition: chunk.condition || chunk.analysis?.condition || "Used",
                         bbox: chunk.detected_objects?.[0]?.bbox || { x: 20, y: 20, width: 60, height: 60 },
                       };
-
-                      setPendingIdentifiedItem(pendingObj);
-                      setScanStage("confirmation");
-
-                      // Await user confirmation before fetching comps
-                      const userConfirmed = await new Promise<boolean>((resolve) => {
-                        confirmGateResolverRef.current = resolve;
-                      });
-
-                      if (!userConfirmed) {
-                        // User rejected the identification, abort stream and return to live camera
-                        setScanStage("idle");
-                        setPendingIdentifiedItem(null);
-                        setAnalyzingRealFrame(false);
-                        isAnalyzingRef.current = false;
-                        if (videoRef.current && videoRef.current.paused) {
-                          videoRef.current.play().catch(() => {});
-                        }
-                        try { void reader.cancel(); } catch {}
-                        return;
-                      }
 
                       setScanStage("comps");
 
@@ -5070,62 +5117,6 @@ function SpadasLensCameraCore({
         currency={selectedCurrency}
       />
 
-      {/* Root-Level Confirmation Gate Modal (z-[100]) */}
-      {scanStage === "confirmation" && pendingIdentifiedItem && (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center p-4 select-none pointer-events-auto"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-          }}
-        >
-          {/* Full Backdrop covering entire screen */}
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-md -z-10" />
-
-          {/* Modal Dialog Card */}
-          <div
-            className="w-[85%] max-w-sm glass backdrop-blur-xl border border-white/20 p-5 rounded-3xl shadow-[0_0_40px_rgba(0,0,0,0.8)] text-center animate-in zoom-in duration-200 pointer-events-auto"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-            }}
-          >
-            <div className="mx-auto w-12 h-12 bg-indigo-500/20 rounded-full flex items-center justify-center mb-3 border border-indigo-500/30">
-              <CheckCircle2 className="w-6 h-6 text-indigo-400" />
-            </div>
-            <h3 className="text-zinc-100 font-bold text-lg mb-1">Identified Item</h3>
-            <p className="text-zinc-300 text-sm mb-5 font-mono truncate px-2">
-              {pendingIdentifiedItem.productName}
-            </p>
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  if (confirmGateResolverRef.current) confirmGateResolverRef.current(false);
-                  confirmGateResolverRef.current = null;
-                }}
-                className="flex-1 py-3 rounded-xl bg-zinc-800/80 hover:bg-zinc-800 text-zinc-300 font-bold transition border border-white/10 cursor-pointer active:scale-95"
-              >
-                Incorrect
-              </button>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  if (confirmGateResolverRef.current) confirmGateResolverRef.current(true);
-                  confirmGateResolverRef.current = null;
-                }}
-                className="flex-1 py-3 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white font-bold transition shadow-[0_0_20px_rgba(99,102,241,0.4)] border border-indigo-400 cursor-pointer active:scale-95"
-              >
-                Correct
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

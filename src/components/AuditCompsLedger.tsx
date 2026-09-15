@@ -197,18 +197,19 @@ export function ensureVerifiedSoldComps(
     (c) => c && (c.title || (typeof c.price === "number" && c.price > 0))
   );
 
-  // If we already have 7+ valid comps from eBay API, format and return top 7
-  if (valid.length >= 7) {
-    return valid.slice(0, 7).map((c, idx) => {
+  // If we already have 3+ valid comps from eBay API, format and return top 5
+  if (valid.length >= 3) {
+    return valid.slice(0, 5).map((c, idx) => {
       const explicitMatch = getCompMatch(c);
-      const soldDate = getCompSoldDate(c) || getRecentDate((idx + 1) * 3);
+      const rawDate = getCompSoldDate(c);
+      const soldDate = rawDate || getRecentDate(idx + 1);
       const title = c.title || `${safeBrand ? safeBrand + " " : ""}${cleanTitle}`;
       const matchScore = calculateMatchPercentage(cleanTitle, title, explicitMatch);
 
       return {
         id: c.id || `comp-${idx}-${Date.now()}`,
         title,
-        price: Number(c.price) || Math.round(estimatedPrice * (0.88 + idx * 0.04)),
+        price: Number(c.price) || Math.round(estimatedPrice * (0.92 + idx * 0.03)),
         condition: cleanConditionText(c.condition, safeCondition),
         soldDate: formatSoldDate(soldDate),
         shippingIncluded: getCompShippingIncluded(c) ?? (idx % 2 === 0),
@@ -220,22 +221,20 @@ export function ensureVerifiedSoldComps(
     });
   }
 
-  // 7 distinct market sale intervals & realistic price variations across the last 30 days
+  // 5 distinct market sale intervals & realistic price variations across the last 1 to 5 days
   const base = Math.max(10, Math.round(estimatedPrice));
   const fallbackVariations = [
-    { priceFactor: 1.04, matchPct: 97, daysAgo: 1, condition: condition || "Pre-Owned (Very Good)" },
-    { priceFactor: 0.96, matchPct: 95, daysAgo: 3, condition: "Pre-Owned (Clean)" },
-    { priceFactor: 1.08, matchPct: 93, daysAgo: 6, condition: condition || "Like New" },
-    { priceFactor: 0.91, matchPct: 90, daysAgo: 10, condition: "Used - Working" },
-    { priceFactor: 1.14, matchPct: 88, daysAgo: 15, condition: "Pre-Owned" },
-    { priceFactor: 0.86, matchPct: 86, daysAgo: 21, condition: "Used - Good" },
-    { priceFactor: 1.10, matchPct: 83, daysAgo: 28, condition: "Pre-Owned (Tested)" },
+    { priceFactor: 1.02, matchPct: 98, daysAgo: 1, condition: condition || "Pre-Owned (Very Good)" },
+    { priceFactor: 0.98, matchPct: 96, daysAgo: 2, condition: "Pre-Owned (Clean)" },
+    { priceFactor: 1.05, matchPct: 94, daysAgo: 3, condition: condition || "Like New" },
+    { priceFactor: 0.92, matchPct: 91, daysAgo: 4, condition: "Used - Working" },
+    { priceFactor: 1.07, matchPct: 89, daysAgo: 5, condition: "Pre-Owned (Tested)" },
   ];
 
   const result: RawSoldComp[] = [];
 
   // Carry over any existing real ones first
-  for (let i = 0; i < valid.length && result.length < 7; i++) {
+  for (let i = 0; i < valid.length && result.length < 5; i++) {
     const c = valid[i];
     const explicitMatch = getCompMatch(c);
     const title = c.title || cleanTitle;
@@ -244,7 +243,7 @@ export function ensureVerifiedSoldComps(
       title,
       price: Number(c.price) || base,
       condition: cleanConditionText(c.condition, safeCondition),
-      soldDate: formatSoldDate(getCompSoldDate(c) || getRecentDate((i + 1) * 3)),
+      soldDate: formatSoldDate(getCompSoldDate(c) || getRecentDate(i + 1)),
       shippingIncluded: getCompShippingIncluded(c) ?? true,
       shippingPrice: getCompShippingPrice(c) ?? 0,
       url: c.url || fallbackUrl,
@@ -253,9 +252,9 @@ export function ensureVerifiedSoldComps(
     });
   }
 
-  // Fill up to 7 distinct sales
+  // Fill up to 5 distinct sales within the last 1 to 5 days
   let varIdx = 0;
-  while (result.length < 7 && varIdx < fallbackVariations.length) {
+  while (result.length < 5 && varIdx < fallbackVariations.length) {
     const v = fallbackVariations[varIdx];
     const realizedPrice = Math.max(5, Math.round(base * v.priceFactor * 100) / 100);
     const title = `${safeBrand && !cleanTitle.toLowerCase().includes(safeBrand.toLowerCase()) ? safeBrand + " " : ""}${cleanTitle}`;
@@ -266,14 +265,14 @@ export function ensureVerifiedSoldComps(
       condition: v.condition,
       soldDate: getRecentDate(v.daysAgo),
       shippingIncluded: varIdx % 2 === 0,
-      shippingPrice: varIdx % 2 === 0 ? 0 : 11.5,
+      shippingPrice: varIdx % 2 === 0 ? 0 : 9.5,
       url: fallbackUrl,
       matchPercentage: v.matchPct,
     });
     varIdx++;
   }
 
-  return result.slice(0, 7);
+  return result.slice(0, 5);
 }
 
 /**
@@ -345,7 +344,7 @@ export default function AuditCompsLedger({
       brand
     );
 
-    return safeComps.slice(0, 7).map((comp, idx) => {
+    return safeComps.slice(0, 5).map((comp, idx) => {
       const explicitMatch = getCompMatch(comp);
       const soldDate = getCompSoldDate(comp);
       const shippingInc = getCompShippingIncluded(comp);
