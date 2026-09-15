@@ -11,7 +11,7 @@ export interface ScanStep {
   progress: number;
 }
 
-export type ScanStage = "vision" | "confirmation" | "comps" | "profit" | "complete";
+export type ScanStage = "idle" | "vision" | "confirmation" | "comps" | "profit" | "complete";
 
 const STANDARD_STEPS: ScanStep[] = [
   {
@@ -96,14 +96,8 @@ export function ScanProgressiveLoader({
 
   // Synchronize immediately if explicit stage is provided
   useEffect(() => {
-    if (!isActive) {
+    if (!isActive || stage === "idle" || stage === "confirmation" || stage === "complete") {
       setCurrentStepIndex(0);
-      return;
-    }
-
-    if (stage === "confirmation") {
-      setCurrentStepIndex(1); // "Identifying item..."
-      triggerDialTickHaptic();
       return;
     }
 
@@ -114,12 +108,6 @@ export function ScanProgressiveLoader({
     }
 
     if (stage === "profit") {
-      setCurrentStepIndex(3);
-      triggerDialTickHaptic();
-      return;
-    }
-
-    if (stage === "complete") {
       setCurrentStepIndex(3);
       triggerDialTickHaptic();
       return;
@@ -154,13 +142,13 @@ export function ScanProgressiveLoader({
     };
   }, [isActive, stage]);
 
-  if (!isActive) return null;
+  if (!isActive || stage === "idle" || stage === "confirmation" || stage === "complete") return null;
 
   const currentStep = activeSteps[currentStepIndex] || activeSteps[0];
   const StepIcon = currentStep.icon;
 
-  const isComplete = stage === "complete";
-  const displayProgress = isComplete ? 100 : currentStep.progress;
+  const isComplete = false;
+  const displayProgress = currentStep.progress;
 
   const displayLabel = isComplete
     ? (isIntelMode ? "Intel Comps Valued & Verified" : "eBay Comps Valued & Verified")

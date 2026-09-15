@@ -92,7 +92,7 @@ import {
 import type { DetectedHit, ActiveScanItem, CopVerdict } from "@/types/lens";
 export type { DetectedHit, ActiveScanItem, CopVerdict } from "@/types/lens";
 import { processFrameForVision, poolConsecutiveFrames, createMultiFrameComposite } from "@/lib/image-preprocessor";
-import { ScanProgressiveLoader } from "@/components/scan-progressive-loader";
+import { ScanProgressiveLoader, type ScanStage } from "@/components/scan-progressive-loader";
 import {
   resolveSpatialMetadata,
   getPredictiveQueryForCategory,
@@ -147,7 +147,7 @@ function SpadasLensCameraCore({
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [autoScanActive, setAutoScanActive] = useState(false);
   const [analyzingRealFrame, setAnalyzingRealFrame] = useState(false);
-  const [scanStage, setScanStage] = useState<"vision" | "confirmation" | "comps" | "profit" | "complete">("vision");
+  const [scanStage, setScanStage] = useState<ScanStage>("idle");
   const [pendingIdentifiedItem, setPendingIdentifiedItem] = useState<{
     productName: string;
     brand?: string;
@@ -251,10 +251,11 @@ function SpadasLensCameraCore({
 
     // Instantly wipe all valuation states, stream tokens, and progressive loader flags to zero
     setActiveValuationHit(null);
+    activeValuationHitRef.current = null;
     setActiveScans([]);
     setPendingIdentifiedItem(null);
     setActiveCompsHit(null);
-    setScanStage("vision");
+    setScanStage("idle");
     setScanRetryPrompt(null);
     setScanFeedback(null);
     setFrozenFrameUrl(null);
@@ -265,6 +266,7 @@ function SpadasLensCameraCore({
     setConfidencePercent(0);
     setIsLoaderTransitioning(false);
     setIsScanPaused(false);
+    isScanPausedRef.current = false;
     setAnalyzingRealFrame(false);
     analyzingRef.current = false;
   }, []);
@@ -829,9 +831,12 @@ function SpadasLensCameraCore({
     }
     setTimeout(() => {
       setActiveValuationHit(null);
+      activeValuationHitRef.current = null;
       setFrozenFrameUrl(null);
       setIsScanPaused(false);
+      isScanPausedRef.current = false;
       setIsCardExiting(false);
+      setScanStage("idle");
       if (onComplete) onComplete();
     }, 200);
   }, [setActiveValuationHit]);
@@ -2500,7 +2505,7 @@ function SpadasLensCameraCore({
 
                       if (!userConfirmed) {
                         // User rejected the identification, abort stream and return to live camera
-                        setScanStage("vision");
+                        setScanStage("idle");
                         setPendingIdentifiedItem(null);
                         setAnalyzingRealFrame(false);
                         isAnalyzingRef.current = false;
@@ -3250,7 +3255,7 @@ function SpadasLensCameraCore({
         analyzingRef.current = false;
         setAnalyzingRealFrame(false);
         setPendingIdentifiedItem(null);
-        setScanStage("complete");
+        setScanStage(activeValuationHitRef.current ? "complete" : "idle");
       }
     }
   }, [soundEnabled, flushScanState]);
@@ -3572,11 +3577,13 @@ function SpadasLensCameraCore({
   }, []);
 
   return (
-    <div className="spadas-lens-camera w-full max-w-full overflow-x-hidden box-border pb-24 mx-auto animate-fade-in">
+    <div className="spadas-lens-camera w-full max-w-full overflow-x-hidden box-border pb-[calc(env(safe-area-inset-bottom)+4.5rem)] mx-auto animate-fade-in">
       {/* Video Viewport Container (Tap Anywhere to Focus, Snap, or Dismiss Card) */}
       <div
         onClick={() => {
-          if (activeValuationHitRef.current || activeValuationHit) {
+          if (scanStage === "confirmation" || pendingIdentifiedItem) {
+            return;
+          } else if (activeValuationHitRef.current || activeValuationHit) {
             // Keep valuation card solid — tapping viewfinder background must not dismiss active valuation
             return;
           } else if (isScanPaused) {
@@ -3953,39 +3960,6 @@ function SpadasLensCameraCore({
               </div>
             )}
 
-            {/* Confirmation Gate UI */}
-            {scanStage === "confirmation" && pendingIdentifiedItem && (
-              <>
-                <div className="fixed inset-0 z-[998] bg-black/60 backdrop-blur-sm pointer-events-auto" />
-                <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[85%] max-w-sm glass backdrop-blur-xl border border-white/20 p-5 rounded-3xl shadow-[0_0_40px_rgba(0,0,0,0.8)] z-[999] text-center animate-in zoom-in duration-200 pointer-events-auto">
-                  <div className="mx-auto w-12 h-12 bg-indigo-500/20 rounded-full flex items-center justify-center mb-3 border border-indigo-500/30">
-                  <CheckCircle2 className="w-6 h-6 text-indigo-400" />
-                </div>
-                <h3 className="text-zinc-100 font-bold text-lg mb-1">Identified Item</h3>
-                <p className="text-zinc-300 text-sm mb-5 font-mono truncate px-2">{pendingIdentifiedItem.productName}</p>
-                <div className="flex gap-3">
-                  <button 
-                    onClick={() => {
-                      if (confirmGateResolverRef.current) confirmGateResolverRef.current(false);
-                      confirmGateResolverRef.current = null;
-                    }}
-                    className="flex-1 py-3 rounded-xl bg-zinc-800/80 hover:bg-zinc-800 text-zinc-300 font-bold transition border border-white/10"
-                  >
-                    Incorrect
-                  </button>
-                  <button 
-                    onClick={() => {
-                      if (confirmGateResolverRef.current) confirmGateResolverRef.current(true);
-                      confirmGateResolverRef.current = null;
-                    }}
-                    className="flex-1 py-3 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white font-bold transition shadow-[0_0_20px_rgba(99,102,241,0.4)] border border-indigo-400"
-                  >
-                    Correct
-                  </button>
-                </div>
-              </div>
-              </>
-            )}
 
             {/* Non-Obstructing Retry Prompt Layer */}
             {scanRetryPrompt && !activeValuationHit && (
@@ -4507,7 +4481,9 @@ function SpadasLensCameraCore({
             )}
 
             {/* Quick Snap & Value Tactile Shutter / Resume Button (Center Floating) */}
-            <div className="absolute bottom-[max(1.25rem,calc(env(safe-area-inset-bottom,0px)+0.75rem))] sm:bottom-5 left-1/2 -translate-x-1/2 z-30 pointer-events-auto flex items-center justify-center">
+            <div className={`absolute bottom-[max(1.25rem,calc(env(safe-area-inset-bottom,0px)+0.75rem))] sm:bottom-5 left-1/2 -translate-x-1/2 z-30 flex items-center justify-center transition-opacity duration-150 ${
+              scanStage === "confirmation" ? "opacity-0 pointer-events-none" : "opacity-100 pointer-events-auto"
+            }`}>
               {!isPro && !isOwner && isLimitReached ? (
                 <button
                   type="button"
@@ -4582,7 +4558,9 @@ function SpadasLensCameraCore({
             </div>
 
             {/* Dedicated Quick Snap Stream Shutter (Bottom Left — Instant Live Frame Capture into Background Valuation Queue) */}
-            <div className="absolute bottom-[max(1.25rem,calc(env(safe-area-inset-bottom,0px)+0.75rem))] sm:bottom-5 left-[max(0.75rem,env(safe-area-inset-left,0px))] z-40 pointer-events-auto">
+            <div className={`absolute bottom-[max(1.25rem,calc(env(safe-area-inset-bottom,0px)+0.75rem))] sm:bottom-5 left-[max(0.75rem,env(safe-area-inset-left,0px))] z-40 transition-opacity duration-150 ${
+              scanStage === "confirmation" ? "opacity-0 pointer-events-none" : "opacity-100 pointer-events-auto"
+            }`}>
               <button
                 type="button"
                 onClick={(e) => {
@@ -4617,7 +4595,9 @@ function SpadasLensCameraCore({
 
             {/* Telemetry Haul Counter Badge (Bottom Right — Clean Data Telemetry Readout) */}
             {isRapidScanMode && (
-              <div className="absolute bottom-[max(1.25rem,calc(env(safe-area-inset-bottom,0px)+0.75rem))] sm:bottom-5 right-[max(0.75rem,env(safe-area-inset-right,0px))] z-40 pointer-events-auto">
+              <div className={`absolute bottom-[max(1.25rem,calc(env(safe-area-inset-bottom,0px)+0.75rem))] sm:bottom-5 right-[max(0.75rem,env(safe-area-inset-right,0px))] z-40 transition-opacity duration-150 ${
+                scanStage === "confirmation" ? "opacity-0 pointer-events-none" : "opacity-100 pointer-events-auto"
+              }`}>
                 <button
                   type="button"
                   onClick={(e) => {
@@ -5089,6 +5069,63 @@ function SpadasLensCameraCore({
         }
         currency={selectedCurrency}
       />
+
+      {/* Root-Level Confirmation Gate Modal (z-[100]) */}
+      {scanStage === "confirmation" && pendingIdentifiedItem && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 select-none pointer-events-auto"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+        >
+          {/* Full Backdrop covering entire screen */}
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-md -z-10" />
+
+          {/* Modal Dialog Card */}
+          <div
+            className="w-[85%] max-w-sm glass backdrop-blur-xl border border-white/20 p-5 rounded-3xl shadow-[0_0_40px_rgba(0,0,0,0.8)] text-center animate-in zoom-in duration-200 pointer-events-auto"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+          >
+            <div className="mx-auto w-12 h-12 bg-indigo-500/20 rounded-full flex items-center justify-center mb-3 border border-indigo-500/30">
+              <CheckCircle2 className="w-6 h-6 text-indigo-400" />
+            </div>
+            <h3 className="text-zinc-100 font-bold text-lg mb-1">Identified Item</h3>
+            <p className="text-zinc-300 text-sm mb-5 font-mono truncate px-2">
+              {pendingIdentifiedItem.productName}
+            </p>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (confirmGateResolverRef.current) confirmGateResolverRef.current(false);
+                  confirmGateResolverRef.current = null;
+                }}
+                className="flex-1 py-3 rounded-xl bg-zinc-800/80 hover:bg-zinc-800 text-zinc-300 font-bold transition border border-white/10 cursor-pointer active:scale-95"
+              >
+                Incorrect
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (confirmGateResolverRef.current) confirmGateResolverRef.current(true);
+                  confirmGateResolverRef.current = null;
+                }}
+                className="flex-1 py-3 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white font-bold transition shadow-[0_0_20px_rgba(99,102,241,0.4)] border border-indigo-400 cursor-pointer active:scale-95"
+              >
+                Correct
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

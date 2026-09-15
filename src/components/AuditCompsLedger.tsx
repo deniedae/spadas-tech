@@ -724,12 +724,13 @@ export default function AuditCompsLedger({
               </a>
             </div>
 
-            {onScanNext && (
+            {(onScanNext || onDismiss) && (
               <button
                 type="button"
                 onClick={() => {
                   triggerTactileHaptic("light");
-                  onScanNext();
+                  if (onScanNext) onScanNext();
+                  else if (onDismiss) onDismiss();
                 }}
                 className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.10] text-zinc-200 hover:text-white border border-white/[0.10] text-xs font-medium transition cursor-pointer active:scale-95 ml-auto"
               >

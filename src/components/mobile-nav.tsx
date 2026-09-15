@@ -87,7 +87,7 @@ export default function MobileNav() {
                 href={href}
                 prefetch={true}
                 onClick={handleNavClick}
-                className="relative -top-3 flex flex-col items-center justify-center cursor-pointer group active:scale-95 transition-transform duration-75"
+                className="relative -top-3 flex flex-1 flex-col items-center justify-center cursor-pointer group active:scale-95 transition-transform duration-75 min-h-[44px]"
                 aria-label="Open Spadas Lens camera"
               >
                 <div
