@@ -213,6 +213,7 @@ function SpadasLensCameraCore({
   const [scanFeedback, setScanFeedback] = useState<"HIT" | "MISS" | null>(null);
   const [sessionScanCount, setSessionScanCount] = useState<number>(0);
   const [shutterFlash, setShutterFlash] = useState<boolean>(false);
+  const [isCardExiting, setIsCardExiting] = useState<boolean>(false);
   const [networkLatencyMs, setNetworkLatencyMs] = useState<number | null>(null);
   const [isViewfinderToolsOpen, setIsViewfinderToolsOpen] = useState<boolean>(false);
   const [isValuationDetailsOpen, setIsValuationDetailsOpen] = useState<boolean>(false);
@@ -261,7 +262,7 @@ function SpadasLensCameraCore({
     setLastRawApiResponse(null);
     setRetakeRecommendation(null);
     setSecondaryImagePayload(null);
-    setConfidencePercent(94);
+    setConfidencePercent(0);
     setIsLoaderTransitioning(false);
     setIsScanPaused(false);
     setAnalyzingRealFrame(false);
@@ -604,7 +605,7 @@ function SpadasLensCameraCore({
           void requestWakeLock();
         }
       } else {
-        isAnalyzingRef.current = false;
+        // App backgrounded mid-scan: preserve scan state & progress so user resumes seamlessly when returning
       }
     };
 
@@ -819,6 +820,21 @@ function SpadasLensCameraCore({
     },
     [activeValuationHit, selectedCurrency, frozenFrameUrl]
   );
+
+  // Smooth result card exit handler (200ms slide-down ease-out with camera live underneath)
+  const handleDismissCard = useCallback((onComplete?: () => void) => {
+    setIsCardExiting(true);
+    if (videoRef.current && videoRef.current.paused) {
+      videoRef.current.play().catch(() => {});
+    }
+    setTimeout(() => {
+      setActiveValuationHit(null);
+      setFrozenFrameUrl(null);
+      setIsScanPaused(false);
+      setIsCardExiting(false);
+      if (onComplete) onComplete();
+    }, 200);
+  }, [setActiveValuationHit]);
 
   // Continuous 60 FPS Native Barcode Scanner Loop
   const handleNativeBarcode = useCallback(
@@ -1201,14 +1217,54 @@ function SpadasLensCameraCore({
 
   const persistHitAndSyncToSupabase = useCallback(
     async (hit: DetectedHit, rawResultJson?: any) => {
-      // 1. Immediately persist to localStorage
+      // 0. Compress image to micro-thumbnail for LocalStorage quota safety
+      let microThumbnail: string | null = null;
+      if (hit.image && hit.image.startsWith("data:image")) {
+        try {
+          microThumbnail = await new Promise<string>((resolve) => {
+            const img = new Image();
+            img.onload = () => {
+              const canvas = document.createElement("canvas");
+              const MAX_DIM = 120;
+              let { width, height } = img;
+              if (width > height) {
+                if (width > MAX_DIM) {
+                  height = Math.round((height * MAX_DIM) / width);
+                  width = MAX_DIM;
+                }
+              } else {
+                if (height > MAX_DIM) {
+                  width = Math.round((width * MAX_DIM) / height);
+                  height = MAX_DIM;
+                }
+              }
+              canvas.width = width;
+              canvas.height = height;
+              const ctx = canvas.getContext("2d");
+              if (ctx) {
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL("image/jpeg", 0.4));
+              } else {
+                resolve(hit.image || "");
+              }
+            };
+            img.onerror = () => resolve(hit.image || "");
+            img.src = hit.image as string;
+          });
+        } catch {
+          microThumbnail = hit.image;
+        }
+      }
+
+      // 1. Immediately persist to localStorage (using compressed thumbnail)
       try {
         const cached = localStorage.getItem("spadas_cached_lens_hits");
         let hitsList: DetectedHit[] = [];
         if (cached) {
           hitsList = JSON.parse(cached);
         }
-        const deduped = [hit, ...hitsList.filter((h) => h.id !== hit.id && h.name !== hit.name)].slice(0, 100);
+        const compressedHit = { ...hit, image: microThumbnail || hit.image };
+        const deduped = [compressedHit, ...hitsList.filter((h) => h.id !== hit.id && h.name !== hit.name)].slice(0, 100);
         localStorage.setItem("spadas_cached_lens_hits", JSON.stringify(deduped));
       } catch (err) {
         console.warn("[Spadas Lens] LocalStorage persistence warning:", err);
@@ -1256,14 +1312,6 @@ function SpadasLensCameraCore({
     },
     [flushPendingSyncQueue]
   );
-
-  useEffect(() => {
-    if (capturedLog.length > 0) {
-      try {
-        localStorage.setItem("spadas_cached_lens_hits", JSON.stringify(capturedLog.slice(0, 50)));
-      } catch {}
-    }
-  }, [capturedLog]);
 
   useEffect(() => {
     try {
@@ -1914,7 +1962,7 @@ function SpadasLensCameraCore({
 
     if (forceManual) {
       setShutterFlash(true);
-      setTimeout(() => setShutterFlash(false), 140);
+      setTimeout(() => setShutterFlash(false), 80);
       triggerShutterHaptic();
       if (soundEnabled) {
         playMechanicalShutterSound();
@@ -2443,6 +2491,26 @@ function SpadasLensCameraCore({
                       };
 
                       setPendingIdentifiedItem(pendingObj);
+                      setScanStage("confirmation");
+
+                      // Await user confirmation before fetching comps
+                      const userConfirmed = await new Promise<boolean>((resolve) => {
+                        confirmGateResolverRef.current = resolve;
+                      });
+
+                      if (!userConfirmed) {
+                        // User rejected the identification, abort stream and return to live camera
+                        setScanStage("vision");
+                        setPendingIdentifiedItem(null);
+                        setAnalyzingRealFrame(false);
+                        isAnalyzingRef.current = false;
+                        if (videoRef.current && videoRef.current.paused) {
+                          videoRef.current.play().catch(() => {});
+                        }
+                        try { void reader.cancel(); } catch {}
+                        return;
+                      }
+
                       setScanStage("comps");
 
                       // Instantly render lightweight pending card skeleton on camera HUD
@@ -2584,8 +2652,25 @@ function SpadasLensCameraCore({
       }
 
       if (data?.error && typeof data.error === 'string' && data.error.toLowerCase().includes("dark")) {
-        setScanRetryPrompt({ message: "Photo too dark. Please improve lighting or move closer.", canRetry: true });
-        toast.error("Photo too dark. Please improve lighting.", { id: "photo-dark" });
+        if (torchSupported) {
+          toast("Photo too dark — Turn on flash?", {
+            id: "photo-dark",
+            action: {
+              label: "Turn On Flash",
+              onClick: () => {
+                void toggleTorch();
+              },
+            },
+            duration: 4000,
+          });
+          setScanRetryPrompt({ message: "Photo too dark — turn on flash or try near a window.", canRetry: true });
+        } else {
+          toast("Photo too dark — Try moving near a window or light source", {
+            id: "photo-dark",
+            duration: 4000,
+          });
+          setScanRetryPrompt({ message: "Photo too dark — try near a window or light source for clearer comps.", canRetry: true });
+        }
         setAnalyzingRealFrame(false);
         return;
       }
@@ -2622,16 +2707,21 @@ function SpadasLensCameraCore({
             timestamp: Date.now(),
           };
 
+          const cachedHitWithBadge: DetectedHit = {
+            ...cachedHit,
+            compsSource: "cached_last_check" as any,
+          };
+
           setActiveScans([fallbackScanObj]);
-          setCapturedLog((prev) => [cachedHit, ...prev.filter((h) => h.name !== cachedHit.name)].slice(0, 50));
+          setCapturedLog((prev) => [cachedHitWithBadge, ...prev.filter((h) => h.name !== cachedHit.name)].slice(0, 50));
           setSessionScanCount((prev) => prev + 1);
-          triggerActiveValuationHit(cachedHit, frozenFrameUrl);
+          triggerActiveValuationHit(cachedHitWithBadge, frozenFrameUrl);
           
-          if (!isOffline && res) {
-            toast.warning(`eBay timeout. Using cached data (Last updated 2h ago).`, { duration: 4000 });
-          } else {
-            toast.info(`⚡ Cached Comps: Loaded "${cachedHit.name}" (Offline Fallback)`);
-          }
+          toast.info("Using last check", {
+            id: "timeout-cached-hit",
+            description: "Loaded previous valuation data",
+            duration: 3000,
+          });
           
           setAnalyzingRealFrame(false);
           return;
@@ -3165,18 +3255,17 @@ function SpadasLensCameraCore({
     }
   }, [soundEnabled, flushScanState]);
 
-  // HUD STATE MACHINE: Keep recognized item cards visible for 12 seconds
+  // HUD STATE MACHINE: Keep recognized item cards visible indefinitely (Pinned) until manually dismissed
   useEffect(() => {
     const interval = setInterval(() => {
       const now = Date.now();
       setActiveScans((prev) =>
         prev.filter((item) => {
           const isStuckPending = item.status === "pending" && now - item.timestamp > 4000;
-          const isStale = now - item.timestamp > 12000;
-          return !isStuckPending && !isStale;
+          return !isStuckPending; // Pinned indefinitely until user taps 'Scan Next Item'
         })
       );
-    }, 500);
+    }, 1000);
     return () => clearInterval(interval);
   }, []);
 
@@ -4379,11 +4468,9 @@ function SpadasLensCameraCore({
               </div>
             ))}
 
-            {/* Optical Shutter Aperture Flash (Gentle, Non-Blinding Ring) */}
+            {/* Optical Shutter Aperture Flash (Immediate 80ms white freeze-frame optical flash) */}
             {shutterFlash && (
-              <div className="absolute inset-0 z-40 flex items-center justify-center pointer-events-none bg-black/30 backdrop-blur-[1px] transition-opacity duration-150 lens-iris-snap">
-                <div className="h-24 w-24 rounded-full border border-white/80 animate-ping" />
-              </div>
+              <div className="absolute inset-0 z-50 pointer-events-none bg-white opacity-90 transition-opacity duration-[80ms] ease-out" />
             )}
 
             {/* Optical Horizon Leveler & Gyro Instrumentation */}
@@ -4469,14 +4556,14 @@ function SpadasLensCameraCore({
                     flushScanState();
                     void processCurrentFrame(true);
                   }}
-                  className="group relative flex items-center justify-center h-18 w-18 sm:h-20 sm:w-20 rounded-full p-1.5 cursor-pointer"
+                  className="group relative flex items-center justify-center h-18 w-18 sm:h-20 sm:w-20 rounded-full p-1.5 cursor-pointer active:scale-[0.92] transition-transform duration-100 ease-out"
                   title="Instant Multi-Frame Snap & Value (Tap to scan)"
                 >
                   {/* Outer Concentric Machined Ring */}
                   <div className="absolute inset-0 rounded-full border-2 border-white/40 group-hover:border-white transition-colors" />
 
                   {/* Inner Solid Brushed Trigger Core */}
-                  <div className="flex h-full w-full items-center justify-center rounded-full bg-[#181C26] p-1 border border-white/10 shadow-inner group-active:scale-95 transition-transform">
+                  <div className="flex h-full w-full items-center justify-center rounded-full bg-[#181C26] p-1 border border-white/10 shadow-inner">
                     <div className="flex h-full w-full items-center justify-center rounded-full bg-[#0F1117] group-hover:bg-[#141822] transition">
                       {analyzingRealFrame ? (
                         <RefreshCw className="h-6 w-6 sm:h-7 sm:w-7 text-white animate-spin" />
@@ -4632,7 +4719,9 @@ function SpadasLensCameraCore({
 
       {/* Non-Intrusive In-Stream Audit-Grade Sold Comps Ledger (Anchored in document flow exclusively after scan payload resolves) */}
       {activeValuationHit && (
-        <div className="mt-4 w-full max-w-full px-3 sm:px-0 overflow-x-hidden box-border ledger-expand-glide">
+        <div className={`mt-4 w-full max-w-full px-3 sm:px-0 overflow-x-hidden box-border ${
+          isCardExiting ? "animate-card-exit" : "animate-card-enter"
+        }`}>
           <AuditCompsLedger
             isLoading={false}
             comps={activeValuationHit.rawComps}
@@ -4641,6 +4730,8 @@ function SpadasLensCameraCore({
             copVerdict={activeValuationHit.copVerdict}
             netProfit={activeValuationHit.trueNetProfit ?? activeValuationHit.estimatedProfit}
             currency={selectedCurrency}
+            isCachedFallback={activeValuationHit.compsSource === "cached_last_check"}
+            compsSource={activeValuationHit.compsSource}
             activeValuation={{
               median: activeValuationHit.estimatedValue,
               min: activeValuationHit.suggestedPriceMin ?? activeValuationHit.compsRange?.min,
@@ -4648,16 +4739,10 @@ function SpadasLensCameraCore({
               compsCount: activeValuationHit.rawComps?.length,
               thriftCost: activeValuationHit.tagPrice ?? activeValuationHit.estCost,
             }}
-            onDismiss={() => {
-              setActiveValuationHit(null);
-              setFrozenFrameUrl(null);
-              setIsScanPaused(false);
-            }}
+            onDismiss={() => handleDismissCard()}
             onAddToHaul={() => {
               void handleSaveDraftHit(activeValuationHit);
-              setActiveValuationHit(null);
-              setFrozenFrameUrl(null);
-              setIsScanPaused(false);
+              handleDismissCard();
             }}
             onListEbay={() => {
               setIsScanPaused(true);
@@ -4675,10 +4760,9 @@ function SpadasLensCameraCore({
             }}
             onScanNext={() => {
               flushScanState();
-              if (videoRef.current && videoRef.current.paused) {
-                videoRef.current.play().catch(() => {});
-              }
-              window.scrollTo({ top: 0, behavior: "smooth" });
+              handleDismissCard(() => {
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              });
             }}
           />
         </div>

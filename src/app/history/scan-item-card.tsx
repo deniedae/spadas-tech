@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import {
-  Camera,
+  Package,
   AlertTriangle,
   CheckCircle2,
   Clock,
@@ -102,9 +102,10 @@ export function ScanItemCard({
 
   let title = rawTitle;
   if (isInvalidTitle) {
-    if (res?.analysis?.category && res.analysis.category !== "General") {
-      title = `${res.analysis.category} Specimen`;
-    } else if (res?.search_query) {
+    const safeCat = sanitizeMetaText(res?.analysis?.category);
+    if (safeCat && safeCat !== "General") {
+      title = `${safeCat} Specimen`;
+    } else if (res?.search_query && sanitizeMetaText(res.search_query)) {
       title = res.search_query;
     } else {
       title = scan.status === "failed" ? "Unresolved Optical Scan" : `Telemetry Asset #${scan.id.slice(0, 6).toUpperCase()}`;
@@ -171,10 +172,10 @@ export function ScanItemCard({
                 {isFailed ? (
                   <AlertTriangle className="h-5 w-5 text-rose-400/80" />
                 ) : (
-                  <Camera className="h-5 w-5" />
+                  <Package className="h-5 w-5" />
                 )}
                 <span className="text-[9px] font-mono mt-0.5 text-zinc-600 uppercase">
-                  {isFailed ? "Error" : "Scan"}
+                  {isFailed ? "Error" : "Asset"}
                 </span>
               </div>
             )}

@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Sparkles, Camera, TrendingUp, Zap, Loader2, Tag } from "lucide-react";
+import { Sparkles, Camera, TrendingUp, Zap, Loader2, Tag, Check } from "lucide-react";
+import { triggerDialTickHaptic } from "@/lib/audio-haptic-engine";
 
 export interface ScanStep {
   label: string;
@@ -102,35 +103,48 @@ export function ScanProgressiveLoader({
 
     if (stage === "confirmation") {
       setCurrentStepIndex(1); // "Identifying item..."
+      triggerDialTickHaptic();
       return;
     }
 
     if (stage === "comps") {
       setCurrentStepIndex(2); // Jump to comps query step
+      triggerDialTickHaptic();
       return;
     }
 
     if (stage === "profit") {
       setCurrentStepIndex(3);
+      triggerDialTickHaptic();
       return;
     }
 
     if (stage === "complete") {
       setCurrentStepIndex(3);
+      triggerDialTickHaptic();
       return;
     }
 
     // Default timeline progression if no explicit stage is forced
     const t1 = setTimeout(() => {
-      setCurrentStepIndex((prev) => Math.max(prev, 1));
+      setCurrentStepIndex((prev) => {
+        if (prev < 1) triggerDialTickHaptic();
+        return Math.max(prev, 1);
+      });
     }, 850);
 
     const t2 = setTimeout(() => {
-      setCurrentStepIndex((prev) => Math.max(prev, 2));
+      setCurrentStepIndex((prev) => {
+        if (prev < 2) triggerDialTickHaptic();
+        return Math.max(prev, 2);
+      });
     }, 1800);
 
     const t3 = setTimeout(() => {
-      setCurrentStepIndex((prev) => Math.max(prev, 3));
+      setCurrentStepIndex((prev) => {
+        if (prev < 3) triggerDialTickHaptic();
+        return Math.max(prev, 3);
+      });
     }, 3200);
 
     return () => {
@@ -271,6 +285,33 @@ export function ScanProgressiveLoader({
         <span className="text-[10px] font-mono font-black text-cyan-400 pl-1.5 border-l border-cyan-500/30 shrink-0">
           {displayProgress}%
         </span>
+
+        {/* Stepped progress indicators (4 dots with tick pop and checkmarks) */}
+        <div className="flex items-center gap-1 pl-1.5 border-l border-cyan-500/30 shrink-0">
+          {activeSteps.map((step, idx) => {
+            const isStepDone = isComplete || idx < currentStepIndex;
+            const isStepCurrent = !isComplete && idx === currentStepIndex;
+            return (
+              <div
+                key={step.label}
+                className={`h-3 w-3 rounded-full flex items-center justify-center transition-all duration-150 ${
+                  isStepDone
+                    ? "bg-emerald-400 text-slate-950 animate-tick-pop shadow-[0_0_4px_#34d399]"
+                    : isStepCurrent
+                    ? "border border-cyan-400 bg-cyan-950/80 ring-1 ring-cyan-400/40"
+                    : "bg-white/10 border border-white/10"
+                }`}
+                title={step.label}
+              >
+                {isStepDone ? (
+                  <Check className="h-2 w-2 stroke-[3]" />
+                ) : isStepCurrent ? (
+                  <div className="h-1 w-1 rounded-full bg-cyan-300 shadow-[0_0_4px_#22d3ee]" />
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

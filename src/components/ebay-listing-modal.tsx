@@ -528,15 +528,15 @@ export default function EbayListingModal({
           handleModalClose();
         }
       }}
-      className="fixed inset-0 z-[120] overflow-y-auto bg-slate-950/85 backdrop-blur-md p-2 sm:p-4 pb-[calc(env(safe-area-inset-bottom,0px)+5rem)] sm:pb-4 flex min-h-full items-center justify-center overscroll-contain animate-fade-in"
+      className="fixed inset-0 z-[120] overflow-y-auto bg-black/80 p-2 sm:p-4 pb-[calc(env(safe-area-inset-bottom,0px)+5rem)] sm:pb-4 flex min-h-full items-center justify-center overscroll-contain animate-fade-in"
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-lg rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl flex flex-col max-h-[92dvh] sm:max-h-[88vh] overflow-y-auto text-slate-100"
+        className="relative w-full max-w-lg rounded bg-zinc-900 border border-zinc-800 flex flex-col max-h-[92dvh] sm:max-h-[88vh] overflow-y-auto text-zinc-100"
       >
         {/* Pinned Header */}
-        <div className="shrink-0 flex items-center justify-between border-b border-slate-800 px-4 sm:px-6 py-3.5 sm:py-4 bg-slate-900/95 backdrop-blur">
-          <div className="flex items-center gap-2 text-cyan-400 font-bold text-sm sm:text-base">
+        <div className="shrink-0 flex items-center justify-between border-b border-zinc-800 px-4 sm:px-6 py-3.5 sm:py-4 bg-zinc-900">
+          <div className="flex items-center gap-2 text-zinc-100 font-bold text-sm sm:text-base">
             <ShoppingBag className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
             <span>List Item on {activeRegion.label}</span>
           </div>
@@ -553,18 +553,18 @@ export default function EbayListingModal({
           /* Persistent Success Screen - Stays mounted until user explicitly taps Done or View Live */
           <div className="flex flex-col flex-1 min-h-0 overflow-y-auto animate-fade-in">
             <div className="flex-1 overflow-y-auto overscroll-contain p-6 pb-[calc(env(safe-area-inset-bottom,0px)+6rem)] sm:pb-6 space-y-4 text-center">
-              <div className={`w-14 h-14 ${isLiveListing ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : "bg-cyan-500/20 text-cyan-400 border-cyan-500/30"} rounded-full flex items-center justify-center mx-auto border`}>
+              <div className={`w-14 h-14 ${isLiveListing ? "bg-emerald-900/30 text-emerald-500 border-emerald-900/50" : "bg-cyan-900/30 text-cyan-500 border-cyan-900/50"} rounded-full flex items-center justify-center mx-auto border`}>
                 <CheckCircle2 className="w-8 h-8" />
               </div>
               <div className="space-y-1">
-                <h3 className="text-xl font-bold text-slate-100">
+                <h3 className="text-xl font-bold text-zinc-100">
                   {isLiveListing
                     ? `🚀 Live on ${activeRegion.label}!`
                     : `📋 Draft Saved in ${activeRegion.label} Seller Hub!`}
                 </h3>
-                <p className="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
+                <p className="text-xs text-zinc-400 max-w-sm mx-auto leading-relaxed">
                   {publishedSku ? (
-                    <span className="font-mono text-cyan-400 block mb-1 text-[11px]">
+                    <span className="font-mono text-zinc-300 block mb-1 text-[11px]">
                       SKU: {publishedSku}
                     </span>
                   ) : null}
@@ -575,18 +575,18 @@ export default function EbayListingModal({
               </div>
 
               {/* Photo Verification Badge */}
-              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px] font-semibold">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-emerald-900/30 border border-emerald-900/50 text-emerald-400 text-[11px] font-semibold">
                 <CheckCircle2 className="w-3.5 h-3.5" />
                 <span>Primary Scan Photo Locked &amp; Synced (Index [0])</span>
               </div>
             </div>
 
-            <div className="shrink-0 p-3.5 sm:p-4 pb-[max(0.875rem,calc(env(safe-area-inset-bottom,0px)+0.75rem))] border-t border-slate-800 bg-slate-900/95 backdrop-blur flex flex-col sm:flex-row items-center justify-center gap-3">
+            <div className="shrink-0 p-3.5 sm:p-4 pb-[max(0.875rem,calc(env(safe-area-inset-bottom,0px)+0.75rem))] border-t border-zinc-800 bg-zinc-900 flex flex-col sm:flex-row items-center justify-center gap-3">
               <a
                 href={publishedUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className={`inline-flex items-center justify-center gap-2 px-5 py-2.5 ${isLiveListing ? "bg-emerald-500 hover:bg-emerald-400" : "bg-cyan-500 hover:bg-cyan-400"} text-slate-950 font-extrabold rounded-xl text-xs shadow-lg transition cursor-pointer w-full sm:w-auto`}
+                className={`inline-flex items-center justify-center gap-2 px-5 py-2.5 ${isLiveListing ? "bg-emerald-500 hover:bg-emerald-600 text-white" : "bg-indigo-500 hover:bg-indigo-600 text-white"} font-semibold rounded text-xs transition cursor-pointer w-full sm:w-auto`}
               >
                 <span>{isLiveListing ? `View Live on ${activeRegion.label}` : `Open ${activeRegion.label} Drafts`}</span>
                 <ExternalLink className="w-4 h-4" />
@@ -595,7 +595,7 @@ export default function EbayListingModal({
               <button
                 type="button"
                 onClick={handleModalClose}
-                className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl text-xs transition cursor-pointer w-full sm:w-auto"
+                className="px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-semibold rounded text-xs transition cursor-pointer w-full sm:w-auto"
               >
                 Done
               </button>
@@ -608,10 +608,10 @@ export default function EbayListingModal({
             <div className="flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6 pb-[calc(env(safe-area-inset-bottom,0px)+6rem)] sm:pb-6 space-y-4 touch-pan-y">
               {/* Target Marketplace Switcher */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300 block">
+                <label className="text-xs font-semibold text-zinc-300 block">
                   Target eBay Marketplace
                 </label>
-                <div className="grid grid-cols-3 gap-2 p-1 bg-slate-950/80 border border-slate-800 rounded-xl">
+                <div className="grid grid-cols-3 gap-2 p-1 bg-zinc-900 border border-zinc-800 rounded">
                   {REGION_OPTIONS.map((region) => {
                     const isSelected = selectedCurrency === region.id;
                     return (
@@ -619,10 +619,10 @@ export default function EbayListingModal({
                         key={region.id}
                         type="button"
                         onClick={() => handleRegionChange(region.id)}
-                        className={`py-1.5 px-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                        className={`py-1.5 px-2 rounded text-xs font-semibold transition flex items-center justify-center gap-1.5 ${
                           isSelected
-                            ? "bg-cyan-500 text-slate-950 shadow-md"
-                            : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
+                            ? "bg-indigo-500 text-white"
+                            : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800"
                         }`}
                       >
                         <span>{region.flag}</span>
@@ -634,20 +634,20 @@ export default function EbayListingModal({
               </div>
 
               {/* 1-Tap Fast-List Quick Trigger Bar */}
-              <div className="p-3 bg-gradient-to-r from-blue-950/40 via-cyan-950/30 to-slate-900/60 border border-cyan-500/25 rounded-2xl flex items-center justify-between gap-3 shadow-inner">
+              <div className="p-3 bg-zinc-900 border border-indigo-500/50 rounded flex items-center justify-between gap-3">
                 <div className="space-y-0.5">
-                  <div className="flex items-center gap-1 text-[11px] font-bold text-cyan-300">
-                    <Zap className="w-3.5 h-3.5 fill-cyan-400 text-cyan-400" />
+                  <div className="flex items-center gap-1 text-[11px] font-semibold text-indigo-400">
+                    <Zap className="w-3.5 h-3.5" />
                     <span>Instant eBay Wizard Bypass</span>
                   </div>
-                  <p className="text-[10px] text-slate-400">
+                  <p className="text-[10px] text-zinc-400">
                     Pre-fills price &amp; title on official {activeRegion.label}
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={handleFastList}
-                  className="px-3 py-1.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black rounded-xl text-xs transition shadow-md flex items-center gap-1 cursor-pointer shrink-0"
+                  className="px-3 py-1.5 bg-indigo-500 hover:bg-indigo-600 text-white font-semibold rounded text-xs transition flex items-center gap-1 cursor-pointer shrink-0"
                 >
                   <span>1-Tap Fast-List</span>
                   <ExternalLink className="w-3 h-3" />
@@ -674,14 +674,14 @@ export default function EbayListingModal({
               )}
 
               {/* 3. Multi-Photo Capture Integration: Isolated Photo Binding Gallery Row */}
-              <div className="space-y-2 p-3 bg-slate-950/70 border border-slate-800/90 rounded-2xl">
+              <div className="space-y-2 p-3 bg-zinc-900 border border-zinc-800 rounded">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
-                    <Camera className="w-4 h-4 text-cyan-400" />
-                    <span className="text-xs font-bold text-slate-200">
+                    <Camera className="w-4 h-4 text-zinc-400" />
+                    <span className="text-xs font-semibold text-zinc-200">
                       Listing Photos ({totalPhotoCount})
                     </span>
-                    <span className="text-[10px] text-slate-500 hidden sm:inline">
+                    <span className="text-[10px] text-zinc-500 hidden sm:inline">
                       • Scan capture locked to session ID
                     </span>
                   </div>
@@ -692,20 +692,20 @@ export default function EbayListingModal({
                       type="button"
                       onClick={() => cameraInputRef.current?.click()}
                       disabled={isProcessingPhotos}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[11px] font-bold transition cursor-pointer disabled:opacity-50"
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 text-[11px] font-semibold transition cursor-pointer disabled:opacity-50"
                       title="Snap extra angle directly with your camera"
                     >
-                      <Camera className="w-3.5 h-3.5 text-emerald-400" />
+                      <Camera className="w-3.5 h-3.5 text-zinc-400" />
                       <span>Snap Angle</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
                       disabled={isProcessingPhotos}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-[11px] font-bold transition cursor-pointer disabled:opacity-50"
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 text-[11px] font-semibold transition cursor-pointer disabled:opacity-50"
                       title="Upload photos from device gallery"
                     >
-                      <ImageIcon className="w-3.5 h-3.5 text-cyan-400" />
+                      <ImageIcon className="w-3.5 h-3.5 text-zinc-400" />
                       <span>Add Gallery</span>
                     </button>
                   </div>
@@ -732,27 +732,27 @@ export default function EbayListingModal({
                 </div>
 
                 {/* Horizontal Scrollable Thumbnail Strip */}
-                <div className="flex items-center gap-2.5 overflow-x-auto pb-1 pt-0.5 scrollbar-thin scrollbar-thumb-slate-800">
+                <div className="flex items-center gap-2.5 overflow-x-auto pb-1 pt-0.5 scrollbar-thin scrollbar-thumb-zinc-800">
                   {/* Slot 1: Primary Scan Photo (Strictly Bound to Session ID) */}
                   {primaryScanBlob ? (
-                    <div className="relative h-16 w-16 sm:h-20 sm:w-20 shrink-0 rounded-xl overflow-hidden border-2 border-emerald-500/80 bg-slate-900 group shadow-md">
+                    <div className="relative h-16 w-16 sm:h-20 sm:w-20 shrink-0 rounded overflow-hidden border-2 border-indigo-500 bg-zinc-900 group">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={primaryScanBlob}
                         alt="Primary Scan Lock"
                         className="h-full w-full object-cover"
                       />
-                      <div className="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-emerald-500/90 text-slate-950 text-[9px] font-black uppercase tracking-wider shadow-sm flex items-center gap-0.5 pointer-events-none">
+                      <div className="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-indigo-500 text-white text-[9px] font-semibold uppercase tracking-wider flex items-center gap-0.5 pointer-events-none">
                         <CheckCircle2 className="w-2.5 h-2.5" />
                         <span>Primary</span>
                       </div>
-                      <div className="absolute bottom-1 left-1 px-1 py-0.5 rounded bg-slate-950/80 text-emerald-400 text-[8px] font-mono pointer-events-none truncate max-w-[56px]">
+                      <div className="absolute bottom-1 left-1 px-1 py-0.5 rounded bg-black/80 text-indigo-300 text-[8px] pointer-events-none truncate max-w-[56px]">
                         {sessionId ? sessionId.slice(0, 8) : "Scan Lock"}
                       </div>
                       <button
                         type="button"
                         onClick={handleRemovePrimaryPhoto}
-                        className="absolute top-1 right-1 p-1 rounded-full bg-slate-950/80 hover:bg-rose-600 text-slate-300 hover:text-white transition cursor-pointer opacity-80 hover:opacity-100"
+                        className="absolute top-1 right-1 p-1 rounded-full bg-black/80 hover:bg-rose-600 text-zinc-300 hover:text-white transition cursor-pointer opacity-80 hover:opacity-100"
                         title="Remove primary photo"
                       >
                         <X className="w-3 h-3" />
@@ -764,7 +764,7 @@ export default function EbayListingModal({
                   {galleryPhotos.map((img, idx) => (
                     <div
                       key={`gallery-photo-${idx}`}
-                      className="relative h-16 w-16 sm:h-20 sm:w-20 shrink-0 rounded-xl overflow-hidden border border-slate-700/80 bg-slate-900 group shadow-md"
+                      className="relative h-16 w-16 sm:h-20 sm:w-20 shrink-0 rounded overflow-hidden border border-zinc-700 bg-zinc-900 group"
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
@@ -772,13 +772,13 @@ export default function EbayListingModal({
                         alt={`Listing angle ${idx + 2}`}
                         className="h-full w-full object-cover"
                       />
-                      <div className="absolute top-1 left-1 px-1 py-0.5 rounded bg-slate-900/80 text-slate-300 text-[9px] font-mono pointer-events-none">
+                      <div className="absolute top-1 left-1 px-1 py-0.5 rounded bg-black/80 text-zinc-300 text-[9px] pointer-events-none">
                         #{idx + (primaryScanBlob ? 2 : 1)}
                       </div>
                       <button
                         type="button"
                         onClick={() => handlePromoteGalleryToPrimary(idx)}
-                        className="absolute bottom-1 left-1 px-1 py-0.5 rounded bg-cyan-950/90 text-cyan-300 text-[8px] font-bold border border-cyan-500/40 opacity-0 group-hover:opacity-100 transition cursor-pointer hover:bg-cyan-600 hover:text-white"
+                        className="absolute bottom-1 left-1 px-1 py-0.5 rounded bg-indigo-900/90 text-indigo-300 text-[8px] font-semibold border border-indigo-500/40 opacity-0 group-hover:opacity-100 transition cursor-pointer hover:bg-indigo-600 hover:text-white"
                         title="Set as primary eBay listing photo"
                       >
                         Main
@@ -786,7 +786,7 @@ export default function EbayListingModal({
                       <button
                         type="button"
                         onClick={() => handleRemoveGalleryPhoto(idx)}
-                        className="absolute top-1 right-1 p-1 rounded-full bg-slate-950/80 hover:bg-rose-600 text-slate-300 hover:text-white transition cursor-pointer opacity-80 hover:opacity-100"
+                        className="absolute top-1 right-1 p-1 rounded-full bg-black/80 hover:bg-rose-600 text-zinc-300 hover:text-white transition cursor-pointer opacity-80 hover:opacity-100"
                         title="Remove photo"
                       >
                         <X className="w-3 h-3" />
@@ -799,11 +799,11 @@ export default function EbayListingModal({
                     type="button"
                     onClick={() => cameraInputRef.current?.click()}
                     disabled={isProcessingPhotos}
-                    className="h-16 w-16 sm:h-20 sm:w-20 shrink-0 rounded-xl border-2 border-dashed border-emerald-500/50 hover:border-emerald-400/90 bg-emerald-950/20 hover:bg-emerald-900/30 flex flex-col items-center justify-center gap-1 text-emerald-300 hover:text-emerald-200 transition cursor-pointer disabled:opacity-50"
+                    className="h-16 w-16 sm:h-20 sm:w-20 shrink-0 rounded border-2 border-dashed border-zinc-700 hover:border-zinc-500 bg-zinc-900 hover:bg-zinc-800 flex flex-col items-center justify-center gap-1 text-zinc-400 hover:text-zinc-200 transition cursor-pointer disabled:opacity-50"
                     title="Snap additional angle with camera"
                   >
-                    <Camera className="w-4 h-4 text-emerald-400" />
-                    <span className="text-[10px] font-bold">Snap Angle</span>
+                    <Camera className="w-4 h-4" />
+                    <span className="text-[10px] font-semibold">Snap</span>
                   </button>
 
                   {/* Device Album / Gallery Tile */}
@@ -811,11 +811,11 @@ export default function EbayListingModal({
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isProcessingPhotos}
-                    className="h-16 w-16 sm:h-20 sm:w-20 shrink-0 rounded-xl border-2 border-dashed border-slate-700/90 hover:border-cyan-400/60 bg-slate-900/50 hover:bg-slate-800/80 flex flex-col items-center justify-center gap-1 text-slate-400 hover:text-cyan-300 transition cursor-pointer disabled:opacity-50"
+                    className="h-16 w-16 sm:h-20 sm:w-20 shrink-0 rounded border-2 border-dashed border-zinc-700 hover:border-zinc-500 bg-zinc-900 hover:bg-zinc-800 flex flex-col items-center justify-center gap-1 text-zinc-400 hover:text-zinc-200 transition cursor-pointer disabled:opacity-50"
                     title="Choose additional photos from gallery"
                   >
-                    <Plus className="w-4 h-4 text-cyan-400" />
-                    <span className="text-[10px] font-bold">Add Gallery</span>
+                    <Plus className="w-4 h-4" />
+                    <span className="text-[10px] font-semibold">Gallery</span>
                   </button>
 
                   {/* In-Flight Image Processing Spinner */}
@@ -837,11 +837,11 @@ export default function EbayListingModal({
 
               {/* eBay Title */}
               <div className="space-y-1">
-                <div className="flex items-center justify-between text-xs font-semibold text-slate-300">
+                <div className="flex items-center justify-between text-xs font-semibold text-zinc-300">
                   <label htmlFor="ebay-title">eBay Item Title (Max 80 Chars)</label>
                   <span
-                    className={`text-[11px] font-mono ${
-                      inputTitle.length > 80 ? "text-rose-400 font-bold" : "text-slate-500"
+                    className={`text-[11px] ${
+                      inputTitle.length > 80 ? "text-rose-500 font-bold" : "text-zinc-500"
                     }`}
                   >
                     {inputTitle.length}/80
@@ -853,7 +853,7 @@ export default function EbayListingModal({
                   maxLength={80}
                   value={inputTitle}
                   onChange={(e) => setInputTitle(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-100 focus:outline-none focus:border-cyan-500 font-medium"
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded px-3.5 py-2 text-sm text-zinc-100 focus:outline-none focus:border-indigo-500 font-medium"
                   required
                 />
               </div>
@@ -861,11 +861,11 @@ export default function EbayListingModal({
               {/* Price & Condition */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label htmlFor="ebay-price" className="text-xs font-semibold text-slate-300 block">
+                  <label htmlFor="ebay-price" className="text-xs font-semibold text-zinc-300 block">
                     Buy It Now ({activeRegion.code})
                   </label>
                   <div className="relative">
-                    <span className="absolute left-3 top-2 text-xs font-bold text-slate-400">
+                    <span className="absolute left-3 top-2 text-xs font-bold text-zinc-400">
                       {activeRegion.symbol}
                     </span>
                     <input
@@ -875,7 +875,7 @@ export default function EbayListingModal({
                       min="1"
                       value={inputPrice}
                       onChange={(e) => setInputPrice(Number(e.target.value))}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-7 pr-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-cyan-500 font-bold"
+                      className="w-full bg-zinc-900 border border-zinc-800 rounded pl-7 pr-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-indigo-500 font-bold"
                       required
                     />
                   </div>
@@ -884,7 +884,7 @@ export default function EbayListingModal({
                 <div className="space-y-1">
                   <label
                     htmlFor="ebay-condition"
-                    className="text-xs font-semibold text-slate-300 block"
+                    className="text-xs font-semibold text-zinc-300 block"
                   >
                     Condition
                   </label>
@@ -892,7 +892,7 @@ export default function EbayListingModal({
                     id="ebay-condition"
                     value={inputCondition}
                     onChange={(e) => setInputCondition(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-cyan-500 font-medium"
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-indigo-500 font-medium"
                   >
                     <option value="Used - Good">Used - Good</option>
                     <option value="Pre-owned - Excellent">Pre-owned - Excellent</option>
@@ -904,7 +904,7 @@ export default function EbayListingModal({
 
               {/* Description */}
               <div className="space-y-1">
-                <div className="flex items-center justify-between text-xs font-semibold text-slate-300">
+                <div className="flex items-center justify-between text-xs font-semibold text-zinc-300">
                   <label htmlFor="ebay-description">Item Description</label>
                   <button
                     type="button"
@@ -912,7 +912,7 @@ export default function EbayListingModal({
                       navigator.clipboard.writeText(inputDescription);
                       toast.success("Description copied to clipboard!");
                     }}
-                    className="text-[11px] text-cyan-400 hover:text-cyan-300 flex items-center gap-1 cursor-pointer font-normal"
+                    className="text-[11px] text-indigo-400 hover:text-indigo-300 flex items-center gap-1 cursor-pointer font-normal"
                   >
                     <Copy className="w-3 h-3" />
                     <span>Copy text</span>
@@ -923,7 +923,7 @@ export default function EbayListingModal({
                   rows={3}
                   value={inputDescription}
                   onChange={(e) => setInputDescription(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-300 focus:outline-none focus:border-cyan-500 resize-none font-sans"
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded p-3 text-xs text-zinc-300 focus:outline-none focus:border-indigo-500 resize-none font-sans"
                 />
               </div>
 
@@ -932,18 +932,18 @@ export default function EbayListingModal({
             </div>
 
             {/* Pinned Sticky Actions Footer with Safe-Area Clearance */}
-            <div className="shrink-0 p-3.5 sm:p-4 pb-[max(0.875rem,calc(env(safe-area-inset-bottom,0px)+0.75rem))] border-t border-slate-800 bg-slate-900/95 backdrop-blur flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+            <div className="shrink-0 p-3.5 sm:p-4 pb-[max(0.875rem,calc(env(safe-area-inset-bottom,0px)+0.75rem))] border-t border-zinc-800 bg-zinc-900 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
               <button
                 type="button"
                 onClick={handleSaveDraftLocal}
                 disabled={savingLocal || loading || inputTitle.length === 0}
-                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl text-xs border border-slate-700 transition cursor-pointer disabled:opacity-50"
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-semibold rounded text-xs border border-zinc-700 transition cursor-pointer disabled:opacity-50"
                 title="Save draft locally in your Spadas AI account under My Listings"
               >
                 {savingLocal ? (
-                  <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
+                  <Loader2 className="w-4 h-4 animate-spin text-zinc-400" />
                 ) : (
-                  <Bookmark className="w-4 h-4 text-slate-400" />
+                  <Bookmark className="w-4 h-4 text-zinc-400" />
                 )}
                 <span>Save to Spadas</span>
               </button>
@@ -952,18 +952,18 @@ export default function EbayListingModal({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="flex-1 sm:flex-initial px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl text-xs transition cursor-pointer"
+                  className="flex-1 sm:flex-initial px-3.5 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-semibold rounded text-xs transition cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={loading || inputTitle.length === 0}
-                  className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:opacity-90 text-slate-950 font-black rounded-xl text-xs shadow-lg shadow-cyan-500/20 transition disabled:opacity-50 cursor-pointer"
+                  className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-500 hover:bg-indigo-600 text-white font-semibold rounded text-xs transition disabled:opacity-50 cursor-pointer"
                 >
                   {loading ? (
                     <>
-                      <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
+                      <Loader2 className="w-4 h-4 animate-spin text-white" />
                       <span>Publishing Live to {activeRegion.label}...</span>
                     </>
                   ) : (

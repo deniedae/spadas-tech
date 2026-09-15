@@ -58,12 +58,25 @@ export default function MobileNav() {
     return pathname === href || pathname.startsWith(href + "/");
   };
 
+  const activeIndex = navItems.findIndex((item) => isActiveLink(item.href));
+
   return (
     <nav
       aria-label="Main navigation"
       className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/[0.08] glass-nav md:hidden px-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-1.5 select-none"
     >
       <div className="flex items-center justify-around max-w-md mx-auto relative">
+        {/* Sliding active indicator (150ms smooth transition) */}
+        {activeIndex >= 0 && (
+          <div
+            className="absolute bottom-[max(0.25rem,env(safe-area-inset-bottom))] h-0.5 w-5 rounded-full bg-white/90 transition-all duration-150 ease-out pointer-events-none"
+            style={{
+              left: `calc(${(activeIndex + 0.5) * 20}% - 10px)`,
+              opacity: activeIndex === 2 ? 0 : 1,
+            }}
+          />
+        )}
+
         {navItems.map(({ href, label, icon: Icon, isCenter, badge }) => {
           const active = isActiveLink(href);
 
@@ -117,9 +130,6 @@ export default function MobileNav() {
               <span className={`text-[10px] font-semibold mt-0.5 ${active ? "text-white font-bold" : "text-zinc-500"}`}>
                 {label}
               </span>
-              {active && (
-                <span className="absolute bottom-[max(0.25rem,env(safe-area-inset-bottom))] h-0.5 w-4 rounded-full bg-white/80" />
-              )}
             </Link>
           );
         })}

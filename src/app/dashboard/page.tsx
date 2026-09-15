@@ -170,9 +170,58 @@ export default function DashboardPage() {
   const [isEbayConnected, setIsEbayConnected] = useState(false);
   const [ebayPublishItem, setEbayPublishItem] = useState<Listing | null>(null);
 
-  // High-Density Grid Filters
-  const [gridFilter, setGridFilter] = useState<"ALL" | "FAST_FLIPS" | "TRAPS" | "SOLD">("ALL");
-  const [searchQuery, setSearchQuery] = useState("");
+  // High-Density Grid Filters with SessionStorage Persistence
+  const [gridFilter, setGridFilter] = useState<"ALL" | "FAST_FLIPS" | "TRAPS" | "SOLD">(() => {
+    if (typeof window !== "undefined") {
+      const saved = sessionStorage.getItem("spadas_dashboard_filter");
+      if (saved && ["ALL", "FAST_FLIPS", "TRAPS", "SOLD"].includes(saved)) {
+        return saved as "ALL" | "FAST_FLIPS" | "TRAPS" | "SOLD";
+      }
+    }
+    return "ALL";
+  });
+  const [searchQuery, setSearchQuery] = useState(() => {
+    if (typeof window !== "undefined") {
+      return sessionStorage.getItem("spadas_dashboard_search") || "";
+    }
+    return "";
+  });
+
+  // Preserve filter and search query
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("spadas_dashboard_filter", gridFilter);
+    }
+  }, [gridFilter]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("spadas_dashboard_search", searchQuery);
+    }
+  }, [searchQuery]);
+
+  // Preserve scroll position across tab switches
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const savedY = sessionStorage.getItem("spadas_dashboard_scroll");
+    if (savedY) {
+      const y = parseInt(savedY, 10);
+      if (!isNaN(y) && y > 0) {
+        requestAnimationFrame(() => {
+          window.scrollTo({ top: y, behavior: "instant" });
+        });
+      }
+    }
+
+    const handleScroll = () => {
+      sessionStorage.setItem("spadas_dashboard_scroll", String(window.scrollY));
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, []);
 
   /** Shared logic to process raw listing data into stats. */
   function processListings(data: Listing[]) {
@@ -512,7 +561,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Core Operational Modules — p-4 grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
           <Link
             href="/lens"
             className="p-4 glass-card rounded-xl transition-transform duration-75 flex items-center justify-between group cursor-pointer active:scale-[0.97]"
@@ -524,22 +573,6 @@ export default function DashboardPage() {
               <div className="min-w-0">
                 <p className="text-xs font-semibold text-white group-hover:text-cyan-400 transition truncate">Lens Camera</p>
                 <p className="text-[10px] text-zinc-500 truncate">Scan items for live comps</p>
-              </div>
-            </div>
-            <ArrowRight className="h-3 w-3 text-zinc-600 group-hover:text-zinc-300 group-hover:translate-x-0.5 transition shrink-0" />
-          </Link>
-
-          <Link
-            href="/ironman"
-            className="p-4 border border-white/[0.08] hover:border-white/[0.18] bg-[#0A0D15]/80 rounded-xl transition flex items-center justify-between group cursor-pointer"
-          >
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 shrink-0">
-                <Crosshair className="h-4 w-4" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs font-semibold text-white group-hover:text-cyan-400 transition truncate">Scanner</p>
-                <p className="text-[10px] text-zinc-500 truncate">Real-time valuations</p>
               </div>
             </div>
             <ArrowRight className="h-3 w-3 text-zinc-600 group-hover:text-zinc-300 group-hover:translate-x-0.5 transition shrink-0" />
@@ -658,7 +691,7 @@ export default function DashboardPage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Filter by part, tag, title..."
-                className="w-full h-8 pl-8 pr-3 rounded bg-[#090A0F] border border-zinc-800 text-xs font-mono text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-[#F97316]"
+                className="w-full h-8 pl-8 pr-3 rounded bg-[#090A0F] border border-zinc-800 text-xs font-mono text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-white/30"
               />
               {searchQuery && (
                 <button

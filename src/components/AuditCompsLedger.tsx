@@ -17,6 +17,7 @@ import {
   CheckCircle2,
   ShoppingBag,
   Camera,
+  Clock,
 } from "lucide-react";
 import { fmtMoney } from "@/app/lib/listings";
 import type { RawSoldComp } from "@/types/lens";
@@ -59,6 +60,10 @@ export interface AuditCompsLedgerProps {
   netProfit?: number;
   /** Active display currency (e.g. AUD, USD) */
   currency?: string;
+  /** Whether valuation is sourced from offline or network timeout cache */
+  isCachedFallback?: boolean;
+  /** Source identifier for comps */
+  compsSource?: string;
   /** Active valuation summary object */
   activeValuation?: {
     median?: number;
@@ -312,6 +317,8 @@ export default function AuditCompsLedger({
   copVerdict,
   netProfit,
   currency = "AUD",
+  isCachedFallback = false,
+  compsSource,
   activeValuation,
   className = "",
   defaultExpanded = true,
@@ -417,6 +424,12 @@ export default function AuditCompsLedger({
                 <Sparkles className="h-3 w-3 text-zinc-400" />
                 <span>{verifiedListings.length} Cleared Sales</span>
               </span>
+              {(isCachedFallback || compsSource === "cached_last_check") && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-[11px] font-mono font-bold text-amber-300 animate-fade-in">
+                  <Clock className="h-3 w-3" />
+                  <span>Using last check</span>
+                </span>
+              )}
               {isMeaningfulMeta(brand) && (
                 <span className="px-2 py-0.5 rounded bg-[#161822] border border-white/[0.08] text-[10px] font-mono font-medium text-zinc-300">
                   {brand.trim()}

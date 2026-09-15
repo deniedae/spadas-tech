@@ -136,10 +136,87 @@ body {
 }
 
 /**
- * Page slot promotion.
+ * Page slot promotion with 150ms screen change cross-fade.
  */
+@keyframes pageCrossFade {
+  from {
+    opacity: 0.88;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 .page-slot {
   position: relative;
+  animation: pageCrossFade 150ms ease-out forwards;
+}
+
+/* Result Card Entrance & Dismissal (200ms ease-out / ease-in) */
+@keyframes cardSlideUpFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes cardSlideDownFadeOut {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+}
+
+.animate-card-enter {
+  animation: cardSlideUpFadeIn 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
+.animate-card-exit {
+  animation: cardSlideDownFadeOut 200ms cubic-bezier(0.4, 0, 1, 1) forwards;
+  will-change: transform, opacity;
+}
+
+/* Stepped progress tick micro-animation */
+@keyframes tickPop {
+  0% {
+    transform: scale(0.85);
+  }
+  60% {
+    transform: scale(1.18);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.animate-tick-pop {
+  animation: tickPop 180ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Single scale pulse for sync attention */
+@keyframes scalePulseOnce {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.18);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.animate-scale-pulse-once {
+  animation: scalePulseOnce 280ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 /**

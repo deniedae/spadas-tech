@@ -271,18 +271,18 @@ export default function ListingsPage() {
   return (
     <main className="space-y-6 animate-fade-in max-w-7xl mx-auto px-4 sm:px-6 py-6 text-zinc-100 pb-32 sm:pb-36 pb-[calc(env(safe-area-inset-bottom,0px)+8rem)]">
       {/* Executive Portfolio Header */}
-      <div className="p-5 rounded-2xl bg-[#0A0D15]/90 border border-white/[0.08] shadow-2xl backdrop-blur-md flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="p-5 rounded bg-zinc-900 border border-zinc-800 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white font-sans">
               Active Portfolio & Listings
             </h1>
-            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-[10px] font-mono font-bold text-emerald-400">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-emerald-900/30 border border-emerald-900/50 text-[10px] font-semibold text-emerald-400">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
               Direct Sync
             </span>
           </div>
-          <p className="text-xs text-zinc-400 font-mono">
+          <p className="text-xs text-zinc-400">
             Secondary market catalog with sell-through rate velocity and 1-tap marketplace dispatch.
           </p>
         </div>
@@ -291,7 +291,7 @@ export default function ListingsPage() {
           <button
             type="button"
             onClick={loadListings}
-            className="h-9 w-9 flex items-center justify-center rounded-xl bg-zinc-900 border border-zinc-700 text-zinc-300 hover:text-white transition cursor-pointer"
+            className="h-9 w-9 flex items-center justify-center rounded bg-zinc-800 border border-zinc-700 text-zinc-300 hover:text-white transition cursor-pointer"
             title="Refresh Listings"
           >
             <RefreshCw className="h-3.5 w-3.5" />
@@ -337,16 +337,16 @@ export default function ListingsPage() {
 
       {/* Control Bar: Precision Filters, Search & Sort */}
       <div className="space-y-3">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 bg-[#0A0D15]/80 border border-white/[0.08] p-3 rounded-2xl">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 bg-zinc-900 border border-zinc-800 p-3 rounded">
           {/* Segmented Mechanical Status Tabs with Inset Pressed State */}
           <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1 lg:pb-0 select-none">
             <button
               type="button"
               onClick={() => setStatusFilter("ALL")}
-              className={`px-3 py-1.5 rounded-xl font-mono text-xs transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
+              className={`px-3 py-1.5 rounded text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
                 statusFilter === "ALL"
-                  ? "bg-white text-zinc-950 font-black shadow-sm"
-                  : "text-zinc-400 hover:text-white bg-zinc-900/60 font-medium"
+                  ? "bg-white text-zinc-950"
+                  : "text-zinc-400 hover:text-white bg-zinc-800"
               }`}
             >
               <span>All [{totalListings}]</span>
@@ -355,10 +355,10 @@ export default function ListingsPage() {
             <button
               type="button"
               onClick={() => setStatusFilter("FAST_FLIPS")}
-              className={`px-3 py-1.5 rounded-xl font-mono text-xs transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
+              className={`px-3 py-1.5 rounded text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
                 statusFilter === "FAST_FLIPS"
-                  ? "bg-emerald-500 text-slate-950 font-black shadow-sm"
-                  : "text-zinc-400 hover:text-emerald-400 bg-zinc-900/60 font-medium"
+                  ? "bg-emerald-500 text-slate-950"
+                  : "text-zinc-400 hover:text-emerald-400 bg-zinc-800"
               }`}
             >
               <Zap className="w-3 h-3" />
@@ -368,10 +368,10 @@ export default function ListingsPage() {
             <button
               type="button"
               onClick={() => setStatusFilter("TRAPS")}
-              className={`px-3 py-1.5 rounded-xl font-mono text-xs transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
+              className={`px-3 py-1.5 rounded text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
                 statusFilter === "TRAPS"
-                  ? "bg-rose-500 text-white font-black shadow-sm"
-                  : "text-zinc-400 hover:text-rose-400 bg-zinc-900/60 font-medium"
+                  ? "bg-rose-500 text-white"
+                  : "text-zinc-400 hover:text-rose-400 bg-zinc-800"
               }`}
             >
               <ShieldAlert className="w-3 h-3" />
@@ -381,10 +381,10 @@ export default function ListingsPage() {
             <button
               type="button"
               onClick={() => setStatusFilter("Active")}
-              className={`px-3 py-1.5 rounded-xl font-mono text-xs transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
+              className={`px-3 py-1.5 rounded text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
                 statusFilter === "Active"
-                  ? "bg-sky-500 text-slate-950 font-black shadow-sm"
-                  : "text-zinc-400 hover:text-sky-400 bg-zinc-900/60 font-medium"
+                  ? "bg-sky-500 text-slate-950"
+                  : "text-zinc-400 hover:text-sky-400 bg-zinc-800"
               }`}
             >
               <span>Active [{activeListings}]</span>
@@ -393,10 +393,10 @@ export default function ListingsPage() {
             <button
               type="button"
               onClick={() => setStatusFilter("Draft")}
-              className={`px-3 py-1.5 rounded-xl font-mono text-xs transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
+              className={`px-3 py-1.5 rounded text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
                 statusFilter === "Draft"
-                  ? "bg-amber-400 text-slate-950 font-black shadow-sm"
-                  : "text-zinc-400 hover:text-amber-300 bg-zinc-900/60 font-medium"
+                  ? "bg-amber-400 text-slate-950"
+                  : "text-zinc-400 hover:text-amber-300 bg-zinc-800"
               }`}
             >
               <Clock className="w-3 h-3" />
@@ -406,10 +406,10 @@ export default function ListingsPage() {
             <button
               type="button"
               onClick={() => setStatusFilter("Sold")}
-              className={`px-3 py-1.5 rounded-xl font-mono text-xs transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
+              className={`px-3 py-1.5 rounded text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
                 statusFilter === "Sold"
-                  ? "bg-emerald-500 text-slate-950 font-black shadow-sm"
-                  : "text-zinc-400 hover:text-emerald-400 bg-zinc-900/60 font-medium"
+                  ? "bg-emerald-500 text-slate-950"
+                  : "text-zinc-400 hover:text-emerald-400 bg-zinc-800"
               }`}
             >
               <CheckCircle2 className="w-3 h-3" />
@@ -426,7 +426,7 @@ export default function ListingsPage() {
                 placeholder="Filter by title, brand, SKU..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="h-8 w-full rounded-xl bg-zinc-900/90 border border-zinc-800 pl-8 pr-7 text-xs font-mono text-zinc-100 placeholder:text-zinc-500 focus:border-cyan-500 focus:outline-none"
+                className="h-8 w-full rounded bg-zinc-800 border border-zinc-700 pl-8 pr-7 text-xs text-zinc-100 placeholder:text-zinc-500 focus:border-cyan-500 focus:outline-none"
               />
               {search && (
                 <button
@@ -442,7 +442,7 @@ export default function ListingsPage() {
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as any)}
-              className="h-8 rounded-xl bg-zinc-900/90 border border-zinc-800 px-2.5 text-xs font-mono font-bold text-zinc-300 focus:border-cyan-500 focus:outline-none cursor-pointer"
+              className="h-8 rounded bg-zinc-800 border border-zinc-700 px-2.5 text-xs font-semibold text-zinc-300 focus:border-cyan-500 focus:outline-none cursor-pointer"
             >
               <option value="newest">Newest First</option>
               <option value="profit_high">Highest Margin</option>
@@ -455,15 +455,15 @@ export default function ListingsPage() {
 
       {/* High-Density Data Grid View */}
       {filteredListings.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-zinc-800 bg-[#0E1118] p-10 text-center space-y-3 font-mono">
-          <div className="flex h-12 w-12 items-center justify-center rounded bg-[#161922] border border-zinc-800 text-zinc-400">
+        <div className="flex flex-col items-center justify-center rounded border border-zinc-800 bg-zinc-900 p-10 text-center space-y-3">
+          <div className="flex h-12 w-12 items-center justify-center rounded bg-zinc-800 border border-zinc-700 text-zinc-400">
             <PackageOpen className="h-6 w-6" />
           </div>
           <div className="space-y-1">
-            <h3 className="text-sm font-bold text-white uppercase">
-              {search ? "No matching specimens found" : "No items in this filter"}
+            <h3 className="text-sm font-semibold text-white">
+              {search ? "No matching listings found" : "No items in this filter"}
             </h3>
-            <p className="text-xs text-zinc-500 max-w-sm mx-auto font-sans">
+            <p className="text-xs text-zinc-500 max-w-sm mx-auto">
               {search
                 ? `No items found matching "${search}". Adjust search query.`
                 : "Point your camera at junkyard or thrift inventory using Lens AR to populate your catalog."}
@@ -472,7 +472,7 @@ export default function ListingsPage() {
           <div className="pt-2">
             <Link
               href="/lens"
-              className="btn-primary h-8 px-4 text-xs font-mono"
+              className="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded text-xs font-semibold inline-block"
             >
               <span>+ SCAN SPECIMEN</span>
             </Link>
@@ -481,7 +481,7 @@ export default function ListingsPage() {
       ) : (
         <div className="space-y-4">
           {/* Mobile View: High-Density Card List with Direct eBay Publish Action Bars */}
-          <div className="block sm:hidden divide-y divide-zinc-800/70 border border-zinc-800 rounded-xl bg-[#0E1118] overflow-hidden">
+          <div className="block sm:hidden divide-y divide-zinc-800 border border-zinc-800 rounded bg-zinc-900 overflow-hidden">
             {filteredListings.map((item) => {
               const isFastFlip = item.velocity.sellThroughRate > 90;
               const isTrap =
@@ -496,35 +496,35 @@ export default function ListingsPage() {
                         alt={item.product}
                         width={44}
                         height={44}
-                        className="h-11 w-11 rounded-lg object-cover border border-zinc-800 shrink-0 mt-0.5"
+                        className="h-11 w-11 rounded object-cover border border-zinc-800 shrink-0 mt-0.5"
                       />
                     ) : (
-                      <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-[#161922] border border-zinc-800 text-zinc-500 shrink-0 mt-0.5">
+                      <div className="flex h-11 w-11 items-center justify-center rounded bg-zinc-800 border border-zinc-700 text-zinc-500 shrink-0 mt-0.5">
                         <ImageIcon className="h-4 w-4" />
                       </div>
                     )}
 
                     <div className="min-w-0 flex-1">
-                      <p className="font-bold text-zinc-100 text-xs truncate font-sans">
+                      <p className="font-semibold text-zinc-100 text-xs truncate">
                         {item.product}
                       </p>
-                      <span className="font-mono text-[9px] text-zinc-500">
+                      <span className="text-[10px] text-zinc-500">
                         ID: {String(item.id || "").slice(0, 8)}
                       </span>
 
                       {/* Price & Profit Row */}
-                      <div className="flex items-center justify-between mt-1 font-mono text-[11px]">
+                      <div className="flex items-center justify-between mt-1 text-[11px] font-semibold">
                         <div className="text-zinc-400">
                           <span className="text-zinc-500">Cost:</span> {fmtMoney(item.calculatedCost)}
                           <span className="text-zinc-600 mx-1">→</span>
-                          <span className="text-zinc-200 font-bold">{fmtMoney(item.calculatedPrice)}</span>
+                          <span className="text-zinc-200">{fmtMoney(item.calculatedPrice)}</span>
                         </div>
                         <div
-                          className={`font-black tabular-nums ${
+                          className={`${
                             item.calculatedProfit > 0
-                              ? "text-[#22C55E]"
+                              ? "text-emerald-500"
                               : item.calculatedProfit < 0
-                              ? "text-[#DC2626]"
+                              ? "text-rose-500"
                               : "text-zinc-400"
                           }`}
                         >
@@ -537,15 +537,15 @@ export default function ListingsPage() {
                   </div>
 
                   {/* Velocity, Status Badge & Direct eBay Publish Action Bar */}
-                  <div className="flex items-center justify-between pt-2 border-t border-zinc-800/60 gap-2 flex-wrap">
-                    <div className="flex items-center gap-1.5 font-mono text-[10px]">
+                  <div className="flex items-center justify-between pt-2 border-t border-zinc-800 gap-2 flex-wrap">
+                    <div className="flex items-center gap-1.5 text-[10px] font-semibold">
                       <span
-                        className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded font-black border tabular-nums ${
+                        className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded border ${
                           isFastFlip
-                            ? "bg-[#22C55E]/15 text-[#22C55E] border-[#22C55E]/30"
+                            ? "bg-emerald-900/30 text-emerald-400 border-emerald-900/50"
                             : isTrap
-                            ? "bg-[#DC2626]/15 text-[#DC2626] border-[#DC2626]/30"
-                            : "bg-zinc-900 text-zinc-400 border-zinc-800"
+                            ? "bg-rose-900/30 text-rose-400 border-rose-900/50"
+                            : "bg-zinc-800 text-zinc-400 border-zinc-700"
                         }`}
                       >
                         {isFastFlip && "⚡"}
@@ -558,27 +558,27 @@ export default function ListingsPage() {
                     </div>
 
                     {/* Status Badge + Direct eBay Publish Action Button */}
-                    <div className="flex items-center gap-1.5 font-mono ml-auto">
+                    <div className="flex items-center gap-1.5 ml-auto">
                       <select
                         value={item.status}
                         onChange={(e) =>
                           updateListingStatus(item.id, e.target.value as any)
                         }
-                        className={`text-[10px] font-mono font-bold rounded px-1.5 py-1 border cursor-pointer transition focus:outline-none ${
+                        className={`text-[10px] font-semibold rounded px-1.5 py-1 border cursor-pointer transition focus:outline-none ${
                           item.status === "Sold"
-                            ? "bg-[#22C55E]/10 text-[#22C55E] border-[#22C55E]/30"
+                            ? "bg-emerald-900/20 text-emerald-500 border-emerald-900/40"
                             : item.status === "Draft"
-                            ? "bg-amber-500/10 text-amber-400 border-amber-500/30"
-                            : "bg-sky-500/10 text-sky-400 border-sky-500/30"
+                            ? "bg-amber-900/20 text-amber-500 border-amber-900/40"
+                            : "bg-sky-900/20 text-sky-500 border-sky-900/40"
                         }`}
                       >
-                        <option value="Draft" className="bg-[#090A0F] text-amber-400">
+                        <option value="Draft" className="bg-zinc-900 text-amber-500">
                           Draft
                         </option>
-                        <option value="Active" className="bg-[#090A0F] text-sky-400">
+                        <option value="Active" className="bg-zinc-900 text-sky-500">
                           Active
                         </option>
-                        <option value="Sold" className="bg-[#090A0F] text-[#22C55E]">
+                        <option value="Sold" className="bg-zinc-900 text-emerald-500">
                           Sold
                         </option>
                       </select>
@@ -587,10 +587,10 @@ export default function ListingsPage() {
                       <button
                         type="button"
                         onClick={() => setEbayPublishItem(item)}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-gradient-to-r from-[#F97316]/20 to-amber-500/20 hover:from-[#F97316]/35 hover:to-amber-500/35 text-[#F97316] hover:text-white border border-[#F97316]/40 text-[10px] font-mono font-bold transition shadow-xs cursor-pointer shrink-0"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 text-[10px] font-semibold transition cursor-pointer shrink-0"
                         title="Publish directly to eBay"
                       >
-                        <ShoppingBag className="w-3 h-3 text-[#F97316]" />
+                        <ShoppingBag className="w-3 h-3" />
                         <span>EBAY PUBLISH</span>
                       </button>
 
@@ -639,7 +639,7 @@ export default function ListingsPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
-                  <tr className="border-b border-zinc-800 bg-[#090A0F] font-mono text-[10px] text-zinc-400 uppercase tracking-wider">
+                  <tr className="border-b border-zinc-800 bg-zinc-900 text-xs text-zinc-400 font-semibold">
                     <th scope="col" className="py-2 px-3">
                       Product Item
                     </th>
@@ -667,7 +667,7 @@ export default function ListingsPage() {
                   </tr>
                 </thead>
 
-                <tbody className="divide-y divide-zinc-800/60 font-mono text-xs">
+                <tbody className="divide-y divide-zinc-800/60 text-xs">
                   {filteredListings.map((item) => {
                     const isFastFlip = item.velocity.sellThroughRate > 90;
                     const isTrap =
@@ -696,10 +696,10 @@ export default function ListingsPage() {
                               </div>
                             )}
                             <div className="min-w-0 max-w-[200px] sm:max-w-xs md:max-w-sm">
-                              <p className="font-bold text-zinc-100 text-xs truncate group-hover:text-[#F97316] transition">
+                              <p className="font-semibold text-zinc-100 text-xs truncate group-hover:text-[#F97316] transition">
                                 {item.product}
                               </p>
-                              <span className="font-mono text-[9px] text-zinc-500">
+                              <span className="text-[10px] text-zinc-500">
                                 ID: {String(item.id || "").slice(0, 8)}
                               </span>
                             </div>
@@ -707,22 +707,22 @@ export default function ListingsPage() {
                         </td>
 
                         {/* List Price (Tabular Monospace) */}
-                        <td className="py-2 px-3 text-right tabular-nums font-bold text-zinc-200 data-readout">
+                        <td className="py-2 px-3 text-right tabular-nums font-semibold text-zinc-200">
                           {fmtMoney(item.calculatedPrice)}
                         </td>
 
                         {/* Cost Basis (Tabular Monospace) */}
-                        <td className="py-2 px-3 text-right tabular-nums text-zinc-400 font-semibold data-readout">
+                        <td className="py-2 px-3 text-right tabular-nums text-zinc-400 font-semibold">
                           {fmtMoney(item.calculatedCost)}
                         </td>
 
                         {/* Estimated Profit (Tabular Monospace) */}
                         <td
-                          className={`py-2 px-3 text-right tabular-nums font-black data-readout ${
+                          className={`py-2 px-3 text-right tabular-nums font-semibold ${
                             item.calculatedProfit > 0
-                              ? "text-[#22C55E]"
+                              ? "text-emerald-500"
                               : item.calculatedProfit < 0
-                              ? "text-[#DC2626]"
+                              ? "text-rose-500"
                               : "text-zinc-400"
                           }`}
                         >
@@ -734,12 +734,12 @@ export default function ListingsPage() {
                         {/* Step 2: STR% Velocity (Strictly Color-Coded) */}
                         <td className="py-2 px-3 text-center">
                           <span
-                            className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-black border tabular-nums data-readout ${
+                            className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold border tabular-nums ${
                               isFastFlip
-                                ? "bg-[#22C55E]/15 text-[#22C55E] border-[#22C55E]/30"
+                                ? "bg-emerald-900/30 text-emerald-400 border-emerald-900/50"
                                 : isTrap
-                                ? "bg-[#DC2626]/15 text-[#DC2626] border-[#DC2626]/30"
-                                : "bg-zinc-900/80 text-zinc-400 border-zinc-800"
+                                ? "bg-rose-900/30 text-rose-400 border-rose-900/50"
+                                : "bg-zinc-800 text-zinc-400 border-zinc-700"
                             }`}
                           >
                             {isFastFlip && "⚡ "}
@@ -749,7 +749,7 @@ export default function ListingsPage() {
                         </td>
 
                         {/* Turn Days (Tabular Monospace) */}
-                        <td className="py-2 px-3 text-center text-[11px] tabular-nums font-semibold text-zinc-400 data-readout">
+                        <td className="py-2 px-3 text-center text-[11px] tabular-nums font-semibold text-zinc-400">
                           {item.velocity.estDaysToSell}
                         </td>
 
@@ -761,21 +761,21 @@ export default function ListingsPage() {
                               onChange={(e) =>
                                 updateListingStatus(item.id, e.target.value as any)
                               }
-                              className={`text-[10px] font-mono font-bold rounded px-1.5 py-0.5 border cursor-pointer transition focus:outline-none ${
+                              className={`text-[10px] font-semibold rounded px-1.5 py-0.5 border cursor-pointer transition focus:outline-none ${
                                 item.status === "Sold"
-                                  ? "bg-[#22C55E]/10 text-[#22C55E] border-[#22C55E]/30"
+                                  ? "bg-emerald-900/20 text-emerald-500 border-emerald-900/40"
                                   : item.status === "Draft"
-                                  ? "bg-amber-500/10 text-amber-400 border-amber-500/30"
-                                  : "bg-sky-500/10 text-sky-400 border-sky-500/30"
+                                  ? "bg-amber-900/20 text-amber-500 border-amber-900/40"
+                                  : "bg-sky-900/20 text-sky-500 border-sky-900/40"
                               }`}
                             >
-                              <option value="Draft" className="bg-[#090A0F] text-amber-400">
+                              <option value="Draft" className="bg-zinc-900 text-amber-500">
                                 Draft
                               </option>
-                              <option value="Active" className="bg-[#090A0F] text-sky-400">
+                              <option value="Active" className="bg-zinc-900 text-sky-500">
                                 Active
                               </option>
-                              <option value="Sold" className="bg-[#090A0F] text-[#22C55E]">
+                              <option value="Sold" className="bg-zinc-900 text-emerald-500">
                                 Sold
                               </option>
                             </select>
@@ -784,10 +784,10 @@ export default function ListingsPage() {
                             <button
                               type="button"
                               onClick={() => setEbayPublishItem(item)}
-                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-gradient-to-r from-[#F97316]/20 to-amber-500/20 hover:from-[#F97316]/35 hover:to-amber-500/35 text-[#F97316] hover:text-white border border-[#F97316]/40 text-[10px] font-mono font-bold transition shadow-xs cursor-pointer shrink-0"
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 text-[10px] font-semibold transition cursor-pointer shrink-0"
                               title="Publish directly to eBay"
                             >
-                              <ShoppingBag className="w-2.5 h-2.5 text-[#F97316]" />
+                              <ShoppingBag className="w-2.5 h-2.5" />
                               <span>EBAY</span>
                             </button>
                           </div>
@@ -795,7 +795,7 @@ export default function ListingsPage() {
 
                         {/* Actions */}
                         <td className="py-2 px-3 text-right">
-                          <div className="flex items-center justify-end gap-1 font-mono">
+                          <div className="flex items-center justify-end gap-1">
                             <EditListingDialog listing={item} onUpdated={loadListings} />
                             <ExportListingDialog listing={item} />
 

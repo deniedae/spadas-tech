@@ -5,33 +5,10 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabase";
 import { toast } from "sonner";
 import {
-  User,
-  Shield,
-  Sliders,
-  Volume2,
-  Download,
-  Smartphone,
   AlertCircle,
-  ShoppingBag,
-  CheckCircle2,
-  LinkIcon,
-  Unlink,
-  Zap,
-  ShieldCheck,
-  Layers,
-  ChevronDown,
-  ChevronUp,
-  Info,
   Loader2,
   X,
-  Sparkles,
   Crown,
-  LogOut,
-  Key,
-  Mail,
-  Settings,
-  DollarSign,
-  Check,
 } from "lucide-react";
 import SubscriptionPaywallModal from "@/components/subscription-paywall-modal";
 import { CURRENCY_CONFIGS, SupportedCurrency, detectGeoCurrency } from "@/app/lib/currency-routing";
@@ -40,11 +17,8 @@ interface UserMeta {
   email: string;
 }
 
-type TabKey = "profile" | "marketplaces" | "audio" | "mobile";
-
 export default function SettingsPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<TabKey>("profile");
   const [user, setUser] = useState<UserMeta | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -94,7 +68,6 @@ export default function SettingsPage() {
     }
   }, []);
 
-  // Check if user already has eBay connected
   useEffect(() => {
     async function checkEbayStatus() {
       const { data: { session } } = await supabase.auth.getSession();
@@ -348,633 +321,277 @@ export default function SettingsPage() {
     }
   }
 
-  const tabs = [
-    { id: "profile" as TabKey, label: "Profile & Access", icon: User },
-    { id: "marketplaces" as TabKey, label: "Marketplace Sync", icon: ShoppingBag, badge: ebayConnected ? "Active" : undefined },
-    { id: "audio" as TabKey, label: "Audio & Sourcing Priors", icon: Volume2 },
-    { id: "mobile" as TabKey, label: "Mobile APK & PWA", icon: Smartphone },
-  ];
-
   return (
-    <div className="space-y-6 max-w-5xl mx-auto pb-10">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/[0.08] pb-5">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight text-white">Settings</h1>
-          </div>
-          <p className="text-xs text-zinc-400 mt-1">
-            Reseller account configurations, audio thresholds, and marketplace sync.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2 shrink-0">
-          <div className="inline-flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-zinc-900/80 px-3 py-1.5 text-xs font-medium">
-            <span className="text-zinc-500">Plan:</span>
-            <span className={plan === "Pro" ? "text-cyan-400 font-bold" : "text-zinc-200"}>
-              {plan}
-            </span>
-          </div>
-          {plan !== "Pro" && (
-            <button
-              type="button"
-              onClick={() => setConfirmUpgrade(true)}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-white hover:bg-zinc-200 px-3 py-1.5 text-xs font-bold text-zinc-950 transition active:scale-95 cursor-pointer shadow-sm"
-            >
-              <span>Upgrade ($10/mo)</span>
-            </button>
-          )}
-        </div>
+    <div className="space-y-12 max-w-3xl mx-auto pb-12 pt-6">
+      <div className="mb-8">
+        <h1 className="text-2xl font-semibold text-white">Settings</h1>
+        <p className="text-zinc-400 mt-2">Manage your account, billing, notifications, and connections.</p>
       </div>
 
-      {/* Error Alert */}
       {error && (
-        <div
-          role="alert"
-          className="flex items-center justify-between rounded-xl border border-rose-500/30 bg-rose-500/10 p-3.5 text-xs font-medium text-rose-300 shadow-sm"
-        >
+        <div className="flex items-center justify-between rounded-md border border-rose-500 bg-rose-500/10 p-3 text-rose-400">
           <div className="flex items-center gap-2">
-            <AlertCircle className="h-4 w-4 text-rose-400 shrink-0" />
+            <AlertCircle className="h-4 w-4" />
             <span>{error}</span>
           </div>
-          <button
-            type="button"
-            onClick={() => setError(null)}
-            className="p-1 rounded hover:bg-rose-500/20 text-rose-300 transition"
-          >
-            <X className="h-3.5 w-3.5" />
+          <button onClick={() => setError(null)} className="p-1 hover:bg-rose-500/20 rounded">
+            <X className="h-4 w-4" />
           </button>
         </div>
       )}
 
-      {/* Segmented Tab Navigation - Eliminates page scrolling */}
-      <div className="flex items-center gap-1.5 p-1 rounded-xl bg-zinc-900/90 border border-white/[0.08] overflow-x-auto no-scrollbar">
-        {tabs.map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
+      {/* Account Section */}
+      <section>
+        <h2 className="text-lg font-semibold text-white mb-4">Account</h2>
+        <div className="space-y-6">
+          <div className="space-y-1">
+            <label className="text-zinc-300 block">Email</label>
+            <div className="text-white bg-zinc-900 rounded p-2 border border-zinc-800">
+              {loading ? "Loading..." : user?.email ?? "—"}
+            </div>
+          </div>
+          
+          <div className="flex gap-4">
             <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium transition-all shrink-0 cursor-pointer ${
-                isActive
-                  ? "bg-white text-zinc-950 font-bold shadow-sm"
-                  : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"
-              }`}
+              onClick={resetPassword}
+              disabled={resettingPassword}
+              className="bg-zinc-800 text-white hover:bg-zinc-700 px-4 py-2 rounded transition disabled:opacity-50"
             >
-              <Icon className={`w-3.5 h-3.5 ${isActive ? "text-zinc-950" : "text-zinc-400"}`} />
-              <span>{tab.label}</span>
-              {tab.badge && (
-                <span
-                  className={`ml-1 text-[10px] px-1.5 py-0.5 rounded font-medium ${
-                    isActive
-                      ? "bg-zinc-200 text-zinc-900"
-                      : "bg-zinc-800 text-zinc-300"
-                  }`}
-                >
-                  {tab.badge}
-                </span>
-              )}
+              {resettingPassword ? "Sending..." : "Reset password"}
             </button>
-          );
-        })}
-      </div>
+            <button
+              onClick={() => setConfirmLogout(true)}
+              disabled={loggingOut}
+              className="bg-zinc-800 text-white hover:bg-zinc-700 px-4 py-2 rounded transition disabled:opacity-50"
+            >
+              {loggingOut ? "Logging out..." : "Log out"}
+            </button>
+          </div>
 
-      {/* TAB CONTENT AREA */}
-      <div className="transition-all duration-150">
-        {/* TAB 1: Profile & Access */}
-        {activeTab === "profile" && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* User Identity & Status */}
-            <div className="rounded-2xl border border-white/[0.08] bg-[#0A0D15]/80 p-5 space-y-4 shadow-xl backdrop-blur-md">
-              <div className="flex items-center gap-2.5 text-zinc-200 text-sm font-semibold">
-                <User className="w-4 h-4 text-zinc-400" />
-                <span>Account Identity</span>
-              </div>
-
-              <div className="space-y-3 pt-1">
-                <div>
-                  <span className="text-xs font-medium text-zinc-500 block">Email Address</span>
-                  {loading ? (
-                    <div className="h-5 w-48 animate-pulse rounded bg-zinc-800 mt-1" />
-                  ) : (
-                    <span className="text-sm font-semibold text-white mt-0.5 block">{user?.email ?? "—"}</span>
-                  )}
-                </div>
-
-                <div className="flex items-center justify-between pt-2 border-t border-white/[0.05]">
-                  <div>
-                    <span className="text-xs font-medium text-zinc-500 block">Status</span>
-                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-400 mt-0.5">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                      Authenticated
-                    </span>
-                  </div>
-
-                  <div>
-                    <span className="text-xs font-medium text-zinc-500 block text-right">Plan</span>
-                    <span className="text-xs font-semibold text-zinc-200 mt-0.5 block text-right">
-                      {plan}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="pt-2 border-t border-white/[0.05] flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={resetPassword}
-                  disabled={resettingPassword}
-                  className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl border border-white/[0.08] bg-zinc-900 hover:bg-zinc-800/80 px-3 py-2 text-xs font-semibold text-zinc-200 transition cursor-pointer disabled:opacity-50"
+          <div className="pt-4">
+            <h3 className="font-semibold text-white mb-4">Sourcing Preferences</h3>
+            
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-zinc-300 block">Operating currency</label>
+                <select
+                  value={defaultCurrency}
+                  onChange={(e) => handleUpdateCurrency(e.target.value)}
+                  className="w-full sm:w-1/2 rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white focus:outline-none focus:border-zinc-600"
                 >
-                  {resettingPassword ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Key className="w-3.5 h-3.5 text-zinc-400" />}
-                  <span>Reset Password</span>
-                </button>
+                  <option value="AUD">AUD (Australian Dollar)</option>
+                  <option value="USD">USD (US Dollar)</option>
+                  <option value="EUR">EUR (Euro)</option>
+                  <option value="GBP">GBP (British Pound)</option>
+                </select>
+              </div>
 
-                <button
-                  type="button"
-                  onClick={() => setConfirmLogout(true)}
-                  disabled={loggingOut}
-                  className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-rose-500/20 bg-rose-500/10 hover:bg-rose-500/20 px-3 py-2 text-xs font-semibold text-rose-400 transition cursor-pointer disabled:opacity-50"
+              <div className="space-y-1">
+                <label className="text-zinc-300 block">Primary marketplace</label>
+                <select
+                  value={defaultMarketplace}
+                  onChange={(e) => handleUpdateMarketplace(e.target.value)}
+                  className="w-full sm:w-1/2 rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white focus:outline-none focus:border-zinc-600"
                 >
-                  {loggingOut ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <LogOut className="w-3.5 h-3.5" />}
-                  <span>Log Out</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Sourcing App Defaults */}
-            <div className="rounded-2xl border border-white/[0.08] bg-[#0A0D15]/80 p-5 space-y-4 shadow-xl backdrop-blur-md">
-              <div className="flex items-center gap-2.5 text-zinc-200 text-sm font-semibold">
-                <Settings className="w-4 h-4 text-zinc-400" />
-                <span>Sourcing Defaults</span>
+                  <option value="eBay">eBay Australia / Global</option>
+                  <option value="Facebook Marketplace">Facebook Marketplace</option>
+                  <option value="Depop">Depop</option>
+                </select>
               </div>
 
-              <div className="space-y-3 pt-1">
-                <div>
-                  <label className="text-xs font-medium text-zinc-500 block mb-1.5">
-                    Operating Currency
-                  </label>
-                  <select
-                    value={defaultCurrency}
-                    onChange={(e) => handleUpdateCurrency(e.target.value)}
-                    className="w-full rounded-xl border border-white/[0.08] bg-zinc-900/90 px-3 py-2 text-sm text-white focus:outline-none focus:border-white/20 cursor-pointer"
-                  >
-                    <option value="AUD">AUD (Australian Dollar $)</option>
-                    <option value="USD">USD (US Dollar $)</option>
-                    <option value="EUR">EUR (Euro €)</option>
-                    <option value="GBP">GBP (British Pound £)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-xs font-medium text-zinc-500 block mb-1.5">
-                    Primary Sourcing Marketplace
-                  </label>
-                  <select
-                    value={defaultMarketplace}
-                    onChange={(e) => handleUpdateMarketplace(e.target.value)}
-                    className="w-full rounded-xl border border-white/[0.08] bg-zinc-900/90 px-3 py-2 text-sm text-white focus:outline-none focus:border-white/20 cursor-pointer"
-                  >
-                    <option value="eBay">eBay Australia / Global</option>
-                    <option value="Facebook Marketplace">Facebook Marketplace</option>
-                    <option value="Depop">Depop</option>
-                  </select>
-                </div>
-
-                <div className="pt-2 border-t border-white/[0.05] flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <span className="text-xs font-semibold text-zinc-200 block">Automated AI Descriptions</span>
-                    <span className="text-[11px] text-zinc-500 block">Populate SEO bullet specifics upon intake</span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={autoAiDescriptions}
-                    onChange={(e) => handleUpdateAutoAi(e.target.checked)}
-                    className="h-4 w-4 accent-cyan-400 rounded cursor-pointer"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Support Link Card */}
-            <div className="md:col-span-2 rounded-2xl border border-white/[0.08] bg-[#0A0D15]/80 p-4 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xl backdrop-blur-md">
-              <div className="flex items-center gap-3">
-                <Mail className="w-4 h-4 text-zinc-400 shrink-0" />
-                <span className="text-xs text-zinc-400">
-                  Direct engineering contact for bug reports or custom telemetry integrations:
-                </span>
-              </div>
-              <a
-                href="mailto:deniedae@gmail.com?subject=Spadas%20Lens%20Feedback"
-                className="inline-flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-zinc-900 hover:bg-zinc-800 px-3 py-1.5 text-xs font-semibold text-zinc-200 transition shrink-0"
-              >
-                <span>Contact Engineering</span>
-              </a>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 2: Marketplace Sync */}
-        {activeTab === "marketplaces" && (
-          <div className="space-y-4">
-            <div className="rounded-2xl border border-white/[0.08] bg-[#0A0D15]/80 p-6 shadow-xl backdrop-blur-md space-y-5">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-white/[0.08] pb-5">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-xl bg-zinc-900 border border-white/[0.08] flex items-center justify-center shrink-0">
-                    <ShoppingBag className="w-5 h-5 text-cyan-400" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h2 className="text-base font-bold text-white">eBay Seller Hub</h2>
-                      {ebayConnected ? (
-                        <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/10 text-emerald-400 px-2 py-0.5 text-xs font-medium">
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          Linked
-                        </span>
-                      ) : (
-                        <span className="rounded-md bg-zinc-800 text-zinc-400 px-2 py-0.5 text-xs font-medium">
-                          Not linked
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs text-zinc-400 mt-0.5">
-                      1-click publish and draft sync directly from Spadas Lens AR scanner into your eBay account.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
-                  <button
-                    type="button"
-                    onClick={connectEbay}
-                    disabled={ebayConnecting || ebayDisconnecting}
-                    className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition active:scale-95 cursor-pointer disabled:opacity-50 ${
-                      ebayConnected
-                        ? "border border-white/[0.08] bg-zinc-900 text-zinc-200 hover:bg-zinc-800"
-                        : "bg-white text-zinc-950 font-bold hover:bg-zinc-200 shadow-sm"
-                    }`}
-                  >
-                    {ebayConnecting ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : ebayConnected || ebayHasDisconnected ? (
-                      <>
-                        <LinkIcon className="w-3.5 h-3.5" />
-                        <span>Reconnect eBay</span>
-                      </>
-                    ) : (
-                      <>
-                        <ShoppingBag className="w-3.5 h-3.5" />
-                        <span>Connect eBay Account</span>
-                      </>
-                    )}
-                  </button>
-
-                  {ebayConnected && (
-                    <button
-                      type="button"
-                      onClick={() => setConfirmDisconnectEbay(true)}
-                      disabled={ebayConnecting || ebayDisconnecting}
-                      className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-rose-500/20 bg-rose-500/10 hover:bg-rose-500/20 px-3 py-2 text-xs font-semibold text-rose-400 transition cursor-pointer disabled:opacity-50"
-                    >
-                      {ebayDisconnecting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Unlink className="w-3.5 h-3.5" />}
-                      <span>Disconnect</span>
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Technical Telemetry Specs */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="p-3.5 rounded-xl bg-zinc-900/60 border border-white/[0.05] space-y-1">
-                  <span className="text-xs font-medium text-zinc-500 block">OAuth Scope</span>
-                  <span className="text-sm font-semibold text-zinc-200 block">sell.inventory, sell.fulfillment</span>
-                </div>
-                <div className="p-3.5 rounded-xl bg-zinc-900/60 border border-white/[0.05] space-y-1">
-                  <span className="text-xs font-medium text-zinc-500 block">Token Refresh</span>
-                  <span className="text-sm font-semibold text-zinc-200 block">Automated</span>
-                </div>
-                <div className="p-3.5 rounded-xl bg-zinc-900/60 border border-white/[0.05] space-y-1">
-                  <span className="text-xs font-medium text-zinc-500 block">Publish Speed</span>
-                  <span className="text-sm font-semibold text-zinc-200 block">~500ms</span>
-                </div>
+              <div className="flex items-center gap-3 pt-2">
+                <input
+                  type="checkbox"
+                  id="autoAi"
+                  checked={autoAiDescriptions}
+                  onChange={(e) => handleUpdateAutoAi(e.target.checked)}
+                  className="h-4 w-4 rounded bg-zinc-900 border border-zinc-800"
+                />
+                <label htmlFor="autoAi" className="text-zinc-300 select-none cursor-pointer">
+                  Generate automated AI descriptions for new items
+                </label>
               </div>
             </div>
           </div>
-        )}
+        </div>
+      </section>
 
-        {/* TAB 3: Lens Audio & Priors */}
-        {activeTab === "audio" && (
-          <div className="space-y-4">
-            <div className="rounded-2xl border border-white/[0.08] bg-[#0A0D15]/80 p-6 shadow-xl backdrop-blur-md space-y-6">
-              <div className="border-b border-white/[0.08] pb-4">
-                <div className="flex items-center gap-2">
-                  <Volume2 className="w-4 h-4 text-emerald-400" />
-                  <h2 className="text-base font-bold text-white">Lens AR Audio Chime Hurdle Rates</h2>
-                </div>
-                <p className="text-xs text-zinc-400 mt-1">
-                  Configure real-time audio chime triggers when scanning items in the field. Synthesized audio only rings when both hurdle rates are satisfied.
-                </p>
-              </div>
+      <hr className="border-zinc-800" />
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                {/* Min Profit Slider */}
-                <div className="rounded-xl border border-white/[0.05] bg-zinc-900/60 p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-zinc-200">Minimum Net Profit</span>
-                    <span className="text-sm font-bold text-zinc-100">
-                      {CURRENCY_CONFIGS[defaultCurrency]?.symbol || "$"}{minProfit} {defaultCurrency}
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min="5"
-                    max="100"
-                    step="5"
-                    value={minProfit}
-                    onChange={(e) => handleUpdateMinProfit(Number(e.target.value))}
-                    className="w-full accent-emerald-400 h-1.5 bg-zinc-800 rounded-lg cursor-pointer"
-                  />
-                  <div className="flex items-center justify-between text-[10px] font-mono text-zinc-500">
-                    <span>{CURRENCY_CONFIGS[defaultCurrency]?.symbol || "$"}5</span>
-                    <span>{CURRENCY_CONFIGS[defaultCurrency]?.symbol || "$"}50</span>
-                    <span>{CURRENCY_CONFIGS[defaultCurrency]?.symbol || "$"}100</span>
-                  </div>
-
-                  <div className="flex items-center gap-1.5 pt-1">
-                    <span className="text-[10px] text-zinc-500 font-mono">Quick set:</span>
-                    {[15, 25, 40, 50].map((val) => (
-                      <button
-                        key={val}
-                        type="button"
-                        onClick={() => handleUpdateMinProfit(val)}
-                        className={`px-2 py-0.5 rounded text-[10px] font-mono font-semibold transition cursor-pointer ${
-                          minProfit === val
-                            ? "bg-emerald-500 text-slate-950"
-                            : "bg-zinc-800 text-zinc-400 hover:text-zinc-200"
-                        }`}
-                      >
-                        ${val}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Min ROI % Slider */}
-                <div className="rounded-xl border border-white/[0.05] bg-zinc-900/60 p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-zinc-200">Minimum ROI</span>
-                    <span className="text-sm font-bold text-zinc-100">
-                      {minRoi}%
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min="0"
-                    max="300"
-                    step="25"
-                    value={minRoi}
-                    onChange={(e) => handleUpdateMinRoi(Number(e.target.value))}
-                    className="w-full accent-cyan-400 h-1.5 bg-zinc-800 rounded-lg cursor-pointer"
-                  />
-                  <div className="flex items-center justify-between text-[10px] font-mono text-zinc-500">
-                    <span>0% (All Profitable)</span>
-                    <span>100%</span>
-                    <span>300%</span>
-                  </div>
-
-                  <div className="flex items-center gap-1.5 pt-1">
-                    <span className="text-[10px] text-zinc-500 font-mono">Quick set:</span>
-                    {[0, 50, 100, 150].map((val) => (
-                      <button
-                        key={val}
-                        type="button"
-                        onClick={() => handleUpdateMinRoi(val)}
-                        className={`px-2 py-0.5 rounded text-[10px] font-mono font-semibold transition cursor-pointer ${
-                          minRoi === val
-                            ? "bg-cyan-500 text-slate-950"
-                            : "bg-zinc-800 text-zinc-400 hover:text-zinc-200"
-                        }`}
-                      >
-                        {val}%
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 4: Mobile APK & PWA */}
-        {activeTab === "mobile" && (
-          <div className="space-y-4">
-            <div className="rounded-2xl border border-white/[0.08] bg-[#0A0D15]/80 p-6 shadow-xl backdrop-blur-md space-y-5">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-white/[0.08] pb-5">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <Smartphone className="w-4 h-4 text-zinc-400" />
-                    <h2 className="text-base font-bold text-white">Spadas Lens Mobile App</h2>
-                  </div>
-                  <p className="text-xs text-zinc-400 mt-1">
-                    Lightweight Android app or PWA for mobile scanning.
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-2.5 w-full sm:w-auto shrink-0">
-                  <a
-                    href="/spadas-ai.apk"
-                    download="spadas-ai.apk"
-                    className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 rounded-xl bg-white text-zinc-950 px-4 py-2 text-xs font-bold hover:bg-zinc-200 transition active:scale-95 cursor-pointer shadow-sm"
-                  >
-                    <Download className="w-3.5 h-3.5 text-zinc-950" />
-                    <span>Download .APK (Direct)</span>
-                  </a>
-
-                  <button
-                    type="button"
-                    onClick={handleInstallApp}
-                    className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-white/[0.08] bg-zinc-900 hover:bg-zinc-800 px-3.5 py-2 text-xs font-semibold text-zinc-200 transition active:scale-95 cursor-pointer"
-                  >
-                    <Smartphone className="w-3.5 h-3.5 text-cyan-400" />
-                    <span>Install PWA</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Hardware Specs Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="p-3 rounded-xl bg-zinc-900/60 border border-white/[0.05] space-y-0.5">
-                  <div className="flex items-center gap-1.5 text-cyan-400 text-xs font-semibold">
-                    <Zap className="w-3.5 h-3.5" />
-                    <span>60 FPS Vision</span>
-                  </div>
-                  <p className="text-[11px] text-zinc-500">Sub-100ms optical comps</p>
-                </div>
-
-                <div className="p-3 rounded-xl bg-zinc-900/60 border border-white/[0.05] space-y-0.5">
-                  <div className="flex items-center gap-1.5 text-emerald-400 text-xs font-semibold">
-                    <Layers className="w-3.5 h-3.5" />
-                    <span>Home Widget</span>
-                  </div>
-                  <p className="text-[11px] text-zinc-500">Live profit & draft count</p>
-                </div>
-
-                <div className="p-3 rounded-xl bg-zinc-900/60 border border-white/[0.05] space-y-0.5">
-                  <div className="flex items-center gap-1.5 text-amber-400 text-xs font-semibold">
-                    <Sliders className="w-3.5 h-3.5" />
-                    <span>Quick Tile</span>
-                  </div>
-                  <p className="text-[11px] text-zinc-500">Android notification toggle</p>
-                </div>
-
-                <div className="p-3 rounded-xl bg-zinc-900/60 border border-white/[0.05] space-y-0.5">
-                  <div className="flex items-center gap-1.5 text-indigo-400 text-xs font-semibold">
-                    <ShieldCheck className="w-3.5 h-3.5" />
-                    <span>Cloud Sync</span>
-                  </div>
-                  <p className="text-[11px] text-zinc-500">Seamless zero-bloat updates</p>
-                </div>
-              </div>
-
-              {/* Collapsible 30-second guide */}
-              <div className="rounded-xl border border-white/[0.05] bg-zinc-900/40 p-3.5 space-y-2">
-                <button
-                  type="button"
-                  onClick={() => setShowApkGuide(!showApkGuide)}
-                  className="w-full flex items-center justify-between text-xs font-semibold text-zinc-300 hover:text-white transition cursor-pointer"
-                >
-                  <div className="flex items-center gap-2">
-                    <Info className="w-3.5 h-3.5 text-cyan-400" />
-                    <span>Need help installing the Android APK? (30-second guide)</span>
-                  </div>
-                  {showApkGuide ? <ChevronUp className="w-3.5 h-3.5 text-zinc-400" /> : <ChevronDown className="w-3.5 h-3.5 text-zinc-400" />}
-                </button>
-
-                {showApkGuide && (
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-white/[0.05] text-xs">
-                    <div className="space-y-0.5">
-                      <span className="font-bold text-white block">1. Download</span>
-                      <p className="text-[11px] text-zinc-400">Download the ~982 KB APK directly to your phone.</p>
-                    </div>
-                    <div className="space-y-0.5">
-                      <span className="font-bold text-white block">2. Open</span>
-                      <p className="text-[11px] text-zinc-400">Tap notification or open spadas-ai.apk in Downloads.</p>
-                    </div>
-                    <div className="space-y-0.5">
-                      <span className="font-bold text-white block">3. Launch</span>
-                      <p className="text-[11px] text-zinc-400">Tap Install. If prompted, toggle &apos;Allow from this source&apos;.</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Upgrade Modal */}
-      {confirmUpgrade && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4">
-          <div className="bg-zinc-900 border border-white/[0.08] rounded-2xl p-6 shadow-2xl max-w-sm w-full text-center space-y-4">
-            <div className="h-10 w-10 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400 mx-auto flex items-center justify-center">
-              <Crown className="h-5 w-5" />
-            </div>
+      {/* Billing Section */}
+      <section>
+        <h2 className="text-lg font-semibold text-white mb-4">Billing</h2>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between bg-zinc-900 p-4 rounded border border-zinc-800">
             <div>
-              <h3 className="text-lg font-bold text-white">Upgrade to Spadas Pro</h3>
-              <p className="text-xs text-zinc-400 mt-1">
-                Unlock unlimited 60 FPS AR optical scans, bulk haul lot calculators, and automated 1-click cross-listing for $10 AUD/mo.
-              </p>
+              <p className="text-zinc-300">Current plan</p>
+              <p className="text-lg font-semibold text-white mt-1">{plan}</p>
             </div>
-            <div className="flex justify-center gap-2.5 pt-2">
+            {plan !== "Pro" && (
               <button
-                type="button"
+                onClick={() => setConfirmUpgrade(true)}
+                className="bg-cyan-500 hover:bg-cyan-600 text-white font-semibold px-4 py-2 rounded transition"
+              >
+                Upgrade to Pro
+              </button>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <hr className="border-zinc-800" />
+
+      {/* Notifications Section */}
+      <section>
+        <h2 className="text-lg font-semibold text-white mb-4">Notifications</h2>
+        <p className="text-zinc-400 mb-6">Configure audio chime thresholds for live scanning. Sound plays when both targets are met.</p>
+        
+        <div className="space-y-8">
+          <div className="space-y-2">
+            <div className="flex justify-between text-zinc-300">
+              <label>Minimum net profit</label>
+              <span>{CURRENCY_CONFIGS[defaultCurrency]?.symbol || "$"}{minProfit}</span>
+            </div>
+            <input
+              type="range"
+              min="5"
+              max="100"
+              step="5"
+              value={minProfit}
+              onChange={(e) => handleUpdateMinProfit(Number(e.target.value))}
+              className="w-full accent-cyan-500 h-2 bg-zinc-800 rounded appearance-none"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex justify-between text-zinc-300">
+              <label>Minimum ROI</label>
+              <span>{minRoi}%</span>
+            </div>
+            <input
+              type="range"
+              min="0"
+              max="300"
+              step="25"
+              value={minRoi}
+              onChange={(e) => handleUpdateMinRoi(Number(e.target.value))}
+              className="w-full accent-cyan-500 h-2 bg-zinc-800 rounded appearance-none"
+            />
+          </div>
+        </div>
+      </section>
+
+      <hr className="border-zinc-800" />
+
+      {/* Connected Accounts Section */}
+      <section>
+        <h2 className="text-lg font-semibold text-white mb-4">Connected Accounts</h2>
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-zinc-900 p-4 rounded border border-zinc-800">
+            <div>
+              <p className="font-semibold text-white">eBay Seller Hub</p>
+              <p className="text-zinc-400 mt-1">Publish listings directly to eBay from the scanner.</p>
+              <p className="text-zinc-500 text-sm mt-1">Status: {ebayConnected ? "Connected" : "Not connected"}</p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={connectEbay}
+                disabled={ebayConnecting || ebayDisconnecting}
+                className="bg-cyan-500 hover:bg-cyan-600 text-white px-4 py-2 rounded font-semibold transition disabled:opacity-50"
+              >
+                {ebayConnecting ? "Connecting..." : ebayConnected || ebayHasDisconnected ? "Reconnect" : "Connect"}
+              </button>
+              {ebayConnected && (
+                <button
+                  onClick={() => setConfirmDisconnectEbay(true)}
+                  disabled={ebayConnecting || ebayDisconnecting}
+                  className="bg-zinc-800 hover:bg-rose-500/20 text-rose-400 hover:text-rose-500 px-4 py-2 rounded transition disabled:opacity-50"
+                >
+                  Disconnect
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Modals */}
+      {confirmUpgrade && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded p-6 max-w-sm w-full">
+            <h3 className="text-lg font-semibold text-white mb-2">Upgrade to Pro</h3>
+            <p className="text-zinc-400 mb-6">Unlock unlimited scans and automated listings for $10/mo.</p>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setConfirmUpgrade(false)}
+                className="bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-2 rounded"
+              >
+                Cancel
+              </button>
+              <button
                 onClick={() => {
                   setConfirmUpgrade(false);
                   void upgradeToPro();
                 }}
-                className="flex-1 rounded-xl bg-amber-500 hover:bg-amber-400 px-4 py-2.5 text-xs font-black text-slate-950 transition cursor-pointer"
+                className="bg-cyan-500 hover:bg-cyan-600 text-white font-semibold px-4 py-2 rounded"
               >
                 Confirm ($10/mo)
-              </button>
-              <button
-                type="button"
-                onClick={() => setConfirmUpgrade(false)}
-                className="rounded-xl border border-white/[0.08] bg-zinc-800/80 px-4 py-2.5 text-xs font-medium text-zinc-300 hover:bg-zinc-800 transition cursor-pointer"
-              >
-                Cancel
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Logout Confirmation Modal */}
       {confirmLogout && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4">
-          <div className="bg-zinc-900 border border-white/[0.08] rounded-2xl p-6 shadow-2xl max-w-sm w-full text-center space-y-4">
-            <h3 className="text-lg font-bold text-white">Confirm Sign Out?</h3>
-            <p className="text-xs text-zinc-400">
-              You will need to sign back in to access live scanning and portfolio metrics.
-            </p>
-            <div className="flex justify-center gap-2.5 pt-2">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded p-6 max-w-sm w-full">
+            <h3 className="text-lg font-semibold text-white mb-2">Log out</h3>
+            <p className="text-zinc-400 mb-6">Are you sure you want to log out?</p>
+            <div className="flex justify-end gap-2">
               <button
-                type="button"
+                onClick={() => setConfirmLogout(false)}
+                className="bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-2 rounded"
+              >
+                Cancel
+              </button>
+              <button
                 onClick={() => {
                   setConfirmLogout(false);
                   void logout();
                 }}
-                className="flex-1 rounded-xl bg-rose-600 hover:bg-rose-500 px-4 py-2.5 text-xs font-bold text-white transition cursor-pointer"
+                className="bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 rounded"
               >
-                Sign Out
-              </button>
-              <button
-                type="button"
-                onClick={() => setConfirmLogout(false)}
-                className="rounded-xl border border-white/[0.08] bg-zinc-800/80 px-4 py-2.5 text-xs font-medium text-zinc-300 hover:bg-zinc-800 transition cursor-pointer"
-              >
-                Cancel
+                Log out
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Disconnect eBay Confirmation Modal */}
       {confirmDisconnectEbay && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4">
-          <div className="bg-zinc-900 border border-white/[0.08] rounded-2xl p-6 shadow-2xl max-w-sm w-full text-center space-y-4">
-            <div className="h-10 w-10 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-400 mx-auto flex items-center justify-center">
-              <AlertCircle className="h-5 w-5" />
-            </div>
-            <h3 className="text-lg font-bold text-white">Disconnect eBay?</h3>
-            <p className="text-xs text-zinc-400">
-              This will unlink your eBay seller credentials. You can reconnect anytime.
-            </p>
-            <div className="flex justify-center gap-2.5 pt-2">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded p-6 max-w-sm w-full">
+            <h3 className="text-lg font-semibold text-white mb-2">Disconnect eBay</h3>
+            <p className="text-zinc-400 mb-6">This will unlink your seller account. You can reconnect anytime.</p>
+            <div className="flex justify-end gap-2">
               <button
-                type="button"
+                onClick={() => setConfirmDisconnectEbay(false)}
+                className="bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-2 rounded"
+              >
+                Cancel
+              </button>
+              <button
                 onClick={handleDisconnectEbay}
                 disabled={ebayDisconnecting}
-                className="flex-1 rounded-xl bg-rose-600 hover:bg-rose-500 px-4 py-2.5 text-xs font-bold text-white transition cursor-pointer disabled:opacity-50"
+                className="bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 rounded disabled:opacity-50"
               >
-                {ebayDisconnecting ? <Loader2 className="w-3.5 h-3.5 animate-spin mx-auto" /> : "Disconnect"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setConfirmDisconnectEbay(false)}
-                disabled={ebayDisconnecting}
-                className="rounded-xl border border-white/[0.08] bg-zinc-800/80 px-4 py-2.5 text-xs font-medium text-zinc-300 hover:bg-zinc-800 transition cursor-pointer"
-              >
-                Cancel
+                {ebayDisconnecting ? "Disconnecting..." : "Disconnect"}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Subscription Paywall Modal */}
       <SubscriptionPaywallModal isOpen={isPaywallOpen} onClose={() => setIsPaywallOpen(false)} />
     </div>
   );

@@ -8,21 +8,19 @@ import { Skeleton } from "@/components/ui/skeleton";
  * ── 1. ShimmerLineSkeleton ────────────────────────────────────────────────────────
  * Wraps any component or skeleton container with a subtle shimmer effect.
  */
-export function LaserLineSkeleton({
+export function ShimmerLineSkeleton({
   children,
   className = "",
 }: {
   children?: React.ReactNode;
   className?: string;
   direction?: "vertical" | "horizontal";
-  laserColor?: "cyan" | "emerald" | "amber" | "purple";
   showGlow?: boolean;
 }) {
-  // Retaining the component name for backward compatibility but changing its behavior
   return (
     <div className={`relative overflow-hidden ${className}`}>
       {children}
-      <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/[0.04] to-transparent pointer-events-none" />
+      <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-white/[0.04] pointer-events-none" />
     </div>
   );
 }
@@ -176,7 +174,7 @@ export function CompsCardSkeleton({
     <div
       className={`w-full rounded-2xl bg-zinc-950 border border-white/[0.08] p-4 space-y-3.5 shadow-sm overflow-hidden relative ${className}`}
     >
-      <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/[0.04] to-transparent pointer-events-none" />
+      <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-white/[0.04] pointer-events-none" />
       
       {showTitle && (
         <div className="flex items-center justify-between gap-2 border-b border-white/[0.06] pb-2.5">
@@ -201,10 +199,10 @@ export function CompsCardSkeleton({
 }
 
 /**
- * ── 5. CompsMiniLaserPill ───────────────────────────────────────────────────────
+ * ── 5. CompsMiniStatusPill ───────────────────────────────────────────────────────
  * Sleek micro-indicator for compact rows & drawers.
  */
-export function CompsMiniLaserPill({
+export function CompsMiniStatusPill({
   label = "Querying...",
   className = "",
 }: {

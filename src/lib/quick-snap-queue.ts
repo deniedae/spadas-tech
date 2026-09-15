@@ -11,6 +11,7 @@ import {
 import { resilientFetch } from "@/app/lib/resilient-fetch";
 import { supabase } from "@/app/lib/supabase";
 import { appraiseItemLocally } from "@/app/lib/offline/offline-engine";
+import { toast } from "sonner";
 
 interface QueueTask {
   id: string;
@@ -81,9 +82,9 @@ class QuickSnapQueueService {
       brand: metadata?.brand || "Analyzing...",
       category: metadata?.category || "General",
       condition: metadata?.condition || "Used - Good",
-      estimatedValue: metadata?.estimatedValue || 35,
-      thriftCost: metadata?.thriftCost || 5,
-      trueNetProfit: metadata?.trueNetProfit || 25,
+      estimatedValue: metadata?.estimatedValue || 0,
+      thriftCost: metadata?.thriftCost || 0,
+      trueNetProfit: metadata?.trueNetProfit || 0,
       copVerdict: metadata?.copVerdict || "VERIFY_FIRST",
       isGrail: Boolean(metadata?.isGrail),
       ...metadata,
@@ -98,6 +99,11 @@ class QuickSnapQueueService {
       });
       this.queue.push({ id, photoId, blob: blobOrPromise, currency });
       this.notify();
+      const count = this.cachedSnapshot.pendingCount;
+      toast(`Saved offline — ${count} ${count === 1 ? "item" : "items"} waiting`, {
+        id: "offline-queue-toast",
+        duration: 2000,
+      });
       void this.processQueue();
     } else {
       Promise.resolve(blobOrPromise)
@@ -108,6 +114,11 @@ class QuickSnapQueueService {
           });
           this.queue.push({ id, photoId, blob, currency });
           this.notify();
+          const count = this.cachedSnapshot.pendingCount;
+          toast(`Saved offline — ${count} ${count === 1 ? "item" : "items"} waiting`, {
+            id: "offline-queue-toast",
+            duration: 2000,
+          });
           void this.processQueue();
         })
         .catch((err) => {

@@ -153,19 +153,18 @@ export function loadRapidSession(): RapidThriftItem[] {
     const cleaned = parsed.map((item: any) => {
       if (item.status === "queued" || item.status === "analyzing") {
         hasRepaired = true;
-        const val = item.estimatedValue || 35;
-        const cost = item.thriftCost || 5;
-        const fee = val * 0.134 + 0.33;
-        const profit = Math.max(0, Math.round((val - cost - fee) * 100) / 100);
+        const val = item.estimatedValue || 0;
+        const cost = item.thriftCost || 0;
+        const profit = item.trueNetProfit || 0;
         return {
           ...item,
           status: "completed" as const,
-          productName: (item.productName && item.productName !== "Scanned Sourcing Item") ? item.productName : "Sourced Thrift Item",
-          brand: item.brand || "Authentic",
+          productName: (item.productName && item.productName !== "Scanned Sourcing Item") ? item.productName : "Unresolved Thrift Item",
+          brand: item.brand || "Unbranded",
           category: item.category || "General",
           estimatedValue: val,
           thriftCost: cost,
-          trueNetProfit: item.trueNetProfit ?? profit,
+          trueNetProfit: profit,
           copVerdict: item.copVerdict || (profit >= 15 ? "MUST_COP" : "QUICK_FLIP"),
         };
       }

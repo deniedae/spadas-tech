@@ -23,7 +23,7 @@ import EbayListingModal from "@/components/ebay-listing-modal";
 import SubscriptionPaywallModal from "@/components/subscription-paywall-modal";
 import { supabase } from "@/app/lib/supabase";
 import { triggerTactileHaptic } from "@/lib/android-bridge";
-import { cleanBrandText, cleanConditionText } from "@/lib/lens-utils";
+import { cleanBrandText, cleanConditionText, cleanCategoryText } from "@/lib/lens-utils";
 
 interface ScanRecord {
   id: string;
@@ -54,11 +54,46 @@ export function HistoryFeedView({
 }: HistoryFeedViewProps) {
   const [items, setItems] = useState<ScanRecord[]>(initialScans);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      return sessionStorage.getItem("spadas_history_search") || "";
+    }
+    return "";
+  });
   const [isCompareOpen, setIsCompareOpen] = useState(false);
   const [isPaywallOpen, setIsPaywallOpen] = useState(false);
   const [isPro, setIsPro] = useState(false);
   const [activeEbayItem, setActiveEbayItem] = useState<ComparisonItem | null>(null);
+
+  // Preserve search query
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("spadas_history_search", searchQuery);
+    }
+  }, [searchQuery]);
+
+  // Preserve scroll position across tab switches
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const savedY = sessionStorage.getItem("spadas_history_scroll");
+    if (savedY) {
+      const y = parseInt(savedY, 10);
+      if (!isNaN(y) && y > 0) {
+        requestAnimationFrame(() => {
+          window.scrollTo({ top: y, behavior: "instant" });
+        });
+      }
+    }
+
+    const handleScroll = () => {
+      sessionStorage.setItem("spadas_history_scroll", String(window.scrollY));
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, []);
 
   useEffect(() => {
     async function checkPro() {
@@ -174,7 +209,7 @@ export function HistoryFeedView({
         id: s.id,
         name,
         brand,
-        category: res.analysis?.category,
+        category: cleanCategoryText(res.analysis?.category || res.category, undefined),
         condition,
         estimatedValue,
         estimatedProfit,
