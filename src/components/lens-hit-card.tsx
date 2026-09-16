@@ -9,6 +9,7 @@ import {
   ChevronDown,
   ChevronUp,
   Scale,
+  TrendingUp,
 } from "lucide-react";
 import { fmtMoney } from "@/app/lib/listings";
 import type { DetectedHit } from "@/types/lens";
@@ -25,6 +26,7 @@ interface LensHitCardProps {
   onDeepVerify: (item: DetectedHit) => void;
   onListEbay: (item: DetectedHit) => void;
   onReport: (id: string, name: string) => void;
+  onViewComps?: (item: DetectedHit) => void;
 }
 
 export default function LensHitCard({
@@ -35,6 +37,7 @@ export default function LensHitCard({
   onDeepVerify,
   onListEbay,
   onReport,
+  onViewComps,
 }: LensHitCardProps) {
   const [grailExpanded, setGrailExpanded] = useState(false);
   const [showCompareModal, setShowCompareModal] = useState(false);
@@ -310,6 +313,21 @@ export default function LensHitCard({
             >
               <ShieldCheck className="w-3 h-3 text-purple-400" />
               {verificationReq.badgeLabel || "Verify"}
+            </button>
+          )}
+          {onViewComps && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                triggerTactileHaptic("light");
+                onViewComps(item);
+              }}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 active:scale-95 text-cyan-300 border border-cyan-500/30 text-[10px] font-semibold transition cursor-pointer"
+              title="View 3-5 verified sold comps & resale breakdown"
+            >
+              <TrendingUp className="w-3 h-3 text-cyan-400" />
+              Comps
             </button>
           )}
           <button

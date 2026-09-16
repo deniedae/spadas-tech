@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
   Sparkles,
@@ -40,7 +40,7 @@ import {
   detectThriftTrap,
   calculateThriftCopVerdict,
 } from "@/lib/thrift-cop-engine";
-import AuditCompsLedger from "@/components/audit-comps-ledger";
+import AuditCompsLedger, { ensureVerifiedSoldComps } from "@/components/AuditCompsLedger";
 import type { DetectedHit, ActiveScanItem, RawSoldComp, VariantAudit } from "@/types/lens";
 
 interface LensCompsModalProps {
@@ -93,7 +93,15 @@ export default function LensCompsModal({
   const trap = detectThriftTrap(title, estValue, brand);
 
   // Extract raw comps and variant telemetry
-  const rawComps: RawSoldComp[] = (item as any).rawComps || [];
+  const rawComps: RawSoldComp[] = useMemo(() => {
+    return ensureVerifiedSoldComps(
+      (item as any).rawComps,
+      title,
+      estValue,
+      condition,
+      brand
+    );
+  }, [item, title, estValue, condition, brand]);
   const compsRange = (item as any).compsRange || {
     min: (item as any).suggestedPriceMin || Math.max(1, Math.round(estValue * 0.7)),
     max: (item as any).suggestedPriceMax || Math.round(estValue * 1.3),
@@ -270,7 +278,7 @@ export default function LensCompsModal({
             </button>
             <button
               type="button"
-              onClick={onResumeScan}
+              onClick={onClose || onResumeScan}
               className="rounded-xl p-1.5 text-zinc-400 hover:text-white hover:bg-zinc-800 transition cursor-pointer"
               title="Close"
             >
@@ -670,34 +678,50 @@ export default function LensCompsModal({
         </div>
 
         {/* ── 3. Compact Sticky Bottom Action Bar ────────────────────────────── */}
-        <div className="shrink-0 p-3 sm:p-4 border-t border-white/[0.08] bg-[#07090E]/95 backdrop-blur-md space-y-2 z-20 pb-[max(1.5rem,calc(env(safe-area-inset-bottom,0px)+1rem))] sm:pb-4">
-          <button
-            type="button"
-            onClick={handleSaveDraft}
-            disabled={isSaving || isSaved}
-            className={`w-full flex items-center justify-center gap-2 rounded-2xl py-3 text-xs sm:text-sm font-black text-white shadow-lg transition cursor-pointer active:scale-95 ${
-              isSaved
-                ? "bg-emerald-600/90 text-white border border-emerald-400/50"
-                : "bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 shadow-emerald-500/20"
-            }`}
-          >
-            {isSaved ? (
-              <>
-                <Check className="h-4 w-4" />
-                <span>Draft Committed to Sourcing Inventory</span>
-              </>
-            ) : isSaving ? (
-              <>
-                <RefreshCw className="h-4 w-4 animate-spin" />
-                <span>Syncing Draft to Inventory...</span>
-              </>
-            ) : (
-              <>
-                <ShoppingBag className="h-4 w-4" />
-                <span>Save to Sourcing Inventory (+${netProfit} Net)</span>
-              </>
+        <div className="shrink-0 p-3 sm:p-4 border-t border-white/[0.08] bg-[#07090E]/95 backdrop-blur-md z-20 pb-[max(1.5rem,calc(env(safe-area-inset-bottom,0px)+1rem))] sm:pb-4">
+          <div className="flex items-center gap-2">
+            {onListEbay && (
+              <button
+                type="button"
+                onClick={() => {
+                  triggerTactileHaptic("medium");
+                  onListEbay(item);
+                }}
+                className="flex-1 flex items-center justify-center gap-1.5 rounded-2xl py-3 text-xs sm:text-sm font-black text-amber-300 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 shadow-lg shadow-amber-500/10 transition cursor-pointer active:scale-95"
+              >
+                <ShoppingBag className="h-4 w-4 text-amber-400" />
+                <span>List on eBay</span>
+              </button>
             )}
-          </button>
+
+            <button
+              type="button"
+              onClick={handleSaveDraft}
+              disabled={isSaving || isSaved}
+              className={`flex-1 flex items-center justify-center gap-1.5 rounded-2xl py-3 text-xs sm:text-sm font-black text-white shadow-lg transition cursor-pointer active:scale-95 ${
+                isSaved
+                  ? "bg-emerald-600/90 text-white border border-emerald-400/50"
+                  : "bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 shadow-emerald-500/20"
+              }`}
+            >
+              {isSaved ? (
+                <>
+                  <Check className="h-4 w-4" />
+                  <span>Saved to Inventory</span>
+                </>
+              ) : isSaving ? (
+                <>
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                  <span>Saving...</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="h-4 w-4" />
+                  <span>+ Save Draft (+${netProfit})</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
     </div>

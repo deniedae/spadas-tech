@@ -696,8 +696,10 @@ function SpadasLensCameraCore({
       // 1. Immediately activate valuation result state so the valuation card slides into view and in-stream comps ledger mounts
       activeValuationHitRef.current = verifiedHit;
       setActiveValuationHit(verifiedHit);
+      setActiveCompsHit(verifiedHit);
       isScanPausedRef.current = true;
       setIsScanPaused(true);
+      setScanStage("complete");
       if (previewImage || verifiedHit.image) {
         setFrozenFrameUrl(previewImage || verifiedHit.image || null);
       }
@@ -4026,7 +4028,7 @@ function SpadasLensCameraCore({
             )}
 
             {/* Instant Non-Obstructing Bottom-Docked Valuation Card (z-40) with Spring Physics */}
-            {activeValuationHit && (() => {
+            {activeValuationHit && !activeCompsHit && (() => {
               const itemComps = ensureVerifiedSoldComps(
                 activeValuationHit.rawComps,
                 activeValuationHit.name,
@@ -4344,17 +4346,12 @@ function SpadasLensCameraCore({
                             <button
                               type="button"
                               onClick={() => {
-                                const el = document.getElementById("audit-comps-ledger");
-                                if (el) {
-                                  el.scrollIntoView({ behavior: "smooth", block: "start" });
-                                } else {
-                                  setActiveCompsHit(activeValuationHit);
-                                }
+                                setActiveCompsHit(activeValuationHit);
                               }}
                               className="inline-flex items-center gap-1 bg-[#141721] hover:bg-[#1C202E] text-zinc-300 hover:text-white border border-white/[0.08] px-2 sm:px-2.5 py-1.5 rounded-xl text-[11px] font-medium transition cursor-pointer active:scale-95"
                             >
                               <TrendingUp className="h-3.5 w-3.5 text-zinc-400" />
-                              <span>Deep Comps ↓</span>
+                              <span>Comps Dialog</span>
                             </button>
 
                             {checkNeedsVerification({
@@ -4822,7 +4819,7 @@ function SpadasLensCameraCore({
       />
 
       {/* Non-Intrusive In-Stream Audit-Grade Sold Comps Ledger (Anchored in document flow exclusively after scan payload resolves) */}
-      {activeValuationHit && (
+      {activeValuationHit && !activeCompsHit && (
         <div className={`mt-4 w-full max-w-full px-3 sm:px-0 overflow-x-hidden box-border ${
           isCardExiting ? "animate-card-exit" : "animate-card-enter"
         }`}>
@@ -4914,6 +4911,7 @@ function SpadasLensCameraCore({
               onSelect={toggleSelectHit}
               onSaveDraft={handleSaveDraftHit}
               onDeepVerify={(hit) => handleOpenDeepVerify(hit)}
+              onViewComps={(hit) => setActiveCompsHit(hit)}
               onListEbay={(hit) => {
                 setIsScanPaused(true);
                 const isolatedCapture = hit.image || (hit.id === activeValuationHit?.id ? frozenFrameUrl : undefined);
@@ -5020,12 +5018,27 @@ function SpadasLensCameraCore({
 
       {/* Stabilized AR Comps Breakdown & Resale Verdict Modal */}
       <LensCompsModal
+        key={activeCompsHit ? (activeCompsHit.id || (activeCompsHit as any).timestamp || "comps-modal") : "comps-modal"}
         isOpen={!!activeCompsHit}
         item={activeCompsHit}
         frozenFrameUrl={frozenFrameUrl}
-        onClose={() => setActiveCompsHit(null)}
-        onResumeScan={handleResumeScanning}
+        onClose={() => {
+          setActiveCompsHit(null);
+          setActiveValuationHit(null);
+          activeValuationHitRef.current = null;
+          setIsScanPaused(false);
+          isScanPausedRef.current = false;
+          setScanStage("idle");
+          if (videoRef.current && videoRef.current.paused) {
+            videoRef.current.play().catch(() => {});
+          }
+        }}
+        onResumeScan={() => {
+          setActiveCompsHit(null);
+          handleResumeScanning();
+        }}
         onListEbay={(hit: any) => {
+          setActiveCompsHit(null);
           setIsScanPaused(true);
           const isolatedCapture = hit?.image || (hit?.id === activeValuationHit?.id ? frozenFrameUrl : undefined);
           const stableSessionId = hit?.id || (hit?.timestamp ? `hit_${hit.timestamp}` : "hit_comps");
