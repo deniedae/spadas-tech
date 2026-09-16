@@ -459,107 +459,127 @@ export default function AuditCompsLedger({
             </p>
           </div>
 
-          {/* Realized Profit Badge & Quick Dismiss */}
-          <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-white/[0.05]">
-            {typeof netProfit === "number" && (
-              <div className="flex flex-col text-left sm:text-right font-mono">
-                <span className="text-[9px] uppercase tracking-wider text-zinc-400 font-medium">Net Profit</span>
-                <span className="text-lg sm:text-xl font-bold text-emerald-400 tabular-nums">
-                  +{fmtMoney(netProfit)}
-                </span>
-              </div>
-            )}
+            {/* Realized Profit Badge & Quick Dismiss */}
+            <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-white/[0.05]">
+              {typeof netProfit === "number" && (
+                <div className="flex flex-col text-left sm:text-right font-mono">
+                  <span className="text-[9px] uppercase tracking-wider text-emerald-400/90 font-medium">Take-Home Profit</span>
+                  <span className="text-lg sm:text-xl font-bold text-emerald-400 tabular-nums">
+                    +{fmtMoney(netProfit)}
+                  </span>
+                </div>
+              )}
 
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  triggerTactileHaptic("light");
-                  setIsExpanded(!isExpanded);
-                }}
-                className="px-3 py-1.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.10] border border-white/[0.10] text-xs font-medium text-zinc-200 hover:text-white transition flex items-center gap-1.5 cursor-pointer active:scale-95"
-                aria-expanded={isExpanded}
-                aria-controls="comps-ledger-content"
-              >
-                <span>{isExpanded ? "Collapse" : "Open 7 Sales"}</span>
-                {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-              </button>
-
-              {onDismiss && (
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => {
                     triggerTactileHaptic("light");
-                    onDismiss();
+                    setIsExpanded(!isExpanded);
                   }}
-                  className="p-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-zinc-400 hover:text-white transition cursor-pointer active:scale-95"
-                  title="Close Evidence Ledger"
+                  className="px-3 py-1.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.10] border border-white/[0.10] text-xs font-medium text-zinc-200 hover:text-white transition flex items-center gap-1.5 cursor-pointer active:scale-95"
+                  aria-expanded={isExpanded}
+                  aria-controls="comps-ledger-content"
                 >
-                  <X className="h-4 w-4" />
+                  <span>{isExpanded ? "Collapse" : `Open ${verifiedListings.length} Comps`}</span>
+                  {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                 </button>
-              )}
+
+                {onDismiss && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      triggerTactileHaptic("light");
+                      onDismiss();
+                    }}
+                    className="p-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-zinc-400 hover:text-white transition cursor-pointer active:scale-95"
+                    title="Close Evidence Ledger"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Zero Layout Shift Accordion Grid Body */}
-      <div
-        id="comps-ledger-content"
-        className={`accordion-grid-container ${isExpanded ? "is-expanded" : ""}`}
-      >
-        <div className="accordion-grid-inner p-4 sm:p-5 space-y-4">
-          {/* Telemetry Strip */}
-          {stats && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-3 rounded-xl bg-[#141721] border border-white/[0.06] text-center">
-              <div className="p-2">
-                <span className="text-[10px] font-mono uppercase text-zinc-400 font-medium block mb-0.5">
-                  Cleared Median
-                </span>
-                <span className="text-base sm:text-lg font-bold font-mono text-white tabular-nums">
-                  {fmtMoney(stats.median)}
-                </span>
+        {/* Zero Layout Shift Accordion Grid Body */}
+        <div
+          id="comps-ledger-content"
+          className={`accordion-grid-container ${isExpanded ? "is-expanded" : ""}`}
+        >
+          <div className="accordion-grid-inner p-4 sm:p-5 space-y-4">
+            {/* Telemetry Strip */}
+            {stats && (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-3 rounded-xl bg-[#141721] border border-white/[0.06] text-center">
+                <div className="p-2">
+                  <span className="text-[10px] font-mono uppercase text-zinc-400 font-medium block mb-0.5">
+                    eBay Sold Median
+                  </span>
+                  <span className="text-base sm:text-lg font-bold font-mono text-emerald-400 tabular-nums">
+                    {fmtMoney(stats.median)}
+                  </span>
+                </div>
+                <div className="p-2 border-l border-white/[0.06]">
+                  <span className="text-[10px] font-mono uppercase text-zinc-400 font-medium block mb-0.5">
+                    eBay Market Range
+                  </span>
+                  <span className="text-xs sm:text-sm font-semibold font-mono text-zinc-300 tabular-nums">
+                    {fmtMoney(stats.min)} – {fmtMoney(stats.max)}
+                  </span>
+                </div>
+                <div className="p-2 border-t sm:border-t-0 sm:border-l border-white/[0.06]">
+                  <span className="text-[10px] font-mono uppercase text-zinc-400 font-medium block mb-0.5">
+                    Sold Comps Evidence
+                  </span>
+                  <span className="text-xs sm:text-sm font-semibold font-mono text-zinc-200 flex items-center justify-center gap-1">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-zinc-400" />
+                    <span>{verifiedListings.length} Sales (1–5d ago)</span>
+                  </span>
+                </div>
+                <div className="p-2 border-t sm:border-t-0 border-l border-white/[0.06]">
+                  <span className="text-[10px] font-mono uppercase text-zinc-400 font-medium block mb-0.5">
+                    Match Integrity
+                  </span>
+                  <span className="text-xs sm:text-sm font-semibold font-mono text-emerald-400 flex items-center justify-center gap-1">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    <span>{stats.avgMatch}% Match</span>
+                  </span>
+                </div>
               </div>
-              <div className="p-2 border-l border-white/[0.06]">
-                <span className="text-[10px] font-mono uppercase text-zinc-400 font-medium block mb-0.5">
-                  Cleared Range
-                </span>
-                <span className="text-xs sm:text-sm font-semibold font-mono text-zinc-300 tabular-nums">
-                  {fmtMoney(stats.min)} – {fmtMoney(stats.max)}
-                </span>
+            )}
+
+            {/* Transparent Reseller P&L Equation */}
+            {stats && (
+              <div className="py-2.5 px-3 rounded-xl bg-[#141721] border border-white/[0.06] flex items-center justify-between text-[11px] font-mono text-zinc-300 flex-wrap gap-2">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-zinc-400 uppercase text-[9px] font-semibold">Reseller P&L:</span>
+                  <span>Sold {fmtMoney(stats.median)}</span>
+                  <span className="text-zinc-600">−</span>
+                  <span>Tag {fmtMoney(activeValuation?.thriftCost ?? 0)}</span>
+                  <span className="text-zinc-600">−</span>
+                  <span>Fees ~{fmtMoney(Math.round((stats.median * 0.134 + 0.33) * 100) / 100)}</span>
+                  <span className="text-zinc-600">−</span>
+                  <span>Post ~$9.50</span>
+                </div>
+                <div className="flex items-center gap-1 text-emerald-400 font-bold ml-auto">
+                  <span>=</span>
+                  <span>+{fmtMoney(typeof netProfit === "number" ? netProfit : Math.max(0, stats.median - (activeValuation?.thriftCost ?? 0) - Math.round((stats.median * 0.134 + 0.33) * 100) / 100 - 9.5))} Take-Home</span>
+                </div>
               </div>
-              <div className="p-2 border-t sm:border-t-0 sm:border-l border-white/[0.06]">
-                <span className="text-[10px] font-mono uppercase text-zinc-400 font-medium block mb-0.5">
-                  Evidence Depth
-                </span>
-                <span className="text-xs sm:text-sm font-semibold font-mono text-zinc-200 flex items-center justify-center gap-1">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-zinc-400" />
-                  <span>{verifiedListings.length} Sales</span>
-                </span>
-              </div>
-              <div className="p-2 border-t sm:border-t-0 border-l border-white/[0.06]">
-                <span className="text-[10px] font-mono uppercase text-zinc-400 font-medium block mb-0.5">
-                  Match Integrity
-                </span>
-                <span className="text-xs sm:text-sm font-semibold font-mono text-emerald-400 flex items-center justify-center gap-1">
-                  <Sparkles className="h-3.5 w-3.5" />
-                  <span>{stats.avgMatch}% Match</span>
-                </span>
-              </div>
+            )}
+
+            {/* Quick Filter Bar */}
+            <div className="relative">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+              <input
+                type="text"
+                placeholder={`Filter these ${verifiedListings.length} sold comps (condition, keyword, date)...`}
+                value={filterQuery}
+                onChange={(e) => setFilterQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 bg-[#0A0D14] border border-white/[0.08] rounded-xl text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-white/20 font-mono transition"
+              />
             </div>
-          )}
-
-          {/* Quick Filter Bar */}
-          <div className="relative">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
-            <input
-              type="text"
-              placeholder="Filter these 7 sales (condition, keyword, date)..."
-              value={filterQuery}
-              onChange={(e) => setFilterQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-[#0A0D14] border border-white/[0.08] rounded-xl text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-white/20 font-mono transition"
-            />
-          </div>
 
           {/* 7 Recent Sales Clean List */}
           <div className="space-y-2">
