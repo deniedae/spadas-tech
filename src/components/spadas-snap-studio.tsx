@@ -212,21 +212,31 @@ export function SpadasSnapStudio() {
       setCameraError(null);
 
       let newStream: MediaStream | null = null;
+      const getStreamWithFallback = async () => {
+        try {
+          return await navigator.mediaDevices.getUserMedia({
+            video: {
+              facingMode: { ideal: mode },
+              width: { ideal: 1280, max: 1920 },
+              height: { ideal: 720, max: 1080 },
+            },
+            audio: false,
+          });
+        } catch {
+          // Fallback for strict device permissions
+          return await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: false,
+          });
+        }
+      };
+
       try {
-        newStream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: { ideal: mode },
-            width: { ideal: 1280, max: 1920 },
-            height: { ideal: 720, max: 1080 },
-          },
-          audio: false,
-        });
+        newStream = await getStreamWithFallback();
       } catch {
-        // Fallback for strict device permissions
-        newStream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: false,
-        });
+        // If hardware is in the process of releasing from Lens mode, wait 200ms and retry once
+        await new Promise((res) => setTimeout(res, 200));
+        newStream = await getStreamWithFallback();
       }
 
       streamRef.current = newStream;
@@ -240,18 +250,10 @@ export function SpadasSnapStudio() {
   useEffect(() => {
     void startCamera();
     return () => {
-      // Ensure all tracks are released when leaving Snap Studio
-      if (streamRef.current) {
-        try {
-          streamRef.current.getTracks().forEach((t) => {
-            t.stop();
-            t.enabled = false;
-          });
-        } catch {}
-        streamRef.current = null;
-      }
+      // Ensure all tracks and video bindings are released when leaving Snap Studio
+      stopCamera();
     };
-  }, [startCamera]);
+  }, [startCamera, stopCamera]);
 
   useEffect(() => {
     if (videoRef.current && stream) {

@@ -127,6 +127,20 @@ import {
 // Module-level persistent media stream cache to prevent camera hardware stream teardown across tabs/views
 let persistentMediaStream: MediaStream | null = null;
 
+export function releasePersistentMediaStream() {
+  if (persistentMediaStream) {
+    try {
+      persistentMediaStream.getTracks().forEach((track) => {
+        try {
+          track.stop();
+          track.enabled = false;
+        } catch {}
+      });
+    } catch {}
+    persistentMediaStream = null;
+  }
+}
+
 let cycleSeq = 0;
 
 function SpadasLensCameraCore({
@@ -139,6 +153,7 @@ function SpadasLensCameraCore({
   const router = useRouter();
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const isStartingCameraRef = useRef<boolean>(false);
   /** Ref to the inner viewfinder reticle box — used for captureTargetBox crop */
   const reticleRef = useRef<HTMLDivElement | null>(null);
   const [scanMode, setScanMode] = useState<"snap" | "sweep" | "barcode" | "live">("snap");
@@ -291,9 +306,35 @@ function SpadasLensCameraCore({
     haulCount,
     rapidStats,
     setItems: setRapidItems,
+    addItem,
     removeItem,
     clearHaul,
   } = useHaulStore();
+
+  // Instant local saved tracking synchronized with localStorage and Haul
+  const [savedHitIds, setSavedHitIds] = useState<Set<string>>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const raw = localStorage.getItem("spadas_saved_hit_ids");
+        if (raw) return new Set(JSON.parse(raw));
+      } catch {}
+    }
+    return new Set();
+  });
+
+  const isHitSavedInHaul = useCallback(
+    (hit: DetectedHit) => {
+      if (savedHitIds.has(hit.id)) return true;
+      return rapidItems.some(
+        (r) =>
+          r.id === hit.id ||
+          (typeof r.productName === "string" &&
+            typeof hit.name === "string" &&
+            r.productName.trim().toLowerCase() === hit.name.trim().toLowerCase())
+      );
+    },
+    [savedHitIds, rapidItems]
+  );
   const offlinePendingCount = rapidItems.filter((i) => i.syncStatus === "pending").length;
   const { pendingCount: quickSnapPendingCount } = useQuickSnapQueue();
   const [quickSnapFlash, setQuickSnapFlash] = useState<boolean>(false);
@@ -586,7 +627,10 @@ function SpadasLensCameraCore({
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
-        const isTrackEnded = stream?.getVideoTracks().some((t) => t.readyState === "ended");
+        if (videoRef.current && videoRef.current.paused) {
+          videoRef.current.play().catch(() => {});
+        }
+        const isTrackEnded = stream?.getVideoTracks().some((t) => t.readyState === "ended" || !t.enabled);
         if (!stream || isTrackEnded) {
           console.log("[Spadas Lens AR] App foregrounded — reconnecting camera stream...");
           void startCamera();
@@ -594,8 +638,6 @@ function SpadasLensCameraCore({
         if (isRapidScanMode && typeof navigator !== "undefined" && "wakeLock" in navigator && !wakeLockRef.current) {
           void requestWakeLock();
         }
-      } else {
-        // App backgrounded mid-scan: preserve scan state & progress so user resumes seamlessly when returning
       }
     };
 
@@ -1064,6 +1106,37 @@ function SpadasLensCameraCore({
       if (error) throw error;
       triggerTactileHaptic("success");
       syncProfitToAndroidWidget(bestProfit + (hit.estimatedProfit || 0), capturedLog.length + 1);
+
+      // Add to global haulStore to keep Haul tab, drawers, and feed synchronized
+      addItem({
+        id: hit.id,
+        photoId: hit.id,
+        timestamp: hit.timestamp || Date.now(),
+        status: "completed",
+        productName: hit.name,
+        brand: hit.brand || undefined,
+        category: hit.category || undefined,
+        condition: hit.condition || "Used - Good",
+        estimatedValue: hit.estimatedValue || 45,
+        thriftCost: hit.tagPrice ?? hit.estCost ?? 10,
+        trueNetProfit: hit.trueNetProfit ?? hit.estimatedProfit ?? 15,
+        roiPercentage: hit.roiPercentage ?? hit.estRoi ?? 0,
+        copVerdict: hit.copVerdict || "MUST_COP",
+        image: hit.image || undefined,
+      });
+
+      // Update local saved hit IDs
+      setSavedHitIds((prev) => {
+        const next = new Set(prev);
+        next.add(hit.id);
+        if (typeof window !== "undefined") {
+          try {
+            localStorage.setItem("spadas_saved_hit_ids", JSON.stringify(Array.from(next)));
+          } catch {}
+        }
+        return next;
+      });
+
       toast.success(`✅ Saved "${hit.name}" to inventory drafts!`);
     } catch (err: any) {
       toast.error(err?.message || "Failed to save to drafts.");
@@ -1151,8 +1224,17 @@ function SpadasLensCameraCore({
     void startCamera();
 
     return () => {
-      // Keep persistentMediaStream warm across tab switches and drawer openings for 0ms instant resume
-      streamRef.current = null;
+      // Cleanly teardown camera hardware and release exclusive lock for other views (Studio Mode, etc.)
+      if (streamRef.current) {
+        try {
+          streamRef.current.getTracks().forEach((track) => {
+            track.stop();
+            track.enabled = false;
+          });
+        } catch {}
+        streamRef.current = null;
+      }
+      releasePersistentMediaStream();
     };
   }, []);
 
@@ -1748,6 +1830,8 @@ function SpadasLensCameraCore({
 
   // Start Camera Stream with mobile-optimized progressive WebRTC constraints & zero-latency reuse
   const startCamera = async () => {
+    if (isStartingCameraRef.current) return;
+    isStartingCameraRef.current = true;
     try {
       // 1. Instant Stream Reuse Check: If persistent stream is already active, resume immediately with 0ms latency
       if (
@@ -1828,6 +1912,8 @@ function SpadasLensCameraCore({
       setIsCameraPoweredOn(true);
       setScanning(true);
       toast.info("Activated Interactive AR Test Scanner Mode.");
+    } finally {
+      isStartingCameraRef.current = false;
     }
   };
 
@@ -3503,12 +3589,17 @@ function SpadasLensCameraCore({
       }
 
       const video = videoRef.current;
-      if (!video || video.readyState < 2 || video.paused) return;
+      if (!video || video.readyState < 2 || video.paused || video.videoWidth === 0 || video.videoHeight === 0) return;
 
       if (!offCtx) return;
-      offCtx.drawImage(video, 0, 0, 64, 64);
-      const imgData = offCtx.getImageData(0, 0, 64, 64);
-      const pixels = imgData.data;
+      let pixels: Uint8ClampedArray;
+      try {
+        offCtx.drawImage(video, 0, 0, 64, 64);
+        const imgData = offCtx.getImageData(0, 0, 64, 64);
+        pixels = imgData.data;
+      } catch {
+        return;
+      }
 
       const prev = prevFramePixelsRef.current;
       if (!prev || prev.length !== pixels.length) {
@@ -4908,6 +4999,7 @@ function SpadasLensCameraCore({
               key={item.id}
               item={item}
               isSelected={selectedHitIds.includes(item.id)}
+              isSaved={isHitSavedInHaul(item)}
               onSelect={toggleSelectHit}
               onSaveDraft={handleSaveDraftHit}
               onDeepVerify={(hit) => handleOpenDeepVerify(hit)}

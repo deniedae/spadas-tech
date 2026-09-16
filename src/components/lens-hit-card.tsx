@@ -21,6 +21,7 @@ import { sanitizeMetaText, cleanConditionText } from "@/lib/lens-utils";
 interface LensHitCardProps {
   item: DetectedHit;
   isSelected: boolean;
+  isSaved?: boolean;
   onSelect: (id: string) => void;
   onSaveDraft: (item: DetectedHit) => void;
   onDeepVerify: (item: DetectedHit) => void;
@@ -32,6 +33,7 @@ interface LensHitCardProps {
 export default function LensHitCard({
   item,
   isSelected,
+  isSaved = false,
   onSelect,
   onSaveDraft,
   onDeepVerify,
@@ -115,12 +117,19 @@ export default function LensHitCard({
             className="h-3.5 w-3.5 mt-0.5 rounded border-white/20 bg-[#161822] text-emerald-500 focus:ring-emerald-400 cursor-pointer shrink-0 accent-emerald-500"
           />
           <div className="min-w-0 flex-1">
-            <h4 className="text-xs font-bold text-white leading-snug line-clamp-2">
-              {item.isGrail && (
-                <Trophy className="h-3 w-3 text-amber-400 inline mr-1 shrink-0" />
+            <div className="flex flex-wrap items-center gap-1.5">
+              <h4 className="text-xs font-bold text-white leading-snug line-clamp-2">
+                {item.isGrail && (
+                  <Trophy className="h-3 w-3 text-amber-400 inline mr-1 shrink-0" />
+                )}
+                {item.name}
+              </h4>
+              {isSaved && (
+                <span className="inline-flex items-center gap-0.5 text-[9px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-1.5 py-0.5 rounded shrink-0">
+                  ✓ In Haul
+                </span>
               )}
-              {item.name}
-            </h4>
+            </div>
 
             {/* Visual Identification Badges */}
             {(validBrand || validCategory || validCondition) && (
@@ -286,9 +295,13 @@ export default function LensHitCard({
               triggerTactileHaptic("success");
               onSaveDraft(item);
             }}
-            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-zinc-950 text-[10px] font-bold transition cursor-pointer shadow-sm"
+            className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-[10px] font-bold transition cursor-pointer shadow-sm ${
+              isSaved
+                ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30"
+                : "bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-zinc-950"
+            }`}
           >
-            + Save Find
+            {isSaved ? "✓ In Haul" : "+ Save Find"}
           </button>
           <button
             type="button"

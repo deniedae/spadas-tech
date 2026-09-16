@@ -197,9 +197,32 @@ export function ensureVerifiedSoldComps(
     (c) => c && (c.title || (typeof c.price === "number" && c.price > 0))
   );
 
+  // Outlier filter using Interquartile Range (IQR): Cap / filter extreme outlier listings (> Q3 + 1.5 * IQR)
+  const validPrices = valid.map((c) => Number(c.price)).filter((p) => p > 0).sort((a, b) => a - b);
+  let maxIqrPrice = Infinity;
+  let minIqrPrice = 1;
+  if (validPrices.length >= 4) {
+    const q1 = validPrices[Math.floor(validPrices.length * 0.25)];
+    const q3 = validPrices[Math.floor(validPrices.length * 0.75)];
+    const iqr = q3 - q1;
+    if (iqr > 0) {
+      maxIqrPrice = q3 + 1.5 * iqr;
+      minIqrPrice = Math.max(1, q1 - 1.5 * iqr);
+    }
+  }
+
+  const iqrCleaned = validPrices.length >= 4 && isFinite(maxIqrPrice)
+    ? valid.filter((c) => {
+        const p = Number(c.price);
+        return !p || (p <= maxIqrPrice && p >= minIqrPrice);
+      })
+    : valid;
+
+  const validComps = iqrCleaned.length >= 3 ? iqrCleaned : valid;
+
   // If we already have 3+ valid comps from eBay API, format and return top 5
-  if (valid.length >= 3) {
-    return valid.slice(0, 5).map((c, idx) => {
+  if (validComps.length >= 3) {
+    return validComps.slice(0, 5).map((c, idx) => {
       const explicitMatch = getCompMatch(c);
       const rawDate = getCompSoldDate(c);
       const soldDate = rawDate || getRecentDate(idx + 1);
@@ -395,11 +418,29 @@ export default function AuditCompsLedger({
       verifiedListings.reduce((sum, c) => sum + c.matchPercentage, 0) / verifiedListings.length
     );
 
+    // IQR Filter for Outlier Capping (1.5x IQR above Q3)
+    let maxIqrAllowed = Infinity;
+    let minIqrAllowed = 1;
+    if (sorted.length >= 4) {
+      const q1 = sorted[Math.floor(sorted.length * 0.25)];
+      const q3 = sorted[Math.floor(sorted.length * 0.75)];
+      const iqr = q3 - q1;
+      if (iqr > 0) {
+        maxIqrAllowed = q3 + 1.5 * iqr;
+        minIqrAllowed = Math.max(1, q1 - 1.5 * iqr);
+      }
+    }
+
+    const rawMin = activeValuation?.min ?? sorted[0];
+    const rawMax = activeValuation?.max ?? sorted[sorted.length - 1];
+    const cappedMin = Math.max(rawMin, minIqrAllowed);
+    const cappedMax = isFinite(maxIqrAllowed) ? Math.min(rawMax, Math.round(maxIqrAllowed * 100) / 100) : rawMax;
+
     return {
       count: verifiedListings.length,
       median: activeValuation?.median || median,
-      min: activeValuation?.min || sorted[0],
-      max: activeValuation?.max || sorted[sorted.length - 1],
+      min: cappedMin,
+      max: Math.max(cappedMin, cappedMax),
       avgMatch,
     };
   }, [verifiedListings, activeValuation]);

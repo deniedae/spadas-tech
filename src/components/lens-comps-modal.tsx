@@ -151,14 +151,36 @@ export default function LensCompsModal({
 
   const compsRange = useMemo(() => {
     if (!item) return { min: 30, max: 60, median: 45 };
-    return (
-      (item as any).compsRange || {
-        min: (item as any).suggestedPriceMin || Math.max(1, Math.round(initialEstValue * 0.72)),
-        max: (item as any).suggestedPriceMax || Math.round(initialEstValue * 1.28),
-        median: initialEstValue,
+
+    // Compute IQR over rawComps if available (1.5x IQR above Q3)
+    const compPrices = rawComps.map((c) => c.price).filter((p) => p > 0).sort((a, b) => a - b);
+    let maxIqrAllowed = Infinity;
+    let minIqrAllowed = 1;
+    if (compPrices.length >= 4) {
+      const q1 = compPrices[Math.floor(compPrices.length * 0.25)];
+      const q3 = compPrices[Math.floor(compPrices.length * 0.75)];
+      const iqr = q3 - q1;
+      if (iqr > 0) {
+        maxIqrAllowed = q3 + 1.5 * iqr;
+        minIqrAllowed = Math.max(1, q1 - 1.5 * iqr);
       }
-    );
-  }, [item, initialEstValue]);
+    }
+
+    const baseRange = (item as any).compsRange || {
+      min: (item as any).suggestedPriceMin || (compPrices.length > 0 ? compPrices[0] : Math.max(1, Math.round(initialEstValue * 0.72))),
+      max: (item as any).suggestedPriceMax || (compPrices.length > 0 ? compPrices[compPrices.length - 1] : Math.round(initialEstValue * 1.28)),
+      median: initialEstValue,
+    };
+
+    const cappedMax = isFinite(maxIqrAllowed) ? Math.min(baseRange.max, Math.round(maxIqrAllowed * 100) / 100) : baseRange.max;
+    const cappedMin = Math.max(baseRange.min, minIqrAllowed);
+
+    return {
+      min: cappedMin,
+      max: Math.max(cappedMin, cappedMax),
+      median: Math.min(cappedMax, Math.max(cappedMin, baseRange.median)),
+    };
+  }, [item, initialEstValue, rawComps]);
 
   // Strategy-adjusted dynamic resale target price
   const activeResalePrice = useMemo(() => {

@@ -221,6 +221,19 @@ export async function captureTargetBox(
   videoElement: HTMLVideoElement,
   boxRect: DOMRect
 ): Promise<Blob> {
+  if (
+    !videoElement ||
+    videoElement.videoWidth <= 0 ||
+    videoElement.videoHeight <= 0 ||
+    !videoElement.clientWidth ||
+    !videoElement.clientHeight ||
+    !boxRect ||
+    boxRect.width <= 0 ||
+    boxRect.height <= 0
+  ) {
+    throw new Error('Video element or target box dimensions not ready for crop');
+  }
+
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
 
@@ -228,18 +241,31 @@ export async function captureTargetBox(
   const scaleX = videoElement.videoWidth / videoElement.clientWidth;
   const scaleY = videoElement.videoHeight / videoElement.clientHeight;
 
-  canvas.width  = Math.round(boxRect.width  * scaleX);
-  canvas.height = Math.round(boxRect.height * scaleY);
+  if (!isFinite(scaleX) || !isFinite(scaleY) || scaleX <= 0 || scaleY <= 0) {
+    throw new Error('Invalid scale ratio for target box crop');
+  }
+
+  const cropW = Math.max(1, Math.round(boxRect.width * scaleX));
+  const cropH = Math.max(1, Math.round(boxRect.height * scaleY));
+  const sourceX = Math.max(0, Math.min(videoElement.videoWidth - cropW, Math.round(boxRect.left * scaleX)));
+  const sourceY = Math.max(0, Math.min(videoElement.videoHeight - cropH, Math.round(boxRect.top * scaleY)));
+
+  canvas.width = cropW;
+  canvas.height = cropH;
 
   if (ctx) {
-    ctx.drawImage(
-      videoElement,
-      Math.round(boxRect.left * scaleX),  // Source x
-      Math.round(boxRect.top  * scaleY),  // Source y
-      canvas.width,                        // Source w
-      canvas.height,                       // Source h
-      0, 0, canvas.width, canvas.height   // Destination (1:1)
-    );
+    try {
+      ctx.drawImage(
+        videoElement,
+        sourceX,
+        sourceY,
+        cropW,
+        cropH,
+        0, 0, cropW, cropH
+      );
+    } catch {
+      throw new Error('Failed to draw cropped video frame');
+    }
   }
 
   return new Promise((resolve, reject) => {
