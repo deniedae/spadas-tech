@@ -126,6 +126,10 @@ export default function RootLayout({
           }}
         />
         <link rel="canonical" href="https://spadas.ai" />
+        <link rel="dns-prefetch" href="https://api.ebay.com" />
+        <link rel="dns-prefetch" href="https://i.ebayimg.com" />
+        <link rel="preconnect" href="https://api.openai.com" crossOrigin="anonymous" />
+        <link rel="preconnect" href="https://i.ebayimg.com" crossOrigin="anonymous" />
         <meta property="og:image" content="https://spadas.ai/og-preview.jpg" />
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
         <meta name="theme-color" content="#030305" />

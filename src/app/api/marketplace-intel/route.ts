@@ -4,6 +4,9 @@ import { cookies } from "next/headers";
 import { createOpenAiClient, getPrimaryAiApiKey } from "@/app/lib/config/ai-models";
 import { computeOffMarketIntelligence, OffMarketIntelligence } from "@/lib/off-market-engine";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const maxDuration = 30;
 export const preferredRegion = "syd1";
 
 export interface MarketplaceIntelligenceResponse {
@@ -315,7 +318,13 @@ Output strictly valid JSON adhering to:
         currency
       );
     }
-    return NextResponse.json(parsed);
+    return NextResponse.json(parsed, {
+      headers: {
+        "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400",
+        "CDN-Cache-Control": "public, s-maxage=86400",
+        "Vercel-CDN-Cache-Control": "public, s-maxage=86400",
+      },
+    });
   } catch (error: any) {
     console.error("[Marketplace Intel API Error]:", error);
     return NextResponse.json(

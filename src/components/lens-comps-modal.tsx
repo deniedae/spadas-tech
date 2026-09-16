@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect, useCallback } from "react";
+import React, { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   Sparkles,
@@ -38,8 +38,17 @@ import {
   Share2,
   Scale,
   Clock,
+  Maximize2,
+  Sliders,
+  Crosshair,
+  FileText,
+  Volume2,
+  VolumeX,
+  Eye,
+  Contrast,
 } from "lucide-react";
 import { track } from "@vercel/analytics";
+import { scannerAudio } from "@/lib/scanner-audio";
 import { fmtMoney } from "@/app/lib/listings";
 import { createListing } from "@/app/lib/createlisting";
 import { supabase } from "@/app/lib/supabase";
@@ -73,6 +82,7 @@ interface LensCompsModalProps {
 }
 
 type IntelligenceTab = "arbitrage" | "comps" | "forensic";
+type PricingStrategy = "quick_flip" | "fair_market" | "peak_value";
 
 export default function LensCompsModal({
   isOpen,
@@ -88,8 +98,30 @@ export default function LensCompsModal({
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
+  const [isDossierCopied, setIsDossierCopied] = useState(false);
   const [activeTab, setActiveTab] = useState<IntelligenceTab>("arbitrage");
   const [showVintageGuide, setShowVintageGuide] = useState(false);
+
+  // ── Pricing Strategy Sensitivity (Quick Flip 24h vs Fair Market vs Peak 30d) ──
+  const [pricingStrategy, setPricingStrategy] = useState<PricingStrategy>("fair_market");
+
+  // ── Holographic Forensic Optical Loupe & Spectral Engine State ──
+  const [isLoupeActive, setIsLoupeActive] = useState<boolean>(false);
+  const [loupeZoom, setLoupeZoom] = useState<2.5 | 4 | 8>(2.5);
+  const [forensicFilter, setForensicFilter] = useState<"optical" | "contrast" | "uv">("optical");
+  const [loupeCoords, setLoupeCoords] = useState<{ x: number; y: number }>({ x: 50, y: 50 });
+  const imageContainerRef = useRef<HTMLDivElement | null>(null);
+  const [isMuted, setIsMuted] = useState<boolean>(() => scannerAudio.getIsMuted());
+
+  const loupeFilterStyle = useMemo(() => {
+    if (forensicFilter === "contrast") {
+      return "contrast(180%) brightness(105%) saturate(135%)";
+    }
+    if (forensicFilter === "uv") {
+      return "invert(1) hue-rotate(180deg) contrast(150%) saturate(200%)";
+    }
+    return "none";
+  }, [forensicFilter]);
 
   // In-aisle interactive tag price overrides
   const initialEstValue = item ? Number(item.estimatedValue) || 45 : 45;
@@ -100,17 +132,133 @@ export default function LensCompsModal({
   const [customTagCost, setCustomTagCost] = useState<number>(initialTagCost);
   const [discountPercent, setDiscountPercent] = useState<number>(0); // 0%, 25%, 50%, 75%
 
+  const title = (item as any)?.name || (item as any)?.productName || "Scanned Item";
+  const brand = cleanBrandText(item?.brand, "Unbranded") || "Unbranded";
+  const category = cleanCategoryText(item?.category, "General Resale") || "General Resale";
+  const condition = cleanConditionText(item?.condition, "Used - Good");
+
+  // Extract raw comps and ensure 3 to 5 verified recent sold listings
+  const rawComps: RawSoldComp[] = useMemo(() => {
+    if (!item) return [];
+    return ensureVerifiedSoldComps(
+      (item as any).rawComps,
+      title,
+      initialEstValue,
+      condition,
+      brand
+    );
+  }, [item, title, initialEstValue, condition, brand]);
+
+  const compsRange = useMemo(() => {
+    if (!item) return { min: 30, max: 60, median: 45 };
+    return (
+      (item as any).compsRange || {
+        min: (item as any).suggestedPriceMin || Math.max(1, Math.round(initialEstValue * 0.72)),
+        max: (item as any).suggestedPriceMax || Math.round(initialEstValue * 1.28),
+        median: initialEstValue,
+      }
+    );
+  }, [item, initialEstValue]);
+
+  // Strategy-adjusted dynamic resale target price
+  const activeResalePrice = useMemo(() => {
+    if (pricingStrategy === "quick_flip") return compsRange.min;
+    if (pricingStrategy === "peak_value") return compsRange.max;
+    return compsRange.median || initialEstValue;
+  }, [pricingStrategy, compsRange, initialEstValue]);
+
+  // Effective tag cost after store color tag discounts
+  const effectiveTagCost = Math.max(0, Math.round(customTagCost * (1 - discountPercent / 100) * 100) / 100);
+  const estShipping = estimateCategoryShippingCost(category, title);
+  const trap = detectThriftTrap(title, activeResalePrice, brand);
+
+  const variantAudit: VariantAudit | undefined = (item as any)?.variantAudit;
+  const confidenceScore = (item as any)?.confidenceScore || (item as any)?.confidence || 0.96;
+  const requiresSecondaryVerification = Boolean((item as any)?.requiresSecondaryVerification);
+
+  // Strict algorithmic cop verdict based on dynamic target price
+  const copEstimate = useMemo(() => {
+    return calculateThriftCopVerdict({
+      resalePrice: activeResalePrice,
+      customCost: effectiveTagCost,
+      category,
+      productName: title,
+      brand,
+      shippingCost: estShipping,
+      confidenceScore,
+      variantAudit,
+      needsVerification: requiresSecondaryVerification,
+    });
+  }, [activeResalePrice, effectiveTagCost, category, title, brand, estShipping, confidenceScore, variantAudit, requiresSecondaryVerification]);
+
+  const {
+    netProfit,
+    roiPercentage: roi,
+    copVerdict,
+    verdictLabel,
+    verdictDescription,
+    platformFees: platformFee,
+  } = copEstimate;
+
+  const compsCount = rawComps.length > 0 ? rawComps.length : ((item as any)?.ebayCompsCount || 6);
+  const isGrail = copVerdict === "MUST_COP" || Boolean((item as any)?.isGrail);
+
+  // Calculate Real-Time Sales Velocity & Turnover Profile
+  const salesVelocity = useMemo(() => {
+    return calculateSalesVelocity({
+      productName: title,
+      category,
+      brand,
+    });
+  }, [title, category, brand]);
+
+  // Multi-Marketplace Arbitrage Matrix (Where does this item yield the highest net cash?)
+  const marketplaceArbitrage = useMemo(() => {
+    // 1. eBay AU (Standard 13.4% + $0.33, full tracked postage)
+    const ebayGross = activeResalePrice;
+    const ebayFees = Math.round((ebayGross * 0.134 + 0.33) * 100) / 100;
+    const ebayNet = Math.max(0, Math.round((ebayGross - effectiveTagCost - ebayFees - estShipping) * 100) / 100);
+
+    // 2. Depop AU (10% flat fee, trendy street/vintage demographic)
+    const depopGross = Math.round(activeResalePrice * 0.96);
+    const depopFees = Math.round(depopGross * 0.10 * 100) / 100;
+    const depopNet = Math.max(0, Math.round((depopGross - effectiveTagCost - depopFees - estShipping) * 100) / 100);
+
+    // 3. Poshmark AU (20% fee, buyer pays postage)
+    const poshGross = Math.round(activeResalePrice * 1.05);
+    const poshFees = Math.round(poshGross * 0.20 * 100) / 100;
+    const poshNet = Math.max(0, Math.round((poshGross - effectiveTagCost - poshFees) * 100) / 100);
+
+    // 4. Facebook Marketplace (Local Cash Pickup: 0% fees, $0 postage)
+    const fbGross = Math.round(activeResalePrice * 0.88);
+    const fbNet = Math.max(0, Math.round((fbGross - effectiveTagCost) * 100) / 100);
+
+    const channels = [
+      { name: "eBay AU", gross: ebayGross, fees: ebayFees, post: estShipping, net: ebayNet, badge: "Highest Volume", icon: "🛒" },
+      { name: "Depop AU", gross: depopGross, fees: depopFees, post: estShipping, net: depopNet, badge: "Gen-Z / Vintage", icon: "⚡" },
+      { name: "Poshmark AU", gross: poshGross, fees: poshFees, post: 0, net: poshNet, badge: "Zero Postage", icon: "💎" },
+      { name: "FB Local", gross: fbGross, fees: 0, post: 0, net: fbNet, badge: "Instant Cash", icon: "🤝" },
+    ];
+
+    const bestChannel = channels.reduce((max, c) => (c.net > max.net ? c : max), channels[0]);
+    const secondBest = channels.filter((c) => c.name !== bestChannel.name).reduce((max, c) => (c.net > max.net ? c : max), channels[0]);
+    const arbitrageDelta = Math.max(0, Math.round((bestChannel.net - secondBest.net) * 100) / 100);
+
+    return { channels, bestChannel, secondBest, arbitrageDelta };
+  }, [activeResalePrice, effectiveTagCost, estShipping]);
+
+  // Real eBay Sold Search URL for instant in-aisle comparison
+  const cleanSearchQuery = encodeURIComponent(`${brand !== "Unbranded" ? brand : ""} ${title}`.trim());
+  const ebaySoldsUrl = `https://www.ebay.com.au/sch/i.html?_nkw=${cleanSearchQuery}&LH_Sold=1&LH_Complete=1`;
+
   // Keyboard Command Protocol for High-Speed Reseller Sourcing
   useEffect(() => {
     if (!isOpen) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Do not capture if user is focusing an input or textarea
       const targetTag = (e.target as HTMLElement)?.tagName?.toLowerCase();
       if (targetTag === "input" || targetTag === "textarea") {
-        if (e.key === "Escape") {
-          (e.target as HTMLElement)?.blur();
-        }
+        if (e.key === "Escape") (e.target as HTMLElement)?.blur();
         return;
       }
 
@@ -132,123 +280,33 @@ export default function LensCompsModal({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose, onResumeScan, onListEbay, item]);
 
-  // Vercel Analytics telemetry event on modal reveal
+  // Vercel Analytics telemetry event + procedural audio feedback on modal reveal
   useEffect(() => {
     if (isOpen && item) {
+      scannerAudio.play(isGrail ? "grail" : "lock");
       try {
         track("lens_comp_modal_opened", {
-          name: (item as any).name || (item as any).productName || "item",
-          brand: item.brand || "unknown",
-          estimatedValue: Number(item.estimatedValue) || 0,
+          name: title,
+          brand,
+          category,
+          estimatedValue: activeResalePrice,
+          netProfit,
         });
       } catch {}
     }
-  }, [isOpen, item]);
+  }, [isOpen, item, isGrail, title, brand, category, activeResalePrice, netProfit]);
 
-  if (!isOpen || !item) return null;
+  // ── Loupe Touch / Pointer Tracking Handler ──
+  const handleLoupeMove = useCallback((e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
+    if (!imageContainerRef.current) return;
+    const rect = imageContainerRef.current.getBoundingClientRect();
+    const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
+    const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
 
-  const title = (item as any).name || (item as any).productName || "Scanned Item";
-  const brand = cleanBrandText(item.brand, "Unbranded") || "Unbranded";
-  const category = cleanCategoryText(item.category, "General Resale") || "General Resale";
-  const condition = cleanConditionText(item.condition, "Used - Good");
-  const estValue = initialEstValue;
-
-  // Effective tag cost after store color tag discounts
-  const effectiveTagCost = Math.max(0, Math.round(customTagCost * (1 - discountPercent / 100) * 100) / 100);
-  const estShipping = estimateCategoryShippingCost(category, title);
-  const trap = detectThriftTrap(title, estValue, brand);
-
-  // Extract raw comps and ensure 3 to 5 verified recent sold listings
-  const rawComps: RawSoldComp[] = useMemo(() => {
-    return ensureVerifiedSoldComps(
-      (item as any).rawComps,
-      title,
-      estValue,
-      condition,
-      brand
-    );
-  }, [item, title, estValue, condition, brand]);
-
-  const compsRange = (item as any).compsRange || {
-    min: (item as any).suggestedPriceMin || Math.max(1, Math.round(estValue * 0.72)),
-    max: (item as any).suggestedPriceMax || Math.round(estValue * 1.28),
-    median: estValue,
-  };
-
-  const variantAudit: VariantAudit | undefined = (item as any).variantAudit;
-  const confidenceScore = (item as any).confidenceScore || (item as any).confidence || 0.96;
-  const requiresSecondaryVerification = Boolean((item as any).requiresSecondaryVerification);
-
-  // Strict algorithmic cop verdict with Zero Blind Verdict guard
-  const copEstimate = calculateThriftCopVerdict({
-    resalePrice: estValue,
-    customCost: effectiveTagCost,
-    category,
-    productName: title,
-    brand,
-    shippingCost: estShipping,
-    confidenceScore,
-    variantAudit,
-    needsVerification: requiresSecondaryVerification,
-  });
-
-  const {
-    netProfit,
-    roiPercentage: roi,
-    copVerdict,
-    verdictLabel,
-    verdictDescription,
-    platformFees: platformFee,
-  } = copEstimate;
-
-  const compsCount = rawComps.length > 0 ? rawComps.length : (item.ebayCompsCount || 6);
-  const isGrail = copVerdict === "MUST_COP" || Boolean((item as any).isGrail);
-
-  // Calculate Real-Time Sales Velocity & Turnover Profile
-  const salesVelocity = useMemo(() => {
-    return calculateSalesVelocity({
-      productName: title,
-      category,
-      brand,
-    });
-  }, [title, category, brand]);
-
-  // Multi-Marketplace Arbitrage Matrix (Where does this item yield the highest net cash?)
-  const marketplaceArbitrage = useMemo(() => {
-    // 1. eBay AU (Standard 13.4% + $0.33, full tracked postage)
-    const ebayGross = estValue;
-    const ebayFees = Math.round((ebayGross * 0.134 + 0.33) * 100) / 100;
-    const ebayNet = Math.max(0, Math.round((ebayGross - effectiveTagCost - ebayFees - estShipping) * 100) / 100);
-
-    // 2. Depop AU (10% flat fee, trendy street/vintage demographic)
-    const depopGross = Math.round(estValue * 0.96);
-    const depopFees = Math.round(depopGross * 0.10 * 100) / 100;
-    const depopNet = Math.max(0, Math.round((depopGross - effectiveTagCost - depopFees - estShipping) * 100) / 100);
-
-    // 3. Poshmark AU (20% fee, buyer pays postage)
-    const poshGross = Math.round(estValue * 1.05);
-    const poshFees = Math.round(poshGross * 0.20 * 100) / 100;
-    const poshNet = Math.max(0, Math.round((poshGross - effectiveTagCost - poshFees) * 100) / 100);
-
-    // 4. Facebook Marketplace (Local Cash Pickup: 0% fees, $0 postage)
-    const fbGross = Math.round(estValue * 0.88);
-    const fbNet = Math.max(0, Math.round((fbGross - effectiveTagCost) * 100) / 100);
-
-    const channels = [
-      { name: "eBay AU", gross: ebayGross, fees: ebayFees, post: estShipping, net: ebayNet, badge: "Highest Volume" },
-      { name: "Depop AU", gross: depopGross, fees: depopFees, post: estShipping, net: depopNet, badge: "Gen-Z & Vintage" },
-      { name: "Poshmark AU", gross: poshGross, fees: poshFees, post: 0, net: poshNet, badge: "Buyer Pays Post" },
-      { name: "FB Local", gross: fbGross, fees: 0, post: 0, net: fbNet, badge: "Instant Cash" },
-    ];
-
-    const bestChannel = channels.reduce((max, c) => (c.net > max.net ? c : max), channels[0]);
-
-    return { channels, bestChannel };
-  }, [estValue, effectiveTagCost, estShipping]);
-
-  // Real eBay Sold Search URL for instant in-aisle comparison
-  const cleanSearchQuery = encodeURIComponent(`${brand !== "Unbranded" ? brand : ""} ${title}`.trim());
-  const ebaySoldsUrl = `https://www.ebay.com.au/sch/i.html?_nkw=${cleanSearchQuery}&LH_Sold=1&LH_Complete=1`;
+    const x = Math.min(100, Math.max(0, ((clientX - rect.left) / rect.width) * 100));
+    const y = Math.min(100, Math.max(0, ((clientY - rect.top) / rect.height) * 100));
+    setLoupeCoords({ x, y });
+  }, []);
 
   const handleSaveDraft = async () => {
     setIsSaving(true);
@@ -267,10 +325,10 @@ export default function LensCompsModal({
         userId: user.id,
         product: title,
         description: `Sourced via Spadas Cognitive Lens Engine. Category: ${category}. Condition: ${condition}. True Net Profit: +$${netProfit} AUD (${roi}% ROI). Verified sold comps source: eBay AU.`,
-        price: estValue,
+        price: activeResalePrice,
         cost: effectiveTagCost,
         status: "Draft",
-        image: frozenFrameUrl || (item as any).image || undefined,
+        image: frozenFrameUrl || (item as any)?.image || undefined,
       });
 
       if (error) throw error;
@@ -303,6 +361,39 @@ export default function LensCompsModal({
       setIsCopied(true);
       toast.success("📋 Title copied to clipboard!");
       setTimeout(() => setIsCopied(false), 2000);
+    }
+  };
+
+  const handleExportTradeTicket = () => {
+    const ticket = [
+      "═══════════════════════════════════════════════",
+      "  SPADAS COGNITIVE OPTICAL AUDIT · TRADE TICKET ",
+      "═══════════════════════════════════════════════",
+      `Item:        ${title}`,
+      `Brand:       ${brand}`,
+      `Category:    ${category}`,
+      `Condition:   ${condition}`,
+      `Target Sold: $${activeResalePrice.toFixed(2)} AUD (${pricingStrategy.replace("_", " ").toUpperCase()})`,
+      `In-Store Tag: $${effectiveTagCost.toFixed(2)} AUD (${discountPercent > 0 ? `${discountPercent}% Off` : "Full Tag"})`,
+      `Net Profit:  +$${netProfit.toFixed(2)} AUD (+${roi}% Net ROI)`,
+      `Turnover:    ${salesVelocity.estDaysToSell} (${salesVelocity.turnoverTier})`,
+      `Top Channel: ${marketplaceArbitrage.bestChannel.name} (+$${marketplaceArbitrage.bestChannel.net} Take-Home)`,
+      `Evidence:    ${rawComps.length} Verified eBay AU Sold Listings (1–5d ago)`,
+      `Engine:      Spadas Cognitive Core v4.2 · Vercel Edge`,
+      "═══════════════════════════════════════════════",
+    ].join("\n");
+
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      void navigator.clipboard.writeText(ticket);
+      scannerAudio.play("ticket");
+      triggerTactileHaptic("success");
+      setIsDossierCopied(true);
+      toast.success("📋 Reseller Trade Ticket copied to clipboard!");
+      setTimeout(() => setIsDossierCopied(false), 2500);
+
+      try {
+        track("lens_trade_ticket_exported", { title, brand, netProfit });
+      } catch {}
     }
   };
 
@@ -366,14 +457,18 @@ export default function LensCompsModal({
 
   // Liquidity percent position on visual spread bar (25% to 75%)
   const spreadWidth = Math.max(1, compsRange.max - compsRange.min);
-  const medianPositionPercent = Math.min(
+  const targetPositionPercent = Math.min(
     95,
-    Math.max(5, Math.round(((compsRange.median - compsRange.min) / spreadWidth) * 100))
+    Math.max(5, Math.round(((activeResalePrice - compsRange.min) / spreadWidth) * 100))
   );
+
+  const previewImageSrc = frozenFrameUrl || (item as any)?.image || null;
+
+  if (!isOpen || !item) return null;
 
   return (
     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/85 backdrop-blur-2xl animate-fade-in select-none">
-      <div className="relative w-full max-w-xl h-[94vh] sm:h-auto sm:max-h-[92vh] flex flex-col rounded-t-3xl sm:rounded-3xl bg-[#080A11] border border-white/[0.14] shadow-[0_25px_80px_rgba(0,0,0,0.9),0_0_60px_rgba(6,182,212,0.15)] text-slate-100 overflow-hidden animate-slide-up">
+      <div className="relative w-full max-w-xl h-[95vh] sm:h-auto sm:max-h-[92vh] flex flex-col rounded-t-3xl sm:rounded-3xl bg-[#080A11] border border-white/[0.14] shadow-[0_25px_80px_rgba(0,0,0,0.9),0_0_60px_rgba(6,182,212,0.15)] text-slate-100 overflow-hidden animate-slide-up">
         {/* Top Edge Aerospace Gradient Accent */}
         <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-cyan-500/0 via-cyan-400 to-emerald-400/0 z-30" />
 
@@ -406,6 +501,30 @@ export default function LensCompsModal({
           <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
+              onClick={() => {
+                const unmuted = scannerAudio.toggleMute();
+                setIsMuted(!unmuted);
+                triggerTactileHaptic("tap");
+                toast.info(unmuted ? "🔊 Audio feedback enabled" : "🔇 Silent mode (muted)");
+              }}
+              className="p-1.5 rounded-xl text-zinc-400 hover:text-white hover:bg-white/[0.08] transition cursor-pointer border border-transparent hover:border-white/[0.1]"
+              title={isMuted ? "Enable scanner audio feedback" : "Mute scanner audio feedback"}
+            >
+              {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4 text-cyan-400" />}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleExportTradeTicket}
+              className="hidden sm:flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-zinc-300 hover:text-white text-xs font-mono transition cursor-pointer border border-white/[0.08]"
+              title="Copy Reseller Trade Ticket [C]"
+            >
+              <FileText className="h-3.5 w-3.5 text-cyan-400" />
+              <span>{isDossierCopied ? "Ticket Copied!" : "Ticket"}</span>
+            </button>
+
+            <button
+              type="button"
               onClick={onResumeScan}
               className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white text-zinc-950 hover:bg-zinc-200 text-xs font-black transition cursor-pointer active:scale-95 shadow-md"
               title="Resume scanning [Space]"
@@ -432,41 +551,129 @@ export default function LensCompsModal({
           className="flex-1 overflow-y-auto overscroll-contain p-4 space-y-3 touch-pan-y custom-scrollbar"
           style={{ WebkitOverflowScrolling: "touch" }}
         >
-          {/* Item Dossier & Optical Anchor */}
-          <div className="flex items-start gap-3.5 bg-[#0D101A] p-3.5 rounded-2xl border border-white/[0.08] shadow-sm">
-            {frozenFrameUrl || (item as any).image ? (
-              <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl border border-cyan-500/40 shadow-md bg-zinc-950 group">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={frozenFrameUrl || (item as any).image}
-                  alt={title}
-                  className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                />
-                <span className="absolute bottom-1 right-1 rounded bg-slate-950/85 px-1 py-0.2 text-[8px] font-mono font-bold text-cyan-300 border border-cyan-500/30">
-                  LOCKED
-                </span>
+          {/* Item Dossier & Optical Anchor with Integrated 2.5x Holographic Loupe */}
+          <div className="flex items-start gap-3.5 bg-[#0D101A] p-3.5 rounded-2xl border border-white/[0.08] shadow-sm relative">
+            {previewImageSrc ? (
+              <div className="flex flex-col gap-1.5 shrink-0">
+                <div
+                  ref={imageContainerRef}
+                  onMouseEnter={() => {
+                    setIsLoupeActive(true);
+                    scannerAudio.play("loupe");
+                  }}
+                  onMouseLeave={() => setIsLoupeActive(false)}
+                  onMouseMove={handleLoupeMove}
+                  onTouchStart={() => {
+                    setIsLoupeActive(true);
+                    scannerAudio.play("loupe");
+                  }}
+                  onTouchEnd={() => setIsLoupeActive(false)}
+                  onTouchMove={handleLoupeMove}
+                  className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl border border-cyan-500/40 shadow-md bg-zinc-950 cursor-crosshair group touch-none"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={previewImageSrc}
+                    alt={title}
+                    className="h-full w-full object-cover transition-transform duration-300"
+                  />
+
+                  {/* Holographic Forensic Loupe Floating Reticle */}
+                  {isLoupeActive && (
+                    <div
+                      className="absolute inset-0 pointer-events-none z-20 overflow-hidden bg-cover"
+                      style={{
+                        backgroundImage: `url(${previewImageSrc})`,
+                        backgroundPosition: `${loupeCoords.x}% ${loupeCoords.y}%`,
+                        backgroundSize: `${loupeZoom * 100}%`,
+                        filter: loupeFilterStyle,
+                      }}
+                    >
+                      <div className="absolute inset-0 border border-cyan-400/80 shadow-[inset_0_0_15px_rgba(6,182,212,0.6)] flex items-center justify-center">
+                        <Crosshair className="h-6 w-6 text-cyan-400/80 animate-pulse" />
+                        <div className="absolute bottom-1 right-1 flex items-center gap-1 text-[7px] font-mono text-cyan-300 bg-black/85 px-1 rounded border border-cyan-500/30">
+                          <span>{loupeZoom}X</span>
+                          {forensicFilter !== "optical" && (
+                            <span className="text-amber-300 uppercase">{forensicFilter}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <span className="absolute bottom-1 right-1 rounded bg-slate-950/85 px-1 py-0.2 text-[8px] font-mono font-bold text-cyan-300 border border-cyan-500/30">
+                    {isLoupeActive ? `${loupeZoom}X` : "LOUPE"}
+                  </span>
+                </div>
+
+                {/* Micro Loupe Controls: Zoom (2.5x, 4x, 8x) & Spectral Filters (Optical, Contrast, UV) */}
+                <div className="flex items-center gap-1 font-mono text-[8px]">
+                  <div className="flex items-center rounded-lg bg-zinc-950 border border-white/[0.08] p-0.5">
+                    {([2.5, 4, 8] as const).map((z) => (
+                      <button
+                        key={z}
+                        type="button"
+                        onClick={() => {
+                          setLoupeZoom(z);
+                          scannerAudio.play("loupe");
+                          triggerTactileHaptic("light");
+                        }}
+                        className={`px-1 py-0.5 rounded text-[8px] font-bold transition cursor-pointer ${
+                          loupeZoom === z
+                            ? "bg-cyan-500 text-black shadow-xs font-black"
+                            : "text-zinc-400 hover:text-white"
+                        }`}
+                        title={`Zoom ${z}x`}
+                      >
+                        {z}x
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="flex items-center rounded-lg bg-zinc-950 border border-white/[0.08] p-0.5">
+                    {(["optical", "contrast", "uv"] as const).map((f) => (
+                      <button
+                        key={f}
+                        type="button"
+                        onClick={() => {
+                          setForensicFilter(f);
+                          scannerAudio.play("loupe");
+                          triggerTactileHaptic("selection");
+                        }}
+                        className={`px-1 py-0.5 rounded text-[7px] font-bold uppercase transition cursor-pointer ${
+                          forensicFilter === f
+                            ? "bg-purple-500 text-white shadow-xs font-black"
+                            : "text-zinc-400 hover:text-white"
+                        }`}
+                        title={f === "optical" ? "Optical" : f === "contrast" ? "High Contrast" : "UV Blacklight"}
+                      >
+                        {f === "optical" ? "Opt" : f === "contrast" ? "Clr" : "UV"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             ) : (
-              <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-xl bg-cyan-950/40 border border-cyan-500/30 text-cyan-400">
+              <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-xl bg-cyan-950/40 border border-cyan-500/30 text-cyan-400">
                 <ShoppingBag className="h-8 w-8" />
               </div>
             )}
 
             <div className="flex-1 min-w-0 space-y-1.5">
               <div className="flex items-center gap-1.5 flex-wrap">
-                {isMeaningfulMeta(item.brand) && (
+                {isMeaningfulMeta(brand) && (
                   <span className="rounded-lg bg-cyan-500/15 px-2 py-0.5 text-[9px] font-mono font-extrabold text-cyan-300 border border-cyan-500/30">
-                    {item.brand.trim()}
+                    {brand.trim()}
                   </span>
                 )}
-                {isMeaningfulMeta(item.category) && (
+                {isMeaningfulMeta(category) && (
                   <span className="rounded-lg bg-white/[0.06] px-2 py-0.5 text-[9px] font-medium text-zinc-300 border border-white/[0.06]">
-                    {item.category.trim()}
+                    {category.trim()}
                   </span>
                 )}
-                {isMeaningfulMeta(item.condition) && (
+                {isMeaningfulMeta(condition) && (
                   <span className="rounded-lg bg-white/[0.06] px-2 py-0.5 text-[9px] font-medium text-zinc-400 border border-white/[0.06]">
-                    {cleanConditionText(item.condition, "Used")}
+                    {condition}
                   </span>
                 )}
                 <span className="rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 text-[9px] font-mono font-bold">
@@ -502,16 +709,63 @@ export default function LensCompsModal({
           </div>
 
           {/* ── SECTION 3: 300 IQ FINANCIAL HERO & TAKE-HOME NET PROFIT ── */}
-          <div className="rounded-2xl bg-gradient-to-br from-[#0B1512] via-[#0E1520] to-[#0A0E17] p-4 border border-emerald-500/30 shadow-[0_10px_35px_rgba(16,185,129,0.12)] space-y-3 font-mono">
+          <div className="rounded-2xl bg-gradient-to-br from-[#0B1512] via-[#0E1520] to-[#0A0E17] p-4 border border-emerald-500/30 shadow-[0_10px_35px_rgba(16,185,129,0.12)] space-y-3 font-mono relative overflow-hidden">
+            {/* Luminous Soundwave / Frequency Micro-Bar */}
+            <div className="flex items-center gap-0.5 absolute top-3 right-4 opacity-40">
+              <span className="w-0.5 h-3 bg-emerald-400 animate-pulse" style={{ animationDuration: "0.8s" }} />
+              <span className="w-0.5 h-5 bg-emerald-400 animate-pulse" style={{ animationDuration: "1.2s" }} />
+              <span className="w-0.5 h-2 bg-emerald-400 animate-pulse" style={{ animationDuration: "0.6s" }} />
+              <span className="w-0.5 h-6 bg-emerald-400 animate-pulse" style={{ animationDuration: "1.0s" }} />
+              <span className="w-0.5 h-4 bg-emerald-400 animate-pulse" style={{ animationDuration: "0.9s" }} />
+            </div>
+
             <div className="flex items-start justify-between gap-2">
-              <div>
-                <span className="text-[10px] uppercase font-bold text-emerald-400/90 tracking-widest flex items-center gap-1">
-                  <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Take-Home Net Profit</span>
-                </span>
-                <div className="text-3xl sm:text-4xl font-black text-emerald-400 tracking-tight flex items-baseline gap-1.5 mt-0.5">
-                  <span>+{fmtMoney(netProfit)}</span>
-                  <span className="text-xs font-bold text-emerald-300/80">AUD</span>
+              <div className="flex items-center gap-3">
+                {/* Radial ROI Velocity Arc Gauge */}
+                <div className="relative flex items-center justify-center h-13 w-13 shrink-0">
+                  <svg className="h-13 w-13 -rotate-90" viewBox="0 0 36 36">
+                    <path
+                      className="text-zinc-800"
+                      strokeWidth="3.5"
+                      stroke="currentColor"
+                      fill="none"
+                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                    />
+                    <path
+                      className={
+                        roi >= 300
+                          ? "text-emerald-400"
+                          : roi >= 100
+                          ? "text-cyan-400"
+                          : "text-amber-400"
+                      }
+                      strokeDasharray={`${Math.min(100, Math.max(10, Math.round(roi / 5)))}, 100`}
+                      strokeWidth="3.5"
+                      strokeLinecap="round"
+                      stroke="currentColor"
+                      fill="none"
+                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                    />
+                  </svg>
+                  <div className="absolute flex flex-col items-center">
+                    <span className="text-[10px] font-black text-white font-mono leading-none">
+                      {roi > 999 ? "999+" : `${roi}%`}
+                    </span>
+                    <span className="text-[6px] uppercase font-bold text-zinc-400 font-mono leading-none mt-0.5">
+                      ROI
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-emerald-400/90 tracking-widest flex items-center gap-1">
+                    <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Take-Home Net Profit</span>
+                  </span>
+                  <div className="text-3xl sm:text-4xl font-black text-emerald-400 tracking-tight flex items-baseline gap-1.5 mt-0.5">
+                    <span>+{fmtMoney(netProfit)}</span>
+                    <span className="text-xs font-bold text-emerald-300/80">AUD</span>
+                  </div>
                 </div>
               </div>
 
@@ -539,7 +793,7 @@ export default function LensCompsModal({
             {/* Transparent Reseller P&L Equation Formula Bar */}
             <div className="pt-2.5 border-t border-emerald-500/20 text-[11px] text-zinc-300 flex items-center justify-between flex-wrap gap-1">
               <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-cyan-300 font-bold">Sold {fmtMoney(estValue)}</span>
+                <span className="text-cyan-300 font-bold">Sold {fmtMoney(activeResalePrice)}</span>
                 <span className="text-zinc-500">−</span>
                 <span className="text-amber-300">Tag {fmtMoney(effectiveTagCost)}</span>
                 <span className="text-zinc-500">−</span>
@@ -552,20 +806,96 @@ export default function LensCompsModal({
               </span>
             </div>
 
-            {/* Market Spread & Liquidity Spectrum */}
-            <div className="pt-2 space-y-1.5">
-              <div className="flex items-center justify-between text-[10px] text-zinc-400 font-sans font-medium">
-                <span>Fast Liquidation (25th): <strong className="text-zinc-200">{fmtMoney(compsRange.min)}</strong></span>
-                <span>Median Comp: <strong className="text-cyan-300">{fmtMoney(compsRange.median)}</strong></span>
-                <span>Peak (75th): <strong className="text-zinc-200">{fmtMoney(compsRange.max)}</strong></span>
+            {/* Pricing Strategy & Liquidation Sensitivity Segment Controller */}
+            <div className="pt-2.5 space-y-2">
+              <div className="flex items-center justify-between text-[10px] text-zinc-400 font-sans">
+                <span className="font-bold uppercase tracking-wider text-zinc-300 flex items-center gap-1">
+                  <Sliders className="h-3 w-3 text-cyan-400" />
+                  <span>Pricing Strategy & Liquidation Speed:</span>
+                </span>
+                <span className="font-mono text-cyan-300 font-bold">Target: {fmtMoney(activeResalePrice)} AUD</span>
               </div>
 
-              {/* Visual Precision Spread Bar */}
-              <div className="relative h-2.5 w-full rounded-full bg-zinc-900 border border-white/[0.08] overflow-hidden">
-                <div className="h-full w-full bg-gradient-to-r from-zinc-700 via-cyan-500 to-emerald-400 opacity-75" />
+              <div className="grid grid-cols-3 gap-1.5 p-1 rounded-xl bg-zinc-950 border border-white/[0.06]">
+                <button
+                  type="button"
+                  onClick={() => {
+                    triggerTactileHaptic("selection");
+                    scannerAudio.play("strategy");
+                    setPricingStrategy("quick_flip");
+                    try {
+                      track("lens_pricing_strategy_changed", {
+                        strategy: "quick_flip",
+                        targetPrice: compsRange.min,
+                        item: title,
+                      });
+                    } catch {}
+                  }}
+                  className={`py-1.5 px-2 rounded-lg text-[10px] font-mono font-bold transition flex flex-col items-center gap-0.5 cursor-pointer ${
+                    pricingStrategy === "quick_flip"
+                      ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm"
+                      : "text-zinc-400 hover:text-zinc-200"
+                  }`}
+                >
+                  <span>🔥 24h Fast Flip</span>
+                  <span className="text-[9px] opacity-80">{fmtMoney(compsRange.min)}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    triggerTactileHaptic("selection");
+                    scannerAudio.play("strategy");
+                    setPricingStrategy("fair_market");
+                    try {
+                      track("lens_pricing_strategy_changed", {
+                        strategy: "fair_market",
+                        targetPrice: compsRange.median,
+                        item: title,
+                      });
+                    } catch {}
+                  }}
+                  className={`py-1.5 px-2 rounded-lg text-[10px] font-mono font-bold transition flex flex-col items-center gap-0.5 cursor-pointer ${
+                    pricingStrategy === "fair_market"
+                      ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm"
+                      : "text-zinc-400 hover:text-zinc-200"
+                  }`}
+                >
+                  <span>⚖️ Fair Market</span>
+                  <span className="text-[9px] opacity-80">{fmtMoney(compsRange.median)}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    triggerTactileHaptic("selection");
+                    scannerAudio.play("strategy");
+                    setPricingStrategy("peak_value");
+                    try {
+                      track("lens_pricing_strategy_changed", {
+                        strategy: "peak_value",
+                        targetPrice: compsRange.max,
+                        item: title,
+                      });
+                    } catch {}
+                  }}
+                  className={`py-1.5 px-2 rounded-lg text-[10px] font-mono font-bold transition flex flex-col items-center gap-0.5 cursor-pointer ${
+                    pricingStrategy === "peak_value"
+                      ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm"
+                      : "text-zinc-400 hover:text-zinc-200"
+                  }`}
+                >
+                  <span>💎 Peak 30d</span>
+                  <span className="text-[9px] opacity-80">{fmtMoney(compsRange.max)}</span>
+                </button>
+              </div>
+
+              {/* Visual Precision Distribution Bar with Target Pin */}
+              <div className="relative h-2 w-full rounded-full bg-zinc-900 border border-white/[0.08] overflow-hidden mt-1">
+                <div className="h-full w-full bg-gradient-to-r from-amber-500/60 via-cyan-500/70 to-emerald-400" />
                 <div
-                  className="absolute top-0 bottom-0 w-1.5 bg-white shadow-[0_0_10px_#fff] -translate-x-1/2"
-                  style={{ left: `${medianPositionPercent}%` }}
+                  className="absolute top-0 bottom-0 w-1.5 bg-white shadow-[0_0_8px_#fff] -translate-x-1/2 transition-all duration-200"
+                  style={{ left: `${targetPositionPercent}%` }}
                 />
               </div>
 
@@ -618,6 +948,7 @@ export default function LensCompsModal({
                     type="button"
                     onClick={() => {
                       setCustomTagCost(price);
+                      scannerAudio.play("tag");
                       triggerTactileHaptic("light");
                     }}
                     className={`px-2 py-0.5 rounded-lg text-[10px] font-mono font-bold border transition cursor-pointer ${
@@ -631,27 +962,29 @@ export default function LensCompsModal({
                 ))}
               </div>
 
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 flex-wrap">
                 {[
-                  { label: "Full", val: 0 },
-                  { label: "25% Off", val: 25 },
-                  { label: "50% Off", val: 50 },
-                  { label: "75% Off", val: 75 },
+                  { label: "White (Full)", val: 0, color: "border-white/40 text-zinc-200 bg-white/5", dot: "bg-white" },
+                  { label: "Blue 25%", val: 25, color: "border-blue-500/50 text-blue-300 bg-blue-500/15", dot: "bg-blue-400" },
+                  { label: "Yellow 50%", val: 50, color: "border-amber-400/50 text-amber-300 bg-amber-400/15", dot: "bg-amber-400" },
+                  { label: "Green 75%", val: 75, color: "border-emerald-500/50 text-emerald-300 bg-emerald-500/15", dot: "bg-emerald-400" },
                 ].map((disc) => (
                   <button
                     key={disc.val}
                     type="button"
                     onClick={() => {
                       setDiscountPercent(disc.val);
+                      scannerAudio.play("tag");
                       triggerTactileHaptic("light");
                     }}
-                    className={`px-2 py-0.5 rounded-lg text-[9px] font-mono font-extrabold border transition cursor-pointer ${
+                    className={`px-2 py-0.5 rounded-lg text-[9px] font-mono font-bold border transition flex items-center gap-1 cursor-pointer ${
                       discountPercent === disc.val
-                        ? "bg-emerald-500/25 text-emerald-300 border-emerald-500/60"
+                        ? `${disc.color} ring-1 ring-white/20 shadow-sm font-extrabold`
                         : "bg-zinc-900 text-zinc-400 border-white/[0.06] hover:text-white"
                     }`}
                   >
-                    {disc.label}
+                    <span className={`h-1.5 w-1.5 rounded-full ${disc.dot}`} />
+                    <span>{disc.label}</span>
                   </button>
                 ))}
               </div>
@@ -698,18 +1031,27 @@ export default function LensCompsModal({
             </button>
           </div>
 
-          {/* ── TAB 1: MULTI-PLATFORM ARBITRAGE MATRIX ── */}
+          {/* ── TAB 1: MULTI-PLATFORM ARBITRAGE MATRIX & SPREAD HEATMAP ── */}
           {activeTab === "arbitrage" && (
-            <div className="rounded-2xl bg-[#0D101A] p-3.5 border border-white/[0.08] space-y-2.5 animate-fade-in">
+            <div className="rounded-2xl bg-[#0D101A] p-3.5 border border-white/[0.08] space-y-3 animate-fade-in">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-black text-white flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Channel Net Realization Matrix</span>
+                  <span>Cross-Channel Net Realization Heatmap</span>
                 </span>
-                <span className="text-[10px] font-mono text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-                  Best: {marketplaceArbitrage.bestChannel.name} (+${marketplaceArbitrage.bestChannel.net})
+                <span className="text-[10px] font-mono text-emerald-400 font-bold bg-emerald-500/15 px-2 py-0.5 rounded border border-emerald-500/30">
+                  👑 Optimal: {marketplaceArbitrage.bestChannel.name} (+${marketplaceArbitrage.bestChannel.net})
                 </span>
               </div>
+
+              {marketplaceArbitrage.arbitrageDelta > 2 && (
+                <div className="p-2 rounded-xl bg-cyan-950/40 border border-cyan-500/30 text-[10px] font-mono text-cyan-300 flex items-center justify-between">
+                  <span>
+                    ⚡ Arbitrage Spread: <strong>{marketplaceArbitrage.bestChannel.name}</strong> pays +$
+                    {marketplaceArbitrage.arbitrageDelta} more net cash than {marketplaceArbitrage.secondBest.name}.
+                  </span>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono">
                 {marketplaceArbitrage.channels.map((ch) => {
@@ -719,13 +1061,16 @@ export default function LensCompsModal({
                       key={ch.name}
                       className={`p-2.5 rounded-xl border flex flex-col justify-between transition ${
                         isBest
-                          ? "bg-gradient-to-b from-emerald-950/40 to-[#0A0D15] border-emerald-500/50 shadow-sm"
+                          ? "bg-gradient-to-b from-emerald-950/40 to-[#0A0D15] border-emerald-500/50 shadow-md"
                           : "bg-zinc-950/70 border-white/[0.06]"
                       }`}
                     >
                       <div>
                         <div className="flex items-center justify-between gap-1 mb-1">
-                          <span className="text-[11px] font-bold text-white font-sans">{ch.name}</span>
+                          <span className="text-[11px] font-bold text-white font-sans flex items-center gap-1">
+                            <span>{ch.icon}</span>
+                            <span>{ch.name}</span>
+                          </span>
                           {isBest && (
                             <span className="text-[8px] font-bold text-emerald-400 uppercase bg-emerald-500/20 px-1 rounded">
                               TOP
@@ -749,12 +1094,55 @@ export default function LensCompsModal({
                   );
                 })}
               </div>
+
+              {/* Horizontal Multi-Channel Net Payout Horizon Chart */}
+              <div className="space-y-2 p-3 rounded-xl bg-zinc-950/80 border border-white/[0.06]">
+                <div className="flex items-center justify-between text-[10px] font-mono">
+                  <span className="uppercase font-bold text-zinc-400">Net Take-Home Horizon:</span>
+                  <span className="text-zinc-500 font-sans">After all platform fees & shipping</span>
+                </div>
+                <div className="space-y-1.5">
+                  {marketplaceArbitrage.channels.map((ch) => {
+                    const isBest = ch.name === marketplaceArbitrage.bestChannel.name;
+                    const maxNet = Math.max(1, ...marketplaceArbitrage.channels.map((c) => c.net));
+                    const widthPct = Math.min(100, Math.max(12, Math.round((ch.net / maxNet) * 100)));
+                    return (
+                      <div key={ch.name} className="space-y-0.5">
+                        <div className="flex items-center justify-between text-[11px] font-mono">
+                          <span className="flex items-center gap-1.5 text-zinc-300 font-sans">
+                            <span>{ch.icon}</span>
+                            <span className={isBest ? "font-bold text-emerald-300" : ""}>{ch.name}</span>
+                            {isBest && (
+                              <span className="text-[8px] font-bold text-emerald-400 uppercase bg-emerald-500/20 px-1 rounded">
+                                Best Payout
+                              </span>
+                            )}
+                          </span>
+                          <span className={`font-bold ${isBest ? "text-emerald-400" : "text-zinc-300"}`}>
+                            +{fmtMoney(ch.net)} AUD
+                          </span>
+                        </div>
+                        <div className="h-2 w-full rounded-full bg-zinc-900 overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-300 ${
+                              isBest
+                                ? "bg-gradient-to-r from-emerald-500 to-teal-400 shadow-[0_0_10px_rgba(16,185,129,0.7)]"
+                                : "bg-zinc-700"
+                            }`}
+                            style={{ width: `${widthPct}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           )}
 
-          {/* ── TAB 2: VERIFIED SOLD COMPS LEDGER ── */}
+          {/* ── TAB 2: VERIFIED SOLD COMPS LEDGER & CLUSTER SPECTRUM ── */}
           {activeTab === "comps" && (
-            <div className="space-y-2 animate-fade-in">
+            <div className="space-y-2.5 animate-fade-in">
               <div className="flex items-center justify-between px-1">
                 <span className="text-[11px] font-mono font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-amber-400" />
@@ -769,6 +1157,29 @@ export default function LensCompsModal({
                   <span>Live eBay AU Solds</span>
                   <ExternalLink className="w-3 h-3" />
                 </a>
+              </div>
+
+              {/* Visual Price Cluster Scatter Strip */}
+              <div className="p-2.5 rounded-xl bg-[#0D101A] border border-white/[0.08] space-y-1.5">
+                <div className="flex items-center justify-between text-[9px] text-zinc-400 font-mono">
+                  <span>Price Clustering</span>
+                  <span>Range: {fmtMoney(compsRange.min)} – {fmtMoney(compsRange.max)}</span>
+                </div>
+                <div className="relative h-4 w-full rounded-lg bg-zinc-950 border border-white/[0.06] overflow-hidden flex items-center px-2">
+                  <div className="absolute inset-x-0 h-0.5 bg-zinc-800" />
+                  {rawComps.map((c, i) => {
+                    const price = c.price || 45;
+                    const pct = Math.min(95, Math.max(5, ((price - compsRange.min) / spreadWidth) * 100));
+                    return (
+                      <div
+                        key={i}
+                        className="absolute h-2.5 w-2.5 rounded-full bg-cyan-400 shadow-[0_0_6px_rgba(6,182,212,0.8)] -translate-x-1/2 cursor-pointer hover:scale-125 transition"
+                        style={{ left: `${pct}%` }}
+                        title={`${c.title} • $${price} (${c.soldDate || "recent"})`}
+                      />
+                    );
+                  })}
+                </div>
               </div>
 
               <div className="space-y-2">
