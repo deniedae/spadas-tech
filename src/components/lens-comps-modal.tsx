@@ -468,7 +468,10 @@ export default function LensCompsModal({
 
   return (
     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/85 backdrop-blur-2xl animate-fade-in select-none">
-      <div className="relative w-full max-w-xl h-[95vh] sm:h-auto sm:max-h-[92vh] flex flex-col rounded-t-3xl sm:rounded-3xl bg-[#080A11] border border-white/[0.14] shadow-[0_25px_80px_rgba(0,0,0,0.9),0_0_60px_rgba(6,182,212,0.15)] text-slate-100 overflow-hidden animate-slide-up">
+      <div className="relative w-full max-w-xl h-[92dvh] sm:h-auto sm:max-h-[90vh] flex flex-col rounded-t-3xl sm:rounded-3xl bg-[#080A11] border border-white/[0.14] shadow-[0_25px_80px_rgba(0,0,0,0.9),0_0_60px_rgba(6,182,212,0.15)] text-slate-100 overflow-hidden animate-slide-up">
+        {/* Mobile Native Drag Handle Pill */}
+        <div className="mx-auto mt-2 h-1 w-12 rounded-full bg-white/20 sm:hidden" />
+
         {/* Top Edge Aerospace Gradient Accent */}
         <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-cyan-500/0 via-cyan-400 to-emerald-400/0 z-30" />
 

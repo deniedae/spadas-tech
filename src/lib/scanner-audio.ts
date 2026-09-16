@@ -16,6 +16,23 @@ class ScannerAudioEngine {
           this.isMuted = stored === "false";
         }
       } catch {}
+
+      // Mobile iOS/Android Safari audio unlock on first user gesture
+      const unlock = () => {
+        if (!this.ctx) {
+          const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+          if (AudioCtx) {
+            this.ctx = new AudioCtx();
+          }
+        }
+        if (this.ctx && this.ctx.state === "suspended") {
+          void this.ctx.resume();
+        }
+        window.removeEventListener("click", unlock);
+        window.removeEventListener("touchstart", unlock);
+      };
+      window.addEventListener("click", unlock, { passive: true, once: true });
+      window.addEventListener("touchstart", unlock, { passive: true, once: true });
     }
   }
 
