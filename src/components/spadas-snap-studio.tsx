@@ -347,7 +347,7 @@ export function SpadasSnapStudio() {
       let data: any = null;
       if (res.ok) {
         const contentType = res.headers.get("content-type") || "";
-        if (contentType.includes("application/x-ndjson") && res.body) {
+        if ((contentType.includes("application/x-ndjson") || contentType.includes("text/event-stream")) && res.body) {
           try {
             const reader = res.body.getReader();
             const decoder = new TextDecoder();
@@ -363,11 +363,30 @@ export function SpadasSnapStudio() {
               buffer = lines.pop() || "";
 
               for (const line of lines) {
-                const trimmed = line.trim();
+                let trimmed = line.trim();
                 if (!trimmed) continue;
+                if (trimmed.startsWith("data: ")) {
+                  trimmed = trimmed.replace(/^data:\s*/, "").trim();
+                }
+                if (!trimmed || trimmed === "[DONE]") continue;
+
                 try {
                   const chunk = JSON.parse(trimmed);
-                  if (chunk.event === "vision_complete") {
+                  if (chunk.event === "valuation_ready") {
+                    const valData = chunk.data || chunk;
+                    const rawPName = valData.product_name || valData.analysis?.product_name || "";
+                    if (rawPName) {
+                      setDetectedTitle(rawPName);
+                      setDetectedBrand(valData.brand || valData.analysis?.brand || "Authentic");
+                      setAnalysisStage("complete");
+                    }
+                    data = valData;
+                  } else if (chunk.event === "listing_complete") {
+                    const listingData = chunk.data || chunk;
+                    if (data) {
+                      data = { ...data, ...listingData };
+                    }
+                  } else if (chunk.event === "vision_complete") {
                     const rawPName = chunk.product_name || chunk.analysis?.product_name || "";
                     if (rawPName) {
                       setAnalysisStage("comps");
@@ -389,8 +408,13 @@ export function SpadasSnapStudio() {
 
             if (!data && buffer.trim()) {
               try {
-                const chunk = JSON.parse(buffer.trim());
+                let trimmed = buffer.trim();
+                if (trimmed.startsWith("data: ")) {
+                  trimmed = trimmed.replace(/^data:\s*/, "").trim();
+                }
+                const chunk = JSON.parse(trimmed);
                 if (chunk.event === "complete") data = chunk.data;
+                else if (chunk.event === "valuation_ready") data = chunk.data || chunk;
                 else if (!chunk.event) data = chunk;
               } catch {}
             }

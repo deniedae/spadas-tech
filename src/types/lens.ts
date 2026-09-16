@@ -101,6 +101,22 @@ export interface DetectedHit {
     holding_recommendation: string;
     value_curve: number[];
   };
+  marketTitles?: {
+    ebay: string;
+    facebook_marketplace: string;
+    vinted: string;
+    depop: string;
+  };
+  seoDescription?: string;
+  detailedDescription?: string;
+  shippingEstimate?: {
+    size: "small" | "medium" | "large" | "extra-large";
+    estimated_weight_grams: number;
+    dimensions_cm: { length: number; width: number; height: number } | null;
+    notes: string | null;
+  } | null;
+  itemSpecifics?: Record<string, string> | Array<{ name: string; value: string }>;
+  suggestedKeywords?: string[];
 }
 
 export interface ActiveScanItem {
@@ -119,7 +135,7 @@ export interface ActiveScanItem {
   suggestedPriceMax?: number;
   confidenceScore?: number;
   ebayCompsCount?: number;
-  compsSource?: "browse_api" | "sold_comps_api" | "ai_estimate";
+  compsSource?: "browse_api" | "sold_comps_api" | "ai_estimate" | "cached_last_check";
   rawComps?: RawSoldComp[];
   compsRange?: {
     min: number;

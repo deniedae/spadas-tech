@@ -91,49 +91,61 @@ export function ScanProgressiveLoader({
   isIntelMode = false,
 }: ScanProgressiveLoaderProps) {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const [maxProgress, setMaxProgress] = useState(0);
 
   const activeSteps = isIntelMode ? INTEL_STEPS : STANDARD_STEPS;
 
-  // Synchronize immediately if explicit stage is provided
+  // Synchronize immediately if explicit stage is provided with strict monotonic progression
   useEffect(() => {
     if (!isActive || stage === "idle" || stage === "confirmation" || stage === "complete") {
       setCurrentStepIndex(0);
+      setMaxProgress(0);
       return;
     }
 
     if (stage === "comps") {
-      setCurrentStepIndex(2); // Jump to comps query step
+      setCurrentStepIndex((prev) => Math.max(prev, 2));
+      setMaxProgress((prev) => Math.max(prev, 82));
       triggerDialTickHaptic();
       return;
     }
 
     if (stage === "profit") {
-      setCurrentStepIndex(3);
+      setCurrentStepIndex((prev) => Math.max(prev, 3));
+      setMaxProgress((prev) => Math.max(prev, 95));
       triggerDialTickHaptic();
       return;
     }
 
-    // Default timeline progression if no explicit stage is forced
+    // Default timeline progression if stage is vision
     const t1 = setTimeout(() => {
       setCurrentStepIndex((prev) => {
-        if (prev < 1) triggerDialTickHaptic();
-        return Math.max(prev, 1);
+        const next = Math.max(prev, 1);
+        if (next > prev) triggerDialTickHaptic();
+        return next;
       });
-    }, 850);
+      setMaxProgress((prev) => Math.max(prev, 55));
+    }, 450);
 
     const t2 = setTimeout(() => {
       setCurrentStepIndex((prev) => {
-        if (prev < 2) triggerDialTickHaptic();
-        return Math.max(prev, 2);
+        const next = Math.max(prev, 2);
+        if (next > prev) triggerDialTickHaptic();
+        return next;
       });
-    }, 1800);
+      setMaxProgress((prev) => Math.max(prev, 82));
+    }, 1200);
 
+    // CRITICAL: Step 3 (95%) is ONLY reached when stage is profit or after extended fallback,
+    // preventing the false 95% -> 82% regression bug
     const t3 = setTimeout(() => {
       setCurrentStepIndex((prev) => {
-        if (prev < 3) triggerDialTickHaptic();
-        return Math.max(prev, 3);
+        const next = Math.max(prev, 3);
+        if (next > prev) triggerDialTickHaptic();
+        return next;
       });
-    }, 3200);
+      setMaxProgress((prev) => Math.max(prev, 95));
+    }, 4500);
 
     return () => {
       clearTimeout(t1);
@@ -148,7 +160,8 @@ export function ScanProgressiveLoader({
   const StepIcon = currentStep.icon;
 
   const isComplete = false;
-  const displayProgress = currentStep.progress;
+  // Guaranteed monotonic non-decreasing progress: Math.max(prevProgress, nextProgress)
+  const displayProgress = Math.min(100, Math.max(maxProgress, currentStep.progress));
 
   const displayLabel = isComplete
     ? (isIntelMode ? "Intel Comps Valued & Verified" : "eBay Comps Valued & Verified")

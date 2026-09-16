@@ -1,9 +1,10 @@
 import OpenAI from "openai";
 
-export const AR_SCAN_MODEL = "gpt-4o-2024-08-06";
+export const AR_SCAN_MODEL = "gpt-4o-mini";
 export const LISTING_MODEL = "gpt-4o-2024-08-06";
 
 export const AR_SCAN_MODEL_FALLBACKS = [
+  "gpt-4o-mini",
   "gpt-4o-2024-08-06",
   "gpt-4o-2024-11-20",
   "gpt-4o",

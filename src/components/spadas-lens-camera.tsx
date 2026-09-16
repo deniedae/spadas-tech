@@ -2018,6 +2018,7 @@ function SpadasLensCameraCore({
     setAnalyzingRealFrame(true);
     setScanStage("vision");
     setScanErrorState({ type: null });
+    activeValuationHitRef.current = null;
     setActiveValuationHit(null);
     setScanRetryPrompt(null);
     setPendingIdentifiedItem(null);
@@ -2450,6 +2451,7 @@ function SpadasLensCameraCore({
       if (valuationExpiryTimerRef.current) {
         clearTimeout(valuationExpiryTimerRef.current);
       }
+      activeValuationHitRef.current = null;
       setActiveValuationHit(null);
       setScanRetryPrompt(null);
       trace.markCaptureEnd();
@@ -2511,14 +2513,13 @@ function SpadasLensCameraCore({
 
       // Intelligent Prefetch Queue: Retrieve cached category query template and fire parallel comps query
       const predictiveQuery = getPredictiveQueryForCategory(categoryBias);
-      void fireParallelCompsQuery(predictiveQuery, selectedCurrency);
+      void fireParallelCompsQuery(predictiveQuery, selectedCurrency, abortController.signal);
 
       let res: Response | null = null;
       console.log('[Spadas Lens]', cycleId, 'Starting resilient fetch for frame with analyzingRealFrame:', analyzingRealFrame);
       trace.markRequestDispatched();
       const fetchStartTime = Date.now();
 
-      setScanStage("vision");
       setPendingIdentifiedItem(null);
 
       const requestHeaders: Record<string, string> = { "Content-Type": "application/json" };
@@ -2562,7 +2563,7 @@ function SpadasLensCameraCore({
       let raw = "";
       if (res) {
         const contentType = res.headers.get("content-type") || "";
-        if (contentType.includes("application/x-ndjson") && res.body) {
+        if ((contentType.includes("application/x-ndjson") || contentType.includes("text/event-stream")) && res.body) {
           try {
             const reader = res.body.getReader();
             const decoder = new TextDecoder();
@@ -2593,11 +2594,126 @@ function SpadasLensCameraCore({
                   return;
                 }
 
-                const trimmed = line.trim();
+                let trimmed = line.trim();
                 if (!trimmed) continue;
+                if (trimmed.startsWith("data: ")) {
+                  trimmed = trimmed.replace(/^data:\s*/, "").trim();
+                }
+                if (!trimmed || trimmed === "[DONE]") continue;
+
                 try {
                   const chunk = JSON.parse(trimmed);
-                  if (chunk.event === "vision_complete") {
+                  if (chunk.event === "valuation_ready") {
+                    if (abortController.signal.aborted || cycleId !== activeCycleIdRef.current) return;
+                    // Phase 1: Instant Valuation Ready (< 1.5s) — Render pricing modal immediately
+                    const valData = chunk.data || chunk;
+                    const rawPName = valData.product_name || valData.analysis?.product_name || "";
+                    if (rawPName && !isVagueOrPartialRead(rawPName)) {
+                      setScanStage("complete");
+
+                      const rawMin = Number(valData.suggested_price_min) || 15;
+                      const rawMax = Number(valData.suggested_price_max) || rawMin + 10;
+                      const baseVal = Number(valData.suggested_price_median) || Math.round(((rawMin + rawMax) / 2) * 100) / 100;
+                      const detectedTagPrice = Number(valData.detected_tag_price) || (baseVal <= 4 ? 1 : Math.max(3, Math.round(baseVal * 0.15 * 100) / 100));
+                      const trueNetProfit = Number(valData.true_net_profit) || Math.max(0, Math.round((baseVal - detectedTagPrice - (baseVal * 0.134 + 0.33)) * 100) / 100);
+                      const roiPercentage = Number(valData.roi_percentage) || (detectedTagPrice > 0 ? Math.round((trueNetProfit / detectedTagPrice) * 100) : 0);
+                      const copVerdict: CopVerdict = valData.cop_verdict || (roiPercentage >= 300 && trueNetProfit >= 30 ? "MUST_COP" : roiPercentage >= 100 && trueNetProfit >= 15 ? "QUICK_FLIP" : trueNetProfit < 10 ? "PASS_RISKY" : "FAIR_MARGIN");
+
+                      const snapImg = snapshotImage || frozenFrameUrl;
+                      const isGrailHit =
+                        trueNetProfit >= 50 &&
+                        (trueNetProfit >= 80 || roiPercentage >= 250) &&
+                        copVerdict === "MUST_COP";
+
+                      const verifiedHit: DetectedHit = {
+                        id: `hit-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
+                        name: rawPName,
+                        brand: sanitizeMetaText(valData.brand || valData.analysis?.brand) || null,
+                        category: cleanCategoryText(valData.category || valData.analysis?.category, "General") || "General",
+                        condition: cleanConditionText(valData.condition || valData.analysis?.condition, "Used"),
+                        conditionGrade: valData.condition_grade || "Good",
+                        wearInspection: valData.wear_inspection || null,
+                        conditionModifier: valData.condition_modifier || 1.0,
+                        inventoryCondition: valData.inventory_condition || "used_working",
+                        defectNotes: valData.defect_notes || [],
+                        asIsDisclaimer: valData.as_is_disclaimer || "",
+                        estimatedValue: baseVal,
+                        estCost: detectedTagPrice,
+                        estimatedProfit: trueNetProfit,
+                        estRoi: roiPercentage,
+                        tagPrice: detectedTagPrice,
+                        trueNetProfit,
+                        roiPercentage,
+                        copVerdict,
+                        verdict: trueNetProfit > 15 ? "BUY" : trueNetProfit >= 5 ? "CAUTION" : "PASS",
+                        confidence: 0.98,
+                        ebayCompsCount: valData.ebay_comps_count,
+                        compsSource: valData.comps_source || "browse_api",
+                        rawComps: valData.raw_sold_comps || [],
+                        compsRange: valData.comps_range,
+                        bbox: valData.detected_objects?.[0]?.bbox || { x: 20, y: 20, width: 60, height: 60 },
+                        timestamp: Date.now(),
+                        isGrail: isGrailHit,
+                        image: typeof snapImg === "string" ? snapImg : undefined,
+                      };
+
+                      const scanObj: ActiveScanItem = {
+                        id: `scan-${Date.now()}`,
+                        productName: rawPName,
+                        brand: verifiedHit.brand || undefined,
+                        category: verifiedHit.category,
+                        condition: verifiedHit.condition,
+                        inventoryCondition: "used_working",
+                        defectNotes: verifiedHit.defectNotes || [],
+                        asIsDisclaimer: verifiedHit.asIsDisclaimer || "",
+                        bbox: verifiedHit.bbox || { x: 20, y: 20, width: 60, height: 60 },
+                        status: "valued",
+                        estimatedValue: baseVal,
+                        suggestedPriceMin: rawMin,
+                        suggestedPriceMax: rawMax,
+                        confidenceScore: 0.98,
+                        ebayCompsCount: verifiedHit.ebayCompsCount,
+                        compsSource: verifiedHit.compsSource,
+                        rawComps: verifiedHit.rawComps,
+                        compsRange: verifiedHit.compsRange,
+                        estCost: detectedTagPrice,
+                        estimatedProfit: trueNetProfit,
+                        estRoi: roiPercentage,
+                        tagPrice: detectedTagPrice,
+                        trueNetProfit,
+                        roiPercentage,
+                        copVerdict,
+                        timestamp: Date.now(),
+                      };
+
+                      setActiveScans([scanObj]);
+                      setCapturedLog((prev) => [verifiedHit, ...prev.filter((h) => h.name !== verifiedHit.name)].slice(0, 50));
+                      triggerActiveValuationHit(verifiedHit, snapImg);
+                      setConfidencePercent(98);
+                      setCachedValuation(verifiedHit.name, verifiedHit);
+                      data = valData;
+                    }
+                  } else if (chunk.event === "listing_complete") {
+                    if (abortController.signal.aborted || cycleId !== activeCycleIdRef.current) return;
+                    // Phase 2: Background Draft Copywriting finished — silently enrich activeValuationHit
+                    const listingData = chunk.data || chunk;
+                    setActiveValuationHit((prev) => {
+                      if (!prev) return prev;
+                      return {
+                        ...prev,
+                        marketTitles: listingData.market_titles || prev.marketTitles,
+                        seoDescription: listingData.seo_description || prev.seoDescription,
+                        detailedDescription: listingData.detailed_description || prev.detailedDescription,
+                        shippingEstimate: listingData.shipping_estimate || prev.shippingEstimate,
+                        itemSpecifics: listingData.item_specifics || prev.itemSpecifics,
+                        suggestedKeywords: listingData.suggested_keywords || prev.suggestedKeywords,
+                        salesVelocity: listingData.sales_velocity || prev.salesVelocity,
+                      };
+                    });
+                    if (data) {
+                      data = { ...data, ...listingData };
+                    }
+                  } else if (chunk.event === "vision_complete") {
                     if (abortController.signal.aborted || cycleId !== activeCycleIdRef.current) return;
                     // Vision processing finished! Immediately transition progressive loader to comps and render card skeleton
                     const rawPName = chunk.product_name || chunk.analysis?.product_name || "";
@@ -2650,14 +2766,18 @@ function SpadasLensCameraCore({
                     break;
                   }
                 } catch (parseErr) {
-                  console.warn("[Spadas Lens] NDJSON stream parse warning:", parseErr);
+                  console.warn("[Spadas Lens] Stream parse warning:", parseErr);
                 }
               }
             }
 
             if (!data && buffer.trim()) {
               try {
-                const chunk = JSON.parse(buffer.trim());
+                let trimmed = buffer.trim();
+                if (trimmed.startsWith("data: ")) {
+                  trimmed = trimmed.replace(/^data:\s*/, "").trim();
+                }
+                const chunk = JSON.parse(trimmed);
                 if (chunk.event === "complete") {
                   data = chunk.data;
                 } else if (!chunk.event) {
@@ -3066,6 +3186,16 @@ function SpadasLensCameraCore({
           previousRetained: true,
         });
         trace.markRenderCommitted();
+        return;
+      }
+
+      const currentMountedHit = (activeValuationHitRef as any).current as DetectedHit | null;
+      if (currentMountedHit?.name) {
+        // Valuation was already mounted instantly in Phase 1 via valuation_ready (< 1.5s)
+        void persistHitAndSyncToSupabase(currentMountedHit, data);
+        recordCategoryTemplateQuery(currentMountedHit.name, currentMountedHit.category, categoryBias);
+        trace.markRenderCommitted();
+        setAnalyzingRealFrame(false);
         return;
       }
 

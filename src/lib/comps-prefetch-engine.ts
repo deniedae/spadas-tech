@@ -244,7 +244,8 @@ const parallelCompsCache = new Map<string, { promise: Promise<any>; timestamp: n
  */
 export function fireParallelCompsQuery(
   query: string,
-  currency: SupportedCurrency = "AUD"
+  currency: SupportedCurrency = "AUD",
+  signal?: AbortSignal
 ): Promise<any> {
   const clean = query.trim().toLowerCase();
   if (!clean || clean.length < 3) return Promise.resolve(null);
@@ -259,6 +260,7 @@ export function fireParallelCompsQuery(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ product: clean, currency }),
+    signal,
   })
     .then(async (res) => {
       if (res.ok) {
@@ -267,6 +269,7 @@ export function fireParallelCompsQuery(
       return null;
     })
     .catch((err) => {
+      if (err?.name === "AbortError") return null;
       console.warn("[comps-prefetch] Parallel prefetch error:", err);
       return null;
     });

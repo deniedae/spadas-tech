@@ -190,3 +190,48 @@ export const AiListingResultSchema = z.object({
 
 export type GenerateListingSchemaType = z.infer<typeof GenerateListingSchema>;
 export type AiListingResultSchemaType = z.infer<typeof AiListingResultSchema>;
+
+/**
+ * High-Speed Vision Identification Schema for Instant Valuation (< 1.5s target)
+ * Only extracts essential item identity, condition, and quick valuation for immediate pricing card render.
+ */
+export const FastVisionIdentificationSchema = z.object({
+  status: z
+    .enum(["identified", "unidentified"])
+    .describe("'identified' if a verified resale product is clearly recognized, 'unidentified' if low confidence, blurry, or no item in focus."),
+  product_name: z.string().nullable().describe("Exact commercial product name, brand and model"),
+  brand: z.string().nullable().describe("Brand name or null if unbranded"),
+  category: z.string().describe("Primary resale category (e.g. Clothing, Electronics, Shoes, Collectibles, General)"),
+  condition: z.string().describe("Condition summary (e.g. Used - Good, Used - Like New, Used - Fair, For Parts)"),
+  condition_grade: ConditionGradeEnum.nullable().optional(),
+  wear_inspection: WearInspectionSchema.nullable().optional(),
+  inventory_condition: InventoryConditionEnum,
+  defect_notes: z.array(z.string()).describe("List of any noticeable flaws or empty array"),
+  as_is_disclaimer: z.string().nullable().optional(),
+  estimated_value: z.number().describe("Initial quick estimate in AUD/local currency"),
+  confidence_score: z.number().describe("0.0 to 1.0 confidence score"),
+  detected_objects: z.array(DetectedObjectSchema).nullable().optional(),
+  retake_recommended: RetakeRecommendationSchema.nullable().optional(),
+  suggested_price_min: z.number().nullable().optional(),
+  suggested_price_max: z.number().nullable().optional(),
+  suggested_price_currency: z.string(),
+});
+
+export type FastVisionIdentificationSchemaType = z.infer<typeof FastVisionIdentificationSchema>;
+
+/**
+ * Background Asynchronous Listing Copywriting Schema (Phase 2)
+ * Generates SEO titles, descriptions, and platform specifics in the background while user reviews the valuation card.
+ */
+export const GenerateListingDetailsSchema = z.object({
+  market_titles: MarketTitlesSchema,
+  seo_description: z.string().describe("SEO-optimized listing description"),
+  detailed_description: z.string().describe("Full seller condition and item description"),
+  shipping_estimate: ShippingEstimateSchema.nullable().optional(),
+  item_specifics: z.array(ItemSpecificSchema),
+  suggested_keywords: z.array(z.string()),
+  sales_velocity: SalesVelocitySchema.nullable().optional(),
+});
+
+export type GenerateListingDetailsSchemaType = z.infer<typeof GenerateListingDetailsSchema>;
+

@@ -9,8 +9,20 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { checkUserUsage } from "@/app/lib/usage";
 import { isOwnerEmail } from "@/app/lib/auth-admin";
-import { AiListingResultSchema } from "@/app/lib/schemas/ai-listing-schema";
-import { AR_SCAN_MODEL_FALLBACKS, LISTING_MODEL_FALLBACKS, getPrimaryAiApiKey, createOpenAiClient } from "@/app/lib/config/ai-models";
+import {
+  AiListingResultSchema,
+  FastVisionIdentificationSchema,
+  GenerateListingDetailsSchema,
+  type FastVisionIdentificationSchemaType,
+  type GenerateListingDetailsSchemaType,
+} from "@/app/lib/schemas/ai-listing-schema";
+import {
+  AR_SCAN_MODEL,
+  AR_SCAN_MODEL_FALLBACKS,
+  LISTING_MODEL_FALLBACKS,
+  getPrimaryAiApiKey,
+  createOpenAiClient,
+} from "@/app/lib/config/ai-models";
 import { callClaudeVision } from "@/app/lib/config/claude-vision";
 import { callGeminiVision, hasGeminiVisionKey } from "@/app/lib/config/gemini-vision";
 import { fetchEbayAustraliaSoldComps } from "@/app/lib/ebay-australia-comps";
@@ -196,7 +208,8 @@ export async function POST(request: Request) {
 
     const countryHeader = request.headers.get("x-vercel-ip-country");
     const geoInfo = detectGeoCurrency(countryHeader);
-    const initialTargetCurrency: SupportedCurrency = (body.currency as SupportedCurrency) || geoInfo.currency;
+    const targetCurrency: SupportedCurrency = (body.currency as SupportedCurrency) || geoInfo.currency;
+    const initialTargetCurrency: SupportedCurrency = targetCurrency;
 
     // ── INTELLIGENT PREFETCH: Fire parallel eBay sold comps query the instant optical composite is received ──
     let parallelCompsPromise: Promise<any> | null = null;
@@ -369,7 +382,8 @@ export async function POST(request: Request) {
     const openai = createOpenAiClient();
     let completion;
     let hasCreditOrQuotaError = false;
-    const targetModels = isArScan ? AR_SCAN_MODEL_FALLBACKS : LISTING_MODEL_FALLBACKS;
+    const isFastPipeline = Boolean(isArScan || isStreamRequested);
+    const targetModels = isFastPipeline ? AR_SCAN_MODEL_FALLBACKS : LISTING_MODEL_FALLBACKS;
 
     const modePrompt =
       mode === "deep"
@@ -387,17 +401,50 @@ Identify ONLY the single primary physical item positioned in the center target r
     if (hasOpenAiKey) {
       for (const modelName of targetModels) {
         try {
-          const reqParams: any = {
-            model: modelName,
-            temperature: 0.0,
-            response_format: zodResponseFormat(AiListingResultSchema, "ai_listing_analysis"),
-            messages: [
-              {
-                role: "user",
-                content: [
+          const reqParams: any = isFastPipeline
+            ? {
+                model: modelName,
+                temperature: 0.0,
+                max_tokens: 400,
+                response_format: zodResponseFormat(FastVisionIdentificationSchema, "fast_vision_identification"),
+                messages: [
                   {
-                    type: "text",
-                    text: `You are an expert reseller appraiser, luxury authenticator, and marketplace copywriter for eBay, Grailed, and Depop.
+                    role: "user",
+                    content: [
+                      {
+                        type: "text",
+                        text: `You are an expert reseller appraiser and luxury authenticator.
+${modePrompt}
+
+MANDATORY HIGH-SPEED EXTRACTION REQUIREMENTS (STRICT SCHEMA):
+${spatialMetadata || categoryBias ? `LOCATION-AWARE CATEGORY BIASING & SPATIAL PRIORS:
+- Sourcing Location / Venue: ${spatialMetadata?.storeName || "Thrift Store / Op-Shop"} (${spatialMetadata?.venueType || "secondhand_thrift"})
+- Active Category Prior Bias: ${categoryBias || spatialMetadata?.categoryBias || "Secondhand Resale / Op-Shop Finds"}
+` : ""}
+1. BRAND & MODEL: Identify EXACT brand (e.g. Carhartt, Prada, Nike, Sony, Nintendo, Lego, TP-Link, Bose) and model name/number. If unbranded, give clear concise generic description (e.g. "Ceramic Coffee Mug White 350ml").
+2. CATEGORY: Clothing, Electronics, Luxury Accessories, Shoes, Collectibles, etc.
+3. CONDITION: Condition summary (Used - Good, Like New, Fair, For Parts). Assign condition_grade (Mint, Good, Fair, For Parts). Explicitly populate wear_inspection. Note observed flaws in defect_notes. Set inventory_condition to "used_working", "untested", or "faulty_for_parts".
+4. ESTIMATED RESALE VALUE: Realistic secondary market sold value in ${targetCurrency} as a single number (estimated_value).
+5. BOUNDING BOX & CONFIDENCE: Bounding box coordinates {x, y, width, height} (0-100 percentages) and confidence_score (0.0 to 1.0).
+6. RETAKE GUIDANCE: Set retake_recommended if photo is blurry or tags are unreadable, otherwise null.
+Keep extraction strictly factual. Zero conversational text.`,
+                      },
+                      ...imageContent,
+                    ],
+                  },
+                ],
+              }
+            : {
+                model: modelName,
+                temperature: 0.0,
+                response_format: zodResponseFormat(AiListingResultSchema, "ai_listing_analysis"),
+                messages: [
+                  {
+                    role: "user",
+                    content: [
+                      {
+                        type: "text",
+                        text: `You are an expert reseller appraiser, luxury authenticator, and marketplace copywriter for eBay, Grailed, and Depop.
 
 ${modePrompt}
 
@@ -474,12 +521,12 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
   • STRICT RULE 1 (CONDITION IS KING): Never state 'brand new' unless sealed/with tags. If liquidation or untested, state 'Condition: Untested/Faulty - Please review all photos' immediately in first line.
   • STRICT RULE 2 (FILTER SENSITIVE DATA): Completely remove internal analytics ('ROI', 'Cost', 'Spadas Lens', thrift buy costs).
   • STRICT RULE 3 (NO FLUFF): Zero generic AI marketing buzzwords ('Elevate', 'Exquisite', 'Must-have'). Plain clean text only.`,
+                      },
+                      ...imageContent,
+                    ],
                   },
-                  ...imageContent,
                 ],
-              },
-            ],
-          };
+              };
 
           try {
             completion = await openai.chat.completions.create(reqParams);
@@ -503,7 +550,84 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
 
     if (content) {
       try {
-        result = JSON.parse(content) as AiListingResult;
+        if (isFastPipeline) {
+          const fastData = JSON.parse(content) as FastVisionIdentificationSchemaType;
+          const pName = (fastData.product_name || "").trim();
+          const brand = (fastData.brand || "").trim() || null;
+          const cat = fastData.category || "General";
+          const cond = fastData.condition || "Used - Good";
+          const condGrade = fastData.condition_grade || "Good";
+          const estVal = Number(fastData.estimated_value) || 35;
+          const rawMin = Number(fastData.suggested_price_min) || Math.round(estVal * 0.7);
+          const rawMax = Number(fastData.suggested_price_max) || Math.round(estVal * 1.3);
+
+          result = {
+            status: fastData.status,
+            isMockFallback: false,
+            inventory_condition: fastData.inventory_condition || "used_working",
+            condition_grade: condGrade,
+            wear_inspection: fastData.wear_inspection || null,
+            defect_notes: fastData.defect_notes || [],
+            as_is_disclaimer: fastData.as_is_disclaimer || undefined,
+            detected_objects: fastData.detected_objects || [
+              {
+                id: `obj-${Date.now()}`,
+                product_name: pName,
+                brand: brand,
+                category: cat,
+                condition: cond,
+                inventory_condition: fastData.inventory_condition || "used_working",
+                bbox: { x: 20, y: 20, width: 60, height: 60 },
+                confidence_score: fastData.confidence_score || 0.95,
+              },
+            ],
+            analysis: {
+              status: fastData.status,
+              visual_reasoning: null,
+              product_name: pName,
+              brand: brand,
+              model: null,
+              category: cat,
+              color: null,
+              material: null,
+              condition: cond,
+              condition_grade: condGrade,
+              wear_inspection: fastData.wear_inspection || null,
+              defect_notes: fastData.defect_notes || [],
+              accessories_detected: [],
+              confidence: (fastData.confidence_score ?? 0.95) >= 0.85 ? "high" : "medium",
+              confidence_score: fastData.confidence_score ?? 0.95,
+              retake_recommended: fastData.retake_recommended || null,
+            },
+            market_titles: {
+              ebay: `${brand || "Authentic"} ${pName} ${cond}`.trim().slice(0, 80),
+              facebook_marketplace: `${brand || "Authentic"} ${pName} - Great Condition`.trim(),
+              vinted: `${brand || "Authentic"} ${pName}`.trim(),
+              depop: `${pName.toLowerCase()} #resale #thrift`,
+            },
+            seo_description: "",
+            detailed_description: "",
+            shipping_estimate: {
+              size: "small",
+              estimated_weight_grams: 400,
+              dimensions_cm: null,
+              notes: null,
+            },
+            item_specifics: {
+              Brand: brand || "Authentic",
+              Category: cat,
+              Condition: cond,
+            },
+            suggested_keywords: [brand || "Resale", cat, "Pre-Owned"].filter(Boolean),
+            suggested_price_min: rawMin,
+            suggested_price_max: rawMax,
+            suggested_price_median: estVal,
+            suggested_price_currency: targetCurrency,
+            retake_recommended: fastData.retake_recommended || null,
+          };
+        } else {
+          result = JSON.parse(content) as AiListingResult;
+        }
       } catch {
         result = null;
       }
@@ -512,7 +636,7 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
     let activeProvider = "openai-vision";
 
     // ── MULTI-MODEL CONSENSUS & ARBITRATION (OpenAI Vision + Gemini Flash) ──
-    if (result && hasGeminiVisionKey() && imageUrls.length > 0) {
+    if (result && hasGeminiVisionKey() && imageUrls.length > 0 && (!isFastPipeline || mode === "deep")) {
       const openAiBrand = result.analysis?.brand || "";
       const shouldRunConsensus =
         mode === "deep" ||
@@ -672,8 +796,6 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
       };
       activeProvider = "offline-heuristics";
     }
-
-    const targetCurrency: SupportedCurrency = initialTargetCurrency;
 
     (result as any).provider = activeProvider;
     (result as any).suggested_price_currency = targetCurrency;
@@ -1194,7 +1316,92 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
 
             if (request.signal?.aborted) return;
 
-            // 3. Emit final completed payload
+            // 3. PHASE 1 (Instant Valuation - Target < 1.5s):
+            // Emit valuation_ready immediately so client renders pricing modal (Take-Home Net, STR, Turnover Velocity, Fair Market)
+            const valuationReadyEvent = {
+              event: "valuation_ready",
+              data: result,
+            };
+            controller.enqueue(encoder.encode(JSON.stringify(valuationReadyEvent) + "\n"));
+
+            if (request.signal?.aborted) return;
+
+            // 4. PHASE 2 (Background Draft Generation):
+            // Asynchronously generate listing copywriting in background without blocking price card render
+            let listingDetails: GenerateListingDetailsSchemaType | null = null;
+            if (hasOpenAiKey && result.analysis?.product_name && result.status === "identified") {
+              try {
+                const copyParams: any = {
+                  model: "gpt-4o-mini",
+                  temperature: 0.2,
+                  max_tokens: 600,
+                  response_format: zodResponseFormat(GenerateListingDetailsSchema, "listing_details"),
+                  messages: [
+                    {
+                      role: "user",
+                      content: `You are an expert marketplace copywriter for eBay Australia, Facebook Marketplace, Depop, and Vinted.
+Generate professional multi-platform titles, descriptions, shipping estimate, and item specifics for this verified item:
+
+Product: ${result.analysis.product_name}
+Brand: ${result.analysis.brand || "Authentic"}
+Category: ${result.analysis.category || "General"}
+Condition: ${result.analysis.condition || "Used"} (${result.condition_grade || "Good"})
+Defect Notes: ${result.defect_notes?.join(", ") || "None observed"}
+Fair Market Resale Value: $${result.suggested_price_median} ${targetCurrency}
+
+RULES:
+- "market_titles.ebay": Max 80 characters. Format: [Brand] [Model/Style] [Key Color/Material] [Condition]. No punctuation clutter.
+- "market_titles.facebook_marketplace": Clean, friendly, local-buyer readable.
+- "market_titles.depop": Trendy lowercase with 3 relevant hashtags.
+- "market_titles.vinted": Clean descriptive title.
+- "seo_description" & "detailed_description": Professional clean eBay seller description. Never mention internal costs, ROI, or thrift store references. Plain text only.
+- "shipping_estimate": Appropriate size (small, medium, large) and weight in grams.
+- "item_specifics": 4-6 key attributes like Brand, Category, Condition, Color/Material.`,
+                    },
+                  ],
+                };
+
+                const copyCompletion = await openai.chat.completions.create(copyParams);
+                const copyText = copyCompletion?.choices?.[0]?.message?.content;
+                if (copyText) {
+                  listingDetails = JSON.parse(copyText) as GenerateListingDetailsSchemaType;
+                }
+              } catch (copyErr) {
+                console.warn("[ai-listing] Background Phase 2 copywriting warning:", copyErr);
+              }
+            }
+
+            if (listingDetails) {
+              result.market_titles = listingDetails.market_titles;
+              result.seo_description = listingDetails.seo_description;
+              result.detailed_description = listingDetails.detailed_description;
+              if (listingDetails.shipping_estimate) {
+                result.shipping_estimate = listingDetails.shipping_estimate;
+              }
+              if (listingDetails.item_specifics && Array.isArray(listingDetails.item_specifics)) {
+                const specsRecord: Record<string, string> = {};
+                for (const item of listingDetails.item_specifics) {
+                  if (item?.name && item?.value) {
+                    specsRecord[item.name] = item.value;
+                  }
+                }
+                result.item_specifics = specsRecord;
+              }
+              result.suggested_keywords = listingDetails.suggested_keywords;
+              if (listingDetails.sales_velocity) {
+                result.sales_velocity = listingDetails.sales_velocity;
+              }
+
+              const listingCompleteEvent = {
+                event: "listing_complete",
+                data: listingDetails,
+              };
+              controller.enqueue(encoder.encode(JSON.stringify(listingCompleteEvent) + "\n"));
+            }
+
+            if (request.signal?.aborted) return;
+
+            // 5. Emit final completed payload
             const completeEvent = {
               event: "complete",
               data: result,
@@ -1238,6 +1445,59 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
     }
 
     await runCompsAndFinalizeResult();
+
+    if (isFastPipeline && hasOpenAiKey && result.analysis?.product_name && result.status === "identified") {
+      try {
+        const copyParams: any = {
+          model: "gpt-4o-mini",
+          temperature: 0.2,
+          max_tokens: 600,
+          response_format: zodResponseFormat(GenerateListingDetailsSchema, "listing_details"),
+          messages: [
+            {
+              role: "user",
+              content: `You are an expert marketplace copywriter for eBay Australia, Facebook Marketplace, Depop, and Vinted.
+Generate professional multi-platform titles, descriptions, shipping estimate, and item specifics for this verified item:
+
+Product: ${result.analysis.product_name}
+Brand: ${result.analysis.brand || "Authentic"}
+Category: ${result.analysis.category || "General"}
+Condition: ${result.analysis.condition || "Used"} (${result.condition_grade || "Good"})
+Defect Notes: ${result.defect_notes?.join(", ") || "None observed"}
+Fair Market Resale Value: $${result.suggested_price_median} ${targetCurrency}`,
+            },
+          ],
+        };
+
+        const copyCompletion = await openai.chat.completions.create(copyParams);
+        const copyText = copyCompletion?.choices?.[0]?.message?.content;
+        if (copyText) {
+          const listingDetails = JSON.parse(copyText) as GenerateListingDetailsSchemaType;
+          result.market_titles = listingDetails.market_titles;
+          result.seo_description = listingDetails.seo_description;
+          result.detailed_description = listingDetails.detailed_description;
+          if (listingDetails.shipping_estimate) {
+            result.shipping_estimate = listingDetails.shipping_estimate;
+          }
+          if (listingDetails.item_specifics && Array.isArray(listingDetails.item_specifics)) {
+            const specsRecord: Record<string, string> = {};
+            for (const item of listingDetails.item_specifics) {
+              if (item?.name && item?.value) {
+                specsRecord[item.name] = item.value;
+              }
+            }
+            result.item_specifics = specsRecord;
+          }
+          result.suggested_keywords = listingDetails.suggested_keywords;
+          if (listingDetails.sales_velocity) {
+            result.sales_velocity = listingDetails.sales_velocity;
+          }
+        }
+      } catch (copyErr) {
+        console.warn("[ai-listing] Non-streaming copywriting warning:", copyErr);
+      }
+    }
+
     return NextResponse.json(result);
   } catch (err: any) {
     console.error("[ai-listing] Primary AI call encountered error:", err?.message);
