@@ -68,6 +68,13 @@ import {
   calculateThriftCopVerdict,
 } from "@/lib/thrift-cop-engine";
 import { calculateSalesVelocity } from "@/lib/turnover-velocity-engine";
+import {
+  calculateConditionValuation,
+  type PhysicalConditionTier,
+  CONDITION_MULTIPLIERS,
+} from "@/lib/condition-haircut-engine";
+import { calculateSpectralComps } from "@/lib/comps-volatility-engine";
+import { calculateSeasonalityProfile } from "@/lib/seasonal-velocity-engine";
 import AuditCompsLedger, { ensureVerifiedSoldComps } from "@/components/AuditCompsLedger";
 import type { DetectedHit, ActiveScanItem, RawSoldComp, VariantAudit } from "@/types/lens";
 
@@ -102,6 +109,8 @@ export default function LensCompsModal({
   const [isDossierCopied, setIsDossierCopied] = useState(false);
   const [activeTab, setActiveTab] = useState<IntelligenceTab>("arbitrage");
   const [showVintageGuide, setShowVintageGuide] = useState(false);
+  const [conditionTier, setConditionTier] = useState<PhysicalConditionTier>("used_excellent");
+  const [isRestorationApplied, setIsRestorationApplied] = useState<boolean>(false);
 
   // ── Pricing Strategy Sensitivity (Quick Flip 24h vs Fair Market vs Peak 30d) ──
   const [pricingStrategy, setPricingStrategy] = useState<PricingStrategy>("fair_market");
@@ -200,12 +209,38 @@ export default function LensCompsModal({
     };
   }, [item, initialEstValue, rawComps, title]);
 
+  // ── 1. Condition Degradation & Restoration Arbitrage Engine ──
+  const conditionEvaluation = useMemo(() => {
+    return calculateConditionValuation({
+      baselineMedianPrice: compsRange.median || initialEstValue,
+      conditionTier,
+      conditionText: condition,
+      flawNotes: (item as any)?.defectNotes || (item as any)?.wearInspection || "",
+      productName: title,
+      category,
+    });
+  }, [compsRange.median, initialEstValue, conditionTier, condition, item, title, category]);
+
+  const conditionAdjustedBaseline = isRestorationApplied && conditionEvaluation.restorationOpportunity
+    ? (conditionEvaluation.restorationOpportunity.restoredValueAud ?? conditionEvaluation.adjustedResalePrice)
+    : conditionEvaluation.adjustedResalePrice;
+
+  // ── 2. Spectral Comps & Volatility Analytics Engine ──
+  const spectralComps = useMemo(() => {
+    const mappedPoints = rawComps.map((c) => ({
+      title: c.title,
+      price: c.price,
+      dateSold: c.soldDate,
+    }));
+    return calculateSpectralComps(mappedPoints, conditionAdjustedBaseline);
+  }, [rawComps, conditionAdjustedBaseline]);
+
   // Strategy-adjusted dynamic resale target price
   const activeResalePrice = useMemo(() => {
-    if (pricingStrategy === "quick_flip") return compsRange.min;
-    if (pricingStrategy === "peak_value") return compsRange.max;
-    return compsRange.median || initialEstValue;
-  }, [pricingStrategy, compsRange, initialEstValue]);
+    if (pricingStrategy === "quick_flip") return Math.min(conditionAdjustedBaseline, spectralComps.liquidationFloor);
+    if (pricingStrategy === "peak_value") return Math.max(conditionAdjustedBaseline, spectralComps.patientBinCeiling);
+    return spectralComps.emaFairMarketValue || conditionAdjustedBaseline;
+  }, [pricingStrategy, conditionAdjustedBaseline, spectralComps]);
 
   // Effective tag cost after store color tag discounts
   const effectiveTagCost = Math.max(0, Math.round(customTagCost * (1 - discountPercent / 100) * 100) / 100);
@@ -251,6 +286,16 @@ export default function LensCompsModal({
       brand,
     });
   }, [title, category, brand]);
+
+  // ── 3. Seasonal Velocity & Capital Holding Cost Engine ──
+  const seasonalityProfile = useMemo(() => {
+    return calculateSeasonalityProfile({
+      productName: title,
+      category,
+      estimatedResalePrice: activeResalePrice,
+      thriftCost: effectiveTagCost,
+    });
+  }, [title, category, activeResalePrice, effectiveTagCost]);
 
   // Multi-Marketplace Arbitrage Matrix (Where does this item yield the highest net cash?)
   const marketplaceArbitrage = useMemo(() => {
@@ -957,7 +1002,112 @@ export default function LensCompsModal({
                   <span className="text-[11px] font-bold text-amber-300">{salesVelocity.sellThroughRate}% STR</span>
                 </div>
               </div>
+
+              {/* Spectral Market Depth & Volatility Strip */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 pt-1 text-center font-mono">
+                <div className="p-1.5 rounded-xl bg-zinc-950/70 border border-white/[0.04]">
+                  <span className="text-[8px] text-zinc-500 uppercase block">Auction Floor</span>
+                  <span className="text-xs font-bold text-amber-300">{fmtMoney(spectralComps.liquidationFloor)}</span>
+                </div>
+                <div className="p-1.5 rounded-xl bg-zinc-950/70 border border-white/[0.04]">
+                  <span className="text-[8px] text-zinc-500 uppercase block">EMA Fair Value</span>
+                  <span className="text-xs font-bold text-cyan-300">{fmtMoney(spectralComps.emaFairMarketValue)}</span>
+                </div>
+                <div className="p-1.5 rounded-xl bg-zinc-950/70 border border-white/[0.04]">
+                  <span className="text-[8px] text-zinc-500 uppercase block">Patient BIN</span>
+                  <span className="text-xs font-bold text-emerald-300">{fmtMoney(spectralComps.patientBinCeiling)}</span>
+                </div>
+                <div className="p-1.5 rounded-xl bg-zinc-950/70 border border-white/[0.04]">
+                  <span className="text-[8px] text-zinc-500 uppercase block">Volatility Score</span>
+                  <span className={`text-xs font-bold ${spectralComps.volatilityScore >= 75 ? "text-emerald-400" : "text-amber-400"}`}>
+                    {spectralComps.volatilityScore}/100
+                  </span>
+                </div>
+              </div>
+
+              {/* Seasonality & Capital Velocity Advice */}
+              <div className="p-2 rounded-xl bg-gradient-to-r from-purple-950/30 via-zinc-950 to-cyan-950/30 border border-purple-500/20 flex items-center justify-between text-[11px] font-mono flex-wrap gap-1">
+                <span className="text-purple-300 font-bold flex items-center gap-1.5">
+                  <Calendar className="h-3.5 w-3.5 text-purple-400" />
+                  {seasonalityProfile.label}
+                </span>
+                <span className="text-cyan-300 text-[10px]">
+                  ⚡ Fast-Flip IRR: ~{seasonalityProfile.annualizedIrrQuickFlip}%/yr
+                </span>
+              </div>
             </div>
+          </div>
+
+          {/* Interactive Physical Condition Stratification & Restoration Arbitrage Bar */}
+          <div className="rounded-2xl bg-[#0C0F17] p-3 border border-white/[0.08] space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-black text-zinc-200 flex items-center gap-1.5">
+                <Sliders className="h-3.5 w-3.5 text-cyan-400" />
+                <span>Physical Condition Stratification:</span>
+              </span>
+              <span className="text-[10px] font-mono text-cyan-300 font-bold">
+                {conditionEvaluation.tierLabel} ({conditionEvaluation.tierFactor}x)
+              </span>
+            </div>
+
+            {/* Condition Buttons */}
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-1">
+              {(Object.keys(CONDITION_MULTIPLIERS) as PhysicalConditionTier[]).map((tierKey) => {
+                const conf = CONDITION_MULTIPLIERS[tierKey];
+                const isSelected = conditionTier === tierKey;
+                return (
+                  <button
+                    key={tierKey}
+                    type="button"
+                    onClick={() => {
+                      setConditionTier(tierKey);
+                      scannerAudio.play("strategy");
+                      triggerTactileHaptic("selection");
+                    }}
+                    className={`py-1.5 px-1 rounded-lg text-[9px] font-mono transition text-center cursor-pointer border ${
+                      isSelected
+                        ? "bg-cyan-500/20 text-cyan-300 border-cyan-400 font-bold shadow-sm"
+                        : "bg-zinc-950 text-zinc-400 border-white/[0.04] hover:text-white"
+                    }`}
+                  >
+                    <span className="block truncate">{conf.label.split(" / ")[0]}</span>
+                    <span className="text-[8px] opacity-70 font-mono">{conf.factor}x</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Restoration Opportunity Banner if detected */}
+            {conditionEvaluation.restorationOpportunity && (
+              <div className="p-2.5 rounded-xl bg-emerald-950/40 border border-emerald-500/40 text-xs flex items-center justify-between flex-wrap gap-2 animate-fade-in">
+                <div className="flex items-center gap-2">
+                  <Zap className="h-4 w-4 text-emerald-400 shrink-0" />
+                  <div className="space-y-0.5">
+                    <span className="font-bold text-emerald-300 block text-[11px]">
+                      Restoration Arbitrage: +${conditionEvaluation.restorationOpportunity.netValueAddAud} Net Gain
+                    </span>
+                    <span className="text-[10px] text-zinc-300">
+                      {conditionEvaluation.restorationOpportunity.actionableStep}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsRestorationApplied(!isRestorationApplied);
+                    scannerAudio.play("grail");
+                    triggerTactileHaptic("success");
+                  }}
+                  className={`px-2.5 py-1 rounded-lg text-[10px] font-mono font-black transition cursor-pointer border ${
+                    isRestorationApplied
+                      ? "bg-emerald-500 text-slate-950 border-emerald-400"
+                      : "bg-emerald-500/20 text-emerald-300 border-emerald-500/50 hover:bg-emerald-500/30"
+                  }`}
+                >
+                  {isRestorationApplied ? "✓ Restored Hack Active" : "+ Apply Restoration Hack"}
+                </button>
+              </div>
+            )}
           </div>
 
           {/* In-Aisle Interactive Thrift Tag Cost Adjuster */}
