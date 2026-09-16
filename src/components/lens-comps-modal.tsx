@@ -46,6 +46,7 @@ import {
   VolumeX,
   Eye,
   Contrast,
+  SearchX,
 } from "lucide-react";
 import { track } from "@vercel/analytics";
 import { scannerAudio } from "@/lib/scanner-audio";
@@ -75,6 +76,7 @@ import {
 } from "@/lib/condition-haircut-engine";
 import { calculateSpectralComps } from "@/lib/comps-volatility-engine";
 import { calculateSeasonalityProfile } from "@/lib/seasonal-velocity-engine";
+import { calculateIntrinsicBestPrice } from "@/lib/intrinsic-pricing-engine";
 import AuditCompsLedger, { ensureVerifiedSoldComps } from "@/components/AuditCompsLedger";
 import type { DetectedHit, ActiveScanItem, RawSoldComp, VariantAudit } from "@/types/lens";
 
@@ -335,6 +337,21 @@ export default function LensCompsModal({
   // Real eBay Sold Search URL for instant in-aisle comparison
   const cleanSearchQuery = encodeURIComponent(`${brand !== "Unbranded" ? brand : ""} ${title}`.trim());
   const ebaySoldsUrl = `https://www.ebay.com.au/sch/i.html?_nkw=${cleanSearchQuery}&LH_Sold=1&LH_Complete=1`;
+  const ebayActiveSearchUrl = `https://www.ebay.com.au/sch/i.html?_nkw=${cleanSearchQuery}`;
+
+  const intrinsicAppraisal = useMemo(() => {
+    if (rawComps.length > 0) return null;
+    return calculateIntrinsicBestPrice({
+      title,
+      brand,
+      category,
+      condition,
+      baseEstimatedValue: initialEstValue,
+      suggestedMin: (item as any)?.suggestedPriceMin,
+      suggestedMax: (item as any)?.suggestedPriceMax,
+      thriftCost: effectiveTagCost,
+    });
+  }, [rawComps.length, title, brand, category, condition, initialEstValue, item, effectiveTagCost]);
 
   // Keyboard Command Protocol for High-Speed Reseller Sourcing
   useEffect(() => {
@@ -1338,84 +1355,210 @@ export default function LensCompsModal({
             <div className="space-y-2.5 animate-fade-in">
               <div className="flex items-center justify-between px-1">
                 <span className="text-[11px] font-mono font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                  <span>30-Day Verified Sold Listings ({rawComps.length})</span>
+                  {rawComps.length > 0 ? (
+                    <>
+                      <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                      <span>30-Day Verified Sold Listings ({rawComps.length})</span>
+                    </>
+                  ) : (
+                    <>
+                      <SearchX className="w-3.5 h-3.5 text-amber-400" />
+                      <span>0 Historical Sold Comps On Record</span>
+                    </>
+                  )}
                 </span>
                 <a
-                  href={ebaySoldsUrl}
+                  href={ebayActiveSearchUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-[10px] font-mono text-cyan-400 hover:text-cyan-300 flex items-center gap-1 hover:underline cursor-pointer"
                 >
-                  <span>Live eBay AU Solds</span>
+                  <span>Search Live eBay AU</span>
                   <ExternalLink className="w-3 h-3" />
                 </a>
               </div>
 
-              {/* Visual Price Cluster Scatter Strip */}
-              <div className="p-2.5 rounded-xl bg-[#0D101A] border border-white/[0.08] space-y-1.5">
-                <div className="flex items-center justify-between text-[9px] text-zinc-400 font-mono">
-                  <span>Price Clustering</span>
-                  <span>Range: {fmtMoney(compsRange.min)} – {fmtMoney(compsRange.max)}</span>
-                </div>
-                <div className="relative h-4 w-full rounded-lg bg-zinc-950 border border-white/[0.06] overflow-hidden flex items-center px-2">
-                  <div className="absolute inset-x-0 h-0.5 bg-zinc-800" />
-                  {rawComps.map((c, i) => {
-                    const price = c.price || 45;
-                    const pct = Math.min(95, Math.max(5, ((price - compsRange.min) / spreadWidth) * 100));
-                    return (
-                      <div
-                        key={i}
-                        className="absolute h-2.5 w-2.5 rounded-full bg-cyan-400 shadow-[0_0_6px_rgba(6,182,212,0.8)] -translate-x-1/2 cursor-pointer hover:scale-125 transition"
-                        style={{ left: `${pct}%` }}
-                        title={`${c.title} • $${price} (${c.soldDate || "recent"})`}
-                      />
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                {rawComps.map((comp, idx) => (
-                  <div
-                    key={comp.id || idx}
-                    className="p-3 rounded-2xl bg-[#0D101A] border border-white/[0.08] flex items-center justify-between gap-3 hover:border-cyan-500/30 transition"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 mb-1 flex-wrap font-mono">
-                        <span className="text-sm font-black text-emerald-400">
-                          {fmtMoney(comp.price)} AUD
+              {rawComps.length === 0 && intrinsicAppraisal ? (
+                <div className="space-y-3">
+                  {/* Zero Sold Comps Status Notice */}
+                  <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-3">
+                    <AlertTriangle className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
+                    <div className="space-y-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs font-bold text-amber-300 font-mono uppercase tracking-wider">
+                          No Historical Sold Data Available
                         </span>
-                        <span className="text-[10px] px-2 py-0.2 rounded-full bg-white/[0.06] text-zinc-300">
-                          {comp.soldDate}
+                        <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-200 border border-amber-500/40">
+                          {intrinsicAppraisal.scarcityLabel}
                         </span>
-                        {comp.condition && (
-                          <span className="text-[10px] px-2 py-0.2 rounded-full bg-white/[0.04] text-zinc-400 truncate max-w-[120px]">
-                            {comp.condition}
-                          </span>
-                        )}
-                        {typeof comp.matchPercentage === "number" && (
-                          <span className="text-[10px] text-cyan-400 font-bold">
-                            {comp.matchPercentage}% match
-                          </span>
-                        )}
                       </div>
-                      <div className="text-xs text-zinc-200 truncate font-medium">
-                        {comp.title}
+                      <p className="text-xs text-zinc-300 leading-relaxed">
+                        Zero completed transactions were found on eBay Australia for this exact model. Outbound sold listing links are withheld because no sold comps exist on record.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Algorithmic Best-Selling-Price Trio Strip */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 font-mono">
+                    {/* 1. Optimal Anchor List Price */}
+                    <div className="p-3 rounded-xl bg-gradient-to-b from-emerald-950/40 to-[#0D101A] border border-emerald-500/40 shadow-sm">
+                      <div className="flex items-center justify-between gap-1 mb-1">
+                        <span className="text-[10px] uppercase font-bold text-emerald-400 flex items-center gap-1">
+                          <Sparkles className="h-3 w-3" />
+                          <span>Optimal List Price</span>
+                        </span>
+                        <span className="text-[8px] uppercase bg-emerald-500/20 text-emerald-300 px-1 rounded">
+                          Recommended
+                        </span>
+                      </div>
+                      <div className="text-2xl font-black text-emerald-300 tabular-nums">
+                        {fmtMoney(intrinsicAppraisal.optimalListPrice)} <span className="text-xs font-bold text-emerald-400/80">AUD</span>
+                      </div>
+                      <span className="text-[9px] text-zinc-400 block mt-0.5">
+                        Buy It Now + Best Offer
+                      </span>
+                      <div className="mt-2 pt-1.5 border-t border-emerald-500/20 flex items-center justify-between text-[10px]">
+                        <span className="text-zinc-400">Net Take-Home:</span>
+                        <span className="text-emerald-400 font-bold">+{fmtMoney(intrinsicAppraisal.estimatedNetAtOptimal)}</span>
                       </div>
                     </div>
-                    <a
-                      href={comp.url || ebaySoldsUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="shrink-0 p-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.10] text-zinc-300 hover:text-white transition border border-white/[0.06]"
-                      title="View sold listing on eBay AU"
-                    >
-                      <ExternalLink className="w-3.5 h-3.5" />
-                    </a>
+
+                    {/* 2. Fast Liquidation Floor */}
+                    <div className="p-3 rounded-xl bg-[#0D101A] border border-white/[0.08]">
+                      <div className="flex items-center justify-between gap-1 mb-1">
+                        <span className="text-[10px] uppercase font-bold text-amber-300 flex items-center gap-1">
+                          <Zap className="h-3 w-3 text-amber-400" />
+                          <span>24h Liquidation Floor</span>
+                        </span>
+                        <span className="text-[8px] uppercase bg-amber-500/15 text-amber-300 px-1 rounded">
+                          Fast Cash
+                        </span>
+                      </div>
+                      <div className="text-2xl font-black text-zinc-200 tabular-nums">
+                        {fmtMoney(intrinsicAppraisal.quickFlipFloor)} <span className="text-xs font-bold text-zinc-400">AUD</span>
+                      </div>
+                      <span className="text-[9px] text-zinc-400 block mt-0.5">
+                        Liquidates in 24–48h
+                      </span>
+                      <div className="mt-2 pt-1.5 border-t border-white/[0.06] flex items-center justify-between text-[10px]">
+                        <span className="text-zinc-400">Net Take-Home:</span>
+                        <span className="text-zinc-300 font-bold">+{fmtMoney(intrinsicAppraisal.estimatedNetAtFloor)}</span>
+                      </div>
+                    </div>
+
+                    {/* 3. Speculative Ceiling */}
+                    <div className="p-3 rounded-xl bg-[#0D101A] border border-white/[0.08]">
+                      <div className="flex items-center justify-between gap-1 mb-1">
+                        <span className="text-[10px] uppercase font-bold text-cyan-300 flex items-center gap-1">
+                          <Sliders className="h-3 w-3 text-cyan-400" />
+                          <span>Speculative Ceiling</span>
+                        </span>
+                        <span className="text-[8px] uppercase bg-cyan-500/15 text-cyan-300 px-1 rounded">
+                          Scarcity
+                        </span>
+                      </div>
+                      <div className="text-2xl font-black text-cyan-300 tabular-nums">
+                        {fmtMoney(intrinsicAppraisal.speculativeCeiling)} <span className="text-xs font-bold text-cyan-400/80">AUD</span>
+                      </div>
+                      <span className="text-[9px] text-zinc-400 block mt-0.5">
+                        Top-dollar collector anchor
+                      </span>
+                      <div className="mt-2 pt-1.5 border-t border-white/[0.06] flex items-center justify-between text-[10px]">
+                        <span className="text-zinc-400">Strategy:</span>
+                        <span className="text-cyan-400 font-medium">Patient Collector</span>
+                      </div>
+                    </div>
                   </div>
-                ))}
-              </div>
+
+                  {/* Seller Strategy & Pricing Rationale */}
+                  <div className="p-3.5 rounded-2xl bg-[#0D101A] border border-white/[0.08] space-y-2 font-mono text-xs">
+                    <div className="text-[11px] font-bold text-zinc-200 flex items-center gap-1.5 uppercase tracking-wider">
+                      <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+                      <span>Reseller Pricing Strategy:</span>
+                    </div>
+                    <p className="text-zinc-300 font-sans text-xs leading-relaxed">
+                      {intrinsicAppraisal.pricingRationale}
+                    </p>
+                    <div className="pt-2 border-t border-white/[0.06] space-y-1 text-[11px] text-zinc-300">
+                      {intrinsicAppraisal.listingTactics.map((tactic, idx) => (
+                        <div key={idx} className="flex items-center gap-2">
+                          <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 shrink-0" />
+                          <span>{tactic}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {/* Visual Price Cluster Scatter Strip */}
+                  <div className="p-2.5 rounded-xl bg-[#0D101A] border border-white/[0.08] space-y-1.5">
+                    <div className="flex items-center justify-between text-[9px] text-zinc-400 font-mono">
+                      <span>Price Clustering</span>
+                      <span>Range: {fmtMoney(compsRange.min)} – {fmtMoney(compsRange.max)}</span>
+                    </div>
+                    <div className="relative h-4 w-full rounded-lg bg-zinc-950 border border-white/[0.06] overflow-hidden flex items-center px-2">
+                      <div className="absolute inset-x-0 h-0.5 bg-zinc-800" />
+                      {rawComps.map((c, i) => {
+                        const price = c.price || 45;
+                        const pct = Math.min(95, Math.max(5, ((price - compsRange.min) / spreadWidth) * 100));
+                        return (
+                          <div
+                            key={i}
+                            className="absolute h-2.5 w-2.5 rounded-full bg-cyan-400 shadow-[0_0_6px_rgba(6,182,212,0.8)] -translate-x-1/2 cursor-pointer hover:scale-125 transition"
+                            style={{ left: `${pct}%` }}
+                            title={`${c.title} • $${price} (${c.soldDate || "recent"})`}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    {rawComps.map((comp, idx) => (
+                      <div
+                        key={comp.id || idx}
+                        className="p-3 rounded-2xl bg-[#0D101A] border border-white/[0.08] flex items-center justify-between gap-3 hover:border-cyan-500/30 transition"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap font-mono">
+                            <span className="text-sm font-black text-emerald-400">
+                              {fmtMoney(comp.price)} AUD
+                            </span>
+                            <span className="text-[10px] px-2 py-0.2 rounded-full bg-white/[0.06] text-zinc-300">
+                              {comp.soldDate}
+                            </span>
+                            {comp.condition && (
+                              <span className="text-[10px] px-2 py-0.2 rounded-full bg-white/[0.04] text-zinc-400 truncate max-w-[120px]">
+                                {comp.condition}
+                              </span>
+                            )}
+                            {typeof comp.matchPercentage === "number" && (
+                              <span className="text-[10px] text-cyan-400 font-bold">
+                                {comp.matchPercentage}% match
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-xs text-zinc-200 truncate font-medium">
+                            {comp.title}
+                          </div>
+                        </div>
+                        {comp.url && (
+                          <a
+                            href={comp.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="shrink-0 p-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.10] text-zinc-300 hover:text-white transition border border-white/[0.06]"
+                            title="View sold listing on eBay AU"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           )}
 

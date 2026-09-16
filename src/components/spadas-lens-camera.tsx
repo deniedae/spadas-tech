@@ -4336,10 +4336,16 @@ function SpadasLensCameraCore({
                             )}
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
-                                <span className="inline-flex items-center gap-1 text-[10px] font-mono font-medium text-zinc-300 bg-white/[0.04] px-2 py-0.5 rounded-full border border-white/[0.08]">
-                                  <Sparkles className="w-2.5 h-2.5 text-zinc-400" />
-                                  <span>{itemComps.length} Sold Comps (1–5d ago)</span>
-                                </span>
+                                {itemComps.length > 0 ? (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-mono font-medium text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/30">
+                                    <Sparkles className="w-2.5 h-2.5" />
+                                    <span>{itemComps.length} Cleared Sales</span>
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold text-amber-300 bg-amber-500/15 px-2 py-0.5 rounded-full border border-amber-500/30">
+                                    <span>0 Sold Comps • Algorithmic Appraisal</span>
+                                  </span>
+                                )}
                                 {isMeaningfulMeta(activeValuationHit.brand) && (
                                   <span className="text-[10px] font-medium text-zinc-400 font-mono truncate max-w-[110px]">
                                     {activeValuationHit.brand.trim()}
@@ -4435,66 +4441,85 @@ function SpadasLensCameraCore({
                             </div>
                           </div>
 
-                          {/* 3. Revealed Inline 3 to 5 Recent Sold Comps */}
-                          <div className="space-y-1.5">
-                            <div className="flex items-center justify-between px-0.5">
-                              <span className="text-[10px] font-mono font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-1">
-                                <Sparkles className="w-3 h-3 text-amber-400" />
-                                <span>Recent Sold Comps ({itemComps.length})</span>
-                              </span>
-                              <a
-                                href={ebayUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-[10px] font-mono text-amber-400 hover:text-amber-300 flex items-center gap-1 hover:underline cursor-pointer"
-                              >
-                                <span>View on eBay</span>
-                                <ExternalLink className="w-2.5 h-2.5" />
-                              </a>
-                            </div>
-
-                            <div className="max-h-32 sm:max-h-36 overflow-y-auto space-y-1.5 custom-scrollbar pr-0.5">
-                              {itemComps.map((comp, idx) => (
-                                <div
-                                  key={comp.id || idx}
-                                  className="p-2 rounded-xl bg-[#141721] border border-white/[0.06] flex items-center justify-between gap-2 hover:border-white/[0.12] transition"
+                          {/* 3. Revealed Inline 3 to 5 Recent Sold Comps OR Zero Comps Appraisal */}
+                          {itemComps.length > 0 ? (
+                            <div className="space-y-1.5">
+                              <div className="flex items-center justify-between px-0.5">
+                                <span className="text-[10px] font-mono font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-1">
+                                  <Sparkles className="w-3 h-3 text-emerald-400" />
+                                  <span>Recent Sold Comps ({itemComps.length})</span>
+                                </span>
+                                <a
+                                  href={ebayUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-[10px] font-mono text-zinc-400 hover:text-zinc-200 flex items-center gap-1 hover:underline cursor-pointer"
                                 >
-                                  <div className="min-w-0 flex-1">
-                                    <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
-                                      <span className="text-xs font-bold font-mono text-emerald-400">
-                                        {fmtMoney(comp.price)}
-                                      </span>
-                                      <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-white/[0.06] text-zinc-300">
-                                        {comp.soldDate}
-                                      </span>
-                                      {comp.condition && (
-                                        <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-white/[0.04] text-zinc-400 truncate max-w-[110px]">
-                                          {comp.condition}
-                                        </span>
-                                      )}
-                                      {typeof comp.matchPercentage === "number" && (
-                                        <span className="text-[9px] font-mono text-emerald-400">
-                                          {comp.matchPercentage}% match
-                                        </span>
-                                      )}
-                                    </div>
-                                    <div className="text-[10px] text-zinc-300 truncate font-medium">
-                                      {comp.title}
-                                    </div>
-                                  </div>
-                                  <a
-                                    href={comp.url || ebayUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="shrink-0 p-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.10] text-zinc-400 hover:text-white transition"
-                                    title="View sold listing on eBay AU"
+                                  <span>Search eBay</span>
+                                  <ExternalLink className="w-2.5 h-2.5" />
+                                </a>
+                              </div>
+
+                              <div className="max-h-32 sm:max-h-36 overflow-y-auto space-y-1.5 custom-scrollbar pr-0.5">
+                                {itemComps.map((comp, idx) => (
+                                  <div
+                                    key={comp.id || idx}
+                                    className="p-2 rounded-xl bg-[#141721] border border-white/[0.06] flex items-center justify-between gap-2 hover:border-white/[0.12] transition"
                                   >
-                                    <ExternalLink className="w-3 h-3" />
-                                  </a>
-                                </div>
-                              ))}
+                                    <div className="min-w-0 flex-1">
+                                      <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
+                                        <span className="text-xs font-bold font-mono text-emerald-400">
+                                          {fmtMoney(comp.price)}
+                                        </span>
+                                        <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-white/[0.06] text-zinc-300">
+                                          {comp.soldDate}
+                                        </span>
+                                        {comp.condition && (
+                                          <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-white/[0.04] text-zinc-400 truncate max-w-[110px]">
+                                            {comp.condition}
+                                          </span>
+                                        )}
+                                        {typeof comp.matchPercentage === "number" && (
+                                          <span className="text-[9px] font-mono text-emerald-400">
+                                            {comp.matchPercentage}% match
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div className="text-[10px] text-zinc-300 truncate font-medium">
+                                        {comp.title}
+                                      </div>
+                                    </div>
+                                    {comp.url && (
+                                      <a
+                                        href={comp.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="shrink-0 p-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.10] text-zinc-400 hover:text-white transition"
+                                        title="View sold listing on eBay AU"
+                                      >
+                                        <ExternalLink className="w-3 h-3" />
+                                      </a>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
                             </div>
-                          </div>
+                          ) : (
+                            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 space-y-1.5 font-mono">
+                              <div className="flex items-center justify-between">
+                                <span className="text-[10px] font-bold text-amber-300 uppercase tracking-wider flex items-center gap-1">
+                                  <AlertTriangle className="w-3 h-3 text-amber-400" />
+                                  <span>0 Sold Comps On Record</span>
+                                </span>
+                                <span className="text-[9px] text-amber-300/80 bg-amber-500/20 px-1.5 py-0.2 rounded">
+                                  Algorithmic Appraisal
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-zinc-300 font-sans leading-snug">
+                                No completed transactions found on eBay AU. Recommended starting list price is <strong>{fmtMoney(resaleMedian)} AUD</strong> (Buy It Now + Best Offer) with a fast liquidation floor of <strong>{fmtMoney(resaleMin)} AUD</strong>.
+                              </p>
+                            </div>
+                          )}
 
                           {/* Verification Reason / Fallback Notice (if any) */}
                           {(activeValuationHit.copVerdict === "VERIFY_FIRST" || activeValuationHit.requiresSecondaryVerification) && (
