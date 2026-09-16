@@ -7,6 +7,9 @@ import { checkNeedsVerification } from "@/lib/forensic-knowledge";
 import { estimateCategoryShippingCost, detectThriftTrap, calculateThriftCopVerdict } from "@/lib/thrift-cop-engine";
 import { calculateSalesVelocity } from "@/lib/turnover-velocity-engine";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const maxDuration = 30;
 export const preferredRegion = "syd1";
 
 interface RapidThriftResponse {

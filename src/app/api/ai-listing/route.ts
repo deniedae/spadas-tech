@@ -20,6 +20,9 @@ import { appraiseItemLocally } from "@/app/lib/offline/offline-engine";
 import { estimateCategoryShippingCost, detectThriftTrap, calculateThriftCopVerdict } from "@/lib/thrift-cop-engine";
 import type { AiListingResult } from "@/types/ai-listing";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 export const preferredRegion = "syd1";
 
 function createEmptyScanResult(): AiListingResult {
