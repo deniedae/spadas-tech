@@ -1570,7 +1570,7 @@ function SpadasLensCameraCore({
 
           if (transcript.includes("scan") || transcript.includes("capture")) {
             toast.success("🎙️ Voice Command: 'Scan' -> Processing frame!");
-            processCurrentFrame();
+            processCurrentFrame(true);
           } else if (transcript.includes("clear")) {
             toast.success("🎙️ Voice Command: 'Clear' -> Cleared hits list!");
             setCapturedLog([]);
@@ -1989,25 +1989,21 @@ function SpadasLensCameraCore({
 
   // Frame Scanner with Instantaneous Shutter Trigger & Responsive Viewfinder State
   const processCurrentFrame = useCallback(async (forceManual = false) => {
-    // 1. Null Frame Payload Guard & Lifecycle Transition Check:
-    // If stream or camera is in the middle of a lifecycle transition, do not pipe raw frames to vision pipeline
-    if (isStartingCameraRef.current || !stream || !videoRef.current) {
-      return;
-    }
-    const currentVideo = videoRef.current;
-    if (currentVideo.readyState < 2 || currentVideo.videoWidth <= 0 || currentVideo.videoHeight <= 0) {
-      return;
-    }
-    if (!isValidFramePayload(currentVideo)) {
-      return;
-    }
-
-    // 2. Immediate State Flush on Manual Scan (via "Scan Next Item" or the shutter button)
+    // 1. Immediate State Flush on Manual Scan (via "Scan Next Item" or the shutter button)
     if (forceManual) {
       flushScanState();
-    } else if (analyzingRef.current || activeValuationHitRef.current || isScanPausedRef.current) {
+    } else {
       // In automatic mode, prevent concurrent overlapping fetches AND never overwrite or clear an active valuation hit
-      return;
+      if (analyzingRef.current || activeValuationHitRef.current || isScanPausedRef.current) {
+        return;
+      }
+      const currentVideo = videoRef.current;
+      if (!currentVideo || currentVideo.readyState < 2 || currentVideo.videoWidth <= 0 || currentVideo.videoHeight <= 0) {
+        return;
+      }
+      if (!isValidFramePayload(currentVideo)) {
+        return;
+      }
     }
 
     // 3. AbortController for Stale Streams: Instantiate dedicated controller for this scan cycle
@@ -2110,38 +2106,58 @@ function SpadasLensCameraCore({
     }
 
     // If camera stream is not active yet when user taps Scan Now, auto-start camera stream first
-    if (!stream && forceManual) {
+    const activeStream =
+      streamRef.current ||
+      cameraStreamManager.getActiveStream() ||
+      (videoRef.current?.srcObject as MediaStream | null);
+    const hasLiveStream = Boolean(
+      activeStream &&
+      activeStream.active &&
+      activeStream.getVideoTracks().some((t) => t.readyState === "live" && t.enabled)
+    );
+
+    if (!hasLiveStream && forceManual) {
       await startCamera();
-      await new Promise((resolve) => setTimeout(resolve, 400));
-      const postVideo = videoRef.current;
-      if (postVideo && postVideo.readyState >= 2 && postVideo.videoWidth > 0 && !instantSnapshotUrl) {
-        try {
-          if (!offscreenCanvasRef.current) {
-            offscreenCanvasRef.current = document.createElement("canvas");
-          }
-          instantCanvas = offscreenCanvasRef.current;
-          const maxDim = 800;
-          const fullW = postVideo.videoWidth;
-          const fullH = postVideo.videoHeight;
-          let tw = fullW;
-          let th = fullH;
-          if (fullW >= fullH) {
-            tw = Math.min(maxDim, fullW);
-            th = Math.round((fullH * tw) / fullW);
-          } else {
-            th = Math.min(maxDim, fullH);
-            tw = Math.round((fullW * th) / fullH);
-          }
-          instantCanvas.width = tw;
-          instantCanvas.height = th;
-          const ctx = instantCanvas.getContext("2d", { willReadFrequently: true });
-          if (ctx) {
-            ctx.drawImage(postVideo, 0, 0, fullW, fullH, 0, 0, tw, th);
-            instantSnapshotUrl = instantCanvas.toDataURL("image/jpeg", 0.74);
-            setFrozenFrameUrl(instantSnapshotUrl);
-            setIsScanPaused(true);
-          }
-        } catch {}
+      const waitStart = Date.now();
+      while (
+        videoRef.current &&
+        (videoRef.current.readyState < 2 || videoRef.current.videoWidth <= 0) &&
+        Date.now() - waitStart < 600
+      ) {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+    }
+
+    const currentVid = videoRef.current;
+    if (currentVid && currentVid.readyState >= 2 && currentVid.videoWidth > 0 && !instantSnapshotUrl) {
+      try {
+        if (!offscreenCanvasRef.current) {
+          offscreenCanvasRef.current = document.createElement("canvas");
+        }
+        instantCanvas = offscreenCanvasRef.current;
+        const maxDim = 800;
+        const fullW = currentVid.videoWidth;
+        const fullH = currentVid.videoHeight;
+        let tw = fullW;
+        let th = fullH;
+        if (fullW >= fullH) {
+          tw = Math.min(maxDim, fullW);
+          th = Math.round((fullH * tw) / fullW);
+        } else {
+          th = Math.min(maxDim, fullH);
+          tw = Math.round((fullW * th) / fullH);
+        }
+        instantCanvas.width = tw;
+        instantCanvas.height = th;
+        const ctx = instantCanvas.getContext("2d", { willReadFrequently: true });
+        if (ctx) {
+          ctx.drawImage(currentVid, 0, 0, fullW, fullH, 0, 0, tw, th);
+          instantSnapshotUrl = instantCanvas.toDataURL("image/jpeg", 0.74);
+          setFrozenFrameUrl(instantSnapshotUrl);
+          setIsScanPaused(true);
+        }
+      } catch (postErr) {
+        console.warn("[Spadas Lens] Post-start capture warning:", postErr);
       }
     }
 
@@ -2333,6 +2349,41 @@ function SpadasLensCameraCore({
 
       if (!frameDataUrl && instantSnapshotUrl) {
         frameDataUrl = instantSnapshotUrl;
+      }
+
+      // Fallback Canvas for Manual Scan & Mock Mode: Guarantees frameDataUrl is never dropped on manual scan
+      if (
+        (!frameDataUrl || !frameDataUrl.startsWith("data:image/jpeg;base64,") || frameDataUrl.length < 1000) &&
+        (forceManual || isMockFallback)
+      ) {
+        try {
+          if (!offscreenCanvasRef.current) {
+            offscreenCanvasRef.current = document.createElement("canvas");
+          }
+          const canvas = offscreenCanvasRef.current;
+          canvas.width = 640;
+          canvas.height = 480;
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.fillStyle = "#12151E";
+            ctx.fillRect(0, 0, 640, 480);
+            ctx.strokeStyle = "rgba(255,255,255,0.25)";
+            ctx.lineWidth = 2;
+            ctx.strokeRect(100, 80, 440, 320);
+            ctx.fillStyle = "#FFFFFF";
+            ctx.font = "bold 18px monospace";
+            ctx.textAlign = "center";
+            ctx.fillText("SPADAS LENS AR SCAN", 320, 230);
+            ctx.fillStyle = "#94A3B8";
+            ctx.font = "13px monospace";
+            ctx.fillText(new Date().toLocaleTimeString(), 320, 260);
+            frameDataUrl = canvas.toDataURL("image/jpeg", 0.8);
+            centerCropDataUrl = frameDataUrl;
+            instantSnapshotUrl = frameDataUrl;
+          }
+        } catch (canvasErr) {
+          console.warn("[Spadas Lens] Fallback canvas generation error:", canvasErr);
+        }
       }
 
       // 1. Live Session & Pro/Admin Verification prior to scan limit evaluation
@@ -3301,7 +3352,26 @@ function SpadasLensCameraCore({
         setScanStage(activeValuationHitRef.current ? "complete" : "idle");
       }
     }
-  }, [soundEnabled, flushScanState]);
+  }, [
+    soundEnabled,
+    flushScanState,
+    scanMode,
+    isPro,
+    isOwner,
+    isLimitReached,
+    isGuestUser,
+    sessionScanCount,
+    categoryBias,
+    spatialMetadata,
+    secondaryImagePayload,
+    selectedCurrency,
+    torchSupported,
+    isOffline,
+    frozenFrameUrl,
+    triggerActiveValuationHit,
+    persistHitAndSyncToSupabase,
+    isMockFallback,
+  ]);
 
   // HUD STATE MACHINE: Keep recognized item cards visible indefinitely (Pinned) until manually dismissed
   useEffect(() => {
