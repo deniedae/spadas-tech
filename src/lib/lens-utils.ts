@@ -279,3 +279,34 @@ export async function captureTargetBox(
     );
   });
 }
+
+/**
+ * Null Frame Payload Guard: Ensures camera frame is non-null and, if structured with planes,
+ * has at least one valid planar buffer before entering the vision pipeline.
+ */
+export function isValidFramePayload(frame: any): boolean {
+  if (!frame) return false;
+  if (typeof frame === "object" && "planes" in frame && (!frame.planes || frame.planes.length === 0)) {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Regex identifying multi-pack, bundle, wholesale lot, or quantity groupings
+ * that contaminate single-unit pricing comps.
+ */
+export const BULK_LOT_REGEX = /\b(lot\s+of|\d+\s*x|\d+\s*pack|pack\s+of|bulk\s+lot|bundle\s+of|wholesale|set\s+of\s+\d+|job\s+lot|collection\s+of|multi-pack|multipack|box\s+of\s+\d+)\b/i;
+
+/**
+ * Detects whether a listing title represents a bulk/lot bundle.
+ * If targetTitle itself is explicitly a lot, returns false so lot-to-lot comps remain valid.
+ */
+export function isBulkOrLotTitle(title?: string | null, targetTitle?: string | null): boolean {
+  if (!title || typeof title !== "string") return false;
+  if (targetTitle && BULK_LOT_REGEX.test(targetTitle)) {
+    return false;
+  }
+  return BULK_LOT_REGEX.test(title);
+}
+

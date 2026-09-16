@@ -126,7 +126,7 @@ export default function LensHitCard({
               </h4>
               {isSaved && (
                 <span className="inline-flex items-center gap-0.5 text-[9px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-1.5 py-0.5 rounded shrink-0">
-                  ✓ In Haul
+                  [In Haul]
                 </span>
               )}
             </div>
@@ -283,7 +283,6 @@ export default function LensHitCard({
         </div>
       )}
 
-      {/* ── Actions ──────────────────────────────────────────────────────── */}
       <div
         className="flex flex-wrap items-center justify-between gap-2 pt-2.5 border-t border-white/[0.08]"
         onClick={(e) => e.stopPropagation()}
@@ -291,17 +290,19 @@ export default function LensHitCard({
         <div className="flex flex-wrap items-center gap-1.5">
           <button
             type="button"
+            disabled={isSaved}
             onClick={() => {
+              if (isSaved) return;
               triggerTactileHaptic("success");
               onSaveDraft(item);
             }}
-            className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-[10px] font-bold transition cursor-pointer shadow-sm ${
+            className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-[10px] font-bold transition shadow-sm ${
               isSaved
-                ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30"
-                : "bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-zinc-950"
+                ? "bg-emerald-500/15 text-emerald-300/80 border border-emerald-500/30 opacity-80 cursor-default"
+                : "bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-zinc-950 cursor-pointer"
             }`}
           >
-            {isSaved ? "✓ In Haul" : "+ Save Find"}
+            {isSaved ? "✓ Saved to Haul" : "+ Save Find"}
           </button>
           <button
             type="button"

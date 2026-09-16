@@ -59,6 +59,7 @@ import {
   cleanBrandText,
   cleanCategoryText,
   cleanConditionText,
+  isBulkOrLotTitle,
 } from "@/lib/lens-utils";
 import { triggerTactileHaptic, syncProfitToAndroidWidget } from "@/lib/android-bridge";
 import {
@@ -152,11 +153,16 @@ export default function LensCompsModal({
   const compsRange = useMemo(() => {
     if (!item) return { min: 30, max: 60, median: 45 };
 
-    // Compute IQR over rawComps if available (1.5x IQR above Q3)
-    const compPrices = rawComps.map((c) => c.price).filter((p) => p > 0).sort((a, b) => a - b);
+    // 1. Filter out bulk/lot listings unless target itself is a lot
+    const isTargetLot = isBulkOrLotTitle(title);
+    const nonLotComps = isTargetLot ? rawComps : rawComps.filter((c) => !isBulkOrLotTitle(c.title, title));
+    const candidateComps = nonLotComps.length > 0 ? nonLotComps : rawComps;
+
+    // 2. Compute IQR over candidateComps (1.5x IQR above Q3)
+    const compPrices = candidateComps.map((c) => c.price).filter((p) => p > 0).sort((a, b) => a - b);
     let maxIqrAllowed = Infinity;
     let minIqrAllowed = 1;
-    if (compPrices.length >= 4) {
+    if (compPrices.length >= 3) {
       const q1 = compPrices[Math.floor(compPrices.length * 0.25)];
       const q3 = compPrices[Math.floor(compPrices.length * 0.75)];
       const iqr = q3 - q1;
@@ -166,21 +172,33 @@ export default function LensCompsModal({
       }
     }
 
+    // 3. Prevent extreme single-listing outlier distortion (cap at 2.2x median of valid comps)
+    const medianComp = compPrices.length > 0 ? compPrices[Math.floor(compPrices.length / 2)] : initialEstValue;
+    if (medianComp > 0) {
+      maxIqrAllowed = Math.min(maxIqrAllowed, Math.round(medianComp * 2.2 * 100) / 100);
+    }
+
+    const filteredPrices = compPrices.filter((p) => p <= maxIqrAllowed && p >= minIqrAllowed);
+
     const baseRange = (item as any).compsRange || {
-      min: (item as any).suggestedPriceMin || (compPrices.length > 0 ? compPrices[0] : Math.max(1, Math.round(initialEstValue * 0.72))),
-      max: (item as any).suggestedPriceMax || (compPrices.length > 0 ? compPrices[compPrices.length - 1] : Math.round(initialEstValue * 1.28)),
+      min: (item as any).suggestedPriceMin || (filteredPrices.length > 0 ? filteredPrices[0] : Math.max(1, Math.round(initialEstValue * 0.72))),
+      max: (item as any).suggestedPriceMax || (filteredPrices.length > 0 ? filteredPrices[filteredPrices.length - 1] : Math.round(initialEstValue * 1.28)),
       median: initialEstValue,
     };
 
-    const cappedMax = isFinite(maxIqrAllowed) ? Math.min(baseRange.max, Math.round(maxIqrAllowed * 100) / 100) : baseRange.max;
-    const cappedMin = Math.max(baseRange.min, minIqrAllowed);
+    const rawMax = filteredPrices.length > 0 ? filteredPrices[filteredPrices.length - 1] : baseRange.max;
+    const rawMin = filteredPrices.length > 0 ? filteredPrices[0] : baseRange.min;
+    const rawMedian = filteredPrices.length > 0 ? filteredPrices[Math.floor(filteredPrices.length / 2)] : baseRange.median;
+
+    const cappedMax = isFinite(maxIqrAllowed) ? Math.min(rawMax, Math.round(maxIqrAllowed * 100) / 100) : rawMax;
+    const cappedMin = Math.max(rawMin, minIqrAllowed);
 
     return {
       min: cappedMin,
       max: Math.max(cappedMin, cappedMax),
-      median: Math.min(cappedMax, Math.max(cappedMin, baseRange.median)),
+      median: Math.min(cappedMax, Math.max(cappedMin, rawMedian)),
     };
-  }, [item, initialEstValue, rawComps]);
+  }, [item, initialEstValue, rawComps, title]);
 
   // Strategy-adjusted dynamic resale target price
   const activeResalePrice = useMemo(() => {

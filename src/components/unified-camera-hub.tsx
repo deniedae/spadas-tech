@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Camera, Zap, ShoppingBag } from "lucide-react";
-import SpadasLensCamera, { releasePersistentMediaStream } from "@/components/spadas-lens-camera";
+import SpadasLensCamera from "@/components/spadas-lens-camera";
 import { SpadasSnapStudio } from "@/components/spadas-snap-studio";
 import { useHaulStore } from "@/lib/haul-store";
 import { triggerTactileHaptic } from "@/lib/android-bridge";
@@ -28,9 +28,6 @@ export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraH
   const handleTabChange = (tab: "lens" | "studio") => {
     if (activeTab !== tab) {
       triggerTactileHaptic("selection");
-      if (tab === "studio") {
-        releasePersistentMediaStream();
-      }
       setActiveTab(tab);
     }
   };

@@ -50,13 +50,15 @@ export function enhanceTagContrast(
   }
 }
 
+import { isValidFramePayload } from "@/lib/lens-utils";
+
 /**
  * Preprocesses video stream or image element into clean, lightweight, high-OCR vision payloads.
  * Default maxDimension: 800px (matches OpenAI 512-768px vision tile processing and Gemini Flash).
  * Default quality: 0.74 (cuts payload by ~85% with zero perceptible loss in OCR accuracy).
  */
 export function processFrameForVision(
-  source: HTMLVideoElement | HTMLImageElement | HTMLCanvasElement,
+  source: HTMLVideoElement | HTMLImageElement | HTMLCanvasElement | any,
   options?: {
     cropFactor?: number;
     boostContrast?: boolean;
@@ -64,6 +66,11 @@ export function processFrameForVision(
     quality?: number;
   }
 ): PreprocessedImageResult {
+  // Null Frame Payload Guard: ensure frame is non-null and any planar buffers are populated
+  if (!isValidFramePayload(source)) {
+    throw new Error("Invalid frame payload: missing frame data or planes");
+  }
+
   const cropFactor = options?.cropFactor ?? 0.70;
   const maxDim = options?.maxDimension ?? 800; // Aggressive compression: 800px optimal for AI vision
   const boostContrast = options?.boostContrast ?? true;
@@ -71,6 +78,7 @@ export function processFrameForVision(
 
   const rawWidth = source instanceof HTMLVideoElement ? source.videoWidth : source.width;
   const rawHeight = source instanceof HTMLVideoElement ? source.videoHeight : source.height;
+
 
   const safeW = rawWidth > 0 ? rawWidth : 1280;
   const safeH = rawHeight > 0 ? rawHeight : 720;

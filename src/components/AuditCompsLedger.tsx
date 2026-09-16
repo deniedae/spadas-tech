@@ -24,7 +24,7 @@ import type { RawSoldComp } from "@/types/lens";
 import type { RawSoldCompRecord } from "@/types/ai-listing";
 import { CompsLedgerSkeleton } from "@/components/ui/comps-skeleton-loader";
 import { triggerTactileHaptic } from "@/lib/android-bridge";
-import { isMeaningfulMeta, sanitizeMetaText, cleanBrandText, cleanConditionText } from "@/lib/lens-utils";
+import { isMeaningfulMeta, sanitizeMetaText, cleanBrandText, cleanConditionText, isBulkOrLotTitle } from "@/lib/lens-utils";
 
 export interface AuditCompRecord {
   id?: string;
@@ -197,11 +197,19 @@ export function ensureVerifiedSoldComps(
     (c) => c && (c.title || (typeof c.price === "number" && c.price > 0))
   );
 
-  // Outlier filter using Interquartile Range (IQR): Cap / filter extreme outlier listings (> Q3 + 1.5 * IQR)
-  const validPrices = valid.map((c) => Number(c.price)).filter((p) => p > 0).sort((a, b) => a - b);
+  // 1. Bulk / Multi-Pack Filter: Strip lot, pack, bundle, wholesale listings unless target itself is a lot
+  const isTargetLot = isBulkOrLotTitle(cleanTitle);
+  const nonLotFiltered = valid.filter((c) => {
+    if (isTargetLot) return true;
+    return !isBulkOrLotTitle(c.title, cleanTitle);
+  });
+  const candidates = nonLotFiltered.length > 0 ? nonLotFiltered : valid;
+
+  // 2. Outlier filter using Interquartile Range (IQR): Cap / filter extreme outlier listings (> Q3 + 1.5 * IQR)
+  const validPrices = candidates.map((c) => Number(c.price)).filter((p) => p > 0).sort((a, b) => a - b);
   let maxIqrPrice = Infinity;
   let minIqrPrice = 1;
-  if (validPrices.length >= 4) {
+  if (validPrices.length >= 3) {
     const q1 = validPrices[Math.floor(validPrices.length * 0.25)];
     const q3 = validPrices[Math.floor(validPrices.length * 0.75)];
     const iqr = q3 - q1;
@@ -211,14 +219,18 @@ export function ensureVerifiedSoldComps(
     }
   }
 
-  const iqrCleaned = validPrices.length >= 4 && isFinite(maxIqrPrice)
-    ? valid.filter((c) => {
-        const p = Number(c.price);
-        return !p || (p <= maxIqrPrice && p >= minIqrPrice);
-      })
-    : valid;
+  // Prevent single high-outlier distortion (cap at 2.2x median price)
+  const medianP = validPrices.length > 0 ? validPrices[Math.floor(validPrices.length / 2)] : estimatedPrice;
+  if (medianP > 0) {
+    maxIqrPrice = Math.min(maxIqrPrice, Math.round(medianP * 2.2 * 100) / 100);
+  }
 
-  const validComps = iqrCleaned.length >= 3 ? iqrCleaned : valid;
+  const iqrCleaned = candidates.filter((c) => {
+    const p = Number(c.price);
+    return !p || (p <= maxIqrPrice && p >= minIqrPrice);
+  });
+
+  const validComps = iqrCleaned.length >= 2 ? iqrCleaned : candidates;
 
   // If we already have 3+ valid comps from eBay API, format and return top 5
   if (validComps.length >= 3) {

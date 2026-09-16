@@ -65,6 +65,7 @@ export interface LensControlsBarProps {
   nav: {
     onGuide: () => void;
     onHistory: () => void;
+    historyCount?: number;
   };
   debug?: {
     isOwner: boolean;
@@ -283,6 +284,11 @@ export default function LensControlsBar({
               >
                 <History className="h-3.5 w-3.5 text-zinc-400" />
                 <span>History</span>
+                {typeof nav.historyCount === "number" && nav.historyCount > 0 && (
+                  <span className="ml-0.5 px-1.5 py-0.2 rounded-full bg-white/10 text-[10px] font-mono font-bold text-white">
+                    {nav.historyCount}
+                  </span>
+                )}
               </button>
 
               {/* Pro Badge / Upgrade */}

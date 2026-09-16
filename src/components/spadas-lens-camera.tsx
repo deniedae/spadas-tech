@@ -122,23 +122,15 @@ import {
   cleanCategoryText,
   captureVideoFrame,
   captureTargetBox,
+  isValidFramePayload,
+  isBulkOrLotTitle,
+  BULK_LOT_REGEX,
 } from "@/lib/lens-utils";
+import { cameraStreamManager } from "@/lib/camera-stream-provider";
 
-// Module-level persistent media stream cache to prevent camera hardware stream teardown across tabs/views
-let persistentMediaStream: MediaStream | null = null;
-
+// Unified media stream release helper
 export function releasePersistentMediaStream() {
-  if (persistentMediaStream) {
-    try {
-      persistentMediaStream.getTracks().forEach((track) => {
-        try {
-          track.stop();
-          track.enabled = false;
-        } catch {}
-      });
-    } catch {}
-    persistentMediaStream = null;
-  }
+  cameraStreamManager.releaseCamera(undefined, true);
 }
 
 let cycleSeq = 0;
@@ -1075,39 +1067,20 @@ function SpadasLensCameraCore({
 
   const handleSaveDraftHit = async (hit: DetectedHit) => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      let user: any = session?.user;
-      if (!user) {
-        const { data: userData } = await supabase.auth.getUser();
-        user = userData?.user;
-      }
-
-      if (!user) {
-        if (isGuestUser && !isPro && !isOwner) {
-          saveGuestScannedItem(hit);
-          setLastGuestScannedItem(hit);
-          setIsGuestLimitModalOpen(true);
-          toast.info("Create a free account in 5 seconds to save drafts & sync inventory!");
-        } else {
-          toast.error("Please sign in to save inventory drafts.");
+      // 1. OPTIMISTIC IMMEDIATE UPDATE (0ms latency, zero flash):
+      // Mark as saved in local state immediately so button shows "✓ Saved to Haul" and [In Haul] badge renders
+      setSavedHitIds((prev) => {
+        const next = new Set(prev);
+        next.add(hit.id);
+        if (typeof window !== "undefined") {
+          try {
+            localStorage.setItem("spadas_saved_hit_ids", JSON.stringify(Array.from(next)));
+          } catch {}
         }
-        return;
-      }
-
-      const { error } = await createListing({
-        userId: user.id,
-        product: hit.name,
-        description: `Sourced via Spadas Lens AR. Category: ${hit.category}. Condition: ${hit.condition}. Estimated profit: +$${hit.estimatedProfit?.toFixed(2) || "0"}.`,
-        price: hit.estimatedValue || 45,
-        cost: hit.estCost || 10,
-        status: "Draft",
+        return next;
       });
 
-      if (error) throw error;
-      triggerTactileHaptic("success");
-      syncProfitToAndroidWidget(bestProfit + (hit.estimatedProfit || 0), capturedLog.length + 1);
-
-      // Add to global haulStore to keep Haul tab, drawers, and feed synchronized
+      // Synchronously increment Haul counter via global haulStore
       addItem({
         id: hit.id,
         photoId: hit.id,
@@ -1125,21 +1098,60 @@ function SpadasLensCameraCore({
         image: hit.image || undefined,
       });
 
-      // Update local saved hit IDs
-      setSavedHitIds((prev) => {
-        const next = new Set(prev);
-        next.add(hit.id);
-        if (typeof window !== "undefined") {
-          try {
-            localStorage.setItem("spadas_saved_hit_ids", JSON.stringify(Array.from(next)));
-          } catch {}
-        }
-        return next;
+      // Ensure item is present in capturedLog so counter and history stay synchronized
+      setCapturedLog((prev) => {
+        if (prev.some((h) => h.id === hit.id || h.name === hit.name)) return prev;
+        return [hit, ...prev];
       });
 
-      toast.success(`✅ Saved "${hit.name}" to inventory drafts!`);
+      triggerTactileHaptic("success");
+      syncProfitToAndroidWidget(bestProfit + (hit.estimatedProfit || 0), capturedLog.length + 1);
+      toast.success(`✅ Saved "${hit.name}" to Haul & drafts!`);
+
+      // 2. Asynchronous background persistence (Supabase / pending queues)
+      const { data: { session } } = await supabase.auth.getSession();
+      let user: any = session?.user;
+      if (!user) {
+        const { data: userData } = await supabase.auth.getUser();
+        user = userData?.user;
+      }
+
+      if (!user) {
+        if (isGuestUser && !isPro && !isOwner) {
+          saveGuestScannedItem(hit);
+          setLastGuestScannedItem(hit);
+          setIsGuestLimitModalOpen(true);
+        } else {
+          // Offline/unauthenticated: queue to pending listings queue
+          const pendingListingsStr = localStorage.getItem("spadas_pending_listings_queue");
+          const listQueue = pendingListingsStr ? JSON.parse(pendingListingsStr) : [];
+          listQueue.push({
+            product: hit.name,
+            description: `Sourced via Spadas Lens AR. Category: ${hit.category}. Condition: ${hit.condition}. Estimated profit: +$${hit.estimatedProfit?.toFixed(2) || "0"}.`,
+            price: hit.estimatedValue || 45,
+            cost: hit.estCost || 10,
+            status: "Draft",
+            timestamp: Date.now(),
+          });
+          localStorage.setItem("spadas_pending_listings_queue", JSON.stringify(listQueue.slice(-50)));
+        }
+        return;
+      }
+
+      const { error } = await createListing({
+        userId: user.id,
+        product: hit.name,
+        description: `Sourced via Spadas Lens AR. Category: ${hit.category}. Condition: ${hit.condition}. Estimated profit: +$${hit.estimatedProfit?.toFixed(2) || "0"}.`,
+        price: hit.estimatedValue || 45,
+        cost: hit.estCost || 10,
+        status: "Draft",
+      });
+
+      if (error) {
+        console.warn("[Spadas Lens] Background createListing warning:", error);
+      }
     } catch (err: any) {
-      toast.error(err?.message || "Failed to save to drafts.");
+      console.warn("[Spadas Lens] handleSaveDraftHit background error:", err);
     }
   };
 
@@ -1224,19 +1236,20 @@ function SpadasLensCameraCore({
     void startCamera();
 
     return () => {
-      // Cleanly teardown camera hardware and release exclusive lock for other views (Studio Mode, etc.)
-      if (streamRef.current) {
-        try {
-          streamRef.current.getTracks().forEach((track) => {
-            track.stop();
-            track.enabled = false;
-          });
-        } catch {}
-        streamRef.current = null;
-      }
-      releasePersistentMediaStream();
+      // Gracefully release camera ownership for Lens via unified camera provider
+      cameraStreamManager.releaseCamera("lens");
+      streamRef.current = null;
     };
   }, []);
+
+  // Reactive synchronization: keep localStorage up to date with capturedLog at all times (additions, deletions, clear)
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("spadas_cached_lens_hits", JSON.stringify(capturedLog));
+      } catch {}
+    }
+  }, [capturedLog]);
 
   // Offline Local Storage Persistence & Background Supabase Sync Engine
   const flushPendingSyncQueue = useCallback(async () => {
@@ -1780,45 +1793,12 @@ function SpadasLensCameraCore({
     }
   }, [stream]);
 
-  // Stop Camera Stream (Releases all hardware locks immediately)
-  const stopCamera = useCallback(() => {
-    if (streamRef.current) {
-      try {
-        streamRef.current.getTracks().forEach((track) => {
-          track.stop();
-          track.enabled = false;
-        });
-      } catch {}
-      streamRef.current = null;
-    }
-    if (stream) {
-      try {
-        stream.getTracks().forEach((track) => {
-          track.stop();
-          track.enabled = false;
-        });
-      } catch {}
-      setStream(null);
-    }
-    if (persistentMediaStream) {
-      try {
-        persistentMediaStream.getTracks().forEach((track) => {
-          track.stop();
-          track.enabled = false;
-        });
-      } catch {}
-      persistentMediaStream = null;
-    }
+  // Stop Camera Stream (Releases camera ownership via unified provider)
+  const stopCamera = useCallback((force = false) => {
+    cameraStreamManager.releaseCamera("lens", force);
+    streamRef.current = null;
+    setStream(null);
     if (videoRef.current) {
-      if (videoRef.current.srcObject) {
-        try {
-          const s = videoRef.current.srcObject as MediaStream;
-          s.getTracks().forEach((t) => {
-            t.stop();
-            t.enabled = false;
-          });
-        } catch {}
-      }
       videoRef.current.srcObject = null;
     }
     setIsCameraPoweredOn(false);
@@ -1826,88 +1806,29 @@ function SpadasLensCameraCore({
     setActiveScans([]);
     setAnalyzingRealFrame(false);
     analyzingRef.current = false;
-  }, [stream]);
+  }, []);
 
-  // Start Camera Stream with mobile-optimized progressive WebRTC constraints & zero-latency reuse
+  // Start Camera Stream via Unified Camera Stream Manager with zero-latency reuse
   const startCamera = async () => {
     if (isStartingCameraRef.current) return;
     isStartingCameraRef.current = true;
     try {
-      // 1. Instant Stream Reuse Check: If persistent stream is already active, resume immediately with 0ms latency
-      if (
-        persistentMediaStream &&
-        persistentMediaStream.active &&
-        persistentMediaStream.getVideoTracks().some((t) => t.readyState === "live")
-      ) {
-        streamRef.current = persistentMediaStream;
-        setStream(persistentMediaStream);
-        if (videoRef.current) {
-          videoRef.current.srcObject = persistentMediaStream;
-          void videoRef.current.play().catch(() => {});
-        }
-        setIsCameraPoweredOn(true);
-        setScanning(true);
-        setCameraError(null);
-        return;
-      }
-
-      // Ensure any existing non-live hardware tracks are cleared
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((t) => {
-          t.stop();
-          t.enabled = false;
-        });
-        streamRef.current = null;
-      }
       setCameraError(null);
-      let mediaStream: MediaStream | null = null;
+      const mediaStream = await cameraStreamManager.acquireCamera({
+        mode: "lens",
+        facingMode: "environment",
+      });
 
-      // Primary Mobile Back Camera (Environment Lens with Full HD 1080p & Continuous Autofocus)
-      try {
-        mediaStream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: { ideal: "environment" },
-            width: { ideal: 1920, min: 1280 },
-            height: { ideal: 1080, min: 720 },
-            // @ts-ignore - Hardware hints for sharpest focus on barcodes and text
-            focusMode: { ideal: "continuous" },
-          },
-          audio: false,
-        });
-      } catch {
-        // Fallback 1: Flexible Environment Mode
-        try {
-          mediaStream = await navigator.mediaDevices.getUserMedia({
-            video: {
-              facingMode: "environment",
-              width: { ideal: 1280 },
-              height: { ideal: 720 },
-            },
-            audio: false,
-          });
-        } catch {
-          // Fallback 2: Front Camera / Any Video Source
-          try {
-            mediaStream = await navigator.mediaDevices.getUserMedia({
-              video: { facingMode: "user" },
-              audio: false,
-            });
-          } catch {
-            mediaStream = await navigator.mediaDevices.getUserMedia({
-              video: true,
-              audio: false,
-            });
-          }
-        }
-      }
-
-      persistentMediaStream = mediaStream;
       streamRef.current = mediaStream;
       setStream(mediaStream);
+      if (videoRef.current) {
+        videoRef.current.srcObject = mediaStream;
+        void videoRef.current.play().catch(() => {});
+      }
       setIsCameraPoweredOn(true);
       setScanning(true);
     } catch (err) {
-      console.warn("Physical camera access blocked or unavailable — Activating Test Scanner Mode:", err);
+      console.warn("[Spadas Lens] Physical camera access blocked or unavailable — Activating Test Scanner Mode:", err);
       setIsMockFallback(true);
       setIsCameraPoweredOn(true);
       setScanning(true);
@@ -1920,7 +1841,7 @@ function SpadasLensCameraCore({
   // Camera Power Toggle (Explicitly releases all hardware tracks & stream locks)
   const handleToggleCameraPower = useCallback(() => {
     if (isCameraPoweredOn && (stream || streamRef.current)) {
-      stopCamera();
+      stopCamera(true); // Force release hardware tracks on explicit user power off
       setIsCameraPoweredOn(false);
       toast.info("Camera powered off. Hardware resources released.", { id: "cam-power" });
     } else {
@@ -2068,7 +1989,20 @@ function SpadasLensCameraCore({
 
   // Frame Scanner with Instantaneous Shutter Trigger & Responsive Viewfinder State
   const processCurrentFrame = useCallback(async (forceManual = false) => {
-    // 1. Immediate State Flush on Manual Scan (via "Scan Next Item" or the shutter button)
+    // 1. Null Frame Payload Guard & Lifecycle Transition Check:
+    // If stream or camera is in the middle of a lifecycle transition, do not pipe raw frames to vision pipeline
+    if (isStartingCameraRef.current || !stream || !videoRef.current) {
+      return;
+    }
+    const currentVideo = videoRef.current;
+    if (currentVideo.readyState < 2 || currentVideo.videoWidth <= 0 || currentVideo.videoHeight <= 0) {
+      return;
+    }
+    if (!isValidFramePayload(currentVideo)) {
+      return;
+    }
+
+    // 2. Immediate State Flush on Manual Scan (via "Scan Next Item" or the shutter button)
     if (forceManual) {
       flushScanState();
     } else if (analyzingRef.current || activeValuationHitRef.current || isScanPausedRef.current) {
@@ -2076,7 +2010,7 @@ function SpadasLensCameraCore({
       return;
     }
 
-    // 2. AbortController for Stale Streams: Instantiate dedicated controller for this scan cycle
+    // 3. AbortController for Stale Streams: Instantiate dedicated controller for this scan cycle
     const abortController = new AbortController();
     activeAbortControllerRef.current = abortController;
     const cycleId = ++cycleSeq;
@@ -3589,7 +3523,8 @@ function SpadasLensCameraCore({
       }
 
       const video = videoRef.current;
-      if (!video || video.readyState < 2 || video.paused || video.videoWidth === 0 || video.videoHeight === 0) return;
+      if (!video || video.readyState < 2 || video.paused || video.videoWidth <= 0 || video.videoHeight <= 0 || isStartingCameraRef.current || !stream) return;
+      if (!isValidFramePayload(video)) return;
 
       if (!offCtx) return;
       let pixels: Uint8ClampedArray;
@@ -4898,6 +4833,7 @@ function SpadasLensCameraCore({
         nav={{
           onGuide: () => setIsOnboardingOpen(true),
           onHistory: () => setIsHistoryDrawerOpen(true),
+          historyCount: capturedLog.length,
         }}
         debug={{
           isOwner,

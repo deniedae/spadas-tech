@@ -23,6 +23,8 @@ import { isOwnerEmail } from "@/app/lib/auth-admin";
 import { ScanProgressiveLoader } from "@/components/scan-progressive-loader";
 import { haulStore } from "@/lib/haul-store";
 import { RapidThriftItem, dataUriToBlob, savePhotoBlob } from "@/lib/rapid-thrift-engine";
+import { cameraStreamManager } from "@/lib/camera-stream-provider";
+import { isValidFramePayload } from "@/lib/lens-utils";
 
 export function SpadasSnapStudio() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -171,78 +173,33 @@ export function SpadasSnapStudio() {
     };
   }, []);
 
-  // Stop Camera Stream (Releases all hardware locks immediately)
+  // Stop Camera Stream (Releases camera ownership through unified provider)
   const stopCamera = useCallback(() => {
-    if (streamRef.current) {
-      try {
-        streamRef.current.getTracks().forEach((track) => {
-          track.stop();
-          track.enabled = false;
-        });
-      } catch {}
-      streamRef.current = null;
-    }
-    if (stream) {
-      try {
-        stream.getTracks().forEach((track) => {
-          track.stop();
-          track.enabled = false;
-        });
-      } catch {}
-      setStream(null);
-    }
+    cameraStreamManager.releaseCamera("studio");
+    streamRef.current = null;
+    setStream(null);
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
-  }, [stream]);
+  }, []);
 
-  // Start Camera Stream with progressive fallback constraints
+  // Start Camera Stream via Unified Camera Stream Manager
   const startCamera = useCallback(async (mode: "environment" | "user" = facingMode) => {
     try {
-      // Ensure previous tracks are completely released first
-      if (streamRef.current) {
-        try {
-          streamRef.current.getTracks().forEach((t) => {
-            t.stop();
-            t.enabled = false;
-          });
-        } catch {}
-        streamRef.current = null;
-      }
       setCameraError(null);
-
-      let newStream: MediaStream | null = null;
-      const getStreamWithFallback = async () => {
-        try {
-          return await navigator.mediaDevices.getUserMedia({
-            video: {
-              facingMode: { ideal: mode },
-              width: { ideal: 1280, max: 1920 },
-              height: { ideal: 720, max: 1080 },
-            },
-            audio: false,
-          });
-        } catch {
-          // Fallback for strict device permissions
-          return await navigator.mediaDevices.getUserMedia({
-            video: true,
-            audio: false,
-          });
-        }
-      };
-
-      try {
-        newStream = await getStreamWithFallback();
-      } catch {
-        // If hardware is in the process of releasing from Lens mode, wait 200ms and retry once
-        await new Promise((res) => setTimeout(res, 200));
-        newStream = await getStreamWithFallback();
-      }
+      const newStream = await cameraStreamManager.acquireCamera({
+        mode: "studio",
+        facingMode: mode,
+      });
 
       streamRef.current = newStream;
       setStream(newStream);
+      if (videoRef.current) {
+        videoRef.current.srcObject = newStream;
+        void videoRef.current.play().catch(() => {});
+      }
     } catch (err: any) {
-      console.warn("Physical camera access unavailable:", err);
+      console.warn("[Snap Studio] Physical camera access unavailable:", err);
       setCameraError("Camera unavailable or permission denied. You can still upload photos below.");
     }
   }, [facingMode]);
@@ -250,7 +207,7 @@ export function SpadasSnapStudio() {
   useEffect(() => {
     void startCamera();
     return () => {
-      // Ensure all tracks and video bindings are released when leaving Snap Studio
+      // Release camera ownership for Snap Studio through unified manager
       stopCamera();
     };
   }, [startCamera, stopCamera]);
@@ -258,7 +215,7 @@ export function SpadasSnapStudio() {
   useEffect(() => {
     if (videoRef.current && stream) {
       videoRef.current.srcObject = stream;
-      videoRef.current.play().catch(() => {});
+      void videoRef.current.play().catch(() => {});
     }
   }, [stream]);
 
@@ -276,7 +233,8 @@ export function SpadasSnapStudio() {
     }
 
     const video = videoRef.current;
-    if (!video) return;
+    if (!video || video.readyState < 2 || video.videoWidth <= 0 || video.videoHeight <= 0) return;
+    if (!isValidFramePayload(video)) return;
 
     try {
       const preprocessed = processFrameForVision(video, { boostContrast: true, maxDimension: 850, quality: 0.75 });
