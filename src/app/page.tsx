@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import MuxScannerShowcase from "@/components/mux-scanner-showcase";
 import LandingBeforeAfterDemo from "@/components/landing-before-after-demo";
 import LandingFeatures from "@/components/landing-features";
 import LandingPricing from "@/components/landing-pricing";
@@ -43,8 +44,12 @@ export default function Home() {
 
           {/* Desktop Nav Links */}
           <div className="hidden md:flex items-center gap-6 text-[13px] font-medium text-zinc-400">
+            <a href="#demo-video" className="hover:text-white transition flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+              Watch Video
+            </a>
             <a href="#demo" className="hover:text-white transition">
-              Demo
+              Interactive
             </a>
             <a href="#features" className="hover:text-white transition">
               Features
@@ -127,6 +132,9 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* ── Mux Video Demo Section ─────────── */}
+      <MuxScannerShowcase />
 
       {/* ── Demo Section ───────────────────── */}
       <LandingBeforeAfterDemo />

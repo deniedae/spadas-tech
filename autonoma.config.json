@@ -1,0 +1,63 @@
+{
+  "$schema": "https://agent.autonoma.app/schema/config.v1.json",
+  "name": "Spadas Tech - Reseller Intelligence Platform",
+  "framework": "nextjs",
+  "appUrl": "https://spadas-tech.vercel.app",
+  "testing": {
+    "ai_agent_exploration": true,
+    "self_healing": true,
+    "on_pull_request": true,
+    "on_deployment": true,
+    "browser": "chromium",
+    "viewport": {
+      "width": 1280,
+      "height": 800
+    },
+    "mobile_viewport": {
+      "width": 390,
+      "height": 844
+    }
+  },
+  "critical_journeys": [
+    {
+      "name": "Landing Page & Video Showcase Navigation",
+      "entrypoint": "/",
+      "goals": [
+        "Verify landing page hero, trust metrics, and CTA buttons load without errors",
+        "Verify Mux scanner showcase video player mounts cleanly and chapters are clickable",
+        "Verify navigation to /lens and /login"
+      ]
+    },
+    {
+      "name": "Spadas Lens AR Scanner & Camera HUD",
+      "entrypoint": "/lens",
+      "goals": [
+        "Verify camera viewfinder mounts, status pills display, and controls bar is interactive",
+        "Verify guide and onboarding overlay opens and closes",
+        "Ensure no unhandled console errors or runtime crashes during scan simulation"
+      ]
+    },
+    {
+      "name": "Valuation & Comps Parity Checks",
+      "entrypoint": "/calculator",
+      "goals": [
+        "Verify profit margin calculator correctly computes platform fees and shipping",
+        "Verify negative net profits show formatted negative ROI badges (never '+-' prefix)",
+        "Verify currency switching between AUD, USD, GBP, and EUR"
+      ]
+    },
+    {
+      "name": "Authentication & Protected Routes",
+      "entrypoint": "/login",
+      "goals": [
+        "Verify email magic link and Google OAuth forms render properly",
+        "Ensure redirect logic guards protected dashboard routes"
+      ]
+    }
+  ],
+  "assertions": {
+    "fail_on_http_status_codes": [500, 502, 503, 504],
+    "fail_on_unhandled_rejections": true,
+    "fail_on_console_errors": true
+  }
+}
