@@ -1499,3 +1499,17 @@ body.valuation-modal-open .glass-nav {
   transition: opacity 200ms ease, transform 200ms ease;
 }
 
+/* Copilot Soft Keyboard & Mobile Viewport Stability */
+.copilot-feed {
+  position: relative;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.copilot-input-container {
+  flex-shrink: 0;
+  transform: none !important;
+  transition: none !important;
+}
+
+

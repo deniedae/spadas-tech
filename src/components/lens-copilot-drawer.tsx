@@ -59,7 +59,6 @@ export default function LensCopilotDrawer({
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const chatInputContainerRef = useRef<HTMLDivElement | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   // Auto-scroll to bottom as streaming tokens arrive
@@ -82,24 +81,6 @@ export default function LensCopilotDrawer({
     };
   }, [isOpen]);
 
-  // Listen to window.visualViewport resize and scroll events.
-  // Dynamically offset the bottom position of the chat input container so it pins flush above the soft keyboard
-  useEffect(() => {
-    if (typeof window === "undefined" || !window.visualViewport) return;
-    const handleResize = () => {
-      if (!window.visualViewport) return;
-      const offsetBottom = window.innerHeight - window.visualViewport.height;
-      if (chatInputContainerRef.current) {
-        chatInputContainerRef.current.style.transform = `translateY(-${Math.max(0, offsetBottom)}px)`;
-      }
-    };
-    window.visualViewport.addEventListener("resize", handleResize);
-    window.visualViewport.addEventListener("scroll", handleResize);
-    return () => {
-      window.visualViewport?.removeEventListener("resize", handleResize);
-      window.visualViewport?.removeEventListener("scroll", handleResize);
-    };
-  }, []);
 
   // Initial greeting seed whenever a new item is opened
   useEffect(() => {
@@ -245,7 +226,7 @@ export default function LensCopilotDrawer({
   return (
     <div className="fixed inset-0 z-[120] flex items-end justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-xs animate-fade-in select-none">
       <div
-        className="relative w-full max-w-md h-[100dvh] max-h-[95dvh] sm:h-[620px] sm:max-h-[620px] flex flex-col rounded-t-3xl sm:rounded-2xl bg-zinc-950 border border-zinc-800 text-zinc-100 overflow-hidden shadow-2xl animate-in slide-in-from-bottom duration-200"
+        className="relative w-full max-w-md h-[100dvh] max-h-[100dvh] sm:h-[620px] sm:max-h-[620px] flex flex-col rounded-t-3xl sm:rounded-2xl bg-zinc-950 border border-zinc-800 text-zinc-100 overflow-hidden shadow-2xl animate-in slide-in-from-bottom duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Mobile Pull Handle */}
@@ -296,7 +277,7 @@ export default function LensCopilotDrawer({
         </div>
 
         {/* ── Chat Messages Feed ────────────────────────────────────────────── */}
-        <div className="flex-1 overflow-y-auto overscroll-contain p-3.5 space-y-3 custom-scrollbar text-xs">
+        <div className="copilot-feed flex-1 min-h-0 relative overflow-y-auto overscroll-contain p-3.5 space-y-3 custom-scrollbar text-xs">
           {messages.map((m) => (
             <div
               key={m.id}
@@ -342,8 +323,8 @@ export default function LensCopilotDrawer({
           <div ref={messagesEndRef} />
         </div>
 
-        {/* ── Bottom Input & Chips Container with Dynamic VisualViewport Offset ── */}
-        <div ref={chatInputContainerRef} className="shrink-0 transition-transform duration-75 ease-out">
+        {/* ── Bottom Input & Chips Container (Pure Flexbox Anchor) ──────────── */}
+        <div className="copilot-input-container shrink-0" style={{ transition: "none", transform: "none" }}>
           {/* ── Suggested Quick Prompt Chips (1-Tap Sourcing Queries) ─────────── */}
           <div className="px-3 py-1.5 border-t border-zinc-850 bg-zinc-950 overflow-x-auto custom-scrollbar flex items-center gap-1.5">
             {QUICK_PROMPT_CHIPS.map((chip) => (
