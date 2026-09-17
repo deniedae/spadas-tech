@@ -30,12 +30,15 @@ export interface VariantAudit {
 
 export type CopVerdict = "MUST_COP" | "QUICK_FLIP" | "FAIR_MARGIN" | "PASS_RISKY" | "VERIFY_FIRST";
 
+export type MediaFormat = '4K UHD' | 'Blu-ray' | 'DVD' | 'Steelbook' | 'VHS' | 'Cassette' | 'CD' | 'Vinyl';
+
 export interface DetectedHit {
   id: string;
   name: string;
   brand?: string | null;
   category: string;
   condition: string;
+  mediaFormat?: MediaFormat;
   visualReasoning?: {
     visible_text_detected?: string[];
     physical_object_description?: string;
@@ -134,6 +137,7 @@ export interface ActiveScanItem {
   brand?: string | null;
   category: string;
   condition: string;
+  mediaFormat?: MediaFormat;
   inventoryCondition?: "untested" | "faulty_for_parts" | "used_working" | "refurbished";
   defectNotes?: string[];
   asIsDisclaimer?: string;

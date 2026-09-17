@@ -2661,6 +2661,7 @@ function SpadasLensCameraCore({
                         brand: sanitizeMetaText(valData.brand || valData.analysis?.brand) || null,
                         category: cleanCategoryText(valData.category || valData.analysis?.category, "General") || "General",
                         condition: cleanConditionText(valData.condition || valData.analysis?.condition, "Used"),
+                        mediaFormat: valData.media_format || valData.analysis?.media_format || undefined,
                         conditionGrade: valData.condition_grade || "Good",
                         wearInspection: valData.wear_inspection || null,
                         conditionModifier: valData.condition_modifier || 1.0,
@@ -2693,6 +2694,7 @@ function SpadasLensCameraCore({
                         brand: verifiedHit.brand || undefined,
                         category: verifiedHit.category,
                         condition: verifiedHit.condition,
+                        mediaFormat: verifiedHit.mediaFormat,
                         inventoryCondition: "used_working",
                         defectNotes: verifiedHit.defectNotes || [],
                         asIsDisclaimer: verifiedHit.asIsDisclaimer || "",
@@ -3189,6 +3191,7 @@ function SpadasLensCameraCore({
           brand: sanitizeMetaText(item.brand),
           category: cat,
           condition: cleanConditionText(item.condition, "Used"),
+          mediaFormat: (item as any).media_format || data.media_format || data.analysis?.media_format || undefined,
           inventoryCondition: data.inventory_condition || "used_working",
           defectNotes: data.defect_notes || [],
           asIsDisclaimer: data.as_is_disclaimer || "",
@@ -3350,6 +3353,7 @@ function SpadasLensCameraCore({
             brand: sanitizeMetaText(obj.brand) || sanitizeMetaText(data?.analysis?.brand) || null,
             category: cleanCategoryText(obj.category, "General") || "General",
             condition: cleanConditionText(itemCondition, "Used"),
+            mediaFormat: obj.mediaFormat || data?.media_format || data?.analysis?.media_format || undefined,
             conditionGrade: data?.condition_grade || data?.analysis?.condition_grade || "Good",
             wearInspection: data?.wear_inspection || data?.analysis?.wear_inspection || null,
             conditionModifier: data?.condition_modifier || data?.analysis?.condition_modifier || 1.0,
@@ -4428,13 +4432,19 @@ function SpadasLensCameraCore({
                                     <TrendingUp className="w-3 h-3 text-emerald-400" />
                                     <span>Take-Home Net Profit</span>
                                   </span>
-                                  <span className="text-xl sm:text-2xl font-black text-emerald-400 tracking-tight">
+                                  <span className={`text-xl sm:text-2xl font-black tracking-tight ${netProfit >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
                                     {formatAUD(netProfit)}
                                   </span>
                                 </div>
                                 <div className="flex flex-col items-end">
-                                  <span className="text-xs font-bold text-emerald-300 bg-emerald-500/20 border border-emerald-500/30 px-2 py-0.5 rounded-lg">
-                                    +{roiPct}% ROI
+                                  <span className={`text-xs font-bold px-2 py-0.5 rounded-lg border ${
+                                    roiPct > 0
+                                      ? "text-emerald-300 bg-emerald-500/20 border-emerald-500/30"
+                                      : roiPct === 0
+                                      ? "text-zinc-300 bg-zinc-800 border-zinc-700"
+                                      : "text-rose-300 bg-rose-500/20 border-rose-500/30"
+                                  }`}>
+                                    {roiPct > 0 ? `+${roiPct}% ROI` : `${roiPct}% ROI`}
                                   </span>
                                   <span className="text-[10px] text-zinc-400 mt-1 font-sans">
                                     {activeValuationHit.copVerdict === "MUST_COP"

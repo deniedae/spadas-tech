@@ -177,8 +177,10 @@ export default function SpadasRadarCopilot() {
                         }`}>
                           {deal.verdict}
                         </span>
-                        <span className="text-xs font-mono text-emerald-400 font-bold">
-                          +{deal.roi}% ROI
+                        <span className={`text-xs font-mono font-bold ${
+                          deal.roi > 0 ? "text-emerald-400" : deal.roi === 0 ? "text-zinc-400" : "text-rose-400"
+                        }`}>
+                          {deal.roi > 0 ? `+${deal.roi}% ROI` : `${deal.roi}% ROI`}
                         </span>
                       </div>
 

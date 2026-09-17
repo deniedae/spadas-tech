@@ -24,6 +24,7 @@ export interface LensCopilotDrawerProps {
     brand?: string | null;
     category?: string | null;
     condition?: string | null;
+    mediaFormat?: '4K UHD' | 'Blu-ray' | 'DVD' | 'Steelbook' | 'VHS' | 'Cassette' | 'CD' | 'Vinyl';
     tagPrice?: number;
     fairMarketPrice?: number;
     estimatedNet?: number;
@@ -165,6 +166,7 @@ export default function LensCopilotDrawer({
           brand: itemContext.brand,
           category: itemContext.category,
           condition: itemContext.condition,
+          media_format: itemContext.mediaFormat,
           tag_price: itemContext.tagPrice,
           fair_market_price: itemContext.fairMarketPrice,
           estimated_net: itemContext.estimatedNet,

@@ -422,11 +422,18 @@ ${spatialMetadata || categoryBias ? `LOCATION-AWARE CATEGORY BIASING & SPATIAL P
 - Active Category Prior Bias: ${categoryBias || spatialMetadata?.categoryBias || "Secondhand Resale / Op-Shop Finds"}
 ` : ""}
 1. BRAND & MODEL: Identify EXACT brand (e.g. Carhartt, Prada, Nike, Sony, Nintendo, Lego, TP-Link, Bose) and model name/number. If unbranded, give clear concise generic description (e.g. "Ceramic Coffee Mug White 350ml").
-2. CATEGORY: Clothing, Electronics, Luxury Accessories, Shoes, Collectibles, etc.
-3. CONDITION: Condition summary (Used - Good, Like New, Fair, For Parts). Assign condition_grade (Mint, Good, Fair, For Parts). Explicitly populate wear_inspection. Note observed flaws in defect_notes. Set inventory_condition to "used_working", "untested", or "faulty_for_parts".
-4. ESTIMATED RESALE VALUE: Realistic secondary market sold value in ${targetCurrency} as a single number (estimated_value).
-5. BOUNDING BOX & CONFIDENCE: Bounding box coordinates {x, y, width, height} (0-100 percentages) and confidence_score (0.0 to 1.0).
-6. RETAKE GUIDANCE: Set retake_recommended if photo is blurry or tags are unreadable, otherwise null.
+2. CATEGORY: Clothing, Electronics, Luxury Accessories, Shoes, Collectibles, Media & Movies, Video Games, etc.
+3. MEDIA FORMAT (FOR MOVIES, MUSIC, DISCS, TAPES):
+   - Prioritize the upper header banner on movie/video cases!
+   - If "Blu-ray" or the blue banner strip is visible across the top of the case, strictly set media_format to "Blu-ray".
+   - If "4K Ultra HD" / "4K UHD" or black header is visible, set media_format to "4K UHD".
+   - If standard black casing or standard DVD logo is present without Blu-ray branding, set media_format to "DVD".
+   - If Steelbook metal casing is visible, set media_format to "Steelbook".
+   - Other physical formats: "VHS", "Cassette", "CD", "Vinyl". If non-media, set media_format to null.
+4. CONDITION: Condition summary (Used - Good, Like New, Fair, For Parts). Assign condition_grade (Mint, Good, Fair, For Parts). Explicitly populate wear_inspection. Note observed flaws in defect_notes. Set inventory_condition to "used_working", "untested", or "faulty_for_parts".
+5. ESTIMATED RESALE VALUE: Realistic secondary market sold value in ${targetCurrency} as a single number (estimated_value).
+6. BOUNDING BOX & CONFIDENCE: Bounding box coordinates {x, y, width, height} (0-100 percentages) and confidence_score (0.0 to 1.0).
+7. RETAKE GUIDANCE: Set retake_recommended if photo is blurry or tags are unreadable, otherwise null.
 Keep extraction strictly factual. Zero conversational text.`,
                     },
                     ...imageContent,
@@ -469,9 +476,16 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
 - NETWORKING & HARDWARE: Read visible brand stamps and model numbers (e.g., TP-Link, Archer, RE305). NEVER misidentify networking devices or USB dongles as vapes.
 - COMMODITY / UNBRANDED ITEMS: Identify accurately as generic (e.g., "Ceramic Coffee Mug White 350ml"). Do NOT hallucinate high-end collector brands.
 
-2. ITEM TYPE, SILHOUETTE & CATEGORY:
+2. ITEM TYPE, SILHOUETTE, CATEGORY & MEDIA FORMAT:
 - Identify the precise silhouette (e.g., "Detroit Duck Canvas Jacket", "Saffiano Leather Triangle Logo Bifold Wallet", "Cyber-shot DSC-W350 Digital Camera", "Air Jordan 4 Retro").
-- Accurately assign "category" (e.g., "Clothing", "Electronics", "Luxury Accessories", "Shoes", "Collectibles").
+- Accurately assign "category" (e.g., "Clothing", "Electronics", "Luxury Accessories", "Shoes", "Collectibles", "Media & Movies").
+- MEDIA FORMAT FOR MOVIES / DISCS:
+  • Prioritize the upper header banner on movie/disc cases!
+  • If "Blu-ray" or the blue banner strip is visible across the top of the case, strictly force media_format = 'Blu-ray'.
+  • If "4K Ultra HD" or "4K UHD" header is visible, force media_format = '4K UHD'.
+  • If standard black casing or standard DVD logo is present, use media_format = 'DVD'.
+  • If Steelbook metal casing is present, use media_format = 'Steelbook'.
+  • Other formats: 'VHS', 'Cassette', 'CD', 'Vinyl'. If not physical media, set media_format = null.
 
 3. HONEST CONDITION, WEAR & FLAW INSPECTION (DEEP VISUAL CONDITION GRADING):
 - Inspect micro-features across all visible angles: surface wear, micro-scratches, oxidisation, patina, and packaging completeness.
@@ -514,7 +528,7 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
   • If the item is clearly in focus with verifiable attributes, set "retake_recommended": null.
 
 6. PROFESSIONAL HIGH-VOLUME EBAY SELLER COPYWRITING (STRICT EDITORIAL FILTER):
-- "market_titles.ebay": Max 80 characters. Format: [Brand] [Model/Style] [Key Color/Material] [Size/Attribute] [Condition]. NO punctuation clutter, no fake emojis.
+- "market_titles.ebay": Max 80 characters. Format: [Brand] [Model/Style] [Media Format if applicable e.g. Blu-ray/4K UHD/DVD] [Key Color/Material] [Size/Attribute] [Condition]. NO punctuation clutter, no fake emojis. STRICT RULE: For movies/discs, always reflect the exact media_format (e.g. Blu-ray, 4K UHD, Steelbook) — NEVER default or hallucinate 'DVD' for a Blu-ray or 4K release!
 - "market_titles.facebook_marketplace": Clean, friendly, and local-buyer readable.
 - "market_titles.depop": Trendy lowercase aesthetic with 3-4 relevant hashtags.
 - "seo_description" & "detailed_description": Professional eBay seller description:
@@ -561,6 +575,15 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
           const rawMin = Number(fastData.suggested_price_min) || Math.round(estVal * 0.7);
           const rawMax = Number(fastData.suggested_price_max) || Math.round(estVal * 1.3);
 
+          const detectedFormat = fastData.media_format || (
+            /\b(blu-ray|bluray)\b/i.test(pName) ? "Blu-ray" :
+            /\b(4k uhd|4k ultra hd)\b/i.test(pName) ? "4K UHD" :
+            /\b(steelbook)\b/i.test(pName) ? "Steelbook" :
+            /\b(dvd)\b/i.test(pName) ? "DVD" :
+            /\b(vhs)\b/i.test(pName) ? "VHS" :
+            undefined
+          );
+
           result = {
             status: fastData.status,
             isMockFallback: false,
@@ -569,6 +592,7 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
             wear_inspection: fastData.wear_inspection || null,
             defect_notes: fastData.defect_notes || [],
             as_is_disclaimer: fastData.as_is_disclaimer || undefined,
+            media_format: detectedFormat,
             detected_objects: fastData.detected_objects || [
               {
                 id: `obj-${Date.now()}`,
@@ -593,6 +617,7 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
               condition: cond,
               condition_grade: condGrade,
               wear_inspection: fastData.wear_inspection || null,
+              media_format: detectedFormat,
               defect_notes: fastData.defect_notes || [],
               accessories_detected: [],
               confidence: (fastData.confidence_score ?? 0.95) >= 0.85 ? "high" : "medium",
@@ -600,7 +625,7 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
               retake_recommended: fastData.retake_recommended || null,
             },
             market_titles: {
-              ebay: `${brand || "Authentic"} ${pName} ${cond}`.trim().slice(0, 80),
+              ebay: `${brand || "Authentic"} ${pName} ${detectedFormat && !pName.toLowerCase().includes(detectedFormat.toLowerCase()) ? detectedFormat : ""} ${cond}`.replace(/\s+/g, " ").trim().slice(0, 80),
               facebook_marketplace: `${brand || "Authentic"} ${pName} - Great Condition`.trim(),
               vinted: `${brand || "Authentic"} ${pName}`.trim(),
               depop: `${pName.toLowerCase()} #resale #thrift`,
@@ -931,8 +956,9 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
         }
 
         // Common Media DVDs / CDs (Prevent $5 DVD illusions where shipping eats 100% of profit)
-        const isMediaDvd = (lowerTitle.includes("dvd") || lowerTitle.includes("cd") || lowerTitle.includes("vhs") || lowerTitle.includes("blu-ray")) &&
-          !lowerTitle.includes("criterion") && !lowerTitle.includes("sealed") && !lowerTitle.includes("box set") && !lowerTitle.includes("steelbook") && !lowerTitle.includes("anime");
+        // Strictly exclude Blu-ray, 4K UHD, and Steelbooks which have higher market liquidity ($15-$40)
+        const isMediaDvd = (lowerTitle.includes("dvd") || lowerTitle.includes("cd") || lowerTitle.includes("vhs")) &&
+          !lowerTitle.includes("criterion") && !lowerTitle.includes("sealed") && !lowerTitle.includes("box set") && !lowerTitle.includes("steelbook") && !lowerTitle.includes("anime") && !lowerTitle.includes("blu-ray") && !lowerTitle.includes("bluray") && !lowerTitle.includes("4k");
         if (isMediaDvd) {
           result.suggested_price_min = 3;
           result.suggested_price_max = 6;
@@ -1319,12 +1345,12 @@ Generate professional multi-platform titles, descriptions, shipping estimate, an
 Product: ${result.analysis.product_name}
 Brand: ${result.analysis.brand || "Authentic"}
 Category: ${result.analysis.category || "General"}
-Condition: ${result.analysis.condition || "Used"} (${result.condition_grade || "Good"})
+${result.media_format || result.analysis?.media_format ? `Media Format: ${result.media_format || result.analysis?.media_format}\n` : ""}Condition: ${result.analysis.condition || "Used"} (${result.condition_grade || "Good"})
 Defect Notes: ${result.defect_notes?.join(", ") || "None observed"}
 Fair Market Resale Value: $${result.suggested_price_median} ${targetCurrency}
 
 RULES:
-- "market_titles.ebay": Max 80 characters. Format: [Brand] [Model/Style] [Key Color/Material] [Condition]. No punctuation clutter.
+- "market_titles.ebay": Max 80 characters. Format: [Brand] [Model/Style] [Media Format if applicable] [Condition]. STRICT RULE: For movies/discs/media, always reflect the exact Media Format (${result.media_format || result.analysis?.media_format || "detected format"}) — NEVER default or hallucinate 'DVD' for a Blu-ray or 4K release!
 - "market_titles.facebook_marketplace": Clean, friendly, local-buyer readable.
 - "market_titles.depop": Trendy lowercase with 3 relevant hashtags.
 - "market_titles.vinted": Clean descriptive title.

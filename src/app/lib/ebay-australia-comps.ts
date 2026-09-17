@@ -278,9 +278,14 @@ export async function fetchEbayAustraliaSoldComps(
     // Luxury threshold
     if (isLuxury && price < 20) return false;
 
-    // Single-Item Parity: reject multi-packs, wholesale bundles, bulk lots if query is a single item
+    // Single-Item Parity: reject multi-packs, wholesale clearance, and multi-variation lots if query is a single item
     if (!isQueryMultiPack) {
-      if (/\b(\d+\s*pack|\d+\s*pk|\d+\s*pcs|\d+\s*pieces|pack of \d+|box of \d+|tray of|lot of \d+|\d+x\b|carton of|wholesale|bundle of \d+|bundle lot|game lot|games lot|\d+\s*games|collection of \d+|console bundle|system bundle|console \+|job lot|joblot|bulk lot)\b/i.test(lower)) {
+      if (
+        /\b(lot|bundle|job lot|joblot|bulk lot|clearance lot|pick and choose|choose your|pick your|you choose|assorted|collection of|bulk|multi-listing|multilisting|variations?)\b/i.test(lower) ||
+        /\b(\d+\s*pack|\d+\s*pk|\d+\s*pcs|\d+\s*pieces|pack of \d+|box of \d+|tray of|lot of \d+|\d+x\b|carton of|wholesale|bundle of \d+|bundle lot|game lot|games lot|\d+\s*games|\d+\s*dvds?|\d+\s*blurays?|\d+\s*movies|collection of \d+|console bundle|system bundle|console \+)\b/i.test(lower) ||
+        /\b(\$\d+(\.\d+)?\s*-\s*\$\d+|\$\d+\s*each|\$\d+\s*ea|\b2 for\b|\b3 for\b|\b4 for\b|\b5 for\b)\b/i.test(lower) ||
+        /\b(dvd lot|bluray lot|blu-ray lot|movie lot|game lot)\b/i.test(lower)
+      ) {
         return false;
       }
     }

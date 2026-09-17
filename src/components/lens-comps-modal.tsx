@@ -650,16 +650,26 @@ export default function LensCompsModal({
           <div className="p-4 space-y-3 min-h-[110px]">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <div className="text-[36px] sm:text-[40px] leading-none font-bold text-emerald-400 tabular-nums flex items-baseline gap-1.5 min-h-[44px]">
+                <div className={`text-[36px] sm:text-[40px] leading-none font-bold tabular-nums flex items-baseline gap-1.5 min-h-[44px] ${
+                  netProfit >= 0 ? "text-emerald-400" : "text-rose-400"
+                }`}>
                   <span>{formatAUD(netProfit)}</span>
-                  <span className="text-base font-semibold text-emerald-300/80">Net</span>
+                  <span className={`text-base font-semibold ${netProfit >= 0 ? "text-emerald-300/80" : "text-rose-300/80"}`}>Net</span>
                 </div>
                 <div className="text-xs text-zinc-400 mt-1">Take-home profit after fees & shipping</div>
               </div>
 
               <div className="flex items-center gap-2 pt-1">
-                <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-zinc-800 text-emerald-400 tabular-nums border border-zinc-700">
-                  +{roi}% ROI
+                <span
+                  className={`px-2.5 py-1 rounded-full text-xs font-semibold tabular-nums border ${
+                    roi > 0
+                      ? "bg-zinc-800 text-emerald-400 border-zinc-700"
+                      : roi === 0
+                      ? "bg-zinc-800 text-zinc-400 border-zinc-700"
+                      : "bg-rose-500/15 text-rose-300 border-rose-500/30"
+                  }`}
+                >
+                  {roi > 0 ? `+${Math.round(roi)}% ROI` : `${Math.round(roi)}% ROI`}
                 </span>
                 <span
                   className={`px-3 py-1 rounded-full text-xs font-bold ${
@@ -1380,6 +1390,7 @@ export default function LensCompsModal({
           brand,
           category,
           condition,
+          mediaFormat: (item as any)?.mediaFormat,
           tagPrice: effectiveTagCost,
           fairMarketPrice: activeResalePrice,
           estimatedNet: netProfit,

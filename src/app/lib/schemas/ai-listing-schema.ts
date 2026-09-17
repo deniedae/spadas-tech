@@ -31,6 +31,17 @@ export const ConditionGradeEnum = z.enum([
   "For Parts",
 ]);
 
+export const MediaFormatEnum = z.enum([
+  "4K UHD",
+  "Blu-ray",
+  "DVD",
+  "Steelbook",
+  "VHS",
+  "Cassette",
+  "CD",
+  "Vinyl",
+]);
+
 export const WearInspectionSchema = z.object({
   surface_wear: z.string().nullable().describe("Surface scuffs, abrasions, fabric pills, or clean finish"),
   scratching: z.string().nullable().describe("Micro-scratches, deep gouges on screens/leather/hardware, or none"),
@@ -85,6 +96,7 @@ export const ProductAnalysisSchema = z.object({
   color: z.string().nullable(),
   material: z.string().nullable(),
   condition: z.string(),
+  media_format: MediaFormatEnum.nullable().optional().describe("For media, discs, movies: '4K UHD', 'Blu-ray', 'DVD', 'Steelbook', 'VHS', 'Cassette', 'CD', 'Vinyl'"),
   condition_grade: ConditionGradeEnum.nullable().optional(),
   wear_inspection: WearInspectionSchema.nullable().optional(),
   condition_modifier: z.number().nullable().optional(),
@@ -161,6 +173,7 @@ export const AiListingResultSchema = z.object({
   condition_modifier: z.number().nullable().optional(),
   defect_notes: z.array(z.string()),
   as_is_disclaimer: z.string().nullable(),
+  media_format: MediaFormatEnum.nullable().optional(),
   detected_objects: z.array(DetectedObjectSchema).nullable(),
   analysis: ProductAnalysisSchema,
   market_titles: MarketTitlesSchema,
@@ -203,6 +216,7 @@ export const FastVisionIdentificationSchema = z.object({
   brand: z.string().nullable().describe("Brand name or null if unbranded"),
   category: z.string().describe("Primary resale category (e.g. Clothing, Electronics, Shoes, Collectibles, General)"),
   condition: z.string().describe("Condition summary (e.g. Used - Good, Used - Like New, Used - Fair, For Parts)"),
+  media_format: MediaFormatEnum.nullable().optional().describe("For movies/discs/media: '4K UHD', 'Blu-ray', 'DVD', 'Steelbook', 'VHS', 'Cassette', 'CD', 'Vinyl'"),
   condition_grade: ConditionGradeEnum.nullable().optional(),
   wear_inspection: WearInspectionSchema.nullable().optional(),
   inventory_condition: InventoryConditionEnum,

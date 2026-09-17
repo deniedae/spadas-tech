@@ -1,3 +1,6 @@
+import type { MediaFormat } from "./lens";
+export type { MediaFormat };
+
 // AI listing domain types — additive, no existing types touched.
 // AiGenerationStage is NOT exported here — it lives in lib/ai/listing-generator.ts.
 
@@ -38,6 +41,7 @@ export interface ProductAnalysis {
   color: string | null;
   material: string | null;
   condition: string;
+  media_format?: MediaFormat | null;
   condition_grade?: ConditionGrade | null;
   wear_inspection?: WearInspection | null;
   condition_modifier?: number | null;
@@ -130,6 +134,7 @@ export interface AiListingResult {
   condition_modifier?: number | null;
   defect_notes?: string[];
   as_is_disclaimer?: string;
+  media_format?: MediaFormat | null;
   analysis: ProductAnalysis;
   market_titles: MarketTitles;
   seo_description: string;

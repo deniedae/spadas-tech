@@ -9,6 +9,7 @@ export interface ItemChatContext {
   brand?: string | null;
   category?: string | null;
   condition?: string | null;
+  media_format?: '4K UHD' | 'Blu-ray' | 'DVD' | 'Steelbook' | 'VHS' | 'Cassette' | 'CD' | 'Vinyl' | null;
   tag_price?: number;
   fair_market_price?: number;
   estimated_net?: number;
@@ -49,7 +50,7 @@ ITEM SNAPSHOT:
 - Brand: ${ctx.brand || "Unbranded / Unknown"}
 - Category: ${ctx.category || "General"}
 - Condition: ${ctx.condition || "Used - Good"}
-- In-Store Tag Cost: ${formatChatAUD(ctx.tag_price ?? 10)} AUD
+${ctx.media_format ? `- Physical Media Format: ${ctx.media_format}\n` : ""}- In-Store Tag Cost: ${formatChatAUD(ctx.tag_price ?? 10)} AUD
 - Fair Market Value: ${formatChatAUD(ctx.fair_market_price ?? 45)} AUD
 - Projected True Net Profit: ${formatChatAUD(ctx.estimated_net ?? 20, true)} AUD
 - Sell-Through Rate (STR): ${ctx.sell_through_rate || "Moderate"}
@@ -59,7 +60,7 @@ ${compsSummary}
 ${regionalAlert}
 
 PROACTIVE STRATEGIC CAPABILITIES:
-1. TITLE OPTIMIZATION: If asked for a title or SEO, generate a high-ranking 80-character eBay title (front-load Brand, Model, Key Specs, Condition, and high-volume search keywords without punctuation fluff).
+1. TITLE OPTIMIZATION: If asked for a title or SEO, generate a high-ranking 80-character eBay title (front-load Brand, Title, exact Physical Media Format [e.g. Blu-ray, 4K UHD, DVD, Steelbook, VHS, CD], Key Specs, Condition, and search keywords without punctuation fluff. STRICT RULE: If the item is Blu-ray, 4K UHD, or Steelbook, NEVER label or refer to it as 'DVD'! Always honor the detected media format).
 2. PRICING STRATEGY: If asked for pricing, provide actionable price brackets: Buy It Now price with Best Offer auto-accept (e.g., ~85% of BIN) and auto-decline (e.g., ~70% of BIN) thresholds.
 3. FLAW & AUTHENTICITY INSPECTION: If asked to inspect or authenticate, give category-specific physical checks (batch codes on fragrances, stitch counts & hardware weight on streetwear/luxury, model numbers/port tests on electronics, single-stitch/tag dates on vintage tees).
 4. LIQUIDITY & PLATFORM ADVICE: Recommend whether to fast-flip locally on FB Marketplace/Gumtree (cash on pickup, 0% fees) or ship nationally on eBay Australia.
@@ -87,9 +88,16 @@ function generateOfflineHeuristicResponse(query: string, ctx: ItemChatContext): 
 
   // 1. 80-Character eBay SEO Title
   if (q.includes("title") || q.includes("seo") || q.includes("80-char")) {
-    const rawTitle = `${brand} ${title} ${ctx.condition || "Pre-Owned"} Resale Authentic Verified`.replace(/\s+/g, " ").trim();
+    const detectedFormat = ctx.media_format || (
+      title.toLowerCase().includes("blu-ray") || title.toLowerCase().includes("bluray") ? "Blu-ray" :
+      title.toLowerCase().includes("4k uhd") || title.toLowerCase().includes("4k ultra hd") ? "4K UHD" :
+      title.toLowerCase().includes("steelbook") ? "Steelbook" :
+      title.toLowerCase().includes("vhs") ? "VHS" :
+      title.toLowerCase().includes("dvd") ? "DVD" : ""
+    );
+    const rawTitle = `${brand} ${title} ${detectedFormat && !title.toLowerCase().includes(detectedFormat.toLowerCase()) ? detectedFormat : ""} ${ctx.condition || "Pre-Owned"} Genuine Disc`.replace(/\s+/g, " ").trim();
     const truncated = rawTitle.slice(0, 80);
-    return `🎯 **80-Char SEO Title:**\n\`${truncated}\`\n(Front-loads ${brand || "brand"}, model, and search keywords for top eBay AU algorithm ranking).`;
+    return `🎯 **80-Char SEO Title:**\n\`${truncated}\`\n(Front-loads ${brand || "brand"}, title, ${detectedFormat || "format"}, and search keywords for top eBay AU algorithm ranking).`;
   }
 
   // 2. Best Offer Price Brackets
