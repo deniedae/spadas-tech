@@ -2664,7 +2664,8 @@ function SpadasLensCameraCore({
                     const valData = chunk.data || chunk;
                     const rawPName = valData.product_name || valData.analysis?.product_name || "";
                     if (rawPName && !isVagueOrPartialRead(rawPName)) {
-                      setScanStage("complete");
+                      // Transition to final profit calculation step (95%) right before bottom sheet mounts
+                      setScanStage("profit");
 
                       const rawMin = Number(valData.suggested_price_min) || 15;
                       const rawMax = Number(valData.suggested_price_max) || rawMin + 10;
@@ -2745,10 +2746,16 @@ function SpadasLensCameraCore({
 
                       setActiveScans([scanObj]);
                       setCapturedLog((prev) => [verifiedHit, ...prev.filter((h) => h.name !== verifiedHit.name)].slice(0, 50));
-                      triggerActiveValuationHit(verifiedHit, snapImg);
                       setConfidencePercent(98);
                       setCachedValuation(verifiedHit.name, verifiedHit);
                       data = valData;
+
+                      // Micro-delay right before bottom sheet mounts so the user sees 95% profit calculation stage
+                      setTimeout(() => {
+                        if (abortController.signal.aborted || cycleId !== activeCycleIdRef.current) return;
+                        setScanStage("complete");
+                        triggerActiveValuationHit(verifiedHit, snapImg);
+                      }, 180);
                     }
                   } else if (chunk.event === "listing_complete") {
                     if (abortController.signal.aborted || cycleId !== activeCycleIdRef.current) return;
@@ -2784,6 +2791,7 @@ function SpadasLensCameraCore({
                       };
 
                       setScanStage("comps");
+                      setPendingIdentifiedItem(pendingObj);
 
                       // Instantly render lightweight pending card skeleton on camera HUD
                       const pendingScan: ActiveScanItem = {

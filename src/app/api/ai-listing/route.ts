@@ -11,8 +11,10 @@ import { checkUserUsage } from "@/app/lib/usage";
 import { isOwnerEmail } from "@/app/lib/auth-admin";
 import {
   AiListingResultSchema,
+  MinimalArScanSchema,
   FastVisionIdentificationSchema,
   GenerateListingDetailsSchema,
+  type MinimalArScanSchemaType,
   type FastVisionIdentificationSchemaType,
   type GenerateListingDetailsSchemaType,
 } from "@/app/lib/schemas/ai-listing-schema";
@@ -485,7 +487,34 @@ Identify ONLY the single primary physical item positioned in the center target r
     if (hasOpenAiKey) {
       for (const modelName of targetModels) {
         try {
-          const reqParams: any = isFastPipeline
+          const reqParams: any = isArScan
+            ? {
+              model: modelName,
+              temperature: 0.0,
+              max_tokens: 120,
+              response_format: zodResponseFormat(MinimalArScanSchema, "minimal_ar_scan"),
+              messages: [
+                {
+                  role: "user",
+                  content: [
+                    {
+                      type: "text",
+                      text: `You are a high-speed commercial product identifier for a live Australian reseller camera HUD.
+Identify the centered physical item in the reticle.
+Return strictly:
+- query: Exact commercial product search query for Australian eBay sold comps (e.g. "Dove Men Care Fresh Deodorant", "Sony WH-1000XM4", "Universal Bad Neighbours Blu-ray")
+- brand: Exact brand name or null if generic/unbranded
+- category: Primary resale category (e.g. "Personal Care", "Electronics", "Clothing", "Shoes", "Media & Movies", "Video Games")
+- condition: Item condition ("New", "Used - Good", "Used - Fair", "For Parts")
+- media_format: If movie/disc/game case, specify "4K UHD", "Blu-ray", "DVD", "Steelbook", "VHS", "CD", "Vinyl", or null
+Plain JSON only. Zero conversational text.`,
+                    },
+                    ...imageContent,
+                  ],
+                },
+              ],
+            }
+            : isFastPipeline
             ? {
               model: modelName,
               temperature: 0.0,
@@ -647,7 +676,87 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
 
     if (content && !result) {
       try {
-        if (isFastPipeline) {
+        if (isArScan) {
+          const arData = JSON.parse(content) as MinimalArScanSchemaType;
+          const pName = (arData.query || "").trim();
+          const brand = (arData.brand || "").trim() || null;
+          const cat = arData.category || "General";
+          const cond = arData.condition || "Used - Good";
+          const detectedFormat = arData.media_format || (
+            /\b(blu-ray|bluray)\b/i.test(pName) ? "Blu-ray" :
+            /\b(4k uhd|4k ultra hd)\b/i.test(pName) ? "4K UHD" :
+            /\b(steelbook)\b/i.test(pName) ? "Steelbook" :
+            /\b(dvd)\b/i.test(pName) ? "DVD" :
+            /\b(vhs)\b/i.test(pName) ? "VHS" :
+            undefined
+          );
+
+          result = {
+            status: pName && pName !== "NO_CENTER_ITEM" ? "identified" : "unidentified",
+            isMockFallback: false,
+            inventory_condition: cond.toLowerCase().includes("part") ? "faulty_for_parts" : "used_working",
+            condition_grade: cond.toLowerCase().includes("new") ? "Mint" : cond.toLowerCase().includes("fair") ? "Fair" : "Good",
+            wear_inspection: null,
+            defect_notes: [],
+            as_is_disclaimer: undefined,
+            media_format: detectedFormat,
+            detected_objects: [
+              {
+                id: `obj-${Date.now()}`,
+                product_name: pName,
+                brand: brand,
+                category: cat,
+                condition: cond,
+                bbox: { x: 20, y: 20, width: 60, height: 60 },
+                confidence_score: 0.98,
+              },
+            ],
+            analysis: {
+              status: pName && pName !== "NO_CENTER_ITEM" ? "identified" : "unidentified",
+              visual_reasoning: null,
+              product_name: pName,
+              brand: brand,
+              model: null,
+              category: cat,
+              color: null,
+              material: null,
+              condition: cond,
+              condition_grade: cond.toLowerCase().includes("new") ? "Mint" : "Good",
+              wear_inspection: null,
+              media_format: detectedFormat,
+              defect_notes: [],
+              accessories_detected: [],
+              confidence: "high",
+              confidence_score: 0.98,
+              retake_recommended: null,
+            },
+            market_titles: {
+              ebay: `${brand || "Authentic"} ${pName} ${detectedFormat && !pName.toLowerCase().includes(detectedFormat.toLowerCase()) ? detectedFormat : ""} ${cond}`.replace(/\s+/g, " ").trim().slice(0, 80),
+              facebook_marketplace: `${brand || "Authentic"} ${pName} - Great Condition`.trim(),
+              vinted: `${brand || "Authentic"} ${pName}`.trim(),
+              depop: `${pName.toLowerCase()} #resale #thrift`,
+            },
+            seo_description: "",
+            detailed_description: "",
+            shipping_estimate: {
+              size: "small",
+              estimated_weight_grams: 400,
+              dimensions_cm: null,
+              notes: null,
+            },
+            item_specifics: {
+              Brand: brand || "Authentic",
+              Category: cat,
+              Condition: cond,
+            },
+            suggested_keywords: [brand || "Resale", cat, "Pre-Owned"].filter(Boolean),
+            suggested_price_min: 15,
+            suggested_price_max: 45,
+            suggested_price_median: 30,
+            suggested_price_currency: targetCurrency,
+            retake_recommended: null,
+          };
+        } else if (isFastPipeline) {
           const fastData = JSON.parse(content) as FastVisionIdentificationSchemaType;
           const pName = (fastData.product_name || "").trim();
           const brand = (fastData.brand || "").trim() || null;

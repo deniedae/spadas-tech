@@ -203,6 +203,20 @@ export type GenerateListingSchemaType = z.infer<typeof GenerateListingSchema>;
 export type AiListingResultSchemaType = z.infer<typeof AiListingResultSchema>;
 
 /**
+ * Minimal AR Camera Shutter Snap Schema (< 300ms inference)
+ * Strictly extracts essential item query, brand, category, condition, and media format for instant eBay comps lookup.
+ */
+export const MinimalArScanSchema = z.object({
+  query: z.string().describe("Exact commercial product search query to find Australian eBay sold comps (e.g. 'Dove Men Care Fresh Deodorant', 'Sony WH-1000XM4')"),
+  brand: z.string().nullable().describe("Brand name or null if unbranded"),
+  category: z.string().describe("Primary resale category (e.g. Personal Care, Clothing, Electronics, Shoes, Media & Movies, Video Games, General)"),
+  condition: z.string().describe("Item condition (e.g. 'New', 'Used - Good', 'Used - Fair', 'For Parts')"),
+  media_format: MediaFormatEnum.nullable().describe("For movies/discs/games: '4K UHD', 'Blu-ray', 'DVD', 'Steelbook', 'VHS', 'CD', 'Vinyl' or null"),
+});
+
+export type MinimalArScanSchemaType = z.infer<typeof MinimalArScanSchema>;
+
+/**
  * High-Speed Vision Identification Schema for Instant Valuation (< 1.5s target)
  * Only extracts essential item identity, condition, and quick valuation for immediate pricing card render.
  */

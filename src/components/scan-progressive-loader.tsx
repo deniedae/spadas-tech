@@ -15,20 +15,26 @@ export type ScanStage = "idle" | "vision" | "confirmation" | "comps" | "profit" 
 
 const STANDARD_STEPS: ScanStep[] = [
   {
-    label: "Identifying item…",
+    label: "Scanning item…",
+    sublabel: "Optical reticle lock",
+    icon: Camera,
+    progress: 25,
+  },
+  {
+    label: "Analyzing hallmark & text…",
     sublabel: "OCR & visual appraisal",
     icon: Tag,
-    progress: 45,
+    progress: 55,
   },
   {
-    label: "Finding sold listings…",
+    label: "Querying live AU sold comps…",
     sublabel: "Live eBay cleared sold listings",
     icon: TrendingUp,
-    progress: 85,
+    progress: 80,
   },
   {
-    label: "Analyzing market value…",
-    sublabel: "Fair value & profit margins",
+    label: "Calculating true profit…",
+    sublabel: "Platform fees & net margin",
     icon: Zap,
     progress: 95,
   },
@@ -36,20 +42,26 @@ const STANDARD_STEPS: ScanStep[] = [
 
 const INTEL_STEPS: ScanStep[] = [
   {
-    label: "Identifying item…",
+    label: "Scanning item…",
+    sublabel: "Optical reticle lock",
+    icon: Camera,
+    progress: 25,
+  },
+  {
+    label: "Analyzing hallmark & text…",
     sublabel: "OCR & visual appraisal",
     icon: Tag,
-    progress: 45,
+    progress: 55,
   },
   {
-    label: "Finding sold listings…",
+    label: "Querying live AU sold comps…",
     sublabel: "Aggregating eBay comps & marketplace intel",
     icon: TrendingUp,
-    progress: 85,
+    progress: 80,
   },
   {
-    label: "Analyzing market value…",
-    sublabel: "Fair value & profit margins",
+    label: "Calculating true profit…",
+    sublabel: "Platform fees & net margin",
     icon: Zap,
     progress: 95,
   },
@@ -83,7 +95,7 @@ export function ScanProgressiveLoader({
 
   const activeSteps = isIntelMode ? INTEL_STEPS : STANDARD_STEPS;
 
-  // Purely event-driven synchronization with zero synthetic setTimeout delays
+  // Micro-tick progression with rhythmic perceived speed & event-driven synchronization
   useEffect(() => {
     if (!isActive || stage === "idle" || stage === "confirmation" || stage === "complete") {
       setCurrentStepIndex(0);
@@ -91,23 +103,37 @@ export function ScanProgressiveLoader({
       return;
     }
 
-    if (stage === "comps") {
-      setCurrentStepIndex((prev) => Math.max(prev, 1));
-      setMaxProgress((prev) => Math.max(prev, 85));
-      triggerDialTickHaptic();
-      return;
-    }
-
     if (stage === "profit") {
-      setCurrentStepIndex((prev) => Math.max(prev, 2));
+      setCurrentStepIndex((prev) => Math.max(prev, 3));
       setMaxProgress((prev) => Math.max(prev, 95));
       triggerDialTickHaptic();
       return;
     }
 
-    // Default stage is "vision" (instant camera snap)
+    if (stage === "comps") {
+      setCurrentStepIndex((prev) => Math.max(prev, 2));
+      setMaxProgress((prev) => Math.max(prev, 80));
+      triggerDialTickHaptic();
+      return;
+    }
+
+    // Default stage is "vision" (instant camera shutter snap at 25%)
     setCurrentStepIndex((prev) => Math.max(prev, 0));
-    setMaxProgress((prev) => Math.max(prev, 45));
+    setMaxProgress((prev) => Math.max(prev, 25));
+
+    // After ~600ms, rhythmically advance to "Analyzing hallmark & text..." (55%) if still awaiting vision payload
+    const timer = setTimeout(() => {
+      setCurrentStepIndex((prev) => {
+        if (prev < 1) {
+          triggerDialTickHaptic();
+          return 1;
+        }
+        return prev;
+      });
+      setMaxProgress((prev) => Math.max(prev, 55));
+    }, 600);
+
+    return () => clearTimeout(timer);
   }, [isActive, stage]);
 
   if (!isActive || stage === "idle" || stage === "confirmation" || stage === "complete") return null;
@@ -119,11 +145,11 @@ export function ScanProgressiveLoader({
   // Guaranteed monotonic non-decreasing progress: Math.max(prevProgress, nextProgress)
   const displayProgress = Math.min(100, Math.max(maxProgress, currentStep.progress));
 
-  const isCompsStep = currentStepIndex === 1 || stage === "comps";
+  const isCompsStep = currentStepIndex === 2 || stage === "comps";
   const displayLabel = isComplete
     ? (isIntelMode ? "Intel Comps Valued & Verified" : "eBay Comps Valued & Verified")
     : customLabel || (isCompsStep && detectedTitle
-      ? (isIntelMode ? "Querying marketplace & local P2P comps..." : "Querying historical eBay sold comps...")
+      ? (isIntelMode ? "Querying marketplace & local P2P comps..." : "Querying live AU sold comps...")
       : currentStep.label);
 
   const displaySublabel = isComplete

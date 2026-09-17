@@ -378,7 +378,7 @@ export function SpadasSnapStudio() {
                     if (rawPName) {
                       setDetectedTitle(rawPName);
                       setDetectedBrand(valData.brand || valData.analysis?.brand || "Authentic");
-                      setAnalysisStage("complete");
+                      setAnalysisStage("profit");
                     }
                     data = valData;
                   } else if (chunk.event === "listing_complete") {
@@ -707,7 +707,6 @@ export function SpadasSnapStudio() {
               stage={analysisStage}
               detectedTitle={detectedTitle}
               detectedBrand={detectedBrand}
-              customLabel={detectedTitle ? `Valuing ${detectedTitle}...` : "Valuing Find..."}
             />
           </div>
         )}
