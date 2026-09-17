@@ -20,6 +20,8 @@ import {
   Video,
   Upload,
   CheckCircle2,
+  Trash2,
+  TriangleAlert,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import SubscriptionPaywallModal from "@/components/subscription-paywall-modal";
@@ -61,6 +63,9 @@ export default function SettingsPage() {
   const [showApkGuide, setShowApkGuide] = useState(false);
   const [minProfit, setMinProfit] = useState(20);
   const [minRoi, setMinRoi] = useState(0);
+  const [confirmDeleteAccount, setConfirmDeleteAccount] = useState(false);
+  const [deleteAccountInput, setDeleteAccountInput] = useState("");
+  const [deletingAccount, setDeletingAccount] = useState(false);
   const [activeTicket, setActiveTicket] = useState<{
     ticketId: string;
     status: string;
@@ -422,6 +427,32 @@ export default function SettingsPage() {
     }
   }
 
+  async function handleDeleteAccount() {
+    if (deleteAccountInput !== "DELETE") return;
+    setDeletingAccount(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error("Not authenticated");
+
+      const res = await fetch("/api/auth/delete-account", {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.error || "Account deletion failed");
+      }
+
+      await supabase.auth.signOut();
+      toast.success("Your account has been permanently deleted.");
+      router.push("/");
+    } catch (err: any) {
+      toast.error(err?.message || "Could not delete account. Contact support@spadas.tech");
+      setDeletingAccount(false);
+    }
+  }
+
   async function upgradeToPro() {
     setUpgrading(true);
     try {
@@ -501,6 +532,30 @@ export default function SettingsPage() {
             >
               {loggingOut ? "Signing out..." : "Log out"}
             </button>
+          </div>
+
+          {/* Danger Zone */}
+          <div className="mt-4 pt-4 border-t border-rose-500/10">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-bold text-rose-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <TriangleAlert className="h-3.5 w-3.5" />
+                  Danger Zone
+                </p>
+                <p className="text-[11px] text-zinc-500 mt-0.5">Permanently deletes your account and all associated data. This cannot be undone.</p>
+              </div>
+              <button
+                id="delete-account-btn"
+                onClick={() => {
+                  setDeleteAccountInput("");
+                  setConfirmDeleteAccount(true);
+                }}
+                className="shrink-0 inline-flex items-center gap-1.5 bg-rose-500/8 hover:bg-rose-500/15 border border-rose-500/25 text-rose-400 hover:text-rose-300 text-xs font-semibold px-3.5 py-2 rounded-xl transition cursor-pointer active:scale-95"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Delete Account
+              </button>
+            </div>
           </div>
         </div>
 
@@ -1007,6 +1062,61 @@ export default function SettingsPage() {
 
       <SubscriptionPaywallModal isOpen={isPaywallOpen} onClose={() => setIsPaywallOpen(false)} />
       <DashboardSupportDesk />
+
+      {/* Delete Account Confirmation Modal */}
+      {confirmDeleteAccount && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm">
+          <div className="bg-zinc-950 border border-rose-500/30 rounded-2xl p-6 max-w-sm w-full shadow-2xl space-y-5">
+            <div className="flex items-start gap-3">
+              <div className="h-10 w-10 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center shrink-0">
+                <Trash2 className="h-5 w-5 text-rose-400" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white">Delete account permanently?</h3>
+                <p className="text-xs text-zinc-400 mt-0.5">All your data — listings, scans, history, and eBay connections — will be wiped immediately. This cannot be reversed.</p>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
+                Type <span className="text-rose-400 font-mono">DELETE</span> to confirm
+              </label>
+              <input
+                id="delete-account-confirm-input"
+                type="text"
+                value={deleteAccountInput}
+                onChange={(e) => setDeleteAccountInput(e.target.value)}
+                placeholder="DELETE"
+                className="w-full rounded-xl border border-white/[0.1] bg-black/40 px-3.5 py-2.5 text-sm font-mono text-white placeholder:text-zinc-600 focus:outline-none focus:border-rose-500/50 transition"
+                autoComplete="off"
+              />
+            </div>
+
+            <div className="flex gap-2.5">
+              <button
+                onClick={() => setConfirmDeleteAccount(false)}
+                disabled={deletingAccount}
+                className="flex-1 bg-white/[0.05] hover:bg-white/[0.08] text-zinc-300 text-xs font-semibold px-4 py-2.5 rounded-xl transition cursor-pointer active:scale-95 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                id="delete-account-confirm-btn"
+                onClick={handleDeleteAccount}
+                disabled={deleteAccountInput !== "DELETE" || deletingAccount}
+                className="flex-1 bg-rose-600 hover:bg-rose-700 disabled:bg-rose-900/40 disabled:text-rose-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition cursor-pointer active:scale-95 disabled:cursor-not-allowed"
+              >
+                {deletingAccount ? "Deleting..." : "Permanently Delete"}
+              </button>
+            </div>
+
+            <p className="text-center text-[10px] text-zinc-600">
+              Need help instead?{" "}
+              <a href="mailto:support@spadas.tech" className="text-zinc-400 underline hover:text-white transition">support@spadas.tech</a>
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

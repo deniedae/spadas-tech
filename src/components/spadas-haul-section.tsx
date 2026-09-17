@@ -78,6 +78,9 @@ export function SpadasHaulSection({
   // In-flight commitment states for UI stability
   const [committingId, setCommittingId] = useState<string | null>(null);
   const [isBatchCommitting, setIsBatchCommitting] = useState<boolean>(false);
+  const [refetchingCompsId, setRefetchingCompsId] = useState<string | null>(null);
+  const [editingQueryItemId, setEditingQueryItemId] = useState<string | null>(null);
+  const [customSearchQuery, setCustomSearchQuery] = useState<string>("");
 
   // Modals state
   const [ebayItem, setEbayItem] = useState<RapidThriftItem | null>(null);
@@ -85,6 +88,81 @@ export function SpadasHaulSection({
 
   const handleCloseEbayModal = useCallback(() => setEbayItem(null), []);
   const handleCloseVerifyModal = useCallback(() => setVerifyItem(null), []);
+
+  const refetchHaulItemComps = useCallback(
+    async (itemId: string, searchTitle?: string) => {
+      const item = items.find((i) => i.id === itemId);
+      if (!item) return;
+
+      const queryToUse = (searchTitle || item.searchTitle || item.productName || "").trim();
+      if (!queryToUse) {
+        toast.error("Please enter a title to search comps.");
+        return;
+      }
+
+      setRefetchingCompsId(itemId);
+      updateItem(itemId, { status: "fetching_comps", searchTitle: queryToUse });
+      const toastId = `comps-fetch-${itemId}`;
+      toast.loading(`Searching sold comps for "${queryToUse}"...`, { id: toastId });
+
+      try {
+        const res = await fetch("/api/ebay-australia-comps", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            query: queryToUse,
+            brand: item.brand,
+            category: item.category,
+            condition: item.condition,
+            currency,
+          }),
+        });
+
+        if (!res.ok) {
+          throw new Error(`Server returned ${res.status}`);
+        }
+
+        const data = await res.json();
+        if (data && data.compsCount > 0) {
+          const medianPrice = Number(data.median) || Number(item.estimatedValue) || 25;
+          const cost = Number(item.thriftCost) || 5;
+          const fee = medianPrice * 0.134 + 0.33;
+          const shipping = data.crossBorderShippingCost ? 25 : 8.50;
+          const recalculatedNet = Math.max(0, Math.round((medianPrice - cost - fee - shipping) * 100) / 100);
+          const recalculatedRoi = cost > 0 ? Math.round((recalculatedNet / cost) * 100) : 0;
+          const recalculatedVerdict = recalculatedNet >= 40 ? "MUST_COP" : recalculatedNet >= 15 ? "QUICK_FLIP" : "PASS_RISKY";
+
+          updateItem(itemId, {
+            status: "completed",
+            estimatedValue: medianPrice,
+            minPrice: data.minPrice,
+            maxPrice: data.maxPrice,
+            compsCount: data.compsCount,
+            rawComps: data.comps || data.rawComps || [],
+            comps: data.comps || data.rawComps || [],
+            searchTitle: queryToUse,
+            trueNetProfit: recalculatedNet,
+            roiPercentage: recalculatedRoi,
+            copVerdict: recalculatedVerdict,
+            isGrail: recalculatedNet >= 50,
+          });
+
+          toast.success(`Found ${data.compsCount} sold comps for "${queryToUse}"!`, { id: toastId });
+          setEditingQueryItemId(null);
+        } else {
+          updateItem(itemId, { status: "completed", compsCount: 0 });
+          toast.info("No comps found on eBay AU or US for this query.", { id: toastId });
+        }
+      } catch (err: any) {
+        console.warn("[Haul Section] Refetch comps error:", err);
+        updateItem(itemId, { status: "completed" });
+        toast.error("Failed to fetch comps. Please check your connection.", { id: toastId });
+      } finally {
+        setRefetchingCompsId(null);
+      }
+    },
+    [items, currency, updateItem]
+  );
 
   // Quick Snap background queueing telemetry
   const { isProcessing, pendingCount } = useQuickSnapQueue();
@@ -796,7 +874,14 @@ export function SpadasHaulSection({
                         </span>
                       </div>
                       
-                      {item.compsCount ? (
+                      {item.status === "fetching_comps" || refetchingCompsId === item.id ? (
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-full border border-amber-400/30 animate-pulse">
+                            <Loader2 className="w-3 h-3 animate-spin text-amber-400" />
+                            Fetching sold comps...
+                          </span>
+                        </div>
+                      ) : item.compsCount ? (
                         <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                           <div className="text-[10px] text-zinc-500 font-semibold">
                             Based on {item.compsCount} sold comps
@@ -814,8 +899,65 @@ export function SpadasHaulSection({
                           </button>
                         </div>
                       ) : (
-                        <div className="text-[10px] text-zinc-600 font-semibold italic">
-                          Comp data unavailable
+                        <div className="mt-0.5">
+                          {editingQueryItemId === item.id ? (
+                            <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                              <input
+                                type="text"
+                                value={customSearchQuery}
+                                onChange={(e) => setCustomSearchQuery(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    e.preventDefault();
+                                    if (!item.comps || item.comps.length === 0) {
+                                      void refetchHaulItemComps(item.id, customSearchQuery);
+                                    }
+                                  } else if (e.key === "Escape") {
+                                    setEditingQueryItemId(null);
+                                  }
+                                }}
+                                placeholder="Edit title for comps..."
+                                className="bg-slate-900 border border-cyan-500/40 text-white text-[11px] px-2 py-1 rounded-lg focus:outline-none focus:ring-1 focus:ring-cyan-400 w-48 sm:w-64"
+                                autoFocus
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (!item.comps || item.comps.length === 0) {
+                                    void refetchHaulItemComps(item.id, customSearchQuery);
+                                  }
+                                }}
+                                className="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 transition cursor-pointer active:scale-95"
+                              >
+                                Search
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setEditingQueryItemId(null)}
+                                className="text-[10px] text-zinc-400 hover:text-white px-1.5 cursor-pointer"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-[10px] text-zinc-600 font-semibold italic">
+                                Comp data unavailable
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingQueryItemId(item.id);
+                                  setCustomSearchQuery(item.searchTitle || item.productName || "");
+                                }}
+                                className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-400 hover:text-amber-300 bg-amber-400/10 hover:bg-amber-400/20 border border-amber-400/30 px-2 py-0.5 rounded-md transition cursor-pointer active:scale-95"
+                                title="Edit title and search comps"
+                              >
+                                <RefreshCw className="w-2.5 h-2.5" />
+                                <span>Retry Comps</span>
+                              </button>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>

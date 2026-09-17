@@ -140,6 +140,43 @@ const FX_RATES: Record<string, Record<SupportedCurrency, number>> = {
 };
 
 /**
+ * Strips stop-words and descriptors (e.g. "Child-Resistant Cap", container specs, packaging labels)
+ * to produce a broadened search query targeting brand + core item.
+ */
+export function sanitizeTitleForBroadening(productName: string, brand?: string | null): string {
+  if (!productName) return "";
+
+  // 1. Strip descriptors: packaging, closures, container types, volumetric specs, condition adjectives
+  let cleaned = productName
+    .replace(/\b(child[- ]resistant cap|child resistant cap|tamper[- ]evident|safety cap|screw cap|twist cap|dropper cap|flip top|push button)\b/gi, "")
+    .replace(/\b(squeeze bottle|spray bottle|pump bottle|dispenser bottle|dropper bottle)\b/gi, "")
+    .replace(/\b(packaging only|container only|bottle only|box only|carton only|tub only|jar only)\b/gi, "")
+    .replace(/\b(\d+(\.\d+)?\s*(fl\.?\s*oz|oz|ml|mg|g|kg|litre|liter|count|ct|pcs|piece|pk|pack))\b/gi, "")
+    .replace(/\b(pack of \d+|box of \d+|set of \d+)\b/gi, "")
+    .replace(/\b(model|item|authentic|genuine|used|pre[- ]owned|tested|working|vintage|retro|clean|great condition)\b/gi, "")
+    .replace(/\b(bnib|nib|nwt|sealed|unopened|new in box)\b/gi, "")
+    .replace(/["'’]/g, "")
+    .replace(/[()[\]{}]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  // 2. Strip standard stop words
+  const stopWords = new Set([
+    "with", "in", "the", "and", "a", "an", "of", "for", "to", "on", "at", "by", "from", "each", "&"
+  ]);
+
+  const words = cleaned.split(/\s+/).filter((w) => !stopWords.has(w.toLowerCase()) && w.length >= 2);
+  let result = words.join(" ").trim();
+
+  // Ensure brand is preserved if known
+  if (brand && brand.toLowerCase() !== "authentic" && brand.toLowerCase() !== "unidentified" && !result.toLowerCase().includes(brand.toLowerCase())) {
+    result = `${brand} ${result}`.trim();
+  }
+
+  return result || productName.trim();
+}
+
+/**
  * Builds prioritized search variations from a product title to maximize exact and category comp matches.
  */
 function buildSearchQueries(productName: string, brand?: string | null, category?: string | null): string[] {
@@ -152,7 +189,16 @@ function buildSearchQueries(productName: string, brand?: string | null, category
   const lower = clean.toLowerCase();
   const queries: string[] = [];
 
-  // 1. Luxury designer extraction (e.g. Prada, Gucci, Louis Vuitton, Chanel, Dior, YSL, Bottega Veneta)
+  // 1. Attempt 1: Full identified query (Exact Title)
+  queries.push(clean);
+
+  // 2. Attempt 2: Broadened query with descriptors and stop words stripped
+  const broadened = sanitizeTitleForBroadening(clean, brand);
+  if (broadened && broadened.toLowerCase() !== lower) {
+    queries.push(broadened);
+  }
+
+  // 3. Luxury designer extraction (e.g. Prada, Gucci, Louis Vuitton, Chanel, Dior, YSL, Bottega Veneta)
   const luxuryBrands = [
     "prada", "louis vuitton", "gucci", "chanel", "dior", "bottega veneta", "saint laurent",
     "ysl", "fendi", "goyard", "hermes", "celine", "balenciaga", "loewe", "burberry", "mcm", "coach"
@@ -186,7 +232,7 @@ function buildSearchQueries(productName: string, brand?: string | null, category
     }
   }
 
-  // 2. Direct cleaned query (up to 5-6 core words)
+  // 4. Direct cleaned query (up to 5-6 core words)
   const words = clean.split(" ").filter((w) => w.length >= 2);
   if (words.length > 0) {
     queries.push(words.slice(0, 5).join(" "));
@@ -195,7 +241,7 @@ function buildSearchQueries(productName: string, brand?: string | null, category
     }
   }
 
-  // 3. Style / Category Broadening for Unbranded Decor (vases, baskets, etc.)
+  // 5. Style / Category Broadening for Unbranded Decor (vases, baskets, etc.)
   const isDecorOrGeneric = /\b(vase|basket|pot|planter|bowl|decor|candle|tray|plate|figurine|ornament|sculpture|cushion|pillow|blanket|throw|lamp|frame|mirror)\b/i.test(lower);
   if (!detectedBrand && (isDecorOrGeneric || category)) {
     const styleKeywords = lower.match(/\b(ceramic|porcelain|wicker|woven|rattan|brass|copper|glass|crystal|wood|wooden|marble|mid century|art deco|boho|vintage|antique|rustic|minimalist)\b/gi);
@@ -210,9 +256,6 @@ function buildSearchQueries(productName: string, brand?: string | null, category
       }
     }
   }
-
-  // 4. Fallback to clean title
-  queries.push(clean);
 
   // Return unique non-empty queries
   return Array.from(new Set(queries.filter((q) => q.trim().length >= 3)));

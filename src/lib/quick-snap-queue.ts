@@ -213,9 +213,11 @@ class QuickSnapQueueService {
           const profit = Number(data.true_net_profit) || 0;
           const isHighRisk = Boolean(data.needs_verification);
 
+          // 1. Immediately update item with identified product details and set status to 'fetching_comps'
           haulStore.updateItem(task.id, {
-            status: "completed",
+            status: "fetching_comps",
             productName: data.product_name || "Thrift Sourced Item",
+            searchTitle: data.product_name || "Thrift Sourced Item",
             brand: data.brand || "Authentic",
             category: data.category || "General",
             condition: data.condition || "Used - Good",
@@ -232,6 +234,64 @@ class QuickSnapQueueService {
             imageUrl: base64Data,
             syncStatus: isOfflineSyncPending ? "pending" : "synced",
             rawComps: data.comps || [],
+            comps: data.comps || [],
+          });
+
+          // 2. Background Comps Chaining: query /api/ebay-australia-comps with title sanitization & fallbacks
+          if (!isOfflineSyncPending && data.product_name) {
+            try {
+              const compsRes = await resilientFetch(
+                "/api/ebay-australia-comps",
+                {
+                  method: "POST",
+                  headers: requestHeaders,
+                  body: JSON.stringify({
+                    query: data.product_name,
+                    brand: data.brand,
+                    category: data.category,
+                    condition: data.condition,
+                    currency: task.currency,
+                  }),
+                },
+                { maxRetries: 1, initialDelayMs: 250 }
+              ).catch(() => null);
+
+              if (compsRes && compsRes.ok) {
+                const compsData = await compsRes.json().catch(() => null);
+                if (compsData && compsData.compsCount > 0) {
+                  const medianPrice = Number(compsData.median) || Number(data.estimated_value) || 25;
+                  const cost = Number(data.thrift_cost) || 5;
+                  const fee = medianPrice * 0.134 + 0.33;
+                  const shipping = compsData.crossBorderShippingCost ? 25 : 8.50;
+                  const recalculatedNet = Math.max(0, Math.round((medianPrice - cost - fee - shipping) * 100) / 100);
+                  const recalculatedRoi = cost > 0 ? Math.round((recalculatedNet / cost) * 100) : 0;
+                  const recalculatedVerdict = recalculatedNet >= 40 ? "MUST_COP" : recalculatedNet >= 15 ? "QUICK_FLIP" : "PASS_RISKY";
+
+                  haulStore.updateItem(task.id, {
+                    status: "completed",
+                    estimatedValue: medianPrice,
+                    minPrice: compsData.minPrice,
+                    maxPrice: compsData.maxPrice,
+                    compsCount: compsData.compsCount,
+                    rawComps: compsData.comps || compsData.rawComps || [],
+                    comps: compsData.comps || compsData.rawComps || [],
+                    trueNetProfit: recalculatedNet,
+                    roiPercentage: recalculatedRoi,
+                    copVerdict: recalculatedVerdict,
+                    isGrail: recalculatedNet >= 50,
+                  });
+                  triggerPocketAlert(recalculatedNet, isHighRisk);
+                  return;
+                }
+              }
+            } catch (compsErr) {
+              console.warn("[QuickSnapQueue] Comps chaining fetch warning:", compsErr);
+            }
+          }
+
+          // 3. Mark completed if comps already resolved or offline
+          haulStore.updateItem(task.id, {
+            status: "completed",
           });
 
           // Haptic alert on high-value grails

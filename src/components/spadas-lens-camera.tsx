@@ -77,7 +77,7 @@ import {
   triggerPocketAlert,
   canvasToBlob,
 } from "@/lib/rapid-thrift-engine";
-import { useHaulStore } from "@/lib/haul-store";
+import { useHaulStore, haulStore } from "@/lib/haul-store";
 import { quickSnapQueue, useQuickSnapQueue } from "@/lib/quick-snap-queue";
 
 // Dynamic imports for non-critical modals and drawers to decouple bundle from /lens initial load
@@ -1143,12 +1143,16 @@ function SpadasLensCameraCore({
       });
 
       // Synchronously increment Haul counter via global haulStore
+      const hasComps = Boolean((hit.rawComps && hit.rawComps.length > 0) || (hit.ebayCompsCount && hit.ebayCompsCount > 0));
+      const initialStatus = hasComps ? "completed" : "fetching_comps";
+
       addItem({
         id: hit.id,
         photoId: hit.id,
         timestamp: hit.timestamp || Date.now(),
-        status: "completed",
+        status: initialStatus,
         productName: hit.name,
+        searchTitle: hit.name,
         brand: hit.brand || undefined,
         category: hit.category || undefined,
         condition: hit.condition || "Used - Good",
@@ -1158,7 +1162,60 @@ function SpadasLensCameraCore({
         roiPercentage: hit.roiPercentage ?? hit.estRoi ?? 0,
         copVerdict: hit.copVerdict || "MUST_COP",
         image: hit.image || undefined,
+        compsCount: hit.ebayCompsCount || hit.rawComps?.length,
+        minPrice: hit.compsRange?.min,
+        maxPrice: hit.compsRange?.max,
+        rawComps: hit.rawComps,
+        comps: hit.rawComps,
       });
+
+      // If comps were missing or in-flight, fetch /api/ebay-australia-comps in background and update Haul item
+      if (!hasComps && hit.name) {
+        void (async () => {
+          try {
+            const compsRes = await resilientFetch("/api/ebay-australia-comps", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                query: hit.name,
+                brand: hit.brand,
+                category: hit.category,
+                condition: hit.condition,
+                currency: selectedCurrency,
+              }),
+            }).catch(() => null);
+
+            if (compsRes && compsRes.ok) {
+              const compsData = await compsRes.json().catch(() => null);
+              if (compsData && compsData.compsCount > 0) {
+                const medianPrice = Number(compsData.median) || hit.estimatedValue || 45;
+                const cost = hit.tagPrice ?? hit.estCost ?? 10;
+                const fee = medianPrice * 0.134 + 0.33;
+                const shipping = compsData.crossBorderShippingCost ? 25 : 8.50;
+                const recalculatedNet = Math.max(0, Math.round((medianPrice - cost - fee - shipping) * 100) / 100);
+                const recalculatedRoi = cost > 0 ? Math.round((recalculatedNet / cost) * 100) : 0;
+                const recalculatedVerdict = recalculatedNet >= 40 ? "MUST_COP" : recalculatedNet >= 15 ? "QUICK_FLIP" : "PASS_RISKY";
+
+                haulStore.updateItem(hit.id, {
+                  status: "completed",
+                  estimatedValue: medianPrice,
+                  minPrice: compsData.minPrice,
+                  maxPrice: compsData.maxPrice,
+                  compsCount: compsData.compsCount,
+                  rawComps: compsData.comps || compsData.rawComps || [],
+                  comps: compsData.comps || compsData.rawComps || [],
+                  trueNetProfit: recalculatedNet,
+                  roiPercentage: recalculatedRoi,
+                  copVerdict: recalculatedVerdict,
+                  isGrail: recalculatedNet >= 50,
+                });
+                return;
+              }
+            }
+          } catch {}
+          haulStore.updateItem(hit.id, { status: "completed" });
+        })();
+      }
 
       // Ensure item is present in capturedLog so counter and history stay synchronized
       setCapturedLog((prev) => {
@@ -1270,8 +1327,6 @@ function SpadasLensCameraCore({
   const [isOffline, setIsOffline] = useState<boolean>(
     typeof navigator !== "undefined" ? !navigator.onLine : false
   );
-
-  // Dynamic Mobile DevTools Console Overlay (?debug=true) - Restricted to Owner
   useEffect(() => {
     if (!isOwner) return;
     if (typeof window === 'undefined') return;
@@ -1382,6 +1437,38 @@ function SpadasLensCameraCore({
       console.warn("[Spadas Lens] Sync queue flush error:", err);
     }
   }, []);
+
+  // Bind online/offline events — display persistent toast on dead-zone signal, auto-flush queue on reconnect
+  useEffect(() => {
+    const handleOffline = () => {
+      setIsOffline(true);
+      toast("📶 Network offline — haul items queued locally", {
+        id: "network-offline-toast",
+        duration: Infinity,
+        icon: "📵",
+      });
+    };
+    const handleOnline = () => {
+      setIsOffline(false);
+      toast.dismiss("network-offline-toast");
+      toast.success("Network restored — syncing queued items...", { id: "network-online-toast", duration: 3000 });
+      // Flush any pending scans/listings that were queued while offline
+      void flushPendingSyncQueue();
+    };
+
+    window.addEventListener("offline", handleOffline);
+    window.addEventListener("online", handleOnline);
+
+    // Check initial state — component may mount while already in a dead zone
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      handleOffline();
+    }
+
+    return () => {
+      window.removeEventListener("offline", handleOffline);
+      window.removeEventListener("online", handleOnline);
+    };
+  }, [flushPendingSyncQueue]);
 
   const persistHitAndSyncToSupabase = useCallback(
     async (hit: DetectedHit, rawResultJson?: any) => {
@@ -2073,6 +2160,26 @@ function SpadasLensCameraCore({
     activeAbortControllerRef.current = abortController;
     const cycleId = ++cycleSeq;
     activeCycleIdRef.current = cycleId;
+
+    // Offline guard: if device has no network, queue the scan locally and skip the API round-trip
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      analyzingRef.current = false;
+      setAnalyzingRealFrame(false);
+      setScanStage("idle");
+      toast("📵 Offline — item queued locally. Will sync when signal returns.", {
+        id: "offline-scan-toast",
+        duration: 4000,
+      });
+      // Queue a placeholder entry so the sync engine knows to retry
+      try {
+        const queueStr = localStorage.getItem("spadas_pending_scans_queue") ?? "[]";
+        const queue = JSON.parse(queueStr);
+        queue.push({ image_url: null, result_json: null, queued_at: Date.now() });
+        localStorage.setItem("spadas_pending_scans_queue", JSON.stringify(queue.slice(-50)));
+        setPendingSyncCount((c) => c + 1);
+      } catch { }
+      return;
+    }
 
     // 3. Instantaneous Shutter Trigger & Responsive Viewfinder State (0ms dead air):
     // Instantly transition UI to active scanning & progressive loader in the vision stage

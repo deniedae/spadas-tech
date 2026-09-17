@@ -11,7 +11,7 @@ export interface RapidThriftItem {
   id: string;
   photoId: string;
   timestamp: number;
-  status: "queued" | "analyzing" | "completed" | "error";
+  status: "queued" | "analyzing" | "fetching_comps" | "completed" | "error";
   productName?: string;
   brand?: string;
   category?: string;
@@ -33,6 +33,8 @@ export interface RapidThriftItem {
   maxPrice?: number;
   syncStatus?: "synced" | "pending" | "failed";
   rawComps?: any[];
+  comps?: any[];
+  searchTitle?: string;
 }
 
 export interface RapidSessionStats {

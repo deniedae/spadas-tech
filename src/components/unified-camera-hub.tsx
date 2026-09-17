@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Camera, Zap, ShoppingBag } from "lucide-react";
 import dynamic from "next/dynamic";
-import SpadasLensCamera from "@/components/spadas-lens-camera";
+import SpadasLensCamera, { releasePersistentMediaStream } from "@/components/spadas-lens-camera";
 import { useHaulStore } from "@/lib/haul-store";
 import { triggerTactileHaptic } from "@/lib/android-bridge";
 
@@ -23,6 +23,39 @@ export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraH
     initialTab === "studio" ? "studio" : "lens"
   );
   const { haulCount } = useHaulStore();
+
+  // Android back-button sentinel:
+  // Push a dummy history entry when the camera mounts so that pressing the
+  // hardware Back key fires "popstate" (consuming the dummy entry) instead of
+  // navigating the whole PWA away. We clean up the media stream and route to
+  // the previous page manually.
+  const handleExitCamera = useCallback(() => {
+    releasePersistentMediaStream();
+    router.back();
+  }, [router]);
+
+  useEffect(() => {
+    // Push sentinel state so the next back-press hits this popstate, not the browser's
+    window.history.pushState({ modal: "camera" }, "");
+
+    const onPopState = (e: PopStateEvent) => {
+      // Only intercept when the sentinel state is being popped
+      if (!e.state || e.state.modal === "camera" || e.state?.modal === undefined) {
+        handleExitCamera();
+      }
+    };
+
+    window.addEventListener("popstate", onPopState);
+
+    return () => {
+      window.removeEventListener("popstate", onPopState);
+      // If the sentinel is still in history on unmount (user navigated forward),
+      // pop it so we don't leave stale entries
+      if (window.history.state?.modal === "camera") {
+        window.history.back();
+      }
+    };
+  }, [handleExitCamera]);
 
   useEffect(() => {
     if (initialTab === "haul") {
