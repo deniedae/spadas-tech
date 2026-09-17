@@ -210,6 +210,20 @@ function buildSearchQueries(productName: string, brand?: string | null, category
   return Array.from(new Set(queries.filter((q) => q.trim().length >= 3)));
 }
 
+export const INVALID_LOT_PATTERNS = [
+  /pick\s*(?:and|&)\s*choose/i,
+  /choose\s*your/i,
+  /pick\s*your/i,
+  /you\s*choose/i,
+  /\b(?:job\s*lot|bulk\s*lot|clearance\s*lot|joblot)\b/i,
+  /\b\d+\s*(?:dvds?|blurays?|discs?|games?|movies?)\b/i,
+  /\$\d+(?:\.\d{2})?\s*(?:-|to)\s*\$\d+(?:\.\d{2})?/i,
+  /\b(lot|bundle|assorted|collection of|bulk|multi-listing|multilisting|variations?)\b/i,
+  /\b(\d+\s*pack|\d+\s*pk|\d+\s*pcs|\d+\s*pieces|pack of \d+|box of \d+|tray of|lot of \d+|\d+x\b|carton of|wholesale|bundle of \d+|bundle lot|game lot|games lot|collection of \d+|console bundle|system bundle|console \+)\b/i,
+  /\b(\$\d+(\.\d+)?\s*-\s*\$\d+|\$\d+\s*each|\$\d+\s*ea|\b2 for\b|\b3 for\b|\b4 for\b|\b5 for\b)\b/i,
+  /\b(dvd lot|bluray lot|blu-ray lot|movie lot|game lot)\b/i,
+];
+
 /**
  * Fetches real eBay price data for a product name with multi-tier query relaxation and global marketplace fallback.
  */
@@ -280,12 +294,7 @@ export async function fetchEbayAustraliaSoldComps(
 
     // Single-Item Parity: reject multi-packs, wholesale clearance, and multi-variation lots if query is a single item
     if (!isQueryMultiPack) {
-      if (
-        /\b(lot|bundle|job lot|joblot|bulk lot|clearance lot|pick and choose|choose your|pick your|you choose|assorted|collection of|bulk|multi-listing|multilisting|variations?)\b/i.test(lower) ||
-        /\b(\d+\s*pack|\d+\s*pk|\d+\s*pcs|\d+\s*pieces|pack of \d+|box of \d+|tray of|lot of \d+|\d+x\b|carton of|wholesale|bundle of \d+|bundle lot|game lot|games lot|\d+\s*games|\d+\s*dvds?|\d+\s*blurays?|\d+\s*movies|collection of \d+|console bundle|system bundle|console \+)\b/i.test(lower) ||
-        /\b(\$\d+(\.\d+)?\s*-\s*\$\d+|\$\d+\s*each|\$\d+\s*ea|\b2 for\b|\b3 for\b|\b4 for\b|\b5 for\b)\b/i.test(lower) ||
-        /\b(dvd lot|bluray lot|blu-ray lot|movie lot|game lot)\b/i.test(lower)
-      ) {
+      if (INVALID_LOT_PATTERNS.some((pattern) => pattern.test(lower))) {
         return false;
       }
     }

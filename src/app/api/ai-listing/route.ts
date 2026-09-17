@@ -178,9 +178,89 @@ export async function POST(request: Request) {
     supabaseClient = supabase;
 
     const body = await request.json().catch(() => ({}));
+
+    // On-demand copywriting trigger: Can be triggered on-demand when user taps Save Draft or List on eBay
+    if (body.action === "generate_copy" || body.action === "copywrite") {
+      const pName = (body.productName || body.title || "").trim() || "Item";
+      const brand = (body.brand || "").trim() || "Authentic";
+      const category = body.category || "General";
+      const condition = body.condition || "Used";
+      const conditionGrade = body.conditionGrade || "Good";
+      const mediaFormat = body.mediaFormat || null;
+      const defectNotes = Array.isArray(body.defectNotes) ? body.defectNotes : [];
+      const medianPrice = Number(body.suggestedPriceMedian) || 25;
+      const countryHeader = request.headers.get("x-vercel-ip-country");
+      const geoInfo = detectGeoCurrency(countryHeader);
+      const targetCurrency: SupportedCurrency = (body.currency as SupportedCurrency) || geoInfo.currency;
+
+      const hasOpenAiKey = getPrimaryAiApiKey().length > 10 && !getPrimaryAiApiKey().includes("placeholder");
+      if (hasOpenAiKey) {
+        try {
+          const openai = createOpenAiClient();
+          const copyParams: any = {
+            model: "gpt-4o-mini",
+            temperature: 0.2,
+            max_tokens: 600,
+            response_format: zodResponseFormat(GenerateListingDetailsSchema, "listing_details"),
+            messages: [
+              {
+                role: "user",
+                content: `You are an expert marketplace copywriter for eBay Australia, Facebook Marketplace, Depop, and Vinted.
+Generate professional multi-platform titles, descriptions, shipping estimate, and item specifics for this verified item:
+
+Product: ${pName}
+Brand: ${brand}
+Category: ${category}
+${mediaFormat ? `Media Format: ${mediaFormat}\n` : ""}Condition: ${condition} (${conditionGrade})
+Defect Notes: ${defectNotes.join(", ") || "None observed"}
+Fair Market Resale Value: $${medianPrice} ${targetCurrency}
+
+RULES:
+- "market_titles.ebay": Max 80 characters. Format: [Brand] [Model/Style] [Media Format if applicable] [Condition]. STRICT RULE: For movies/discs/media, always reflect the exact Media Format (${mediaFormat || "detected format"}) — NEVER default or hallucinate 'DVD' for a Blu-ray or 4K release!
+- "market_titles.facebook_marketplace": Clean, friendly, local-buyer readable.
+- "market_titles.depop": Trendy lowercase with 3 relevant hashtags.
+- "market_titles.vinted": Clean descriptive title.
+- "seo_description" & "detailed_description": Professional clean eBay seller description. Never mention internal costs, ROI, or thrift store references. Plain text only.
+- "shipping_estimate": Appropriate size (small, medium, large) and weight in grams.
+- "item_specifics": 4-6 key attributes like Brand, Category, Condition, Color/Material.`,
+              },
+            ],
+          };
+
+          const copyCompletion = await openai.chat.completions.create(copyParams);
+          const copyText = copyCompletion?.choices?.[0]?.message?.content;
+          if (copyText) {
+            const details = JSON.parse(copyText) as GenerateListingDetailsSchemaType;
+            return NextResponse.json({ success: true, listingDetails: details });
+          }
+        } catch (copyErr) {
+          console.warn("[ai-listing] On-demand copywriting error:", copyErr);
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        listingDetails: {
+          market_titles: {
+            ebay: `${brand} ${pName} ${condition}`.slice(0, 80),
+            facebook_marketplace: `${brand} ${pName} - Great Condition`,
+            vinted: `${brand} ${pName}`,
+            depop: `${pName.toLowerCase()} #resale #thrift`,
+          },
+          seo_description: `Authentic ${brand} ${pName}. Condition: ${condition}.`,
+          detailed_description: `Authentic ${brand} ${pName}.\n\nCondition: ${condition}.\n\nPlease review photos.`,
+          shipping_estimate: { size: "small", estimated_weight_grams: 400, dimensions_cm: null, notes: null },
+          item_specifics: { Brand: brand, Category: category, Condition: condition },
+          suggested_keywords: [brand, category, "Pre-Owned"],
+          sales_velocity: "steady",
+        },
+      });
+    }
+
     const {
       imageUrls,
       isArScan,
+      generateCopywriting,
       mode,
       stream: isStreamRequested,
       spatialMetadata,
@@ -189,6 +269,7 @@ export async function POST(request: Request) {
     } = body as {
       imageUrls?: string[];
       isArScan?: boolean;
+      generateCopywriting?: boolean;
       mode?: "sweep" | "deep" | "live" | "focus" | "standard" | "snap";
       stream?: boolean;
       spatialMetadata?: {
@@ -1418,7 +1499,20 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
 
             if (request.signal?.aborted) return;
 
-            // 4. PHASE 2 (Background Draft Generation):
+            // 4. On-Demand vs Background Draft Generation:
+            // For AR camera scans, DO NOT generate full copywriting on initial camera shutter snap!
+            // Defer full listing copywriting exclusively to on-demand trigger (when user taps Save Draft or List on eBay).
+            const shouldGenerateCopywriting = Boolean(generateCopywriting || (!isArScan && isFastPipeline));
+            if (!shouldGenerateCopywriting) {
+              const completeEvent = {
+                event: "complete",
+                data: result,
+              };
+              controller.enqueue(encoder.encode(JSON.stringify(completeEvent) + "\n"));
+              return;
+            }
+
+            // 5. PHASE 2 (Background Draft Generation):
             // Asynchronously generate listing copywriting in background without blocking price card render
             let listingDetails: GenerateListingDetailsSchemaType | null = null;
             if (hasOpenAiKey && result.analysis?.product_name && result.status === "identified") {
@@ -1538,7 +1632,8 @@ RULES:
 
     await runCompsAndFinalizeResult();
 
-    if (isFastPipeline && hasOpenAiKey && result.analysis?.product_name && result.status === "identified") {
+    const shouldGenerateCopywriting = Boolean(generateCopywriting || (!isArScan && isFastPipeline));
+    if (shouldGenerateCopywriting && hasOpenAiKey && result.analysis?.product_name && result.status === "identified") {
       try {
         const copyParams: any = {
           model: "gpt-4o-mini",

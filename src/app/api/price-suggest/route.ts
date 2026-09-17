@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { INVALID_LOT_PATTERNS } from "@/app/lib/ebay-australia-comps";
 
 const SOLD_COMPS_KEY = process.env.SOLD_COMPS_API_KEY;
 const SOLD_COMPS_URL = "https://api.sold-comps.com/v1/scrape";
@@ -110,7 +111,7 @@ export async function POST(req: Request) {
 
       // Single-Item Parity: Exclude bulk lots/bundles for single items
       if (!isQueryMultiPack) {
-        if (/\b(\d+\s*pack|\d+\s*pk|\d+\s*pcs|\d+\s*pieces|pack of \d+|box of \d+|tray of|lot of \d+|\d+x\b|carton of|wholesale|bundle of \d+|bundle lot|job lot)\b/i.test(lower)) {
+        if (INVALID_LOT_PATTERNS.some((pattern) => pattern.test(lower))) {
           continue;
         }
       }

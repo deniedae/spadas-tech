@@ -15,26 +15,20 @@ export type ScanStage = "idle" | "vision" | "confirmation" | "comps" | "profit" 
 
 const STANDARD_STEPS: ScanStep[] = [
   {
-    label: "Checking photo quality…",
-    sublabel: "Visual feature detection",
-    icon: Camera,
-    progress: 25,
-  },
-  {
     label: "Identifying item…",
-    sublabel: "OCR & condition appraisal",
+    sublabel: "OCR & visual appraisal",
     icon: Tag,
-    progress: 55,
+    progress: 45,
   },
   {
     label: "Finding sold listings…",
     sublabel: "Live eBay cleared sold listings",
     icon: TrendingUp,
-    progress: 82,
+    progress: 85,
   },
   {
-    label: "Building your listing…",
-    sublabel: "Platform fees, shipping & cop rating",
+    label: "Analyzing market value…",
+    sublabel: "Fair value & profit margins",
     icon: Zap,
     progress: 95,
   },
@@ -42,26 +36,20 @@ const STANDARD_STEPS: ScanStep[] = [
 
 const INTEL_STEPS: ScanStep[] = [
   {
-    label: "Checking photo quality…",
-    sublabel: "Visual feature detection",
-    icon: Camera,
-    progress: 25,
-  },
-  {
     label: "Identifying item…",
-    sublabel: "OCR & condition appraisal",
+    sublabel: "OCR & visual appraisal",
     icon: Tag,
-    progress: 55,
+    progress: 45,
   },
   {
     label: "Finding sold listings…",
     sublabel: "Aggregating eBay comps & marketplace intel",
     icon: TrendingUp,
-    progress: 82,
+    progress: 85,
   },
   {
-    label: "Building your listing…",
-    sublabel: "Platform fees, shipping & cop rating",
+    label: "Analyzing market value…",
+    sublabel: "Fair value & profit margins",
     icon: Zap,
     progress: 95,
   },
@@ -95,7 +83,7 @@ export function ScanProgressiveLoader({
 
   const activeSteps = isIntelMode ? INTEL_STEPS : STANDARD_STEPS;
 
-  // Synchronize immediately if explicit stage is provided with strict monotonic progression
+  // Purely event-driven synchronization with zero synthetic setTimeout delays
   useEffect(() => {
     if (!isActive || stage === "idle" || stage === "confirmation" || stage === "complete") {
       setCurrentStepIndex(0);
@@ -104,54 +92,22 @@ export function ScanProgressiveLoader({
     }
 
     if (stage === "comps") {
-      setCurrentStepIndex((prev) => Math.max(prev, 2));
-      setMaxProgress((prev) => Math.max(prev, 82));
+      setCurrentStepIndex((prev) => Math.max(prev, 1));
+      setMaxProgress((prev) => Math.max(prev, 85));
       triggerDialTickHaptic();
       return;
     }
 
     if (stage === "profit") {
-      setCurrentStepIndex((prev) => Math.max(prev, 3));
+      setCurrentStepIndex((prev) => Math.max(prev, 2));
       setMaxProgress((prev) => Math.max(prev, 95));
       triggerDialTickHaptic();
       return;
     }
 
-    // Default timeline progression if stage is vision
-    const t1 = setTimeout(() => {
-      setCurrentStepIndex((prev) => {
-        const next = Math.max(prev, 1);
-        if (next > prev) triggerDialTickHaptic();
-        return next;
-      });
-      setMaxProgress((prev) => Math.max(prev, 55));
-    }, 450);
-
-    const t2 = setTimeout(() => {
-      setCurrentStepIndex((prev) => {
-        const next = Math.max(prev, 2);
-        if (next > prev) triggerDialTickHaptic();
-        return next;
-      });
-      setMaxProgress((prev) => Math.max(prev, 82));
-    }, 1200);
-
-    // CRITICAL: Step 3 (95%) is ONLY reached when stage is profit or after extended fallback,
-    // preventing the false 95% -> 82% regression bug
-    const t3 = setTimeout(() => {
-      setCurrentStepIndex((prev) => {
-        const next = Math.max(prev, 3);
-        if (next > prev) triggerDialTickHaptic();
-        return next;
-      });
-      setMaxProgress((prev) => Math.max(prev, 95));
-    }, 4500);
-
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-      clearTimeout(t3);
-    };
+    // Default stage is "vision" (instant camera snap)
+    setCurrentStepIndex((prev) => Math.max(prev, 0));
+    setMaxProgress((prev) => Math.max(prev, 45));
   }, [isActive, stage]);
 
   if (!isActive || stage === "idle" || stage === "confirmation" || stage === "complete") return null;
@@ -163,9 +119,10 @@ export function ScanProgressiveLoader({
   // Guaranteed monotonic non-decreasing progress: Math.max(prevProgress, nextProgress)
   const displayProgress = Math.min(100, Math.max(maxProgress, currentStep.progress));
 
+  const isCompsStep = currentStepIndex === 1 || stage === "comps";
   const displayLabel = isComplete
     ? (isIntelMode ? "Intel Comps Valued & Verified" : "eBay Comps Valued & Verified")
-    : customLabel || (currentStepIndex === 2 && detectedTitle
+    : customLabel || (isCompsStep && detectedTitle
       ? (isIntelMode ? "Querying marketplace & local P2P comps..." : "Querying historical eBay sold comps...")
       : currentStep.label);
 
