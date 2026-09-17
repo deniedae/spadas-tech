@@ -14,6 +14,14 @@ const EBAY_MARKETPLACE: Record<SupportedCurrency, { id: string; country: string 
 /** Module-level app token cache — shared across all requests in the same server instance */
 let _appToken: { token: string; expiresAt: number } | null = null;
 
+/** Module-level in-memory comps cache — 3600s TTL, normalized query key */
+const _compsCache = new Map<string, { result: EbayCompsResult; expiresAt: number }>();
+const COMPS_CACHE_TTL_MS = 3_600_000; // 1 hour
+
+function normalizeCompsCacheKey(productName: string, currency: string): string {
+  return `${currency}::${productName.toLowerCase().replace(/\s+/g, " ").trim()}`;
+}
+
 async function getEbayAppToken(): Promise<string | null> {
   // Serve from cache with 60s buffer before expiry
   if (_appToken && Date.now() < _appToken.expiresAt - 60_000) {
@@ -243,6 +251,14 @@ export async function fetchEbayAustraliaSoldComps(
   const searchQueries = buildSearchQueries(productName, brand, category);
   if (searchQueries.length === 0) return null;
 
+  // ── CACHE HIT: return immediately (0ms) if this query was resolved recently ──
+  const cacheKey = normalizeCompsCacheKey(productName, targetCurrency);
+  const cached = _compsCache.get(cacheKey);
+  if (cached && Date.now() < cached.expiresAt) {
+    console.log(`[eBay Comps] Cache hit (0ms): "${productName}"`);
+    return cached.result;
+  }
+
   const isQueryMultiPack = /\b(pack|lot|bundle|set|box|bulk|\d+x|\d+\s*pk)\b/i.test(productName);
   const isLuxury = /\b(prada|gucci|louis vuitton|chanel|dior|bottega|saint laurent|ysl|hermes|celine|balenciaga|burberry)\b/i.test(productName);
 
@@ -321,9 +337,10 @@ export async function fetchEbayAustraliaSoldComps(
     try {
       const conditionParam = isTargetUsed ? "&LH_ItemCondition=3000" : "";
       const locParam = prefLocAU ? "&LH_PrefLoc=1" : "";
-      const url = `https://api.sold-comps.com/v1/scrape?keyword=${encodeURIComponent(q)}&ebaySite=${ebaySite}&page=1&count=60&daysToScrape=30&sortOrder=endedRecently${conditionParam}${locParam}`;
+      // count=10: cap payload to top-10 results — 6× less data, faster parse & transfer
+      const url = `https://api.sold-comps.com/v1/scrape?keyword=${encodeURIComponent(q)}&ebaySite=${ebaySite}&page=1&count=10&daysToScrape=30&sortOrder=endedRecently${conditionParam}${locParam}`;
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 4000);
+      const timer = setTimeout(() => controller.abort(), 2500); // 2500ms: fail fast, avoid long-tail hangs
 
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${process.env.SOLD_COMPS_API_KEY}` },
@@ -406,7 +423,7 @@ export async function fetchEbayAustraliaSoldComps(
       const { valid, lowerBound, upperBound } = computeIqrStats(prices);
       const filteredComps = domesticComps.filter((c) => c.price >= lowerBound && c.price <= upperBound);
       const medianBaseline = calcMedian(valid);
-      return {
+      const domesticResult: EbayCompsResult = {
         min: Math.round(valid[0] * 100) / 100,
         max: Math.round(valid[valid.length - 1] * 100) / 100,
         median: Math.round(medianBaseline * 100) / 100,
@@ -420,6 +437,8 @@ export async function fetchEbayAustraliaSoldComps(
           .slice(0, 5),
         iqrBounds: { lower: lowerBound, upper: upperBound },
       };
+      _compsCache.set(cacheKey, { result: domesticResult, expiresAt: Date.now() + COMPS_CACHE_TTL_MS });
+      return domesticResult;
     }
 
     // --- PHASE 2: US-Only Fallback & Cross-Border Arbitrage Intelligence ---
@@ -464,7 +483,7 @@ export async function fetchEbayAustraliaSoldComps(
         const estUsdMedian = Math.round(usMedian * 100) / 100;
         const estAudMedian = Math.round(medianAud * 100) / 100;
 
-        return {
+        const usResult: EbayCompsResult = {
           min: Math.round(valid[0] * 100) / 100,
           max: Math.round(valid[valid.length - 1] * 100) / 100,
           median: estAudMedian,
@@ -474,13 +493,15 @@ export async function fetchEbayAustraliaSoldComps(
           isUsMarketOnly: true,
           marketOrigin: "US",
           usMedianUsd: estUsdMedian,
-          crossBorderShippingCost: 25, // ~$25 AUD tracked international air friction
+          crossBorderShippingCost: 25,
           arbitrageSignal: `No AU sales recorded. High US liquidity ($${Math.round(estUsdMedian)} USD / ~$${Math.round(estAudMedian)} AUD). Profitable for international export or domestic scarcity pricing.`,
           rawComps: (filteredComps.length > 0 ? filteredComps : convertedComps)
             .sort((a, b) => (b.rawDate || 0) - (a.rawDate || 0))
             .slice(0, 5),
           iqrBounds: { lower: lowerBound, upper: upperBound },
         };
+        _compsCache.set(cacheKey, { result: usResult, expiresAt: Date.now() + COMPS_CACHE_TTL_MS });
+        return usResult;
       }
     }
 
@@ -488,7 +509,7 @@ export async function fetchEbayAustraliaSoldComps(
     if (domesticComps.length > 0) {
       domesticComps.sort((a, b) => a.price - b.price);
       const prices = domesticComps.map((c) => c.price);
-      return {
+      const partialResult: EbayCompsResult = {
         min: prices[0],
         max: prices[prices.length - 1],
         median: calcMedian(prices),
@@ -499,6 +520,8 @@ export async function fetchEbayAustraliaSoldComps(
         marketOrigin: isRegionAU ? "AU" : (targetCurrency as "AU" | "US"),
         rawComps: domesticComps.slice(0, 5),
       };
+      _compsCache.set(cacheKey, { result: partialResult, expiresAt: Date.now() + COMPS_CACHE_TTL_MS });
+      return partialResult;
     }
   }
 
