@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { saveSupportTicket } from "@/app/lib/support-tickets";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,10 +18,11 @@ export async function POST(req: NextRequest) {
 
     const ticketId = `SPADAS-DEV-${Date.now().toString(36).toUpperCase()}-${Math.floor(Math.random() * 900 + 100)}`;
     const timestamp = new Date().toISOString();
+    const recentSnippet = messages.slice(-5).map((m: any) => `[${m.role?.toUpperCase() || "USER"}]: ${m.content}`).join("\n");
 
     const ticketPayload = {
       ticketId,
-      status: "awaiting_human",
+      status: "awaiting_human" as const,
       timestamp,
       user: {
         email: userEmail || "Anonymous Reseller",
@@ -28,11 +30,27 @@ export async function POST(req: NextRequest) {
         phone: userPhone || null,
       },
       issueDescription: issueDescription || "Requested Developer Assistance via Dashboard Support Desk",
-      recentChatSnippet: messages.slice(-5).map((m: any) => `[${m.role.toUpperCase()}]: ${m.content}`).join("\n"),
+      recentChatSnippet: recentSnippet,
       metadata,
     };
 
     console.log("[Support Escalation] New Developer Support Ticket Created:", JSON.stringify(ticketPayload, null, 2));
+
+    // Persist to Firestore
+    try {
+      await saveSupportTicket({
+        ticketId,
+        userEmail: userEmail || "anonymous@spadas.tech",
+        userName: userName || "Spadas Reseller",
+        userPhone: userPhone || undefined,
+        issueDescription: issueDescription || "Requested Developer Assistance via Dashboard Support Desk",
+        recentChatSnippet: recentSnippet,
+        status: "awaiting_human",
+        metadata,
+      });
+    } catch (dbErr) {
+      console.error("[Support Escalation] Error saving ticket to Firestore:", dbErr);
+    }
 
     // Optional webhook dispatch (Discord, Slack, or Telegram webhook)
     const webhookUrl = process.env.ADMIN_WEBHOOK_URL || process.env.DISCORD_WEBHOOK_URL;

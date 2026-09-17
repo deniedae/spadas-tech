@@ -17,11 +17,13 @@ import {
   ShieldCheck,
   Clock,
   HelpCircle,
+  Inbox,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import SubscriptionPaywallModal from "@/components/subscription-paywall-modal";
 import { CURRENCY_CONFIGS, SupportedCurrency, detectGeoCurrency } from "@/app/lib/currency-routing";
 import { openSpadasSupport } from "@/components/dashboard-support-desk";
+import { isOwnerEmail } from "@/app/lib/auth-admin";
 
 const DashboardSupportDesk = dynamic(() => import("@/components/dashboard-support-desk"), {
   ssr: false,
@@ -653,7 +655,7 @@ export default function SettingsPage() {
             </button>
           </div>
 
-          {/* Card 2: Human Developer Escalation */}
+          {/* Card 2: Human Developer Escalation / Developer Ticket Console */}
           <div className="bg-zinc-900/90 border border-zinc-800 rounded-xl p-5 flex flex-col justify-between space-y-4 relative overflow-hidden group hover:border-zinc-700 transition">
             <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-2xl pointer-events-none" />
 
@@ -661,15 +663,23 @@ export default function SettingsPage() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
                   <div className="h-9 w-9 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
-                    <UserCheck className="w-4 h-4" />
+                    {isOwnerEmail(user?.email) ? <Inbox className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
                   </div>
                   <div>
-                    <h3 className="text-sm font-semibold text-white">Engineering Escalation</h3>
-                    <p className="text-[11px] text-zinc-400 font-mono">Core Development &amp; API Team</p>
+                    <h3 className="text-sm font-semibold text-white">
+                      {isOwnerEmail(user?.email) ? "Developer Ticket Console" : "Engineering Escalation"}
+                    </h3>
+                    <p className="text-[11px] text-zinc-400 font-mono">
+                      {isOwnerEmail(user?.email) ? "Lead Developer Mode • deniedae@gmail.com" : "Core Development & API Team"}
+                    </p>
                   </div>
                 </div>
 
-                {activeTicket ? (
+                {isOwnerEmail(user?.email) ? (
+                  <span className="px-2 py-0.5 rounded bg-amber-500/15 border border-amber-500/30 text-[10px] font-mono text-amber-300 font-medium">
+                    Owner Access
+                  </span>
+                ) : activeTicket ? (
                   <span className="px-2 py-0.5 rounded bg-amber-500/15 border border-amber-500/30 text-[10px] font-mono text-amber-300 font-medium">
                     #{activeTicket.ticketId} Active
                   </span>
@@ -681,10 +691,22 @@ export default function SettingsPage() {
               </div>
 
               <p className="text-xs text-zinc-400 leading-relaxed">
-                Direct dispatch to Spadas engineers for unresolved marketplace synchronization failures, billing inquiries, or high-priority feature requests.
+                {isOwnerEmail(user?.email)
+                  ? "View incoming reseller tickets, read diagnostic chat context, and dispatch verified in-app responses directly to users."
+                  : "Direct dispatch to Spadas engineers for unresolved marketplace synchronization failures, billing inquiries, or high-priority feature requests."}
               </p>
 
-              {activeTicket ? (
+              {isOwnerEmail(user?.email) ? (
+                <div className="p-2.5 rounded-lg bg-amber-950/20 border border-amber-500/30 text-xs space-y-1">
+                  <div className="flex items-center gap-1.5 text-amber-300 font-medium text-[11px]">
+                    <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Administrator Privileges Verified</span>
+                  </div>
+                  <p className="text-[11px] text-zinc-400">
+                    Respond to tickets with in-app chat injection or 1-tap Gmail replies.
+                  </p>
+                </div>
+              ) : activeTicket ? (
                 <div className="p-2.5 rounded-lg bg-amber-950/20 border border-amber-500/30 text-xs space-y-1">
                   <div className="flex items-center justify-between text-[11px] font-mono text-amber-300">
                     <span>Ticket: {activeTicket.ticketId}</span>
@@ -714,15 +736,27 @@ export default function SettingsPage() {
               )}
             </div>
 
-            <button
-              type="button"
-              onClick={() => openSpadasSupport({ mode: "escalate" })}
-              className="w-full mt-2 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white text-xs font-semibold transition active:scale-[0.99] cursor-pointer"
-            >
-              <UserCheck className="w-3.5 h-3.5 text-amber-400" />
-              <span>{activeTicket ? "Update or View Developer Ticket" : "Escalate to Developer"}</span>
-              <ArrowRight className="w-3.5 h-3.5 ml-auto text-zinc-400" />
-            </button>
+            {isOwnerEmail(user?.email) ? (
+              <button
+                type="button"
+                onClick={() => openSpadasSupport({ mode: "inbox" })}
+                className="w-full mt-2 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-bold text-xs transition active:scale-[0.99] cursor-pointer shadow-md"
+              >
+                <Inbox className="w-3.5 h-3.5" />
+                <span>Open Developer Ticket Inbox</span>
+                <ArrowRight className="w-3.5 h-3.5 ml-auto text-black/70" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => openSpadasSupport({ mode: "escalate" })}
+                className="w-full mt-2 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white text-xs font-semibold transition active:scale-[0.99] cursor-pointer"
+              >
+                <UserCheck className="w-3.5 h-3.5 text-amber-400" />
+                <span>{activeTicket ? "Update or View Developer Ticket" : "Escalate to Developer"}</span>
+                <ArrowRight className="w-3.5 h-3.5 ml-auto text-zinc-400" />
+              </button>
+            )}
           </div>
         </div>
       </section>
