@@ -241,7 +241,20 @@ export function ensureVerifiedSoldComps(
 
   const validComps = iqrCleaned.length > 0 ? iqrCleaned : candidates;
 
-  return validComps.slice(0, 5).map((c, idx) => {
+  // 3. Condition-Aware Comp Sanitization:
+  // When target item is Used/Pre-owned, strip Brand New / Sealed / BNIB / NIB comps
+  // so a used, open, or unboxed item is never comped against sealed retail stock.
+  const isTargetUsed = !/\b(brand new|new with tags|nwt|sealed|bnib|nib)\b/i.test(safeCondition);
+  let conditionSanitized = validComps;
+  if (isTargetUsed) {
+    const sealedRegex = /\b(brand new|sealed|factory sealed|shrink wrapped|bnib|nib|nwt|new in box|unopened)\b/i;
+    const usedOnlyCandidates = validComps.filter((c) => !sealedRegex.test(c.title || ""));
+    if (usedOnlyCandidates.length >= 2) {
+      conditionSanitized = usedOnlyCandidates;
+    }
+  }
+
+  return conditionSanitized.slice(0, 5).map((c, idx) => {
     const explicitMatch = getCompMatch(c);
     const rawDate = getCompSoldDate(c);
     const soldDate = rawDate ? formatSoldDate(rawDate) : "Recent sale";
@@ -460,8 +473,8 @@ export default function AuditCompsLedger({
                     copVerdict === "MUST_COP" || copVerdict === "QUICK_FLIP"
                       ? "badge-verdict-buy"
                       : copVerdict === "VERIFY_FIRST"
-                      ? "badge-verdict-watch"
-                      : "badge-verdict-pass"
+                        ? "badge-verdict-watch"
+                        : "badge-verdict-pass"
                   }
                 >
                   {copVerdict === "MUST_COP" ? "BUY" : copVerdict === "QUICK_FLIP" ? "QUICK FLIP" : copVerdict === "VERIFY_FIRST" ? "VERIFY" : "PASS"}
@@ -812,8 +825,8 @@ export default function AuditCompsLedger({
                               {comp.shippingIncluded
                                 ? "Free Post"
                                 : comp.shippingPrice
-                                ? `+${fmtMoney(comp.shippingPrice)} Post`
-                                : "Postage calculated"}
+                                  ? `+${fmtMoney(comp.shippingPrice)} Post`
+                                  : "Postage calculated"}
                             </span>
                           </div>
                         </div>

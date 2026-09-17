@@ -162,19 +162,23 @@ export function calculateSeasonalityProfile(options: {
   const quickFlipDays = 3;
   const holdingDays = 60;
 
-  const annualizedIrrQuickFlip = Math.min(
-    9999,
-    Math.round((baseRoi / quickFlipDays) * 365)
-  );
+  const rawIrr = (baseRoi / quickFlipDays) * 365;
+  const isIrrRealistic = !isNaN(rawIrr) && isFinite(rawIrr) && rawIrr >= -100 && rawIrr <= 1000;
+  const annualizedIrrQuickFlip = isIrrRealistic ? Math.round(rawIrr) : 0;
   const holdingProfit = netProfit * demandMultiplier;
   const holdingRoi = thriftCost > 0 ? (holdingProfit / thriftCost) * 100 : 100;
-  const annualizedIrrHolding = Math.round((holdingRoi / holdingDays) * 365);
+  const rawHoldingIrr = (holdingRoi / holdingDays) * 365;
+  const annualizedIrrHolding = !isNaN(rawHoldingIrr) && isFinite(rawHoldingIrr) && rawHoldingIrr >= -100 && rawHoldingIrr <= 1000
+    ? Math.round(rawHoldingIrr)
+    : 0;
 
   // Capital holding drag (10% cost of capital + $0.05/day shelf space)
   const holdingCostAud = Math.round((thriftCost * 0.10 * (holdingDays / 365) + 0.05 * holdingDays) * 100) / 100;
 
   let holdingRecommendation: SeasonalityProfile["holdingRecommendation"] = "FAST_FLIP_NOW";
-  let recommendationReason = `Capital velocity favors instant liquidation. Turning capital every 3 days yields ~${annualizedIrrQuickFlip}% annualized velocity.`;
+  let recommendationReason = isIrrRealistic
+    ? `Capital velocity favors instant liquidation. Turning capital every 3 days yields ~${annualizedIrrQuickFlip}% annualized velocity.`
+    : "Capital velocity favors quick turnover based on current category demand.";
 
   if (tier === "OFF_SEASON_VALLEY" && demandMultiplier < 0.85 && holdingProfit - netProfit > 35) {
     holdingRecommendation = "HOLD_FOR_SEASON_PEAK";

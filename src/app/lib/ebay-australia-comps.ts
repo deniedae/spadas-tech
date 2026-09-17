@@ -126,7 +126,7 @@ const FX_RATES: Record<string, Record<SupportedCurrency, number>> = {
 /**
  * Builds prioritized search variations from a product title to maximize exact and category comp matches.
  */
-function buildSearchQueries(productName: string): string[] {
+function buildSearchQueries(productName: string, brand?: string | null, category?: string | null): string[] {
   const clean = productName
     .replace(/["'’]/g, "")
     .replace(/\b(model|item|authentic|genuine|used|pre-owned|tested|working|vintage|retro|clean|great|condition)\b/gi, "")
@@ -145,7 +145,7 @@ function buildSearchQueries(productName: string): string[] {
 
   if (detectedBrand) {
     const brandName = clean.split(" ").find((w) => w.toLowerCase() === detectedBrand) || detectedBrand;
-    
+
     // Check material
     const isSaffiano = lower.includes("saffiano");
     const isNylon = lower.includes("nylon") || lower.includes("tessuto");
@@ -179,7 +179,23 @@ function buildSearchQueries(productName: string): string[] {
     }
   }
 
-  // 3. Fallback to clean title
+  // 3. Style / Category Broadening for Unbranded Decor (vases, baskets, etc.)
+  const isDecorOrGeneric = /\b(vase|basket|pot|planter|bowl|decor|candle|tray|plate|figurine|ornament|sculpture|cushion|pillow|blanket|throw|lamp|frame|mirror)\b/i.test(lower);
+  if (!detectedBrand && (isDecorOrGeneric || category)) {
+    const styleKeywords = lower.match(/\b(ceramic|porcelain|wicker|woven|rattan|brass|copper|glass|crystal|wood|wooden|marble|mid century|art deco|boho|vintage|antique|rustic|minimalist)\b/gi);
+    const mainNoun = words.find((w) => /\b(vase|basket|pot|bowl|tray|lamp|figurine|planter|plate|mirror|frame)\b/i.test(w)) || "decor";
+    if (styleKeywords && styleKeywords.length > 0) {
+      queries.push(`${styleKeywords[0]} ${mainNoun}`);
+    }
+    if (category) {
+      const cleanCat = category.replace(/[^\w\s]/g, "").trim();
+      if (cleanCat && cleanCat.toLowerCase() !== "general resale") {
+        queries.push(`${cleanCat} ${mainNoun}`);
+      }
+    }
+  }
+
+  // 4. Fallback to clean title
   queries.push(clean);
 
   // Return unique non-empty queries
@@ -191,9 +207,12 @@ function buildSearchQueries(productName: string): string[] {
  */
 export async function fetchEbayAustraliaSoldComps(
   productName: string,
-  targetCurrency: SupportedCurrency = "AUD"
+  targetCurrency: SupportedCurrency = "AUD",
+  brand?: string | null,
+  category?: string | null,
+  condition?: string | null
 ): Promise<EbayCompsResult | null> {
-  const searchQueries = buildSearchQueries(productName);
+  const searchQueries = buildSearchQueries(productName, brand, category);
   if (searchQueries.length === 0) return null;
 
   const isQueryMultiPack = /\b(pack|lot|bundle|set|box|bulk|\d+x|\d+\s*pk)\b/i.test(productName);
@@ -281,10 +300,23 @@ export async function fetchEbayAustraliaSoldComps(
           }
 
           if (validCompItems.length >= 2) {
-            validCompItems.sort((a, b) => a.price - b.price);
-            const prices = validCompItems.map((c) => c.price);
+            // Condition-Aware Comp Sanitization:
+            // When target item is Used/Pre-owned, strip Brand New / Sealed / BNIB / NIB listings if used comps exist
+            const isTargetUsed = condition && !/\b(brand new|new with tags|nwt|sealed|bnib|nib)\b/i.test(condition);
+            let sanitizedComps = validCompItems;
+            if (isTargetUsed) {
+              const nonSealed = validCompItems.filter(
+                (c) => !/\b(brand new|sealed|factory sealed|shrink wrapped|bnib|nib|nwt|new in box|unopened)\b/i.test(c.title)
+              );
+              if (nonSealed.length >= 2) {
+                sanitizedComps = nonSealed;
+              }
+            }
+
+            sanitizedComps.sort((a, b) => a.price - b.price);
+            const prices = sanitizedComps.map((c) => c.price);
             const { valid, lowerBound, upperBound } = computeIqrStats(prices);
-            const filteredComps = validCompItems.filter((c) => c.price >= lowerBound && c.price <= upperBound);
+            const filteredComps = sanitizedComps.filter((c) => c.price >= lowerBound && c.price <= upperBound);
             const medianBaseline = calcMedian(valid);
             return {
               min: Math.round(valid[0] * 100) / 100,
@@ -293,7 +325,7 @@ export async function fetchEbayAustraliaSoldComps(
               count: valid.length,
               currency: targetCurrency,
               source: "sold_comps_api",
-              rawComps: (filteredComps.length > 0 ? filteredComps : validCompItems)
+              rawComps: (filteredComps.length > 0 ? filteredComps : sanitizedComps)
                 .sort((a, b) => (b.rawDate || 0) - (a.rawDate || 0))
                 .slice(0, 5),
               iqrBounds: { lower: lowerBound, upper: upperBound },
@@ -309,6 +341,6 @@ export async function fetchEbayAustraliaSoldComps(
   // ── 2. Active Listings Fallback Removed ──────────────────────────────────────
   // The user explicitly requested to check actual sold sales only, not active listings.
   // We no longer fallback to the eBay Browse API because it only returns active items.
-  
+
   return null;
 }

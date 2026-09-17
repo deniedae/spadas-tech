@@ -390,9 +390,9 @@ export async function POST(request: Request) {
         ? `SCAN MODE: DEEP FORENSIC & OCR INSPECTION.
 Perform deep OCR inspection of all text, brand logos, model plates, serial numbers, care tags, and condition flaws visible on the centered item.`
         : mode === "sweep"
-        ? `SCAN MODE: MULTI-ITEM SCENE SCAN.
+          ? `SCAN MODE: MULTI-ITEM SCENE SCAN.
 Identify distinct physical products visible in the scene. If no distinct object is in frame, return product_name: "NO_CENTER_ITEM".`
-        : `SCAN MODE: TARGETED CENTER RETICLE FOCUS & MULTI-FRAME OPTICAL COMPOSITE.
+          : `SCAN MODE: TARGETED CENTER RETICLE FOCUS & MULTI-FRAME OPTICAL COMPOSITE.
 Identify ONLY the single primary physical item positioned in the center target reticle (Image 1 is a high-resolution composite synthesized from rapid consecutive frames pooled during movement to eliminate blur, with macro detail insets). Disregard hands, table, floor, and room background.`;
 
     // Try OpenAI Vision first if key is valid
@@ -403,17 +403,17 @@ Identify ONLY the single primary physical item positioned in the center target r
         try {
           const reqParams: any = isFastPipeline
             ? {
-                model: modelName,
-                temperature: 0.0,
-                max_tokens: 400,
-                response_format: zodResponseFormat(FastVisionIdentificationSchema, "fast_vision_identification"),
-                messages: [
-                  {
-                    role: "user",
-                    content: [
-                      {
-                        type: "text",
-                        text: `You are an expert reseller appraiser and luxury authenticator.
+              model: modelName,
+              temperature: 0.0,
+              max_tokens: 400,
+              response_format: zodResponseFormat(FastVisionIdentificationSchema, "fast_vision_identification"),
+              messages: [
+                {
+                  role: "user",
+                  content: [
+                    {
+                      type: "text",
+                      text: `You are an expert reseller appraiser and luxury authenticator.
 ${modePrompt}
 
 MANDATORY HIGH-SPEED EXTRACTION REQUIREMENTS (STRICT SCHEMA):
@@ -428,23 +428,23 @@ ${spatialMetadata || categoryBias ? `LOCATION-AWARE CATEGORY BIASING & SPATIAL P
 5. BOUNDING BOX & CONFIDENCE: Bounding box coordinates {x, y, width, height} (0-100 percentages) and confidence_score (0.0 to 1.0).
 6. RETAKE GUIDANCE: Set retake_recommended if photo is blurry or tags are unreadable, otherwise null.
 Keep extraction strictly factual. Zero conversational text.`,
-                      },
-                      ...imageContent,
-                    ],
-                  },
-                ],
-              }
+                    },
+                    ...imageContent,
+                  ],
+                },
+              ],
+            }
             : {
-                model: modelName,
-                temperature: 0.0,
-                response_format: zodResponseFormat(AiListingResultSchema, "ai_listing_analysis"),
-                messages: [
-                  {
-                    role: "user",
-                    content: [
-                      {
-                        type: "text",
-                        text: `You are an expert reseller appraiser, luxury authenticator, and marketplace copywriter for eBay, Grailed, and Depop.
+              model: modelName,
+              temperature: 0.0,
+              response_format: zodResponseFormat(AiListingResultSchema, "ai_listing_analysis"),
+              messages: [
+                {
+                  role: "user",
+                  content: [
+                    {
+                      type: "text",
+                      text: `You are an expert reseller appraiser, luxury authenticator, and marketplace copywriter for eBay, Grailed, and Depop.
 
 ${modePrompt}
 
@@ -521,12 +521,12 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
   • STRICT RULE 1 (CONDITION IS KING): Never state 'brand new' unless sealed/with tags. If liquidation or untested, state 'Condition: Untested/Faulty - Please review all photos' immediately in first line.
   • STRICT RULE 2 (FILTER SENSITIVE DATA): Completely remove internal analytics ('ROI', 'Cost', 'Spadas Lens', thrift buy costs).
   • STRICT RULE 3 (NO FLUFF): Zero generic AI marketing buzzwords ('Elevate', 'Exquisite', 'Must-have'). Plain clean text only.`,
-                      },
-                      ...imageContent,
-                    ],
-                  },
-                ],
-              };
+                    },
+                    ...imageContent,
+                  ],
+                },
+              ],
+            };
 
           try {
             completion = await openai.chat.completions.create(reqParams);
@@ -859,7 +859,7 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
                 ebayComps = precomputed;
                 console.log(`[ai-listing] Parallel comps prefetch hit (0ms latency): "${initialPrefetchQuery}" for "${verifiedName}"`);
               }
-            } catch {}
+            } catch { }
           }
 
           // 2. Fallback fetch if parallel comps differed or yielded 0 comps
@@ -918,346 +918,346 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
         }
       }
 
-    // CATEGORY PRICE SANITY GUARD: Prevent sponsored tray outliers from inflating standard peripherals
-    if (result.analysis?.product_name) {
-      const lowerTitle = result.analysis.product_name.toLowerCase();
+      // CATEGORY PRICE SANITY GUARD: Prevent sponsored tray outliers from inflating standard peripherals
+      if (result.analysis?.product_name) {
+        const lowerTitle = result.analysis.product_name.toLowerCase();
 
-      // Standard Xbox Wireless Controller (Non-Elite / Non-Limited) Sanity Guard
-      if (lowerTitle.includes("xbox") && lowerTitle.includes("controller") && !lowerTitle.includes("elite") && !lowerTitle.includes("starfield") && !lowerTitle.includes("anniversary")) {
-        const cappedMedian = Math.min(result.suggested_price_median || 65, 75);
-        result.suggested_price_min = Math.min(result.suggested_price_min || 45, 55);
-        result.suggested_price_max = Math.min(result.suggested_price_max || 85, 85);
-        result.suggested_price_median = cappedMedian;
-      }
-
-      // Common Media DVDs / CDs (Prevent $5 DVD illusions where shipping eats 100% of profit)
-      const isMediaDvd = (lowerTitle.includes("dvd") || lowerTitle.includes("cd") || lowerTitle.includes("vhs") || lowerTitle.includes("blu-ray")) &&
-        !lowerTitle.includes("criterion") && !lowerTitle.includes("sealed") && !lowerTitle.includes("box set") && !lowerTitle.includes("steelbook") && !lowerTitle.includes("anime");
-      if (isMediaDvd) {
-        result.suggested_price_min = 3;
-        result.suggested_price_max = 6;
-        result.suggested_price_median = 4.5;
-        if (result.sales_velocity) {
-          result.sales_velocity.sell_speed = "SLOW_BURNER";
-          result.sales_velocity.est_days_to_sell = "Penny Trap / Negative Margin";
-          result.sales_velocity.demand_score = 15;
+        // Standard Xbox Wireless Controller (Non-Elite / Non-Limited) Sanity Guard
+        if (lowerTitle.includes("xbox") && lowerTitle.includes("controller") && !lowerTitle.includes("elite") && !lowerTitle.includes("starfield") && !lowerTitle.includes("anniversary")) {
+          const cappedMedian = Math.min(result.suggested_price_median || 65, 75);
+          result.suggested_price_min = Math.min(result.suggested_price_min || 45, 55);
+          result.suggested_price_max = Math.min(result.suggested_price_max || 85, 85);
+          result.suggested_price_median = cappedMedian;
         }
-      }
 
-      // Budget Commodity Brands (Amazon Basics, Onn, Insignia, etc.)
-      const isCommodityBrand =
-        lowerTitle.includes("amazon basics") ||
-        lowerTitle.includes("amazonbasics") ||
-        lowerTitle.includes("insignia") ||
-        lowerTitle.includes("onn.") ||
-        lowerTitle.includes("onn ") ||
-        lowerTitle.includes("blackweb") ||
-        lowerTitle.includes("mainstays") ||
-        lowerTitle.includes("anko");
-      if (isCommodityBrand) {
-        if (lowerTitle.includes("keyboard") || lowerTitle.includes("mouse") || lowerTitle.includes("cable") || lowerTitle.includes("adapter") || lowerTitle.includes("hub")) {
-          result.suggested_price_min = 4;
-          result.suggested_price_max = 8;
-          result.suggested_price_median = 6;
+        // Common Media DVDs / CDs (Prevent $5 DVD illusions where shipping eats 100% of profit)
+        const isMediaDvd = (lowerTitle.includes("dvd") || lowerTitle.includes("cd") || lowerTitle.includes("vhs") || lowerTitle.includes("blu-ray")) &&
+          !lowerTitle.includes("criterion") && !lowerTitle.includes("sealed") && !lowerTitle.includes("box set") && !lowerTitle.includes("steelbook") && !lowerTitle.includes("anime");
+        if (isMediaDvd) {
+          result.suggested_price_min = 3;
+          result.suggested_price_max = 6;
+          result.suggested_price_median = 4.5;
           if (result.sales_velocity) {
             result.sales_velocity.sell_speed = "SLOW_BURNER";
-            result.sales_velocity.est_days_to_sell = "Zero Arbitrage / E-Waste";
-            result.sales_velocity.demand_score = 10;
+            result.sales_velocity.est_days_to_sell = "Penny Trap / Negative Margin";
+            result.sales_velocity.demand_score = 15;
           }
         }
-      }
 
-      // Mass-Market Ceramic Coffee Mugs (prevent $20 hallucinated comps on fragile novelty cups)
-      const isNoveltyMug = (lowerTitle.includes("mug") || lowerTitle.includes("coffee cup")) &&
-        !lowerTitle.includes("vintage 198") && !lowerTitle.includes("vintage 197") && !lowerTitle.includes("starbucks been there") && !lowerTitle.includes("fire-king") && !lowerTitle.includes("pyrex");
-      if (isNoveltyMug) {
-        result.suggested_price_min = 5;
-        result.suggested_price_max = 10;
-        result.suggested_price_median = 8;
-        if (result.sales_velocity) {
-          result.sales_velocity.sell_speed = "SLOW_BURNER";
-          result.sales_velocity.est_days_to_sell = "Fragile Packaging / Thin Margin";
-          result.sales_velocity.demand_score = 25;
-        }
-      }
-
-      // Single Disposable Lighter Sanity Guard (prevent multi-pack eBay listings from overvaluing a single $2 lighter)
-      if (
-        lowerTitle.includes("lighter") &&
-        !lowerTitle.includes("zippo") &&
-        !lowerTitle.includes("dupont") &&
-        !lowerTitle.includes("dunhill") &&
-        !lowerTitle.includes("vintage") &&
-        !lowerTitle.includes("gold") &&
-        !lowerTitle.includes("silver") &&
-        !lowerTitle.includes("antique")
-      ) {
-        if (
-          lowerTitle.includes("bic") ||
-          lowerTitle.includes("cricket") ||
-          lowerTitle.includes("disposable") ||
-          lowerTitle.includes("clipper") ||
-          lowerTitle.includes("flint lighter")
-        ) {
-          result.suggested_price_min = 1;
-          result.suggested_price_max = 3;
-          result.suggested_price_median = 2;
-          if (result.sales_velocity) {
-            result.sales_velocity.sell_speed = "SLOW_BURNER";
-            result.sales_velocity.est_days_to_sell = "Low Flip Margin";
-            result.sales_velocity.demand_score = 30;
-          }
-        }
-      }
-
-      // Luxury Designer Leather Goods Sanity Floor & Market Grounding (Prada, LV, Gucci, Chanel, etc.)
-      const isLuxuryBrand =
-        lowerTitle.includes("prada") ||
-        lowerTitle.includes("louis vuitton") ||
-        lowerTitle.includes("gucci") ||
-        lowerTitle.includes("chanel") ||
-        lowerTitle.includes("dior") ||
-        lowerTitle.includes("bottega") ||
-        lowerTitle.includes("saint laurent") ||
-        lowerTitle.includes("ysl") ||
-        lowerTitle.includes("hermes") ||
-        lowerTitle.includes("celine") ||
-        lowerTitle.includes("goyard") ||
-        lowerTitle.includes("balenciaga") ||
-        lowerTitle.includes("burberry") ||
-        lowerTitle.includes("loewe");
-
-      if (isLuxuryBrand) {
-        const isWalletOrSLG =
-          lowerTitle.includes("wallet") ||
-          lowerTitle.includes("purse") ||
-          lowerTitle.includes("cardholder") ||
-          lowerTitle.includes("card case") ||
-          lowerTitle.includes("bifold") ||
-          lowerTitle.includes("trifold") ||
-          lowerTitle.includes("saffiano") ||
-          lowerTitle.includes("coin pouch");
-
-        const isBag =
-          lowerTitle.includes("bag") ||
-          lowerTitle.includes("tote") ||
-          lowerTitle.includes("crossbody") ||
-          lowerTitle.includes("handbag") ||
-          lowerTitle.includes("backpack");
-
-        if (isWalletOrSLG) {
-          // Designer small leather goods should never be appraised at $35
-          if (!result.suggested_price_median || result.suggested_price_median < 120) {
-            result.suggested_price_median = 260;
-            result.suggested_price_min = 180;
-            result.suggested_price_max = 380;
-          }
-        } else if (isBag) {
-          if (!result.suggested_price_median || result.suggested_price_median < 250) {
-            result.suggested_price_median = 550;
-            result.suggested_price_min = 350;
-            result.suggested_price_max = 950;
-          }
-        }
-      }
-
-      // Single Standard Pen / Pencil Sanity Guard (prevent bulk box pricing)
-      if (
-        (lowerTitle.includes("pen") || lowerTitle.includes("pencil") || lowerTitle.includes("marker") || lowerTitle.includes("biro")) &&
-        !lowerTitle.includes("montblanc") &&
-        !lowerTitle.includes("parker") &&
-        !lowerTitle.includes("cross") &&
-        !lowerTitle.includes("fountain") &&
-        !lowerTitle.includes("vintage") &&
-        !lowerTitle.includes("pack") &&
-        !lowerTitle.includes("box") &&
-        !lowerTitle.includes("set")
-      ) {
-        if (lowerTitle.includes("bic") || lowerTitle.includes("papermate") || lowerTitle.includes("sharpie") || lowerTitle.includes("ballpoint")) {
-          result.suggested_price_min = 1;
-          result.suggested_price_max = 3;
-          result.suggested_price_median = 2;
-          if (result.sales_velocity) {
-            result.sales_velocity.sell_speed = "SLOW_BURNER";
-            result.sales_velocity.est_days_to_sell = "Low Flip Margin";
-          }
-        }
-      }
-    }
-
-    // Clean up brand and title from junk punctuation (e.g. "/", ".", "-") across analysis and detected_objects
-    const isJunkTitle = (title?: string | null) => {
-      if (!title) return true;
-      const trimmed = title.trim();
-      return /^[.\/_\-–—:;,#@!$%^&*()+=~`\s]+$/.test(trimmed) || trimmed.length < 3 || trimmed.replace(/[^a-zA-Z0-9]/g, "").length < 2;
-    };
-
-    if (result.analysis) {
-      const rawPName = (result.analysis.product_name || "").trim();
-      if (isJunkTitle(rawPName)) {
-        result.analysis.product_name = "NO_CENTER_ITEM";
-      }
-
-      const rawBrand = (result.analysis.brand || "").trim();
-      if (/^[.\/_\-–—:;,\s]+$/.test(rawBrand) || rawBrand.length < 2) {
-        result.analysis.brand = null;
-      }
-    }
-
-    if (result.detected_objects && Array.isArray(result.detected_objects)) {
-      result.detected_objects = result.detected_objects.filter((obj) => !isJunkTitle(obj.product_name));
-    }
-
-    // THRIFT STORE PRICE TAG OCR & INSTANT NET PROFIT / ROI COP VERDICT
-    const pCategory = result.analysis?.category || "General";
-    const pName = result.analysis?.product_name || "";
-    const pBrand = result.analysis?.brand || "";
-    const shippingCost = estimateCategoryShippingCost(pCategory, pName);
-
-    // Deep Visual Condition Grading Modifier:
-    // Mint (+15%), Good (1.0x baseline), Fair (0.75x, -25%), For Parts (0.35x, -65%)
-    const rawGrade = (result.analysis?.condition_grade || result.condition_grade || "Good") as "Mint" | "Good" | "Fair" | "For Parts";
-    let conditionModifier = 1.0;
-    if (rawGrade === "Mint") {
-      conditionModifier = 1.15;
-    } else if (rawGrade === "Good") {
-      conditionModifier = 1.0;
-    } else if (rawGrade === "Fair") {
-      conditionModifier = 0.75;
-    } else if (rawGrade === "For Parts") {
-      conditionModifier = 0.35;
-    }
-
-    result.condition_grade = rawGrade;
-    result.condition_modifier = conditionModifier;
-    if (result.analysis) {
-      result.analysis.condition_grade = rawGrade;
-      result.analysis.condition_modifier = conditionModifier;
-    }
-
-    const baselineSellPrice = Number(result.suggested_price_median) || 45;
-    const sellPrice = Math.max(1, Math.round(baselineSellPrice * conditionModifier * 100) / 100);
-    result.suggested_price_median = sellPrice;
-    if (result.suggested_price_min) {
-      result.suggested_price_min = Math.max(1, Math.round(result.suggested_price_min * conditionModifier * 100) / 100);
-    }
-    if (result.suggested_price_max) {
-      result.suggested_price_max = Math.max(1, Math.round(result.suggested_price_max * conditionModifier * 100) / 100);
-    }
-
-    const tagPrice = Number(result.detected_tag_price) || (result.analysis?.product_name && result.analysis.product_name !== "NO_CENTER_ITEM" ? Math.max(3, Math.round(sellPrice * 0.15)) : null);
-
-    if (tagPrice && sellPrice > 0) {
-      const copEstimate = calculateThriftCopVerdict({
-        resalePrice: sellPrice,
-        customCost: tagPrice,
-        category: pCategory,
-        productName: pName,
-        brand: pBrand,
-        shippingCost,
-        confidenceScore: result.analysis?.confidence_score,
-        variantAudit: result.analysis?.variant_audit || result.variant_audit,
-        needsVerification: Boolean(result.retake_recommended?.required),
-      });
-
-      result.detected_tag_price = tagPrice;
-      result.true_net_profit = copEstimate.netProfit;
-      result.roi_percentage = copEstimate.roiPercentage;
-      result.cop_verdict = copEstimate.copVerdict;
-      result.requires_secondary_verification = copEstimate.requiresSecondaryVerification;
-      result.verification_reason = copEstimate.verificationReason;
-      result.fallback_protocol = copEstimate.fallbackProtocol;
-
-      if (result.detected_objects && result.detected_objects.length > 0) {
-        result.detected_objects[0].detected_tag_price = tagPrice;
-        result.detected_objects[0].true_net_profit = copEstimate.netProfit;
-        result.detected_objects[0].roi_percentage = copEstimate.roiPercentage;
-        result.detected_objects[0].cop_verdict = copEstimate.copVerdict;
-      }
-    }
-
-    // Persist scan history to public.scans table (skip empty sentinel / junk scans)
-    const rawTitle = result.analysis?.product_name || (result as any).product_name || "";
-    const isSentinelScan =
-      !result ||
-      rawTitle === "NO_CENTER_ITEM" ||
-      rawTitle.length < 3 ||
-      /^[.\/_\-–—:;,\s]+$/.test(rawTitle) ||
-      (result as any).category === "NO_CENTER_ITEM" ||
-      result.analysis?.category === "NO_CENTER_ITEM";
-
-    // Save to Global Reseller Product Cache for sub-30ms instant repeated recognition
-    if (result && result.status === "identified" && rawTitle && !isSentinelScan) {
-      void saveProductToCache(rawTitle, result);
-    }
-
-    if (user && !isSentinelScan) {
-      try {
-        const firstImg = imageUrls[0] || "";
-        let finalImageUrl = firstImg;
-
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-        const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-        const dbClient =
-          supabaseUrl && serviceRoleKey
-            ? (await import("@supabase/supabase-js")).createClient(supabaseUrl, serviceRoleKey, {
-                auth: { persistSession: false, autoRefreshToken: false },
-              })
-            : supabase;
-
-        // If base64, attempt uploading to Supabase Storage 'listing-images' bucket for permanent hosting
-        if (firstImg.startsWith("data:")) {
-          try {
-            const matches = firstImg.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
-            if (matches && matches.length === 3) {
-              const mimeType = matches[1];
-              const base64Data = matches[2];
-              const buffer = Buffer.from(base64Data, "base64");
-              const ext = mimeType.split("/")[1] || "jpeg";
-              const filename = `scans/${user.id}-${Date.now()}.${ext}`;
-
-              const { data: uploadData, error: uploadErr } = await dbClient.storage
-                .from("listing-images")
-                .upload(filename, buffer, {
-                  contentType: mimeType,
-                  upsert: true,
-                });
-
-              if (!uploadErr && uploadData) {
-                const { data: publicUrlData } = dbClient.storage
-                  .from("listing-images")
-                  .getPublicUrl(filename);
-                if (publicUrlData?.publicUrl) {
-                  finalImageUrl = publicUrlData.publicUrl;
-                }
-              }
+        // Budget Commodity Brands (Amazon Basics, Onn, Insignia, etc.)
+        const isCommodityBrand =
+          lowerTitle.includes("amazon basics") ||
+          lowerTitle.includes("amazonbasics") ||
+          lowerTitle.includes("insignia") ||
+          lowerTitle.includes("onn.") ||
+          lowerTitle.includes("onn ") ||
+          lowerTitle.includes("blackweb") ||
+          lowerTitle.includes("mainstays") ||
+          lowerTitle.includes("anko");
+        if (isCommodityBrand) {
+          if (lowerTitle.includes("keyboard") || lowerTitle.includes("mouse") || lowerTitle.includes("cable") || lowerTitle.includes("adapter") || lowerTitle.includes("hub")) {
+            result.suggested_price_min = 4;
+            result.suggested_price_max = 8;
+            result.suggested_price_median = 6;
+            if (result.sales_velocity) {
+              result.sales_velocity.sell_speed = "SLOW_BURNER";
+              result.sales_velocity.est_days_to_sell = "Zero Arbitrage / E-Waste";
+              result.sales_velocity.demand_score = 10;
             }
-          } catch {
-            // If storage upload fails, preserve firstImg directly
           }
         }
 
-        console.log('[Spadas Lens] Inserting scan record:', {
-          userId: user.id,
-          imageUrl: finalImageUrl.startsWith("data:") ? `data:image/jpeg;base64,...(${finalImageUrl.length} bytes)` : finalImageUrl,
-          tokenCount: 2600,
-          status: "completed"
+        // Mass-Market Ceramic Coffee Mugs (prevent $20 hallucinated comps on fragile novelty cups)
+        const isNoveltyMug = (lowerTitle.includes("mug") || lowerTitle.includes("coffee cup")) &&
+          !lowerTitle.includes("vintage 198") && !lowerTitle.includes("vintage 197") && !lowerTitle.includes("starbucks been there") && !lowerTitle.includes("fire-king") && !lowerTitle.includes("pyrex");
+        if (isNoveltyMug) {
+          result.suggested_price_min = 5;
+          result.suggested_price_max = 10;
+          result.suggested_price_median = 8;
+          if (result.sales_velocity) {
+            result.sales_velocity.sell_speed = "SLOW_BURNER";
+            result.sales_velocity.est_days_to_sell = "Fragile Packaging / Thin Margin";
+            result.sales_velocity.demand_score = 25;
+          }
+        }
+
+        // Single Disposable Lighter Sanity Guard (prevent multi-pack eBay listings from overvaluing a single $2 lighter)
+        if (
+          lowerTitle.includes("lighter") &&
+          !lowerTitle.includes("zippo") &&
+          !lowerTitle.includes("dupont") &&
+          !lowerTitle.includes("dunhill") &&
+          !lowerTitle.includes("vintage") &&
+          !lowerTitle.includes("gold") &&
+          !lowerTitle.includes("silver") &&
+          !lowerTitle.includes("antique")
+        ) {
+          if (
+            lowerTitle.includes("bic") ||
+            lowerTitle.includes("cricket") ||
+            lowerTitle.includes("disposable") ||
+            lowerTitle.includes("clipper") ||
+            lowerTitle.includes("flint lighter")
+          ) {
+            result.suggested_price_min = 1;
+            result.suggested_price_max = 3;
+            result.suggested_price_median = 2;
+            if (result.sales_velocity) {
+              result.sales_velocity.sell_speed = "SLOW_BURNER";
+              result.sales_velocity.est_days_to_sell = "Low Flip Margin";
+              result.sales_velocity.demand_score = 30;
+            }
+          }
+        }
+
+        // Luxury Designer Leather Goods Sanity Floor & Market Grounding (Prada, LV, Gucci, Chanel, etc.)
+        const isLuxuryBrand =
+          lowerTitle.includes("prada") ||
+          lowerTitle.includes("louis vuitton") ||
+          lowerTitle.includes("gucci") ||
+          lowerTitle.includes("chanel") ||
+          lowerTitle.includes("dior") ||
+          lowerTitle.includes("bottega") ||
+          lowerTitle.includes("saint laurent") ||
+          lowerTitle.includes("ysl") ||
+          lowerTitle.includes("hermes") ||
+          lowerTitle.includes("celine") ||
+          lowerTitle.includes("goyard") ||
+          lowerTitle.includes("balenciaga") ||
+          lowerTitle.includes("burberry") ||
+          lowerTitle.includes("loewe");
+
+        if (isLuxuryBrand) {
+          const isWalletOrSLG =
+            lowerTitle.includes("wallet") ||
+            lowerTitle.includes("purse") ||
+            lowerTitle.includes("cardholder") ||
+            lowerTitle.includes("card case") ||
+            lowerTitle.includes("bifold") ||
+            lowerTitle.includes("trifold") ||
+            lowerTitle.includes("saffiano") ||
+            lowerTitle.includes("coin pouch");
+
+          const isBag =
+            lowerTitle.includes("bag") ||
+            lowerTitle.includes("tote") ||
+            lowerTitle.includes("crossbody") ||
+            lowerTitle.includes("handbag") ||
+            lowerTitle.includes("backpack");
+
+          if (isWalletOrSLG) {
+            // Designer small leather goods should never be appraised at $35
+            if (!result.suggested_price_median || result.suggested_price_median < 120) {
+              result.suggested_price_median = 260;
+              result.suggested_price_min = 180;
+              result.suggested_price_max = 380;
+            }
+          } else if (isBag) {
+            if (!result.suggested_price_median || result.suggested_price_median < 250) {
+              result.suggested_price_median = 550;
+              result.suggested_price_min = 350;
+              result.suggested_price_max = 950;
+            }
+          }
+        }
+
+        // Single Standard Pen / Pencil Sanity Guard (prevent bulk box pricing)
+        if (
+          (lowerTitle.includes("pen") || lowerTitle.includes("pencil") || lowerTitle.includes("marker") || lowerTitle.includes("biro")) &&
+          !lowerTitle.includes("montblanc") &&
+          !lowerTitle.includes("parker") &&
+          !lowerTitle.includes("cross") &&
+          !lowerTitle.includes("fountain") &&
+          !lowerTitle.includes("vintage") &&
+          !lowerTitle.includes("pack") &&
+          !lowerTitle.includes("box") &&
+          !lowerTitle.includes("set")
+        ) {
+          if (lowerTitle.includes("bic") || lowerTitle.includes("papermate") || lowerTitle.includes("sharpie") || lowerTitle.includes("ballpoint")) {
+            result.suggested_price_min = 1;
+            result.suggested_price_max = 3;
+            result.suggested_price_median = 2;
+            if (result.sales_velocity) {
+              result.sales_velocity.sell_speed = "SLOW_BURNER";
+              result.sales_velocity.est_days_to_sell = "Low Flip Margin";
+            }
+          }
+        }
+      }
+
+      // Clean up brand and title from junk punctuation (e.g. "/", ".", "-") across analysis and detected_objects
+      const isJunkTitle = (title?: string | null) => {
+        if (!title) return true;
+        const trimmed = title.trim();
+        return /^[.\/_\-–—:;,#@!$%^&*()+=~`\s]+$/.test(trimmed) || trimmed.length < 3 || trimmed.replace(/[^a-zA-Z0-9]/g, "").length < 2;
+      };
+
+      if (result.analysis) {
+        const rawPName = (result.analysis.product_name || "").trim();
+        if (isJunkTitle(rawPName)) {
+          result.analysis.product_name = "NO_CENTER_ITEM";
+        }
+
+        const rawBrand = (result.analysis.brand || "").trim();
+        if (/^[.\/_\-–—:;,\s]+$/.test(rawBrand) || rawBrand.length < 2) {
+          result.analysis.brand = null;
+        }
+      }
+
+      if (result.detected_objects && Array.isArray(result.detected_objects)) {
+        result.detected_objects = result.detected_objects.filter((obj) => !isJunkTitle(obj.product_name));
+      }
+
+      // THRIFT STORE PRICE TAG OCR & INSTANT NET PROFIT / ROI COP VERDICT
+      const pCategory = result.analysis?.category || "General";
+      const pName = result.analysis?.product_name || "";
+      const pBrand = result.analysis?.brand || "";
+      const shippingCost = estimateCategoryShippingCost(pCategory, pName);
+
+      // Deep Visual Condition Grading Modifier:
+      // Mint (+15%), Good (1.0x baseline), Fair (0.75x, -25%), For Parts (0.35x, -65%)
+      const rawGrade = (result.analysis?.condition_grade || result.condition_grade || "Good") as "Mint" | "Good" | "Fair" | "For Parts";
+      let conditionModifier = 1.0;
+      if (rawGrade === "Mint") {
+        conditionModifier = 1.15;
+      } else if (rawGrade === "Good") {
+        conditionModifier = 1.0;
+      } else if (rawGrade === "Fair") {
+        conditionModifier = 0.75;
+      } else if (rawGrade === "For Parts") {
+        conditionModifier = 0.35;
+      }
+
+      result.condition_grade = rawGrade;
+      result.condition_modifier = conditionModifier;
+      if (result.analysis) {
+        result.analysis.condition_grade = rawGrade;
+        result.analysis.condition_modifier = conditionModifier;
+      }
+
+      const baselineSellPrice = Number(result.suggested_price_median) || 45;
+      const sellPrice = Math.max(1, Math.round(baselineSellPrice * conditionModifier * 100) / 100);
+      result.suggested_price_median = sellPrice;
+      if (result.suggested_price_min) {
+        result.suggested_price_min = Math.max(1, Math.round(result.suggested_price_min * conditionModifier * 100) / 100);
+      }
+      if (result.suggested_price_max) {
+        result.suggested_price_max = Math.max(1, Math.round(result.suggested_price_max * conditionModifier * 100) / 100);
+      }
+
+      const tagPrice = Number(result.detected_tag_price) || (result.analysis?.product_name && result.analysis.product_name !== "NO_CENTER_ITEM" ? Math.max(3, Math.round(sellPrice * 0.15)) : null);
+
+      if (tagPrice && sellPrice > 0) {
+        const copEstimate = calculateThriftCopVerdict({
+          resalePrice: sellPrice,
+          customCost: tagPrice,
+          category: pCategory,
+          productName: pName,
+          brand: pBrand,
+          shippingCost,
+          confidenceScore: result.analysis?.confidence_score,
+          variantAudit: result.analysis?.variant_audit || result.variant_audit,
+          needsVerification: Boolean(result.retake_recommended?.required),
         });
 
-        await dbClient.from("scans").insert([
-          {
-            user_id: user.id,
-            image_url: finalImageUrl,
-            result_json: result,
-            token_count: 2600,
-            status: "completed",
-          },
-        ]);
-      } catch (dbErr) {
-        console.error('[Spadas Lens] Error inserting scan record:', dbErr);
+        result.detected_tag_price = tagPrice;
+        result.true_net_profit = copEstimate.netProfit;
+        result.roi_percentage = copEstimate.roiPercentage;
+        result.cop_verdict = copEstimate.copVerdict;
+        result.requires_secondary_verification = copEstimate.requiresSecondaryVerification;
+        result.verification_reason = copEstimate.verificationReason;
+        result.fallback_protocol = copEstimate.fallbackProtocol;
+
+        if (result.detected_objects && result.detected_objects.length > 0) {
+          result.detected_objects[0].detected_tag_price = tagPrice;
+          result.detected_objects[0].true_net_profit = copEstimate.netProfit;
+          result.detected_objects[0].roi_percentage = copEstimate.roiPercentage;
+          result.detected_objects[0].cop_verdict = copEstimate.copVerdict;
+        }
       }
-    }
-  };
+
+      // Persist scan history to public.scans table (skip empty sentinel / junk scans)
+      const rawTitle = result.analysis?.product_name || (result as any).product_name || "";
+      const isSentinelScan =
+        !result ||
+        rawTitle === "NO_CENTER_ITEM" ||
+        rawTitle.length < 3 ||
+        /^[.\/_\-–—:;,\s]+$/.test(rawTitle) ||
+        (result as any).category === "NO_CENTER_ITEM" ||
+        result.analysis?.category === "NO_CENTER_ITEM";
+
+      // Save to Global Reseller Product Cache for sub-30ms instant repeated recognition
+      if (result && result.status === "identified" && rawTitle && !isSentinelScan) {
+        void saveProductToCache(rawTitle, result);
+      }
+
+      if (user && !isSentinelScan) {
+        try {
+          const firstImg = imageUrls[0] || "";
+          let finalImageUrl = firstImg;
+
+          const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+          const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+          const dbClient =
+            supabaseUrl && serviceRoleKey
+              ? (await import("@supabase/supabase-js")).createClient(supabaseUrl, serviceRoleKey, {
+                auth: { persistSession: false, autoRefreshToken: false },
+              })
+              : supabase;
+
+          // If base64, attempt uploading to Supabase Storage 'listing-images' bucket for permanent hosting
+          if (firstImg.startsWith("data:")) {
+            try {
+              const matches = firstImg.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+              if (matches && matches.length === 3) {
+                const mimeType = matches[1];
+                const base64Data = matches[2];
+                const buffer = Buffer.from(base64Data, "base64");
+                const ext = mimeType.split("/")[1] || "jpeg";
+                const filename = `scans/${user.id}-${Date.now()}.${ext}`;
+
+                const { data: uploadData, error: uploadErr } = await dbClient.storage
+                  .from("listing-images")
+                  .upload(filename, buffer, {
+                    contentType: mimeType,
+                    upsert: true,
+                  });
+
+                if (!uploadErr && uploadData) {
+                  const { data: publicUrlData } = dbClient.storage
+                    .from("listing-images")
+                    .getPublicUrl(filename);
+                  if (publicUrlData?.publicUrl) {
+                    finalImageUrl = publicUrlData.publicUrl;
+                  }
+                }
+              }
+            } catch {
+              // If storage upload fails, preserve firstImg directly
+            }
+          }
+
+          console.log('[Spadas Lens] Inserting scan record:', {
+            userId: user.id,
+            imageUrl: finalImageUrl.startsWith("data:") ? `data:image/jpeg;base64,...(${finalImageUrl.length} bytes)` : finalImageUrl,
+            tokenCount: 2600,
+            status: "completed"
+          });
+
+          await dbClient.from("scans").insert([
+            {
+              user_id: user.id,
+              image_url: finalImageUrl,
+              result_json: result,
+              token_count: 2600,
+              status: "completed",
+            },
+          ]);
+        } catch (dbErr) {
+          console.error('[Spadas Lens] Error inserting scan record:', dbErr);
+        }
+      }
+    };
 
     if (isStreamRequested) {
       const encoder = new TextEncoder();
@@ -1386,11 +1386,11 @@ RULES:
             console.error("[ai-listing] Streaming error:", streamErr);
             try {
               controller.enqueue(encoder.encode(JSON.stringify({ event: "complete", data: result }) + "\n"));
-            } catch {}
+            } catch { }
           } finally {
             try {
               controller.close();
-            } catch {}
+            } catch { }
             if (userIdentifier) {
               const currentLimiter = userRateLimitMap.get(userIdentifier);
               if (currentLimiter) {

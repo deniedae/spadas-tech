@@ -240,7 +240,7 @@ function SpadasLensCameraCore({
     if (activeAbortControllerRef.current) {
       try {
         activeAbortControllerRef.current.abort();
-      } catch {}
+      } catch { }
       activeAbortControllerRef.current = null;
     }
 
@@ -285,7 +285,7 @@ function SpadasLensCameraCore({
       if (activeAbortControllerRef.current) {
         try {
           activeAbortControllerRef.current.abort();
-        } catch {}
+        } catch { }
         activeAbortControllerRef.current = null;
       }
     };
@@ -309,7 +309,7 @@ function SpadasLensCameraCore({
       try {
         const raw = localStorage.getItem("spadas_saved_hit_ids");
         if (raw) return new Set(JSON.parse(raw));
-      } catch {}
+      } catch { }
     }
     return new Set();
   });
@@ -515,7 +515,7 @@ function SpadasLensCameraCore({
     if (wakeLockRef.current) {
       try {
         wakeLockRef.current.release();
-      } catch {}
+      } catch { }
       wakeLockRef.current = null;
     }
   }, []);
@@ -579,7 +579,7 @@ function SpadasLensCameraCore({
           setIsPaywallOpen(false);
         }
       }
-    } catch {}
+    } catch { }
 
     if (!isAuthed && isGuestUser && sessionScanCount >= MAX_GUEST_SCANS) {
       setIsScanPaused(true);
@@ -599,7 +599,7 @@ function SpadasLensCameraCore({
     flushScanState();
 
     if (videoRef.current && videoRef.current.paused) {
-      videoRef.current.play().catch(() => {});
+      videoRef.current.play().catch(() => { });
     }
   }, [isPro, isLimitReached, isGuestUser, isOwner, sessionScanCount, flushScanState]);
 
@@ -620,7 +620,7 @@ function SpadasLensCameraCore({
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
         if (videoRef.current && videoRef.current.paused) {
-          videoRef.current.play().catch(() => {});
+          videoRef.current.play().catch(() => { });
         }
         const isTrackEnded = stream?.getVideoTracks().some((t) => t.readyState === "ended" || !t.enabled);
         if (!stream || isTrackEnded) {
@@ -781,7 +781,7 @@ function SpadasLensCameraCore({
         try {
           const baselineIntel = generateTacticalIntel(hit, selectedCurrency);
           setActiveIntelData(baselineIntel);
-        } catch {}
+        } catch { }
       }
     },
     [soundEnabled, playChime, minProfitThreshold, isIntelModeActive, selectedCurrency]
@@ -802,7 +802,7 @@ function SpadasLensCameraCore({
       try {
         const baseline = generateTacticalIntel(target, selectedCurrency);
         setActiveIntelData((prev) => prev || baseline);
-      } catch {}
+      } catch { }
 
       // Fire secondary marketplace & off-market intelligence pipeline strictly on-demand
       setIsIntelAnalyzing(true);
@@ -837,7 +837,7 @@ function SpadasLensCameraCore({
   const handleDismissCard = useCallback((onComplete?: () => void) => {
     setIsCardExiting(true);
     if (videoRef.current && videoRef.current.paused) {
-      videoRef.current.play().catch(() => {});
+      videoRef.current.play().catch(() => { });
     }
     setTimeout(() => {
       setActiveValuationHit(null);
@@ -908,10 +908,10 @@ function SpadasLensCameraCore({
               estProfit < 3
                 ? "PASS_RISKY"
                 : estRoi >= 300 && estProfit >= 25
-                ? "MUST_COP"
-                : estRoi >= 100
-                ? "QUICK_FLIP"
-                : "FAIR_MARGIN";
+                  ? "MUST_COP"
+                  : estRoi >= 100
+                    ? "QUICK_FLIP"
+                    : "FAIR_MARGIN";
 
             const productImg = bData.product.image || snapshotUrl || null;
 
@@ -1075,7 +1075,7 @@ function SpadasLensCameraCore({
         if (typeof window !== "undefined") {
           try {
             localStorage.setItem("spadas_saved_hit_ids", JSON.stringify(Array.from(next)));
-          } catch {}
+          } catch { }
         }
         return next;
       });
@@ -1199,7 +1199,7 @@ function SpadasLensCameraCore({
         } else {
           setIsGuestUser(true);
         }
-      } catch {}
+      } catch { }
     }
     void checkOwnerAndProStatus();
   }, []);
@@ -1230,7 +1230,7 @@ function SpadasLensCameraCore({
           setCapturedLog(parsed);
         }
       }
-    } catch {}
+    } catch { }
 
     // Auto-Start Camera Stream on Mount
     void startCamera();
@@ -1247,7 +1247,7 @@ function SpadasLensCameraCore({
     if (typeof window !== "undefined") {
       try {
         localStorage.setItem("spadas_cached_lens_hits", JSON.stringify(capturedLog));
-      } catch {}
+      } catch { }
     }
   }, [capturedLog]);
 
@@ -1447,7 +1447,7 @@ function SpadasLensCameraCore({
         queue.push(scanRecord);
         localStorage.setItem("spadas_pending_scans_queue", JSON.stringify(queue.slice(-50)));
         setPendingSyncCount(queue.length);
-      } catch {}
+      } catch { }
 
       // 4. Attempt immediate background sync if online
       if (typeof navigator !== "undefined" && navigator.onLine) {
@@ -1464,7 +1464,7 @@ function SpadasLensCameraCore({
         const parsedQ = JSON.parse(q);
         if (Array.isArray(parsedQ)) setPendingSyncCount(parsedQ.length);
       }
-    } catch {}
+    } catch { }
     void flushPendingSyncQueue();
 
     const handleOnline = () => {
@@ -1548,7 +1548,7 @@ function SpadasLensCameraCore({
 
     if (voiceListening) {
       if (recognitionRef.current) {
-        try { recognitionRef.current.stop(); } catch {}
+        try { recognitionRef.current.stop(); } catch { }
       }
       setVoiceListening(false);
       toast.info("Voice Assistant paused.");
@@ -1592,7 +1592,7 @@ function SpadasLensCameraCore({
 
       recognition.onend = () => {
         if (voiceListeningRef.current && recognitionRef.current) {
-          try { recognition.start(); } catch {}
+          try { recognition.start(); } catch { }
         }
       };
 
@@ -1779,11 +1779,11 @@ function SpadasLensCameraCore({
     if (videoRef.current && stream) {
       const video = videoRef.current;
       video.srcObject = stream;
-      video.play().catch(() => {});
+      video.play().catch(() => { });
 
       const watchdog = setTimeout(() => {
         if (video && (video.paused || video.readyState < 2)) {
-          video.play().catch(() => {});
+          video.play().catch(() => { });
         }
       }, 500);
 
@@ -1823,7 +1823,7 @@ function SpadasLensCameraCore({
       setStream(mediaStream);
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
-        void videoRef.current.play().catch(() => {});
+        void videoRef.current.play().catch(() => { });
       }
       setIsCameraPoweredOn(true);
       setScanning(true);
@@ -1860,7 +1860,7 @@ function SpadasLensCameraCore({
           track.stop();
           track.enabled = false;
         });
-      } catch {}
+      } catch { }
       streamRef.current = null;
     }
     // 2. Kill videoRef srcObject
@@ -1870,7 +1870,7 @@ function SpadasLensCameraCore({
           t.stop();
           t.enabled = false;
         });
-      } catch {}
+      } catch { }
       videoRef.current.srcObject = null;
     }
     // 3. Clear stream state & camera power
@@ -1923,7 +1923,7 @@ function SpadasLensCameraCore({
       try {
         playScanBeep();
         triggerScanHaptic();
-      } catch {}
+      } catch { }
 
       // 2. Viewfinder optical shutter flash (0ms response)
       setQuickSnapFlash(true);
@@ -2189,7 +2189,7 @@ function SpadasLensCameraCore({
               lastBarcodeTimeRef.current = nowTime;
 
               console.log("[Spadas Lens] Single Barcode Lock-on:", codeVal);
-              
+
               // Direct sub-100ms Barcode Comps Resolver
               const bRes = await fetch("/api/barcode", {
                 method: "POST",
@@ -2214,10 +2214,10 @@ function SpadasLensCameraCore({
                     estProfit < 3
                       ? "PASS_RISKY"
                       : estRoi >= 300 && estProfit >= 25
-                      ? "MUST_COP"
-                      : estRoi >= 100
-                      ? "QUICK_FLIP"
-                      : "FAIR_MARGIN";
+                        ? "MUST_COP"
+                        : estRoi >= 100
+                          ? "QUICK_FLIP"
+                          : "FAIR_MARGIN";
 
                   // Capture frame snapshot for preview
                   const snapshotUrl = instantSnapshotUrl || null;
@@ -2572,7 +2572,7 @@ function SpadasLensCameraCore({
 
             while (!isStreamFinished) {
               if (abortController.signal.aborted || cycleId !== activeCycleIdRef.current) {
-                try { void reader.cancel(); } catch {}
+                try { void reader.cancel(); } catch { }
                 return;
               }
 
@@ -2580,7 +2580,7 @@ function SpadasLensCameraCore({
               if (done) break;
 
               if (abortController.signal.aborted || cycleId !== activeCycleIdRef.current) {
-                try { void reader.cancel(); } catch {}
+                try { void reader.cancel(); } catch { }
                 return;
               }
 
@@ -2590,7 +2590,7 @@ function SpadasLensCameraCore({
 
               for (const line of lines) {
                 if (abortController.signal.aborted || cycleId !== activeCycleIdRef.current) {
-                  try { void reader.cancel(); } catch {}
+                  try { void reader.cancel(); } catch { }
                   return;
                 }
 
@@ -2783,13 +2783,13 @@ function SpadasLensCameraCore({
                 } else if (!chunk.event) {
                   data = chunk;
                 }
-              } catch {}
+              } catch { }
             }
 
             // Immediately cancel reader to free HTTP connection without waiting for keepalive timeout
             try {
               void reader.cancel();
-            } catch {}
+            } catch { }
           } catch (streamErr: any) {
             if (streamErr?.name === "AbortError" || abortController.signal.aborted || cycleId !== activeCycleIdRef.current) {
               return;
@@ -2935,13 +2935,13 @@ function SpadasLensCameraCore({
           setCapturedLog((prev) => [cachedHitWithBadge, ...prev.filter((h) => h.name !== cachedHit.name)].slice(0, 50));
           setSessionScanCount((prev) => prev + 1);
           triggerActiveValuationHit(cachedHitWithBadge, frozenFrameUrl);
-          
+
           toast.info("Using last check", {
             id: "timeout-cached-hit",
             description: "Loaded previous valuation data",
             duration: 3000,
           });
-          
+
           setAnalyzingRealFrame(false);
           return;
         }
@@ -3029,7 +3029,7 @@ function SpadasLensCameraCore({
             try {
               const blob = dataUriToBlob(frozenFrameUrl);
               void savePhotoBlob(offlineRapidItem.photoId, blob);
-            } catch {}
+            } catch { }
           }
 
           if (scanExpiryTimerRef.current) {
@@ -3120,16 +3120,16 @@ function SpadasLensCameraCore({
         rawDetected && Array.isArray(rawDetected) && rawDetected.length > 0
           ? rawDetected
           : [
-              {
-                id: `obj-${Date.now()}`,
-                product_name: pName,
-                brand: cleanBrandText(data?.analysis?.brand || data?.brand, "Unbranded"),
-                category: cleanCategoryText(data?.analysis?.category || data?.category, "General"),
-                condition: cleanConditionText(data?.analysis?.condition || data?.condition, "Used - Good"),
-                bbox: { x: 20, y: 15, width: 60, height: 70 },
-                confidence_score: data?.analysis?.confidence_score || 0.95,
-              },
-            ];
+            {
+              id: `obj-${Date.now()}`,
+              product_name: pName,
+              brand: cleanBrandText(data?.analysis?.brand || data?.brand, "Unbranded"),
+              category: cleanCategoryText(data?.analysis?.category || data?.category, "General"),
+              condition: cleanConditionText(data?.analysis?.condition || data?.condition, "Used - Good"),
+              bbox: { x: 20, y: 15, width: 60, height: 70 },
+              confidence_score: data?.analysis?.confidence_score || 0.95,
+            },
+          ];
 
       // Instant Bounding Boxes & Hard-Kill Filtering
       const now = Date.now();
@@ -3262,8 +3262,8 @@ function SpadasLensCameraCore({
                     bbox: obj.bbox,
                   },
                 }),
-              }).catch(() => {});
-            } catch {}
+              }).catch(() => { });
+            } catch { }
           }
 
           if (scanExpiryTimerRef.current) {
@@ -3366,20 +3366,20 @@ function SpadasLensCameraCore({
             })(),
             futureGrail: data?.future_grail || (
               obj.productName.toLowerCase().includes("camera") ||
-              obj.productName.toLowerCase().includes("cyber-shot") ||
-              obj.productName.toLowerCase().includes("powershot") ||
-              obj.productName.toLowerCase().includes("y2k") ||
-              obj.productName.toLowerCase().includes("vintage")
+                obj.productName.toLowerCase().includes("cyber-shot") ||
+                obj.productName.toLowerCase().includes("powershot") ||
+                obj.productName.toLowerCase().includes("y2k") ||
+                obj.productName.toLowerCase().includes("vintage")
                 ? {
-                    is_future_grail: true,
-                    trend_source: "TikTok #digicam Viral",
-                    viral_score: 94,
-                    current_price: baseVal,
-                    projected_peak_price: Math.round(baseVal * 1.75 * 100) / 100,
-                    projected_roi_gain: "+75% in 30 Days",
-                    holding_recommendation: "BUY & HOLD 30 DAYS",
-                    value_curve: [baseVal, Math.round(baseVal * 1.15), Math.round(baseVal * 1.4), Math.round(baseVal * 1.6), Math.round(baseVal * 1.75)],
-                  }
+                  is_future_grail: true,
+                  trend_source: "TikTok #digicam Viral",
+                  viral_score: 94,
+                  current_price: baseVal,
+                  projected_peak_price: Math.round(baseVal * 1.75 * 100) / 100,
+                  projected_roi_gain: "+75% in 30 Days",
+                  holding_recommendation: "BUY & HOLD 30 DAYS",
+                  value_curve: [baseVal, Math.round(baseVal * 1.15), Math.round(baseVal * 1.4), Math.round(baseVal * 1.6), Math.round(baseVal * 1.75)],
+                }
                 : undefined
             ),
             image: snapshotImage || frozenFrameUrl || (obj as any).image || undefined,
@@ -3415,10 +3415,10 @@ function SpadasLensCameraCore({
               verifiedHit.copVerdict === "MUST_COP"
                 ? "MUST_COP"
                 : verifiedHit.copVerdict === "VERIFY_FIRST"
-                ? "VERIFY_FIRST"
-                : verifiedHit.copVerdict === "PASS_RISKY"
-                ? "PASS_RISKY"
-                : "QUICK_FLIP",
+                  ? "VERIFY_FIRST"
+                  : verifiedHit.copVerdict === "PASS_RISKY"
+                    ? "PASS_RISKY"
+                    : "QUICK_FLIP",
             isGrail: Boolean(verifiedHit.isGrail),
             thumbnailUrl: typeof snapImg === "string" ? snapImg : undefined,
             image: typeof snapImg === "string" ? snapImg : undefined,
@@ -3607,24 +3607,24 @@ function SpadasLensCameraCore({
             prev.map((i) =>
               i.id === task.item.id
                 ? {
-                    ...i,
-                    status: "completed",
-                    productName: data.product_name || "Thrift Item",
-                    brand: cleanBrandText(data.brand, "Unbranded"),
-                    category: cleanCategoryText(data.category, "General"),
-                    condition: cleanConditionText(data.condition, "Used - Good"),
-                    estimatedValue: Number(data.estimated_value) || 20,
-                    thriftCost: Number(data.thrift_cost) || 3,
-                    trueNetProfit: profit,
-                    roiPercentage: Number(data.roi_percentage) || 0,
-                    copVerdict: data.cop_verdict || (profit >= 50 ? "MUST_COP" : "QUICK_FLIP"),
-                    isGrail: profit >= 50 || Boolean(data.is_grail),
-                    needsVerification: isHighRisk,
-                    notes: data.notes,
-                    thumbnailUrl: base64Data,
-                    image: base64Data,
-                    imageUrl: base64Data,
-                  }
+                  ...i,
+                  status: "completed",
+                  productName: data.product_name || "Thrift Item",
+                  brand: cleanBrandText(data.brand, "Unbranded"),
+                  category: cleanCategoryText(data.category, "General"),
+                  condition: cleanConditionText(data.condition, "Used - Good"),
+                  estimatedValue: Number(data.estimated_value) || 20,
+                  thriftCost: Number(data.thrift_cost) || 3,
+                  trueNetProfit: profit,
+                  roiPercentage: Number(data.roi_percentage) || 0,
+                  copVerdict: data.cop_verdict || (profit >= 50 ? "MUST_COP" : "QUICK_FLIP"),
+                  isGrail: profit >= 50 || Boolean(data.is_grail),
+                  needsVerification: isHighRisk,
+                  notes: data.notes,
+                  thumbnailUrl: base64Data,
+                  image: base64Data,
+                  imageUrl: base64Data,
+                }
                 : i
             )
           );
@@ -3844,1173 +3844,1160 @@ function SpadasLensCameraCore({
         className="relative w-full h-[55vh] min-h-[380px] max-h-[620px] sm:h-auto sm:min-h-[50svh] sm:aspect-[16/9] max-w-full box-border overflow-hidden rounded-none sm:rounded-3xl border-0 sm:border sm:border-cyan-500/30 bg-slate-950 sm:shadow-[0_0_50px_rgba(6,182,212,0.15)] cursor-pointer"
       >
         <CameraViewportErrorBoundary onRestart={startCamera}>
-        {!isCameraPoweredOn ? (
-          /* Camera Standby / Hardware Released View (Only engaged when explicitly powered off by user) */
-          <div className="relative flex h-full w-full flex-col items-center justify-center p-6 text-center space-y-4 text-white bg-slate-950/95">
-            {/* Standby Top HUD Bar with Safe-Area Inset */}
-            <div className="absolute top-[max(0.875rem,calc(env(safe-area-inset-top,0px)+0.75rem))] left-[max(0.875rem,env(safe-area-inset-left,0px))] right-[max(0.875rem,env(safe-area-inset-right,0px))] z-30 flex items-center justify-between pointer-events-auto">
-              <div className="inline-flex items-center gap-1.5 rounded-full bg-slate-900 border border-slate-700 px-3 py-1 text-[11px] font-bold text-slate-400 shadow-md">
-                <span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
-                <span>Camera Standby • Hardware Released</span>
+          {!isCameraPoweredOn ? (
+            /* Camera Standby / Hardware Released View (Only engaged when explicitly powered off by user) */
+            <div className="relative flex h-full w-full flex-col items-center justify-center p-6 text-center space-y-4 text-white bg-slate-950/95">
+              {/* Standby Top HUD Bar with Safe-Area Inset */}
+              <div className="absolute top-[max(0.875rem,calc(env(safe-area-inset-top,0px)+0.75rem))] left-[max(0.875rem,env(safe-area-inset-left,0px))] right-[max(0.875rem,env(safe-area-inset-right,0px))] z-30 flex items-center justify-between pointer-events-auto">
+                <div className="inline-flex items-center gap-1.5 rounded-full bg-slate-900 border border-slate-700 px-3 py-1 text-[11px] font-bold text-slate-400 shadow-md">
+                  <span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
+                  <span>Camera Standby • Hardware Released</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleToggleCameraPower();
+                  }}
+                  className="h-8 px-3 rounded-full border border-emerald-500/40 bg-emerald-500/20 text-emerald-300 text-[11px] font-black flex items-center gap-1.5 hover:bg-emerald-500/30 transition shadow-lg cursor-pointer"
+                  title="Power On Camera"
+                >
+                  <Power className="h-3.5 w-3.5 text-emerald-400" />
+                  <span>Power ON</span>
+                </button>
+              </div>
+
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-900 border border-slate-700 text-slate-400 shadow-[0_0_30px_rgba(0,0,0,0.5)]">
+                <Power className="h-8 w-8 text-slate-400" />
+              </div>
+              <div className="space-y-1.5 max-w-sm">
+                <h3 className="text-xl font-black text-white">Camera Standby (Hardware Released)</h3>
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  Camera hardware is released to conserve device battery and eliminate conflicts when switching to Spadas Studio.
+                </p>
               </div>
               <button
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  handleToggleCameraPower();
+                  setIsCameraPoweredOn(true);
+                  void startCamera();
                 }}
-                className="h-8 px-3 rounded-full border border-emerald-500/40 bg-emerald-500/20 text-emerald-300 text-[11px] font-black flex items-center gap-1.5 hover:bg-emerald-500/30 transition shadow-lg cursor-pointer"
-                title="Power On Camera"
+                className="inline-flex h-12 items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 px-8 text-sm font-black text-slate-950 shadow-xl hover:brightness-110 active:scale-95 transition cursor-pointer"
               >
-                <Power className="h-3.5 w-3.5 text-emerald-400" />
-                <span>Power ON</span>
+                <Power className="h-4 w-4" /> Power On Camera
               </button>
             </div>
-
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-900 border border-slate-700 text-slate-400 shadow-[0_0_30px_rgba(0,0,0,0.5)]">
-              <Power className="h-8 w-8 text-slate-400" />
-            </div>
-            <div className="space-y-1.5 max-w-sm">
-              <h3 className="text-xl font-black text-white">Camera Standby (Hardware Released)</h3>
-              <p className="text-xs text-slate-300 leading-relaxed">
-                Camera hardware is released to conserve device battery and eliminate conflicts when switching to Spadas Studio.
+          ) : deepVerifyItem ? (
+            <div className="flex h-full w-full flex-col items-center justify-center p-6 text-center space-y-3 text-slate-300 bg-slate-950">
+              <ShieldCheck className="h-12 w-12 text-purple-400 animate-pulse" />
+              <h4 className="text-sm font-black text-white">Camera Handed Off to Forensic Audit</h4>
+              <p className="text-xs text-slate-400 max-w-xs">
+                Background camera paused to give Deep Verify exclusive hardware access.
               </p>
             </div>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsCameraPoweredOn(true);
-                void startCamera();
-              }}
-              className="inline-flex h-12 items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 px-8 text-sm font-black text-slate-950 shadow-xl hover:brightness-110 active:scale-95 transition cursor-pointer"
-            >
-              <Power className="h-4 w-4" /> Power On Camera
-            </button>
-          </div>
-        ) : deepVerifyItem ? (
-          <div className="flex h-full w-full flex-col items-center justify-center p-6 text-center space-y-3 text-slate-300 bg-slate-950">
-            <ShieldCheck className="h-12 w-12 text-purple-400 animate-pulse" />
-            <h4 className="text-sm font-black text-white">Camera Handed Off to Forensic Audit</h4>
-            <p className="text-xs text-slate-400 max-w-xs">
-              Background camera paused to give Deep Verify exclusive hardware access.
-            </p>
-          </div>
-        ) : cameraError ? (
-          <div className="flex h-full flex-col items-center justify-center p-6 text-center space-y-3 text-slate-300">
-            <ShieldAlert className="h-12 w-12 text-zinc-400" />
-            <p className="text-sm font-semibold">{cameraError}</p>
-            <button
-              type="button"
-              onClick={startCamera}
-              className="inline-flex h-10 items-center gap-2 rounded-xl bg-cyan-600 px-5 text-xs font-bold text-white shadow-md hover:bg-cyan-500 transition cursor-pointer"
-            >
-              <RefreshCw className="h-4 w-4" /> Retry Camera Access
-            </button>
-          </div>
-        ) : (
-          <>
-            {/* Raw Camera Video Stream running smooth at 60fps */}
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              muted
-              className="h-full w-full object-cover"
-            />
-            {/* Connecting optical sensor placeholder if stream is currently binding */}
-            {!stream && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/80 text-slate-400 space-y-2 pointer-events-none">
-                <RefreshCw className="h-6 w-6 text-cyan-400 animate-spin" />
-                <span className="text-xs font-mono tracking-wider text-slate-400">CONNECTING OPTICAL SENSOR...</span>
-              </div>
-            )}
-
-            {/* Quick Snap Viewfinder Shutter Flash (0ms visual feedback) */}
-            {quickSnapFlash && (
-              <div className="absolute inset-0 z-40 bg-white/50 pointer-events-none select-none transition-opacity animate-out fade-out duration-150" />
-            )}
-
-            {/* Continuous Visual Anchor: Captured item snapshot remains continuously visible beneath progressive loader, handoff, and valuation steps with ZERO black flashes */}
-            {frozenFrameUrl && (analyzingRealFrame || isLoaderTransitioning || activeValuationHit || isScanPaused) && (
-              <div className="absolute inset-0 z-10 pointer-events-none select-none lens-crossfade">
-                <img
-                  src={frozenFrameUrl}
-                  alt="Captured Scanned Frame"
-                  className="object-cover w-full h-full"
-                />
-              </div>
-            )}
-
-            {/* Instant Target Lock & Scan Completion Feedback (Perimeter Laser Ring - Never blocks center) */}
-            {scanCompletePulse && (
-              <div className="absolute inset-0 z-30 pointer-events-none select-none lens-ring-pulse rounded-[inherit]" />
-            )}
-
-            {/* Top HUD Bar: Dynamic Confidence Indicator, Credit Badge & Camera Controls with Safe-Area Insets */}
-            <div className="absolute top-[max(0.625rem,calc(env(safe-area-inset-top,0px)+0.375rem))] left-[max(0.625rem,env(safe-area-inset-left,0px))] right-[max(0.625rem,env(safe-area-inset-right,0px))] z-30 flex flex-wrap items-center justify-between gap-2 pointer-events-none transition-all">
-              {/* Dynamic Real-Time Focus & Telemetry Indicator */}
-              <div className="inline-flex items-center gap-1.5 rounded-full bg-[#0F1117]/90 border border-white/[0.12] px-2.5 py-1 shadow-md backdrop-blur-md pointer-events-auto">
-                <div
-                  className={`h-2 w-2 rounded-full shrink-0 transition-colors ${
-                    confidencePercent >= 90
-                      ? "bg-white"
-                      : confidencePercent >= 75
-                      ? "bg-zinc-300"
-                      : "bg-zinc-600"
-                  }`}
-                />
-                <span className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider font-mono">Focus</span>
-                <span className="text-[11px] font-bold text-white font-mono">
-                  {confidencePercent}%
-                </span>
-                <span className="text-white/20 text-[8px]">|</span>
-                <span className="text-[10px] font-medium text-zinc-300 font-mono">
-                  {isScanPaused ? "Locked" : cameraMoving ? "Panning" : "Steady"}
-                </span>
-                <span className="text-white/20 text-[8px]">|</span>
-                {isIntelModeActive ? (
-                  <span className="text-[10px] font-medium text-emerald-400 font-mono inline-flex items-center gap-1">
-                    <Zap className="h-2.5 w-2.5 fill-emerald-400" /> Intel
-                  </span>
-                ) : (
-                  <span className="text-[10px] font-medium text-zinc-400 font-mono">eBay</span>
-                )}
-              </div>
-
-              {/* Geolocation & Category Biasing Prior Badge */}
+          ) : cameraError ? (
+            <div className="flex h-full flex-col items-center justify-center p-6 text-center space-y-3 text-slate-300">
+              <ShieldAlert className="h-12 w-12 text-zinc-400" />
+              <p className="text-sm font-semibold">{cameraError}</p>
               <button
                 type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const options: CategoryBiasOption[] = [
-                    "auto",
-                    "vintage_clothing",
-                    "digicams_tech",
-                    "designer_luxury",
-                    "collectibles_toys",
-                    "general_thrift",
-                  ];
-                  const currIdx = options.indexOf(categoryBias);
-                  const next = options[(currIdx + 1) % options.length];
-                  setCategoryBias(next);
-                  toast.success(
-                    next === "auto"
-                      ? `🌐 Auto Location Bias: ${spatialMetadata?.storeName || "Thrift Hub"}`
-                      : next === "vintage_clothing"
-                      ? "👕 Category Bias: Vintage & Streetwear Apparel"
-                      : next === "digicams_tech"
-                      ? "📷 Category Bias: Y2K Digicams & Electronics"
-                      : next === "designer_luxury"
-                      ? "💎 Category Bias: Luxury Designer & Leather"
-                      : next === "collectibles_toys"
-                      ? "👾 Category Bias: Collectibles & Cards"
-                      : "🏺 Category Bias: General Thrift & Homewares"
-                  );
-                }}
-                className="hidden md:inline-flex items-center gap-1.5 rounded-full bg-slate-950/90 border border-purple-500/40 px-3 py-1 text-[11px] font-bold text-purple-300 shadow-xl backdrop-blur-md pointer-events-auto hover:border-purple-400 transition cursor-pointer"
-                title="Click to toggle Category Biasing Priors"
+                onClick={startCamera}
+                className="inline-flex h-10 items-center gap-2 rounded-xl bg-cyan-600 px-5 text-xs font-bold text-white shadow-md hover:bg-cyan-500 transition cursor-pointer"
               >
-                <span className="text-[10px]">
-                  {categoryBias === "auto"
-                    ? (spatialMetadata?.storeName ? `📍 ${spatialMetadata.storeName}` : "📍 Op-Shop Mode")
-                    : categoryBias === "vintage_clothing"
-                    ? "👕 Vintage Apparel"
-                    : categoryBias === "digicams_tech"
-                    ? "📷 Digicams & Tech"
-                    : categoryBias === "designer_luxury"
-                    ? "💎 Luxury / Leather"
-                    : categoryBias === "collectibles_toys"
-                    ? "👾 Collectibles"
-                    : "🏺 General Thrift"}
-                </span>
+                <RefreshCw className="h-4 w-4" /> Retry Camera Access
               </button>
+            </div>
+          ) : (
+            <>
+              {/* Raw Camera Video Stream running smooth at 60fps */}
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                className="h-full w-full object-cover"
+              />
+              {/* Connecting optical sensor placeholder if stream is currently binding */}
+              {!stream && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/80 text-slate-400 space-y-2 pointer-events-none">
+                  <RefreshCw className="h-6 w-6 text-cyan-400 animate-spin" />
+                  <span className="text-xs font-mono tracking-wider text-slate-400">CONNECTING OPTICAL SENSOR...</span>
+                </div>
+              )}
 
-              {/* Guest Scan Mode Real-Time Indicator */}
-              {isGuestUser && !isPro && !isOwner && (
-                <div className="pointer-events-auto">
-                  <GuestScanHud
-                    remainingScans={guestScanState.remaining}
-                    onOpenAuthModal={() => setIsGuestLimitModalOpen(true)}
+              {/* Quick Snap Viewfinder Shutter Flash (0ms visual feedback) */}
+              {quickSnapFlash && (
+                <div className="absolute inset-0 z-40 bg-white/50 pointer-events-none select-none transition-opacity animate-out fade-out duration-150" />
+              )}
+
+              {/* Continuous Visual Anchor: Captured item snapshot remains continuously visible beneath progressive loader, handoff, and valuation steps with ZERO black flashes */}
+              {frozenFrameUrl && (analyzingRealFrame || isLoaderTransitioning || activeValuationHit || isScanPaused) && (
+                <div className="absolute inset-0 z-10 pointer-events-none select-none lens-crossfade">
+                  <img
+                    src={frozenFrameUrl}
+                    alt="Captured Scanned Frame"
+                    className="object-cover w-full h-full"
                   />
                 </div>
               )}
 
-              {/* Top Right Consolidated Tools & Telemetry Bar */}
-              <div className="flex items-center gap-2 pointer-events-auto">
-                {/* Network Latency & Offline Status Hint */}
-                {isOffline ? (
-                  <div className="flex items-center gap-1 text-[10px] font-mono font-bold px-2.5 py-1 rounded-full glass text-zinc-300 backdrop-blur-md shadow-lg">
-                    <WifiOff className="h-3 w-3 shrink-0 text-zinc-400" />
-                    <span className="hidden sm:inline">OFFLINE (LOCAL AI)</span>
-                    <span className="sm:hidden">OFFLINE</span>
-                  </div>
-                ) : profitableCount > 0 ? (
-                  <div className="hidden xs:inline-flex items-center gap-1.5 rounded-full bg-slate-950/85 border border-emerald-500/40 px-2.5 py-1 text-[10px] font-mono font-bold text-emerald-300 shadow-xl backdrop-blur-md">
-                    <span>💰 {profitableCount} Flips</span>
-                  </div>
-                ) : null}
+              {/* Instant Target Lock & Scan Completion Feedback (Perimeter Laser Ring - Never blocks center) */}
+              {scanCompletePulse && (
+                <div className="absolute inset-0 z-30 pointer-events-none select-none lens-ring-pulse rounded-[inherit]" />
+              )}
 
-                {/* Consolidated Viewfinder Tools Trigger Button */}
-                <div className="relative">
+              {/* Top HUD Bar: Dynamic Confidence Indicator, Credit Badge & Camera Controls with Safe-Area Insets */}
+              <div className="absolute top-[max(0.625rem,calc(env(safe-area-inset-top,0px)+0.375rem))] left-[max(0.625rem,env(safe-area-inset-left,0px))] right-[max(0.625rem,env(safe-area-inset-right,0px))] z-30 flex flex-wrap items-center justify-between gap-2 pointer-events-none transition-all">
+                {/* Dynamic Real-Time Focus & Telemetry Indicator */}
+                <div className="inline-flex items-center gap-1.5 rounded-full bg-[#0F1117]/90 border border-white/[0.12] px-2.5 py-1 shadow-md backdrop-blur-md pointer-events-auto">
+                  <div
+                    className={`h-2 w-2 rounded-full shrink-0 transition-colors ${confidencePercent >= 90
+                        ? "bg-white"
+                        : confidencePercent >= 75
+                          ? "bg-zinc-300"
+                          : "bg-zinc-600"
+                      }`}
+                  />
+                  <span className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider font-mono">Focus</span>
+                  <span className="text-[11px] font-bold text-white font-mono">
+                    {confidencePercent}%
+                  </span>
+                  <span className="text-white/20 text-[8px]">|</span>
+                  <span className="text-[10px] font-medium text-zinc-300 font-mono">
+                    {isScanPaused ? "Locked" : cameraMoving ? "Panning" : "Steady"}
+                  </span>
+                  <span className="text-white/20 text-[8px]">|</span>
+                  {isIntelModeActive ? (
+                    <span className="text-[10px] font-medium text-emerald-400 font-mono inline-flex items-center gap-1">
+                      <Zap className="h-2.5 w-2.5 fill-emerald-400" /> Intel
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-medium text-zinc-400 font-mono">eBay</span>
+                  )}
+                </div>
+
+                {/* Geolocation & Category Biasing Prior Badge */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const options: CategoryBiasOption[] = [
+                      "auto",
+                      "vintage_clothing",
+                      "digicams_tech",
+                      "designer_luxury",
+                      "collectibles_toys",
+                      "general_thrift",
+                    ];
+                    const currIdx = options.indexOf(categoryBias);
+                    const next = options[(currIdx + 1) % options.length];
+                    setCategoryBias(next);
+                    toast.success(
+                      next === "auto"
+                        ? `🌐 Auto Location Bias: ${spatialMetadata?.storeName || "Thrift Hub"}`
+                        : next === "vintage_clothing"
+                          ? "👕 Category Bias: Vintage & Streetwear Apparel"
+                          : next === "digicams_tech"
+                            ? "📷 Category Bias: Y2K Digicams & Electronics"
+                            : next === "designer_luxury"
+                              ? "💎 Category Bias: Luxury Designer & Leather"
+                              : next === "collectibles_toys"
+                                ? "👾 Category Bias: Collectibles & Cards"
+                                : "🏺 Category Bias: General Thrift & Homewares"
+                    );
+                  }}
+                  className="hidden md:inline-flex items-center gap-1.5 rounded-full bg-slate-950/90 border border-purple-500/40 px-3 py-1 text-[11px] font-bold text-purple-300 shadow-xl backdrop-blur-md pointer-events-auto hover:border-purple-400 transition cursor-pointer"
+                  title="Click to toggle Category Biasing Priors"
+                >
+                  <span className="text-[10px]">
+                    {categoryBias === "auto"
+                      ? (spatialMetadata?.storeName ? `📍 ${spatialMetadata.storeName}` : "📍 Op-Shop Mode")
+                      : categoryBias === "vintage_clothing"
+                        ? "👕 Vintage Apparel"
+                        : categoryBias === "digicams_tech"
+                          ? "📷 Digicams & Tech"
+                          : categoryBias === "designer_luxury"
+                            ? "💎 Luxury / Leather"
+                            : categoryBias === "collectibles_toys"
+                              ? "👾 Collectibles"
+                              : "🏺 General Thrift"}
+                  </span>
+                </button>
+
+                {/* Guest Scan Mode Real-Time Indicator */}
+                {isGuestUser && !isPro && !isOwner && (
+                  <div className="pointer-events-auto">
+                    <GuestScanHud
+                      remainingScans={guestScanState.remaining}
+                      onOpenAuthModal={() => setIsGuestLimitModalOpen(true)}
+                    />
+                  </div>
+                )}
+
+                {/* Top Right Consolidated Tools & Telemetry Bar */}
+                <div className="flex items-center gap-2 pointer-events-auto">
+                  {/* Network Latency & Offline Status Hint */}
+                  {isOffline ? (
+                    <div className="flex items-center gap-1 text-[10px] font-mono font-bold px-2.5 py-1 rounded-full glass text-zinc-300 backdrop-blur-md shadow-lg">
+                      <WifiOff className="h-3 w-3 shrink-0 text-zinc-400" />
+                      <span className="hidden sm:inline">OFFLINE (LOCAL AI)</span>
+                      <span className="sm:hidden">OFFLINE</span>
+                    </div>
+                  ) : profitableCount > 0 ? (
+                    <div className="hidden xs:inline-flex items-center gap-1.5 rounded-full bg-slate-950/85 border border-emerald-500/40 px-2.5 py-1 text-[10px] font-mono font-bold text-emerald-300 shadow-xl backdrop-blur-md">
+                      <span>💰 {profitableCount} Flips</span>
+                    </div>
+                  ) : null}
+
+                  {/* Consolidated Viewfinder Tools Trigger Button */}
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsViewfinderToolsOpen((prev) => !prev);
+                      }}
+                      className={`h-8 px-3 rounded-full border flex items-center gap-1.5 transition backdrop-blur-md shadow-lg cursor-pointer ${isViewfinderToolsOpen
+                          ? "bg-cyan-500/25 border-cyan-400 text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.4)]"
+                          : "bg-slate-950/85 border-slate-700/80 text-slate-200 hover:text-white hover:border-slate-500"
+                        }`}
+                      title="Lens AR Tools & Controls"
+                    >
+                      <SlidersHorizontal className="h-3.5 w-3.5 text-cyan-400" />
+                      <span className="text-[11px] font-bold">Tools</span>
+                      {isViewfinderToolsOpen ? (
+                        <ChevronUp className="h-3 w-3 text-cyan-400" />
+                      ) : (
+                        <ChevronDown className="h-3 w-3 text-slate-400" />
+                      )}
+                    </button>
+
+                    {/* Collapsible Tools Menu Drawer */}
+                    {isViewfinderToolsOpen && (
+                      <div
+                        onClick={(e) => e.stopPropagation()}
+                        className="absolute right-0 top-10 w-64 rounded-2xl bg-slate-950/95 border border-slate-800 p-3 shadow-2xl backdrop-blur-2xl space-y-2.5 z-50 animate-in fade-in zoom-in-95"
+                      >
+                        <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
+                          <span className="text-[11px] font-bold text-slate-200 flex items-center gap-1.5">
+                            <SlidersHorizontal className="h-3.5 w-3.5 text-cyan-400" />
+                            Lens AR Viewfinder Tools
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setIsViewfinderToolsOpen(false)}
+                            className="text-slate-400 hover:text-white p-0.5 rounded cursor-pointer"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+
+                        {/* Tool 1: Torch / Flashlight */}
+                        {torchSupported && (
+                          <div className="flex items-center justify-between py-1">
+                            <span className="text-xs text-zinc-300 font-medium flex items-center gap-1.5">
+                              <Zap className="h-3.5 w-3.5 text-zinc-300" /> Flashlight
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => void toggleTorch()}
+                              className={`px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold transition cursor-pointer border ${torchEnabled
+                                  ? "bg-white text-zinc-950 border-white shadow-sm"
+                                  : "bg-[#141721] text-zinc-400 border-white/[0.08] hover:text-white"
+                                }`}
+                            >
+                              {torchEnabled ? "ON" : "OFF"}
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Tool 2: Audio Chimes */}
+                        <div className="flex items-center justify-between py-1">
+                          <span className="text-xs text-zinc-300 font-medium flex items-center gap-1.5">
+                            <Sparkles className="h-3.5 w-3.5 text-zinc-400" /> Audio Chimes
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setSoundEnabled(!soundEnabled)}
+                            className={`px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold transition cursor-pointer border ${soundEnabled
+                                ? "bg-white/[0.12] text-white border-white/20 shadow-sm"
+                                : "bg-[#141721] text-zinc-500 border-white/[0.08]"
+                              }`}
+                          >
+                            {soundEnabled ? "Active" : "Muted"}
+                          </button>
+                        </div>
+
+                        {/* Tool 3: Tactical Intel Mode */}
+                        <div className="flex items-center justify-between py-1">
+                          <span className="text-xs text-zinc-300 font-medium flex items-center gap-1.5">
+                            <Zap className="h-3.5 w-3.5 text-zinc-400" /> Intel Mode
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const next = !isIntelModeActive;
+                              setIsIntelModeActive(next);
+                              if (next) toast.success("⚡ Intel Mode ON: Local P2P & Resell Intel active");
+                              else toast.info("Intel Mode OFF: Standard rapid scan active");
+                            }}
+                            className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition cursor-pointer border ${isIntelModeActive
+                                ? "bg-cyan-500/20 text-cyan-300 border-cyan-400/50 shadow-sm"
+                                : "bg-slate-900 text-slate-400 border-slate-800 hover:text-white"
+                              }`}
+                          >
+                            {isIntelModeActive ? "ON" : "OFF"}
+                          </button>
+                        </div>
+
+                        {/* Tool 4: Camera Power */}
+                        <div className="flex items-center justify-between py-1 border-t border-slate-800/80 pt-2">
+                          <span className="text-xs text-slate-300 font-medium flex items-center gap-1.5">
+                            <Power className="h-3.5 w-3.5 text-emerald-400" /> Camera Stream
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleToggleCameraPower()}
+                            className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition cursor-pointer border ${isCameraPoweredOn && stream
+                                ? "bg-emerald-500/20 text-emerald-300 border-emerald-400/50"
+                                : "bg-rose-500/20 text-rose-300 border-rose-400/50"
+                              }`}
+                          >
+                            {isCameraPoweredOn && stream ? "Power ON" : "Standby"}
+                          </button>
+                        </div>
+
+                        {/* Telemetry Footer */}
+                        <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[10px] text-slate-400 font-mono">
+                          <span>Latency: {networkLatencyMs !== null ? `${networkLatencyMs}ms` : "Live"}</span>
+                          <span>Scanned: {sessionScanCount}</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Streamlined Non-Obstructing Top Docked Scanning Telemetry (z-35) */}
+              {(analyzingRealFrame || isLoaderTransitioning) && !activeValuationHit && scanStage !== "confirmation" && !scanRetryPrompt && (
+                <div className="absolute top-[max(3.5rem,calc(env(safe-area-inset-top,0px)+3.25rem))] left-1/2 -translate-x-1/2 z-35 pointer-events-auto transition-all duration-300 ease-out">
+                  <ScanProgressiveLoader
+                    isActive={true}
+                    stage={scanStage}
+                    isIntelMode={isIntelModeActive}
+                    detectedTitle={pendingIdentifiedItem?.productName}
+                    detectedBrand={pendingIdentifiedItem?.brand ?? undefined}
+                    previewImage={frozenFrameUrl}
+                  />
+                </div>
+              )}
+
+              {/* ── Offline Pending-Sync Queue Banner ─────────────────────── */}
+              {offlinePendingCount > 0 && scanStage !== "confirmation" && (
+                <div className="absolute top-[max(2.5rem,calc(env(safe-area-inset-top,0px)+2.25rem))] left-1/2 -translate-x-1/2 z-40 pointer-events-none w-[92%] max-w-sm">
+                  <div className="flex items-center justify-center gap-2 px-3 py-1.5 rounded-full glass text-zinc-300 backdrop-blur-md shadow-lg text-[11px] font-mono font-bold">
+                    <div className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+                    <span>{offlinePendingCount} item{offlinePendingCount !== 1 ? "s" : ""} pending — waiting for network</span>
+                  </div>
+                </div>
+              )}
+
+
+              {/* Non-Obstructing Retry Prompt Layer */}
+              {scanRetryPrompt && !activeValuationHit && (
+                <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-35 w-[92%] max-w-sm mx-auto pointer-events-auto transition-all duration-300 ease-out">
+                  <div
+                    key="lens-retry-prompt"
+                    className="w-full rounded-2xl glass-card border border-white/[0.08] p-3 shadow-xl backdrop-blur-xl flex items-center justify-between gap-2.5 animate-in fade-in zoom-in-95 select-none"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <WifiOff className="h-4 w-4 text-zinc-400 shrink-0" />
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-xs font-bold text-slate-100 truncate">
+                          {scanRetryPrompt.message}
+                        </span>
+                        <span className="text-[10px] text-slate-400">
+                          Active session preserved • Tap retry
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setScanRetryPrompt(null);
+                          void processCurrentFrame(true);
+                        }}
+                        className="inline-flex items-center gap-1 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black px-3 py-1.5 rounded-xl text-[11px] transition cursor-pointer active:scale-95 shadow-md shadow-cyan-500/20"
+                      >
+                        <RefreshCw className="h-3 w-3" />
+                        <span>Retry</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setScanRetryPrompt(null)}
+                        className="text-slate-400 hover:text-white p-1 rounded-lg transition cursor-pointer"
+                        title="Dismiss"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Instant Non-Obstructing Bottom-Docked Valuation Card (z-40) with Spring Physics */}
+              {activeValuationHit && !activeCompsHit && (() => {
+                const itemComps = ensureVerifiedSoldComps(
+                  activeValuationHit.rawComps,
+                  activeValuationHit.name,
+                  activeValuationHit.estimatedValue,
+                  activeValuationHit.condition,
+                  activeValuationHit.brand
+                );
+
+                const resaleMedian = activeValuationHit.estimatedValue || 0;
+                const resaleMin = activeValuationHit.suggestedPriceMin ?? activeValuationHit.compsRange?.min ?? Math.max(1, Math.round(resaleMedian * 0.75));
+                const resaleMax = activeValuationHit.suggestedPriceMax ?? activeValuationHit.compsRange?.max ?? Math.round(resaleMedian * 1.25);
+
+                const thriftCost = activeValuationHit.tagPrice
+                  ? activeValuationHit.tagPrice
+                  : activeValuationHit.estCost
+                    ? activeValuationHit.estCost
+                    : 0;
+
+                const netProfit = activeValuationHit.trueNetProfit ?? activeValuationHit.estimatedProfit ?? Math.max(0, resaleMedian - thriftCost);
+                const roiPct = activeValuationHit.roiPercentage ?? activeValuationHit.estRoi ?? (thriftCost > 0 ? Math.round((netProfit / thriftCost) * 100) : 0);
+
+                const estFees = Math.round((resaleMedian * 0.134 + 0.33) * 100) / 100;
+                const estPost = Math.max(0, Math.round((resaleMedian - thriftCost - estFees - netProfit) * 100) / 100) || 9.5;
+
+                const ebaySearchQuery = encodeURIComponent(activeValuationHit.name ? `${activeValuationHit.name} sold` : "vintage items");
+                const ebayUrl = `https://www.ebay.com.au/sch/i.html?_nkw=${ebaySearchQuery}&LH_Sold=1&LH_Complete=1`;
+
+                const verdictBadge = activeValuationHit.copVerdict === "MUST_COP"
+                  ? "badge-verdict-buy"
+                  : activeValuationHit.copVerdict === "QUICK_FLIP"
+                    ? "badge-verdict-buy"
+                    : activeValuationHit.copVerdict === "VERIFY_FIRST"
+                      ? "badge-verdict-watch"
+                      : "badge-verdict-pass";
+
+                const verdictLabel = activeValuationHit.copVerdict === "MUST_COP"
+                  ? "BUY"
+                  : activeValuationHit.copVerdict === "QUICK_FLIP"
+                    ? "QUICK FLIP"
+                    : activeValuationHit.copVerdict === "VERIFY_FIRST"
+                      ? "VERIFY"
+                      : "PASS";
+
+                return (
+                  <div
+                    className={`absolute bottom-3 sm:bottom-4 left-1/2 -translate-x-1/2 z-40 w-[95%] max-w-md pointer-events-auto ${isCardExiting ? "lens-card-exit" : "lens-card-enter"
+                      }`}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div
+                      key={`lens-valuation-${activeValuationHit.id || activeValuationHit.name}`}
+                      ref={(node) => {
+                        valuationCardRef.current = node;
+                        if (node) {
+                          setIsValuationCardMounted(true);
+                        }
+                      }}
+                      className={`w-full transition-all duration-300 ease-out lens-hit-bloom ${scanCompletePulse ? "ring-2 ring-emerald-400/90 shadow-[0_0_50px_rgba(16,185,129,0.6)]" : ""
+                        }`}
+                    >
+                      <ValuationCardErrorBoundary
+                        onRetry={() => void processCurrentFrame(true)}
+                        onDismiss={() => handleDismissCard()}
+                      >
+                        <div className="trade-ticket w-full rounded-2xl bg-[#0E1017] border border-white/[0.12] p-3.5 sm:p-4 shadow-[0_20px_60px_rgba(0,0,0,0.85)] backdrop-blur-xl select-none max-h-[85vh] flex flex-col">
+                          {/* Top Header: Thumbnail Anchor, Title, Brand & Cop Verdict */}
+                          <div className="flex items-start justify-between gap-2.5 mb-2 shrink-0">
+                            <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                              {(frozenFrameUrl || activeValuationHit.image) && (
+                                <div className="relative h-12 w-12 rounded-xl overflow-hidden border border-white/[0.12] shrink-0 bg-[#141721]">
+                                  <img
+                                    src={frozenFrameUrl || activeValuationHit.image || ""}
+                                    alt={activeValuationHit.name}
+                                    className="h-full w-full object-cover"
+                                  />
+                                </div>
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
+                                  {itemComps.length > 0 ? (
+                                    <span className="inline-flex items-center gap-1 text-[10px] font-mono font-medium text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/30">
+                                      <Sparkles className="w-2.5 h-2.5" />
+                                      <span>{itemComps.length} Cleared Sales</span>
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold text-amber-300 bg-amber-500/15 px-2 py-0.5 rounded-full border border-amber-500/30">
+                                      <span>0 Sold Comps • Algorithmic Appraisal</span>
+                                    </span>
+                                  )}
+                                  {isMeaningfulMeta(activeValuationHit.brand) && (
+                                    <span className="text-[10px] font-medium text-zinc-400 font-mono truncate max-w-[110px]">
+                                      {activeValuationHit.brand.trim()}
+                                    </span>
+                                  )}
+                                </div>
+                                <h4 className="text-xs sm:text-sm font-bold text-white line-clamp-2 leading-snug tracking-tight">
+                                  {activeValuationHit.name}
+                                </h4>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              {activeValuationHit.copVerdict && (
+                                <span className={verdictBadge}>{verdictLabel}</span>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => handleDismissCard()}
+                                className="text-zinc-400 hover:text-white p-1 rounded-lg transition cursor-pointer hover:bg-white/[0.06]"
+                                title="Dismiss"
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Scrollable Core: Resale Value, Profit Hero, P&L Math & 3-5 Sold Comps */}
+                          <div className="overflow-y-auto space-y-2.5 pr-0.5 custom-scrollbar">
+                            {/* 1. Clear eBay Resale Value Strip */}
+                            <div className="p-2.5 rounded-xl bg-[#141721] border border-white/[0.06] flex items-center justify-between font-mono">
+                              <div className="flex flex-col">
+                                <span className="text-[9px] uppercase tracking-wider text-zinc-400 font-medium flex items-center gap-1">
+                                  <ShoppingBag className="w-2.5 h-2.5 text-amber-400" />
+                                  <span>Sells on eBay AU</span>
+                                </span>
+                                <span className="text-sm sm:text-base font-bold text-white">
+                                  {fmtMoney(resaleMin)} – {fmtMoney(resaleMax)}
+                                </span>
+                              </div>
+                              <div className="flex flex-col items-end">
+                                <span className="text-[9px] uppercase tracking-wider text-zinc-400 font-medium">
+                                  eBay Median Sold
+                                </span>
+                                <span className="text-sm sm:text-base font-bold text-emerald-400">
+                                  {fmtMoney(resaleMedian)} AUD
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* 2. Potential Take-Home Profit Hero Banner */}
+                            <div className="p-3 rounded-xl bg-gradient-to-br from-[#10241A] to-[#121926] border border-emerald-500/30 font-mono shadow-sm">
+                              <div className="flex items-center justify-between gap-2">
+                                <div>
+                                  <span className="text-[9px] uppercase tracking-wider text-emerald-400/90 font-bold flex items-center gap-1">
+                                    <TrendingUp className="w-3 h-3 text-emerald-400" />
+                                    <span>Take-Home Net Profit</span>
+                                  </span>
+                                  <span className="text-xl sm:text-2xl font-black text-emerald-400 tracking-tight">
+                                    +{fmtMoney(netProfit)}
+                                  </span>
+                                </div>
+                                <div className="flex flex-col items-end">
+                                  <span className="text-xs font-bold text-emerald-300 bg-emerald-500/20 border border-emerald-500/30 px-2 py-0.5 rounded-lg">
+                                    +{roiPct}% ROI
+                                  </span>
+                                  <span className="text-[10px] text-zinc-400 mt-1 font-sans">
+                                    {activeValuationHit.copVerdict === "MUST_COP"
+                                      ? "High Margin Cop"
+                                      : activeValuationHit.copVerdict === "QUICK_FLIP"
+                                        ? "Fast Turnover Flip"
+                                        : activeValuationHit.copVerdict === "VERIFY_FIRST"
+                                          ? "Verify Tag & Details"
+                                          : "Marginal Trade"}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Transparent Reseller P&L Equation */}
+                              <div className="mt-2.5 pt-2 border-t border-emerald-500/20 text-[10px] text-zinc-300 flex items-center justify-between flex-wrap gap-1">
+                                <div className="flex items-center gap-1 flex-wrap">
+                                  <span>Sold {fmtMoney(resaleMedian)}</span>
+                                  <span className="text-zinc-500">−</span>
+                                  <span>Tag {fmtMoney(thriftCost)}</span>
+                                  <span className="text-zinc-500">−</span>
+                                  <span>Fees ~{fmtMoney(estFees)}</span>
+                                  <span className="text-zinc-500">−</span>
+                                  <span>Post ~{fmtMoney(estPost)}</span>
+                                </div>
+                                <span className="text-emerald-400 font-bold ml-auto">
+                                  = +{fmtMoney(netProfit)} in pocket
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* 3. Revealed Inline 3 to 5 Recent Sold Comps OR Zero Comps Appraisal */}
+                            {itemComps.length > 0 ? (
+                              <div className="space-y-1.5">
+                                <div className="flex items-center justify-between px-0.5">
+                                  <span className="text-[10px] font-mono font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-1">
+                                    <Sparkles className="w-3 h-3 text-emerald-400" />
+                                    <span>Recent Sold Comps ({itemComps.length})</span>
+                                  </span>
+                                  <a
+                                    href={ebayUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-[10px] font-mono text-zinc-400 hover:text-zinc-200 flex items-center gap-1 hover:underline cursor-pointer"
+                                  >
+                                    <span>Search eBay</span>
+                                    <ExternalLink className="w-2.5 h-2.5" />
+                                  </a>
+                                </div>
+
+                                <div className="max-h-32 sm:max-h-36 overflow-y-auto space-y-1.5 custom-scrollbar pr-0.5">
+                                  {itemComps.map((comp, idx) => (
+                                    <div
+                                      key={comp.id || idx}
+                                      className="p-2 rounded-xl bg-[#141721] border border-white/[0.06] flex items-center justify-between gap-2 hover:border-white/[0.12] transition"
+                                    >
+                                      <div className="min-w-0 flex-1">
+                                        <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
+                                          <span className="text-xs font-bold font-mono text-emerald-400">
+                                            {fmtMoney(comp.price)}
+                                          </span>
+                                          <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-white/[0.06] text-zinc-300">
+                                            {comp.soldDate}
+                                          </span>
+                                          {comp.condition && (
+                                            <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-white/[0.04] text-zinc-400 truncate max-w-[110px]">
+                                              {comp.condition}
+                                            </span>
+                                          )}
+                                          {typeof comp.matchPercentage === "number" && (
+                                            <span className="text-[9px] font-mono text-emerald-400">
+                                              {comp.matchPercentage}% match
+                                            </span>
+                                          )}
+                                        </div>
+                                        <div className="text-[10px] text-zinc-300 truncate font-medium">
+                                          {comp.title}
+                                        </div>
+                                      </div>
+                                      {comp.url && (
+                                        <a
+                                          href={comp.url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="shrink-0 p-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.10] text-zinc-400 hover:text-white transition"
+                                          title="View sold listing on eBay AU"
+                                        >
+                                          <ExternalLink className="w-3 h-3" />
+                                        </a>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 space-y-1.5 font-mono">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[10px] font-bold text-amber-300 uppercase tracking-wider flex items-center gap-1">
+                                    <AlertTriangle className="w-3 h-3 text-amber-400" />
+                                    <span>0 Sold Comps On Record</span>
+                                  </span>
+                                  <span className="text-[9px] text-amber-300/80 bg-amber-500/20 px-1.5 py-0.2 rounded">
+                                    Algorithmic Appraisal
+                                  </span>
+                                </div>
+                                <p className="text-[11px] text-zinc-300 font-sans leading-snug">
+                                  No completed transactions found on eBay AU. Recommended starting list price is <strong>{fmtMoney(resaleMedian)} AUD</strong> (Buy It Now + Best Offer) with a fast liquidation floor of <strong>{fmtMoney(resaleMin)} AUD</strong>.
+                                </p>
+                              </div>
+                            )}
+
+                            {/* Verification Reason / Fallback Notice (if any) */}
+                            {(activeValuationHit.copVerdict === "VERIFY_FIRST" || activeValuationHit.requiresSecondaryVerification) && (
+                              <div className="px-2.5 py-1.5 rounded-xl bg-[#141721] border border-amber-500/30 flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                                  <span className="text-[10px] font-medium text-zinc-300 truncate">
+                                    {activeValuationHit.verificationReason || "Confidence < 88% — confirm details before copping"}
+                                  </span>
+                                </div>
+                                {activeValuationHit.fallbackProtocol === "SCAN_BARCODE" ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      handleDismissCard(() => {
+                                        setScanMode("barcode");
+                                        toast.info("Switched to Barcode Mode for precision verification.");
+                                      });
+                                    }}
+                                    className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white/[0.08] hover:bg-white/[0.14] text-white border border-white/[0.12] text-[9px] font-mono font-bold uppercase tracking-wider transition active:scale-95 cursor-pointer shadow-sm"
+                                  >
+                                    <Barcode className="w-2.5 h-2.5" />
+                                    <span>Barcode</span>
+                                  </button>
+                                ) : activeValuationHit.fallbackProtocol === "ZOOM_LABEL" ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      handleDismissCard(() => {
+                                        toast.info("Move camera closer to focus on brand/size tag.");
+                                        void processCurrentFrame(true);
+                                      });
+                                    }}
+                                    className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white/[0.08] hover:bg-white/[0.14] text-white border border-white/[0.12] text-[9px] font-mono font-bold uppercase tracking-wider transition active:scale-95 cursor-pointer shadow-sm"
+                                  >
+                                    <Camera className="w-2.5 h-2.5" />
+                                    <span>Zoom Tag</span>
+                                  </button>
+                                ) : null}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Interactive Action Buttons */}
+                          <div className="flex items-center justify-between gap-2 pt-2.5 mt-2 border-t border-white/[0.08] shrink-0">
+                            <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  triggerTactileHaptic("medium");
+                                  setIsScanPaused(true);
+                                  const isolatedCapture =
+                                    frozenFrameUrl ||
+                                    activeValuationHit?.image ||
+                                    undefined;
+                                  const stableSessionId =
+                                    activeValuationHit?.id ||
+                                    (activeValuationHit?.timestamp ? `hit_${activeValuationHit.timestamp}` : "hit_active");
+
+                                  setActiveEbayItem({
+                                    ...activeValuationHit,
+                                    image: isolatedCapture,
+                                    imageUrls: isolatedCapture ? [isolatedCapture] : undefined,
+                                    sessionId: stableSessionId,
+                                  });
+                                }}
+                                className="inline-flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-xl text-[11px] font-semibold transition cursor-pointer active:scale-95 bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30"
+                                title="List this item to eBay AU"
+                              >
+                                <ShoppingBag className="h-3.5 w-3.5 text-amber-400" />
+                                <span>List on eBay</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActiveCompsHit(activeValuationHit);
+                                }}
+                                className="inline-flex items-center gap-1 bg-[#141721] hover:bg-[#1C202E] text-zinc-300 hover:text-white border border-white/[0.08] px-2 sm:px-2.5 py-1.5 rounded-xl text-[11px] font-medium transition cursor-pointer active:scale-95"
+                              >
+                                <TrendingUp className="h-3.5 w-3.5 text-zinc-400" />
+                                <span>Comps Dialog</span>
+                              </button>
+
+                              {checkNeedsVerification({
+                                name: activeValuationHit.name,
+                                brand: activeValuationHit.brand || undefined,
+                                category: activeValuationHit.category || undefined,
+                                estimatedValue: activeValuationHit.estimatedValue,
+                              }).needsVerification && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenDeepVerify(activeValuationHit)}
+                                    className="inline-flex items-center gap-1 bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/30 px-2 sm:px-2.5 py-1.5 rounded-xl text-[11px] font-medium transition cursor-pointer"
+                                  >
+                                    <ShieldCheck className="h-3.5 w-3.5 text-purple-400" />
+                                    <span>Verify</span>
+                                  </button>
+                                )}
+                            </div>
+
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  triggerTactileHaptic("light");
+                                  handleDismissCard(() => {
+                                    setIsScanPaused(false);
+                                    setScanStage("idle");
+                                  });
+                                }}
+                                className="inline-flex items-center gap-1 bg-white/[0.06] hover:bg-white/[0.12] text-zinc-200 hover:text-white border border-white/[0.10] font-mono px-2.5 py-1.5 rounded-xl text-[11px] transition cursor-pointer active:scale-95"
+                                title="Scan Next Item"
+                              >
+                                <Camera className="h-3.5 w-3.5 text-zinc-400" />
+                                <span>Next</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  void handleSaveDraftHit(activeValuationHit);
+                                  handleDismissCard();
+                                }}
+                                className="inline-flex items-center gap-1 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold px-3 py-1.5 rounded-xl text-[11px] shadow-sm transition cursor-pointer active:scale-95"
+                              >
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                                <span>+ Add</span>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </ValuationCardErrorBoundary>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Subtle Scanning Hairline — clean non-distracting optical indicator */}
+              {analyzingRealFrame && (
+                <div className="absolute inset-x-0 z-25 pointer-events-none" style={{ top: "50%", transform: "translateY(-50%)" }}>
+                  <div className="relative">
+                    <div
+                      className="w-full h-[1px] bg-gradient-to-r from-transparent via-white/60 to-transparent"
+                      style={{ animation: "scanBeam 1.4s ease-in-out infinite" }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Grail Alert — high-contrast slide-up toast */}
+              {activeGrailAlert && (
+                <div className="absolute bottom-[calc(env(safe-area-inset-bottom,0px)+1rem)] left-1/2 -translate-x-1/2 z-50 w-[92%] max-w-sm pointer-events-auto animate-in slide-in-from-bottom-4 fade-in duration-300">
+                  <div className="flex items-center gap-3 p-3.5 rounded-2xl bg-[#0E1017]/95 border border-amber-500/30 shadow-[0_16px_40px_rgba(0,0,0,0.8)] backdrop-blur-xl">
+                    <div className="h-10 w-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center shrink-0">
+                      <Trophy className="h-5 w-5 text-amber-400" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] font-mono font-bold uppercase tracking-wider text-amber-400">High Margin Find</p>
+                      <p className="text-sm font-bold text-white truncate">{activeGrailAlert.name}</p>
+                      <p className="text-[11px] font-bold text-emerald-400 font-mono">+{fmtMoney(activeGrailAlert.profit)} • {activeGrailAlert.roi.toFixed(0)}% ROI</p>
+                    </div>
+                    <button type="button" onClick={() => setActiveGrailAlert(null)} className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/[0.08] transition shrink-0">
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Offline Dead-Zone Signal Warning Banner */}
+              {isOffline ? (
+                <div className="absolute top-[max(0.75rem,calc(env(safe-area-inset-top,0px)+0.75rem))] left-1/2 -translate-x-1/2 z-30 w-[92%] max-w-md mx-auto pointer-events-none">
+                  <div className="flex items-center justify-center gap-2 rounded-xl glass-hud px-4 py-2 text-xs font-bold text-zinc-300 shadow-2xl border border-white/[0.08]">
+                    <WifiOff className="h-4 w-4 shrink-0 text-zinc-400" />
+                    <span>📶 Offline Dead-Zone Active — Camera Scanner Ready</span>
+                  </div>
+                </div>
+              ) : null}
+
+              {/* Phase 4: Non-Alarming Scan Error State Banner */}
+              {scanErrorState.type && !isOffline && (
+                <div className="absolute top-[max(0.75rem,calc(env(safe-area-inset-top,0px)+0.75rem))] left-1/2 -translate-x-1/2 z-30 w-[92%] max-w-md mx-auto pointer-events-none">
+                  {scanErrorState.type === "rate_limit_user" && (
+                    <div className="flex items-center gap-2 rounded-xl glass-hud px-4 py-2.5 text-xs font-bold text-zinc-300 shadow-2xl border border-white/[0.08]">
+                      <Clock className="h-4 w-4 shrink-0 text-zinc-400" />
+                      <span>
+                        {scanErrorState.retryAfter && scanErrorState.retryAfter > 0
+                          ? `You've hit your scan limit. Try again in ${scanErrorState.retryAfter}s.`
+                          : "You've hit your scan limit. Try again shortly."}
+                      </span>
+                    </div>
+                  )}
+
+                  {scanErrorState.type === "rate_limit_upstream" && (
+                    <div className="flex items-center gap-2 rounded-2xl glass-hud px-4 py-2.5 text-xs font-bold text-zinc-300 shadow-xl">
+                      <RefreshCw className="h-3.5 w-3.5 shrink-0 text-zinc-400 animate-spin" />
+                      <span>Processing. Retrying in a moment.</span>
+                    </div>
+                  )}
+
+                  {scanErrorState.type === "unauthorized" && !isGuestUser && (
+                    <div className="flex items-center justify-between gap-3 rounded-xl bg-slate-800/95 backdrop-blur-md px-4 py-2.5 text-xs font-extrabold text-slate-200 shadow-2xl border border-slate-600/60 pointer-events-auto w-full">
+                      <div className="flex items-center gap-2">
+                        <ShieldAlert className="h-4 w-4 shrink-0 text-zinc-400" />
+                        <span>Session expired. Please sign in to continue.</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => router.push("/login")}
+                        className="inline-flex items-center gap-1 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black px-3 py-1 rounded-lg text-[11px] transition shrink-0"
+                      >
+                        <LogIn className="h-3 w-3" /> Sign In
+                      </button>
+                    </div>
+                  )}
+
+
+
+                  {scanErrorState.type === "generic" && (
+                    <div className="flex items-center gap-2 rounded-2xl glass-hud px-4 py-2.5 text-xs font-bold text-zinc-300 shadow-xl">
+                      <ShieldAlert className="h-3.5 w-3.5 shrink-0 text-rose-400" />
+                      <span>Scan error. Active session preserved.</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Scan Feedback — spring bloom/fade, no hard color pops */}
+              {scanFeedback === "HIT" && (
+                <div className="absolute inset-0 z-30 pointer-events-none lens-hit-bloom lens-hit-bloom-active" />
+              )}
+              {scanFeedback === "MISS" && (
+                <div className="absolute inset-0 z-30 pointer-events-none lens-miss-fade bg-rose-500/[0.07] shadow-[inset_0_0_60px_rgba(244,63,94,0.25)]" />
+              )}
+
+              {/* Corner Viewfinder Ticks & Precision Rangefinder Reticle */}
+              <div className="absolute inset-0 z-15 pointer-events-none flex items-center justify-center p-8">
+                <div
+                  ref={reticleRef}
+                  className={`relative w-full h-full max-w-[420px] max-h-[500px] pointer-events-none transition-all duration-300 ${analyzingRealFrame ? "scale-[1.02]" : "scale-100"}`}
+                >
+                  {/* Corner Calibrated Brackets */}
+                  <div className={`absolute top-0 left-0 w-8 h-8 border-t border-l rounded-tl transition-colors duration-200 ${analyzingRealFrame ? "border-white" : "border-white/40"}`}>
+                    <span className="absolute -top-3 left-0 text-[7px] font-mono text-zinc-400">00</span>
+                  </div>
+                  <div className={`absolute top-0 right-0 w-8 h-8 border-t border-r rounded-tr transition-colors duration-200 ${analyzingRealFrame ? "border-white" : "border-white/40"}`}>
+                    <span className="absolute -top-3 right-0 text-[7px] font-mono text-zinc-400">80</span>
+                  </div>
+                  <div className={`absolute bottom-0 left-0 w-8 h-8 border-b border-l rounded-bl transition-colors duration-200 ${analyzingRealFrame ? "border-white" : "border-white/40"}`} />
+                  <div className={`absolute bottom-0 right-0 w-8 h-8 border-b border-r rounded-br transition-colors duration-200 ${analyzingRealFrame ? "border-white" : "border-white/40"}`} />
+
+                  {/* Center Precision Crosshair Reticle */}
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div className={`w-3 h-[1px] ${analyzingRealFrame ? "bg-white" : "bg-white/40"}`} />
+                    <div className={`h-3 w-[1px] ${analyzingRealFrame ? "bg-white" : "bg-white/40"}`} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Clean Industrial AR Bounding Box Target Indicator */}
+              {activeScans.slice(0, 1).map((scan) => (
+                <div
+                  key={scan.id}
+                  style={{
+                    left: `${Math.max(2, Math.min(80, scan.bbox.x))}%`,
+                    top: `${Math.max(2, Math.min(80, scan.bbox.y))}%`,
+                    width: `${Math.max(15, Math.min(95, scan.bbox.width))}%`,
+                    height: `${Math.max(15, Math.min(95, scan.bbox.height))}%`,
+                  }}
+                  className={`absolute z-20 pointer-events-none border rounded-xl overflow-hidden transition-all duration-150 ${scan.status === "valued"
+                      ? "border-emerald-400/90 bg-emerald-500/[0.04]"
+                      : "border-white/60 bg-white/[0.02]"
+                    } ${cameraMoving ? "opacity-60" : "opacity-100"}`}
+                >
+                  {/* Subtle Telemetry Tag */}
+                  <div className="absolute -top-6 left-0 flex items-center gap-1.5 bg-[#0A0D14]/95 text-white border border-white/[0.12] rounded-md px-2 py-0.5 text-[10px] shadow-md backdrop-blur-md font-mono">
+                    <span className={`h-1.5 w-1.5 rounded-full ${scan.status === "valued" ? "bg-emerald-400" : "bg-white"}`} />
+                    <span className="text-zinc-400 text-[9px] uppercase tracking-wider font-medium">
+                      {scan.status === "valued" ? "LOCKED" : "EVALUATING"}
+                    </span>
+                    <span className="text-white font-bold truncate max-w-[130px]">
+                      {scan.productName}
+                    </span>
+                    {scan.ocrText && scan.ocrText.length > 0 && (
+                      <span className="hidden xs:inline text-zinc-400 text-[8px] bg-white/[0.06] px-1 rounded border border-white/[0.08] max-w-[90px] truncate">
+                        OCR: {scan.ocrText[0]}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+
+              {/* Optical Shutter Aperture Flash (Immediate 80ms white freeze-frame optical flash) */}
+              {shutterFlash && (
+                <div className="absolute inset-0 z-50 pointer-events-none bg-white opacity-90 transition-opacity duration-[80ms] ease-out" />
+              )}
+
+              {/* Optical Horizon Leveler & Gyro Instrumentation */}
+              {stream && !activeValuationHit && (
+                <div className="absolute bottom-36 sm:bottom-40 left-1/2 -translate-x-1/2 z-25 pointer-events-none">
+                  <OpticalHorizonLeveler soundEnabled={soundEnabled} />
+                </div>
+              )}
+
+              {/* Primary Viewfinder Zoom Controls (1x, 2x, 3x) — Minimalist Matte HUD */}
+              {stream && !activeValuationHit && (
+                <div className="absolute bottom-[max(5.5rem,calc(env(safe-area-inset-bottom,0px)+5rem))] sm:bottom-28 left-1/2 -translate-x-1/2 z-30 pointer-events-auto flex items-center gap-1 bg-[#0E1017]/90 border border-white/[0.12] backdrop-blur-md rounded-full px-1.5 py-1 shadow-md">
+                  {[1, 2, 3].map((z) => (
+                    <button
+                      key={z}
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        triggerDialTickHaptic();
+                        if (soundEnabled) playTactileClickSound();
+                        setZoomLevel(z);
+                      }}
+                      className={`h-7 w-7 sm:h-8 sm:w-8 rounded-full text-xs font-mono font-bold transition cursor-pointer flex items-center justify-center ${zoomLevel === z
+                          ? "bg-white text-zinc-950 shadow-sm scale-105"
+                          : "text-zinc-400 hover:text-white hover:bg-white/[0.06]"
+                        }`}
+                      title={`Set Zoom to ${z}x`}
+                    >
+                      {z}x
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Quick Snap & Value Tactile Shutter / Resume Button (Center Floating) */}
+              <div className={`absolute bottom-[max(1.25rem,calc(env(safe-area-inset-bottom,0px)+0.75rem))] sm:bottom-5 left-1/2 -translate-x-1/2 z-30 flex items-center justify-center transition-opacity duration-150 ${scanStage === "confirmation" ? "opacity-0 pointer-events-none" : "opacity-100 pointer-events-auto"
+                }`}>
+                {!isPro && !isOwner && isLimitReached ? (
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      setIsViewfinderToolsOpen((prev) => !prev);
+                      triggerTactileHaptic("warning");
+                      setIsPaywallOpen(true);
+                      toast.error("Daily free scan limit reached (10/10). Upgrade to Pro to continue scanning.", {
+                        id: "daily-limit-toast",
+                      });
                     }}
-                    className={`h-8 px-3 rounded-full border flex items-center gap-1.5 transition backdrop-blur-md shadow-lg cursor-pointer ${
-                      isViewfinderToolsOpen
-                        ? "bg-cyan-500/25 border-cyan-400 text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.4)]"
-                        : "bg-slate-950/85 border-slate-700/80 text-slate-200 hover:text-white hover:border-slate-500"
-                    }`}
-                    title="Lens AR Tools & Controls"
+                    className="group relative flex items-center gap-2 rounded-full bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 px-6 py-3 text-xs sm:text-sm font-black text-slate-950 shadow-[0_0_30px_rgba(0,242,254,0.4)] active:scale-95 transition-transform duration-75 cursor-pointer animate-pulse"
+                    title="Daily limit reached — Upgrade to Spadas Pro"
                   >
-                    <SlidersHorizontal className="h-3.5 w-3.5 text-cyan-400" />
-                    <span className="text-[11px] font-bold">Tools</span>
-                    {isViewfinderToolsOpen ? (
-                      <ChevronUp className="h-3 w-3 text-cyan-400" />
-                    ) : (
-                      <ChevronDown className="h-3 w-3 text-slate-400" />
-                    )}
+                    <Crown className="h-4 w-4 shrink-0 text-slate-950" />
+                    <span>Daily Limit Reached (10/10) • Get Pro</span>
                   </button>
-
-                  {/* Collapsible Tools Menu Drawer */}
-                  {isViewfinderToolsOpen && (
-                    <div
-                      onClick={(e) => e.stopPropagation()}
-                      className="absolute right-0 top-10 w-64 rounded-2xl bg-slate-950/95 border border-slate-800 p-3 shadow-2xl backdrop-blur-2xl space-y-2.5 z-50 animate-in fade-in zoom-in-95"
-                    >
-                      <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
-                        <span className="text-[11px] font-bold text-slate-200 flex items-center gap-1.5">
-                          <SlidersHorizontal className="h-3.5 w-3.5 text-cyan-400" />
-                          Lens AR Viewfinder Tools
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setIsViewfinderToolsOpen(false)}
-                          className="text-slate-400 hover:text-white p-0.5 rounded cursor-pointer"
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-
-                      {/* Tool 1: Torch / Flashlight */}
-                      {torchSupported && (
-                        <div className="flex items-center justify-between py-1">
-                          <span className="text-xs text-zinc-300 font-medium flex items-center gap-1.5">
-                            <Zap className="h-3.5 w-3.5 text-zinc-300" /> Flashlight
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => void toggleTorch()}
-                            className={`px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold transition cursor-pointer border ${
-                              torchEnabled
-                                ? "bg-white text-zinc-950 border-white shadow-sm"
-                                : "bg-[#141721] text-zinc-400 border-white/[0.08] hover:text-white"
-                            }`}
-                          >
-                            {torchEnabled ? "ON" : "OFF"}
-                          </button>
-                        </div>
-                      )}
-
-                      {/* Tool 2: Audio Chimes */}
-                      <div className="flex items-center justify-between py-1">
-                        <span className="text-xs text-zinc-300 font-medium flex items-center gap-1.5">
-                          <Sparkles className="h-3.5 w-3.5 text-zinc-400" /> Audio Chimes
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setSoundEnabled(!soundEnabled)}
-                          className={`px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold transition cursor-pointer border ${
-                            soundEnabled
-                              ? "bg-white/[0.12] text-white border-white/20 shadow-sm"
-                              : "bg-[#141721] text-zinc-500 border-white/[0.08]"
-                          }`}
-                        >
-                          {soundEnabled ? "Active" : "Muted"}
-                        </button>
-                      </div>
-
-                      {/* Tool 3: Tactical Intel Mode */}
-                      <div className="flex items-center justify-between py-1">
-                        <span className="text-xs text-zinc-300 font-medium flex items-center gap-1.5">
-                          <Zap className="h-3.5 w-3.5 text-zinc-400" /> Intel Mode
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const next = !isIntelModeActive;
-                            setIsIntelModeActive(next);
-                            if (next) toast.success("⚡ Intel Mode ON: Local P2P & Resell Intel active");
-                            else toast.info("Intel Mode OFF: Standard rapid scan active");
-                          }}
-                          className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition cursor-pointer border ${
-                            isIntelModeActive
-                              ? "bg-cyan-500/20 text-cyan-300 border-cyan-400/50 shadow-sm"
-                              : "bg-slate-900 text-slate-400 border-slate-800 hover:text-white"
-                          }`}
-                        >
-                          {isIntelModeActive ? "ON" : "OFF"}
-                        </button>
-                      </div>
-
-                      {/* Tool 4: Camera Power */}
-                      <div className="flex items-center justify-between py-1 border-t border-slate-800/80 pt-2">
-                        <span className="text-xs text-slate-300 font-medium flex items-center gap-1.5">
-                          <Power className="h-3.5 w-3.5 text-emerald-400" /> Camera Stream
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => handleToggleCameraPower()}
-                          className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition cursor-pointer border ${
-                            isCameraPoweredOn && stream
-                              ? "bg-emerald-500/20 text-emerald-300 border-emerald-400/50"
-                              : "bg-rose-500/20 text-rose-300 border-rose-400/50"
-                          }`}
-                        >
-                          {isCameraPoweredOn && stream ? "Power ON" : "Standby"}
-                        </button>
-                      </div>
-
-                      {/* Telemetry Footer */}
-                      <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[10px] text-slate-400 font-mono">
-                        <span>Latency: {networkLatencyMs !== null ? `${networkLatencyMs}ms` : "Live"}</span>
-                        <span>Scanned: {sessionScanCount}</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Streamlined Non-Obstructing Top Docked Scanning Telemetry (z-35) */}
-            {(analyzingRealFrame || isLoaderTransitioning) && !activeValuationHit && scanStage !== "confirmation" && !scanRetryPrompt && (
-              <div className="absolute top-[max(3.5rem,calc(env(safe-area-inset-top,0px)+3.25rem))] left-1/2 -translate-x-1/2 z-35 pointer-events-auto transition-all duration-300 ease-out">
-                <ScanProgressiveLoader
-                  isActive={true}
-                  stage={scanStage}
-                  isIntelMode={isIntelModeActive}
-                  detectedTitle={pendingIdentifiedItem?.productName}
-                  detectedBrand={pendingIdentifiedItem?.brand ?? undefined}
-                  previewImage={frozenFrameUrl}
-                />
-              </div>
-            )}
-
-            {/* ── Offline Pending-Sync Queue Banner ─────────────────────── */}
-            {offlinePendingCount > 0 && scanStage !== "confirmation" && (
-              <div className="absolute top-[max(2.5rem,calc(env(safe-area-inset-top,0px)+2.25rem))] left-1/2 -translate-x-1/2 z-40 pointer-events-none w-[92%] max-w-sm">
-                <div className="flex items-center justify-center gap-2 px-3 py-1.5 rounded-full glass text-zinc-300 backdrop-blur-md shadow-lg text-[11px] font-mono font-bold">
-                  <div className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
-                  <span>{offlinePendingCount} item{offlinePendingCount !== 1 ? "s" : ""} pending — waiting for network</span>
-                </div>
-              </div>
-            )}
-
-
-            {/* Non-Obstructing Retry Prompt Layer */}
-            {scanRetryPrompt && !activeValuationHit && (
-              <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-35 w-[92%] max-w-sm mx-auto pointer-events-auto transition-all duration-300 ease-out">
-                <div
-                  key="lens-retry-prompt"
-                  className="w-full rounded-2xl glass-card border border-white/[0.08] p-3 shadow-xl backdrop-blur-xl flex items-center justify-between gap-2.5 animate-in fade-in zoom-in-95 select-none"
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <WifiOff className="h-4 w-4 text-zinc-400 shrink-0" />
-                    <div className="flex flex-col min-w-0">
-                      <span className="text-xs font-bold text-slate-100 truncate">
-                        {scanRetryPrompt.message}
-                      </span>
-                      <span className="text-[10px] text-slate-400">
-                        Active session preserved • Tap retry
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setScanRetryPrompt(null);
-                        void processCurrentFrame(true);
-                      }}
-                      className="inline-flex items-center gap-1 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black px-3 py-1.5 rounded-xl text-[11px] transition cursor-pointer active:scale-95 shadow-md shadow-cyan-500/20"
-                    >
-                      <RefreshCw className="h-3 w-3" />
-                      <span>Retry</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setScanRetryPrompt(null)}
-                      className="text-slate-400 hover:text-white p-1 rounded-lg transition cursor-pointer"
-                      title="Dismiss"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Instant Non-Obstructing Bottom-Docked Valuation Card (z-40) with Spring Physics */}
-            {activeValuationHit && !activeCompsHit && (() => {
-              const itemComps = ensureVerifiedSoldComps(
-                activeValuationHit.rawComps,
-                activeValuationHit.name,
-                activeValuationHit.estimatedValue,
-                activeValuationHit.condition,
-                activeValuationHit.brand
-              );
-
-              const resaleMedian = activeValuationHit.estimatedValue || 0;
-              const resaleMin = activeValuationHit.suggestedPriceMin ?? activeValuationHit.compsRange?.min ?? Math.max(1, Math.round(resaleMedian * 0.75));
-              const resaleMax = activeValuationHit.suggestedPriceMax ?? activeValuationHit.compsRange?.max ?? Math.round(resaleMedian * 1.25);
-
-              const thriftCost = activeValuationHit.tagPrice
-                ? activeValuationHit.tagPrice
-                : activeValuationHit.estCost
-                ? activeValuationHit.estCost
-                : 0;
-
-              const netProfit = activeValuationHit.trueNetProfit ?? activeValuationHit.estimatedProfit ?? Math.max(0, resaleMedian - thriftCost);
-              const roiPct = activeValuationHit.roiPercentage ?? activeValuationHit.estRoi ?? (thriftCost > 0 ? Math.round((netProfit / thriftCost) * 100) : 0);
-
-              const estFees = Math.round((resaleMedian * 0.134 + 0.33) * 100) / 100;
-              const estPost = Math.max(0, Math.round((resaleMedian - thriftCost - estFees - netProfit) * 100) / 100) || 9.5;
-
-              const ebaySearchQuery = encodeURIComponent(activeValuationHit.name ? `${activeValuationHit.name} sold` : "vintage items");
-              const ebayUrl = `https://www.ebay.com.au/sch/i.html?_nkw=${ebaySearchQuery}&LH_Sold=1&LH_Complete=1`;
-
-              const verdictBadge = activeValuationHit.copVerdict === "MUST_COP"
-                ? "badge-verdict-buy"
-                : activeValuationHit.copVerdict === "QUICK_FLIP"
-                ? "badge-verdict-buy"
-                : activeValuationHit.copVerdict === "VERIFY_FIRST"
-                ? "badge-verdict-watch"
-                : "badge-verdict-pass";
-
-              const verdictLabel = activeValuationHit.copVerdict === "MUST_COP"
-                ? "BUY"
-                : activeValuationHit.copVerdict === "QUICK_FLIP"
-                ? "QUICK FLIP"
-                : activeValuationHit.copVerdict === "VERIFY_FIRST"
-                ? "VERIFY"
-                : "PASS";
-
-              return (
-                <div
-                  className={`absolute bottom-3 sm:bottom-4 left-1/2 -translate-x-1/2 z-40 w-[95%] max-w-md pointer-events-auto ${
-                    isCardExiting ? "lens-card-exit" : "lens-card-enter"
-                  }`}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div
-                    key={`lens-valuation-${activeValuationHit.id || activeValuationHit.name}`}
-                    ref={(node) => {
-                      valuationCardRef.current = node;
-                      if (node) {
-                        setIsValuationCardMounted(true);
-                      }
-                    }}
-                    className={`w-full transition-all duration-300 ease-out lens-hit-bloom ${
-                      scanCompletePulse ? "ring-2 ring-emerald-400/90 shadow-[0_0_50px_rgba(16,185,129,0.6)]" : ""
-                    }`}
-                  >
-                    <ValuationCardErrorBoundary
-                      onRetry={() => void processCurrentFrame(true)}
-                      onDismiss={() => handleDismissCard()}
-                    >
-                      <div className="trade-ticket w-full rounded-2xl bg-[#0E1017] border border-white/[0.12] p-3.5 sm:p-4 shadow-[0_20px_60px_rgba(0,0,0,0.85)] backdrop-blur-xl select-none max-h-[85vh] flex flex-col">
-                        {/* Top Header: Thumbnail Anchor, Title, Brand & Cop Verdict */}
-                        <div className="flex items-start justify-between gap-2.5 mb-2 shrink-0">
-                          <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                            {(frozenFrameUrl || activeValuationHit.image) && (
-                              <div className="relative h-12 w-12 rounded-xl overflow-hidden border border-white/[0.12] shrink-0 bg-[#141721]">
-                                <img
-                                  src={frozenFrameUrl || activeValuationHit.image || ""}
-                                  alt={activeValuationHit.name}
-                                  className="h-full w-full object-cover"
-                                />
-                              </div>
-                            )}
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
-                                {itemComps.length > 0 ? (
-                                  <span className="inline-flex items-center gap-1 text-[10px] font-mono font-medium text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/30">
-                                    <Sparkles className="w-2.5 h-2.5" />
-                                    <span>{itemComps.length} Cleared Sales</span>
-                                  </span>
-                                ) : (
-                                  <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold text-amber-300 bg-amber-500/15 px-2 py-0.5 rounded-full border border-amber-500/30">
-                                    <span>0 Sold Comps • Algorithmic Appraisal</span>
-                                  </span>
-                                )}
-                                {isMeaningfulMeta(activeValuationHit.brand) && (
-                                  <span className="text-[10px] font-medium text-zinc-400 font-mono truncate max-w-[110px]">
-                                    {activeValuationHit.brand.trim()}
-                                  </span>
-                                )}
-                              </div>
-                              <h4 className="text-xs sm:text-sm font-bold text-white line-clamp-2 leading-snug tracking-tight">
-                                {activeValuationHit.name}
-                              </h4>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            {activeValuationHit.copVerdict && (
-                              <span className={verdictBadge}>{verdictLabel}</span>
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => handleDismissCard()}
-                              className="text-zinc-400 hover:text-white p-1 rounded-lg transition cursor-pointer hover:bg-white/[0.06]"
-                              title="Dismiss"
-                            >
-                              <X className="h-4 w-4" />
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Scrollable Core: Resale Value, Profit Hero, P&L Math & 3-5 Sold Comps */}
-                        <div className="overflow-y-auto space-y-2.5 pr-0.5 custom-scrollbar">
-                          {/* 1. Clear eBay Resale Value Strip */}
-                          <div className="p-2.5 rounded-xl bg-[#141721] border border-white/[0.06] flex items-center justify-between font-mono">
-                            <div className="flex flex-col">
-                              <span className="text-[9px] uppercase tracking-wider text-zinc-400 font-medium flex items-center gap-1">
-                                <ShoppingBag className="w-2.5 h-2.5 text-amber-400" />
-                                <span>Sells on eBay AU</span>
-                              </span>
-                              <span className="text-sm sm:text-base font-bold text-white">
-                                {fmtMoney(resaleMin)} – {fmtMoney(resaleMax)}
-                              </span>
-                            </div>
-                            <div className="flex flex-col items-end">
-                              <span className="text-[9px] uppercase tracking-wider text-zinc-400 font-medium">
-                                eBay Median Sold
-                              </span>
-                              <span className="text-sm sm:text-base font-bold text-emerald-400">
-                                {fmtMoney(resaleMedian)} AUD
-                              </span>
-                            </div>
-                          </div>
-
-                          {/* 2. Potential Take-Home Profit Hero Banner */}
-                          <div className="p-3 rounded-xl bg-gradient-to-br from-[#10241A] to-[#121926] border border-emerald-500/30 font-mono shadow-sm">
-                            <div className="flex items-center justify-between gap-2">
-                              <div>
-                                <span className="text-[9px] uppercase tracking-wider text-emerald-400/90 font-bold flex items-center gap-1">
-                                  <TrendingUp className="w-3 h-3 text-emerald-400" />
-                                  <span>Take-Home Net Profit</span>
-                                </span>
-                                <span className="text-xl sm:text-2xl font-black text-emerald-400 tracking-tight">
-                                  +{fmtMoney(netProfit)}
-                                </span>
-                              </div>
-                              <div className="flex flex-col items-end">
-                                <span className="text-xs font-bold text-emerald-300 bg-emerald-500/20 border border-emerald-500/30 px-2 py-0.5 rounded-lg">
-                                  +{roiPct}% ROI
-                                </span>
-                                <span className="text-[10px] text-zinc-400 mt-1 font-sans">
-                                  {activeValuationHit.copVerdict === "MUST_COP"
-                                    ? "High Margin Cop"
-                                    : activeValuationHit.copVerdict === "QUICK_FLIP"
-                                    ? "Fast Turnover Flip"
-                                    : activeValuationHit.copVerdict === "VERIFY_FIRST"
-                                    ? "Verify Tag & Details"
-                                    : "Marginal Trade"}
-                                </span>
-                              </div>
-                            </div>
-
-                            {/* Transparent Reseller P&L Equation */}
-                            <div className="mt-2.5 pt-2 border-t border-emerald-500/20 text-[10px] text-zinc-300 flex items-center justify-between flex-wrap gap-1">
-                              <div className="flex items-center gap-1 flex-wrap">
-                                <span>Sold {fmtMoney(resaleMedian)}</span>
-                                <span className="text-zinc-500">−</span>
-                                <span>Tag {fmtMoney(thriftCost)}</span>
-                                <span className="text-zinc-500">−</span>
-                                <span>Fees ~{fmtMoney(estFees)}</span>
-                                <span className="text-zinc-500">−</span>
-                                <span>Post ~{fmtMoney(estPost)}</span>
-                              </div>
-                              <span className="text-emerald-400 font-bold ml-auto">
-                                = +{fmtMoney(netProfit)} in pocket
-                              </span>
-                            </div>
-                          </div>
-
-                          {/* 3. Revealed Inline 3 to 5 Recent Sold Comps OR Zero Comps Appraisal */}
-                          {itemComps.length > 0 ? (
-                            <div className="space-y-1.5">
-                              <div className="flex items-center justify-between px-0.5">
-                                <span className="text-[10px] font-mono font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-1">
-                                  <Sparkles className="w-3 h-3 text-emerald-400" />
-                                  <span>Recent Sold Comps ({itemComps.length})</span>
-                                </span>
-                                <a
-                                  href={ebayUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-[10px] font-mono text-zinc-400 hover:text-zinc-200 flex items-center gap-1 hover:underline cursor-pointer"
-                                >
-                                  <span>Search eBay</span>
-                                  <ExternalLink className="w-2.5 h-2.5" />
-                                </a>
-                              </div>
-
-                              <div className="max-h-32 sm:max-h-36 overflow-y-auto space-y-1.5 custom-scrollbar pr-0.5">
-                                {itemComps.map((comp, idx) => (
-                                  <div
-                                    key={comp.id || idx}
-                                    className="p-2 rounded-xl bg-[#141721] border border-white/[0.06] flex items-center justify-between gap-2 hover:border-white/[0.12] transition"
-                                  >
-                                    <div className="min-w-0 flex-1">
-                                      <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
-                                        <span className="text-xs font-bold font-mono text-emerald-400">
-                                          {fmtMoney(comp.price)}
-                                        </span>
-                                        <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-white/[0.06] text-zinc-300">
-                                          {comp.soldDate}
-                                        </span>
-                                        {comp.condition && (
-                                          <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-white/[0.04] text-zinc-400 truncate max-w-[110px]">
-                                            {comp.condition}
-                                          </span>
-                                        )}
-                                        {typeof comp.matchPercentage === "number" && (
-                                          <span className="text-[9px] font-mono text-emerald-400">
-                                            {comp.matchPercentage}% match
-                                          </span>
-                                        )}
-                                      </div>
-                                      <div className="text-[10px] text-zinc-300 truncate font-medium">
-                                        {comp.title}
-                                      </div>
-                                    </div>
-                                    {comp.url && (
-                                      <a
-                                        href={comp.url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="shrink-0 p-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.10] text-zinc-400 hover:text-white transition"
-                                        title="View sold listing on eBay AU"
-                                      >
-                                        <ExternalLink className="w-3 h-3" />
-                                      </a>
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 space-y-1.5 font-mono">
-                              <div className="flex items-center justify-between">
-                                <span className="text-[10px] font-bold text-amber-300 uppercase tracking-wider flex items-center gap-1">
-                                  <AlertTriangle className="w-3 h-3 text-amber-400" />
-                                  <span>0 Sold Comps On Record</span>
-                                </span>
-                                <span className="text-[9px] text-amber-300/80 bg-amber-500/20 px-1.5 py-0.2 rounded">
-                                  Algorithmic Appraisal
-                                </span>
-                              </div>
-                              <p className="text-[11px] text-zinc-300 font-sans leading-snug">
-                                No completed transactions found on eBay AU. Recommended starting list price is <strong>{fmtMoney(resaleMedian)} AUD</strong> (Buy It Now + Best Offer) with a fast liquidation floor of <strong>{fmtMoney(resaleMin)} AUD</strong>.
-                              </p>
-                            </div>
-                          )}
-
-                          {/* Verification Reason / Fallback Notice (if any) */}
-                          {(activeValuationHit.copVerdict === "VERIFY_FIRST" || activeValuationHit.requiresSecondaryVerification) && (
-                            <div className="px-2.5 py-1.5 rounded-xl bg-[#141721] border border-amber-500/30 flex items-center justify-between gap-2">
-                              <div className="flex items-center gap-1.5 min-w-0">
-                                <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                                <span className="text-[10px] font-medium text-zinc-300 truncate">
-                                  {activeValuationHit.verificationReason || "Confidence < 88% — confirm details before copping"}
-                                </span>
-                              </div>
-                              {activeValuationHit.fallbackProtocol === "SCAN_BARCODE" ? (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    handleDismissCard(() => {
-                                      setScanMode("barcode");
-                                      toast.info("Switched to Barcode Mode for precision verification.");
-                                    });
-                                  }}
-                                  className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white/[0.08] hover:bg-white/[0.14] text-white border border-white/[0.12] text-[9px] font-mono font-bold uppercase tracking-wider transition active:scale-95 cursor-pointer shadow-sm"
-                                >
-                                  <Barcode className="w-2.5 h-2.5" />
-                                  <span>Barcode</span>
-                                </button>
-                              ) : activeValuationHit.fallbackProtocol === "ZOOM_LABEL" ? (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    handleDismissCard(() => {
-                                      toast.info("Move camera closer to focus on brand/size tag.");
-                                      void processCurrentFrame(true);
-                                    });
-                                  }}
-                                  className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white/[0.08] hover:bg-white/[0.14] text-white border border-white/[0.12] text-[9px] font-mono font-bold uppercase tracking-wider transition active:scale-95 cursor-pointer shadow-sm"
-                                >
-                                  <Camera className="w-2.5 h-2.5" />
-                                  <span>Zoom Tag</span>
-                                </button>
-                              ) : null}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Interactive Action Buttons */}
-                        <div className="flex items-center justify-between gap-2 pt-2.5 mt-2 border-t border-white/[0.08] shrink-0">
-                          <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                triggerTactileHaptic("medium");
-                                setIsScanPaused(true);
-                                const isolatedCapture =
-                                  frozenFrameUrl ||
-                                  activeValuationHit?.image ||
-                                  undefined;
-                                const stableSessionId =
-                                  activeValuationHit?.id ||
-                                  (activeValuationHit?.timestamp ? `hit_${activeValuationHit.timestamp}` : "hit_active");
-
-                                setActiveEbayItem({
-                                  ...activeValuationHit,
-                                  image: isolatedCapture,
-                                  imageUrls: isolatedCapture ? [isolatedCapture] : undefined,
-                                  sessionId: stableSessionId,
-                                });
-                              }}
-                              className="inline-flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-xl text-[11px] font-semibold transition cursor-pointer active:scale-95 bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30"
-                              title="List this item to eBay AU"
-                            >
-                              <ShoppingBag className="h-3.5 w-3.5 text-amber-400" />
-                              <span>List on eBay</span>
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setActiveCompsHit(activeValuationHit);
-                              }}
-                              className="inline-flex items-center gap-1 bg-[#141721] hover:bg-[#1C202E] text-zinc-300 hover:text-white border border-white/[0.08] px-2 sm:px-2.5 py-1.5 rounded-xl text-[11px] font-medium transition cursor-pointer active:scale-95"
-                            >
-                              <TrendingUp className="h-3.5 w-3.5 text-zinc-400" />
-                              <span>Comps Dialog</span>
-                            </button>
-
-                            {checkNeedsVerification({
-                              name: activeValuationHit.name,
-                              brand: activeValuationHit.brand || undefined,
-                              category: activeValuationHit.category || undefined,
-                              estimatedValue: activeValuationHit.estimatedValue,
-                            }).needsVerification && (
-                              <button
-                                type="button"
-                                onClick={() => handleOpenDeepVerify(activeValuationHit)}
-                                className="inline-flex items-center gap-1 bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/30 px-2 sm:px-2.5 py-1.5 rounded-xl text-[11px] font-medium transition cursor-pointer"
-                              >
-                                <ShieldCheck className="h-3.5 w-3.5 text-purple-400" />
-                                <span>Verify</span>
-                              </button>
-                            )}
-                          </div>
-
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                triggerTactileHaptic("light");
-                                handleDismissCard(() => {
-                                  setIsScanPaused(false);
-                                  setScanStage("idle");
-                                });
-                              }}
-                              className="inline-flex items-center gap-1 bg-white/[0.06] hover:bg-white/[0.12] text-zinc-200 hover:text-white border border-white/[0.10] font-mono px-2.5 py-1.5 rounded-xl text-[11px] transition cursor-pointer active:scale-95"
-                              title="Scan Next Item"
-                            >
-                              <Camera className="h-3.5 w-3.5 text-zinc-400" />
-                              <span>Next</span>
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => {
-                                void handleSaveDraftHit(activeValuationHit);
-                                handleDismissCard();
-                              }}
-                              className="inline-flex items-center gap-1 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold px-3 py-1.5 rounded-xl text-[11px] shadow-sm transition cursor-pointer active:scale-95"
-                            >
-                              <CheckCircle2 className="h-3.5 w-3.5" />
-                              <span>+ Add</span>
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </ValuationCardErrorBoundary>
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* Subtle Scanning Hairline — clean non-distracting optical indicator */}
-            {analyzingRealFrame && (
-              <div className="absolute inset-x-0 z-25 pointer-events-none" style={{ top: "50%", transform: "translateY(-50%)" }}>
-                <div className="relative">
-                  <div
-                    className="w-full h-[1px] bg-gradient-to-r from-transparent via-white/60 to-transparent"
-                    style={{ animation: "scanBeam 1.4s ease-in-out infinite" }}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Grail Alert — high-contrast slide-up toast */}
-            {activeGrailAlert && (
-              <div className="absolute bottom-[calc(env(safe-area-inset-bottom,0px)+1rem)] left-1/2 -translate-x-1/2 z-50 w-[92%] max-w-sm pointer-events-auto animate-in slide-in-from-bottom-4 fade-in duration-300">
-                <div className="flex items-center gap-3 p-3.5 rounded-2xl bg-[#0E1017]/95 border border-amber-500/30 shadow-[0_16px_40px_rgba(0,0,0,0.8)] backdrop-blur-xl">
-                  <div className="h-10 w-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center shrink-0">
-                    <Trophy className="h-5 w-5 text-amber-400" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[10px] font-mono font-bold uppercase tracking-wider text-amber-400">High Margin Find</p>
-                    <p className="text-sm font-bold text-white truncate">{activeGrailAlert.name}</p>
-                    <p className="text-[11px] font-bold text-emerald-400 font-mono">+{fmtMoney(activeGrailAlert.profit)} • {activeGrailAlert.roi.toFixed(0)}% ROI</p>
-                  </div>
-                  <button type="button" onClick={() => setActiveGrailAlert(null)} className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/[0.08] transition shrink-0">
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Offline Dead-Zone Signal Warning Banner */}
-            {isOffline ? (
-              <div className="absolute top-[max(0.75rem,calc(env(safe-area-inset-top,0px)+0.75rem))] left-1/2 -translate-x-1/2 z-30 w-[92%] max-w-md mx-auto pointer-events-none">
-                <div className="flex items-center justify-center gap-2 rounded-xl glass-hud px-4 py-2 text-xs font-bold text-zinc-300 shadow-2xl border border-white/[0.08]">
-                  <WifiOff className="h-4 w-4 shrink-0 text-zinc-400" />
-                  <span>📶 Offline Dead-Zone Active — Camera Scanner Ready</span>
-                </div>
-              </div>
-            ) : null}
-
-            {/* Phase 4: Non-Alarming Scan Error State Banner */}
-            {scanErrorState.type && !isOffline && (
-              <div className="absolute top-[max(0.75rem,calc(env(safe-area-inset-top,0px)+0.75rem))] left-1/2 -translate-x-1/2 z-30 w-[92%] max-w-md mx-auto pointer-events-none">
-                {scanErrorState.type === "rate_limit_user" && (
-                  <div className="flex items-center gap-2 rounded-xl glass-hud px-4 py-2.5 text-xs font-bold text-zinc-300 shadow-2xl border border-white/[0.08]">
-                    <Clock className="h-4 w-4 shrink-0 text-zinc-400" />
-                    <span>
-                      {scanErrorState.retryAfter && scanErrorState.retryAfter > 0
-                        ? `You've hit your scan limit. Try again in ${scanErrorState.retryAfter}s.`
-                        : "You've hit your scan limit. Try again shortly."}
-                    </span>
-                  </div>
-                )}
-
-                {scanErrorState.type === "rate_limit_upstream" && (
-                  <div className="flex items-center gap-2 rounded-2xl glass-hud px-4 py-2.5 text-xs font-bold text-zinc-300 shadow-xl">
-                    <RefreshCw className="h-3.5 w-3.5 shrink-0 text-zinc-400 animate-spin" />
-                    <span>Processing. Retrying in a moment.</span>
-                  </div>
-                )}
-
-                {scanErrorState.type === "unauthorized" && !isGuestUser && (
-                  <div className="flex items-center justify-between gap-3 rounded-xl bg-slate-800/95 backdrop-blur-md px-4 py-2.5 text-xs font-extrabold text-slate-200 shadow-2xl border border-slate-600/60 pointer-events-auto w-full">
-                    <div className="flex items-center gap-2">
-                      <ShieldAlert className="h-4 w-4 shrink-0 text-zinc-400" />
-                      <span>Session expired. Please sign in to continue.</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => router.push("/login")}
-                      className="inline-flex items-center gap-1 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black px-3 py-1 rounded-lg text-[11px] transition shrink-0"
-                    >
-                      <LogIn className="h-3 w-3" /> Sign In
-                    </button>
-                  </div>
-                )}
-
-
-
-                {scanErrorState.type === "generic" && (
-                  <div className="flex items-center gap-2 rounded-2xl glass-hud px-4 py-2.5 text-xs font-bold text-zinc-300 shadow-xl">
-                    <ShieldAlert className="h-3.5 w-3.5 shrink-0 text-rose-400" />
-                    <span>Scan error. Active session preserved.</span>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Scan Feedback — spring bloom/fade, no hard color pops */}
-            {scanFeedback === "HIT" && (
-              <div className="absolute inset-0 z-30 pointer-events-none lens-hit-bloom lens-hit-bloom-active" />
-            )}
-            {scanFeedback === "MISS" && (
-              <div className="absolute inset-0 z-30 pointer-events-none lens-miss-fade bg-rose-500/[0.07] shadow-[inset_0_0_60px_rgba(244,63,94,0.25)]" />
-            )}
-
-            {/* Corner Viewfinder Ticks & Precision Rangefinder Reticle */}
-            <div className="absolute inset-0 z-15 pointer-events-none flex items-center justify-center p-8">
-              <div
-                ref={reticleRef}
-                className={`relative w-full h-full max-w-[420px] max-h-[500px] pointer-events-none transition-all duration-300 ${analyzingRealFrame ? "scale-[1.02]" : "scale-100"}`}
-              >
-                {/* Corner Calibrated Brackets */}
-                <div className={`absolute top-0 left-0 w-8 h-8 border-t border-l rounded-tl transition-colors duration-200 ${analyzingRealFrame ? "border-white" : "border-white/40"}`}>
-                  <span className="absolute -top-3 left-0 text-[7px] font-mono text-zinc-400">00</span>
-                </div>
-                <div className={`absolute top-0 right-0 w-8 h-8 border-t border-r rounded-tr transition-colors duration-200 ${analyzingRealFrame ? "border-white" : "border-white/40"}`}>
-                  <span className="absolute -top-3 right-0 text-[7px] font-mono text-zinc-400">80</span>
-                </div>
-                <div className={`absolute bottom-0 left-0 w-8 h-8 border-b border-l rounded-bl transition-colors duration-200 ${analyzingRealFrame ? "border-white" : "border-white/40"}`} />
-                <div className={`absolute bottom-0 right-0 w-8 h-8 border-b border-r rounded-br transition-colors duration-200 ${analyzingRealFrame ? "border-white" : "border-white/40"}`} />
-
-                {/* Center Precision Crosshair Reticle */}
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <div className={`w-3 h-[1px] ${analyzingRealFrame ? "bg-white" : "bg-white/40"}`} />
-                  <div className={`h-3 w-[1px] ${analyzingRealFrame ? "bg-white" : "bg-white/40"}`} />
-                </div>
-              </div>
-            </div>
-
-            {/* Clean Industrial AR Bounding Box Target Indicator */}
-            {activeScans.slice(0, 1).map((scan) => (
-              <div
-                key={scan.id}
-                style={{
-                  left: `${Math.max(2, Math.min(80, scan.bbox.x))}%`,
-                  top: `${Math.max(2, Math.min(80, scan.bbox.y))}%`,
-                  width: `${Math.max(15, Math.min(95, scan.bbox.width))}%`,
-                  height: `${Math.max(15, Math.min(95, scan.bbox.height))}%`,
-                }}
-                className={`absolute z-20 pointer-events-none border rounded-xl overflow-hidden transition-all duration-150 ${
-                  scan.status === "valued"
-                    ? "border-emerald-400/90 bg-emerald-500/[0.04]"
-                    : "border-white/60 bg-white/[0.02]"
-                } ${cameraMoving ? "opacity-60" : "opacity-100"}`}
-              >
-                {/* Subtle Telemetry Tag */}
-                <div className="absolute -top-6 left-0 flex items-center gap-1.5 bg-[#0A0D14]/95 text-white border border-white/[0.12] rounded-md px-2 py-0.5 text-[10px] shadow-md backdrop-blur-md font-mono">
-                  <span className={`h-1.5 w-1.5 rounded-full ${scan.status === "valued" ? "bg-emerald-400" : "bg-white"}`} />
-                  <span className="text-zinc-400 text-[9px] uppercase tracking-wider font-medium">
-                    {scan.status === "valued" ? "LOCKED" : "EVALUATING"}
-                  </span>
-                  <span className="text-white font-bold truncate max-w-[130px]">
-                    {scan.productName}
-                  </span>
-                  {scan.ocrText && scan.ocrText.length > 0 && (
-                    <span className="hidden xs:inline text-zinc-400 text-[8px] bg-white/[0.06] px-1 rounded border border-white/[0.08] max-w-[90px] truncate">
-                      OCR: {scan.ocrText[0]}
-                    </span>
-                  )}
-                </div>
-              </div>
-            ))}
-
-            {/* Optical Shutter Aperture Flash (Immediate 80ms white freeze-frame optical flash) */}
-            {shutterFlash && (
-              <div className="absolute inset-0 z-50 pointer-events-none bg-white opacity-90 transition-opacity duration-[80ms] ease-out" />
-            )}
-
-            {/* Optical Horizon Leveler & Gyro Instrumentation */}
-            {stream && !activeValuationHit && (
-              <div className="absolute bottom-36 sm:bottom-40 left-1/2 -translate-x-1/2 z-25 pointer-events-none">
-                <OpticalHorizonLeveler soundEnabled={soundEnabled} />
-              </div>
-            )}
-
-            {/* Primary Viewfinder Zoom Controls (1x, 2x, 3x) — Minimalist Matte HUD */}
-            {stream && !activeValuationHit && (
-              <div className="absolute bottom-[max(5.5rem,calc(env(safe-area-inset-bottom,0px)+5rem))] sm:bottom-28 left-1/2 -translate-x-1/2 z-30 pointer-events-auto flex items-center gap-1 bg-[#0E1017]/90 border border-white/[0.12] backdrop-blur-md rounded-full px-1.5 py-1 shadow-md">
-                {[1, 2, 3].map((z) => (
+                ) : isScanPaused ? (
                   <button
-                    key={z}
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
                       triggerDialTickHaptic();
                       if (soundEnabled) playTactileClickSound();
-                      setZoomLevel(z);
+                      handleResumeScanning();
                     }}
-                    className={`h-7 w-7 sm:h-8 sm:w-8 rounded-full text-xs font-mono font-bold transition cursor-pointer flex items-center justify-center ${
-                      zoomLevel === z
-                        ? "bg-white text-zinc-950 shadow-sm scale-105"
-                        : "text-zinc-400 hover:text-white hover:bg-white/[0.06]"
-                    }`}
-                    title={`Set Zoom to ${z}x`}
+                    className="group relative flex items-center gap-2 rounded-full bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 px-6 py-3 text-xs sm:text-sm font-black text-slate-950 shadow-[0_0_30px_rgba(52,211,153,0.4)] active:scale-95 transition-transform duration-75 cursor-pointer"
+                    title="Resume live continuous AR camera"
                   >
-                    {z}x
+                    <RefreshCw className="h-4 w-4 shrink-0 text-slate-950 group-hover:rotate-180 transition-transform duration-300" />
+                    <span>Scan Next Item</span>
                   </button>
-                ))}
-              </div>
-            )}
-
-            {/* Quick Snap & Value Tactile Shutter / Resume Button (Center Floating) */}
-            <div className={`absolute bottom-[max(1.25rem,calc(env(safe-area-inset-bottom,0px)+0.75rem))] sm:bottom-5 left-1/2 -translate-x-1/2 z-30 flex items-center justify-center transition-opacity duration-150 ${
-              scanStage === "confirmation" ? "opacity-0 pointer-events-none" : "opacity-100 pointer-events-auto"
-            }`}>
-              {!isPro && !isOwner && isLimitReached ? (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    triggerTactileHaptic("warning");
-                    setIsPaywallOpen(true);
-                    toast.error("Daily free scan limit reached (10/10). Upgrade to Pro to continue scanning.", {
-                      id: "daily-limit-toast",
-                    });
-                  }}
-                  className="group relative flex items-center gap-2 rounded-full bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 px-6 py-3 text-xs sm:text-sm font-black text-slate-950 shadow-[0_0_30px_rgba(0,242,254,0.4)] active:scale-95 transition-transform duration-75 cursor-pointer animate-pulse"
-                  title="Daily limit reached — Upgrade to Spadas Pro"
-                >
-                  <Crown className="h-4 w-4 shrink-0 text-slate-950" />
-                  <span>Daily Limit Reached (10/10) • Get Pro</span>
-                </button>
-              ) : isScanPaused ? (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    triggerDialTickHaptic();
-                    if (soundEnabled) playTactileClickSound();
-                    handleResumeScanning();
-                  }}
-                  className="group relative flex items-center gap-2 rounded-full bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 px-6 py-3 text-xs sm:text-sm font-black text-slate-950 shadow-[0_0_30px_rgba(52,211,153,0.4)] active:scale-95 transition-transform duration-75 cursor-pointer"
-                  title="Resume live continuous AR camera"
-                >
-                  <RefreshCw className="h-4 w-4 shrink-0 text-slate-950 group-hover:rotate-180 transition-transform duration-300" />
-                  <span>Scan Next Item</span>
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (!isPro && !isOwner && isLimitReached) {
-                      setIsScanPaused(true);
-                      setIsPaywallOpen(true);
-                      toast.error("You've used all 10 free daily scans! Upgrade to Pro for unlimited scans.", {
-                        id: "daily-limit-toast",
-                      });
-                      return;
-                    }
-                    flushScanState();
-                    void processCurrentFrame(true);
-                  }}
-                  className="group relative flex items-center justify-center h-18 w-18 sm:h-20 sm:w-20 rounded-full p-1.5 cursor-pointer active:scale-[0.92] transition-transform duration-100 ease-out"
-                  title="Instant Multi-Frame Snap & Value (Tap to scan)"
-                >
-                  {/* Outer Concentric Machined Ring */}
-                  <div className="absolute inset-0 rounded-full border-2 border-white/40 group-hover:border-white transition-colors" />
-
-                  {/* Inner Solid Brushed Trigger Core */}
-                  <div className="flex h-full w-full items-center justify-center rounded-full bg-[#181C26] p-1 border border-white/10 shadow-inner">
-                    <div className="flex h-full w-full items-center justify-center rounded-full bg-[#0F1117] group-hover:bg-[#141822] transition">
-                      {analyzingRealFrame ? (
-                        <RefreshCw className="h-6 w-6 sm:h-7 sm:w-7 text-white animate-spin" />
-                      ) : (
-                        <div className="flex flex-col items-center justify-center text-center select-none">
-                          <Camera className="h-6 w-6 sm:h-7 sm:w-7 group-hover:scale-105 transition-transform text-white" />
-                          <span className="text-[8px] sm:text-[9px] font-mono font-bold uppercase tracking-wider text-zinc-300">
-                            SNAP
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </button>
-              )}
-            </div>
-
-            {/* Dedicated Quick Snap Stream Shutter (Bottom Left — Instant Live Frame Capture into Background Valuation Queue) */}
-            <div className={`absolute bottom-[max(1.25rem,calc(env(safe-area-inset-bottom,0px)+0.75rem))] sm:bottom-5 left-[max(0.75rem,env(safe-area-inset-left,0px))] z-40 transition-opacity duration-150 ${
-              scanStage === "confirmation" ? "opacity-0 pointer-events-none" : "opacity-100 pointer-events-auto"
-            }`}>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  triggerTactileHaptic("shutter");
-                  void handleQuickSnapCapture();
-                }}
-                onPointerDown={(e) => {
-                  e.stopPropagation();
-                }}
-                disabled={isQuickSnapping}
-                className="group flex min-h-[44px] min-w-[44px] touch-manipulation items-center gap-2 px-3.5 py-1.5 rounded-xl bg-[#0E1017]/90 border border-white/[0.12] hover:border-white/30 shadow-md backdrop-blur-md transition-transform duration-75 cursor-pointer active:scale-95 text-zinc-300 hover:text-white"
-                title="Rapid-fire shelf photo directly from live camera stream into background valuation queue"
-                aria-label="Quick Snap frame to Haul"
-              >
-                {isQuickSnapping ? (
-                  <RefreshCw className="h-4 w-4 text-white animate-spin shrink-0" />
                 ) : (
-                  <Camera className="h-4 w-4 text-white shrink-0 group-hover:scale-105 transition-transform" />
-                )}
-                <span className="text-xs font-bold tracking-tight text-white hidden xs:inline">
-                  Quick Snap
-                </span>
-                {quickSnapPendingCount > 0 && (
-                  <span className="px-1.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-white text-zinc-950">
-                    {quickSnapPendingCount}
-                  </span>
-                )}
-              </button>
-            </div>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (!isPro && !isOwner && isLimitReached) {
+                        setIsScanPaused(true);
+                        setIsPaywallOpen(true);
+                        toast.error("You've used all 10 free daily scans! Upgrade to Pro for unlimited scans.", {
+                          id: "daily-limit-toast",
+                        });
+                        return;
+                      }
+                      flushScanState();
+                      void processCurrentFrame(true);
+                    }}
+                    className="group relative flex items-center justify-center h-18 w-18 sm:h-20 sm:w-20 rounded-full p-1.5 cursor-pointer active:scale-[0.92] transition-transform duration-100 ease-out"
+                    title="Instant Multi-Frame Snap & Value (Tap to scan)"
+                  >
+                    {/* Outer Concentric Machined Ring */}
+                    <div className="absolute inset-0 rounded-full border-2 border-white/40 group-hover:border-white transition-colors" />
 
-            {/* Telemetry Haul Counter Badge (Bottom Right — Clean Data Telemetry Readout) */}
-            {isRapidScanMode && (
-              <div className={`absolute bottom-[max(1.25rem,calc(env(safe-area-inset-bottom,0px)+0.75rem))] sm:bottom-5 right-[max(0.75rem,env(safe-area-inset-right,0px))] z-40 transition-opacity duration-150 ${
-                scanStage === "confirmation" ? "opacity-0 pointer-events-none" : "opacity-100 pointer-events-auto"
-              }`}>
+                    {/* Inner Solid Brushed Trigger Core */}
+                    <div className="flex h-full w-full items-center justify-center rounded-full bg-[#181C26] p-1 border border-white/10 shadow-inner">
+                      <div className="flex h-full w-full items-center justify-center rounded-full bg-[#0F1117] group-hover:bg-[#141822] transition">
+                        {analyzingRealFrame ? (
+                          <RefreshCw className="h-6 w-6 sm:h-7 sm:w-7 text-white animate-spin" />
+                        ) : (
+                          <div className="flex flex-col items-center justify-center text-center select-none">
+                            <Camera className="h-6 w-6 sm:h-7 sm:w-7 group-hover:scale-105 transition-transform text-white" />
+                            <span className="text-[8px] sm:text-[9px] font-mono font-bold uppercase tracking-wider text-zinc-300">
+                              SNAP
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                )}
+              </div>
+
+              {/* Dedicated Quick Snap Stream Shutter (Bottom Left — Instant Live Frame Capture into Background Valuation Queue) */}
+              <div className={`absolute bottom-[max(1.25rem,calc(env(safe-area-inset-bottom,0px)+0.75rem))] sm:bottom-5 left-[max(0.75rem,env(safe-area-inset-left,0px))] z-40 transition-opacity duration-150 ${scanStage === "confirmation" ? "opacity-0 pointer-events-none" : "opacity-100 pointer-events-auto"
+                }`}>
                 <button
                   type="button"
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    triggerTactileHaptic("tap");
-                    if (onOpenHaulTab) {
-                      onOpenHaulTab();
-                    } else {
-                      router.push("/haul");
-                    }
+                    triggerTactileHaptic("shutter");
+                    void handleQuickSnapCapture();
                   }}
                   onPointerDown={(e) => {
                     e.stopPropagation();
                   }}
-                  className="group flex min-h-[44px] min-w-[44px] touch-manipulation items-center gap-2 px-3 py-1.5 rounded-xl bg-[#0E1017]/90 border border-white/[0.12] hover:border-white/30 shadow-md backdrop-blur-md transition cursor-pointer active:scale-95"
-                  title="Open Haul Review"
-                  aria-label={`Haul telemetry: ${haulCount} items collected. Tap to open haul review.`}
+                  disabled={isQuickSnapping}
+                  className="group flex min-h-[44px] min-w-[44px] touch-manipulation items-center gap-2 px-3.5 py-1.5 rounded-xl bg-[#0E1017]/90 border border-white/[0.12] hover:border-white/30 shadow-md backdrop-blur-md transition-transform duration-75 cursor-pointer active:scale-95 text-zinc-300 hover:text-white"
+                  title="Rapid-fire shelf photo directly from live camera stream into background valuation queue"
+                  aria-label="Quick Snap frame to Haul"
                 >
-                  <div className="flex items-center gap-1.5 font-mono">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shrink-0" />
-                    <span className="text-[10px] uppercase tracking-wider text-zinc-400 font-medium">
-                      Haul:
-                    </span>
-                    <span className="text-xs font-bold text-white tabular-nums">
-                      {haulCount}
-                    </span>
-                  </div>
-                  {rapidStats.totalProfit > 0 && (
-                    <span className="font-mono text-emerald-400 font-bold text-[10px] bg-emerald-500/10 border border-emerald-500/30 px-1.5 py-0.5 rounded hidden xs:inline tabular-nums">
-                      +${rapidStats.totalProfit.toFixed(0)}
-                    </span>
+                  {isQuickSnapping ? (
+                    <RefreshCw className="h-4 w-4 text-white animate-spin shrink-0" />
+                  ) : (
+                    <Camera className="h-4 w-4 text-white shrink-0 group-hover:scale-105 transition-transform" />
                   )}
-                  {rapidStats.queuedItems > 0 && (
-                    <RefreshCw className="h-3 w-3 text-white animate-spin ml-0.5 shrink-0" />
+                  <span className="text-xs font-bold tracking-tight text-white hidden xs:inline">
+                    Quick Snap
+                  </span>
+                  {quickSnapPendingCount > 0 && (
+                    <span className="px-1.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-white text-zinc-950">
+                      {quickSnapPendingCount}
+                    </span>
                   )}
                 </button>
               </div>
-            )}
-          </>
-        )}
+
+              {/* Telemetry Haul Counter Badge (Bottom Right — Clean Data Telemetry Readout) */}
+              {isRapidScanMode && (
+                <div className={`absolute bottom-[max(1.25rem,calc(env(safe-area-inset-bottom,0px)+0.75rem))] sm:bottom-5 right-[max(0.75rem,env(safe-area-inset-right,0px))] z-40 transition-opacity duration-150 ${scanStage === "confirmation" ? "opacity-0 pointer-events-none" : "opacity-100 pointer-events-auto"
+                  }`}>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      triggerTactileHaptic("tap");
+                      if (onOpenHaulTab) {
+                        onOpenHaulTab();
+                      } else {
+                        router.push("/haul");
+                      }
+                    }}
+                    onPointerDown={(e) => {
+                      e.stopPropagation();
+                    }}
+                    className="group flex min-h-[44px] min-w-[44px] touch-manipulation items-center gap-2 px-3 py-1.5 rounded-xl bg-[#0E1017]/90 border border-white/[0.12] hover:border-white/30 shadow-md backdrop-blur-md transition cursor-pointer active:scale-95"
+                    title="Open Haul Review"
+                    aria-label={`Haul telemetry: ${haulCount} items collected. Tap to open haul review.`}
+                  >
+                    <div className="flex items-center gap-1.5 font-mono">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shrink-0" />
+                      <span className="text-[10px] uppercase tracking-wider text-zinc-400 font-medium">
+                        Haul:
+                      </span>
+                      <span className="text-xs font-bold text-white tabular-nums">
+                        {haulCount}
+                      </span>
+                    </div>
+                    {rapidStats.totalProfit > 0 && (
+                      <span className="font-mono text-emerald-400 font-bold text-[10px] bg-emerald-500/10 border border-emerald-500/30 px-1.5 py-0.5 rounded hidden xs:inline tabular-nums">
+                        +${rapidStats.totalProfit.toFixed(0)}
+                      </span>
+                    )}
+                    {rapidStats.queuedItems > 0 && (
+                      <RefreshCw className="h-3 w-3 text-white animate-spin ml-0.5 shrink-0" />
+                    )}
+                  </button>
+                </div>
+              )}
+            </>
+          )}
         </CameraViewportErrorBoundary>
       </div>
 
@@ -5072,9 +5059,8 @@ function SpadasLensCameraCore({
 
       {/* Non-Intrusive In-Stream Audit-Grade Sold Comps Ledger (Anchored in document flow exclusively after scan payload resolves) */}
       {activeValuationHit && !activeCompsHit && (
-        <div className={`mt-4 w-full max-w-full px-3 sm:px-0 overflow-x-hidden box-border ${
-          isCardExiting ? "animate-card-exit" : "animate-card-enter"
-        }`}>
+        <div className={`mt-4 w-full max-w-full px-3 sm:px-0 overflow-x-hidden box-border ${isCardExiting ? "animate-card-exit" : "animate-card-enter"
+          }`}>
           <AuditCompsLedger
             isLoading={false}
             comps={activeValuationHit.rawComps}
@@ -5104,10 +5090,10 @@ function SpadasLensCameraCore({
               setActiveEbayItem(
                 activeValuationHit
                   ? {
-                      ...activeValuationHit,
-                      image: isolatedCapture,
-                      sessionId: stableSessionId,
-                    }
+                    ...activeValuationHit,
+                    image: isolatedCapture,
+                    sessionId: stableSessionId,
+                  }
                   : null
               );
             }}
@@ -5124,71 +5110,71 @@ function SpadasLensCameraCore({
       {/* Real-Time Scanned Hits Feed */}
       <div className="w-full px-3 sm:px-0 pb-[calc(env(safe-area-inset-bottom)+4.5rem)]">
         <div id="scanned-hits-feed" className="mt-4 w-full max-w-full overflow-x-hidden box-border rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-lg space-y-4 mx-auto scroll-mt-20">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
-          <h3 className="text-sm font-bold flex items-center gap-2">
-            <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
-            <span>Real-Time Scanned Hits ({capturedLog.length})</span>
-            {capturedLog.length === 0 && (
-              <span className="text-[11px] font-semibold text-muted-foreground animate-pulse ml-2">
-                (Aim camera at an item or tap "Scan Now")
-              </span>
-            )}
-          </h3>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
+            <h3 className="text-sm font-bold flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+              <span>Real-Time Scanned Hits ({capturedLog.length})</span>
+              {capturedLog.length === 0 && (
+                <span className="text-[11px] font-semibold text-muted-foreground animate-pulse ml-2">
+                  (Aim camera at an item or tap "Scan Now")
+                </span>
+              )}
+            </h3>
 
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={selectAllHits}
-              className="text-[11px] font-semibold text-cyan-500 hover:text-cyan-400 hover:underline cursor-pointer"
-            >
-              {selectedHitIds.length === capturedLog.length ? "Deselect All" : "Select All"}
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={selectAllHits}
+                className="text-[11px] font-semibold text-cyan-500 hover:text-cyan-400 hover:underline cursor-pointer"
+              >
+                {selectedHitIds.length === capturedLog.length ? "Deselect All" : "Select All"}
+              </button>
 
-            <button
-              type="button"
-              onClick={clearAllHits}
-              className="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-500 hover:text-rose-400 hover:underline cursor-pointer"
-            >
-              <Trash2 className="h-3 w-3" /> Clear List
-            </button>
+              <button
+                type="button"
+                onClick={clearAllHits}
+                className="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-500 hover:text-rose-400 hover:underline cursor-pointer"
+              >
+                <Trash2 className="h-3 w-3" /> Clear List
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 w-full box-border">
+            {capturedLog.map((item) => (
+              <LensHitCard
+                key={item.id}
+                item={item}
+                isSelected={selectedHitIds.includes(item.id)}
+                isSaved={isHitSavedInHaul(item)}
+                onSelect={toggleSelectHit}
+                onSaveDraft={handleSaveDraftHit}
+                onDeepVerify={(hit) => handleOpenDeepVerify(hit)}
+                onViewComps={(hit) => setActiveCompsHit(hit)}
+                onListEbay={(hit) => {
+                  setIsScanPaused(true);
+                  const isolatedCapture = hit.image || (hit.id === activeValuationHit?.id ? frozenFrameUrl : undefined);
+                  const stableSessionId = hit.id || (hit.timestamp ? `hit_${hit.timestamp}` : "hit_feed");
+                  setActiveEbayItem({
+                    ...hit,
+                    image: isolatedCapture,
+                    imageUrls: isolatedCapture ? [isolatedCapture] : undefined,
+                    sessionId: stableSessionId,
+                  });
+                }}
+                onReport={(id, name) => {
+                  void fetch("/api/scans/report", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ scanId: id, itemName: name }),
+                  }).catch(() => { });
+                  toast.info("Thanks — misidentification flagged for review.", { id: `report-${id}` });
+                }}
+              />
+            ))}
           </div>
         </div>
-
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 w-full box-border">
-          {capturedLog.map((item) => (
-            <LensHitCard
-              key={item.id}
-              item={item}
-              isSelected={selectedHitIds.includes(item.id)}
-              isSaved={isHitSavedInHaul(item)}
-              onSelect={toggleSelectHit}
-              onSaveDraft={handleSaveDraftHit}
-              onDeepVerify={(hit) => handleOpenDeepVerify(hit)}
-              onViewComps={(hit) => setActiveCompsHit(hit)}
-              onListEbay={(hit) => {
-                setIsScanPaused(true);
-                const isolatedCapture = hit.image || (hit.id === activeValuationHit?.id ? frozenFrameUrl : undefined);
-                const stableSessionId = hit.id || (hit.timestamp ? `hit_${hit.timestamp}` : "hit_feed");
-                setActiveEbayItem({
-                  ...hit,
-                  image: isolatedCapture,
-                  imageUrls: isolatedCapture ? [isolatedCapture] : undefined,
-                  sessionId: stableSessionId,
-                });
-              }}
-              onReport={(id, name) => {
-                void fetch("/api/scans/report", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ scanId: id, itemName: name }),
-                }).catch(() => {});
-                toast.info("Thanks — misidentification flagged for review.", { id: `report-${id}` });
-              }}
-            />
-          ))}
-        </div>
       </div>
-    </div>
 
       {/* Sticky Bottom Export FAB */}
       {selectedHitIds.length > 0 && (
@@ -5252,8 +5238,8 @@ function SpadasLensCameraCore({
             (activeEbayItem.image
               ? [activeEbayItem.image]
               : activeEbayItem.id && activeEbayItem.id === activeValuationHit?.id && frozenFrameUrl
-              ? [frozenFrameUrl]
-              : [])
+                ? [frozenFrameUrl]
+                : [])
           }
         />
       )}
@@ -5283,7 +5269,7 @@ function SpadasLensCameraCore({
           isScanPausedRef.current = false;
           setScanStage("idle");
           if (videoRef.current && videoRef.current.paused) {
-            videoRef.current.play().catch(() => {});
+            videoRef.current.play().catch(() => { });
           }
         }}
         onResumeScan={() => {
@@ -5298,11 +5284,11 @@ function SpadasLensCameraCore({
           setActiveEbayItem(
             hit
               ? {
-                  ...hit,
-                  image: isolatedCapture,
-                  imageUrls: isolatedCapture ? [isolatedCapture] : undefined,
-                  sessionId: stableSessionId,
-                }
+                ...hit,
+                image: isolatedCapture,
+                imageUrls: isolatedCapture ? [isolatedCapture] : undefined,
+                sessionId: stableSessionId,
+              }
               : null
           );
         }}
@@ -5443,18 +5429,18 @@ function SpadasLensCameraCore({
         onAddToHaul={
           activeValuationHit
             ? () => {
-                void handleSaveDraftHit(activeValuationHit);
-                setActiveValuationHit(null);
-                setFrozenFrameUrl(null);
-              }
+              void handleSaveDraftHit(activeValuationHit);
+              setActiveValuationHit(null);
+              setFrozenFrameUrl(null);
+            }
             : undefined
         }
         onViewComps={
           activeValuationHit
             ? () => {
-                setActiveCompsHit(activeValuationHit);
-                setActiveValuationHit(null);
-              }
+              setActiveCompsHit(activeValuationHit);
+              setActiveValuationHit(null);
+            }
             : undefined
         }
         currency={selectedCurrency}
