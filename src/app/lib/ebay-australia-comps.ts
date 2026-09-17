@@ -231,19 +231,48 @@ export async function fetchEbayAustraliaSoldComps(
     if (isNaN(price) || price <= 0) return false;
     const lower = title.toLowerCase();
 
-    // Condition / junk / accessory guards
-    if (/\b(box only|empty box|dustbag only|dust bag only|paper bag|paperbag|ribbon|shopping bag|authenticity card only|care booklet|untested|faulty|for parts|parts only|as-is|as is|broken|damaged|junk)\b/i.test(lower)) {
+    // Condition / Junk / Defective / Locked hardware guards
+    if (
+      /\b(for parts|parts only|as-is|as is|broken|not working|doesn't work|does not work|faulty|untested|cracked screen|water damage|water damaged|spares|for repair|repair only|needs repair|icloud locked|activation locked|blacklisted|bad esn|bad imei|frp locked|network locked|password locked|bypass|damaged|junk)\b/i.test(lower)
+    ) {
+      return false;
+    }
+
+    // Luxury packaging & paper guards
+    if (
+      /\b(box only|empty box|dustbag only|dust bag only|paper bag|paperbag|ribbon|shopping bag|authenticity card only|care booklet)\b/i.test(lower)
+    ) {
       return false;
     }
 
     // Physical Media & Standalone Parity Guards: Exclude strategy guides, artbooks, soundtracks, case/manual only
-    if (/\b(strategy guide|official guide|game guide|guide book|walkthrough|prima guide|bradygames|art book|artbook|soundtrack|ost|poster|case only|cover art only|manual only|inserts only|case & manual|case and manual|steelbook only|no game|no disc)\b/i.test(lower)) {
+    if (
+      /\b(strategy guide|official guide|game guide|guide book|walkthrough|prima guide|bradygames|art book|artbook|soundtrack|ost|poster|case only|cover art only|manual only|inserts only|case & manual|case and manual|steelbook only|no game|no disc)\b/i.test(lower)
+    ) {
       return false;
     }
 
     // Digital Media Guards: Exclude digital download codes, keys, and virtual accounts
-    if (/\b(digital code|download code|dlc code|digital key|cd key|steam key|activation key|digital download|code only|account|v-bucks|robux)\b/i.test(lower)) {
+    if (
+      /\b(digital code|download code|dlc code|digital key|cd key|steam key|activation key|digital download|code only|account|v-bucks|robux)\b/i.test(lower)
+    ) {
       return false;
+    }
+
+    // Tech Accessories, Mounts, Brackets, Replacement Cables & Dummy Devices
+    // Filters out $5–$25 accessory listings that drag down fair unit market value for cameras, consoles, audio, & electronics
+    if (
+      /\b(wall mount|mount only|mounting bracket|bracket only|wall bracket|corner mount|swivel mount|ceiling mount|mounting kit|gutter mount)\b/i.test(lower) ||
+      /\b(power cord|power cable|power adapter|ac adapter|power supply only|charging cable|charger only|charging dock|charging station|charging base|replacement cord|usb cable|lead only)\b/i.test(lower) ||
+      /\b(remote only|remote control only|battery only|spare battery|replacement battery|battery door|battery cover|lens cap only|body cap only|silicone skin|silicone case|protective cover only|strap only|wrist strap)\b/i.test(lower) ||
+      /\b(dummy camera|fake camera|decoy camera|simulated camera|no camera|camera not included|no console|console not included|no phone|phone not included|no device|device not included|stand only|dock only|cradle only|base only)\b/i.test(lower) ||
+      /\b(mount|bracket|holder|stand|cradle|adapter|cable|cord|charger|skin|cover) for\b/i.test(lower)
+    ) {
+      // If the searched item is NOT specifically looking for an accessory/mount, filter it out
+      const isQuerySeekingAccessory = /\b(mount|bracket|holder|stand|cradle|adapter|cable|cord|charger|skin|cover|remote|battery|cap|strap)\b/i.test(productName);
+      if (!isQuerySeekingAccessory) {
+        return false;
+      }
     }
 
     // Luxury threshold

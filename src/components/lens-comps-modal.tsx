@@ -110,19 +110,39 @@ export default function LensCompsModal({
 
   const [customTagCost, setCustomTagCost] = useState<number>(initialTagCost);
 
-  const title = (item as any)?.name || (item as any)?.productName || "Scanned Item";
+  const title = (item as any)?.name || (item as any)?.productName || (item as any)?.title || "Scanned Item";
   const brand = cleanBrandText(item?.brand, "Unbranded") || "Unbranded";
   const category = cleanCategoryText(item?.category, "General Resale") || "General Resale";
   const condition = cleanConditionText(item?.condition, "Used - Good");
 
   // Fragrance & Liquid Fill-Level Engine Detection
-  const isAutoDetectedFragrance = useMemo(() => isFragranceOrLiquid(title, category), [title, category]);
+  const isLiquidOrFragrance = useMemo(() => {
+    const liquidCategories = [
+      "Fragrance", "Perfume", "Cologne", "Beauty", "Liquids", "Liquid",
+      "Eau de", "EDP", "EDT", "Parfum", "Aftershave", "Body Mist", "Skincare"
+    ];
+    const catLower = (category || "").toLowerCase();
+    const titleLower = (title || "").toLowerCase();
+    const hitTitleLower = (((item as any)?.title || (item as any)?.name || "") as string).toLowerCase();
+
+    const matchesKeyword = liquidCategories.some((cat) => {
+      const lower = cat.toLowerCase();
+      return (
+        catLower.includes(lower) ||
+        titleLower.includes(lower) ||
+        hitTitleLower.includes(lower)
+      );
+    });
+
+    return matchesKeyword || isFragranceOrLiquid(title, category);
+  }, [category, title, item]);
+
   const autoFragranceAttrs = useMemo(
     () => detectFragranceAttributes(title, condition, (item as any)?.defectNotes || []),
     [title, condition, item]
   );
 
-  const [isFragranceActive, setIsFragranceActive] = useState<boolean>(isAutoDetectedFragrance);
+  const [isFragranceActive, setIsFragranceActive] = useState<boolean>(isLiquidOrFragrance);
   const [fillLevel, setFillLevel] = useState<number>(autoFragranceAttrs.fillLevelPercent);
   const [hasCap, setHasCap] = useState<boolean>(autoFragranceAttrs.hasCap);
   const [isTester, setIsTester] = useState<boolean>(autoFragranceAttrs.isTester);
@@ -181,25 +201,24 @@ export default function LensCompsModal({
   // Sync state whenever scanned item changes
   useEffect(() => {
     if (item) {
-      const isFrag = isFragranceOrLiquid(title, category);
-      setIsFragranceActive(isFrag);
+      setIsFragranceActive(isLiquidOrFragrance);
       const attrs = detectFragranceAttributes(title, condition, (item as any)?.defectNotes || []);
       setFillLevel(attrs.fillLevelPercent);
       setHasCap(attrs.hasCap);
       setIsTester(attrs.isTester);
       setHasBox(attrs.hasBox);
     }
-  }, [item, title, category, condition]);
+  }, [item, title, category, condition, isLiquidOrFragrance]);
 
   const fragranceMultiplier = useMemo(() => {
-    if (!isFragranceActive) return 1.0;
+    if (!isLiquidOrFragrance || !isFragranceActive) return 1.0;
     return calculateFragranceLiquidMultiplier({
       fillLevelPercent: deferredFillLevel,
       hasCap,
       isTester,
       hasBox,
     });
-  }, [isFragranceActive, deferredFillLevel, hasCap, isTester, hasBox]);
+  }, [isLiquidOrFragrance, isFragranceActive, deferredFillLevel, hasCap, isTester, hasBox]);
 
   // 1. Unbranded & Low-Confidence Comps Guardrail
   const hasBrandOrModel = Boolean(
@@ -240,7 +259,7 @@ export default function LensCompsModal({
   }, [rawComps, condition, fragranceMultiplier, isTargetUsed]);
 
   const compsRange = useMemo(() => {
-    const baseDefault = isFragranceActive
+    const baseDefault = (isLiquidOrFragrance && isFragranceActive)
       ? Math.max(2, Math.round(initialEstValue * fragranceMultiplier * 100) / 100)
       : initialEstValue;
 
@@ -292,10 +311,10 @@ export default function LensCompsModal({
       max: Math.max(cappedMin, cappedMax),
       median: Math.min(cappedMax, Math.max(cappedMin, rawMedian)),
     };
-  }, [item, initialEstValue, effectiveComps, title, isFragranceActive, fragranceMultiplier]);
+  }, [item, initialEstValue, effectiveComps, title, isLiquidOrFragrance, isFragranceActive, fragranceMultiplier]);
 
   // Dynamic calculations (utilizing deferred values for smooth 60fps main thread)
-  const activeResalePrice = compsRange.median || (isFragranceActive ? Math.round(initialEstValue * fragranceMultiplier * 100) / 100 : initialEstValue);
+  const activeResalePrice = compsRange.median || ((isLiquidOrFragrance && isFragranceActive) ? Math.round(initialEstValue * fragranceMultiplier * 100) / 100 : initialEstValue);
   const effectiveTagCost = Math.max(0, Math.round(deferredTagCost * 100) / 100);
   const estShipping = estimateCategoryShippingCost(category, title);
   detectThriftTrap(title, activeResalePrice, brand);
@@ -472,7 +491,7 @@ export default function LensCompsModal({
       const { error } = await createListing({
         userId: user.id,
         product: title,
-        description: `Sourced via Spadas Cognitive Lens Engine. Category: ${category}. Condition: ${condition}${isFragranceActive ? ` (${fillLevel}% Fill, ${hasCap ? "With Cap" : "No Cap"}${isTester ? ", Tester" : ""})` : ""}. True Net Profit: +$${netProfit} AUD (${roi}% ROI). Verified sold comps source: eBay AU.`,
+        description: `Sourced via Spadas Cognitive Lens Engine. Category: ${category}. Condition: ${condition}${isLiquidOrFragrance && isFragranceActive ? ` (${fillLevel}% Fill, ${hasCap ? "With Cap" : "No Cap"}${isTester ? ", Tester" : ""})` : ""}. True Net Profit: +$${netProfit} AUD (${roi}% ROI). Verified sold comps source: eBay AU.`,
         price: activeResalePrice,
         cost: effectiveTagCost,
         status: "Draft",
@@ -603,7 +622,7 @@ export default function LensCompsModal({
                     {category}
                   </span>
                 )}
-                {isFragranceActive && fragranceMultiplier < 0.98 && (
+                {isLiquidOrFragrance && isFragranceActive && fragranceMultiplier < 0.98 && (
                   <span className="px-1.5 py-0.2 rounded text-[10px] font-medium bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 tabular-nums">
                     {fillLevel}% Fill{!hasCap ? " · No Cap" : ""}{isTester ? " · Tester" : ""}
                   </span>
@@ -714,159 +733,161 @@ export default function LensCompsModal({
             </div>
 
             {/* Fragrance / Liquid Bottle Fill Level & Condition Panel */}
-            {isFragranceActive ? (
-              <div className="p-3 rounded-2xl bg-zinc-900 border border-cyan-500/30 space-y-2.5 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-lg bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shrink-0">
-                      <Droplets className="w-3.5 h-3.5" />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="text-xs font-semibold text-white flex items-center gap-1.5">
-                        <span>Bottle Fill Level & Condition</span>
-                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/40 tabular-nums">
-                          {fillLevel}%
-                        </span>
+            {isLiquidOrFragrance && (
+              isFragranceActive ? (
+                <div className="p-3 rounded-2xl bg-zinc-900 border border-cyan-500/30 space-y-2.5 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-lg bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shrink-0">
+                        <Droplets className="w-3.5 h-3.5" />
                       </div>
-                      <div className="text-[10px] text-zinc-400 truncate">
-                        Normalized comp factor: <span className="text-cyan-300 font-semibold">{fragranceMultiplier}x</span> ({Math.round((1 - fragranceMultiplier) * 100)}% discount vs sealed)
+                      <div className="min-w-0">
+                        <div className="text-xs font-semibold text-white flex items-center gap-1.5">
+                          <span>Bottle Fill Level & Condition</span>
+                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/40 tabular-nums">
+                            {fillLevel}%
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-zinc-400 truncate">
+                          Normalized comp factor: <span className="text-cyan-300 font-semibold">{fragranceMultiplier}x</span> ({Math.round((1 - fragranceMultiplier) * 100)}% discount vs sealed)
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsFragranceActive(false);
-                      triggerTactileHaptic("light");
-                    }}
-                    className="text-[10px] text-zinc-500 hover:text-zinc-300 transition cursor-pointer shrink-0"
-                    title="Hide liquid controls"
-                  >
-                    Dismiss
-                  </button>
-                </div>
-
-                {/* Fill-level Slider & Numeric Indicator (Throttled to 60fps) */}
-                <div className="space-y-1.5 pt-0.5">
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="range"
-                      min="10"
-                      max="100"
-                      step="5"
-                      value={fillLevel}
-                      onChange={(e) => handleFillLevelChange(Number(e.target.value))}
-                      className="flex-1 accent-cyan-400 h-1.5 bg-zinc-950 rounded-lg cursor-pointer"
-                    />
-                    <span className="text-xs font-bold text-cyan-300 tabular-nums w-10 text-right shrink-0">
-                      {fillLevel}%
-                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsFragranceActive(false);
+                        triggerTactileHaptic("light");
+                      }}
+                      className="text-[10px] text-zinc-500 hover:text-zinc-300 transition cursor-pointer shrink-0"
+                      title="Hide liquid controls"
+                    >
+                      Dismiss
+                    </button>
                   </div>
 
-                  {/* Preset Buttons */}
-                  <div className="grid grid-cols-4 gap-1">
-                    {[
-                      { label: "100% Full", val: 100 },
-                      { label: "75%", val: 75 },
-                      { label: "Half (50%)", val: 50 },
-                      { label: "Low (30%)", val: 30 },
-                    ].map((preset) => (
-                      <button
-                        key={preset.val}
-                        type="button"
-                        onClick={() => handlePresetFill(preset.val)}
-                        className={`py-1 px-1 rounded-lg text-[10px] font-semibold transition cursor-pointer border text-center tabular-nums ${
-                          fillLevel === preset.val
-                            ? "bg-cyan-500/20 text-cyan-300 border-cyan-500/50"
-                            : "bg-zinc-950 text-zinc-400 border-zinc-800 hover:text-zinc-200"
-                        }`}
-                      >
-                        {preset.label}
-                      </button>
-                    ))}
+                  {/* Fill-level Slider & Numeric Indicator (Throttled to 60fps) */}
+                  <div className="space-y-1.5 pt-0.5">
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="range"
+                        min="10"
+                        max="100"
+                        step="5"
+                        value={fillLevel}
+                        onChange={(e) => handleFillLevelChange(Number(e.target.value))}
+                        className="flex-1 accent-cyan-400 h-1.5 bg-zinc-950 rounded-lg cursor-pointer"
+                      />
+                      <span className="text-xs font-bold text-cyan-300 tabular-nums w-10 text-right shrink-0">
+                        {fillLevel}%
+                      </span>
+                    </div>
+
+                    {/* Preset Buttons */}
+                    <div className="grid grid-cols-4 gap-1">
+                      {[
+                        { label: "100% Full", val: 100 },
+                        { label: "75%", val: 75 },
+                        { label: "Half (50%)", val: 50 },
+                        { label: "Low (30%)", val: 30 },
+                      ].map((preset) => (
+                        <button
+                          key={preset.val}
+                          type="button"
+                          onClick={() => handlePresetFill(preset.val)}
+                          className={`py-1 px-1 rounded-lg text-[10px] font-semibold transition cursor-pointer border text-center tabular-nums ${
+                            fillLevel === preset.val
+                              ? "bg-cyan-500/20 text-cyan-300 border-cyan-500/50"
+                              : "bg-zinc-950 text-zinc-400 border-zinc-800 hover:text-zinc-200"
+                          }`}
+                        >
+                          {preset.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Condition Flags: Partial / No Cap / Tester / Box */}
+                  <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                    <button
+                      type="button"
+                      onClick={() => handlePresetFill(fillLevel <= 50 ? 100 : 50)}
+                      className={`px-2 py-0.5 rounded-md text-[10px] font-semibold transition cursor-pointer border ${
+                        fillLevel < 100
+                          ? "bg-cyan-500/20 text-cyan-300 border-cyan-500/40"
+                          : "bg-zinc-950 text-zinc-400 border-zinc-800 hover:text-zinc-200"
+                      }`}
+                    >
+                      Partial {fillLevel < 100 ? `(${fillLevel}%)` : ""}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        startTransition(() => {
+                          setHasCap(!hasCap);
+                        });
+                        triggerTactileHaptic("light");
+                      }}
+                      className={`px-2 py-0.5 rounded-md text-[10px] font-semibold transition cursor-pointer border ${
+                        !hasCap
+                          ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
+                          : "bg-zinc-950 text-zinc-400 border-zinc-800 hover:text-zinc-200"
+                      }`}
+                    >
+                      {!hasCap ? "⚠️ No Cap (-15%)" : "With Cap"}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        startTransition(() => {
+                          setIsTester(!isTester);
+                        });
+                        triggerTactileHaptic("light");
+                      }}
+                      className={`px-2 py-0.5 rounded-md text-[10px] font-semibold transition cursor-pointer border ${
+                        isTester
+                          ? "bg-purple-500/20 text-purple-300 border-purple-500/40"
+                          : "bg-zinc-950 text-zinc-400 border-zinc-800 hover:text-zinc-200"
+                      }`}
+                    >
+                      {isTester ? "🏷️ Tester (-20%)" : "Retail Bottle"}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        startTransition(() => {
+                          setHasBox(!hasBox);
+                        });
+                        triggerTactileHaptic("light");
+                      }}
+                      className={`px-2 py-0.5 rounded-md text-[10px] font-semibold transition cursor-pointer border ${
+                        !hasBox
+                          ? "bg-zinc-800 text-zinc-300 border-zinc-700"
+                          : "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+                      }`}
+                    >
+                      {hasBox ? "📦 Boxed" : "No Box (-10%)"}
+                    </button>
                   </div>
                 </div>
-
-                {/* Condition Flags: Partial / No Cap / Tester / Box */}
-                <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
-                  <button
-                    type="button"
-                    onClick={() => handlePresetFill(fillLevel <= 50 ? 100 : 50)}
-                    className={`px-2 py-0.5 rounded-md text-[10px] font-semibold transition cursor-pointer border ${
-                      fillLevel < 100
-                        ? "bg-cyan-500/20 text-cyan-300 border-cyan-500/40"
-                        : "bg-zinc-950 text-zinc-400 border-zinc-800 hover:text-zinc-200"
-                    }`}
-                  >
-                    Partial {fillLevel < 100 ? `(${fillLevel}%)` : ""}
-                  </button>
-
+              ) : (
+                <div className="flex justify-end pt-0.5">
                   <button
                     type="button"
                     onClick={() => {
-                      startTransition(() => {
-                        setHasCap(!hasCap);
-                      });
-                      triggerTactileHaptic("light");
+                      setIsFragranceActive(true);
+                      triggerTactileHaptic("selection");
                     }}
-                    className={`px-2 py-0.5 rounded-md text-[10px] font-semibold transition cursor-pointer border ${
-                      !hasCap
-                        ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
-                        : "bg-zinc-950 text-zinc-400 border-zinc-800 hover:text-zinc-200"
-                    }`}
+                    className="inline-flex items-center gap-1.5 text-[11px] text-zinc-400 hover:text-cyan-300 transition cursor-pointer"
                   >
-                    {!hasCap ? "⚠️ No Cap (-15%)" : "With Cap"}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      startTransition(() => {
-                        setIsTester(!isTester);
-                      });
-                      triggerTactileHaptic("light");
-                    }}
-                    className={`px-2 py-0.5 rounded-md text-[10px] font-semibold transition cursor-pointer border ${
-                      isTester
-                        ? "bg-purple-500/20 text-purple-300 border-purple-500/40"
-                        : "bg-zinc-950 text-zinc-400 border-zinc-800 hover:text-zinc-200"
-                    }`}
-                  >
-                    {isTester ? "🏷️ Tester (-20%)" : "Retail Bottle"}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      startTransition(() => {
-                        setHasBox(!hasBox);
-                      });
-                      triggerTactileHaptic("light");
-                    }}
-                    className={`px-2 py-0.5 rounded-md text-[10px] font-semibold transition cursor-pointer border ${
-                      !hasBox
-                        ? "bg-zinc-800 text-zinc-300 border-zinc-700"
-                        : "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
-                    }`}
-                  >
-                    {hasBox ? "📦 Boxed" : "No Box (-10%)"}
+                    <Droplets className="w-3 h-3 text-cyan-400" />
+                    <span>Adjust Bottle Fill-Level & Cap</span>
                   </button>
                 </div>
-              </div>
-            ) : (
-              <div className="flex justify-end pt-0.5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsFragranceActive(true);
-                    triggerTactileHaptic("selection");
-                  }}
-                  className="inline-flex items-center gap-1.5 text-[11px] text-zinc-400 hover:text-cyan-300 transition cursor-pointer"
-                >
-                  <Droplets className="w-3 h-3 text-cyan-400" />
-                  <span>Adjust Bottle Fill-Level & Cap</span>
-                </button>
-              </div>
+              )
             )}
 
             {/* P&L breakdown collapsed by default */}
@@ -1363,7 +1384,7 @@ export default function LensCompsModal({
           fairMarketPrice: activeResalePrice,
           estimatedNet: netProfit,
           comps: effectiveComps.slice(0, 3),
-          liquidNotes: isFragranceActive ? `${fillLevel}% Fill, ${hasCap ? "With Cap" : "No Cap"}${isTester ? ", Tester" : ""}` : undefined,
+          liquidNotes: (isLiquidOrFragrance && isFragranceActive) ? `${fillLevel}% Fill, ${hasCap ? "With Cap" : "No Cap"}${isTester ? ", Tester" : ""}` : undefined,
           thumbnail: previewImageSrc,
           isUsMarketOnly,
           usMedianUsd,
