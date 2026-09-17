@@ -42,7 +42,8 @@ interface ShowcaseState {
   configured: boolean;
 }
 
-export default function MuxScannerShowcase() {
+export default function MuxScannerShowcase({ isAdmin = false }: { isAdmin?: boolean }) {
+  const [canUpload, setCanUpload] = useState(isAdmin);
   const [showcase, setShowcase] = useState<ShowcaseState>({
     playbackId: null,
     title: "Spadas Lens — AR Reseller Scanner in Action",
@@ -65,6 +66,19 @@ export default function MuxScannerShowcase() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const playerRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (isAdmin) {
+      setCanUpload(true);
+      return;
+    }
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("admin") === "1" || params.get("admin") === "true") {
+        setCanUpload(true);
+      }
+    }
+  }, [isAdmin]);
 
   // Fetch current showcase configuration
   const loadShowcase = async () => {
@@ -252,16 +266,18 @@ export default function MuxScannerShowcase() {
           </p>
         </div>
 
-        {/* Action Controls */}
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setIsUploadModalOpen(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-200 hover:text-white border border-white/10 text-xs font-semibold transition active:scale-95 shadow-sm"
-          >
-            <Upload className="w-3.5 h-3.5 text-cyan-400" />
-            <span>Upload Demo Video</span>
-          </button>
-        </div>
+        {/* Action Controls - only visible if admin */}
+        {canUpload && (
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setIsUploadModalOpen(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-200 hover:text-white border border-white/10 text-xs font-semibold transition active:scale-95 shadow-sm"
+            >
+              <Upload className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Upload Demo Video</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Video Container */}
@@ -271,6 +287,7 @@ export default function MuxScannerShowcase() {
             <MuxPlayer
               ref={playerRef}
               playbackId={showcase.playbackId}
+              envKey={process.env.NEXT_PUBLIC_MUX_ENV_KEY || "0qojc2e1e88k09u028i9fk4r4"}
               metadata={{
                 video_title: showcase.title,
                 player_name: "Spadas Lens Mux Player",
@@ -282,8 +299,8 @@ export default function MuxScannerShowcase() {
               secondaryColor="#0a0d14"
             />
           </div>
-        ) : (
-          /* Placeholder / First-Time State */
+        ) : canUpload ? (
+          /* Admin First-Time State */
           <div className="relative rounded-2xl overflow-hidden aspect-video bg-gradient-to-b from-zinc-900 to-[#0A0D14] flex flex-col items-center justify-center p-6 text-center border border-white/5">
             <div className="w-16 h-16 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 mb-4 shadow-lg shadow-cyan-500/10">
               <Play className="w-7 h-7 fill-current translate-x-0.5" />
@@ -292,7 +309,7 @@ export default function MuxScannerShowcase() {
               Ready to Upload Scanner Demo
             </h3>
             <p className="text-xs text-zinc-400 max-w-md mb-6 leading-relaxed">
-              Mux video engine is installed and integrated. Upload a video of your camera HUD in action to showcase sub-300ms identification and real-time eBay comps to your users.
+              Mux video engine is connected. Upload a video of your camera HUD in action to showcase sub-300ms identification and real-time eBay comps.
             </p>
             <div className="flex flex-wrap items-center justify-center gap-3">
               <button
@@ -303,6 +320,26 @@ export default function MuxScannerShowcase() {
                 <span>Upload Scanner Recording</span>
               </button>
             </div>
+          </div>
+        ) : (
+          /* Public Visitor Preview State */
+          <div className="relative rounded-2xl overflow-hidden aspect-video bg-gradient-to-b from-zinc-900 to-[#0A0D14] flex flex-col items-center justify-center p-6 text-center border border-white/5">
+            <div className="w-16 h-16 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 mb-4 shadow-lg shadow-cyan-500/10">
+              <Play className="w-7 h-7 fill-current translate-x-0.5" />
+            </div>
+            <h3 className="text-lg font-bold text-white mb-1">
+              Spadas Lens AR Scanner
+            </h3>
+            <p className="text-xs text-zinc-400 max-w-md mb-6 leading-relaxed">
+              Sub-300ms visual identification, real-time Australian sold comps, and automated 80-char SEO listings for high-volume resellers.
+            </p>
+            <a
+              href="/lens"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white hover:bg-zinc-100 text-zinc-950 font-bold text-xs transition active:scale-95 shadow-md"
+            >
+              <Sparkles className="w-4 h-4 text-cyan-600" />
+              <span>Launch AR Scanner Camera</span>
+            </a>
           </div>
         )}
 
