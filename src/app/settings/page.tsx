@@ -846,12 +846,12 @@ export default function SettingsPage() {
                   <div className="flex items-center gap-2">
                     <Video className="w-4 h-4 text-cyan-400" />
                     <span className="text-xs font-bold text-white uppercase tracking-wider">
-                      Scanner Video Showcase (Mux)
+                      Scanner Video Showcase
                     </span>
                   </div>
                   <span className="inline-flex items-center gap-1 text-[11px] text-emerald-400 font-medium">
                     <CheckCircle2 className="w-3.5 h-3.5" />
-                    Mux Connected
+                    Video Engine Active
                   </span>
                 </div>
                 <p className="text-xs text-zinc-400">
@@ -859,7 +859,7 @@ export default function SettingsPage() {
                 </p>
 
                 <div className="p-2.5 rounded-lg bg-zinc-900 border border-zinc-800 text-xs flex items-center justify-between">
-                  <span className="text-zinc-500">Active Playback ID:</span>
+                  <span className="text-zinc-500">Active Video ID:</span>
                   <span className="font-mono text-cyan-400 font-semibold">
                     {muxPlaybackId || "No video uploaded yet"}
                   </span>

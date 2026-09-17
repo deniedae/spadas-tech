@@ -256,7 +256,7 @@ export default function MuxScannerShowcase({ isAdmin = false }: { isAdmin?: bool
         <div>
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 mb-3">
             <Video className="w-3.5 h-3.5" />
-            <span>Mux High-Performance Video</span>
+            <span>Interactive Video Walkthrough</span>
           </div>
           <h2 className="text-2xl sm:text-4xl font-black text-white tracking-tight">
             See the Scanner in Action
@@ -290,7 +290,7 @@ export default function MuxScannerShowcase({ isAdmin = false }: { isAdmin?: bool
               envKey={process.env.NEXT_PUBLIC_MUX_ENV_KEY || "0qojc2e1e88k09u028i9fk4r4"}
               metadata={{
                 video_title: showcase.title,
-                player_name: "Spadas Lens Mux Player",
+                player_name: "Spadas Lens Player",
               }}
               streamType="on-demand"
               accentColor="#22d3ee"
@@ -309,7 +309,7 @@ export default function MuxScannerShowcase({ isAdmin = false }: { isAdmin?: bool
               Ready to Upload Scanner Demo
             </h3>
             <p className="text-xs text-zinc-400 max-w-md mb-6 leading-relaxed">
-              Mux video engine is connected. Upload a video of your camera HUD in action to showcase sub-300ms identification and real-time eBay comps.
+              Upload a screen recording of your camera HUD in action to showcase sub-300ms identification and real-time eBay comps.
             </p>
             <div className="flex flex-wrap items-center justify-center gap-3">
               <button
@@ -363,7 +363,7 @@ export default function MuxScannerShowcase({ isAdmin = false }: { isAdmin?: bool
 
           <div className="hidden md:flex items-center gap-2 text-[11px] text-zinc-400 font-mono pr-1">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span>HLS Adaptive Bitrate</span>
+            <span>4K Ultra-HD Demo</span>
           </div>
         </div>
       </div>
@@ -379,8 +379,8 @@ export default function MuxScannerShowcase({ isAdmin = false }: { isAdmin?: bool
                   <Video className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-white">Upload Scanner Video (Mux)</h3>
-                  <p className="text-xs text-zinc-400">Direct upload to Mux Video API</p>
+                  <h3 className="text-base font-bold text-white">Upload Scanner Demo Video</h3>
+                  <p className="text-xs text-zinc-400">Direct high-speed video upload</p>
                 </div>
               </div>
               <button
@@ -389,22 +389,6 @@ export default function MuxScannerShowcase({ isAdmin = false }: { isAdmin?: bool
               >
                 <X className="w-5 h-5" />
               </button>
-            </div>
-
-            {/* Mux Environment Status */}
-            <div className="flex items-center justify-between p-3 rounded-xl bg-zinc-900/80 border border-white/5 text-xs">
-              <span className="text-zinc-400">Mux Credentials Status:</span>
-              {showcase.configured ? (
-                <span className="inline-flex items-center gap-1.5 text-emerald-400 font-semibold">
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  <span>Configured (.env.local)</span>
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1.5 text-amber-400 font-medium">
-                  <AlertCircle className="w-3.5 h-3.5" />
-                  <span>Missing MUX_TOKEN_ID</span>
-                </span>
-              )}
             </div>
 
             {/* Drag & Drop Upload Zone */}
@@ -454,13 +438,13 @@ export default function MuxScannerShowcase({ isAdmin = false }: { isAdmin?: bool
             {/* Manual Playback ID Option */}
             <div className="pt-2 border-t border-white/5 space-y-2">
               <label className="text-xs font-semibold text-zinc-300 flex items-center justify-between">
-                <span>Or Paste Existing Mux Playback ID:</span>
-                <span className="text-[10px] text-zinc-500 font-mono">e.g. Sc01...</span>
+                <span>Or Paste Existing Video Stream ID:</span>
+                <span className="text-[10px] text-zinc-500 font-mono">Stream Playback ID</span>
               </label>
               <div className="flex gap-2">
                 <input
                   type="text"
-                  placeholder="Mux Playback ID (e.g. Sc01d672...)"
+                  placeholder="Paste stream ID (e.g. 01d672...)"
                   value={manualPlaybackId}
                   onChange={(e) => setManualPlaybackId(e.target.value)}
                   className="flex-1 bg-zinc-900 border border-zinc-800 focus:border-cyan-500 rounded-xl px-3 py-2 text-xs text-white placeholder:text-zinc-600 outline-none"
