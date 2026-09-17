@@ -311,6 +311,7 @@ export default function DashboardSupportDesk({
       const reader = res.body?.getReader();
       const decoder = new TextDecoder();
       let assistantText = "";
+      let buffer = "";
       const assistantMsgId = `a-${Date.now()}`;
 
       if (!reader) throw new Error("No readable stream received");
@@ -318,8 +319,64 @@ export default function DashboardSupportDesk({
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        assistantText += chunk;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed) continue;
+
+          if (trimmed.startsWith("data: ")) {
+            const dataStr = trimmed.replace(/^data:\s*/, "").trim();
+            if (dataStr === "[DONE]") break;
+            try {
+              const parsed = JSON.parse(dataStr);
+              if (parsed.text) {
+                assistantText += parsed.text;
+              } else if (parsed.error) {
+                throw new Error(parsed.error);
+              }
+            } catch {
+              if (dataStr !== "[DONE]") {
+                assistantText += dataStr;
+              }
+            }
+          } else {
+            assistantText += trimmed;
+          }
+
+          setMessages((prev) => {
+            const filtered = prev.filter((m) => m.id !== assistantMsgId);
+            return [
+              ...filtered,
+              {
+                id: assistantMsgId,
+                role: "assistant",
+                content: assistantText,
+                timestamp: Date.now(),
+              },
+            ];
+          });
+        }
+      }
+
+      if (buffer.trim()) {
+        const trimmed = buffer.trim();
+        if (trimmed.startsWith("data: ")) {
+          const dataStr = trimmed.replace(/^data:\s*/, "").trim();
+          if (dataStr !== "[DONE]") {
+            try {
+              const parsed = JSON.parse(dataStr);
+              if (parsed.text) assistantText += parsed.text;
+            } catch {
+              assistantText += dataStr;
+            }
+          }
+        } else {
+          assistantText += trimmed;
+        }
 
         setMessages((prev) => {
           const filtered = prev.filter((m) => m.id !== assistantMsgId);

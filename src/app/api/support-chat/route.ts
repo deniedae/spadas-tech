@@ -26,43 +26,47 @@ PLATFORM KNOWLEDGE BASE:
    - Full inventory management with CSV/JSON exports and sales velocity tracking.
 
 5. SUBSCRIPTIONS & CREDITS:
-   - Starter: 100 scans per month.
-   - Pro: Unlimited scans, Real-Time AI Copilot, Deep Comps Audit, and Priority Sourcing Radar.
-   - Enterprise: Multi-seat teams and high-frequency webhook syncing.
+   - Starter ($29 AUD/mo): 100 scans per month.
+   - Pro ($49 AUD/mo or $10 AUD/mo promotional): Unlimited scans, Real-Time AI Copilot, Deep Comps Audit, and Priority Sourcing Radar.
+   - Manage plan anytime in Settings > Billing.
 
 COMMUNICATION STYLE:
 - Friendly, professional, concise, and technically authoritative.
 - Resellers want fast, direct solutions.
-- If a user asks a complex technical bug question or wants a custom feature, suggest tapping the "[Request Developer Support]" button in the header so a human engineer can review it directly.`;
+- If a user asks a complex technical bug question or wants a custom feature, suggest tapping "[Request Dev]" in the header so Spadas engineering can review it directly.`;
 
 function generateHeuristicSupportReply(query: string): string {
   const q = query.toLowerCase();
 
   if (q.includes("us") || q.includes("scarcity") || q.includes("american") || q.includes("fallback")) {
-    return `🌐 **US-Only Comps & Scarcity:**\nWhen an item has fewer than 3 recorded sales on eBay Australia, Spadas automatically pulls US sold comps. We convert the USD price to AUD, deduct international shipping friction (~$25 AUD), and flag it as a **Domestic Scarcity Play**—meaning you can often charge an Australian premium because local supply is zero!`;
+    return `🌐 **US-Only Comps & Scarcity Pricing:**\n\nWhen an item has fewer than 3 recorded sales on eBay Australia, Spadas automatically queries high-liquidity US sold data. We convert USD to AUD, deduct international shipping friction (~$25 AUD), and highlight it as a **Domestic Scarcity Play**—meaning you can often price higher in Australia because local domestic supply is near zero!`;
   }
 
-  if (q.includes("comp") || q.includes("ebay") || q.includes("australia") || q.includes("price")) {
-    return `🇦🇺 **Geo-Strict AU Comps:**\nFor Australian users, Spadas strictly filters for domestic eBay Australia sold items (\`LH_PrefLoc=1\`), excluding overseas sellers. We apply Interquartile Range (IQR) filtering to strip bulk lots and accidental outlier sales so your valuations reflect true realized cash value.`;
+  if (q.includes("comp") || q.includes("ebay") || q.includes("australia") || q.includes("price") || q.includes("au")) {
+    return `🇦🇺 **Geo-Strict eBay Australia Comps:**\n\nFor Australian users, Spadas strictly filters for verified domestic eBay Australia sold items (\`LH_PrefLoc=1\`), excluding international sellers. We apply Interquartile Range (IQR) statistical filtering to eliminate bulk lots, multi-packs, and fake outliers so your valuations reflect true realized cash market value.`;
   }
 
-  if (q.includes("profit") || q.includes("fee") || q.includes("calculate") || q.includes("formula")) {
-    return `💰 **P&L Breakdown:**\nYour Net Profit = Fair Market Value − Tag Price − eBay AU Selling Fees (~13.4% + $0.33) − Estimated Domestic Postage. What you see is your true take-home cash.`;
+  if (q.includes("profit") || q.includes("fee") || q.includes("calculate") || q.includes("formula") || q.includes("p&l") || q.includes("margin")) {
+    return `💰 **Net Profit & P&L Formula:**\n\nYour **Net Profit** is calculated in real time as:\n\n\`Net Profit = Fair Market Value − Tag Cost − eBay AU Fees (~13.4% + $0.33) − Estimated Domestic Postage\`\n\nWhat is displayed on your screen is your actual take-home realized profit.`;
   }
 
-  if (q.includes("list") || q.includes("publish") || q.includes("draft")) {
-    return `🛒 **1-Click eBay Listing:**\nConnect your eBay account in Settings, then tap "Publish to eBay" on any item in your Haul or Dashboard. Spadas pre-fills the optimized 80-character title, category, condition, and recommended price.`;
+  if (q.includes("str") || q.includes("velocity") || q.includes("fast flip") || q.includes("turn")) {
+    return `⚡ **Sell-Through Rate (STR) & Velocity:**\n\nSpadas computes inventory velocity by comparing recent 90-day sold listings against active supply. Items with >50% STR and ~14-day turn speed are flagged as **⚡ Fast Flips**, while slow movers (>90 days turn) are flagged as **🛑 Traps**.`;
   }
 
-  if (q.includes("plan") || q.includes("subscri") || q.includes("pro") || q.includes("credit")) {
-    return `⚡ **Plans & Access:**\n• **Starter ($29/mo):** 100 AI scans/month\n• **Pro ($49/mo):** Unlimited scans, AI In-Aisle Copilot, Real-time Sold Comps, & 1-Click Publishing\nManage your subscription anytime in Settings > Billing.`;
+  if (q.includes("list") || q.includes("publish") || q.includes("draft") || q.includes("connect")) {
+    return `🛒 **1-Click eBay AU Publishing:**\n\nConnect your eBay Seller Hub account in **Settings > Connected Accounts**. Once linked, tap **[Publish to eBay]** on any item in your Haul, Dashboard, or Listings to instantly create an active listing with pre-filled title, category, price, and photos.`;
   }
 
-  if (q.includes("human") || q.includes("developer") || q.includes("bug") || q.includes("issue") || q.includes("help")) {
-    return `👨‍💻 **Developer Support:**\nNeed technical assistance or found a bug? Tap **[Request Developer Support]** in the header above to notify our engineering team directly with your session details. We respond quickly!`;
+  if (q.includes("plan") || q.includes("subscri") || q.includes("pro") || q.includes("credit") || q.includes("starter") || q.includes("cost") || q.includes("price")) {
+    return `⚡ **Spadas Subscription Plans:**\n\n• **Starter Plan:** 100 scans per month, basic comps, and inventory tracking.\n• **Pro Plan:** Unlimited camera scans, real-time AI In-Aisle Copilot, deep comps audit, and 1-click eBay publishing.\n\nYou can manage or upgrade your plan anytime in **Settings > Billing**.`;
   }
 
-  return `Hello! I'm your Spadas Support & Platform Assistant. I can help with scanning techniques, eBay AU sold comp formulas, P&L calculations, and subscription management. How can I help you today?`;
+  if (q.includes("human") || q.includes("developer") || q.includes("bug") || q.includes("issue") || q.includes("help") || q.includes("contact")) {
+    return `👨‍💻 **Developer Support Desk:**\n\nNeed engineering assistance or encountering a sync issue? Tap **[Request Dev]** in the header above to submit a ticket directly to Spadas engineering (lead developer: \`deniedae@gmail.com\`). You will receive an in-app reply with full developer verification!`;
+  }
+
+  return `👋 **Hello from Spadas AI Copilot!**\n\nI can help you with:\n• **🇦🇺 Geo-Strict Comps**: How eBay AU sold data and US fallbacks work.\n• **💰 P&L Formulas**: Exact deductions for eBay fees and shipping.\n• **⚡ STR & Velocity**: Identifying fast flips vs inventory traps.\n• **🛒 eBay Publishing**: 1-click catalog intake and live drafts.\n\nWhat would you like to know?`;
 }
 
 export async function POST(req: NextRequest) {
@@ -72,8 +76,10 @@ export async function POST(req: NextRequest) {
 
     const latestUserMessage = messages[messages.length - 1]?.content || "";
     const openAiKey = getPrimaryAiApiKey();
+    const geminiApiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GOOGLE_AI_API_KEY;
     const encoder = new TextEncoder();
 
+    // 1. OpenAI Engine
     if (openAiKey && openAiKey.length > 10 && !openAiKey.includes("placeholder")) {
       try {
         const openai = createOpenAiClient();
@@ -90,7 +96,7 @@ export async function POST(req: NextRequest) {
           model: "gpt-4o-mini",
           messages: formattedMessages,
           stream: true,
-          max_tokens: 280,
+          max_tokens: 350,
           temperature: 0.4,
         });
 
@@ -120,11 +126,68 @@ export async function POST(req: NextRequest) {
           },
         });
       } catch (aiErr: any) {
-        console.warn("[Support Chat] OpenAI error, falling back to heuristic engine:", aiErr?.message);
+        console.warn("[Support Chat] OpenAI error, attempting Gemini fallback:", aiErr?.message);
       }
     }
 
-    // High-speed fallback
+    // 2. Google Gemini Fallback
+    if (geminiApiKey && geminiApiKey.length > 10) {
+      try {
+        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
+        const geminiRes = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [
+              {
+                role: "user",
+                parts: [
+                  {
+                    text: `${SYSTEM_SUPPORT_PROMPT}\n\nUser Question:\n${latestUserMessage}`,
+                  },
+                ],
+              },
+            ],
+            generationConfig: {
+              maxOutputTokens: 350,
+              temperature: 0.4,
+            },
+          }),
+        });
+
+        if (geminiRes.ok) {
+          const data = await geminiRes.json();
+          const replyText =
+            data.candidates?.[0]?.content?.parts?.[0]?.text ||
+            generateHeuristicSupportReply(latestUserMessage);
+
+          const words = replyText.split(" ");
+          const geminiStream = new ReadableStream({
+            async start(controller) {
+              for (let i = 0; i < words.length; i++) {
+                const chunkWord = (i === 0 ? "" : " ") + words[i];
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: chunkWord })}\n\n`));
+                await new Promise((r) => setTimeout(r, 14));
+              }
+              controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+              controller.close();
+            },
+          });
+
+          return new Response(geminiStream, {
+            headers: {
+              "Content-Type": "text/event-stream",
+              "Cache-Control": "no-cache, no-transform",
+              Connection: "keep-alive",
+            },
+          });
+        }
+      } catch (gemErr: any) {
+        console.warn("[Support Chat] Gemini error, using synthetic engine:", gemErr?.message);
+      }
+    }
+
+    // 3. High-Speed Synthetic Diagnostic Engine
     const fallbackText = generateHeuristicSupportReply(latestUserMessage);
     const words = fallbackText.split(" ");
 
@@ -133,7 +196,7 @@ export async function POST(req: NextRequest) {
         for (let i = 0; i < words.length; i++) {
           const chunkWord = (i === 0 ? "" : " ") + words[i];
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: chunkWord })}\n\n`));
-          await new Promise((r) => setTimeout(r, 16));
+          await new Promise((r) => setTimeout(r, 14));
         }
         controller.enqueue(encoder.encode("data: [DONE]\n\n"));
         controller.close();
