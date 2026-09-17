@@ -33,6 +33,7 @@ import {
 import { useHaulStore } from "@/lib/haul-store";
 import { useQuickSnapQueue, quickSnapQueue } from "@/lib/quick-snap-queue";
 import { calculateSalesVelocity } from "@/lib/turnover-velocity-engine";
+import { formatAUD } from "@/app/lib/listings";
 import { toast } from "sonner";
 import EbayListingModal from "@/components/ebay-listing-modal";
 import { DeepVerifyModal } from "@/components/deep-verify-modal";
@@ -783,9 +784,7 @@ export function SpadasHaulSection({
                             (item.trueNetProfit || 0) > 0 ? "text-emerald-500" : "text-rose-500"
                           }`}
                         >
-                          {(item.trueNetProfit || 0) > 0
-                            ? `+$${(item.trueNetProfit || 0).toFixed(2)} Net`
-                            : `$${(item.trueNetProfit || 0).toFixed(2)} Net`}
+                          {formatAUD(item.trueNetProfit || 0)} Net
                         </span>
                       </div>
                       

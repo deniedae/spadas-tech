@@ -1485,3 +1485,17 @@ body::-webkit-scrollbar-track {
   text-transform: uppercase;
 }
 
+/* Copilot & Valuation Modal Viewport Visibility Rules */
+body[data-copilot-open="true"] nav[aria-label="Main navigation"],
+body.copilot-drawer-open nav[aria-label="Main navigation"] {
+  display: none !important;
+}
+
+body[data-comps-open="true"] .glass-nav,
+body.valuation-modal-open .glass-nav {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transform: translateY(-8px);
+  transition: opacity 200ms ease, transform 200ms ease;
+}
+

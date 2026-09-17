@@ -1,8 +1,14 @@
-export function fmtMoney(n: number): string {
-  return (Number(n) || 0).toLocaleString("en-AU", {
-    style: "currency",
-    currency: "AUD",
-  });
+export const formatAUD = (val: number | string | null | undefined): string => {
+  if (typeof val === "string") val = val.replace(/[^0-9.-]+/g, "");
+  const num = Number(val) || 0;
+  const prefix = num < 0 ? "-$" : "+$";
+  return `${prefix}${Math.abs(num).toFixed(2)}`;
+};
+
+export function fmtMoney(n: number | string | null | undefined): string {
+  if (typeof n === "string") n = n.replace(/[^0-9.-]+/g, "");
+  const num = Number(n) || 0;
+  return num < 0 ? `-$${Math.abs(num).toFixed(2)}` : `$${num.toFixed(2)}`;
 }
 
 export const PLATFORM_FEE_RATES: Record<string, number> = {

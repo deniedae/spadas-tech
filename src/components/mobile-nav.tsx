@@ -1,5 +1,6 @@
 "use client";
 
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -15,10 +16,32 @@ import { triggerTactileHaptic } from "@/lib/android-bridge";
 export default function MobileNav() {
   const pathname = usePathname();
   const { haulCount } = useHaulStore();
+  const [isCopilotOpen, setIsCopilotOpen] = useState(false);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const checkOpen = () => {
+      const open =
+        document.body.hasAttribute("data-copilot-open") ||
+        document.body.classList.contains("copilot-drawer-open");
+      setIsCopilotOpen(open);
+    };
+
+    checkOpen();
+    const observer = new MutationObserver(checkOpen);
+    observer.observe(document.body, {
+      attributes: true,
+      attributeFilter: ["data-copilot-open", "class"],
+    });
+
+    return () => observer.disconnect();
+  }, []);
 
   const handleNavClick = () => {
     triggerTactileHaptic("tap");
   };
+
+  if (isCopilotOpen) return null;
 
   const navItems = [
     {

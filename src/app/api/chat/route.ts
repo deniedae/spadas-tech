@@ -16,10 +16,17 @@ export interface ItemChatContext {
   liquid_notes?: string;
 }
 
+function formatChatAUD(val: number | string | null | undefined, includePlus = false): string {
+  if (typeof val === "string") val = val.replace(/[^0-9.-]+/g, "");
+  const num = Number(val) || 0;
+  if (num < 0) return `-$${Math.abs(num).toFixed(2)}`;
+  return includePlus ? `+$${num.toFixed(2)}` : `$${num.toFixed(2)}`;
+}
+
 function buildSystemPrompt(ctx: ItemChatContext): string {
   const compsSummary = (ctx.comps || [])
     .slice(0, 3)
-    .map((c, i) => `  ${i + 1}. "${c.title}" - $${c.price} AUD`)
+    .map((c, i) => `  ${i + 1}. "${c.title}" - ${formatChatAUD(c.price)} AUD`)
     .join("\n") || "  (No direct comps found)";
 
   return `You are Spadas Copilot, an elite in-store resale sourcing advisor for eBay Australia & secondary marketplaces.
@@ -30,9 +37,9 @@ ITEM SNAPSHOT:
 - Brand: ${ctx.brand || "Unbranded / Unknown"}
 - Category: ${ctx.category || "General"}
 - Condition: ${ctx.condition || "Used - Good"}
-- In-Store Tag Cost: $${ctx.tag_price ?? 10} AUD
-- Fair Market Value: $${ctx.fair_market_price ?? 45} AUD
-- Projected True Net Profit: $${ctx.estimated_net ?? 20} AUD
+- In-Store Tag Cost: ${formatChatAUD(ctx.tag_price ?? 10)} AUD
+- Fair Market Value: ${formatChatAUD(ctx.fair_market_price ?? 45)} AUD
+- Projected True Net Profit: ${formatChatAUD(ctx.estimated_net ?? 20, true)} AUD
 ${ctx.liquid_notes ? `- Bottle / Liquid Status: ${ctx.liquid_notes}\n` : ""}- Recent Sold Comps:
 ${compsSummary}
 
@@ -50,14 +57,19 @@ function generateOfflineHeuristicResponse(query: string, ctx: ItemChatContext): 
   const market = Number(ctx.fair_market_price) || 40;
   const title = ctx.title || "Item";
 
+  const formattedNet = formatChatAUD(net);
+  const formattedNetWithPlus = formatChatAUD(net, true);
+  const formattedTag = formatChatAUD(tag);
+  const formattedMarket = formatChatAUD(market);
+
   if (q.includes("fair") || q.includes("price") || q.includes("worth")) {
-    return `At $${tag} tag price against a $${market} market median, your take-home net is ~$${net}. If margin is over $15, it's a solid buy. Try to negotiate down to $${Math.max(2, Math.round(tag * 0.75))} for extra cushion.`;
+    return `At ${formattedTag} tag price against a ${formattedMarket} market median, your take-home net is ~${formattedNet}. If margin is over $15, it's a solid buy. Try to negotiate down to $${Math.max(2, Math.round(tag * 0.75))} for extra cushion.`;
   }
   if (q.includes("flip") || q.includes("hold") || q.includes("fast")) {
     if (net >= 25) {
       return `Fast flip. List on eBay AU as Buy It Now at $${Math.round(market * 0.95)} for a quick sale within 7–14 days. Demand is active.`;
     }
-    return `Marginal flip. Take-home net is $${net}. List at $${market} and accept offers at $${Math.round(market * 0.85)}.`;
+    return `Marginal flip. Take-home net is ${formattedNet}. List at ${formattedMarket} and accept offers at $${Math.round(market * 0.85)}.`;
   }
   if (q.includes("flaw") || q.includes("inspect") || q.includes("check")) {
     if (ctx.liquid_notes || (ctx.category || "").toLowerCase().includes("fragrance")) {
@@ -69,13 +81,13 @@ function generateOfflineHeuristicResponse(query: string, ctx: ItemChatContext): 
     if (net >= 30) {
       return `eBay Australia for maximum reach and buyer protections. If bulky or fragile, list on FB Marketplace cash on pickup for zero fees.`;
     }
-    return `eBay AU for fastest liquidity. Crosspost to FB Marketplace at $${market} cash on pickup.`;
+    return `eBay AU for fastest liquidity. Crosspost to FB Marketplace at ${formattedMarket} cash on pickup.`;
   }
 
   if (net >= 20) {
-    return `COP. Sells for ~$${market} with healthy +$${net} net profit after postage and fees. Inspect physical condition and list immediately.`;
+    return `COP. Sells for ~${formattedMarket} with healthy ${formattedNetWithPlus} net profit after postage and fees. Inspect physical condition and list immediately.`;
   }
-  return `PASS or negotiate. Projected net of $${net} on a $${tag} buy is too thin for the risk. Offer $${Math.max(2, Math.round(tag * 0.6))} or leave it.`;
+  return `PASS or negotiate. Projected net of ${formattedNet} on a ${formattedTag} buy is too thin for the risk. Offer $${Math.max(2, Math.round(tag * 0.6))} or leave it.`;
 }
 
 export async function POST(req: NextRequest) {

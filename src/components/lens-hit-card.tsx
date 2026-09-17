@@ -11,7 +11,7 @@ import {
   Scale,
   TrendingUp,
 } from "lucide-react";
-import { fmtMoney } from "@/app/lib/listings";
+import { fmtMoney, formatAUD } from "@/app/lib/listings";
 import type { DetectedHit } from "@/types/lens";
 import { OmniMarketplaceCompareModal } from "@/components/omni-marketplace-compare-card";
 import { checkNeedsVerification } from "@/lib/forensic-knowledge";
@@ -191,7 +191,7 @@ export default function LensHitCard({
             )}
           </div>
           <div className="text-2xl font-bold text-emerald-400 leading-none tracking-tight font-mono tabular-nums">
-            +{fmtMoney(item.trueNetProfit || item.estimatedProfit)}
+            {formatAUD(item.trueNetProfit || item.estimatedProfit)}
           </div>
         </div>
         <div className="flex flex-col items-end gap-0.5 text-[10px] text-zinc-400 shrink-0 font-mono">
@@ -298,11 +298,11 @@ export default function LensHitCard({
             }}
             className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-[10px] font-bold transition shadow-sm ${
               isSaved
-                ? "bg-emerald-500/15 text-emerald-300/80 border border-emerald-500/30 opacity-80 cursor-default"
+                ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 opacity-90 cursor-not-allowed"
                 : "bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-zinc-950 cursor-pointer"
             }`}
           >
-            {isSaved ? "✓ Saved to Haul" : "+ Save Find"}
+            {isSaved ? "✓ In Haul" : "+ Save Find"}
           </button>
           <button
             type="button"

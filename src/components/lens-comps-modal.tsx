@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { track } from "@vercel/analytics";
 import { scannerAudio } from "@/lib/scanner-audio";
-import { fmtMoney } from "@/app/lib/listings";
+import { fmtMoney, formatAUD } from "@/app/lib/listings";
 import { createListing } from "@/app/lib/createlisting";
 import { supabase } from "@/app/lib/supabase";
 import { toast } from "sonner";
@@ -74,6 +74,17 @@ export default function LensCompsModal({
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [isCopilotOpen, setIsCopilotOpen] = useState(false);
+
+  // Smoothly fade out top floating pill bar when Valuation Modal mounts/opens
+  useEffect(() => {
+    if (!isOpen) return;
+    document.body.setAttribute("data-comps-open", "true");
+    document.body.classList.add("valuation-modal-open");
+    return () => {
+      document.body.removeAttribute("data-comps-open");
+      document.body.classList.remove("valuation-modal-open");
+    };
+  }, [isOpen]);
 
   // UI state: Collapsible P&L, Comps view mode (carousel vs list), expanded comps, and advanced analytics
   const [isPlExpanded, setIsPlExpanded] = useState<boolean>(false);
@@ -157,9 +168,20 @@ export default function LensCompsModal({
   }, [item, title, initialEstValue, condition, brand]);
 
   // Condition-aware & fragrance fill-level sanitized comps
+  // When condition is detected or toggled to Used: Exclude listings containing keywords: BNIB, NIB, Sealed, Brand New
+  const isTargetUsed = !condition || !/\b(brand new|new with tags|nwt|sealed|bnib|nib)\b/i.test(condition) || conditionTier.startsWith("used_");
   const effectiveComps: RawSoldComp[] = useMemo(() => {
-    return sanitizeCompsForUsedCondition(rawComps, condition, fragranceMultiplier);
-  }, [rawComps, condition, fragranceMultiplier]);
+    const sanitized = sanitizeCompsForUsedCondition(rawComps, condition, fragranceMultiplier);
+    if (isTargetUsed) {
+      const preOwnedOnly = sanitized.filter(
+        (c) => !/\b(bnib|nib|sealed|brand new|factory sealed|shrink wrapped|nwt|new in box|unopened)\b/i.test(c.title)
+      );
+      if (preOwnedOnly.length > 0) {
+        return preOwnedOnly;
+      }
+    }
+    return sanitized;
+  }, [rawComps, condition, fragranceMultiplier, isTargetUsed]);
 
   const compsRange = useMemo(() => {
     const baseDefault = isFragranceActive
@@ -466,7 +488,7 @@ export default function LensCompsModal({
 
   return (
     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm animate-fade-in select-none">
-      <div className="relative w-full max-w-md max-h-[92dvh] sm:max-h-[88vh] flex flex-col rounded-t-3xl sm:rounded-2xl bg-zinc-950 border border-zinc-800 text-zinc-100 overflow-hidden shadow-2xl">
+      <div className="relative w-full max-w-md max-h-[92dvh] sm:max-h-[88vh] flex flex-col rounded-t-3xl sm:rounded-2xl bg-zinc-950 border border-zinc-800 text-zinc-100 overflow-hidden shadow-2xl pt-[max(16px,env(safe-area-inset-top))] sm:pt-0">
         {/* Mobile drag handle */}
         <div className="mx-auto mt-2 h-1 w-12 rounded-full bg-zinc-700 sm:hidden shrink-0" />
 
@@ -534,7 +556,7 @@ export default function LensCompsModal({
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="text-[36px] sm:text-[40px] leading-none font-bold text-emerald-400 tabular-nums flex items-baseline gap-1.5">
-                  <span>{netProfit >= 0 ? `+$${fmtMoney(netProfit)}` : `-$${fmtMoney(Math.abs(netProfit))}`}</span>
+                  <span>{formatAUD(netProfit)}</span>
                   <span className="text-base font-semibold text-emerald-300/80">Net</span>
                 </div>
                 <div className="text-xs text-zinc-400 mt-1">Take-home profit after fees & shipping</div>
@@ -771,16 +793,16 @@ export default function LensCompsModal({
               {isPlExpanded && (
                 <div className="mt-2 text-xs text-zinc-300 tabular-nums bg-zinc-900 rounded-xl p-3 border border-zinc-800 space-y-2">
                   <div className="flex items-center flex-wrap gap-1.5 leading-relaxed">
-                    <span>Sold ${fmtMoney(activeResalePrice)}</span>
+                    <span>Sold {fmtMoney(activeResalePrice)}</span>
                     <span className="text-zinc-500">−</span>
-                    <span>Tag ${fmtMoney(effectiveTagCost)}</span>
+                    <span>Tag {fmtMoney(effectiveTagCost)}</span>
                     <span className="text-zinc-500">−</span>
-                    <span>Fees ${fmtMoney(platformFee)}</span>
+                    <span>Fees {fmtMoney(platformFee)}</span>
                     <span className="text-zinc-500">−</span>
-                    <span>Post ${fmtMoney(estShipping)}</span>
+                    <span>Post {fmtMoney(estShipping)}</span>
                     <span className="text-zinc-500">=</span>
                     <span className="text-emerald-400 font-bold">
-                      {netProfit >= 0 ? `+$${fmtMoney(netProfit)}` : `-$${fmtMoney(Math.abs(netProfit))}`}
+                      {formatAUD(netProfit)}
                     </span>
                   </div>
                 </div>
@@ -792,10 +814,10 @@ export default function LensCompsModal({
           <div className="p-4 space-y-1">
             <div className="text-xs text-zinc-400">eBay median sold</div>
             <div className="text-2xl font-bold text-white tabular-nums">
-              ${fmtMoney(compsRange.median || initialEstValue)}
+              {fmtMoney(compsRange.median || initialEstValue)}
             </div>
             <div className="text-sm text-zinc-400 tabular-nums">
-              Range ${fmtMoney(compsRange.min)} – ${fmtMoney(compsRange.max)}
+              Range {fmtMoney(compsRange.min)} – {fmtMoney(compsRange.max)}
             </div>
             <div className="text-xs">
               {effectiveComps.length > 0 && effectiveComps.length < 5 ? (

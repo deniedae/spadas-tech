@@ -256,7 +256,10 @@ export async function fetchEbayAustraliaSoldComps(
     for (const q of searchQueries.slice(0, 2)) {
       try {
         const config = CURRENCY_CONFIGS[targetCurrency] || CURRENCY_CONFIGS.AUD;
-        const url = `https://api.sold-comps.com/v1/scrape?keyword=${encodeURIComponent(q)}&ebaySite=${config.ebaySite}&page=1&count=60&daysToScrape=30&sortOrder=endedRecently`;
+        // When condition is detected or toggled to Used, append LH_ItemCondition=3000 to strictly target pre-owned comps
+        const isTargetUsed = !condition || !/\b(brand new|new with tags|nwt|sealed|bnib|nib)\b/i.test(condition);
+        const conditionParam = isTargetUsed ? "&LH_ItemCondition=3000" : "";
+        const url = `https://api.sold-comps.com/v1/scrape?keyword=${encodeURIComponent(q)}&ebaySite=${config.ebaySite}&page=1&count=60&daysToScrape=30&sortOrder=endedRecently${conditionParam}`;
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), 4000);
 
@@ -301,14 +304,13 @@ export async function fetchEbayAustraliaSoldComps(
 
           if (validCompItems.length >= 2) {
             // Condition-Aware Comp Sanitization:
-            // When target item is Used/Pre-owned, strip Brand New / Sealed / BNIB / NIB listings if used comps exist
-            const isTargetUsed = condition && !/\b(brand new|new with tags|nwt|sealed|bnib|nib)\b/i.test(condition);
+            // When target item is Used/Pre-owned, exclude listings containing BNIB, NIB, Sealed, Brand New
             let sanitizedComps = validCompItems;
             if (isTargetUsed) {
               const nonSealed = validCompItems.filter(
-                (c) => !/\b(brand new|sealed|factory sealed|shrink wrapped|bnib|nib|nwt|new in box|unopened)\b/i.test(c.title)
+                (c) => !/\b(bnib|nib|sealed|brand new|factory sealed|shrink wrapped|nwt|new in box|unopened)\b/i.test(c.title)
               );
-              if (nonSealed.length >= 2) {
+              if (nonSealed.length > 0) {
                 sanitizedComps = nonSealed;
               }
             }

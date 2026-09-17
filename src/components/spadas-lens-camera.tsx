@@ -28,7 +28,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
-import { fmtMoney } from "@/app/lib/listings";
+import { fmtMoney, formatAUD } from "@/app/lib/listings";
 import { createListing } from "@/app/lib/createlisting";
 import { supabase } from "@/app/lib/supabase";
 import { detectGeoCurrency, CURRENCY_CONFIGS, SupportedCurrency } from "@/app/lib/currency-routing";
@@ -316,10 +316,13 @@ function SpadasLensCameraCore({
 
   const isHitSavedInHaul = useCallback(
     (hit: DetectedHit) => {
+      if (!hit) return false;
       if (savedHitIds.has(hit.id)) return true;
+      if (hit.name && savedHitIds.has(hit.name.trim().toLowerCase())) return true;
       return rapidItems.some(
         (r) =>
           r.id === hit.id ||
+          r.photoId === hit.id ||
           (typeof r.productName === "string" &&
             typeof hit.name === "string" &&
             r.productName.trim().toLowerCase() === hit.name.trim().toLowerCase())
@@ -1068,10 +1071,13 @@ function SpadasLensCameraCore({
   const handleSaveDraftHit = async (hit: DetectedHit) => {
     try {
       // 1. OPTIMISTIC IMMEDIATE UPDATE (0ms latency, zero flash):
-      // Mark as saved in local state immediately so button shows "✓ Saved to Haul" and [In Haul] badge renders
+      // Mark as saved in local state immediately so button shows "✓ In Haul" badge renders
       setSavedHitIds((prev) => {
         const next = new Set(prev);
         next.add(hit.id);
+        if (hit.name) {
+          next.add(hit.name.trim().toLowerCase());
+        }
         if (typeof window !== "undefined") {
           try {
             localStorage.setItem("spadas_saved_hit_ids", JSON.stringify(Array.from(next)));
@@ -3948,7 +3954,9 @@ function SpadasLensCameraCore({
               )}
 
               {/* Top HUD Bar: Dynamic Confidence Indicator, Credit Badge & Camera Controls with Safe-Area Insets */}
-              <div className="absolute top-[max(0.625rem,calc(env(safe-area-inset-top,0px)+0.375rem))] left-[max(0.625rem,env(safe-area-inset-left,0px))] right-[max(0.625rem,env(safe-area-inset-right,0px))] z-30 flex flex-wrap items-center justify-between gap-2 pointer-events-none transition-all">
+              <div className={`absolute top-[max(0.625rem,calc(env(safe-area-inset-top,0px)+0.375rem))] left-[max(0.625rem,env(safe-area-inset-left,0px))] right-[max(0.625rem,env(safe-area-inset-right,0px))] z-30 flex flex-wrap items-center justify-between gap-2 pointer-events-none transition-all duration-300 ease-out ${
+                activeCompsHit ? "opacity-0 pointer-events-none -translate-y-4" : "opacity-100"
+              }`}>
                 {/* Dynamic Real-Time Focus & Telemetry Indicator */}
                 <div className="inline-flex items-center gap-1.5 rounded-full bg-[#0F1117]/90 border border-white/[0.12] px-2.5 py-1 shadow-md backdrop-blur-md pointer-events-auto">
                   <div
@@ -4397,7 +4405,7 @@ function SpadasLensCameraCore({
                                     <span>Take-Home Net Profit</span>
                                   </span>
                                   <span className="text-xl sm:text-2xl font-black text-emerald-400 tracking-tight">
-                                    +{fmtMoney(netProfit)}
+                                    {formatAUD(netProfit)}
                                   </span>
                                 </div>
                                 <div className="flex flex-col items-end">
@@ -4428,7 +4436,7 @@ function SpadasLensCameraCore({
                                   <span>Post ~{fmtMoney(estPost)}</span>
                                 </div>
                                 <span className="text-emerald-400 font-bold ml-auto">
-                                  = +{fmtMoney(netProfit)} in pocket
+                                  = {formatAUD(netProfit)} in pocket
                                 </span>
                               </div>
                             </div>

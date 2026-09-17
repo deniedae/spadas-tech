@@ -13,7 +13,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { triggerTactileHaptic } from "@/lib/android-bridge";
-import { fmtMoney } from "@/app/lib/listings";
+import { fmtMoney, formatAUD } from "@/app/lib/listings";
 import type { RawSoldComp } from "@/types/lens";
 
 export interface LensCopilotDrawerProps {
@@ -59,6 +59,7 @@ export default function LensCopilotDrawer({
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const chatInputContainerRef = useRef<HTMLDivElement | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   // Auto-scroll to bottom as streaming tokens arrive
@@ -70,17 +71,49 @@ export default function LensCopilotDrawer({
     scrollToBottom();
   }, [messages, isStreaming]);
 
+  // Completely hide the bottom navigation bar when Copilot drawer mounts
+  useEffect(() => {
+    if (!isOpen) return;
+    document.body.setAttribute("data-copilot-open", "true");
+    document.body.classList.add("copilot-drawer-open");
+    return () => {
+      document.body.removeAttribute("data-copilot-open");
+      document.body.classList.remove("copilot-drawer-open");
+    };
+  }, [isOpen]);
+
+  // Listen to window.visualViewport resize and scroll events.
+  // Dynamically offset the bottom position of the chat input container so it pins flush above the soft keyboard
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.visualViewport) return;
+    const handleResize = () => {
+      if (!window.visualViewport) return;
+      const offsetBottom = window.innerHeight - window.visualViewport.height;
+      if (chatInputContainerRef.current) {
+        chatInputContainerRef.current.style.transform = `translateY(-${Math.max(0, offsetBottom)}px)`;
+      }
+    };
+    window.visualViewport.addEventListener("resize", handleResize);
+    window.visualViewport.addEventListener("scroll", handleResize);
+    return () => {
+      window.visualViewport?.removeEventListener("resize", handleResize);
+      window.visualViewport?.removeEventListener("scroll", handleResize);
+    };
+  }, []);
+
   // Initial greeting seed whenever a new item is opened
   useEffect(() => {
     if (isOpen) {
       if (messages.length === 0) {
         const net = itemContext.estimatedNet ?? 0;
         const verdict = net >= 20 ? "looks like a strong COP" : net >= 8 ? "has moderate margin" : "is RISKY";
+        const formattedTag = fmtMoney(itemContext.tagPrice || 10);
+        const formattedNet = formatAUD(net);
         setMessages([
           {
             id: "greeting",
             role: "assistant",
-            content: `I've loaded the comps for **${itemContext.title.slice(0, 45)}**. At $${fmtMoney(itemContext.tagPrice || 10)} tag price and ~$${fmtMoney(itemContext.estimatedNet || 0)} net profit, this ${verdict}. What do you need to know?`,
+            content: `I've loaded the comps for **${itemContext.title.slice(0, 45)}**. At ${formattedTag} tag price and ~${formattedNet} net profit, this ${verdict}. What do you need to know?`,
           },
         ]);
       }
@@ -212,7 +245,7 @@ export default function LensCopilotDrawer({
   return (
     <div className="fixed inset-0 z-[120] flex items-end justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-xs animate-fade-in select-none">
       <div
-        className="relative w-full max-w-md h-[80vh] sm:h-[620px] flex flex-col rounded-t-3xl sm:rounded-2xl bg-zinc-950 border border-zinc-800 text-zinc-100 overflow-hidden shadow-2xl animate-in slide-in-from-bottom duration-200"
+        className="relative w-full max-w-md h-[100dvh] max-h-[95dvh] sm:h-[620px] sm:max-h-[620px] flex flex-col rounded-t-3xl sm:rounded-2xl bg-zinc-950 border border-zinc-800 text-zinc-100 overflow-hidden shadow-2xl animate-in slide-in-from-bottom duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Mobile Pull Handle */}
@@ -241,8 +274,14 @@ export default function LensCopilotDrawer({
 
           <div className="flex items-center gap-2">
             {typeof itemContext.estimatedNet === "number" && (
-              <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 tabular-nums">
-                +${fmtMoney(itemContext.estimatedNet)} Net
+              <span
+                className={`px-2 py-0.5 rounded-full text-[11px] font-bold border tabular-nums ${
+                  itemContext.estimatedNet >= 0
+                    ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
+                    : "bg-rose-500/15 text-rose-400 border-rose-500/30"
+                }`}
+              >
+                {formatAUD(itemContext.estimatedNet)} Net
               </span>
             )}
             <button
@@ -303,52 +342,58 @@ export default function LensCopilotDrawer({
           <div ref={messagesEndRef} />
         </div>
 
-        {/* ── Suggested Quick Prompt Chips (1-Tap Sourcing Queries) ─────────── */}
-        <div className="shrink-0 px-3 py-1.5 border-t border-zinc-850 bg-zinc-950 overflow-x-auto custom-scrollbar flex items-center gap-1.5">
-          {QUICK_PROMPT_CHIPS.map((chip) => (
-            <button
-              key={chip.label}
-              type="button"
-              disabled={isStreaming}
-              onClick={() => handleSendMessage(chip.prompt)}
-              className="px-2.5 py-1 rounded-full text-[11px] font-medium bg-zinc-900 border border-zinc-800 hover:border-cyan-500/40 hover:bg-zinc-850 text-zinc-300 hover:text-white transition whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
-            >
-              {chip.label}
-            </button>
-          ))}
-        </div>
+        {/* ── Bottom Input & Chips Container with Dynamic VisualViewport Offset ── */}
+        <div ref={chatInputContainerRef} className="shrink-0 transition-transform duration-75 ease-out">
+          {/* ── Suggested Quick Prompt Chips (1-Tap Sourcing Queries) ─────────── */}
+          <div className="px-3 py-1.5 border-t border-zinc-850 bg-zinc-950 overflow-x-auto custom-scrollbar flex items-center gap-1.5">
+            {QUICK_PROMPT_CHIPS.map((chip) => (
+              <button
+                key={chip.label}
+                type="button"
+                disabled={isStreaming}
+                onClick={() => handleSendMessage(chip.prompt)}
+                className="px-2.5 py-1 rounded-full text-[11px] font-medium bg-zinc-900 border border-zinc-800 hover:border-cyan-500/40 hover:bg-zinc-850 text-zinc-300 hover:text-white transition whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
+              >
+                {chip.label}
+              </button>
+            ))}
+          </div>
 
-        {/* ── Text Input Field ──────────────────────────────────────────────── */}
-        <div className="shrink-0 p-3 border-t border-zinc-800 bg-zinc-950 pb-[max(0.75rem,calc(env(safe-area-inset-bottom,0px)+0.5rem))]">
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              void handleSendMessage();
-            }}
-            className="flex items-center gap-2"
-          >
-            <input
-              ref={inputRef}
-              type="text"
-              value={inputMessage}
-              onChange={(e) => setInputMessage(e.target.value)}
-              placeholder="Ask Copilot (e.g., Should I offer $8?)..."
-              disabled={isStreaming}
-              className="flex-1 rounded-xl bg-zinc-900 border border-zinc-800 px-3.5 py-2.5 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-cyan-500 transition"
-            />
-            <button
-              type="submit"
-              disabled={!inputMessage.trim() || isStreaming}
-              className="h-9 px-3 rounded-xl bg-cyan-500 text-black font-bold text-xs hover:bg-cyan-400 disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center justify-center gap-1 shrink-0 cursor-pointer"
-              title="Send Message"
+          {/* ── Text Input Field ──────────────────────────────────────────────── */}
+          <div className="p-3 border-t border-zinc-800 bg-zinc-950 pb-[max(0.75rem,calc(env(safe-area-inset-bottom,0px)+0.5rem))]">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                void handleSendMessage();
+              }}
+              className="flex items-center gap-2"
             >
-              {isStreaming ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Send className="w-3.5 h-3.5" />
-              )}
-            </button>
-          </form>
+              <input
+                ref={inputRef}
+                type="text"
+                value={inputMessage}
+                onChange={(e) => setInputMessage(e.target.value)}
+                onFocus={() => {
+                  setTimeout(scrollToBottom, 150);
+                }}
+                placeholder="Ask Copilot (e.g., Should I offer $8?)..."
+                disabled={isStreaming}
+                className="flex-1 rounded-xl bg-zinc-900 border border-zinc-800 px-3.5 py-2.5 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-cyan-500 transition"
+              />
+              <button
+                type="submit"
+                disabled={!inputMessage.trim() || isStreaming}
+                className="h-9 px-3 rounded-xl bg-cyan-500 text-black font-bold text-xs hover:bg-cyan-400 disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center justify-center gap-1 shrink-0 cursor-pointer"
+                title="Send Message"
+              >
+                {isStreaming ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Send className="w-3.5 h-3.5" />
+                )}
+              </button>
+            </form>
+          </div>
         </div>
       </div>
     </div>
