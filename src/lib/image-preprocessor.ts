@@ -58,7 +58,7 @@ import { isValidFramePayload } from "@/lib/lens-utils";
  */
 export function exportCanvasToOptimizedDataUrl(
   canvas: HTMLCanvasElement,
-  quality = 0.82
+  quality = 0.72
 ): string {
   try {
     const webpUrl = canvas.toDataURL("image/webp", quality);

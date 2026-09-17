@@ -489,25 +489,21 @@ Identify ONLY the single primary physical item positioned in the center target r
         try {
           const reqParams: any = isArScan
             ? {
-              model: modelName,
+              model: "gpt-4o-mini",
               temperature: 0.0,
-              max_tokens: 120,
+              max_tokens: 60,
               response_format: zodResponseFormat(MinimalArScanSchema, "minimal_ar_scan"),
               messages: [
+                {
+                  role: "system",
+                  content: 'Identify Brand, Model, and Format only. Output strictly raw JSON: {"query": "string"}. No markdown, no commentary.',
+                },
                 {
                   role: "user",
                   content: [
                     {
                       type: "text",
-                      text: `You are a high-speed commercial product identifier for a live Australian reseller camera HUD.
-Identify the centered physical item in the reticle.
-Return strictly:
-- query: Exact commercial product search query for Australian eBay sold comps (e.g. "Dove Men Care Fresh Deodorant", "Sony WH-1000XM4", "Universal Bad Neighbours Blu-ray")
-- brand: Exact brand name or null if generic/unbranded
-- category: Primary resale category (e.g. "Personal Care", "Electronics", "Clothing", "Shoes", "Media & Movies", "Video Games")
-- condition: Item condition ("New", "Used - Good", "Used - Fair", "For Parts")
-- media_format: If movie/disc/game case, specify "4K UHD", "Blu-ray", "DVD", "Steelbook", "VHS", "CD", "Vinyl", or null
-Plain JSON only. Zero conversational text.`,
+                      text: `Identify the centered item. Return query as an exact eBay sold comps search string (e.g. "Sony WH-1000XM4", "Universal Bad Neighbours Blu-ray", "Dove Men Care Fresh Deodorant"). Also set brand, category, condition, and media_format. Plain JSON only.`,
                     },
                     ...imageContent,
                   ],
@@ -682,6 +678,17 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
           const brand = (arData.brand || "").trim() || null;
           const cat = arData.category || "General";
           const cond = arData.condition || "Used - Good";
+
+          // ── INSTANT COMPS FIRE: the moment query is parsed, immediately fire eBay
+          // comps fetch in parallel. Do NOT await — the downstream runCompsAndFinalizeResult
+          // will await this promise for a zero-wait cache hit if it resolves in time.
+          if (pName.length >= 3 && !parallelCompsPromise) {
+            parallelCompsPromise = fetchEbayAustraliaSoldComps(pName, initialTargetCurrency).catch((err) => {
+              console.warn("[ai-listing] Instant AR comps fire warning:", err);
+              return null;
+            });
+          }
+
           const detectedFormat = arData.media_format || (
             /\b(blu-ray|bluray)\b/i.test(pName) ? "Blu-ray" :
             /\b(4k uhd|4k ultra hd)\b/i.test(pName) ? "4K UHD" :
