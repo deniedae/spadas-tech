@@ -3,10 +3,15 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Camera, Zap, ShoppingBag } from "lucide-react";
+import dynamic from "next/dynamic";
 import SpadasLensCamera from "@/components/spadas-lens-camera";
-import { SpadasSnapStudio } from "@/components/spadas-snap-studio";
 import { useHaulStore } from "@/lib/haul-store";
 import { triggerTactileHaptic } from "@/lib/android-bridge";
+
+const SpadasSnapStudio = dynamic(
+  () => import("@/components/spadas-snap-studio").then((m) => m.SpadasSnapStudio),
+  { ssr: false }
+);
 
 interface UnifiedCameraHubProps {
   initialTab?: "lens" | "studio" | "haul" | "ironman";

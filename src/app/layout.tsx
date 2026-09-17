@@ -126,6 +126,7 @@ export default function RootLayout({
           }}
         />
         <link rel="canonical" href="https://spadas.ai" />
+        <link rel="preload" href="/icon-192.png" as="image" type="image/png" />
         <link rel="dns-prefetch" href="https://api.ebay.com" />
         <link rel="dns-prefetch" href="https://i.ebayimg.com" />
         <link rel="preconnect" href="https://api.openai.com" crossOrigin="anonymous" />

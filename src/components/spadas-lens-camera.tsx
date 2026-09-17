@@ -42,10 +42,8 @@ import { executeParallelAppraisal } from "@/lib/concurrent-appraiser";
 import { ScanTrace } from "@/lib/scan-trace";
 import { saveScanOffline } from "@/app/lib/offline-storage";
 import { appraiseItemLocally, saveOfflineHitLocally } from "@/app/lib/offline/offline-engine";
-import SubscriptionPaywallModal from "@/components/subscription-paywall-modal";
-import EbayListingModal from "@/components/ebay-listing-modal";
+import dynamic from "next/dynamic";
 import CameraOnboardingOverlay from "@/components/camera-onboarding-overlay";
-import { DeepVerifyModal } from "@/components/deep-verify-modal";
 import OpticalHorizonLeveler from "@/components/optical-horizon-leveler";
 import {
   playMechanicalShutterSound,
@@ -59,8 +57,7 @@ import {
 } from "@/lib/audio-haptic-engine";
 import LensHitCard from "@/components/lens-hit-card";
 import LensControlsBar from "@/components/lens-controls-bar";
-import LensCompsModal from "@/components/lens-comps-modal";
-import AuditCompsLedger, { ensureVerifiedSoldComps } from "@/components/AuditCompsLedger";
+import { ensureVerifiedSoldComps } from "@/components/AuditCompsLedger";
 import { checkNeedsVerification } from "@/lib/forensic-knowledge";
 import { GuestScanHud } from "@/components/guest-scan-hud";
 import { GuestScanLimitModal } from "@/components/guest-scan-limit-modal";
@@ -81,8 +78,15 @@ import {
 } from "@/lib/rapid-thrift-engine";
 import { useHaulStore } from "@/lib/haul-store";
 import { quickSnapQueue, useQuickSnapQueue } from "@/lib/quick-snap-queue";
-import { RapidThriftDrawer } from "@/components/rapid-thrift-drawer";
-import { QuickHistoryDrawer } from "@/components/quick-history-drawer";
+
+// Dynamic imports for non-critical modals and drawers to decouple bundle from /lens initial load
+const SubscriptionPaywallModal = dynamic(() => import("@/components/subscription-paywall-modal"), { ssr: false });
+const EbayListingModal = dynamic(() => import("@/components/ebay-listing-modal"), { ssr: false });
+const DeepVerifyModal = dynamic(() => import("@/components/deep-verify-modal").then((m) => m.DeepVerifyModal), { ssr: false });
+const LensCompsModal = dynamic(() => import("@/components/lens-comps-modal"), { ssr: false });
+const AuditCompsLedger = dynamic(() => import("@/components/AuditCompsLedger"), { ssr: false });
+const RapidThriftDrawer = dynamic(() => import("@/components/rapid-thrift-drawer").then((m) => m.RapidThriftDrawer), { ssr: false });
+const QuickHistoryDrawer = dynamic(() => import("@/components/quick-history-drawer").then((m) => m.QuickHistoryDrawer), { ssr: false });
 import { calculateSalesVelocity } from "@/lib/turnover-velocity-engine";
 import { LensIntelPanel } from "@/components/lens-intel-panel";
 import {
@@ -880,7 +884,12 @@ function SpadasLensCameraCore({
           const ctx = canvas.getContext("2d");
           if (ctx) {
             ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-            snapshotUrl = canvas.toDataURL("image/jpeg", 0.85);
+            try {
+              const webp = canvas.toDataURL("image/webp", 0.70);
+              snapshotUrl = webp.startsWith("data:image/webp") ? webp : canvas.toDataURL("image/jpeg", 0.70);
+            } catch {
+              snapshotUrl = canvas.toDataURL("image/jpeg", 0.70);
+            }
           }
         } catch (e) {
           console.warn("[Spadas Lens] Barcode snapshot capture skipped:", e);
@@ -2078,7 +2087,12 @@ function SpadasLensCameraCore({
         const ctx = instantCanvas.getContext("2d", { willReadFrequently: true });
         if (ctx) {
           ctx.drawImage(video, 0, 0, fullW, fullH, 0, 0, tw, th);
-          instantSnapshotUrl = instantCanvas.toDataURL("image/jpeg", 0.74);
+          try {
+            const webp = instantCanvas.toDataURL("image/webp", 0.70);
+            instantSnapshotUrl = webp.startsWith("data:image/webp") ? webp : instantCanvas.toDataURL("image/jpeg", 0.70);
+          } catch {
+            instantSnapshotUrl = instantCanvas.toDataURL("image/jpeg", 0.70);
+          }
         }
       } catch (err) {
         console.warn("[Spadas Lens] Instantaneous snapshot capture warning:", err);
@@ -2159,7 +2173,12 @@ function SpadasLensCameraCore({
         const ctx = instantCanvas.getContext("2d", { willReadFrequently: true });
         if (ctx) {
           ctx.drawImage(currentVid, 0, 0, fullW, fullH, 0, 0, tw, th);
-          instantSnapshotUrl = instantCanvas.toDataURL("image/jpeg", 0.74);
+          try {
+            const webp = instantCanvas.toDataURL("image/webp", 0.70);
+            instantSnapshotUrl = webp.startsWith("data:image/webp") ? webp : instantCanvas.toDataURL("image/jpeg", 0.70);
+          } catch {
+            instantSnapshotUrl = instantCanvas.toDataURL("image/jpeg", 0.70);
+          }
           setFrozenFrameUrl(instantSnapshotUrl);
           setIsScanPaused(true);
         }
@@ -2348,7 +2367,12 @@ function SpadasLensCameraCore({
             const ctx = canvas.getContext("2d");
             if (ctx) {
               ctx.drawImage(video, 0, 0, fullWidth, fullHeight, 0, 0, targetW, targetH);
-              frameDataUrl = canvas.toDataURL("image/jpeg", 0.74);
+              try {
+                const webp = canvas.toDataURL("image/webp", 0.70);
+                frameDataUrl = webp.startsWith("data:image/webp") ? webp : canvas.toDataURL("image/jpeg", 0.70);
+              } catch {
+                frameDataUrl = canvas.toDataURL("image/jpeg", 0.70);
+              }
             }
           }
         }
@@ -2360,7 +2384,7 @@ function SpadasLensCameraCore({
 
       // Fallback Canvas for Manual Scan & Mock Mode: Guarantees frameDataUrl is never dropped on manual scan
       if (
-        (!frameDataUrl || !frameDataUrl.startsWith("data:image/jpeg;base64,") || frameDataUrl.length < 1000) &&
+        (!frameDataUrl || (!frameDataUrl.startsWith("data:image/jpeg;base64,") && !frameDataUrl.startsWith("data:image/webp;base64,")) || frameDataUrl.length < 1000) &&
         (forceManual || isMockFallback)
       ) {
         try {
@@ -2384,7 +2408,7 @@ function SpadasLensCameraCore({
             ctx.fillStyle = "#94A3B8";
             ctx.font = "13px monospace";
             ctx.fillText(new Date().toLocaleTimeString(), 320, 260);
-            frameDataUrl = canvas.toDataURL("image/jpeg", 0.8);
+            frameDataUrl = canvas.toDataURL("image/jpeg", 0.70);
             centerCropDataUrl = frameDataUrl;
             instantSnapshotUrl = frameDataUrl;
           }
@@ -3847,7 +3871,7 @@ function SpadasLensCameraCore({
             void processCurrentFrame(true);
           }
         }}
-        className="relative w-full h-[55vh] min-h-[380px] max-h-[620px] sm:h-auto sm:min-h-[50svh] sm:aspect-[16/9] max-w-full box-border overflow-hidden rounded-none sm:rounded-3xl border-0 sm:border sm:border-cyan-500/30 bg-slate-950 sm:shadow-[0_0_50px_rgba(6,182,212,0.15)] cursor-pointer"
+        className="relative w-full aspect-[3/4] sm:aspect-[16/9] max-h-[65svh] max-w-full box-border overflow-hidden rounded-none sm:rounded-3xl border-0 sm:border sm:border-cyan-500/30 bg-slate-950 sm:shadow-[0_0_50px_rgba(6,182,212,0.15)] cursor-pointer"
       >
         <CameraViewportErrorBoundary onRestart={startCamera}>
           {!isCameraPoweredOn ? (
@@ -5067,8 +5091,10 @@ function SpadasLensCameraCore({
 
       {/* Non-Intrusive In-Stream Audit-Grade Sold Comps Ledger (Anchored in document flow exclusively after scan payload resolves) */}
       {activeValuationHit && !activeCompsHit && (
-        <div className={`mt-4 w-full max-w-full px-3 sm:px-0 overflow-x-hidden box-border ${isCardExiting ? "animate-card-exit" : "animate-card-enter"
-          }`}>
+        <div
+          className={`mt-4 w-full max-w-full px-3 sm:px-0 overflow-x-hidden box-border ${isCardExiting ? "animate-card-exit" : "animate-card-enter"}`}
+          style={{ transform: "translate3d(0,0,0)", willChange: "transform" }}
+        >
           <AuditCompsLedger
             isLoading={false}
             comps={activeValuationHit.rawComps}

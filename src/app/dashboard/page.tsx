@@ -29,7 +29,11 @@ import { fmtMoney, calcProfit } from "@/app/lib/listings";
 import PullToRefresh from "@/components/pull-to-refresh";
 import SubscriptionPaywallModal from "@/components/subscription-paywall-modal";
 import { calculateSalesVelocity } from "@/lib/turnover-velocity-engine";
-import DashboardSupportDesk from "@/components/dashboard-support-desk";
+import dynamic from "next/dynamic";
+
+const DashboardSupportDesk = dynamic(() => import("@/components/dashboard-support-desk"), {
+  ssr: false,
+});
 
 interface Listing {
   id: string;

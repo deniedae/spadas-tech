@@ -108,8 +108,8 @@ export function cleanCategoryText(rawCategory?: unknown, fallback?: string): str
   return fallback;
 }
 
-// Capture a JPEG frame from a live HTMLVideoElement, returns a data URL or null
-export function captureVideoFrame(video: HTMLVideoElement | null, quality = 0.85): string | null {
+// Capture an optimized WebP (or JPEG fallback) frame from a live HTMLVideoElement, returns a data URL or null
+export function captureVideoFrame(video: HTMLVideoElement | null, quality = 0.70): string | null {
   if (!video || video.videoWidth === 0) return null;
   try {
     const canvas = document.createElement("canvas");
@@ -118,6 +118,10 @@ export function captureVideoFrame(video: HTMLVideoElement | null, quality = 0.85
     const ctx = canvas.getContext("2d");
     if (!ctx) return null;
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    try {
+      const webpUrl = canvas.toDataURL("image/webp", quality);
+      if (webpUrl.startsWith("data:image/webp")) return webpUrl;
+    } catch { }
     return canvas.toDataURL("image/jpeg", quality);
   } catch {
     return null;
@@ -142,7 +146,7 @@ export function captureVideoFrameCropped(
 ): string | null {
   if (!video || video.videoWidth === 0) return null;
 
-  const { size = 1080, verticalBias = 0.5, quality = 0.88 } = options;
+  const { size = 1080, verticalBias = 0.5, quality = 0.70 } = options;
 
   try {
     const vw = video.videoWidth;
@@ -168,6 +172,10 @@ export function captureVideoFrameCropped(
       0,  0,  size,     size      // destination (scaled)
     );
 
+    try {
+      const webpUrl = canvas.toDataURL("image/webp", quality);
+      if (webpUrl.startsWith("data:image/webp")) return webpUrl;
+    } catch { }
     return canvas.toDataURL("image/jpeg", quality);
   } catch {
     // Fall back to full-frame capture if anything fails

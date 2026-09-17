@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useDeferredValue, startTransition, useRef, useCallback } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import {
   ChevronDown,
@@ -49,8 +50,12 @@ import {
   calculateFragranceLiquidMultiplier,
   sanitizeCompsForUsedCondition,
 } from "@/lib/fragrance-liquid-engine";
-import LensCopilotDrawer from "@/components/lens-copilot-drawer";
 import type { DetectedHit, ActiveScanItem, RawSoldComp } from "@/types/lens";
+
+// Dynamic lazy import for non-critical modal drawer to reduce initial bundle and improve INP
+const LensCopilotDrawer = dynamic(() => import("@/components/lens-copilot-drawer"), {
+  ssr: false,
+});
 
 interface LensCompsModalProps {
   isOpen: boolean;
@@ -123,6 +128,56 @@ export default function LensCompsModal({
   const [isTester, setIsTester] = useState<boolean>(autoFragranceAttrs.isTester);
   const [hasBox, setHasBox] = useState<boolean>(autoFragranceAttrs.hasBox);
 
+  // INP Optimization: Decouple high-frequency slider states using useDeferredValue
+  const deferredFillLevel = useDeferredValue(fillLevel);
+  const deferredTagCost = useDeferredValue(customTagCost);
+  const deferredConditionTier = useDeferredValue(conditionTier);
+
+  // 60fps (~16ms) RAF Throttled update handlers for continuous slider inputs
+  const fillThrottleRef = useRef<number | null>(null);
+  const handleFillLevelChange = useCallback((newVal: number) => {
+    if (fillThrottleRef.current) {
+      cancelAnimationFrame(fillThrottleRef.current);
+    }
+    fillThrottleRef.current = requestAnimationFrame(() => {
+      setFillLevel(newVal);
+      fillThrottleRef.current = null;
+    });
+    triggerTactileHaptic("light");
+  }, []);
+
+  const handlePresetFill = useCallback((val: number) => {
+    startTransition(() => {
+      setFillLevel(val);
+    });
+    triggerTactileHaptic("selection");
+  }, []);
+
+  const tagCostThrottleRef = useRef<number | null>(null);
+  const handleTagCostChange = useCallback((val: number) => {
+    if (tagCostThrottleRef.current) {
+      cancelAnimationFrame(tagCostThrottleRef.current);
+    }
+    tagCostThrottleRef.current = requestAnimationFrame(() => {
+      setCustomTagCost(val);
+      tagCostThrottleRef.current = null;
+    });
+  }, []);
+
+  const handlePresetTagCost = useCallback((val: number) => {
+    startTransition(() => {
+      setCustomTagCost(val);
+    });
+    triggerTactileHaptic("light");
+  }, []);
+
+  const handleConditionTierChange = useCallback((tier: PhysicalConditionTier) => {
+    startTransition(() => {
+      setConditionTier(tier);
+    });
+    triggerTactileHaptic("selection");
+  }, []);
+
   // Sync state whenever scanned item changes
   useEffect(() => {
     if (item) {
@@ -139,12 +194,12 @@ export default function LensCompsModal({
   const fragranceMultiplier = useMemo(() => {
     if (!isFragranceActive) return 1.0;
     return calculateFragranceLiquidMultiplier({
-      fillLevelPercent: fillLevel,
+      fillLevelPercent: deferredFillLevel,
       hasCap,
       isTester,
       hasBox,
     });
-  }, [isFragranceActive, fillLevel, hasCap, isTester, hasBox]);
+  }, [isFragranceActive, deferredFillLevel, hasCap, isTester, hasBox]);
 
   // 1. Unbranded & Low-Confidence Comps Guardrail
   const hasBrandOrModel = Boolean(
@@ -239,9 +294,9 @@ export default function LensCompsModal({
     };
   }, [item, initialEstValue, effectiveComps, title, isFragranceActive, fragranceMultiplier]);
 
-  // Dynamic calculations
+  // Dynamic calculations (utilizing deferred values for smooth 60fps main thread)
   const activeResalePrice = compsRange.median || (isFragranceActive ? Math.round(initialEstValue * fragranceMultiplier * 100) / 100 : initialEstValue);
-  const effectiveTagCost = Math.max(0, Math.round(customTagCost * 100) / 100);
+  const effectiveTagCost = Math.max(0, Math.round(deferredTagCost * 100) / 100);
   const estShipping = estimateCategoryShippingCost(category, title);
   detectThriftTrap(title, activeResalePrice, brand);
 
@@ -322,13 +377,13 @@ export default function LensCompsModal({
   const conditionEvaluation = useMemo(() => {
     return calculateConditionValuation({
       baselineMedianPrice: compsRange.median || initialEstValue,
-      conditionTier,
+      conditionTier: deferredConditionTier,
       conditionText: condition,
       flawNotes: (item as any)?.defectNotes || (item as any)?.wearInspection || "",
       productName: title,
       category,
     });
-  }, [compsRange.median, initialEstValue, conditionTier, condition, item, title, category]);
+  }, [compsRange.median, initialEstValue, deferredConditionTier, condition, item, title, category]);
 
   const spectralComps = useMemo(() => {
     const mappedPoints = effectiveComps.map((c) => ({
@@ -491,8 +546,14 @@ export default function LensCompsModal({
   if (!isOpen || !item) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm animate-fade-in select-none">
-      <div className="relative w-full max-w-md max-h-[92dvh] sm:max-h-[88vh] flex flex-col rounded-t-3xl sm:rounded-2xl bg-zinc-950 border border-zinc-800 text-zinc-100 overflow-hidden shadow-2xl pt-[max(16px,env(safe-area-inset-top))] sm:pt-0">
+    <div
+      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm animate-fade-in select-none"
+      style={{ transform: "translate3d(0,0,0)", willChange: "transform" }}
+    >
+      <div
+        className="relative w-full max-w-md max-h-[92dvh] sm:max-h-[88vh] flex flex-col rounded-t-3xl sm:rounded-2xl bg-zinc-950 border border-zinc-800 text-zinc-100 overflow-hidden shadow-2xl pt-[max(16px,env(safe-area-inset-top))] sm:pt-0"
+        style={{ transform: "translate3d(0,0,0)", willChange: "transform" }}
+      >
         {/* Mobile drag handle */}
         <div className="mx-auto mt-2 h-1 w-12 rounded-full bg-zinc-700 sm:hidden shrink-0" />
 
@@ -567,10 +628,10 @@ export default function LensCompsModal({
         {/* ── Scrollable Body Content (Aisle-Ready Mode) ────────────────────── */}
         <div className="flex-1 overflow-y-auto overscroll-contain touch-pan-y divide-y divide-zinc-800/80 custom-scrollbar">
           {/* ── 1. HERO NET PROFIT & RECOMMENDATION ──────────────────────────── */}
-          <div className="p-4 space-y-3">
+          <div className="p-4 space-y-3 min-h-[110px]">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <div className="text-[36px] sm:text-[40px] leading-none font-bold text-emerald-400 tabular-nums flex items-baseline gap-1.5">
+                <div className="text-[36px] sm:text-[40px] leading-none font-bold text-emerald-400 tabular-nums flex items-baseline gap-1.5 min-h-[44px]">
                   <span>{formatAUD(netProfit)}</span>
                   <span className="text-base font-semibold text-emerald-300/80">Net</span>
                 </div>
@@ -629,7 +690,7 @@ export default function LensCompsModal({
                     min="0"
                     step="0.5"
                     value={customTagCost || ""}
-                    onChange={(e) => setCustomTagCost(Math.max(0, parseFloat(e.target.value) || 0))}
+                    onChange={(e) => handleTagCostChange(Math.max(0, parseFloat(e.target.value) || 0))}
                     className="w-14 rounded-md bg-zinc-950 border border-zinc-700 px-1.5 py-0.5 text-right text-xs text-amber-300 font-bold focus:outline-none focus:border-amber-400 tabular-nums"
                   />
                 </div>
@@ -639,10 +700,7 @@ export default function LensCompsModal({
                   <button
                     key={preset}
                     type="button"
-                    onClick={() => {
-                      setCustomTagCost(preset);
-                      triggerTactileHaptic("light");
-                    }}
+                    onClick={() => handlePresetTagCost(preset)}
                     className={`px-2 py-0.5 rounded-md text-[11px] font-semibold transition cursor-pointer tabular-nums ${
                       customTagCost === preset
                         ? "bg-amber-500/20 text-amber-300 border border-amber-500/40"
@@ -688,7 +746,7 @@ export default function LensCompsModal({
                   </button>
                 </div>
 
-                {/* Fill-level Slider & Numeric Indicator */}
+                {/* Fill-level Slider & Numeric Indicator (Throttled to 60fps) */}
                 <div className="space-y-1.5 pt-0.5">
                   <div className="flex items-center gap-3">
                     <input
@@ -697,10 +755,7 @@ export default function LensCompsModal({
                       max="100"
                       step="5"
                       value={fillLevel}
-                      onChange={(e) => {
-                        setFillLevel(Number(e.target.value));
-                        triggerTactileHaptic("light");
-                      }}
+                      onChange={(e) => handleFillLevelChange(Number(e.target.value))}
                       className="flex-1 accent-cyan-400 h-1.5 bg-zinc-950 rounded-lg cursor-pointer"
                     />
                     <span className="text-xs font-bold text-cyan-300 tabular-nums w-10 text-right shrink-0">
@@ -719,10 +774,7 @@ export default function LensCompsModal({
                       <button
                         key={preset.val}
                         type="button"
-                        onClick={() => {
-                          setFillLevel(preset.val);
-                          triggerTactileHaptic("selection");
-                        }}
+                        onClick={() => handlePresetFill(preset.val)}
                         className={`py-1 px-1 rounded-lg text-[10px] font-semibold transition cursor-pointer border text-center tabular-nums ${
                           fillLevel === preset.val
                             ? "bg-cyan-500/20 text-cyan-300 border-cyan-500/50"
@@ -739,10 +791,7 @@ export default function LensCompsModal({
                 <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
                   <button
                     type="button"
-                    onClick={() => {
-                      setFillLevel((prev) => (prev <= 50 ? 100 : 50));
-                      triggerTactileHaptic("light");
-                    }}
+                    onClick={() => handlePresetFill(fillLevel <= 50 ? 100 : 50)}
                     className={`px-2 py-0.5 rounded-md text-[10px] font-semibold transition cursor-pointer border ${
                       fillLevel < 100
                         ? "bg-cyan-500/20 text-cyan-300 border-cyan-500/40"
@@ -755,7 +804,9 @@ export default function LensCompsModal({
                   <button
                     type="button"
                     onClick={() => {
-                      setHasCap(!hasCap);
+                      startTransition(() => {
+                        setHasCap(!hasCap);
+                      });
                       triggerTactileHaptic("light");
                     }}
                     className={`px-2 py-0.5 rounded-md text-[10px] font-semibold transition cursor-pointer border ${
@@ -770,7 +821,9 @@ export default function LensCompsModal({
                   <button
                     type="button"
                     onClick={() => {
-                      setIsTester(!isTester);
+                      startTransition(() => {
+                        setIsTester(!isTester);
+                      });
                       triggerTactileHaptic("light");
                     }}
                     className={`px-2 py-0.5 rounded-md text-[10px] font-semibold transition cursor-pointer border ${
@@ -785,7 +838,9 @@ export default function LensCompsModal({
                   <button
                     type="button"
                     onClick={() => {
-                      setHasBox(!hasBox);
+                      startTransition(() => {
+                        setHasBox(!hasBox);
+                      });
                       triggerTactileHaptic("light");
                     }}
                     className={`px-2 py-0.5 rounded-md text-[10px] font-semibold transition cursor-pointer border ${
@@ -848,7 +903,7 @@ export default function LensCompsModal({
           </div>
 
           {/* ── 2. MARKET VALUE SECTION ───────────────────────────────────────── */}
-          <div className="p-4 space-y-1">
+          <div className="p-4 space-y-1 min-h-[92px]">
             <div className="text-xs text-zinc-400">eBay median sold</div>
             <div className="text-2xl font-bold text-white tabular-nums">
               {fmtMoney(compsRange.median || initialEstValue)}
@@ -870,7 +925,7 @@ export default function LensCompsModal({
           </div>
 
           {/* ── 3. TOP 3 SOLD COMPS (Carousel & List with Images & Dates) ─────── */}
-          <div className="p-4 space-y-2.5">
+          <div className="p-4 space-y-2.5 min-h-[240px]">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5">
                 <span className="text-xs font-semibold text-white">Top Sold Comps</span>
@@ -908,7 +963,7 @@ export default function LensCompsModal({
               <>
                 {/* ── Carousel View (Swipeable Cards with Images & Dates) ────── */}
                 {compsViewMode === "carousel" && (
-                  <div className="flex gap-2.5 overflow-x-auto snap-x snap-mandatory py-1 custom-scrollbar">
+                  <div className="flex gap-2.5 overflow-x-auto snap-x snap-mandatory py-1 custom-scrollbar min-h-[210px]">
                     {visibleComps.map((comp, idx) => {
                       const isCompActiveAsk = comp.soldDate === "Active Ask" || isZeroSoldActive;
                       const compImg = comp.thumbnail || (idx === 0 ? previewImageSrc : null);
@@ -927,6 +982,8 @@ export default function LensCompsModal({
                                 <img
                                   src={compImg}
                                   alt={comp.title}
+                                  loading="lazy"
+                                  decoding="async"
                                   className="h-full w-full object-cover"
                                 />
                               ) : (
@@ -1002,6 +1059,8 @@ export default function LensCompsModal({
                               <img
                                 src={compImg}
                                 alt={comp.title}
+                                loading="lazy"
+                                decoding="async"
                                 className="h-full w-full object-cover"
                               />
                             ) : (
@@ -1144,10 +1203,7 @@ export default function LensCompsModal({
                         <button
                           key={tierKey}
                           type="button"
-                          onClick={() => {
-                            setConditionTier(tierKey);
-                            triggerTactileHaptic("selection");
-                          }}
+                          onClick={() => handleConditionTierChange(tierKey)}
                           className={`py-1 px-1.5 rounded-lg text-[10px] transition cursor-pointer border text-center ${
                             isSelected
                               ? "bg-cyan-500/20 text-cyan-300 border-cyan-500/50 font-bold"
