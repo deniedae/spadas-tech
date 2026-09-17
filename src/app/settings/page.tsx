@@ -453,135 +453,149 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="space-y-12 max-w-3xl mx-auto pb-12 pt-6">
-      <div className="mb-8">
-        <h1 className="text-2xl font-semibold text-white">Settings</h1>
-        <p className="text-zinc-400 mt-2">Manage your account, billing, notifications, and connections.</p>
+    <div className="space-y-8 max-w-4xl mx-auto pb-16 pt-4 text-zinc-100">
+      <div className="mb-6">
+        <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">Settings</h1>
+        <p className="text-zinc-400 text-sm mt-1">Manage your account profile, sourcing defaults, notification chimes, and marketplace connections.</p>
       </div>
 
       {error && (
-        <div className="flex items-center justify-between rounded-md border border-rose-500 bg-rose-500/10 p-3 text-rose-400">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="h-4 w-4" />
+        <div className="flex items-center justify-between rounded-xl border border-rose-500/30 bg-rose-500/10 p-3.5 text-xs font-medium text-rose-300">
+          <div className="flex items-center gap-2.5">
+            <AlertCircle className="h-4 w-4 shrink-0 text-rose-400" />
             <span>{error}</span>
           </div>
-          <button onClick={() => setError(null)} className="p-1 hover:bg-rose-500/20 rounded">
+          <button onClick={() => setError(null)} className="p-1 hover:bg-rose-500/20 rounded transition text-rose-400">
             <X className="h-4 w-4" />
           </button>
         </div>
       )}
 
       {/* Account Section */}
-      <section>
-        <h2 className="text-lg font-semibold text-white mb-4">Account</h2>
-        <div className="space-y-6">
-          <div className="space-y-1">
-            <label className="text-zinc-300 block">Email</label>
-            <div className="text-white bg-zinc-900 rounded p-2 border border-zinc-800">
+      <section className="glass-card card-specular p-5 sm:p-6 rounded-2xl space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-bold text-white tracking-tight">Account &amp; Security</h2>
+          <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-white/[0.04] border border-white/[0.08] text-zinc-400">Profile</span>
+        </div>
+
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Account Email</label>
+            <div className="text-sm font-mono text-zinc-200 bg-white/[0.03] rounded-xl p-3 border border-white/[0.08]">
               {loading ? "Loading..." : user?.email ?? "—"}
             </div>
           </div>
           
-          <div className="flex gap-4">
+          <div className="flex flex-wrap gap-3 pt-1">
             <button
               onClick={resetPassword}
               disabled={resettingPassword}
-              className="bg-zinc-800 text-white hover:bg-zinc-700 px-4 py-2 rounded transition disabled:opacity-50"
+              className="bg-white/[0.05] hover:bg-white/[0.1] text-zinc-200 hover:text-white border border-white/[0.1] text-xs font-semibold px-4 py-2.5 rounded-xl transition disabled:opacity-50 cursor-pointer active:scale-95"
             >
-              {resettingPassword ? "Sending..." : "Reset password"}
+              {resettingPassword ? "Sending link..." : "Reset password"}
             </button>
             <button
               onClick={() => setConfirmLogout(true)}
               disabled={loggingOut}
-              className="bg-zinc-800 text-white hover:bg-zinc-700 px-4 py-2 rounded transition disabled:opacity-50"
+              className="bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/20 text-xs font-semibold px-4 py-2.5 rounded-xl transition disabled:opacity-50 cursor-pointer active:scale-95"
             >
-              {loggingOut ? "Logging out..." : "Log out"}
+              {loggingOut ? "Signing out..." : "Log out"}
             </button>
           </div>
+        </div>
 
-          <div className="pt-4">
-            <h3 className="font-semibold text-white mb-4">Sourcing Preferences</h3>
-            
-            <div className="space-y-4">
-              <div className="space-y-1">
-                <label className="text-zinc-300 block">Operating currency</label>
-                <select
-                  value={defaultCurrency}
-                  onChange={(e) => handleUpdateCurrency(e.target.value)}
-                  className="w-full sm:w-1/2 rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white focus:outline-none focus:border-zinc-600"
-                >
-                  <option value="AUD">AUD (Australian Dollar)</option>
-                  <option value="USD">USD (US Dollar)</option>
-                  <option value="EUR">EUR (Euro)</option>
-                  <option value="GBP">GBP (British Pound)</option>
-                </select>
-              </div>
+        <div className="glass-divider my-4" />
 
-              <div className="space-y-1">
-                <label className="text-zinc-300 block">Primary marketplace</label>
-                <select
-                  value={defaultMarketplace}
-                  onChange={(e) => handleUpdateMarketplace(e.target.value)}
-                  className="w-full sm:w-1/2 rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white focus:outline-none focus:border-zinc-600"
-                >
-                  <option value="eBay">eBay Australia / Global</option>
-                  <option value="Facebook Marketplace">Facebook Marketplace</option>
-                  <option value="Depop">Depop</option>
-                </select>
-              </div>
-
-              <div className="flex items-center gap-3 pt-2">
-                <input
-                  type="checkbox"
-                  id="autoAi"
-                  checked={autoAiDescriptions}
-                  onChange={(e) => handleUpdateAutoAi(e.target.checked)}
-                  className="h-4 w-4 rounded bg-zinc-900 border border-zinc-800"
-                />
-                <label htmlFor="autoAi" className="text-zinc-300 select-none cursor-pointer">
-                  Generate automated AI descriptions for new items
-                </label>
-              </div>
+        {/* Sourcing Preferences Sub-section */}
+        <div className="space-y-4">
+          <h3 className="text-sm font-bold text-white tracking-tight">Sourcing Preferences</h3>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Operating Currency</label>
+              <select
+                value={defaultCurrency}
+                onChange={(e) => handleUpdateCurrency(e.target.value)}
+                className="w-full rounded-xl border border-white/[0.08] bg-black/40 px-3.5 py-2.5 text-sm font-medium text-white focus:outline-none focus:border-cyan-500/50 transition"
+              >
+                <option value="AUD">🇦🇺 AUD (Australian Dollar)</option>
+                <option value="USD">🇺🇸 USD (US Dollar)</option>
+                <option value="EUR">🇪🇺 EUR (Euro)</option>
+                <option value="GBP">🇬🇧 GBP (British Pound)</option>
+              </select>
             </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Primary Reseller Marketplace</label>
+              <select
+                value={defaultMarketplace}
+                onChange={(e) => handleUpdateMarketplace(e.target.value)}
+                className="w-full rounded-xl border border-white/[0.08] bg-black/40 px-3.5 py-2.5 text-sm font-medium text-white focus:outline-none focus:border-cyan-500/50 transition"
+              >
+                <option value="eBay">eBay Australia / Global</option>
+                <option value="Facebook Marketplace">Facebook Marketplace</option>
+                <option value="Depop">Depop</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 pt-2">
+            <input
+              type="checkbox"
+              id="autoAi"
+              checked={autoAiDescriptions}
+              onChange={(e) => handleUpdateAutoAi(e.target.checked)}
+              className="h-4 w-4 rounded bg-black/40 border border-white/[0.15] accent-cyan-500 cursor-pointer"
+            />
+            <label htmlFor="autoAi" className="text-xs text-zinc-300 font-medium select-none cursor-pointer">
+              Generate automated AI copywriting descriptions for new items
+            </label>
           </div>
         </div>
       </section>
-
-      <hr className="border-zinc-800" />
 
       {/* Billing Section */}
-      <section>
-        <h2 className="text-lg font-semibold text-white mb-4">Billing</h2>
-        <div className="space-y-4">
-          <div className="flex items-center justify-between bg-zinc-900 p-4 rounded border border-zinc-800">
-            <div>
-              <p className="text-zinc-300">Current plan</p>
-              <p className="text-lg font-semibold text-white mt-1">{plan}</p>
-            </div>
-            {plan !== "Pro" && (
-              <button
-                onClick={() => setConfirmUpgrade(true)}
-                className="bg-cyan-500 hover:bg-cyan-600 text-white font-semibold px-4 py-2 rounded transition"
-              >
-                Upgrade to Pro
-              </button>
-            )}
+      <section className="glass-card card-specular p-5 sm:p-6 rounded-2xl space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-bold text-white tracking-tight">Subscription &amp; Usage</h2>
+          <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
+            plan === "Pro"
+              ? "bg-cyan-500/15 border border-cyan-500/30 text-cyan-400"
+              : "bg-white/[0.04] border border-white/[0.08] text-zinc-400"
+          }`}>
+            {plan}
+          </span>
+        </div>
+
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl bg-white/[0.02] border border-white/[0.06]">
+          <div>
+            <p className="text-xs text-zinc-400">Current Reseller Tier</p>
+            <p className="text-lg font-bold text-white tracking-tight mt-0.5">{plan === "Pro" ? "Spadas Pro Unlimited" : "Free Starter Plan"}</p>
+            <p className="text-xs text-zinc-500 mt-0.5">{plan === "Pro" ? "Unlimited instant AR scans, automated copywriting, and priority live eBay sync." : "10 free optical scans daily. Upgrade anytime."}</p>
           </div>
+          {plan !== "Pro" && (
+            <button
+              onClick={() => setConfirmUpgrade(true)}
+              className="px-5 py-2.5 rounded-xl bg-white text-zinc-950 font-bold text-xs hover:bg-zinc-200 transition cursor-pointer active:scale-95 shadow-md shrink-0"
+            >
+              Upgrade to Pro ($10/mo)
+            </button>
+          )}
         </div>
       </section>
 
-      <hr className="border-zinc-800" />
-
       {/* Notifications Section */}
-      <section>
-        <h2 className="text-lg font-semibold text-white mb-4">Notifications</h2>
-        <p className="text-zinc-400 mb-6">Configure audio chime thresholds for live scanning. Sound plays when both targets are met.</p>
+      <section className="glass-card card-specular p-5 sm:p-6 rounded-2xl space-y-5">
+        <div>
+          <h2 className="text-base font-bold text-white tracking-tight">Audio &amp; Chime Telemetry</h2>
+          <p className="text-xs text-zinc-400 mt-1">Configure audio synthesizer thresholds for live camera scanning. Cash chime plays when both criteria are met.</p>
+        </div>
         
-        <div className="space-y-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-2">
           <div className="space-y-2">
-            <div className="flex justify-between text-zinc-300">
-              <label>Minimum net profit</label>
-              <span>{CURRENCY_CONFIGS[defaultCurrency]?.symbol || "$"}{minProfit}</span>
+            <div className="flex justify-between text-xs font-semibold text-zinc-300">
+              <span className="uppercase tracking-wider text-zinc-400">Minimum Net Profit</span>
+              <span className="text-cyan-400 font-mono font-bold">{CURRENCY_CONFIGS[defaultCurrency]?.symbol || "$"}{minProfit}</span>
             </div>
             <input
               type="range"
@@ -590,14 +604,14 @@ export default function SettingsPage() {
               step="5"
               value={minProfit}
               onChange={(e) => handleUpdateMinProfit(Number(e.target.value))}
-              className="w-full accent-cyan-500 h-2 bg-zinc-800 rounded appearance-none"
+              className="w-full accent-cyan-400 h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer"
             />
           </div>
 
           <div className="space-y-2">
-            <div className="flex justify-between text-zinc-300">
-              <label>Minimum ROI</label>
-              <span>{minRoi}%</span>
+            <div className="flex justify-between text-xs font-semibold text-zinc-300">
+              <span className="uppercase tracking-wider text-zinc-400">Minimum ROI Target</span>
+              <span className="text-cyan-400 font-mono font-bold">{minRoi}%</span>
             </div>
             <input
               type="range"
@@ -606,42 +620,50 @@ export default function SettingsPage() {
               step="25"
               value={minRoi}
               onChange={(e) => handleUpdateMinRoi(Number(e.target.value))}
-              className="w-full accent-cyan-500 h-2 bg-zinc-800 rounded appearance-none"
+              className="w-full accent-cyan-400 h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer"
             />
           </div>
         </div>
       </section>
 
-      <hr className="border-zinc-800" />
-
       {/* Connected Accounts Section */}
-      <section>
-        <h2 className="text-lg font-semibold text-white mb-4">Connected Accounts</h2>
-        <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-zinc-900 p-4 rounded border border-zinc-800">
-            <div>
-              <p className="font-semibold text-white">eBay Seller Hub</p>
-              <p className="text-zinc-400 mt-1">Publish listings directly to eBay from the scanner.</p>
-              <p className="text-zinc-500 text-sm mt-1">Status: {ebayConnected ? "Connected" : "Not connected"}</p>
+      <section className="glass-card card-specular p-5 sm:p-6 rounded-2xl space-y-4">
+        <div>
+          <h2 className="text-base font-bold text-white tracking-tight">Connected Marketplaces</h2>
+          <p className="text-xs text-zinc-400 mt-1">Directly sync drafts and publish 1-click listings from your live camera scans.</p>
+        </div>
+
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl bg-white/[0.02] border border-white/[0.06]">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <p className="font-bold text-sm text-white">eBay Seller Hub</p>
+              <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-semibold ${
+                ebayConnected
+                  ? "bg-emerald-500/15 border border-emerald-500/30 text-emerald-400"
+                  : "bg-white/[0.04] border border-white/[0.08] text-zinc-500"
+              }`}>
+                {ebayConnected ? "● Live Connected" : "Not Linked"}
+              </span>
             </div>
-            <div className="flex gap-2">
+            <p className="text-xs text-zinc-400">1-click item specifics publishing to eBay Australia with OAuth credentials.</p>
+          </div>
+          <div className="flex items-center gap-2.5 shrink-0">
+            <button
+              onClick={connectEbay}
+              disabled={ebayConnecting || ebayDisconnecting}
+              className="px-4 py-2 rounded-xl bg-white text-zinc-950 font-bold text-xs hover:bg-zinc-200 transition disabled:opacity-50 cursor-pointer active:scale-95 shadow-sm"
+            >
+              {ebayConnecting ? "Connecting..." : ebayConnected || ebayHasDisconnected ? "Reconnect eBay" : "Connect eBay"}
+            </button>
+            {ebayConnected && (
               <button
-                onClick={connectEbay}
+                onClick={() => setConfirmDisconnectEbay(true)}
                 disabled={ebayConnecting || ebayDisconnecting}
-                className="bg-cyan-500 hover:bg-cyan-600 text-white px-4 py-2 rounded font-semibold transition disabled:opacity-50"
+                className="px-3.5 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/20 text-xs font-semibold transition disabled:opacity-50 cursor-pointer active:scale-95"
               >
-                {ebayConnecting ? "Connecting..." : ebayConnected || ebayHasDisconnected ? "Reconnect" : "Connect"}
+                Disconnect
               </button>
-              {ebayConnected && (
-                <button
-                  onClick={() => setConfirmDisconnectEbay(true)}
-                  disabled={ebayConnecting || ebayDisconnecting}
-                  className="bg-zinc-800 hover:bg-rose-500/20 text-rose-400 hover:text-rose-500 px-4 py-2 rounded transition disabled:opacity-50"
-                >
-                  Disconnect
-                </button>
-              )}
-            </div>
+            )}
           </div>
         </div>
       </section>

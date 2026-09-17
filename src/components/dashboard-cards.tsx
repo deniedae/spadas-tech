@@ -77,18 +77,18 @@ function Card({
       tabIndex={0}
       role="region"
       aria-label={`${title}: ${value}`}
-      className="specimen-card bg-[#0E1118] border border-zinc-800 p-3 sm:p-4 rounded-lg relative overflow-hidden focus:outline-none focus:border-[#F97316] transition-colors"
+      className="glass-card card-specular surface-elevation-1 border border-white/[0.08] p-4 sm:p-5 rounded-2xl relative overflow-hidden focus:outline-none focus-visible:ring-1 focus-visible:ring-cyan-400 hover:border-white/20 transition-all duration-200"
     >
-      <div className="flex items-start justify-between gap-2">
+      <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <p className="font-mono text-[10px] uppercase font-bold text-zinc-400 truncate tracking-wider">{title}</p>
-          <h2 className={`mt-1 sm:mt-2 text-xl sm:text-2xl font-mono font-black tabular-nums tracking-tight data-readout truncate ${valueColor}`}>
+          <p className="font-mono text-[11px] uppercase font-semibold text-zinc-400 truncate tracking-wider">{title}</p>
+          <h2 className={`mt-2 text-xl sm:text-2xl font-mono font-black tabular-nums tracking-tight truncate ${valueColor}`}>
             {value}
           </h2>
-          <p className="mt-0.5 font-mono text-[10px] text-zinc-500 truncate">{subtitle}</p>
+          <p className="mt-1 font-mono text-[10px] text-zinc-500 truncate">{subtitle}</p>
         </div>
         <div
-          className={`${iconBg} rounded-md p-1.5 sm:p-2 flex items-center justify-center shrink-0`}
+          className={`${iconBg} rounded-xl p-2 flex items-center justify-center shrink-0 shadow-sm`}
           aria-hidden="true"
         >
           {icon}

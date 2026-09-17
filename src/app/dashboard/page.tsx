@@ -578,54 +578,54 @@ export default function DashboardPage() {
           })()}
         </div>
 
-        {/* Core Operational Modules — p-4 grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
+        {/* Core Operational Modules — 3-Col Luxury Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
           <Link
             href="/lens"
-            className="p-4 glass-card rounded-xl transition-transform duration-75 flex items-center justify-between group cursor-pointer active:scale-[0.97]"
+            className="p-4 glass-card card-specular rounded-xl transition-all flex items-center justify-between group cursor-pointer active:scale-[0.98]"
           >
             <div className="flex items-center gap-3 min-w-0">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 shrink-0">
-                <Camera className="h-4 w-4" />
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 shrink-0 group-hover:scale-105 transition">
+                <Camera className="h-4.5 w-4.5" />
               </div>
               <div className="min-w-0">
-                <p className="text-xs font-semibold text-white group-hover:text-cyan-400 transition truncate">Lens Camera</p>
-                <p className="text-[10px] text-zinc-500 truncate">Scan items for live comps</p>
+                <p className="text-xs font-bold text-white group-hover:text-cyan-300 transition truncate">Lens Camera</p>
+                <p className="text-[11px] text-zinc-400 truncate mt-0.5">Live optical comps &amp; margin audit</p>
               </div>
             </div>
-            <ArrowRight className="h-3 w-3 text-zinc-600 group-hover:text-zinc-300 group-hover:translate-x-0.5 transition shrink-0" />
+            <ArrowRight className="h-3.5 w-3.5 text-zinc-500 group-hover:text-cyan-400 group-hover:translate-x-0.5 transition shrink-0" />
           </Link>
 
           <Link
             href="/haul"
-            className="p-4 border border-white/[0.08] hover:border-white/[0.18] bg-[#0A0D15]/80 rounded-xl transition flex items-center justify-between group cursor-pointer"
+            className="p-4 glass-card card-specular rounded-xl transition-all flex items-center justify-between group cursor-pointer active:scale-[0.98]"
           >
             <div className="flex items-center gap-3 min-w-0">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 shrink-0">
-                <Zap className="h-4 w-4" />
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 shrink-0 group-hover:scale-105 transition">
+                <ShoppingBag className="h-4.5 w-4.5" />
               </div>
               <div className="min-w-0">
-                <p className="text-xs font-semibold text-white group-hover:text-amber-300 transition truncate">Haul Calculator</p>
-                <p className="text-[10px] text-zinc-500 truncate">Profit tracking</p>
+                <p className="text-xs font-bold text-white group-hover:text-emerald-300 transition truncate">Haul Manager</p>
+                <p className="text-[11px] text-zinc-400 truncate mt-0.5">Batch valuation &amp; CSV export</p>
               </div>
             </div>
-            <ArrowRight className="h-3 w-3 text-zinc-600 group-hover:text-zinc-300 group-hover:translate-x-0.5 transition shrink-0" />
+            <ArrowRight className="h-3.5 w-3.5 text-zinc-500 group-hover:text-emerald-400 group-hover:translate-x-0.5 transition shrink-0" />
           </Link>
 
           <Link
             href="/history"
-            className="p-4 border border-white/[0.08] hover:border-white/[0.18] bg-[#0A0D15]/80 rounded-xl transition flex items-center justify-between group cursor-pointer"
+            className="p-4 glass-card card-specular rounded-xl transition-all flex items-center justify-between group cursor-pointer active:scale-[0.98]"
           >
             <div className="flex items-center gap-3 min-w-0">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400 shrink-0">
-                <ListPlus className="h-4 w-4" />
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 shrink-0 group-hover:scale-105 transition">
+                <ListPlus className="h-4.5 w-4.5" />
               </div>
               <div className="min-w-0">
-                <p className="text-xs font-semibold text-white group-hover:text-blue-300 transition truncate">History</p>
-                <p className="text-[10px] text-zinc-500 truncate">View past scans</p>
+                <p className="text-xs font-bold text-white group-hover:text-purple-300 transition truncate">Scan Ledger</p>
+                <p className="text-[11px] text-zinc-400 truncate mt-0.5">Historical scans &amp; comps log</p>
               </div>
             </div>
-            <ArrowRight className="h-3 w-3 text-zinc-600 group-hover:text-zinc-300 group-hover:translate-x-0.5 transition shrink-0" />
+            <ArrowRight className="h-3.5 w-3.5 text-zinc-500 group-hover:text-purple-400 group-hover:translate-x-0.5 transition shrink-0" />
           </Link>
         </div>
 

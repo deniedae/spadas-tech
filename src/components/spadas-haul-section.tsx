@@ -352,19 +352,19 @@ export function SpadasHaulSection({
   return (
     <div className="w-full max-w-6xl mx-auto space-y-6 pb-20 animate-in fade-in duration-200">
       {/* Executive Sourcing Control Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-5 rounded bg-zinc-900 border border-zinc-800">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-5 sm:p-6 rounded-2xl glass-card card-specular surface-elevation-2 border border-white/10">
         <div className="space-y-1">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded bg-amber-500 text-slate-950 font-black">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-slate-950 font-black shadow-lg shadow-amber-500/20">
               <ShoppingBag className="h-5 w-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-lg sm:text-xl font-bold tracking-tight text-white">
-                  Haul
+                <h1 className="text-lg sm:text-xl font-bold tracking-tight text-white font-sans">
+                  Haul Batch Manager
                 </h1>
-                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 text-[10px] font-medium text-emerald-400">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-semibold text-emerald-400">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
                   Active Sourcing Lot
                 </span>
               </div>
@@ -381,7 +381,7 @@ export function SpadasHaulSection({
             <button
               type="button"
               onClick={onSwitchToLens}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-semibold text-xs transition shadow-sm cursor-pointer active:scale-95"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs transition shadow-sm cursor-pointer active:scale-95"
               title="Launch Scanner to rapid-fire photos directly from the active live stream"
             >
               {isProcessing ? (
@@ -422,7 +422,7 @@ export function SpadasHaulSection({
               handleExportCsv();
             }}
             disabled={items.length === 0}
-            className="inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700 hover:bg-zinc-800 text-zinc-300 font-semibold text-xs transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
+            className="inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-white/[0.04] border border-white/10 hover:bg-white/[0.08] text-zinc-300 font-semibold text-xs transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
             title="Export Manifest CSV"
           >
             <Download className="h-3.5 w-3.5" />
@@ -476,13 +476,15 @@ export function SpadasHaulSection({
       {/* Quantitative Executive Financial Metrics Banner */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {/* Metric 1: Total Lot Size */}
-        <div className="p-4 rounded bg-zinc-900 border border-zinc-800 flex flex-col justify-between">
+        <div className="p-4 sm:p-5 rounded-2xl glass-card card-specular surface-elevation-1 border border-white/[0.08] flex flex-col justify-between hover:border-white/20 transition duration-200">
           <div className="flex items-center justify-between text-zinc-400">
-            <span className="text-xs font-semibold">Lot Units Sourced</span>
-            <Layers className="h-4 w-4 text-cyan-400" />
+            <span className="text-[11px] font-mono uppercase tracking-wider font-semibold text-zinc-400">Lot Units Sourced</span>
+            <div className="p-1.5 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
+              <Layers className="h-4 w-4 text-cyan-400" />
+            </div>
           </div>
-          <div className="mt-2">
-            <span className="text-2xl font-black text-white">{items.length}</span>
+          <div className="mt-3">
+            <span className="text-2xl sm:text-3xl font-black text-white tabular-nums tracking-tight">{items.length}</span>
             <span className="text-[11px] text-zinc-500 ml-2">
               ({stats.profitableCount} Profitable)
             </span>
@@ -490,45 +492,51 @@ export function SpadasHaulSection({
         </div>
 
         {/* Metric 2: Gross Valuation Comps */}
-        <div className="p-4 rounded bg-zinc-900 border border-zinc-800 flex flex-col justify-between">
+        <div className="p-4 sm:p-5 rounded-2xl glass-card card-specular surface-elevation-1 border border-white/[0.08] flex flex-col justify-between hover:border-white/20 transition duration-200">
           <div className="flex items-center justify-between text-zinc-400">
-            <span className="text-xs font-semibold">Est. Gross Comps</span>
-            <TrendingUp className="h-4 w-4 text-zinc-400" />
+            <span className="text-[11px] font-mono uppercase tracking-wider font-semibold text-zinc-400">Est. Gross Comps</span>
+            <div className="p-1.5 rounded-lg bg-white/[0.04] border border-white/[0.08]">
+              <TrendingUp className="h-4 w-4 text-zinc-400" />
+            </div>
           </div>
-          <div className="mt-2">
-            <span className="text-2xl font-black text-zinc-200">
+          <div className="mt-3">
+            <span className="text-2xl sm:text-3xl font-black text-zinc-100 tabular-nums tracking-tight">
               ${totalGrossValue.toFixed(2)}
             </span>
-            <span className="text-[10px] text-zinc-500 ml-1.5">{currency}</span>
+            <span className="text-[10px] text-zinc-500 ml-1.5 font-mono">{currency}</span>
           </div>
         </div>
 
         {/* Metric 3: Total Cost Basis */}
-        <div className="p-4 rounded bg-zinc-900 border border-zinc-800 flex flex-col justify-between">
+        <div className="p-4 sm:p-5 rounded-2xl glass-card card-specular surface-elevation-1 border border-white/[0.08] flex flex-col justify-between hover:border-white/20 transition duration-200">
           <div className="flex items-center justify-between text-zinc-400">
-            <span className="text-xs font-semibold">Capital Basis (Cost)</span>
-            <DollarSign className="h-4 w-4 text-amber-400" />
+            <span className="text-[11px] font-mono uppercase tracking-wider font-semibold text-zinc-400">Capital Basis (Cost)</span>
+            <div className="p-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20">
+              <DollarSign className="h-4 w-4 text-amber-400" />
+            </div>
           </div>
-          <div className="mt-2">
-            <span className="text-2xl font-black text-amber-300">
+          <div className="mt-3">
+            <span className="text-2xl sm:text-3xl font-black text-amber-300 tabular-nums tracking-tight">
               ${totalCostBasis.toFixed(2)}
             </span>
-            <span className="text-[10px] text-zinc-500 ml-1.5">{currency}</span>
+            <span className="text-[10px] text-zinc-500 ml-1.5 font-mono">{currency}</span>
           </div>
         </div>
 
         {/* Metric 4: Projected Net Margin & ROI */}
-        <div className="p-4 rounded bg-zinc-900 border border-zinc-800 flex flex-col justify-between">
+        <div className="p-4 sm:p-5 rounded-2xl glass-card card-specular surface-elevation-1 border border-white/[0.08] flex flex-col justify-between hover:border-white/20 transition duration-200">
           <div className="flex items-center justify-between text-emerald-400">
-            <span className="text-xs font-semibold font-bold">Projected Net Margin</span>
-            <Sparkles className="h-4 w-4 text-emerald-400" />
+            <span className="text-[11px] font-mono uppercase tracking-wider font-semibold text-emerald-400">Projected Net Margin</span>
+            <div className="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+              <Sparkles className="h-4 w-4 text-emerald-400" />
+            </div>
           </div>
-          <div className="mt-2 flex items-baseline justify-between">
+          <div className="mt-3 flex items-baseline justify-between gap-1 flex-wrap">
             <div>
-              <span className="text-2xl font-black text-emerald-400">
+              <span className="text-2xl sm:text-3xl font-black text-emerald-400 tabular-nums tracking-tight">
                 +${stats.totalProfit.toFixed(2)}
               </span>
-              <span className="text-[10px] text-emerald-500/80 ml-1.5">{currency}</span>
+              <span className="text-[10px] text-emerald-500/80 ml-1.5 font-mono">{currency}</span>
             </div>
             {aggregateRoi > 0 && (
               <span className="text-xs font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded-full">
@@ -540,19 +548,19 @@ export function SpadasHaulSection({
       </div>
 
       {/* Filter Tabs & Search Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 rounded bg-zinc-900 border border-zinc-800">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 rounded-2xl glass-card card-specular border border-white/[0.08]">
         {/* Category Tabs */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 no-scrollbar">
           <button
             type="button"
             onClick={() => {
               triggerTactileHaptic("selection");
               setActiveTabFilter("all");
             }}
-            className={`px-3 py-1.5 rounded text-xs font-semibold transition cursor-pointer shrink-0 active:scale-95 ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer shrink-0 active:scale-95 ${
               activeTabFilter === "all"
-                ? "bg-white text-slate-950"
-                : "text-zinc-400 hover:text-white bg-zinc-800"
+                ? "bg-white text-slate-950 font-bold shadow-sm"
+                : "text-zinc-400 hover:text-white bg-white/[0.04] border border-white/[0.06]"
             }`}
           >
             All Items [{items.length}]
@@ -563,10 +571,10 @@ export function SpadasHaulSection({
               triggerTactileHaptic("selection");
               setActiveTabFilter("profitable");
             }}
-            className={`px-3 py-1.5 rounded text-xs font-semibold transition cursor-pointer shrink-0 active:scale-95 ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer shrink-0 active:scale-95 ${
               activeTabFilter === "profitable"
-                ? "bg-emerald-500 text-slate-950"
-                : "text-zinc-400 hover:text-emerald-400 bg-zinc-800"
+                ? "bg-emerald-500 text-slate-950 font-bold shadow-sm"
+                : "text-zinc-400 hover:text-emerald-400 bg-white/[0.04] border border-white/[0.06]"
             }`}
           >
             High Margin [{stats.profitableCount}]
@@ -577,10 +585,10 @@ export function SpadasHaulSection({
               triggerTactileHaptic("selection");
               setActiveTabFilter("grails");
             }}
-            className={`px-3 py-1.5 rounded text-xs font-semibold transition cursor-pointer shrink-0 active:scale-95 ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer shrink-0 active:scale-95 ${
               activeTabFilter === "grails"
-                ? "bg-amber-400 text-slate-950"
-                : "text-zinc-400 hover:text-amber-300 bg-zinc-800"
+                ? "bg-amber-400 text-slate-950 font-bold shadow-sm"
+                : "text-zinc-400 hover:text-amber-300 bg-white/[0.04] border border-white/[0.06]"
             }`}
           >
             Grails (&gt;$40) [{stats.grailsCount}]
@@ -591,10 +599,10 @@ export function SpadasHaulSection({
               triggerTactileHaptic("selection");
               setActiveTabFilter("traps");
             }}
-            className={`px-3 py-1.5 rounded text-xs font-semibold transition cursor-pointer shrink-0 active:scale-95 ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer shrink-0 active:scale-95 ${
               activeTabFilter === "traps"
-                ? "bg-rose-500 text-white"
-                : "text-zinc-400 hover:text-rose-400 bg-zinc-800"
+                ? "bg-rose-500 text-white font-bold shadow-sm"
+                : "text-zinc-400 hover:text-rose-400 bg-white/[0.04] border border-white/[0.06]"
             }`}
           >
             Stale Capital Risks
@@ -608,13 +616,13 @@ export function SpadasHaulSection({
             placeholder="Search haul..."
             value={searchFilter}
             onChange={(e) => setSearchFilter(e.target.value)}
-            className="w-full h-8 pl-3 pr-8 rounded bg-zinc-800 border border-zinc-700 text-xs text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-cyan-500"
+            className="w-full h-8 pl-3 pr-8 rounded-xl bg-[#090C13] border border-white/10 text-xs text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/20 transition"
           />
           {searchFilter && (
             <button
               type="button"
               onClick={() => setSearchFilter("")}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 text-xs"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 text-xs cursor-pointer"
             >
               ×
             </button>
@@ -624,13 +632,13 @@ export function SpadasHaulSection({
 
       {/* Lot Manifest List / Empty State */}
       {items.length === 0 ? (
-        <div className="py-16 px-6 text-center rounded bg-zinc-900 border border-zinc-800 space-y-4">
-          <div className="flex h-14 w-14 mx-auto items-center justify-center rounded bg-zinc-800 border border-zinc-700 text-zinc-500">
+        <div className="py-16 px-6 text-center rounded-2xl glass-card card-specular surface-elevation-1 border border-white/10 space-y-4">
+          <div className="flex h-14 w-14 mx-auto items-center justify-center rounded-2xl bg-white/[0.03] border border-white/10 text-zinc-400 shadow-inner">
             <ShoppingBag className="h-6 w-6 stroke-1 text-zinc-400" />
           </div>
           <div className="max-w-md mx-auto space-y-1.5">
-            <h3 className="text-sm font-semibold text-white">No items in Haul</h3>
-            <p className="text-xs text-zinc-500 leading-relaxed">
+            <h3 className="text-sm font-bold text-white">No items in Haul</h3>
+            <p className="text-xs text-zinc-400 leading-relaxed">
               Launch the Camera to scan items, and they will automatically aggregate here with real-time sell-through comps and net profit calculations.
             </p>
           </div>
@@ -639,7 +647,7 @@ export function SpadasHaulSection({
               <button
                 type="button"
                 onClick={onSwitchToLens}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg font-medium text-xs transition cursor-pointer shadow-sm active:scale-95"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-cyan-500 hover:bg-cyan-400 text-slate-950 rounded-xl font-bold text-xs transition cursor-pointer shadow-sm active:scale-95"
               >
                 <Scan className="h-3.5 w-3.5" />
                 <span>Launch Scanner</span>
@@ -668,14 +676,14 @@ export function SpadasHaulSection({
                 addItem(sampleItem);
                 toast.success("Sample scan added to Haul!");
               }}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-lg font-medium text-xs transition cursor-pointer shadow-sm active:scale-95"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-white/[0.04] hover:bg-white/[0.08] text-zinc-200 border border-white/10 rounded-xl font-medium text-xs transition cursor-pointer shadow-sm active:scale-95"
             >
               <span>View Sample Scan</span>
             </button>
           </div>
         </div>
       ) : filteredItems.length === 0 ? (
-        <div className="py-12 text-center rounded bg-zinc-900 border border-zinc-800 text-zinc-500 text-xs font-semibold">
+        <div className="py-12 text-center rounded-2xl glass-card card-specular border border-white/[0.08] text-zinc-400 text-xs font-semibold">
           No items match the active search filter.
         </div>
       ) : (
@@ -694,19 +702,19 @@ export function SpadasHaulSection({
             return (
               <div
                 key={item.id}
-                className={`p-4 rounded border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+                className={`p-4 sm:p-5 rounded-2xl glass-card card-specular surface-elevation-1 border transition-all duration-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:border-white/25 ${
                   isHighProfit
-                    ? "bg-amber-950/20 border-amber-900/40"
+                    ? "bg-amber-950/20 border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.05)]"
                     : isProfit
-                    ? "bg-emerald-950/20 border-emerald-900/30"
+                    ? "bg-emerald-950/20 border-emerald-500/20"
                     : isTrap
-                    ? "bg-rose-950/20 border-rose-900/30"
-                    : "bg-zinc-900 border-zinc-800"
+                    ? "bg-rose-950/20 border-rose-500/20"
+                    : "border-white/[0.08]"
                 }`}
               >
                 {/* Left Side: Thumbnail & Identification */}
                 <div className="flex items-start gap-3.5 min-w-0 flex-1">
-                  <div className="relative h-16 w-16 sm:h-20 sm:w-20 rounded overflow-hidden bg-zinc-950 border border-zinc-800 shrink-0 flex items-center justify-center">
+                  <div className="relative h-16 w-16 sm:h-20 sm:w-20 rounded-xl overflow-hidden bg-zinc-950 border border-white/10 shrink-0 flex items-center justify-center shadow-inner">
                     {photoUrl || item.thumbnailUrl || item.image || item.imageUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -721,7 +729,7 @@ export function SpadasHaulSection({
                       </div>
                     )}
                     {item.status === "analyzing" && (
-                      <div className="absolute inset-0 bg-slate-950/70 flex items-center justify-center">
+                      <div className="absolute inset-0 bg-slate-950/70 flex items-center justify-center backdrop-blur-xs">
                         <Loader2 className="h-5 w-5 text-cyan-400 animate-spin" />
                       </div>
                     )}
@@ -730,19 +738,19 @@ export function SpadasHaulSection({
                   <div className="min-w-0 flex-1 space-y-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       {isMeaningfulMeta(item.brand) && (
-                        <span className="text-[10px] font-semibold text-zinc-400">
+                        <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
                           {item.brand.trim()}
                         </span>
                       )}
                       {item.copVerdict && (
                         <span
-                          className={`text-[9px] font-semibold px-2 py-0.5 rounded ${
+                          className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
                             item.copVerdict === "MUST_COP"
-                              ? "bg-amber-500 text-slate-950"
+                              ? "bg-amber-500 text-slate-950 shadow-sm font-black"
                               : item.copVerdict === "QUICK_FLIP"
-                              ? "bg-emerald-500 text-slate-950"
+                              ? "bg-emerald-500 text-slate-950 font-black shadow-sm"
                               : item.copVerdict === "VERIFY_FIRST"
-                              ? "bg-amber-900/30 text-amber-400 border border-amber-900/50"
+                              ? "bg-amber-900/30 text-amber-300 border border-amber-700/50"
                               : "bg-zinc-800 text-zinc-400"
                           }`}
                         >
@@ -750,14 +758,14 @@ export function SpadasHaulSection({
                         </span>
                       )}
                       {item.needsVerification && (
-                        <span className="text-[9px] font-semibold px-2 py-0.5 rounded bg-purple-900/50 text-purple-400 border border-purple-900/50 flex items-center gap-1">
+                        <span className="text-[9px] font-semibold px-2 py-0.5 rounded-full bg-purple-900/50 text-purple-300 border border-purple-700/50 flex items-center gap-1">
                           <ShieldCheck className="h-2.5 w-2.5" /> VERIFY REQUIRED
                         </span>
                       )}
                       {item.syncStatus === "pending" && (
                         <button 
                           onClick={() => quickSnapQueue.retryItem(item.id)}
-                          className="text-[9px] font-semibold px-2 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700 flex items-center gap-1 hover:bg-zinc-700 transition-colors cursor-pointer"
+                          className="text-[9px] font-semibold px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400 border border-zinc-700 flex items-center gap-1 hover:bg-zinc-700 transition-colors cursor-pointer"
                         >
                           <WifiOff className="h-2.5 w-2.5" /> RETRY SYNC
                         </button>
@@ -780,8 +788,8 @@ export function SpadasHaulSection({
                         </span>
                         <span className="text-zinc-700">•</span>
                         <span
-                          className={`${
-                            (item.trueNetProfit || 0) > 0 ? "text-emerald-500" : "text-rose-500"
+                          className={`font-bold ${
+                            (item.trueNetProfit || 0) > 0 ? "text-emerald-400" : "text-rose-400"
                           }`}
                         >
                           {formatAUD(item.trueNetProfit || 0)} Net
@@ -789,7 +797,7 @@ export function SpadasHaulSection({
                       </div>
                       
                       {item.compsCount ? (
-                        <div className="flex items-center gap-1.5 mt-0.5">
+                        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                           <div className="text-[10px] text-zinc-500 font-semibold">
                             Based on {item.compsCount} sold comps
                           </div>
@@ -800,7 +808,7 @@ export function SpadasHaulSection({
                           <span className="text-zinc-700">|</span>
                           <button 
                             onClick={() => setActiveCompsItem(item)}
-                            className="text-[10px] font-semibold text-cyan-500 hover:text-cyan-400 underline cursor-pointer"
+                            className="text-[10px] font-bold text-cyan-400 hover:text-cyan-300 underline cursor-pointer"
                           >
                             View Comps
                           </button>
@@ -815,12 +823,12 @@ export function SpadasHaulSection({
                     {/* Velocity Pill */}
                     <div className="pt-0.5">
                       <span
-                        className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded border ${
+                        className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2.5 py-0.5 rounded-full border ${
                           velocity.turnoverTier === "RAPID_FIRE"
-                            ? "bg-emerald-900/30 text-emerald-400 border-emerald-900/50"
+                            ? "bg-emerald-900/30 text-emerald-300 border-emerald-700/50"
                             : velocity.turnoverTier === "HOARDER_RISK"
-                            ? "bg-rose-900/30 text-rose-400 border-rose-900/50"
-                            : "bg-cyan-900/30 text-cyan-400 border-cyan-900/50"
+                            ? "bg-rose-900/30 text-rose-300 border-rose-700/50"
+                            : "bg-cyan-900/30 text-cyan-300 border-cyan-700/50"
                         }`}
                       >
                         {velocity.turnoverTier === "RAPID_FIRE" && "⚡ "}
@@ -832,13 +840,13 @@ export function SpadasHaulSection({
                 </div>
 
                 {/* Right Side: Action Control Suite */}
-                <div className="flex items-center sm:flex-col sm:items-end justify-between sm:justify-center gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-zinc-800">
+                <div className="flex items-center sm:flex-col sm:items-end justify-between sm:justify-center gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-white/[0.08]">
                   <div className="flex items-center gap-1.5">
                     <button
                       type="button"
                       onClick={() => handleAddToInventory(item)}
                       disabled={committingId === item.id}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded bg-emerald-500 hover:bg-emerald-600 text-slate-950 text-xs font-semibold transition cursor-pointer active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold transition cursor-pointer active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
                       title="Commit item to active inventory"
                     >
                       {committingId === item.id ? (
@@ -852,7 +860,7 @@ export function SpadasHaulSection({
                     <button
                       type="button"
                       onClick={() => setEbayItem(item)}
-                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 text-xs font-semibold transition cursor-pointer"
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-zinc-200 border border-white/10 text-xs font-semibold transition cursor-pointer active:scale-95"
                       title="Draft directly to eBay Australia"
                     >
                       <span>EBAY</span>
@@ -863,7 +871,7 @@ export function SpadasHaulSection({
                       <button
                         type="button"
                         onClick={() => setVerifyItem(item)}
-                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold transition cursor-pointer"
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold transition cursor-pointer active:scale-95"
                         title="Run Deep Forensic Verification"
                       >
                         <ShieldCheck className="h-3 w-3" />
@@ -874,7 +882,7 @@ export function SpadasHaulSection({
                     <button
                       type="button"
                       onClick={() => handleDeleteItem(item.id)}
-                      className="p-1.5 rounded-lg text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
+                      className="p-1.5 rounded-xl text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer active:scale-95"
                       title="Remove item from haul"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
