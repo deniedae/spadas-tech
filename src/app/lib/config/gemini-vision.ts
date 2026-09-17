@@ -43,10 +43,10 @@ export async function callGeminiVision(
     const base64Data = match[2];
 
     const modelsToTry = [
+      "gemini-3.6-flash",
       "gemini-2.5-flash",
-      "gemini-2.5-pro",
+      "gemini-2.0-flash",
       "gemini-1.5-flash",
-      "gemini-1.5-pro",
     ];
 
     const promptText = `You are an expert reseller appraiser, luxury authenticator, and marketplace copywriter for eBay Australia, Depop, and Grailed.

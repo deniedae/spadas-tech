@@ -96,17 +96,17 @@ export const ProductAnalysisSchema = z.object({
   color: z.string().nullable(),
   material: z.string().nullable(),
   condition: z.string(),
-  media_format: MediaFormatEnum.nullable().optional().describe("For media, discs, movies: '4K UHD', 'Blu-ray', 'DVD', 'Steelbook', 'VHS', 'Cassette', 'CD', 'Vinyl'"),
-  condition_grade: ConditionGradeEnum.nullable().optional(),
-  wear_inspection: WearInspectionSchema.nullable().optional(),
-  condition_modifier: z.number().nullable().optional(),
+  media_format: MediaFormatEnum.nullable().describe("For media, discs, movies: '4K UHD', 'Blu-ray', 'DVD', 'Steelbook', 'VHS', 'Cassette', 'CD', 'Vinyl'"),
+  condition_grade: ConditionGradeEnum.nullable(),
+  wear_inspection: WearInspectionSchema.nullable(),
+  condition_modifier: z.number().nullable(),
   inventory_condition: InventoryConditionEnum,
   defect_notes: z.array(z.string()),
   as_is_disclaimer: z.string().nullable(),
   accessories_detected: z.array(z.string()),
   confidence: z.enum(["high", "medium", "low"]),
   confidence_score: z.number(),
-  retake_recommended: RetakeRecommendationSchema.nullable().optional(),
+  retake_recommended: RetakeRecommendationSchema.nullable(),
   variant_audit: z
     .object({
       variant_name: z.string().nullable(),
@@ -116,8 +116,7 @@ export const ProductAnalysisSchema = z.object({
       completeness: z.enum(["complete", "incomplete_missing_parts", "loose_only", "bundle"]),
       reprint_warning: z.string().nullable(),
     })
-    .nullable()
-    .optional(),
+    .nullable(),
 });
 
 export const MarketTitlesSchema = z.object({
@@ -168,12 +167,12 @@ export const AiListingResultSchema = z.object({
     .enum(["identified", "unidentified"])
     .describe("'identified' if a verified product is found, 'unidentified' if low confidence, unidentifiable, or no item in focus."),
   inventory_condition: InventoryConditionEnum,
-  condition_grade: ConditionGradeEnum.nullable().optional(),
-  wear_inspection: WearInspectionSchema.nullable().optional(),
-  condition_modifier: z.number().nullable().optional(),
+  condition_grade: ConditionGradeEnum.nullable(),
+  wear_inspection: WearInspectionSchema.nullable(),
+  condition_modifier: z.number().nullable(),
   defect_notes: z.array(z.string()),
   as_is_disclaimer: z.string().nullable(),
-  media_format: MediaFormatEnum.nullable().optional(),
+  media_format: MediaFormatEnum.nullable(),
   detected_objects: z.array(DetectedObjectSchema).nullable(),
   analysis: ProductAnalysisSchema,
   market_titles: MarketTitlesSchema,
@@ -187,7 +186,7 @@ export const AiListingResultSchema = z.object({
   suggested_price_currency: z.string(),
   sales_velocity: SalesVelocitySchema.nullable(),
   future_grail: FutureGrailSchema.nullable(),
-  retake_recommended: RetakeRecommendationSchema.nullable().optional(),
+  retake_recommended: RetakeRecommendationSchema.nullable(),
   variant_audit: z
     .object({
       variant_name: z.string().nullable(),
@@ -197,8 +196,7 @@ export const AiListingResultSchema = z.object({
       completeness: z.enum(["complete", "incomplete_missing_parts", "loose_only", "bundle"]),
       reprint_warning: z.string().nullable(),
     })
-    .nullable()
-    .optional(),
+    .nullable(),
 });
 
 export type GenerateListingSchemaType = z.infer<typeof GenerateListingSchema>;
@@ -216,18 +214,18 @@ export const FastVisionIdentificationSchema = z.object({
   brand: z.string().nullable().describe("Brand name or null if unbranded"),
   category: z.string().describe("Primary resale category (e.g. Clothing, Electronics, Shoes, Collectibles, General)"),
   condition: z.string().describe("Condition summary (e.g. Used - Good, Used - Like New, Used - Fair, For Parts)"),
-  media_format: MediaFormatEnum.nullable().optional().describe("For movies/discs/media: '4K UHD', 'Blu-ray', 'DVD', 'Steelbook', 'VHS', 'Cassette', 'CD', 'Vinyl'"),
-  condition_grade: ConditionGradeEnum.nullable().optional(),
-  wear_inspection: WearInspectionSchema.nullable().optional(),
+  media_format: MediaFormatEnum.nullable().describe("For movies/discs/media: '4K UHD', 'Blu-ray', 'DVD', 'Steelbook', 'VHS', 'Cassette', 'CD', 'Vinyl'"),
+  condition_grade: ConditionGradeEnum.nullable(),
+  wear_inspection: WearInspectionSchema.nullable(),
   inventory_condition: InventoryConditionEnum,
   defect_notes: z.array(z.string()).describe("List of any noticeable flaws or empty array"),
-  as_is_disclaimer: z.string().nullable().optional(),
+  as_is_disclaimer: z.string().nullable(),
   estimated_value: z.number().describe("Initial quick estimate in AUD/local currency"),
   confidence_score: z.number().describe("0.0 to 1.0 confidence score"),
-  detected_objects: z.array(DetectedObjectSchema).nullable().optional(),
-  retake_recommended: RetakeRecommendationSchema.nullable().optional(),
-  suggested_price_min: z.number().nullable().optional(),
-  suggested_price_max: z.number().nullable().optional(),
+  detected_objects: z.array(DetectedObjectSchema).nullable(),
+  retake_recommended: RetakeRecommendationSchema.nullable(),
+  suggested_price_min: z.number().nullable(),
+  suggested_price_max: z.number().nullable(),
   suggested_price_currency: z.string(),
 });
 
@@ -241,10 +239,10 @@ export const GenerateListingDetailsSchema = z.object({
   market_titles: MarketTitlesSchema,
   seo_description: z.string().describe("SEO-optimized listing description"),
   detailed_description: z.string().describe("Full seller condition and item description"),
-  shipping_estimate: ShippingEstimateSchema.nullable().optional(),
+  shipping_estimate: ShippingEstimateSchema.nullable(),
   item_specifics: z.array(ItemSpecificSchema),
   suggested_keywords: z.array(z.string()),
-  sales_velocity: SalesVelocitySchema.nullable().optional(),
+  sales_velocity: SalesVelocitySchema.nullable(),
 });
 
 export type GenerateListingDetailsSchemaType = z.infer<typeof GenerateListingDetailsSchema>;
