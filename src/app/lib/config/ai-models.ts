@@ -2,6 +2,7 @@ import OpenAI from "openai";
 
 export const AR_SCAN_MODEL = "gpt-4o-mini";
 export const LISTING_MODEL = "gpt-4o-2024-08-06";
+export const GLM_FLASH_MODEL = "glm-5.3-flash";
 
 export const AR_SCAN_MODEL_FALLBACKS = [
   "gpt-4o-mini",

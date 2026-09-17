@@ -25,6 +25,7 @@ import {
 } from "@/app/lib/config/ai-models";
 import { callClaudeVision } from "@/app/lib/config/claude-vision";
 import { callGeminiVision, hasGeminiVisionKey } from "@/app/lib/config/gemini-vision";
+import { callGlmVisionFast, hasGlmVisionKey } from "@/app/lib/config/glm-vision";
 import { fetchEbayAustraliaSoldComps } from "@/app/lib/ebay-australia-comps";
 import { detectGeoCurrency, SupportedCurrency } from "@/app/lib/currency-routing";
 import { saveProductToCache, getCachedProductScan } from "@/app/lib/cache/product-cache";
@@ -382,6 +383,8 @@ export async function POST(request: Request) {
     const openai = createOpenAiClient();
     let completion;
     let hasCreditOrQuotaError = false;
+    let result: AiListingResult | null = null;
+    let activeProvider = "openai-vision";
     const isFastPipeline = Boolean(isArScan || isStreamRequested);
     const targetModels = isFastPipeline ? AR_SCAN_MODEL_FALLBACKS : LISTING_MODEL_FALLBACKS;
 
@@ -395,7 +398,7 @@ Identify distinct physical products visible in the scene. If no distinct object 
           : `SCAN MODE: TARGETED CENTER RETICLE FOCUS & MULTI-FRAME OPTICAL COMPOSITE.
 Identify ONLY the single primary physical item positioned in the center target reticle (Image 1 is a high-resolution composite synthesized from rapid consecutive frames pooled during movement to eliminate blur, with macro detail insets). Disregard hands, table, floor, and room background.`;
 
-    // Try OpenAI Vision first if key is valid
+    // Try OpenAI Vision first if key is valid (ALWAYS FIRST)
     const hasOpenAiKey = getPrimaryAiApiKey().length > 10 && !getPrimaryAiApiKey().includes("placeholder");
 
     if (hasOpenAiKey) {
@@ -560,9 +563,8 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
     }
 
     const content = completion?.choices?.[0]?.message?.content;
-    let result: AiListingResult | null = null;
 
-    if (content) {
+    if (content && !result) {
       try {
         if (isFastPipeline) {
           const fastData = JSON.parse(content) as FastVisionIdentificationSchemaType;
@@ -658,8 +660,6 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
       }
     }
 
-    let activeProvider = "openai-vision";
-
     // ── MULTI-MODEL CONSENSUS & ARBITRATION (OpenAI Vision + Gemini Flash) ──
     if (result && hasGeminiVisionKey() && imageUrls.length > 0 && (!isFastPipeline || mode === "deep")) {
       const openAiBrand = result.analysis?.brand || "";
@@ -753,6 +753,98 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
         }
       } catch (gemErr) {
         console.warn("[ai-listing] Gemini vision fallback warning:", gemErr);
+      }
+    }
+
+    // Safety Fallback Tier: GLM-5.3-Flash (only if OpenAI and Gemini both yielded no result)
+    if (!result && imageUrls.length > 0 && hasGlmVisionKey()) {
+      try {
+        const glmData = await callGlmVisionFast(imageUrls[0], categoryBias || undefined);
+        if (glmData && glmData.product_name) {
+          const pName = (glmData.product_name || "").trim();
+          const brand = (glmData.brand || "").trim() || null;
+          const cat = glmData.category || "General";
+          const cond = glmData.condition || "Used - Good";
+          const estVal = Number(glmData.estimated_value) || 35;
+          const rawMin = Number(glmData.suggested_price_min) || Math.round(estVal * 0.7);
+          const rawMax = Number(glmData.suggested_price_max) || Math.round(estVal * 1.3);
+
+          const detectedFormat = glmData.media_format || (
+            /\b(blu-ray|bluray)\b/i.test(pName) ? "Blu-ray" :
+            /\b(4k uhd|4k ultra hd)\b/i.test(pName) ? "4K UHD" :
+            /\b(steelbook)\b/i.test(pName) ? "Steelbook" :
+            /\b(dvd)\b/i.test(pName) ? "DVD" :
+            /\b(vhs)\b/i.test(pName) ? "VHS" :
+            undefined
+          );
+
+          result = {
+            status: "identified",
+            isMockFallback: false,
+            inventory_condition: "used_working",
+            condition_grade: "Good",
+            wear_inspection: null,
+            defect_notes: glmData.defect_notes || [],
+            media_format: detectedFormat,
+            detected_objects: [
+              {
+                id: `obj-${Date.now()}`,
+                product_name: pName,
+                brand: brand,
+                category: cat,
+                condition: cond,
+                confidence_score: glmData.confidence_score ?? 0.95,
+                bbox: { x: 0.1, y: 0.1, width: 0.8, height: 0.8 },
+              },
+            ],
+            analysis: {
+              status: "identified",
+              visual_reasoning: null,
+              product_name: pName,
+              brand: brand,
+              model: null,
+              category: cat,
+              color: null,
+              material: null,
+              condition: cond,
+              condition_grade: "Good",
+              wear_inspection: null,
+              media_format: detectedFormat,
+              defect_notes: glmData.defect_notes || [],
+              accessories_detected: [],
+              confidence: (glmData.confidence_score ?? 0.95) >= 0.85 ? "high" : "medium",
+              confidence_score: glmData.confidence_score ?? 0.95,
+              retake_recommended: null,
+            },
+            market_titles: {
+              ebay: `${brand || "Authentic"} ${pName} ${detectedFormat && !pName.toLowerCase().includes(detectedFormat.toLowerCase()) ? detectedFormat : ""} ${cond}`.replace(/\s+/g, " ").trim().slice(0, 80),
+              facebook_marketplace: `${brand || "Authentic"} ${pName} - Great Condition`.trim(),
+              vinted: `${brand || "Authentic"} ${pName}`.trim(),
+              depop: `${pName.toLowerCase()} #resale #thrift`,
+            },
+            seo_description: "",
+            detailed_description: "",
+            shipping_estimate: {
+              size: "small",
+              estimated_weight_grams: 400,
+              dimensions_cm: null,
+              notes: null,
+            },
+            item_specifics: {
+              Brand: brand || "Authentic",
+              Category: cat,
+              Condition: cond,
+            },
+            suggested_keywords: [brand || "Resale", cat, "Pre-Owned"].filter(Boolean),
+            suggested_price_min: rawMin,
+            suggested_price_max: rawMax,
+            suggested_price_median: estVal,
+            suggested_price_currency: targetCurrency,
+          };
+          activeProvider = "glm-5.3-flash";
+        }
+      } catch (glmErr) {
+        console.warn("[ai-listing] GLM-5.3-Flash fallback warning:", glmErr);
       }
     }
 
