@@ -30,6 +30,7 @@ import { CompsLedgerSkeleton } from "@/components/ui/comps-skeleton-loader";
 import { triggerTactileHaptic } from "@/lib/android-bridge";
 import { isMeaningfulMeta, sanitizeMetaText, cleanBrandText, cleanConditionText, isBulkOrLotTitle } from "@/lib/lens-utils";
 import { calculateIntrinsicBestPrice, type IntrinsicPriceAppraisal } from "@/lib/intrinsic-pricing-engine";
+import { APPLIANCE_FILTER_PATTERNS } from "@/app/lib/ebay-australia-comps";
 
 export interface AuditCompRecord {
   id?: string;
@@ -210,7 +211,15 @@ export function ensureVerifiedSoldComps(
   const isTargetLot = isBulkOrLotTitle(cleanTitle);
   const nonLotFiltered = valid.filter((c) => {
     if (isTargetLot) return true;
-    return !isBulkOrLotTitle(c.title, cleanTitle);
+    if (isBulkOrLotTitle(c.title, cleanTitle)) return false;
+    if (c.title) {
+      const lower = c.title.toLowerCase();
+      if (APPLIANCE_FILTER_PATTERNS.some((p) => p.test(lower))) {
+        const isQuerySeeking = /\b(base|jug|filter|cord|spares|toaster|set|pack|case)\b/i.test(cleanTitle);
+        if (!isQuerySeeking) return false;
+      }
+    }
+    return true;
   });
   const candidates = nonLotFiltered.length > 0 ? nonLotFiltered : valid;
 

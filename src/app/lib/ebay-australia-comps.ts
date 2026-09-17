@@ -224,6 +224,12 @@ export const INVALID_LOT_PATTERNS = [
   /\b(dvd lot|bluray lot|blu-ray lot|movie lot|game lot)\b/i,
 ];
 
+export const APPLIANCE_FILTER_PATTERNS = [
+  /\b(?:base\s*only|jug\s*only|filter\s*only|cord\s*only|spares?\s*or\s*repairs?)\b/i,
+  /\b(?:kettle\s*(?:and|&|\+)\s*toaster|breakfast\s*pack|matching\s*set)\b/i,
+  /\b(?:case\s*of\s*\d+|\d+\s*units?)\b/i,
+];
+
 /**
  * Fetches real eBay price data for a product name with multi-tier query relaxation and global marketplace fallback.
  */
@@ -295,6 +301,9 @@ export async function fetchEbayAustraliaSoldComps(
     // Single-Item Parity: reject multi-packs, wholesale clearance, and multi-variation lots if query is a single item
     if (!isQueryMultiPack) {
       if (INVALID_LOT_PATTERNS.some((pattern) => pattern.test(lower))) {
+        return false;
+      }
+      if (APPLIANCE_FILTER_PATTERNS.some((pattern) => pattern.test(lower))) {
         return false;
       }
     }

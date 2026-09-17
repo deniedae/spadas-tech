@@ -58,6 +58,7 @@ import {
 import LensHitCard from "@/components/lens-hit-card";
 import LensControlsBar from "@/components/lens-controls-bar";
 import { ensureVerifiedSoldComps } from "@/components/AuditCompsLedger";
+import { estimateCategoryShippingCost, calculateThriftCopVerdict } from "@/lib/thrift-cop-engine";
 import { checkNeedsVerification } from "@/lib/forensic-knowledge";
 import { GuestScanHud } from "@/components/guest-scan-hud";
 import { GuestScanLimitModal } from "@/components/guest-scan-limit-modal";
@@ -729,8 +730,47 @@ function SpadasLensCameraCore({
         hit.brand
       );
 
+      // Settle median comp calculation after strict IQR outlier rejection pass
+      const compPrices = verifiedComps
+        .map((c) => Number(c.price))
+        .filter((p) => p > 0)
+        .sort((a, b) => a - b);
+
+      const finalMedian = compPrices.length > 0
+        ? compPrices[Math.floor(compPrices.length / 2)]
+        : (hit.estimatedValue || 35);
+
+      const thriftCost = hit.tagPrice
+        ? hit.tagPrice
+        : hit.estCost
+          ? hit.estCost
+          : finalMedian <= 4
+            ? 1
+            : Math.max(3, Math.round(finalMedian * 0.15 * 100) / 100);
+
+      const shippingCost = estimateCategoryShippingCost(hit.category, hit.name);
+
+      const copEstimate = calculateThriftCopVerdict({
+        resalePrice: finalMedian,
+        customCost: thriftCost,
+        category: hit.category,
+        productName: hit.name,
+        brand: hit.brand,
+        shippingCost,
+        confidenceScore: hit.confidence || 0.95,
+      });
+
+      const finalNetProfit = copEstimate.netProfit;
+
       const verifiedHit: DetectedHit = {
         ...hit,
+        estimatedValue: finalMedian,
+        tagPrice: thriftCost,
+        estCost: thriftCost,
+        trueNetProfit: finalNetProfit,
+        estimatedProfit: finalNetProfit,
+        roiPercentage: copEstimate.roiPercentage,
+        copVerdict: copEstimate.copVerdict,
         rawComps: verifiedComps,
       };
 
@@ -746,6 +786,13 @@ function SpadasLensCameraCore({
       }
       setIsValuationCardMounted(true);
       setIsLoaderTransitioning(false);
+
+      // Ensure toast mirrors the exact verified bottom sheet number
+      const toastNet = (finalNetProfit !== null && !isNaN(finalNetProfit))
+        ? Number(finalNetProfit).toFixed(2)
+        : Number((hit as any).takeHomeNet || (hit as any).trueNetProfit || 0).toFixed(2);
+
+      toast.success(`🎯 Item Identified: ${verifiedHit.name} (+$${toastNet} AUD Net Profit)`, { id: `hit-toast-${verifiedHit.name}` });
 
       // 2. Hardware / Tactile Haptic Confirmation (Android Bridge + Web Vibration API)
       if (verifiedHit.copVerdict === "MUST_COP" || verifiedHit.isGrail) {
@@ -2669,11 +2716,47 @@ function SpadasLensCameraCore({
 
                       const rawMin = Number(valData.suggested_price_min) || 15;
                       const rawMax = Number(valData.suggested_price_max) || rawMin + 10;
-                      const baseVal = Number(valData.suggested_price_median) || Math.round(((rawMin + rawMax) / 2) * 100) / 100;
-                      const detectedTagPrice = Number(valData.detected_tag_price) || (baseVal <= 4 ? 1 : Math.max(3, Math.round(baseVal * 0.15 * 100) / 100));
-                      const trueNetProfit = Number(valData.true_net_profit) || Math.max(0, Math.round((baseVal - detectedTagPrice - (baseVal * 0.134 + 0.33)) * 100) / 100);
-                      const roiPercentage = Number(valData.roi_percentage) || (detectedTagPrice > 0 ? Math.round((trueNetProfit / detectedTagPrice) * 100) : 0);
-                      const copVerdict: CopVerdict = valData.cop_verdict || (roiPercentage >= 300 && trueNetProfit >= 30 ? "MUST_COP" : roiPercentage >= 100 && trueNetProfit >= 15 ? "QUICK_FLIP" : trueNetProfit < 10 ? "PASS_RISKY" : "FAIR_MARGIN");
+                      let baseVal = Number(valData.suggested_price_median) || Math.round(((rawMin + rawMax) / 2) * 100) / 100;
+                      const itemCategory = cleanCategoryText(valData.category || valData.analysis?.category, "General") || "General";
+                      const itemBrand = sanitizeMetaText(valData.brand || valData.analysis?.brand) || null;
+                      const itemCondition = cleanConditionText(valData.condition || valData.analysis?.condition, "Used");
+
+                      // Run strict outlier rejection pass on live raw comps
+                      const verifiedComps = ensureVerifiedSoldComps(
+                        valData.raw_sold_comps || [],
+                        rawPName,
+                        baseVal,
+                        itemCondition,
+                        itemBrand
+                      );
+
+                      const compPrices = verifiedComps
+                        .map((c) => Number(c.price))
+                        .filter((p) => p > 0)
+                        .sort((a, b) => a - b);
+
+                      const settledMedian = compPrices.length > 0
+                        ? compPrices[Math.floor(compPrices.length / 2)]
+                        : baseVal;
+
+                      const detectedTagPrice = Number(valData.detected_tag_price) || (settledMedian <= 4 ? 1 : Math.max(3, Math.round(settledMedian * 0.15 * 100) / 100));
+                      const shippingCost = estimateCategoryShippingCost(itemCategory, rawPName);
+
+                      const copEstimate = calculateThriftCopVerdict({
+                        resalePrice: settledMedian,
+                        customCost: detectedTagPrice,
+                        category: itemCategory,
+                        productName: rawPName,
+                        brand: itemBrand,
+                        shippingCost,
+                        confidenceScore: 0.98,
+                      });
+
+                      const finalNetProfit = copEstimate.netProfit;
+                      const trueNetProfit = finalNetProfit;
+                      const roiPercentage = copEstimate.roiPercentage;
+                      const copVerdict: CopVerdict = copEstimate.copVerdict;
+                      baseVal = settledMedian;
 
                       const snapImg = snapshotImage || frozenFrameUrl;
                       const isGrailHit =
@@ -2684,9 +2767,9 @@ function SpadasLensCameraCore({
                       const verifiedHit: DetectedHit = {
                         id: `hit-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
                         name: rawPName,
-                        brand: sanitizeMetaText(valData.brand || valData.analysis?.brand) || null,
-                        category: cleanCategoryText(valData.category || valData.analysis?.category, "General") || "General",
-                        condition: cleanConditionText(valData.condition || valData.analysis?.condition, "Used"),
+                        brand: itemBrand,
+                        category: itemCategory,
+                        condition: itemCondition,
                         mediaFormat: valData.media_format || valData.analysis?.media_format || undefined,
                         conditionGrade: valData.condition_grade || "Good",
                         wearInspection: valData.wear_inspection || null,
@@ -2706,7 +2789,7 @@ function SpadasLensCameraCore({
                         confidence: 0.98,
                         ebayCompsCount: valData.ebay_comps_count,
                         compsSource: valData.comps_source || "browse_api",
-                        rawComps: valData.raw_sold_comps || [],
+                        rawComps: verifiedComps,
                         compsRange: valData.comps_range,
                         bbox: valData.detected_objects?.[0]?.bbox || { x: 20, y: 20, width: 60, height: 60 },
                         timestamp: Date.now(),
@@ -2748,6 +2831,7 @@ function SpadasLensCameraCore({
                       setCapturedLog((prev) => [verifiedHit, ...prev.filter((h) => h.name !== verifiedHit.name)].slice(0, 50));
                       setConfidencePercent(98);
                       setCachedValuation(verifiedHit.name, verifiedHit);
+                      activeValuationHitRef.current = verifiedHit;
                       data = valData;
 
                       // Micro-delay right before bottom sheet mounts so the user sees 95% profit calculation stage
@@ -3273,10 +3357,45 @@ function SpadasLensCameraCore({
           let baseVal = Number(data.suggested_price_median) || Math.round(((rawMin + rawMax) / 2) * 100) / 100;
 
           let itemCondition = cleanConditionText(obj.condition);
-          let detectedTagPrice = Number(data.detected_tag_price) || (baseVal <= 4 ? 1 : Math.max(3, Math.round(baseVal * 0.15 * 100) / 100));
-          let trueNetProfit = Number(data.true_net_profit) || Math.max(0, Math.round((baseVal - detectedTagPrice - (baseVal * 0.134 + 0.33)) * 100) / 100);
-          let roiPercentage = Number(data.roi_percentage) || (detectedTagPrice > 0 ? Math.round((trueNetProfit / detectedTagPrice) * 100) : 0);
-          let copVerdict: CopVerdict = data.cop_verdict || (roiPercentage >= 300 && trueNetProfit >= 30 ? "MUST_COP" : roiPercentage >= 100 && trueNetProfit >= 15 ? "QUICK_FLIP" : trueNetProfit < 10 ? "PASS_RISKY" : "FAIR_MARGIN");
+          let itemCategory = cleanCategoryText(obj.category, "General") || "General";
+          let itemBrand = sanitizeMetaText(obj.brand) || sanitizeMetaText(data?.analysis?.brand) || null;
+
+          // Run strict outlier rejection pass on live raw comps
+          const verifiedComps = ensureVerifiedSoldComps(
+            data.raw_sold_comps || obj.rawComps || [],
+            obj.productName,
+            baseVal,
+            itemCondition,
+            itemBrand
+          );
+
+          const compPrices = verifiedComps
+            .map((c) => Number(c.price))
+            .filter((p) => p > 0)
+            .sort((a, b) => a - b);
+
+          const settledMedian = compPrices.length > 0
+            ? compPrices[Math.floor(compPrices.length / 2)]
+            : baseVal;
+
+          let detectedTagPrice = Number(data.detected_tag_price) || (settledMedian <= 4 ? 1 : Math.max(3, Math.round(settledMedian * 0.15 * 100) / 100));
+          const shippingCost = estimateCategoryShippingCost(itemCategory, obj.productName);
+
+          const copEstimate = calculateThriftCopVerdict({
+            resalePrice: settledMedian,
+            customCost: detectedTagPrice,
+            category: itemCategory,
+            productName: obj.productName,
+            brand: itemBrand,
+            shippingCost,
+            confidenceScore: obj.confidenceScore || 0.95,
+          });
+
+          const finalNetProfit = copEstimate.netProfit;
+          let trueNetProfit = finalNetProfit;
+          let roiPercentage = copEstimate.roiPercentage;
+          let copVerdict: CopVerdict = copEstimate.copVerdict;
+          baseVal = settledMedian;
 
           let estCost = detectedTagPrice;
           let estimatedProfit = trueNetProfit;
@@ -3291,7 +3410,7 @@ function SpadasLensCameraCore({
             confidenceScore: obj.confidenceScore || 0.95,
             ebayCompsCount: obj.ebayCompsCount,
             compsSource: obj.compsSource,
-            rawComps: data.raw_sold_comps || obj.rawComps,
+            rawComps: verifiedComps,
             compsRange: data.comps_range || obj.compsRange,
             variantAudit: data.variant_audit || obj.variantAudit,
             requiresSecondaryVerification: data.requires_secondary_verification ?? obj.requiresSecondaryVerification,
@@ -3409,7 +3528,7 @@ function SpadasLensCameraCore({
             confidence: 0.98,
             ebayCompsCount: obj.ebayCompsCount,
             compsSource: obj.compsSource,
-            rawComps: data?.raw_sold_comps || obj.rawComps,
+            rawComps: verifiedComps,
             compsRange: data?.comps_range || obj.compsRange,
             variantAudit: data?.variant_audit || obj.variantAudit,
             requiresSecondaryVerification: data?.requires_secondary_verification ?? obj.requiresSecondaryVerification,
@@ -3528,7 +3647,11 @@ function SpadasLensCameraCore({
           setCachedValuation(verifiedHit.name, verifiedHit);
           trace.markRenderCommitted();
 
-          toast.success(`🎯 Item Identified: ${obj.productName} (+$${estimatedProfit.toFixed(2)} AUD Net Profit)`, { id: `hit-toast-${obj.productName}` });
+          const toastNet = (finalNetProfit !== null && !isNaN(finalNetProfit))
+            ? Number(finalNetProfit).toFixed(2)
+            : Number(data.takeHomeNet || data.true_net_profit || 0).toFixed(2);
+
+          toast.success(`🎯 Item Identified: ${obj.productName} (+$${toastNet} AUD Net Profit)`, { id: `hit-toast-${obj.productName}` });
         } catch (err) {
           console.error("[Spadas Lens] Item valuation formatting error:", err);
           setActiveScans((prev) => prev.filter((s) => s.id !== obj.id));

@@ -1070,6 +1070,7 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
         detailed_description: `Authentic ${fallbackAppraisal.brand || ""} ${fallbackAppraisal.productName} in clean condition.\n\n• Brand: ${fallbackAppraisal.brand || "Authentic"}\n• Model: ${fallbackAppraisal.productName}\n• Material/Color: Standard finish\n• Condition: Pre-owned - Good. Tested, inspected, and operating as intended.\n\nPlease review all photos for exact condition details.`,
         detected_tag_price: fallbackAppraisal.tagPrice,
         true_net_profit: fallbackAppraisal.trueNetProfit,
+        takeHomeNet: fallbackAppraisal.trueNetProfit,
         roi_percentage: fallbackAppraisal.roiPercentage,
         cop_verdict: fallbackAppraisal.copVerdict,
         detected_objects: [
@@ -1082,6 +1083,7 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
             confidence_score: 0.92,
             detected_tag_price: fallbackAppraisal.tagPrice,
             true_net_profit: fallbackAppraisal.trueNetProfit,
+            takeHomeNet: fallbackAppraisal.trueNetProfit,
             roi_percentage: fallbackAppraisal.roiPercentage,
             cop_verdict: fallbackAppraisal.copVerdict,
             bbox: { x: 15, y: 15, width: 70, height: 70 },
@@ -1470,6 +1472,7 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
 
         result.detected_tag_price = tagPrice;
         result.true_net_profit = copEstimate.netProfit;
+        (result as any).takeHomeNet = copEstimate.netProfit;
         result.roi_percentage = copEstimate.roiPercentage;
         result.cop_verdict = copEstimate.copVerdict;
         result.requires_secondary_verification = copEstimate.requiresSecondaryVerification;
@@ -1479,6 +1482,7 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
         if (result.detected_objects && result.detected_objects.length > 0) {
           result.detected_objects[0].detected_tag_price = tagPrice;
           result.detected_objects[0].true_net_profit = copEstimate.netProfit;
+          (result.detected_objects[0] as any).takeHomeNet = copEstimate.netProfit;
           result.detected_objects[0].roi_percentage = copEstimate.roiPercentage;
           result.detected_objects[0].cop_verdict = copEstimate.copVerdict;
         }

@@ -157,6 +157,7 @@ export interface AiListingResult {
   future_grail?: FutureGrailPrediction;
   detected_tag_price?: number;
   true_net_profit?: number;
+  takeHomeNet?: number;
   roi_percentage?: number;
   cop_verdict?: CopVerdict;
   isMockFallback?: boolean;
@@ -172,6 +173,7 @@ export interface AiListingResult {
     ebay_comps_count?: number;
     detected_tag_price?: number;
     true_net_profit?: number;
+    takeHomeNet?: number;
     roi_percentage?: number;
     cop_verdict?: CopVerdict;
     raw_sold_comps?: RawSoldCompRecord[];
