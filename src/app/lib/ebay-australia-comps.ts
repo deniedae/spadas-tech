@@ -1,4 +1,4 @@
-import { CURRENCY_CONFIGS, SupportedCurrency } from "./currency-routing";
+import { CURRENCY_CONFIGS, SupportedCurrency, convertCurrency } from "./currency-routing";
 
 /**
  * Maps Spadas currency codes to eBay marketplace IDs and AU contextual headers.
@@ -102,6 +102,9 @@ export interface EbaySoldCompItem {
   url?: string;
   thumbnail?: string;
   rawDate?: number;
+  isUsComp?: boolean;
+  originalCurrency?: string;
+  originalPrice?: number;
 }
 
 export interface EbayCompsResult {
@@ -113,6 +116,11 @@ export interface EbayCompsResult {
   source: CompsSource;
   rawComps?: EbaySoldCompItem[];
   iqrBounds?: { lower: number; upper: number };
+  isUsMarketOnly?: boolean;
+  marketOrigin?: "AU" | "US";
+  usMedianUsd?: number;
+  arbitrageSignal?: string;
+  crossBorderShippingCost?: number;
 }
 
 // FX Conversion rates from source marketplace currency to target currency
@@ -251,98 +259,197 @@ export async function fetchEbayAustraliaSoldComps(
     return true;
   };
 
-  // ── 1. Paid sold-comps API (real 30-day sold data) ─────────────────────────
-  if (process.env.SOLD_COMPS_API_KEY) {
-    for (const q of searchQueries.slice(0, 2)) {
-      try {
-        const config = CURRENCY_CONFIGS[targetCurrency] || CURRENCY_CONFIGS.AUD;
-        // When condition is detected or toggled to Used, append LH_ItemCondition=3000 to strictly target pre-owned comps
-        const isTargetUsed = !condition || !/\b(brand new|new with tags|nwt|sealed|bnib|nib)\b/i.test(condition);
-        const conditionParam = isTargetUsed ? "&LH_ItemCondition=3000" : "";
-        const url = `https://api.sold-comps.com/v1/scrape?keyword=${encodeURIComponent(q)}&ebaySite=${config.ebaySite}&page=1&count=60&daysToScrape=30&sortOrder=endedRecently${conditionParam}`;
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 4000);
+  // Helper for scraping sold comps from api.sold-comps.com with strict country/location guards
+  async function fetchSoldCompsFromApi(
+    q: string,
+    ebaySite: string,
+    prefLocAU: boolean,
+    isTargetUsed: boolean
+  ): Promise<EbaySoldCompItem[]> {
+    try {
+      const conditionParam = isTargetUsed ? "&LH_ItemCondition=3000" : "";
+      const locParam = prefLocAU ? "&LH_PrefLoc=1" : "";
+      const url = `https://api.sold-comps.com/v1/scrape?keyword=${encodeURIComponent(q)}&ebaySite=${ebaySite}&page=1&count=60&daysToScrape=30&sortOrder=endedRecently${conditionParam}${locParam}`;
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 4000);
 
-        const res = await fetch(url, {
-          headers: { Authorization: `Bearer ${process.env.SOLD_COMPS_API_KEY}` },
-          signal: controller.signal,
-        }).catch(() => null);
-        clearTimeout(timer);
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${process.env.SOLD_COMPS_API_KEY}` },
+        signal: controller.signal,
+      }).catch(() => null);
+      clearTimeout(timer);
 
-        if (res?.ok) {
-          const data = await res.json().catch(() => null);
-          const rawItems: any[] = data?.items ?? [];
+      if (!res?.ok) return [];
+      const data = await res.json().catch(() => null);
+      const rawItems: any[] = data?.items ?? [];
 
-          // Single-Source Guardrail: Deduplicate items across paginated/duplicated API nodes
-          const seenSignatures = new Set<string>();
-          const validCompItems: EbaySoldCompItem[] = [];
+      const seenSignatures = new Set<string>();
+      const validCompItems: EbaySoldCompItem[] = [];
 
-          for (const item of rawItems) {
-            const rawPrice = Number(item.soldPrice);
-            const title = String(item.title || "").trim();
-            const itemId = String(item.itemId || item.id || `${title.toLowerCase()}::${rawPrice}`);
+      for (const item of rawItems) {
+        const rawPrice = Number(item.soldPrice);
+        const title = String(item.title || "").trim();
+        const itemId = String(item.itemId || item.id || `${title.toLowerCase()}::${rawPrice}`);
 
-            if (seenSignatures.has(itemId)) continue;
-            seenSignatures.add(itemId);
+        if (seenSignatures.has(itemId)) continue;
+        seenSignatures.add(itemId);
 
-            if (isValidUnitComp(title, rawPrice) && rawPrice >= (isLuxury ? 35 : 1) && rawPrice <= 10000) {
-              const compItem: EbaySoldCompItem = {
-                id: itemId,
-                title,
-                price: Math.round(rawPrice * 100) / 100,
-                condition: String(item.condition || "Pre-Owned"),
-                soldDate: item.endedAt ? new Date(item.endedAt).toLocaleDateString("en-AU", { month: "short", day: "numeric" }) : (item.dateEnded ? new Date(item.dateEnded).toLocaleDateString("en-AU", { month: "short", day: "numeric" }) : "Recent"),
-                rawDate: item.endedAt ? new Date(item.endedAt).getTime() : (item.dateEnded ? new Date(item.dateEnded).getTime() : 0),
-                shippingIncluded: item.shippingType === "free" || Number(item.shippingPrice) === 0 || item.shippingCost === 0 || item.freeShipping === true,
-                shippingPrice: Number(item.shippingPrice) || Number(item.shippingCost) || 0,
-                url: item.url || item.viewItemUrl || (item.itemId ? `https://www.ebay.com.au/itm/${item.itemId}` : undefined),
-                thumbnail: item.thumbnailUrl || item.galleryURL || item.image,
-              };
-              validCompItems.push(compItem);
-            }
-          }
-
-          if (validCompItems.length >= 2) {
-            // Condition-Aware Comp Sanitization:
-            // When target item is Used/Pre-owned, exclude listings containing BNIB, NIB, Sealed, Brand New
-            let sanitizedComps = validCompItems;
-            if (isTargetUsed) {
-              const nonSealed = validCompItems.filter(
-                (c) => !/\b(bnib|nib|sealed|brand new|factory sealed|shrink wrapped|nwt|new in box|unopened)\b/i.test(c.title)
-              );
-              if (nonSealed.length > 0) {
-                sanitizedComps = nonSealed;
-              }
-            }
-
-            sanitizedComps.sort((a, b) => a.price - b.price);
-            const prices = sanitizedComps.map((c) => c.price);
-            const { valid, lowerBound, upperBound } = computeIqrStats(prices);
-            const filteredComps = sanitizedComps.filter((c) => c.price >= lowerBound && c.price <= upperBound);
-            const medianBaseline = calcMedian(valid);
-            return {
-              min: Math.round(valid[0] * 100) / 100,
-              max: Math.round(valid[valid.length - 1] * 100) / 100,
-              median: Math.round(medianBaseline * 100) / 100,
-              count: valid.length,
-              currency: targetCurrency,
-              source: "sold_comps_api",
-              rawComps: (filteredComps.length > 0 ? filteredComps : sanitizedComps)
-                .sort((a, b) => (b.rawDate || 0) - (a.rawDate || 0))
-                .slice(0, 5),
-              iqrBounds: { lower: lowerBound, upper: upperBound },
-            };
-          }
+        if (isValidUnitComp(title, rawPrice) && rawPrice >= (isLuxury ? 35 : 1) && rawPrice <= 10000) {
+          const isAU = ebaySite.includes("australia") || ebaySite.includes(".au");
+          const compItem: EbaySoldCompItem = {
+            id: itemId,
+            title,
+            price: Math.round(rawPrice * 100) / 100,
+            condition: String(item.condition || "Pre-Owned"),
+            soldDate: item.endedAt ? new Date(item.endedAt).toLocaleDateString(isAU ? "en-AU" : "en-US", { month: "short", day: "numeric" }) : (item.dateEnded ? new Date(item.dateEnded).toLocaleDateString(isAU ? "en-AU" : "en-US", { month: "short", day: "numeric" }) : "Recent"),
+            rawDate: item.endedAt ? new Date(item.endedAt).getTime() : (item.dateEnded ? new Date(item.dateEnded).getTime() : 0),
+            shippingIncluded: item.shippingType === "free" || Number(item.shippingPrice) === 0 || item.shippingCost === 0 || item.freeShipping === true,
+            shippingPrice: Number(item.shippingPrice) || Number(item.shippingCost) || 0,
+            url: item.url || item.viewItemUrl || (item.itemId ? (isAU ? `https://www.ebay.com.au/itm/${item.itemId}` : `https://www.ebay.com/itm/${item.itemId}`) : undefined),
+            thumbnail: item.thumbnailUrl || item.galleryURL || item.image,
+          };
+          validCompItems.push(compItem);
         }
-      } catch (err) {
-        console.warn("[eBay Comps] Sold-comps API warning:", err);
       }
+
+      if (isTargetUsed) {
+        const nonSealed = validCompItems.filter(
+          (c) => !/\b(bnib|nib|sealed|brand new|factory sealed|shrink wrapped|nwt|new in box|unopened)\b/i.test(c.title)
+        );
+        if (nonSealed.length > 0) {
+          return nonSealed;
+        }
+      }
+
+      return validCompItems;
+    } catch (err) {
+      console.warn("[eBay Comps] Sold-comps API warning:", err);
+      return [];
     }
   }
 
-  // ── 2. Active Listings Fallback Removed ──────────────────────────────────────
-  // The user explicitly requested to check actual sold sales only, not active listings.
-  // We no longer fallback to the eBay Browse API because it only returns active items.
+  // ── 1. Paid sold-comps API (real 30-day sold data) ─────────────────────────
+  if (process.env.SOLD_COMPS_API_KEY) {
+    const isTargetUsed = !condition || !/\b(brand new|new with tags|nwt|sealed|bnib|nib)\b/i.test(condition);
+    const isRegionAU = targetCurrency === "AUD";
+
+    // --- PHASE 1: Strictly Domestic Australian Sold Comps (LH_PrefLoc=1) ---
+    let domesticComps: EbaySoldCompItem[] = [];
+    for (const q of searchQueries.slice(0, 2)) {
+      const results = await fetchSoldCompsFromApi(
+        q,
+        isRegionAU ? "ebay.com.au" : (CURRENCY_CONFIGS[targetCurrency]?.ebaySite || "ebay.com.au"),
+        isRegionAU, // strictly AU Only if target is AUD
+        isTargetUsed
+      );
+      if (results.length > domesticComps.length) {
+        domesticComps = results;
+      }
+      if (domesticComps.length >= 3) break;
+    }
+
+    if (domesticComps.length >= 3) {
+      domesticComps.sort((a, b) => a.price - b.price);
+      const prices = domesticComps.map((c) => c.price);
+      const { valid, lowerBound, upperBound } = computeIqrStats(prices);
+      const filteredComps = domesticComps.filter((c) => c.price >= lowerBound && c.price <= upperBound);
+      const medianBaseline = calcMedian(valid);
+      return {
+        min: Math.round(valid[0] * 100) / 100,
+        max: Math.round(valid[valid.length - 1] * 100) / 100,
+        median: Math.round(medianBaseline * 100) / 100,
+        count: valid.length,
+        currency: targetCurrency,
+        source: "sold_comps_api",
+        isUsMarketOnly: false,
+        marketOrigin: isRegionAU ? "AU" : (targetCurrency as "AU" | "US"),
+        rawComps: (filteredComps.length > 0 ? filteredComps : domesticComps)
+          .sort((a, b) => (b.rawDate || 0) - (a.rawDate || 0))
+          .slice(0, 5),
+        iqrBounds: { lower: lowerBound, upper: upperBound },
+      };
+    }
+
+    // --- PHASE 2: US-Only Fallback & Cross-Border Arbitrage Intelligence ---
+    // If domestic AU sold comps return zero or fewer than 3 verified results, automatically query the US market (EBAY_US)
+    if (isRegionAU) {
+      let usComps: EbaySoldCompItem[] = [];
+      for (const q of searchQueries.slice(0, 2)) {
+        const results = await fetchSoldCompsFromApi(
+          q,
+          "ebay.com",
+          false,
+          isTargetUsed
+        );
+        if (results.length > usComps.length) {
+          usComps = results;
+        }
+        if (usComps.length >= 3) break;
+      }
+
+      if (usComps.length >= 3) {
+        usComps.sort((a, b) => a.price - b.price);
+        const usPrices = usComps.map((c) => c.price);
+        const usMedian = calcMedian(usPrices);
+
+        // Convert USD comps to AUD with cross-border attributes
+        const convertedComps: EbaySoldCompItem[] = usComps.map((c) => {
+          const convertedAud = Math.round(convertCurrency(c.price, "USD", "AUD") * 100) / 100;
+          return {
+            ...c,
+            originalPrice: c.price,
+            originalCurrency: "USD",
+            isUsComp: true,
+            price: convertedAud,
+          };
+        });
+
+        const audPrices = convertedComps.map((c) => c.price);
+        const { valid, lowerBound, upperBound } = computeIqrStats(audPrices);
+        const filteredComps = convertedComps.filter((c) => c.price >= lowerBound && c.price <= upperBound);
+        const medianAud = calcMedian(valid);
+
+        const estUsdMedian = Math.round(usMedian * 100) / 100;
+        const estAudMedian = Math.round(medianAud * 100) / 100;
+
+        return {
+          min: Math.round(valid[0] * 100) / 100,
+          max: Math.round(valid[valid.length - 1] * 100) / 100,
+          median: estAudMedian,
+          count: valid.length,
+          currency: "AUD",
+          source: "sold_comps_api",
+          isUsMarketOnly: true,
+          marketOrigin: "US",
+          usMedianUsd: estUsdMedian,
+          crossBorderShippingCost: 25, // ~$25 AUD tracked international air friction
+          arbitrageSignal: `No AU sales recorded. High US liquidity ($${Math.round(estUsdMedian)} USD / ~$${Math.round(estAudMedian)} AUD). Profitable for international export or domestic scarcity pricing.`,
+          rawComps: (filteredComps.length > 0 ? filteredComps : convertedComps)
+            .sort((a, b) => (b.rawDate || 0) - (a.rawDate || 0))
+            .slice(0, 5),
+          iqrBounds: { lower: lowerBound, upper: upperBound },
+        };
+      }
+    }
+
+    // If domestic comps had 1-2 items and US also had none, return the domestic ones rather than nothing
+    if (domesticComps.length > 0) {
+      domesticComps.sort((a, b) => a.price - b.price);
+      const prices = domesticComps.map((c) => c.price);
+      return {
+        min: prices[0],
+        max: prices[prices.length - 1],
+        median: calcMedian(prices),
+        count: prices.length,
+        currency: targetCurrency,
+        source: "sold_comps_api",
+        isUsMarketOnly: false,
+        marketOrigin: isRegionAU ? "AU" : (targetCurrency as "AU" | "US"),
+        rawComps: domesticComps.slice(0, 5),
+      };
+    }
+  }
 
   return null;
 }
+

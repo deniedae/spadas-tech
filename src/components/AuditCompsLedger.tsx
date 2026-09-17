@@ -272,6 +272,9 @@ export function ensureVerifiedSoldComps(
       url: c.url || undefined,
       thumbnail: c.thumbnail,
       matchPercentage: matchScore,
+      isUsComp: (c as any).isUsComp,
+      originalCurrency: (c as any).originalCurrency,
+      originalPrice: (c as any).originalPrice,
     };
   });
 }
@@ -369,6 +372,10 @@ export default function AuditCompsLedger({
     });
   }, [comps, targetTitle, brand, activeValuation]);
 
+  const hasUsComps = useMemo(() => {
+    return comps.some((c: any) => c.isUsComp) || verifiedListings.some((l) => (l.raw as any)?.isUsComp);
+  }, [comps, verifiedListings]);
+
   const intrinsicAppraisal = useMemo(() => {
     if (verifiedListings.length > 0) return null;
     return calculateIntrinsicBestPrice({
@@ -445,10 +452,15 @@ export default function AuditCompsLedger({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="min-w-0 space-y-1">
             <div className="flex items-center gap-2 flex-wrap">
-              {verifiedListings.length > 0 ? (
+              {hasUsComps ? (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/35 text-[11px] font-mono font-bold text-amber-300">
+                  <span>🇺🇸</span>
+                  <span>US Market Data Only</span>
+                </span>
+              ) : verifiedListings.length > 0 ? (
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[11px] font-mono font-medium text-emerald-400">
                   <Sparkles className="h-3 w-3 text-emerald-400" />
-                  <span>{verifiedListings.length} Cleared Sales</span>
+                  <span>{verifiedListings.length} Cleared Sales (AU)</span>
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-[11px] font-mono font-bold text-amber-300">
@@ -840,6 +852,11 @@ export default function AuditCompsLedger({
                             <span className="font-bold text-white text-base sm:text-lg tracking-tight tabular-nums">
                               {fmtMoney(comp.price)}
                             </span>
+                            {(comp.raw as any)?.isUsComp && (comp.raw as any)?.originalPrice && (
+                              <span className="text-[10px] text-amber-400 font-mono block">
+                                (~${(comp.raw as any).originalPrice} USD)
+                              </span>
+                            )}
                           </div>
 
                           {comp.url && (

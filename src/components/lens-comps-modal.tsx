@@ -13,6 +13,7 @@ import {
   Sparkles,
   Zap,
   Droplets,
+  Globe,
 } from "lucide-react";
 import { track } from "@vercel/analytics";
 import { scannerAudio } from "@/lib/scanner-audio";
@@ -269,6 +270,9 @@ export default function LensCompsModal({
   } = copEstimate;
 
   const isGrail = copVerdict === "MUST_COP" || Boolean((item as any)?.isGrail);
+  const isUsMarketOnly = Boolean((item as any)?.isUsMarketOnly || effectiveComps.some((c) => (c as any).isUsComp));
+  const usMedianUsd = (item as any)?.usMedianUsd;
+  const arbitrageSignal = (item as any)?.arbitrageSignal;
 
   // Recommendation: PASS, FLIP, or HIGH PROFIT
   const recommendation: "PASS" | "FLIP" | "HIGH PROFIT" = useMemo(() => {
@@ -511,8 +515,19 @@ export default function LensCompsModal({
               <h2 className="text-sm font-semibold text-white truncate max-w-[240px] sm:max-w-xs">
                 {title}
               </h2>
-              {/* Metadata Pills: Brand / Unbranded Warning + Category + Confidence Score */}
+              {/* Metadata Pills: Brand / Unbranded Warning + Category + Confidence Score + Regional Comps Status */}
               <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                {isUsMarketOnly ? (
+                  <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1">
+                    <span>🇺🇸</span>
+                    <span>US Market Data Only</span>
+                  </span>
+                ) : (
+                  <span className="px-1.5 py-0.2 rounded text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 flex items-center gap-1">
+                    <span>🇦🇺</span>
+                    <span>Strict AU Comps</span>
+                  </span>
+                )}
                 {hasBrandOrModel ? (
                   <span className="px-1.5 py-0.2 rounded text-[10px] font-medium bg-zinc-850 text-zinc-300 border border-zinc-750">
                     {brand}
@@ -579,6 +594,28 @@ export default function LensCompsModal({
                 </span>
               </div>
             </div>
+
+            {/* Cross-Border US Arbitrage & Scarcity Callout Card */}
+            {isUsMarketOnly && (
+              <div className="p-3 rounded-xl bg-gradient-to-r from-amber-500/15 to-orange-500/10 border border-amber-500/35 text-xs space-y-1.5 animate-fade-in shadow-xs">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-amber-400 font-bold">
+                    <Globe className="w-3.5 h-3.5" />
+                    <span>Cross-Border US Arbitrage Opportunity</span>
+                  </div>
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/25 text-amber-200 border border-amber-500/40">
+                    High US Liquidity
+                  </span>
+                </div>
+                <p className="text-[11px] text-zinc-300 leading-relaxed">
+                  {arbitrageSignal || `No AU sales recorded. High US liquidity (~$${Math.round(usMedianUsd || (activeResalePrice / 1.54))} USD). Profitable for international export or domestic scarcity pricing in Australia.`}
+                </p>
+                <div className="flex items-center justify-between text-[10px] text-zinc-400 pt-1 border-t border-amber-500/20 font-mono">
+                  <span>US Median: ${Math.round(usMedianUsd || (activeResalePrice / 1.54))} USD</span>
+                  <span>Tracked Air Friction: ~$25 AUD</span>
+                </div>
+              </div>
+            )}
 
             {/* In-Store Tag Price Selector (Top Fold, Directly Actionable) */}
             <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-zinc-900 border border-zinc-800">
@@ -1272,6 +1309,11 @@ export default function LensCompsModal({
           comps: effectiveComps.slice(0, 3),
           liquidNotes: isFragranceActive ? `${fillLevel}% Fill, ${hasCap ? "With Cap" : "No Cap"}${isTester ? ", Tester" : ""}` : undefined,
           thumbnail: previewImageSrc,
+          isUsMarketOnly,
+          usMedianUsd,
+          arbitrageSignal,
+          sellThroughRate: (item as any)?.salesVelocity?.sell_through_rate || "N/A",
+          liquiditySpeed: (item as any)?.salesVelocity?.sell_speed,
         }}
       />
     </div>

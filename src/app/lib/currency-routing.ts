@@ -66,6 +66,18 @@ export function detectGeoCurrency(countryHeader?: string | null): GeoCurrencyInf
 }
 
 /**
+ * Detects user geographic region ("AU" | "US" | "GB" | "EUR"). Defaults strictly to "AU".
+ */
+export function detectUserRegion(countryHeader?: string | null): "AU" | "US" | "GB" | "EUR" {
+  const geoInfo = detectGeoCurrency(countryHeader);
+  if (geoInfo.currency === "AUD") return "AU";
+  if (geoInfo.currency === "USD") return "US";
+  if (geoInfo.currency === "GBP") return "GB";
+  if (geoInfo.currency === "EUR") return "EUR";
+  return "AU";
+}
+
+/**
  * Converts currency amounts between supported currencies (AUD, USD, EUR, GBP)
  */
 export function convertCurrency(

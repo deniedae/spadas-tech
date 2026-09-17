@@ -125,6 +125,13 @@ export async function executeParallelAppraisal(
     ebayCompsCount: compsCount,
     compsSource,
     isGrail: netProfit >= 80 || roi >= 300,
+    rawComps: comps?.rawComps as any,
+    compsRange: comps ? { min: comps.min, max: comps.max, median: comps.median } : undefined,
+    isUsMarketOnly: comps?.isUsMarketOnly,
+    marketOrigin: comps?.marketOrigin,
+    usMedianUsd: comps?.usMedianUsd,
+    arbitrageSignal: comps?.arbitrageSignal,
+    crossBorderShippingCost: comps?.crossBorderShippingCost,
   };
 
   const activeScan: ActiveScanItem = {

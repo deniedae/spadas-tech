@@ -29,6 +29,7 @@ import { fmtMoney, calcProfit } from "@/app/lib/listings";
 import PullToRefresh from "@/components/pull-to-refresh";
 import SubscriptionPaywallModal from "@/components/subscription-paywall-modal";
 import { calculateSalesVelocity } from "@/lib/turnover-velocity-engine";
+import DashboardSupportDesk from "@/components/dashboard-support-desk";
 
 interface Listing {
   id: string;
@@ -1041,6 +1042,7 @@ export default function DashboardPage() {
         </div>
       </div>
       <SubscriptionPaywallModal isOpen={isPaywallOpen} onClose={() => setIsPaywallOpen(false)} />
+      <DashboardSupportDesk />
 
       {/* 1-Click Live eBay Publish Modal */}
       {ebayPublishItem && (

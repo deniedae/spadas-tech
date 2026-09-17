@@ -14,6 +14,9 @@ export interface RawSoldComp {
   url?: string;
   thumbnail?: string;
   matchPercentage?: number;
+  isUsComp?: boolean;
+  originalCurrency?: string;
+  originalPrice?: number;
 }
 
 export interface VariantAudit {
@@ -79,6 +82,12 @@ export interface DetectedHit {
     max: number;
     median: number;
   };
+  /** Cross-Border & Regional Geo Fallback Flags */
+  isUsMarketOnly?: boolean;
+  marketOrigin?: "AU" | "US";
+  usMedianUsd?: number;
+  arbitrageSignal?: string;
+  crossBorderShippingCost?: number;
   /** Telemetry check separating near-matches, reprints, and model variants */
   variantAudit?: VariantAudit;
   /** Guardrail flag: true if visual confidence < 88% or variant unconfirmed */

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useTransition } from "react";
+import React, { useState, useRef, useEffect, useMemo, useTransition } from "react";
 import {
   Sparkles,
   X,
@@ -30,6 +30,11 @@ export interface LensCopilotDrawerProps {
     comps?: RawSoldComp[];
     liquidNotes?: string;
     thumbnail?: string | null;
+    isUsMarketOnly?: boolean;
+    usMedianUsd?: number;
+    arbitrageSignal?: string;
+    sellThroughRate?: string | number;
+    liquiditySpeed?: string;
   };
 }
 
@@ -39,12 +44,12 @@ interface ChatMessage {
   content: string;
 }
 
-const QUICK_PROMPT_CHIPS = [
-  { label: "💡 Is tag price fair?", prompt: "Is the tag price fair, or should I walk away?" },
-  { label: "⚡ Fast flip or hold?", prompt: "Is this a fast flip or a slow burner hold?" },
-  { label: "🔍 Flaws to inspect?", prompt: "What specific physical flaws should I inspect right now?" },
-  { label: "🛒 Where to sell?", prompt: "Which platform is best for this item (eBay AU, Depop, FB)?" },
-  { label: "🤝 Max counter-offer?", prompt: "What's the maximum counter-offer price I should offer the seller?" },
+const BASE_QUICK_PROMPT_CHIPS = [
+  { label: "🎯 80-Char SEO Title", prompt: "Generate a high-ranking 80-character eBay SEO title front-loading brand, model, specs, and keywords." },
+  { label: "🏷️ Best Offer Brackets", prompt: "Give me an actionable pricing strategy with Buy It Now price, Best Offer auto-accept, and auto-decline thresholds." },
+  { label: "🔍 Authenticity Checklist", prompt: "Give me category-specific inspection steps (batch codes, materials, stitch counts, serials) to check right now." },
+  { label: "⚡ Local Flip vs eBay", prompt: "Should I fast-flip locally on FB Marketplace/Gumtree for cash or hold for national eBay AU buyers?" },
+  { label: "💡 Fair tag price?", prompt: "Is the tag price fair, or what is the maximum counter-offer I should make?" },
 ];
 
 export default function LensCopilotDrawer({
@@ -82,6 +87,18 @@ export default function LensCopilotDrawer({
   }, [isOpen]);
 
 
+  // Dynamically configure prompt chips including US Scarcity Strategy when applicable
+  const activeChips = useMemo<{ label: string; prompt: string }[]>(() => {
+    const list: { label: string; prompt: string }[] = [...BASE_QUICK_PROMPT_CHIPS];
+    if (itemContext.isUsMarketOnly) {
+      list.unshift({
+        label: "🌐 US Scarcity Strategy",
+        prompt: "No AU comps exist. How should I price this for domestic Australian scarcity or international export?",
+      });
+    }
+    return list;
+  }, [itemContext.isUsMarketOnly]);
+
   // Initial greeting seed whenever a new item is opened
   useEffect(() => {
     if (isOpen) {
@@ -90,11 +107,14 @@ export default function LensCopilotDrawer({
         const verdict = net >= 20 ? "looks like a strong COP" : net >= 8 ? "has moderate margin" : "is RISKY";
         const formattedTag = fmtMoney(itemContext.tagPrice || 10);
         const formattedNet = formatAUD(net);
+        const usNote = itemContext.isUsMarketOnly
+          ? ` 🇺🇸 **US Market Data Only** (${itemContext.arbitrageSignal || "No AU sales recorded; high US liquidity"}).`
+          : "";
         setMessages([
           {
             id: "greeting",
             role: "assistant",
-            content: `I've loaded the comps for **${itemContext.title.slice(0, 45)}**. At ${formattedTag} tag price and ~${formattedNet} net profit, this ${verdict}. What do you need to know?`,
+            content: `I've loaded the comps for **${itemContext.title.slice(0, 45)}**. At ${formattedTag} tag price and ~${formattedNet} net profit, this ${verdict}.${usNote} What do you need to know?`,
           },
         ]);
       }
@@ -149,6 +169,11 @@ export default function LensCopilotDrawer({
           fair_market_price: itemContext.fairMarketPrice,
           estimated_net: itemContext.estimatedNet,
           liquid_notes: itemContext.liquidNotes,
+          is_us_market_only: itemContext.isUsMarketOnly,
+          us_median_usd: itemContext.usMedianUsd,
+          arbitrage_signal: itemContext.arbitrageSignal,
+          sell_through_rate: itemContext.sellThroughRate,
+          liquidity_speed: itemContext.liquiditySpeed,
           comps: (itemContext.comps || []).slice(0, 3).map((c) => ({
             title: c.title,
             price: c.price,
@@ -327,7 +352,7 @@ export default function LensCopilotDrawer({
         <div className="copilot-input-container shrink-0" style={{ transition: "none", transform: "none" }}>
           {/* ── Suggested Quick Prompt Chips (1-Tap Sourcing Queries) ─────────── */}
           <div className="px-3 py-1.5 border-t border-zinc-850 bg-zinc-950 overflow-x-auto custom-scrollbar flex items-center gap-1.5">
-            {QUICK_PROMPT_CHIPS.map((chip) => (
+            {activeChips.map((chip) => (
               <button
                 key={chip.label}
                 type="button"
