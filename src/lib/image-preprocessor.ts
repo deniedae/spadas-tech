@@ -71,6 +71,59 @@ export function exportCanvasToOptimizedDataUrl(
   return canvas.toDataURL("image/jpeg", Math.min(0.80, quality));
 }
 
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      resolve(reader.result as string);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+/**
+ * Asynchronously exports a canvas to WebP/JPEG format off the main UI thread.
+ * Uses canvas.toBlob or OffscreenCanvas.convertToBlob to eliminate UI thread lock-up and frame stutter.
+ */
+export async function exportCanvasToOptimizedDataUrlAsync(
+  canvas: HTMLCanvasElement | OffscreenCanvas,
+  quality = 0.72
+): Promise<string> {
+  if (typeof OffscreenCanvas !== "undefined" && canvas instanceof OffscreenCanvas) {
+    try {
+      const blob = await canvas.convertToBlob({ type: "image/webp", quality });
+      return await blobToDataUrl(blob);
+    } catch {
+      const blob = await canvas.convertToBlob({ type: "image/jpeg", quality: Math.min(0.80, quality) });
+      return await blobToDataUrl(blob);
+    }
+  }
+
+  const htmlCanvas = canvas as HTMLCanvasElement;
+  if (typeof htmlCanvas.toBlob === "function") {
+    try {
+      const blob = await new Promise<Blob | null>((resolve) => {
+        htmlCanvas.toBlob((b) => resolve(b), "image/webp", quality);
+      });
+      if (blob && blob.size > 200) {
+        return await blobToDataUrl(blob);
+      }
+    } catch { }
+
+    try {
+      const jpegBlob = await new Promise<Blob | null>((resolve) => {
+        htmlCanvas.toBlob((b) => resolve(b), "image/jpeg", Math.min(0.80, quality));
+      });
+      if (jpegBlob) {
+        return await blobToDataUrl(jpegBlob);
+      }
+    } catch { }
+  }
+
+  return exportCanvasToOptimizedDataUrl(htmlCanvas, quality);
+}
+
 export interface ReticleMacroCropResult {
   cropDataUrl: string;
   fullDataUrl: string;
@@ -129,6 +182,63 @@ export function extractReticleMacroCrop(
   }
 
   const cropDataUrl = exportCanvasToOptimizedDataUrl(canvas, quality);
+  const format: "webp" | "jpeg" = cropDataUrl.startsWith("data:image/webp") ? "webp" : "jpeg";
+  const payloadBytes = Math.round((cropDataUrl.length * 3) / 4);
+
+  return {
+    cropDataUrl,
+    fullDataUrl: cropDataUrl,
+    cropWidth,
+    cropHeight,
+    targetWidth: targetDim,
+    targetHeight: targetDim,
+    payloadBytes,
+    format,
+  };
+}
+
+/**
+ * Asynchronous version of extractReticleMacroCrop. Encodes off the main thread to eliminate camera stutter.
+ */
+export async function extractReticleMacroCropAsync(
+  video: HTMLVideoElement,
+  options?: {
+    cropFactor?: number;
+    targetDimension?: number;
+    quality?: number;
+    boostContrast?: boolean;
+  }
+): Promise<ReticleMacroCropResult> {
+  const cropFactor = options?.cropFactor ?? 0.65;
+  const targetDim = options?.targetDimension ?? 640;
+  const quality = options?.quality ?? 0.82;
+  const boostContrast = options?.boostContrast ?? true;
+
+  const rawW = video.videoWidth > 0 ? video.videoWidth : 1280;
+  const rawH = video.videoHeight > 0 ? video.videoHeight : 720;
+
+  const minDim = Math.min(rawW, rawH);
+  const cropWidth = Math.round(minDim * cropFactor);
+  const cropHeight = Math.round(minDim * cropFactor);
+  const cropX = Math.round((rawW - cropWidth) / 2);
+  const cropY = Math.round((rawH - cropHeight) / 2);
+
+  const canvas = document.createElement("canvas");
+  canvas.width = targetDim;
+  canvas.height = targetDim;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+
+  if (ctx) {
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(video, cropX, cropY, cropWidth, cropHeight, 0, 0, targetDim, targetDim);
+
+    if (boostContrast) {
+      enhanceTagContrast(ctx, targetDim, targetDim, { contrastBoost: 1.20 });
+    }
+  }
+
+  const cropDataUrl = await exportCanvasToOptimizedDataUrlAsync(canvas, quality);
   const format: "webp" | "jpeg" = cropDataUrl.startsWith("data:image/webp") ? "webp" : "jpeg";
   const payloadBytes = Math.round((cropDataUrl.length * 3) / 4);
 
@@ -594,4 +704,134 @@ export function createMultiFrameComposite(
     movementCompensated: movementDetected || frames.length > 1,
   };
 }
+
+/**
+ * Asynchronous multi-frame composite generator. Encodes WebP/JPEG off the main UI thread.
+ */
+export async function createMultiFrameCompositeAsync(
+  frames: HTMLCanvasElement[],
+  options?: {
+    movementDetected?: boolean;
+    quality?: number;
+    boostContrast?: boolean;
+  }
+): Promise<MultiFrameCompositeResult> {
+  const quality = options?.quality ?? 0.82;
+  const boostContrast = options?.boostContrast ?? true;
+  const movementDetected = options?.movementDetected ?? false;
+
+  if (frames.length === 0) {
+    return {
+      compositeDataUrl: "",
+      bestFrameDataUrl: "",
+      sharpCropDataUrl: "",
+      sharpnessScore: 0,
+      framesPooledCount: 0,
+      movementCompensated: false,
+    };
+  }
+
+  let bestIdx = 0;
+  let maxSharpness = -1;
+
+  for (let idx = 0; idx < frames.length; idx++) {
+    const canvas = frames[idx];
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    const score = ctx ? calculateFrameSharpness(ctx, canvas.width, canvas.height) : 0;
+    if (score > maxSharpness) {
+      maxSharpness = score;
+      bestIdx = idx;
+    }
+  }
+
+  const bestCanvas = frames[bestIdx];
+
+  const cropSize = Math.round(Math.min(bestCanvas.width, bestCanvas.height) * 0.70);
+  const cropX = Math.round((bestCanvas.width - cropSize) / 2);
+  const cropY = Math.round((bestCanvas.height - cropSize) / 2);
+
+  const cropCanvas = document.createElement("canvas");
+  cropCanvas.width = 640;
+  cropCanvas.height = 640;
+  const cropCtx = cropCanvas.getContext("2d", { willReadFrequently: true });
+  if (cropCtx) {
+    cropCtx.imageSmoothingEnabled = true;
+    cropCtx.imageSmoothingQuality = "high";
+    cropCtx.drawImage(bestCanvas, cropX, cropY, cropSize, cropSize, 0, 0, 640, 640);
+    if (boostContrast) {
+      enhanceTagContrast(cropCtx, 640, 640, { contrastBoost: 1.25 });
+    }
+  }
+
+  if (frames.length === 1 && !movementDetected) {
+    const [bestDataUrl, sharpCropDataUrl] = await Promise.all([
+      exportCanvasToOptimizedDataUrlAsync(bestCanvas, quality),
+      exportCanvasToOptimizedDataUrlAsync(cropCanvas, Math.min(0.84, quality + 0.04)),
+    ]);
+    return {
+      compositeDataUrl: sharpCropDataUrl,
+      bestFrameDataUrl: bestDataUrl,
+      sharpCropDataUrl,
+      sharpnessScore: maxSharpness,
+      framesPooledCount: 1,
+      movementCompensated: false,
+    };
+  }
+
+  const compositeCanvas = document.createElement("canvas");
+  compositeCanvas.width = 1024;
+  compositeCanvas.height = 1024;
+  const compCtx = compositeCanvas.getContext("2d", { willReadFrequently: true });
+
+  if (compCtx) {
+    compCtx.imageSmoothingEnabled = true;
+    compCtx.imageSmoothingQuality = "high";
+    compCtx.fillStyle = "#090d16";
+    compCtx.fillRect(0, 0, 1024, 1024);
+
+    const aspect = bestCanvas.width / bestCanvas.height;
+    let renderW = 1024;
+    let renderH = Math.round(1024 / aspect);
+    if (renderH > 640) {
+      renderH = 640;
+      renderW = Math.round(640 * aspect);
+    }
+    const renderX = Math.round((1024 - renderW) / 2);
+    compCtx.drawImage(bestCanvas, 0, 0, bestCanvas.width, bestCanvas.height, renderX, 0, renderW, renderH);
+
+    const secondaryIdx = bestIdx === 0 ? Math.min(frames.length - 1, 1) : 0;
+    const secCanvas = frames[secondaryIdx] || bestCanvas;
+    const secCropSize = Math.round(Math.min(secCanvas.width, secCanvas.height) * 0.50);
+    const secCropX = Math.round((secCanvas.width - secCropSize) / 2);
+    const secCropY = Math.round((secCanvas.height - secCropSize) / 2);
+
+    compCtx.drawImage(secCanvas, secCropX, secCropY, secCropSize, secCropSize, 12, 652, 360, 360);
+    compCtx.drawImage(cropCanvas, 0, 0, 640, 640, 384, 652, 628, 360);
+
+    compCtx.strokeStyle = "rgba(6, 182, 212, 0.4)";
+    compCtx.lineWidth = 2;
+    compCtx.strokeRect(12, 652, 360, 360);
+    compCtx.strokeRect(384, 652, 628, 360);
+
+    if (boostContrast) {
+      enhanceTagContrast(compCtx, 1024, 1024, { contrastBoost: 1.15 });
+    }
+  }
+
+  const [bestDataUrl, sharpCropDataUrl, compositeDataUrl] = await Promise.all([
+    exportCanvasToOptimizedDataUrlAsync(bestCanvas, quality),
+    exportCanvasToOptimizedDataUrlAsync(cropCanvas, Math.min(0.84, quality + 0.04)),
+    exportCanvasToOptimizedDataUrlAsync(compositeCanvas, quality),
+  ]);
+
+  return {
+    compositeDataUrl,
+    bestFrameDataUrl: bestDataUrl,
+    sharpCropDataUrl,
+    sharpnessScore: maxSharpness,
+    framesPooledCount: frames.length,
+    movementCompensated: true,
+  };
+}
+
 

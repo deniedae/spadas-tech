@@ -26,6 +26,7 @@ import {
   ChevronUp,
   ShoppingBag,
   ExternalLink,
+  Lock,
 } from "lucide-react";
 import { toast } from "sonner";
 import { fmtMoney, formatAUD } from "@/app/lib/listings";
@@ -97,7 +98,15 @@ import {
 } from "@/lib/lens-intel-engine";
 import type { DetectedHit, ActiveScanItem, CopVerdict } from "@/types/lens";
 export type { DetectedHit, ActiveScanItem, CopVerdict } from "@/types/lens";
-import { processFrameForVision, poolConsecutiveFrames, createMultiFrameComposite, extractReticleMacroCrop } from "@/lib/image-preprocessor";
+import {
+  processFrameForVision,
+  poolConsecutiveFrames,
+  createMultiFrameComposite,
+  createMultiFrameCompositeAsync,
+  extractReticleMacroCrop,
+  extractReticleMacroCropAsync,
+  exportCanvasToOptimizedDataUrlAsync,
+} from "@/lib/image-preprocessor";
 import { ScanProgressiveLoader, type ScanStage } from "@/components/scan-progressive-loader";
 import {
   resolveSpatialMetadata,
@@ -231,6 +240,31 @@ function SpadasLensCameraCore({
   const [isViewfinderToolsOpen, setIsViewfinderToolsOpen] = useState<boolean>(false);
   const [isValuationDetailsOpen, setIsValuationDetailsOpen] = useState<boolean>(false);
 
+  // Hard Manual / Auto Gate & 3.5s Shutter Cooldown (Eliminates Runaway Captures & Frame Drops)
+  const [isCoolingDown, setIsCoolingDown] = useState<boolean>(false);
+  const isCoolingDownRef = useRef<boolean>(false);
+  const cooldownTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const triggerCooldown = useCallback((durationMs = 3500) => {
+    setIsCoolingDown(true);
+    isCoolingDownRef.current = true;
+    if (cooldownTimerRef.current) {
+      clearTimeout(cooldownTimerRef.current);
+    }
+    cooldownTimerRef.current = setTimeout(() => {
+      setIsCoolingDown(false);
+      isCoolingDownRef.current = false;
+    }, durationMs);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (cooldownTimerRef.current) {
+        clearTimeout(cooldownTimerRef.current);
+      }
+    };
+  }, []);
+
   // Category Biasing via Geolocation & Spatial Metadata
   const [categoryBias, setCategoryBias] = useState<CategoryBiasOption>("auto");
   const [spatialMetadata, setSpatialMetadata] = useState<SpatialMetadata | null>(null);
@@ -261,6 +295,12 @@ function SpadasLensCameraCore({
       clearTimeout(scanExpiryTimerRef.current);
       scanExpiryTimerRef.current = null;
     }
+    if (cooldownTimerRef.current) {
+      clearTimeout(cooldownTimerRef.current);
+      cooldownTimerRef.current = null;
+    }
+    setIsCoolingDown(false);
+    isCoolingDownRef.current = false;
 
     // Instantly wipe all valuation states, stream tokens, and progressive loader flags to zero
     setActiveValuationHit(null);
@@ -829,7 +869,10 @@ function SpadasLensCameraCore({
         valuationExpiryTimerRef.current = null;
       }
 
-      // 6. Standard Lens AR appraisal preserves pure historical eBay sold comps pipeline.
+      // 6. Strict 3.5-second Shutter Cooldown: Prevents trailing auto-snaps and runaway scene captures
+      triggerCooldown(3500);
+
+      // 7. Standard Lens AR appraisal preserves pure historical eBay sold comps pipeline.
       // If Intel Mode is active, prepare instant 0ms offline baseline heuristics without calling /api/marketplace-intel over network
       if (isIntelModeActive) {
         try {
@@ -838,7 +881,7 @@ function SpadasLensCameraCore({
         } catch { }
       }
     },
-    [soundEnabled, playChime, minProfitThreshold, isIntelModeActive, selectedCurrency]
+    [soundEnabled, playChime, minProfitThreshold, isIntelModeActive, selectedCurrency, triggerCooldown]
   );
 
   // Open Tactical Intel Panel (Deep multi-prompt resell & P2P marketplace insights strictly on-demand)
@@ -1056,12 +1099,33 @@ function SpadasLensCameraCore({
   );
 
   useEffect(() => {
-    if (!stream || !videoRef.current || !isNativeBarcodeDetectorSupported() || isScanPaused) return;
+    // Continuous native barcode detector:
+    // Only active in Barcode mode or when Auto mode is enabled (never in Manual / Snap mode).
+    // Pauses while scanning, cooling down, or reviewing an active hit to free CPU and eliminate stutter.
+    const isAutoOrBarcodeMode = scanMode === "barcode" || (autoScanActive && scanMode !== "snap");
+    if (
+      !stream ||
+      !videoRef.current ||
+      !isNativeBarcodeDetectorSupported() ||
+      isScanPaused ||
+      analyzingRealFrame ||
+      isCoolingDown ||
+      !isAutoOrBarcodeMode ||
+      !!activeValuationHit
+    ) {
+      return;
+    }
 
     const nativeScanner = createNativeBarcodeScanner(
       videoRef.current,
       (res) => {
-        if (res.rawValue && !isScanPaused) {
+        if (
+          res.rawValue &&
+          !isScanPausedRef.current &&
+          !analyzingRef.current &&
+          !isCoolingDownRef.current &&
+          !activeValuationHitRef.current
+        ) {
           void handleNativeBarcode(res.rawValue);
         }
       },
@@ -1072,15 +1136,16 @@ function SpadasLensCameraCore({
     return () => {
       nativeScanner.stop();
     };
-  }, [stream, handleNativeBarcode, isScanPaused]);
+  }, [stream, handleNativeBarcode, isScanPaused, analyzingRealFrame, isCoolingDown, scanMode, autoScanActive, activeValuationHit]);
 
   // Safety watchdog to prevent analyzingRealFrame from getting permanently stuck
   useEffect(() => {
     if (!analyzingRealFrame) return;
     const timeout = setTimeout(() => {
       setAnalyzingRealFrame(false);
+      analyzingRef.current = false;
       isAnalyzingRef.current = false;
-    }, 5000);
+    }, 15000);
     return () => clearTimeout(timeout);
   }, [analyzingRealFrame]);
 
@@ -2138,12 +2203,25 @@ function SpadasLensCameraCore({
 
   // Frame Scanner with Instantaneous Shutter Trigger & Responsive Viewfinder State
   const processCurrentFrame = useCallback(async (forceManual = false) => {
+    // 0. Manual / Auto Gate & Concurrency Lock:
+    if (analyzingRef.current) return;
+
+    // In manual mode without explicit shutter tap, never process frames
+    if (!forceManual && !autoScanActive && scanMode === "snap") {
+      return;
+    }
+
+    // Cooldown Lock: in automatic mode, do not process frames while cooling down
+    if (!forceManual && isCoolingDownRef.current) {
+      return;
+    }
+
     // 1. Immediate State Flush on Manual Scan (via "Scan Next Item" or the shutter button)
     if (forceManual) {
       flushScanState();
     } else {
       // In automatic mode, prevent concurrent overlapping fetches AND never overwrite or clear an active valuation hit
-      if (analyzingRef.current || activeValuationHitRef.current || isScanPausedRef.current) {
+      if (activeValuationHitRef.current || isScanPausedRef.current) {
         return;
       }
       const currentVideo = videoRef.current;
@@ -2213,10 +2291,13 @@ function SpadasLensCameraCore({
     setCameraMoving(false);
     cameraMovingRef.current = false;
 
-    // 4. Instantaneous Frame Capture: Grab frame snapshot synchronously from video to immediately freeze the live viewfinder
+    // 4. Asynchronous Frame Capture off the Viewfinder Thread:
+    // Decouple video rendering from image compression. Single draw call to offscreen canvas,
+    // then compress asynchronously to WebP off the main thread.
     const video = videoRef.current;
     let instantCanvas: HTMLCanvasElement | null = null;
     let instantSnapshotUrl: string | null = null;
+    let centerCropDataUrl = "";
 
     if (video && video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0) {
       try {
@@ -2241,39 +2322,29 @@ function SpadasLensCameraCore({
         const ctx = instantCanvas.getContext("2d", { willReadFrequently: true });
         if (ctx) {
           ctx.drawImage(video, 0, 0, fullW, fullH, 0, 0, tw, th);
-          try {
-            const webp = instantCanvas.toDataURL("image/webp", 0.70);
-            instantSnapshotUrl = webp.startsWith("data:image/webp") ? webp : instantCanvas.toDataURL("image/jpeg", 0.70);
-          } catch {
-            instantSnapshotUrl = instantCanvas.toDataURL("image/jpeg", 0.70);
-          }
         }
+        instantSnapshotUrl = await exportCanvasToOptimizedDataUrlAsync(instantCanvas, 0.70);
       } catch (err) {
-        console.warn("[Spadas Lens] Instantaneous snapshot capture warning:", err);
+        console.warn("[Spadas Lens] Asynchronous snapshot capture warning:", err);
       }
     }
 
-    // Instantly freeze the live viewfinder with the captured frame (0ms transition to progressive loader)
-    // If the reticle is visible, also grab a tight crop of just the product region for the AI
-    let reticleCropUrl: string | null = null;
-    if (video && video.readyState >= 2 && reticleRef.current) {
+    // Optical reticle macro crop asynchronously off main thread
+    if (video && video.readyState >= 2 && video.videoWidth > 0) {
       try {
-        const boxRect = reticleRef.current.getBoundingClientRect();
-        if (boxRect.width > 40 && boxRect.height > 40) {
-          const cropBlob = await captureTargetBox(video, boxRect);
-          reticleCropUrl = await new Promise<string>((res) => {
-            const reader = new FileReader();
-            reader.onloadend = () => res(reader.result as string);
-            reader.readAsDataURL(cropBlob);
-          });
-        }
-      } catch {
-        // Non-fatal — fall back to full-frame snapshot
+        const reticleMacro = await extractReticleMacroCropAsync(video, {
+          cropFactor: 0.65,
+          targetDimension: 640,
+          quality: 0.82,
+          boostContrast: true,
+        });
+        centerCropDataUrl = reticleMacro.cropDataUrl;
+      } catch (mErr) {
+        console.warn("[Spadas Lens] Async reticle macro crop error, falling back:", mErr);
       }
     }
 
-    // Use reticle crop as the primary frozen frame (sharper, focused); fall back to full-frame
-    const preferredSnapshotUrl = reticleCropUrl || instantSnapshotUrl;
+    const preferredSnapshotUrl = centerCropDataUrl || instantSnapshotUrl;
 
     if (preferredSnapshotUrl && (forceManual || scanMode === "snap")) {
       setFrozenFrameUrl(preferredSnapshotUrl);
@@ -2303,44 +2374,6 @@ function SpadasLensCameraCore({
       }
     }
 
-    const currentVid = videoRef.current;
-    if (currentVid && currentVid.readyState >= 2 && currentVid.videoWidth > 0 && !instantSnapshotUrl) {
-      try {
-        if (!offscreenCanvasRef.current) {
-          offscreenCanvasRef.current = document.createElement("canvas");
-        }
-        instantCanvas = offscreenCanvasRef.current;
-        const maxDim = 800;
-        const fullW = currentVid.videoWidth;
-        const fullH = currentVid.videoHeight;
-        let tw = fullW;
-        let th = fullH;
-        if (fullW >= fullH) {
-          tw = Math.min(maxDim, fullW);
-          th = Math.round((fullH * tw) / fullW);
-        } else {
-          th = Math.min(maxDim, fullH);
-          tw = Math.round((fullW * th) / fullH);
-        }
-        instantCanvas.width = tw;
-        instantCanvas.height = th;
-        const ctx = instantCanvas.getContext("2d", { willReadFrequently: true });
-        if (ctx) {
-          ctx.drawImage(currentVid, 0, 0, fullW, fullH, 0, 0, tw, th);
-          try {
-            const webp = instantCanvas.toDataURL("image/webp", 0.70);
-            instantSnapshotUrl = webp.startsWith("data:image/webp") ? webp : instantCanvas.toDataURL("image/jpeg", 0.70);
-          } catch {
-            instantSnapshotUrl = instantCanvas.toDataURL("image/jpeg", 0.70);
-          }
-          setFrozenFrameUrl(instantSnapshotUrl);
-          setIsScanPaused(true);
-        }
-      } catch (postErr) {
-        console.warn("[Spadas Lens] Post-start capture warning:", postErr);
-      }
-    }
-
     if (abortController.signal.aborted || cycleId !== activeCycleIdRef.current) return;
 
     const trace = new ScanTrace(scanMode);
@@ -2348,8 +2381,8 @@ function SpadasLensCameraCore({
     try {
       let frameDataUrl = instantSnapshotUrl || "";
 
-      // SUB-100MS LOCAL WASM BARCODE PRE-PASS: Scan live video frame for barcodes locally (0ms cloud latency)
-      if ((instantCanvas || video) && typeof window !== "undefined" && "BarcodeDetector" in window) {
+      // SUB-100MS LOCAL WASM BARCODE PRE-PASS: Scan live video frame for barcodes locally (0ms cloud latency, only in barcode mode)
+      if (scanMode === "barcode" && (instantCanvas || video) && typeof window !== "undefined" && "BarcodeDetector" in window) {
         try {
           const detector = new (window as any).BarcodeDetector({
             formats: ["ean_13", "ean_8", "upc_a", "upc_e", "qr_code", "code_128", "code_39"],
@@ -2483,12 +2516,10 @@ function SpadasLensCameraCore({
         }
       }
 
-      let centerCropDataUrl = "";
-
-      // 1. Native Hardware Optical Reticle Macro Crop (1:1 Sensor Resolution at ~45KB-65KB WebP)
-      if (video && video.readyState >= 2 && video.videoWidth > 0) {
+      // 1. Native Hardware Optical Reticle Macro Crop (Asynchronously captured off viewfinder thread)
+      if (!centerCropDataUrl && video && video.readyState >= 2 && video.videoWidth > 0) {
         try {
-          const reticleMacro = extractReticleMacroCrop(video, {
+          const reticleMacro = await extractReticleMacroCropAsync(video, {
             cropFactor: 0.65,
             targetDimension: 640,
             quality: 0.82,
@@ -2499,6 +2530,8 @@ function SpadasLensCameraCore({
         } catch (mErr) {
           console.warn("[Spadas Lens] Native reticle macro crop error, falling back:", mErr);
         }
+      } else if (centerCropDataUrl) {
+        frameDataUrl = centerCropDataUrl;
       }
 
       if (!centerCropDataUrl && (instantCanvas || video)) {
@@ -2537,12 +2570,7 @@ function SpadasLensCameraCore({
             const ctx = canvas.getContext("2d");
             if (ctx) {
               ctx.drawImage(video, 0, 0, fullWidth, fullHeight, 0, 0, targetW, targetH);
-              try {
-                const webp = canvas.toDataURL("image/webp", 0.70);
-                frameDataUrl = webp.startsWith("data:image/webp") ? webp : canvas.toDataURL("image/jpeg", 0.70);
-              } catch {
-                frameDataUrl = canvas.toDataURL("image/jpeg", 0.70);
-              }
+              frameDataUrl = await exportCanvasToOptimizedDataUrlAsync(canvas, 0.70);
             }
           }
         }
@@ -2678,8 +2706,8 @@ function SpadasLensCameraCore({
         }
       }
 
-      // Generate higher-resolution composite and select sharpest blur-free frame
-      const compositeResult = createMultiFrameComposite(
+      // Generate higher-resolution composite and select sharpest blur-free frame asynchronously
+      const compositeResult = await createMultiFrameCompositeAsync(
         pooledCanvases.length > 0 ? pooledCanvases : instantCanvas ? [instantCanvas] : [],
         {
           movementDetected: isMovementDetected,
@@ -3995,7 +4023,9 @@ function SpadasLensCameraCore({
 
   // Active Auto-Scan & Scene Change Watcher with Frame-Skip Delay & Sampling Interval
   useEffect(() => {
-    if (!stream || !!deepVerifyItem || isScanPaused || !!activeCompsHit || !!activeValuationHit) return;
+    // In Manual / Snap mode or while scanning/cooling down, completely freeze motion tracking and continuous passes
+    if (!stream || !!deepVerifyItem || isScanPaused || !!activeCompsHit || !!activeValuationHit || analyzingRealFrame || isCoolingDown) return;
+    if (!autoScanActive && scanMode === "snap") return;
 
     let isDestroyed = false;
     const offCanvas = document.createElement("canvas");
@@ -4011,7 +4041,17 @@ function SpadasLensCameraCore({
 
     const interval = setInterval(() => {
       if (isDestroyed) return;
-      if (analyzingRef.current || isScanPausedRef.current || activeValuationHitRef.current) return; // In-flight state lock: never trigger while a scan is processing, paused, or reviewing a valued item
+      // In-flight state lock: Freeze analysis passes until the network call returns or fails
+      if (
+        analyzingRef.current ||
+        analyzingRealFrame ||
+        isCoolingDownRef.current ||
+        isScanPausedRef.current ||
+        activeValuationHitRef.current ||
+        (!autoScanActive && scanMode === "snap")
+      ) {
+        return;
+      }
 
       // Frame skip delay: skip every alternate tick if camera was in active motion
       frameSkipCounter++;
@@ -4113,7 +4153,7 @@ function SpadasLensCameraCore({
       isDestroyed = true;
       clearInterval(interval);
     };
-  }, [stream, autoScanActive, scanMode, deepVerifyItem, isScanPaused, activeCompsHit, activeValuationHit, isRapidScanMode]);
+  }, [stream, autoScanActive, scanMode, deepVerifyItem, isScanPaused, activeCompsHit, activeValuationHit, isRapidScanMode, analyzingRealFrame, isCoolingDown]);
 
   // Preserve persistentMediaStream warm across tab switches and route re-renders
   useEffect(() => {
@@ -4124,7 +4164,7 @@ function SpadasLensCameraCore({
 
   return (
     <div className="spadas-lens-camera w-full max-w-full overflow-x-hidden box-border pb-[calc(env(safe-area-inset-bottom)+4.5rem)] mx-auto animate-fade-in">
-      {/* Video Viewport Container (Tap Anywhere to Focus, Snap, or Dismiss Card) */}
+      {/* Video Viewport Container (Tap Anywhere to Focus or Dismiss Card) */}
       <div
         onClick={() => {
           if (scanStage === "confirmation" || pendingIdentifiedItem) {
@@ -4134,8 +4174,6 @@ function SpadasLensCameraCore({
             return;
           } else if (isScanPaused) {
             handleResumeScanning();
-          } else if (!analyzingRealFrame) {
-            void processCurrentFrame(true);
           }
         }}
         className="relative w-full aspect-[3/4] sm:aspect-[16/9] max-h-[65svh] max-w-full box-border overflow-hidden rounded-none sm:rounded-3xl border-0 sm:border sm:border-cyan-500/30 bg-slate-950 sm:shadow-[0_0_50px_rgba(6,182,212,0.15)] cursor-pointer"
@@ -4489,6 +4527,14 @@ function SpadasLensCameraCore({
                     detectedBrand={pendingIdentifiedItem?.brand ?? undefined}
                     previewImage={frozenFrameUrl}
                   />
+                </div>
+              )}
+
+              {/* Visual Cooldown Indicator: Appears during 3.5s cooldown after item detection */}
+              {isCoolingDown && !analyzingRealFrame && !activeValuationHit && (
+                <div className="absolute top-[max(3.5rem,calc(env(safe-area-inset-top,0px)+3.25rem))] left-1/2 -translate-x-1/2 z-35 flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-950/85 border border-cyan-500/40 text-cyan-300 text-xs font-mono font-bold shadow-[0_0_20px_rgba(6,182,212,0.25)] backdrop-blur-md pointer-events-none animate-fade-in">
+                  <Clock className="w-3.5 h-3.5 text-cyan-400 animate-spin" />
+                  <span>SHUTTER COOLDOWN (3.5s)</span>
                 </div>
               )}
 
@@ -5183,6 +5229,9 @@ function SpadasLensCameraCore({
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
+                      if (analyzingRealFrame || analyzingRef.current || isCoolingDown) {
+                        return;
+                      }
                       if (!isPro && !isOwner && isLimitReached) {
                         setIsScanPaused(true);
                         setIsPaywallOpen(true);
@@ -5194,17 +5243,28 @@ function SpadasLensCameraCore({
                       flushScanState();
                       void processCurrentFrame(true);
                     }}
-                    className="group relative flex items-center justify-center h-18 w-18 sm:h-20 sm:w-20 rounded-full p-1.5 cursor-pointer active:scale-[0.92] transition-transform duration-100 ease-out"
-                    title="Instant Multi-Frame Snap & Value (Tap to scan)"
+                    className={`group relative flex items-center justify-center h-18 w-18 sm:h-20 sm:w-20 rounded-full p-1.5 transition-transform duration-100 ease-out ${
+                      isCoolingDown ? "cursor-not-allowed opacity-80" : "cursor-pointer active:scale-[0.92]"
+                    }`}
+                    title={isCoolingDown ? "Shutter cooling down..." : "Instant Multi-Frame Snap & Value (Tap to scan)"}
                   >
                     {/* Outer Concentric Machined Ring */}
-                    <div className="absolute inset-0 rounded-full border-2 border-white/40 group-hover:border-white transition-colors" />
+                    <div className={`absolute inset-0 rounded-full border-2 transition-colors ${
+                      isCoolingDown ? "border-cyan-500/50 animate-pulse" : "border-white/40 group-hover:border-white"
+                    }`} />
 
                     {/* Inner Solid Brushed Trigger Core */}
                     <div className="flex h-full w-full items-center justify-center rounded-full bg-[#181C26] p-1 border border-white/10 shadow-inner">
                       <div className="flex h-full w-full items-center justify-center rounded-full bg-[#0F1117] group-hover:bg-[#141822] transition">
                         {analyzingRealFrame ? (
                           <RefreshCw className="h-6 w-6 sm:h-7 sm:w-7 text-white animate-spin" />
+                        ) : isCoolingDown ? (
+                          <div className="flex flex-col items-center justify-center text-center select-none">
+                            <Clock className="h-5 w-5 sm:h-6 sm:w-6 text-cyan-400 animate-spin" />
+                            <span className="text-[7px] sm:text-[8px] font-mono font-bold uppercase tracking-wider text-cyan-300">
+                              COOL
+                            </span>
+                          </div>
                         ) : (
                           <div className="flex flex-col items-center justify-center text-center select-none">
                             <Camera className="h-6 w-6 sm:h-7 sm:w-7 group-hover:scale-105 transition-transform text-white" />
@@ -5311,8 +5371,7 @@ function SpadasLensCameraCore({
           autoActive: autoScanActive,
           setAutoActive: setAutoScanActive,
           onScanNow: () => {
-            analyzingRef.current = false;
-            setAnalyzingRealFrame(false);
+            if (analyzingRef.current || analyzingRealFrame || isCoolingDown) return;
             void processCurrentFrame(true);
           },
           onStop: stopCamera,
