@@ -89,6 +89,17 @@ export function SpadasHaulSection({
   const handleCloseEbayModal = useCallback(() => setEbayItem(null), []);
   const handleCloseVerifyModal = useCallback(() => setVerifyItem(null), []);
 
+  const handleRecalculateComps = useCallback((newMin: number, newMax: number, newAvg: number, activeCount: number) => {
+    if (!activeCompsItem) return;
+    updateItem(activeCompsItem.id, {
+      minPrice: newMin,
+      maxPrice: newMax,
+      estimatedValue: newAvg,
+      compsCount: activeCount,
+      trueNetProfit: newAvg - (activeCompsItem.thriftCost || 0)
+    });
+  }, [activeCompsItem, updateItem]);
+
   const refetchHaulItemComps = useCallback(
     async (itemId: string, searchTitle?: string) => {
       const item = items.find((i) => i.id === itemId);
@@ -1070,15 +1081,7 @@ export function SpadasHaulSection({
           scanId={activeCompsItem.id}
           initialComps={Array.isArray(activeCompsItem.rawComps) ? activeCompsItem.rawComps : []}
           currencySymbol="$"
-          onRecalculate={(newMin, newMax, newAvg, activeCount) => {
-            updateItem(activeCompsItem.id, {
-              minPrice: newMin,
-              maxPrice: newMax,
-              estimatedValue: newAvg,
-              compsCount: activeCount,
-              trueNetProfit: newAvg - (activeCompsItem.thriftCost || 0)
-            });
-          }}
+          onRecalculate={handleRecalculateComps}
         />
       )}
     </div>

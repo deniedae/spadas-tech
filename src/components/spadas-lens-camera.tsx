@@ -35,7 +35,7 @@ import { detectGeoCurrency, CURRENCY_CONFIGS, SupportedCurrency } from "@/app/li
 import { isOwnerEmail } from "@/app/lib/auth-admin";
 import { resilientFetch } from "@/app/lib/resilient-fetch";
 import { playScanBeep, triggerScanHaptic, createNativeBarcodeScanner, isNativeBarcodeDetectorSupported } from "@/lib/barcode-detector";
-import { syncProfitToAndroidWidget, triggerTactileHaptic } from "@/lib/android-bridge";
+import { syncProfitToAndroidWidget, triggerTactileHaptic, openExternalUrlSafely } from "@/lib/android-bridge";
 import { sourcingBus } from "@/lib/sourcing-event-bus";
 import { setCachedValuation, getCachedValuation, findBestCachedValuation } from "@/lib/offline-lru-cache";
 import { executeParallelAppraisal } from "@/lib/concurrent-appraiser";
@@ -4746,15 +4746,14 @@ function SpadasLensCameraCore({
                                     <Sparkles className="w-3 h-3 text-emerald-400" />
                                     <span>Recent Sold Comps ({itemComps.length})</span>
                                   </span>
-                                  <a
-                                    href={ebayUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-[10px] font-mono text-zinc-400 hover:text-zinc-200 flex items-center gap-1 hover:underline cursor-pointer"
+                                  <button
+                                    type="button"
+                                    onClick={(e) => openExternalUrlSafely(ebayUrl, activeValuationHit?.name, e)}
+                                    className="text-[10px] font-mono text-zinc-400 hover:text-zinc-200 flex items-center gap-1 hover:underline cursor-pointer bg-transparent border-0"
                                   >
                                     <span>Search eBay</span>
                                     <ExternalLink className="w-2.5 h-2.5" />
-                                  </a>
+                                  </button>
                                 </div>
 
                                 <div className="max-h-32 sm:max-h-36 overflow-y-auto space-y-1.5 custom-scrollbar pr-0.5">
@@ -4786,17 +4785,14 @@ function SpadasLensCameraCore({
                                           {comp.title}
                                         </div>
                                       </div>
-                                      {comp.url && (
-                                        <a
-                                          href={comp.url}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="shrink-0 p-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.10] text-zinc-400 hover:text-white transition"
-                                          title="View sold listing on eBay AU"
-                                        >
-                                          <ExternalLink className="w-3 h-3" />
-                                        </a>
-                                      )}
+                                      <button
+                                        type="button"
+                                        onClick={(e) => openExternalUrlSafely(comp.url, comp.title, e)}
+                                        className="shrink-0 p-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.10] text-zinc-400 hover:text-white transition cursor-pointer"
+                                        title="View sold listing on eBay AU"
+                                      >
+                                        <ExternalLink className="w-3 h-3" />
+                                      </button>
                                     </div>
                                   ))}
                                 </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import {
   Package,
   AlertTriangle,
@@ -123,6 +123,12 @@ export function ScanItemCard({
   const [maxPrice, setMaxPrice] = useState<number>(res?.suggested_price_max || 0);
   const [activeCompsCount, setActiveCompsCount] = useState<number>(Array.isArray(res?.comps) ? res.comps.length : 0);
   const [isCompsModalOpen, setIsCompsModalOpen] = useState(false);
+
+  const handleRecalculate = useCallback((newMin: number, newMax: number, _newAvg: number, activeCount: number) => {
+    setMinPrice(newMin);
+    setMaxPrice(newMax);
+    setActiveCompsCount(activeCount);
+  }, []);
 
   const isFailed = scan.status === "failed";
   const formattedDate = new Date(scan.created_at).toLocaleString("en-AU", {
@@ -360,11 +366,7 @@ export function ScanItemCard({
         scanId={scan.id}
         initialComps={Array.isArray(res?.comps) ? res.comps : []}
         currencySymbol="$"
-        onRecalculate={(newMin, newMax, newAvg, activeCount) => {
-          setMinPrice(newMin);
-          setMaxPrice(newMax);
-          setActiveCompsCount(activeCount);
-        }}
+        onRecalculate={handleRecalculate}
       />
     </>
   );

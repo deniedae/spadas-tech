@@ -29,7 +29,7 @@ import {
   isBulkOrLotTitle,
   isMeaningfulMeta,
 } from "@/lib/lens-utils";
-import { triggerTactileHaptic, syncProfitToAndroidWidget } from "@/lib/android-bridge";
+import { triggerTactileHaptic, syncProfitToAndroidWidget, openExternalUrlSafely } from "@/lib/android-bridge";
 import {
   estimateCategoryShippingCost,
   detectThriftTrap,
@@ -1053,15 +1053,14 @@ export default function LensCompsModal({
                           {/* Link Out */}
                           <div className="pt-2 border-t border-zinc-800/80 mt-2 flex items-center justify-between text-[11px]">
                             <span className="text-zinc-500">eBay AU Sold</span>
-                            <a
-                              href={comp.url || ebayActiveSearchUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
+                            <button
+                              type="button"
+                              onClick={(e) => openExternalUrlSafely(comp.url || ebayActiveSearchUrl, comp.title || title, e)}
                               className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 transition cursor-pointer"
                               title="View listing on eBay AU"
                             >
                               <ExternalLink className="w-3.5 h-3.5" />
-                            </a>
+                            </button>
                           </div>
                         </div>
                       );
@@ -1127,15 +1126,14 @@ export default function LensCompsModal({
                             <span className="text-xs text-zinc-400 tabular-nums">
                               {comp.soldDate && comp.soldDate !== "Active Ask" ? comp.soldDate : "2d ago"}
                             </span>
-                            <a
-                              href={comp.url || ebayActiveSearchUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
+                            <button
+                              type="button"
+                              onClick={(e) => openExternalUrlSafely(comp.url || ebayActiveSearchUrl, comp.title || title, e)}
                               className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition cursor-pointer"
                               title="View listing on eBay AU"
                             >
                               <ExternalLink className="w-3.5 h-3.5" />
-                            </a>
+                            </button>
                           </div>
                         </div>
                       );
@@ -1161,15 +1159,14 @@ export default function LensCompsModal({
                 <div className="text-xs text-zinc-400">
                   Estimated via category replacement and physical condition.
                 </div>
-                <a
-                  href={ebayActiveSearchUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-xs text-cyan-400 hover:underline pt-1"
+                <button
+                  type="button"
+                  onClick={(e) => openExternalUrlSafely(ebayActiveSearchUrl, title, e)}
+                  className="inline-flex items-center gap-1 text-xs text-cyan-400 hover:underline pt-1 cursor-pointer bg-transparent border-0"
                 >
                   <span>Search live eBay listings</span>
                   <ExternalLink className="w-3 h-3" />
-                </a>
+                </button>
               </div>
             )}
           </div>
@@ -1370,7 +1367,7 @@ export default function LensCompsModal({
                 if (onListEbay && item) {
                   onListEbay(item);
                 } else {
-                  window.open(ebayActiveSearchUrl, "_blank");
+                  openExternalUrlSafely(ebayActiveSearchUrl, title);
                 }
               }}
               className="h-12 flex items-center justify-center rounded-xl border border-zinc-600 text-white font-medium text-sm hover:bg-zinc-800 active:scale-[0.98] transition cursor-pointer"

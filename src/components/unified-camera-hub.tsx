@@ -39,10 +39,11 @@ export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraH
     window.history.pushState({ modal: "camera" }, "");
 
     const onPopState = (e: PopStateEvent) => {
-      // Only intercept when the sentinel state is being popped
-      if (!e.state || e.state.modal === "camera" || e.state?.modal === undefined) {
-        handleExitCamera();
+      // Only intercept when the sentinel state has actually been popped
+      if (window.history.state?.modal === "camera" || e.state?.modal === "camera") {
+        return;
       }
+      handleExitCamera();
     };
 
     window.addEventListener("popstate", onPopState);

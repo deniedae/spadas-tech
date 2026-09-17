@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { X, ExternalLink, Image as ImageIcon, Calculator } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { openExternalUrlSafely } from "@/lib/android-bridge";
 
 export interface RawComp {
   title?: string;
@@ -24,6 +25,47 @@ interface RawCompsModalProps {
   onRecalculate: (newMin: number, newMax: number, newAvg: number, activeCompsCount: number) => void;
 }
 
+class RawCompsErrorBoundary extends React.Component<
+  { children: React.ReactNode; onClose: () => void },
+  { hasError: boolean }
+> {
+  constructor(props: { children: React.ReactNode; onClose: () => void }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: any, info: any) {
+    console.error("[RawCompsModal] Fatal render error in comps modal:", error, info);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl p-6 text-center space-y-4 shadow-2xl">
+            <h3 className="text-base font-bold text-white">Comps View Unavailable</h3>
+            <p className="text-xs text-zinc-400">
+              There was an issue displaying this item's comps data.
+            </p>
+            <button
+              type="button"
+              onClick={this.props.onClose}
+              className="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-semibold"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export default function RawCompsModal({
   isOpen,
   onClose,
@@ -33,6 +75,12 @@ export default function RawCompsModal({
   onRecalculate,
 }: RawCompsModalProps) {
   const [excludedCompIds, setExcludedCompIds] = useState<Set<number>>(new Set());
+  const onRecalculateRef = useRef(onRecalculate);
+  useEffect(() => {
+    onRecalculateRef.current = onRecalculate;
+  }, [onRecalculate]);
+
+  const hasInitializedRef = useRef(false);
 
   // Load excluded comps from localStorage on mount
   useEffect(() => {
@@ -50,6 +98,8 @@ export default function RawCompsModal({
       } else {
         setExcludedCompIds(new Set());
       }
+    } else {
+      hasInitializedRef.current = false;
     }
   }, [isOpen, scanId]);
 
@@ -67,15 +117,21 @@ export default function RawCompsModal({
   // Recalculate metrics when exclusions change
   useEffect(() => {
     if (!isOpen || initialComps.length === 0) return;
+
+    // Don't trigger calculation on initial mount if there are no stored exclusions
+    if (!hasInitializedRef.current) {
+      hasInitializedRef.current = true;
+      if (excludedCompIds.size === 0) return;
+    }
     
     if (activeComps.length === 0) {
-      onRecalculate(0, 0, 0, 0);
+      onRecalculateRef.current(0, 0, 0, 0);
       return;
     }
 
     const prices = activeComps.map((c) => Number(c.price) || 0).filter((p) => p > 0);
     if (prices.length === 0) {
-      onRecalculate(0, 0, 0, 0);
+      onRecalculateRef.current(0, 0, 0, 0);
       return;
     }
 
@@ -96,8 +152,8 @@ export default function RawCompsModal({
 
     const avg = prices.reduce((a, b) => a + b, 0) / prices.length;
     
-    onRecalculate(min, max, avg, activeComps.length);
-  }, [activeComps, isOpen, onRecalculate, initialComps.length]);
+    onRecalculateRef.current(min, max, avg, activeComps.length);
+  }, [activeComps, isOpen, initialComps.length, excludedCompIds]);
 
   const toggleComp = (index: number) => {
     setExcludedCompIds((prev) => {
@@ -114,7 +170,8 @@ export default function RawCompsModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-200">
+    <RawCompsErrorBoundary onClose={onClose}>
+      <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-200">
       <div 
         className="w-full sm:max-w-2xl bg-[#0a0a0c] sm:rounded-2xl border-t sm:border border-white/10 shadow-2xl flex flex-col h-[85vh] sm:h-[80vh] animate-in slide-in-from-bottom-8 sm:zoom-in-95 duration-300"
         onClick={(e) => e.stopPropagation()}
@@ -187,16 +244,16 @@ export default function RawCompsModal({
                     <div className={`font-mono font-bold ${isExcluded ? "text-zinc-600" : "text-emerald-400"}`}>
                       {currencySymbol}{price.toFixed(2)}
                     </div>
-                    {comp.url && !isExcluded && (
-                      <a 
-                        href={comp.url} 
-                        target="_blank" 
-                        rel="noreferrer"
-                        className="text-[10px] font-mono text-zinc-400 hover:text-white flex items-center gap-1 font-semibold"
-                        onClick={(e) => e.stopPropagation()}
+                    {!isExcluded && (
+                      <button 
+                        type="button"
+                        onClick={(e) => openExternalUrlSafely(comp.url, comp.title, e)}
+                        className="text-[10px] font-mono text-zinc-400 hover:text-white flex items-center gap-1 font-semibold cursor-pointer py-1 px-1.5 rounded hover:bg-white/10 transition active:scale-95"
+                        title="View original comp listing on eBay AU"
                       >
-                        VIEW ORIG <ExternalLink className="h-3 w-3" />
-                      </a>
+                        <span>VIEW ORIG</span>
+                        <ExternalLink className="h-3 w-3 text-zinc-400" />
+                      </button>
                     )}
                     {isExcluded && (
                       <span className="text-[10px] text-rose-500 font-bold font-mono">
@@ -231,5 +288,6 @@ export default function RawCompsModal({
         </div>
       </div>
     </div>
-  );
+  </RawCompsErrorBoundary>
+);
 }

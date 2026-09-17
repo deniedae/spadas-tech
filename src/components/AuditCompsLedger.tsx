@@ -27,7 +27,7 @@ import { fmtMoney } from "@/app/lib/listings";
 import type { RawSoldComp } from "@/types/lens";
 import type { RawSoldCompRecord } from "@/types/ai-listing";
 import { CompsLedgerSkeleton } from "@/components/ui/comps-skeleton-loader";
-import { triggerTactileHaptic } from "@/lib/android-bridge";
+import { triggerTactileHaptic, openExternalUrlSafely } from "@/lib/android-bridge";
 import { isMeaningfulMeta, sanitizeMetaText, cleanBrandText, cleanConditionText, isBulkOrLotTitle } from "@/lib/lens-utils";
 import { calculateIntrinsicBestPrice, type IntrinsicPriceAppraisal } from "@/lib/intrinsic-pricing-engine";
 import { APPLIANCE_FILTER_PATTERNS } from "@/app/lib/ebay-australia-comps";
@@ -868,19 +868,15 @@ export default function AuditCompsLedger({
                             )}
                           </div>
 
-                          {comp.url && (
-                            <a
-                              href={comp.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.10] text-[10px] font-mono font-medium text-zinc-200 hover:text-white transition active:scale-95"
-                              title="Open verified cleared comp listing on eBay in new tab"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <span>View Comp</span>
-                              <ExternalLink className="h-3 w-3 text-zinc-400" />
-                            </a>
-                          )}
+                          <button
+                            type="button"
+                            onClick={(e) => openExternalUrlSafely(comp.url, comp.title, e)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.10] text-[10px] font-mono font-medium text-zinc-200 hover:text-white transition active:scale-95 cursor-pointer"
+                            title="Open verified cleared comp listing on eBay in new tab"
+                          >
+                            <span>View Comp</span>
+                            <ExternalLink className="h-3 w-3 text-zinc-400" />
+                          </button>
                         </div>
                       </div>
                     );
