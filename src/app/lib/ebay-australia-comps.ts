@@ -90,7 +90,7 @@ function trimIqrOutliers(prices: number[]): number[] {
   return computeIqrStats(prices).valid;
 }
 
-function calcMedian(sorted: number[]): number {
+export function calcMedian(sorted: number[]): number {
   const mid = Math.floor(sorted.length / 2);
   return sorted.length % 2 === 0
     ? (sorted[mid - 1] + sorted[mid]) / 2
@@ -113,6 +113,9 @@ export interface EbaySoldCompItem {
   isUsComp?: boolean;
   originalCurrency?: string;
   originalPrice?: number;
+  isNormalized?: boolean;
+  packMultiplier?: number;
+  originalMultiPrice?: number;
 }
 
 export interface EbayCompsResult {
@@ -282,6 +285,142 @@ export const APPLIANCE_FILTER_PATTERNS = [
 ];
 
 /**
+ * Detects pack size / quantity multiplier in a listing title (e.g. "6x", "6 pack", "pack of 6", "6 pcs").
+ * Returns the numeric quantity (>= 2) if detected, or null.
+ */
+export function extractPackMultiplier(title: string): number | null {
+  if (!title) return null;
+  const lower = title.toLowerCase();
+
+  // 1. Explicit volume/weight pack: e.g. "6x 250ml", "6 x 250ml", "3x 50g", "4x 100g", "6x 500 ml"
+  const volPackMatch = lower.match(/\b(\d{1,3})\s*[xX]\s*\d+(?:\.\d+)?\s*(?:ml|g|kg|oz|fl\.?\s*oz|litre|liter)\b/i);
+  if (volPackMatch) {
+    const qty = parseInt(volPackMatch[1], 10);
+    if (qty >= 2 && qty <= 200) return qty;
+  }
+
+  // Guard against physical dimensions like 4x6, 8x10, 5x7 inches/cm/mm or display resolution 1920x1080
+  if (/\b\d+\s*x\s*\d+\s*(?:in|inch|inches|cm|mm|ft)?\b/i.test(lower)) {
+    return null;
+  }
+
+  // 2. Pack of N / Set of N / Lot of N / Box of N / Case of N / Carton of N
+  const phraseMatch = lower.match(/\b(?:pack|set|lot|box|case|carton)\s+of\s+(\d{1,3})\b/i);
+  if (phraseMatch) {
+    const qty = parseInt(phraseMatch[1], 10);
+    if (qty >= 2 && qty <= 200) return qty;
+  }
+
+  // 3. N-pack / N pack / Npk / N pk / N packs
+  const packMatch = lower.match(/\b(\d{1,3})\s*[- ]*(?:pack|pk|pck|packs)\b/i);
+  if (packMatch) {
+    const qty = parseInt(packMatch[1], 10);
+    if (qty >= 2 && qty <= 200) return qty;
+  }
+
+  // 4. N pcs / N pieces / N units / N bottles / N cans / N tins / N bars / N pairs / N count / N ct
+  const unitMatch = lower.match(/\b(\d{1,3})\s*[- ]*(?:pcs|pieces|units|bottles|cans|tins|bars|pairs|count|ct)\b/i);
+  if (unitMatch) {
+    const qty = parseInt(unitMatch[1], 10);
+    if (qty >= 2 && qty <= 200) return qty;
+  }
+
+  // 5. Prefix Nx (e.g. "6x Rexona", "6 x Rexona", "3x Nike", "6X DEODORANT") - exclude clothing size 2XL, 3XL
+  const prefixXMatch = lower.match(/\b(\d{1,3})\s*[xX]\b(?!\s*(?:l\b|in\b|inch|cm|mm))/i);
+  if (prefixXMatch) {
+    const qty = parseInt(prefixXMatch[1], 10);
+    if (qty >= 2 && qty <= 200) return qty;
+  }
+
+  // 6. Suffix xN (e.g. "Rexona Aerosol x 6", "Deodorant x3", "Rexona x 6")
+  const suffixXMatch = lower.match(/\b[xX]\s*(\d{1,3})\b/i);
+  if (suffixXMatch) {
+    const qty = parseInt(suffixXMatch[1], 10);
+    if (qty >= 2 && qty <= 200) return qty;
+  }
+
+  return null;
+}
+
+/**
+ * Checks if a title represents a multi-pack, wholesale bundle, or bulk lot.
+ */
+export function isMultiPackOrLot(title: string): boolean {
+  if (!title) return false;
+  if (extractPackMultiplier(title) !== null) return true;
+  return /\b(lot|bundle|bulk|multipack|multi-pack|collection of|job lot|wholesale|case lot)\b/i.test(title);
+}
+
+/**
+ * Tight Cluster & Price-Band Sanity Guard:
+ * Prevents lone unnormalized multi-packs, wholesale lots, or collector outliers
+ * from blowing up the upper price range and distorting the median when appraising single items.
+ * 
+ * Example: Range $3.75 - $51.20 with a tight cluster at $3.75 - $8.00:
+ * Weights valuation toward the tight cluster at the lower end ($3.75-$8.00) and discards
+ * the $51.20 outlier unless multiple single sales (>= 3) confirm the higher value.
+ */
+export function applyTightClusterSanityGuard(
+  comps: EbaySoldCompItem[],
+  isTargetMultiPack = false
+): {
+  filteredComps: EbaySoldCompItem[];
+  appliedGuard: boolean;
+  tightClusterMin?: number;
+  tightClusterMax?: number;
+} {
+  if (comps.length < 3) {
+    return { filteredComps: comps, appliedGuard: false };
+  }
+
+  const sorted = [...comps].sort((a, b) => a.price - b.price);
+  const lowestPrice = sorted[0].price;
+  const highestPrice = sorted[sorted.length - 1].price;
+  const currentMedian = calcMedian(sorted.map((c) => c.price));
+
+  // If prices are close or single items are not excessively dispersed, guard is not needed
+  if (lowestPrice <= 0 || (highestPrice <= lowestPrice * 3.5 && currentMedian <= lowestPrice * 3.0)) {
+    return { filteredComps: sorted, appliedGuard: false };
+  }
+
+  // Check if highest price or median is > 3.5x lowest price
+  const lowClusterThreshold = Math.max(lowestPrice * 3.5, lowestPrice + 12);
+  const lowCluster = sorted.filter((c) => c.price <= lowClusterThreshold);
+  const highOutliers = sorted.filter((c) => c.price > lowClusterThreshold);
+
+  // If the lower cluster represents the majority (>= 50% of all comps, and at least 2 comps)
+  // and the high comps are a minority (< 3 items):
+  if (lowCluster.length >= 2 && lowCluster.length >= sorted.length * 0.5) {
+    if (highOutliers.length < 3) {
+      console.log(
+        `[Tight Cluster Guard] Filtered ${highOutliers.length} high outlier comp(s) [${highOutliers.map((c) => `$${c.price}`).join(", ")}] exceeding $${lowClusterThreshold.toFixed(2)} to preserve tight cluster at $${lowestPrice.toFixed(2)}–$${lowCluster[lowCluster.length - 1].price.toFixed(2)}`
+      );
+      return {
+        filteredComps: lowCluster,
+        appliedGuard: true,
+        tightClusterMin: lowCluster[0].price,
+        tightClusterMax: lowCluster[lowCluster.length - 1].price,
+      };
+    }
+  }
+
+  // High Outlier Ratio Guard: If median > 3.5x lowest price and single item
+  if (currentMedian > lowestPrice * 3.5 && !isTargetMultiPack) {
+    const compactCluster = sorted.filter((c) => c.price <= lowClusterThreshold);
+    if (compactCluster.length >= 2 && compactCluster.length > sorted.length - compactCluster.length) {
+      return {
+        filteredComps: compactCluster,
+        appliedGuard: true,
+        tightClusterMin: compactCluster[0].price,
+        tightClusterMax: compactCluster[compactCluster.length - 1].price,
+      };
+    }
+  }
+
+  return { filteredComps: sorted, appliedGuard: false };
+}
+
+/**
  * Fetches real eBay price data for a product name with multi-tier query relaxation and global marketplace fallback.
  */
 export async function fetchEbayAustraliaSoldComps(
@@ -306,7 +445,7 @@ export async function fetchEbayAustraliaSoldComps(
   const isLuxury = /\b(prada|gucci|louis vuitton|chanel|dior|bottega|saint laurent|ysl|hermes|celine|balenciaga|burberry)\b/i.test(productName);
 
   // Helper to validate single-unit parity and filter junk/outliers
-  const isValidUnitComp = (title: string, price: number): boolean => {
+  const isValidUnitComp = (title: string, price: number, isNormalizedUnit = false): boolean => {
     if (isNaN(price) || price <= 0) return false;
     const lower = title.toLowerCase();
 
@@ -357,8 +496,8 @@ export async function fetchEbayAustraliaSoldComps(
     // Luxury threshold
     if (isLuxury && price < 20) return false;
 
-    // Single-Item Parity: reject multi-packs, wholesale clearance, and multi-variation lots if query is a single item
-    if (!isQueryMultiPack) {
+    // Single-Item Parity: reject multi-packs, wholesale clearance, and multi-variation lots if query is a single item and not normalized
+    if (!isQueryMultiPack && !isNormalizedUnit) {
       if (INVALID_LOT_PATTERNS.some((pattern) => pattern.test(lower))) {
         return false;
       }
@@ -406,12 +545,32 @@ export async function fetchEbayAustraliaSoldComps(
         if (seenSignatures.has(itemId)) continue;
         seenSignatures.add(itemId);
 
-        if (isValidUnitComp(title, rawPrice) && rawPrice >= (isLuxury ? 35 : 1) && rawPrice <= 10000) {
+        // --- Multi-Pack & Pack-Size Normalizer ---
+        let finalPrice = Math.round(rawPrice * 100) / 100;
+        let isNormalized = false;
+        let packMultiplier: number | undefined = undefined;
+        let originalMultiPrice: number | undefined = undefined;
+
+        if (!isQueryMultiPack) {
+          const multiplier = extractPackMultiplier(title);
+          if (multiplier && multiplier >= 2) {
+            // Normalize unit price: e.g. $51.20 / 6 = $8.53
+            finalPrice = Math.round((rawPrice / multiplier) * 100) / 100;
+            isNormalized = true;
+            packMultiplier = multiplier;
+            originalMultiPrice = rawPrice;
+          } else if (isMultiPackOrLot(title)) {
+            // Unquantified bulk lot / bundle: discard entirely from single-item medians
+            continue;
+          }
+        }
+
+        if (isValidUnitComp(title, finalPrice, isNormalized) && finalPrice >= (isLuxury ? 35 : 1) && finalPrice <= 10000) {
           const isAU = ebaySite.includes("australia") || ebaySite.includes(".au");
           const compItem: EbaySoldCompItem = {
             id: itemId,
             title,
-            price: Math.round(rawPrice * 100) / 100,
+            price: finalPrice,
             condition: String(item.condition || "Pre-Owned"),
             soldDate: item.endedAt ? new Date(item.endedAt).toLocaleDateString(isAU ? "en-AU" : "en-US", { month: "short", day: "numeric" }) : (item.dateEnded ? new Date(item.dateEnded).toLocaleDateString(isAU ? "en-AU" : "en-US", { month: "short", day: "numeric" }) : "Recent"),
             rawDate: item.endedAt ? new Date(item.endedAt).getTime() : (item.dateEnded ? new Date(item.dateEnded).getTime() : 0),
@@ -419,6 +578,9 @@ export async function fetchEbayAustraliaSoldComps(
             shippingPrice: Number(item.shippingPrice) || Number(item.shippingCost) || 0,
             url: item.url || item.viewItemUrl || (item.itemId ? (isAU ? `https://www.ebay.com.au/itm/${item.itemId}` : `https://www.ebay.com/itm/${item.itemId}`) : undefined),
             thumbnail: item.thumbnailUrl || item.galleryURL || item.image,
+            isNormalized,
+            packMultiplier,
+            originalMultiPrice,
           };
           validCompItems.push(compItem);
         }
@@ -461,10 +623,14 @@ export async function fetchEbayAustraliaSoldComps(
     }
 
     if (domesticComps.length >= 3) {
-      domesticComps.sort((a, b) => a.price - b.price);
-      const prices = domesticComps.map((c) => c.price);
+      // Apply Tight Cluster & Price-Band Sanity Guard
+      const sanity = applyTightClusterSanityGuard(domesticComps, isQueryMultiPack);
+      const activeComps = sanity.appliedGuard ? sanity.filteredComps : domesticComps;
+
+      activeComps.sort((a, b) => a.price - b.price);
+      const prices = activeComps.map((c) => c.price);
       const { valid, lowerBound, upperBound } = computeIqrStats(prices);
-      const filteredComps = domesticComps.filter((c) => c.price >= lowerBound && c.price <= upperBound);
+      const filteredComps = activeComps.filter((c) => c.price >= lowerBound && c.price <= upperBound);
       const medianBaseline = calcMedian(valid);
       const domesticResult: EbayCompsResult = {
         min: Math.round(valid[0] * 100) / 100,
@@ -475,7 +641,7 @@ export async function fetchEbayAustraliaSoldComps(
         source: "sold_comps_api",
         isUsMarketOnly: false,
         marketOrigin: isRegionAU ? "AU" : (targetCurrency as "AU" | "US"),
-        rawComps: (filteredComps.length > 0 ? filteredComps : domesticComps)
+        rawComps: (filteredComps.length > 0 ? filteredComps : activeComps)
           .sort((a, b) => (b.rawDate || 0) - (a.rawDate || 0))
           .slice(0, 5),
         iqrBounds: { lower: lowerBound, upper: upperBound },
@@ -502,12 +668,16 @@ export async function fetchEbayAustraliaSoldComps(
       }
 
       if (usComps.length >= 3) {
-        usComps.sort((a, b) => a.price - b.price);
-        const usPrices = usComps.map((c) => c.price);
+        // Apply Tight Cluster & Price-Band Sanity Guard on US comps
+        const sanityUs = applyTightClusterSanityGuard(usComps, isQueryMultiPack);
+        const activeUsComps = sanityUs.appliedGuard ? sanityUs.filteredComps : usComps;
+
+        activeUsComps.sort((a, b) => a.price - b.price);
+        const usPrices = activeUsComps.map((c) => c.price);
         const usMedian = calcMedian(usPrices);
 
         // Convert USD comps to AUD with cross-border attributes
-        const convertedComps: EbaySoldCompItem[] = usComps.map((c) => {
+        const convertedComps: EbaySoldCompItem[] = activeUsComps.map((c) => {
           const convertedAud = Math.round(convertCurrency(c.price, "USD", "AUD") * 100) / 100;
           return {
             ...c,
@@ -550,8 +720,11 @@ export async function fetchEbayAustraliaSoldComps(
 
     // If domestic comps had 1-2 items and US also had none, return the domestic ones rather than nothing
     if (domesticComps.length > 0) {
-      domesticComps.sort((a, b) => a.price - b.price);
-      const prices = domesticComps.map((c) => c.price);
+      const sanity = applyTightClusterSanityGuard(domesticComps, isQueryMultiPack);
+      const activeComps = sanity.appliedGuard ? sanity.filteredComps : domesticComps;
+
+      activeComps.sort((a, b) => a.price - b.price);
+      const prices = activeComps.map((c) => c.price);
       const partialResult: EbayCompsResult = {
         min: prices[0],
         max: prices[prices.length - 1],
@@ -561,7 +734,7 @@ export async function fetchEbayAustraliaSoldComps(
         source: "sold_comps_api",
         isUsMarketOnly: false,
         marketOrigin: isRegionAU ? "AU" : (targetCurrency as "AU" | "US"),
-        rawComps: domesticComps.slice(0, 5),
+        rawComps: activeComps.slice(0, 5),
       };
       _compsCache.set(cacheKey, { result: partialResult, expiresAt: Date.now() + COMPS_CACHE_TTL_MS });
       return partialResult;

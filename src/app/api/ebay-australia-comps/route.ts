@@ -2,7 +2,12 @@ import { NextResponse } from "next/server";
 import {
   fetchEbayAustraliaSoldComps,
   sanitizeTitleForBroadening,
+  extractPackMultiplier,
+  isMultiPackOrLot,
+  applyTightClusterSanityGuard,
+  calcMedian,
   EbayCompsResult,
+  EbaySoldCompItem,
 } from "@/app/lib/ebay-australia-comps";
 import { SupportedCurrency } from "@/app/lib/currency-routing";
 
@@ -124,6 +129,51 @@ async function handleCompsSearch(
       ],
     };
     attemptTier = "synthetic";
+  }
+
+  // ── RETAIL CAP & PRICE-BAND SANITY GUARD (Multi-Pack & Pack-Size Normalizer) ──
+  const isQueryMultiPack = /\b(pack|lot|bundle|set|box|bulk|\d+x|\d+\s*pk)\b/i.test(trimmed);
+
+  if (compsResult && compsResult.rawComps && compsResult.rawComps.length > 0) {
+    let processedComps: EbaySoldCompItem[] = [];
+
+    for (const comp of compsResult.rawComps) {
+      if (!isQueryMultiPack && !comp.isNormalized) {
+        const multiplier = extractPackMultiplier(comp.title);
+        if (multiplier && multiplier >= 2) {
+          // Normalize unit price: e.g. $51.20 / 6 = $8.53
+          processedComps.push({
+            ...comp,
+            price: Math.round((comp.price / multiplier) * 100) / 100,
+            isNormalized: true,
+            packMultiplier: multiplier,
+            originalMultiPrice: comp.price,
+          });
+          continue;
+        } else if (isMultiPackOrLot(comp.title)) {
+          // Discard unquantified bulk lots/bundles from single-item medians
+          continue;
+        }
+      }
+      processedComps.push(comp);
+    }
+
+    if (processedComps.length >= 2) {
+      const sanityCheck = applyTightClusterSanityGuard(processedComps, isQueryMultiPack);
+      if (sanityCheck.appliedGuard) {
+        processedComps = sanityCheck.filteredComps;
+      }
+    }
+
+    if (processedComps.length > 0) {
+      processedComps.sort((a, b) => a.price - b.price);
+      const prices = processedComps.map((c) => c.price);
+      compsResult.min = prices[0];
+      compsResult.max = prices[prices.length - 1];
+      compsResult.median = Math.round(calcMedian(prices) * 100) / 100;
+      compsResult.count = processedComps.length;
+      compsResult.rawComps = processedComps;
+    }
   }
 
   return NextResponse.json({
