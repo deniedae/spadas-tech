@@ -41,8 +41,22 @@ const DEFAULT_SUPPORT_PROMPT_CHIPS = [
   { label: "⚡ Starter vs Pro features?", prompt: "What are the key differences between the Starter and Pro plans?" },
 ];
 
-export default function DashboardSupportDesk() {
-  const [isOpen, setIsOpen] = useState(false);
+export interface DashboardSupportDeskProps {
+  hideFloatingButton?: boolean;
+  autoOpenOnMount?: boolean;
+}
+
+export function openSpadasSupport(options?: { mode?: "chat" | "escalate"; prompt?: string }) {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("spadas:open-support", { detail: options }));
+  }
+}
+
+export default function DashboardSupportDesk({
+  hideFloatingButton = false,
+  autoOpenOnMount = false,
+}: DashboardSupportDeskProps = {}) {
+  const [isOpen, setIsOpen] = useState(autoOpenOnMount);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
@@ -57,6 +71,38 @@ export default function DashboardSupportDesk() {
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+
+  // Listen for programmatic open requests and URL hash/query
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const hash = window.location.hash;
+      if (params.get("support") === "open" || hash === "#support-open") {
+        setIsOpen(true);
+      } else if (params.get("support") === "escalate" || hash === "#support-escalate") {
+        setIsOpen(true);
+        setShowEscalationModal(true);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleOpenEvent = (e: Event) => {
+      const customEvent = e as CustomEvent<{ mode?: "chat" | "escalate"; prompt?: string }>;
+      setIsOpen(true);
+      if (customEvent.detail?.mode === "escalate") {
+        setShowEscalationModal(true);
+      }
+      if (customEvent.detail?.prompt) {
+        void handleSendMessage(customEvent.detail.prompt);
+      }
+    };
+
+    window.addEventListener("spadas:open-support", handleOpenEvent);
+    return () => {
+      window.removeEventListener("spadas:open-support", handleOpenEvent);
+    };
+  }, []);
 
   // Load from localStorage on mount
   useEffect(() => {
@@ -237,31 +283,33 @@ export default function DashboardSupportDesk() {
   return (
     <>
       {/* ── 1. Floating Support Bubble (Docked in Bottom Corner) ──────────────── */}
-      <div className="fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-40">
-        <button
-          type="button"
-          onClick={() => {
-            triggerTactileHaptic("light");
-            setIsOpen(true);
-          }}
-          className="group relative flex items-center gap-2.5 px-4 py-3 rounded-full bg-zinc-950 border border-cyan-500/40 text-white shadow-2xl hover:border-cyan-400 hover:shadow-cyan-500/20 active:scale-95 transition-all cursor-pointer select-none backdrop-blur-md"
-          title="Open Spadas Support & Copilot Desk"
-        >
-          <div className="relative flex items-center justify-center">
-            <MessageSquare className="w-4 h-4 text-cyan-400" />
-            <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-            <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-emerald-400" />
-          </div>
-          <span className="text-xs font-bold font-mono tracking-tight group-hover:text-cyan-300 transition">
-            Support & Copilot Desk
-          </span>
-          {ticket?.status === "awaiting_human" && (
-            <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-              Dev Active
+      {!hideFloatingButton && (
+        <div className="fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-40">
+          <button
+            type="button"
+            onClick={() => {
+              triggerTactileHaptic("light");
+              setIsOpen(true);
+            }}
+            className="group relative flex items-center gap-2.5 px-4 py-3 rounded-full bg-zinc-950 border border-cyan-500/40 text-white shadow-2xl hover:border-cyan-400 hover:shadow-cyan-500/20 active:scale-95 transition-all cursor-pointer select-none backdrop-blur-md"
+            title="Open Spadas Support & Copilot Desk"
+          >
+            <div className="relative flex items-center justify-center">
+              <MessageSquare className="w-4 h-4 text-cyan-400" />
+              <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+              <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-emerald-400" />
+            </div>
+            <span className="text-xs font-bold font-mono tracking-tight group-hover:text-cyan-300 transition">
+              Support & Copilot Desk
             </span>
-          )}
-        </button>
-      </div>
+            {ticket?.status === "awaiting_human" && (
+              <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                Dev Active
+              </span>
+            )}
+          </button>
+        </div>
+      )}
 
       {/* ── 2. Full Drawer / Modal Support Desk Interface ────────────────────── */}
       {isOpen && (

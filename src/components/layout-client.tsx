@@ -17,6 +17,7 @@ import {
   Package,
   Calculator,
   Settings,
+  Headphones,
 } from "lucide-react";
 import FocusLock from "react-focus-lock";
 import MobileNav from "@/components/mobile-nav";
@@ -198,6 +199,7 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/listings", label: "Listings", icon: Package },
     { href: "/settings", label: "Settings", icon: Settings },
+    { href: "/settings#support", label: "Help & Support", icon: Headphones },
   ];
 
   // Determines if a link is active (including child routes)

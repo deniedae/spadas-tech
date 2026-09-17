@@ -9,9 +9,24 @@ import {
   Loader2,
   X,
   Crown,
+  Headphones,
+  MessageSquare,
+  UserCheck,
+  Sparkles,
+  ArrowRight,
+  ShieldCheck,
+  Clock,
+  HelpCircle,
 } from "lucide-react";
+import dynamic from "next/dynamic";
 import SubscriptionPaywallModal from "@/components/subscription-paywall-modal";
 import { CURRENCY_CONFIGS, SupportedCurrency, detectGeoCurrency } from "@/app/lib/currency-routing";
+import { openSpadasSupport } from "@/components/dashboard-support-desk";
+
+const DashboardSupportDesk = dynamic(() => import("@/components/dashboard-support-desk"), {
+  ssr: false,
+});
+
 
 interface UserMeta {
   email: string;
@@ -42,6 +57,39 @@ export default function SettingsPage() {
   const [showApkGuide, setShowApkGuide] = useState(false);
   const [minProfit, setMinProfit] = useState(20);
   const [minRoi, setMinRoi] = useState(0);
+  const [activeTicket, setActiveTicket] = useState<{
+    ticketId: string;
+    status: string;
+    createdAt: number;
+    issueDescription?: string;
+  } | null>(null);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("spadas_support_desk_v1");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed.ticket) {
+          setActiveTicket(parsed.ticket);
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      if (window.location.hash === "#support") {
+        setTimeout(() => {
+          const el = document.getElementById("support");
+          if (el) {
+            el.scrollIntoView({ behavior: "smooth" });
+          }
+        }, 150);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -515,6 +563,171 @@ export default function SettingsPage() {
         </div>
       </section>
 
+      <hr className="border-zinc-800" />
+
+      {/* Help & Support Desk Section */}
+      <section id="support" className="scroll-mt-24 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-semibold text-white">Help &amp; Support Desk</h2>
+              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-mono font-semibold text-emerald-400">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                24/7 AI ACTIVE
+              </span>
+            </div>
+            <p className="text-zinc-400 text-xs sm:text-sm mt-0.5">
+              Live AI resale specialist advisory, Australian eBay comp diagnosis, and direct developer escalation.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => openSpadasSupport({ mode: "chat" })}
+            className="self-start sm:self-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 hover:text-cyan-300 text-xs font-semibold transition cursor-pointer"
+          >
+            <Headphones className="w-3.5 h-3.5" />
+            <span>Open Support Window</span>
+          </button>
+        </div>
+
+        {/* 2-Column Responsive Card Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Card 1: 24/7 AI Resale Specialist */}
+          <div className="bg-zinc-900/90 border border-zinc-800 rounded-xl p-5 flex flex-col justify-between space-y-4 relative overflow-hidden group hover:border-zinc-700 transition">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/5 rounded-full blur-2xl pointer-events-none" />
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-9 w-9 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
+                    <Sparkles className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-white">AI Resale Copilot</h3>
+                    <p className="text-[11px] text-zinc-400 font-mono">Gemini 2.5 Flash • Real-Time Diagnostics</p>
+                  </div>
+                </div>
+                <span className="px-2 py-0.5 rounded bg-zinc-800 border border-zinc-700/60 text-[10px] font-mono text-zinc-300">
+                  Instant Response
+                </span>
+              </div>
+
+              <p className="text-xs text-zinc-400 leading-relaxed">
+                Trained on Australian eBay selling policies, multi-market cross-border arbitrage, sell-through velocity formulas, and Spadas Lens AR camera heuristics.
+              </p>
+
+              {/* Quick Prompt Suggestions */}
+              <div className="space-y-1.5 pt-1">
+                <div className="text-[10px] font-mono uppercase tracking-wider text-zinc-500">
+                  Quick Diagnostic Questions:
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { label: "🇦🇺 AU vs US Comps", prompt: "How does the geo-strict eBay Australia comps engine work?" },
+                    { label: "💰 Net Margin Formula", prompt: "What exact fees and deductions are in the Net Profit calculation?" },
+                    { label: "⚡ Fast Flip / STR", prompt: "How is the sell-through rate velocity computed?" },
+                    { label: "🛒 Publish to eBay", prompt: "How do I connect and publish items directly to eBay AU?" },
+                  ].map((chip) => (
+                    <button
+                      key={chip.label}
+                      type="button"
+                      onClick={() => openSpadasSupport({ mode: "chat", prompt: chip.prompt })}
+                      className="text-[11px] px-2.5 py-1 rounded-md bg-zinc-800/80 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-700/60 transition cursor-pointer text-left"
+                    >
+                      {chip.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => openSpadasSupport({ mode: "chat" })}
+              className="w-full mt-2 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-cyan-500 hover:bg-cyan-600 text-white text-xs font-semibold transition active:scale-[0.99] cursor-pointer shadow-sm"
+            >
+              <MessageSquare className="w-3.5 h-3.5" />
+              <span>Start AI Consultation</span>
+              <ArrowRight className="w-3.5 h-3.5 ml-auto" />
+            </button>
+          </div>
+
+          {/* Card 2: Human Developer Escalation */}
+          <div className="bg-zinc-900/90 border border-zinc-800 rounded-xl p-5 flex flex-col justify-between space-y-4 relative overflow-hidden group hover:border-zinc-700 transition">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-2xl pointer-events-none" />
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-9 w-9 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+                    <UserCheck className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-white">Engineering Escalation</h3>
+                    <p className="text-[11px] text-zinc-400 font-mono">Core Development &amp; API Team</p>
+                  </div>
+                </div>
+
+                {activeTicket ? (
+                  <span className="px-2 py-0.5 rounded bg-amber-500/15 border border-amber-500/30 text-[10px] font-mono text-amber-300 font-medium">
+                    #{activeTicket.ticketId} Active
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded bg-zinc-800 border border-zinc-700/60 text-[10px] font-mono text-zinc-300">
+                    SLA &lt; 2h
+                  </span>
+                )}
+              </div>
+
+              <p className="text-xs text-zinc-400 leading-relaxed">
+                Direct dispatch to Spadas engineers for unresolved marketplace synchronization failures, billing inquiries, or high-priority feature requests.
+              </p>
+
+              {activeTicket ? (
+                <div className="p-2.5 rounded-lg bg-amber-950/20 border border-amber-500/30 text-xs space-y-1">
+                  <div className="flex items-center justify-between text-[11px] font-mono text-amber-300">
+                    <span>Ticket: {activeTicket.ticketId}</span>
+                    <span className="uppercase text-[10px] px-1.5 py-0.5 bg-amber-500/20 rounded font-bold">
+                      {activeTicket.status}
+                    </span>
+                  </div>
+                  {activeTicket.issueDescription && (
+                    <p className="text-[11px] text-zinc-300 line-clamp-2">
+                      &quot;{activeTicket.issueDescription}&quot;
+                    </p>
+                  )}
+                  <p className="text-[10px] text-zinc-500 font-mono">
+                    Logged {new Date(activeTicket.createdAt).toLocaleDateString()}
+                  </p>
+                </div>
+              ) : (
+                <div className="p-2.5 rounded-lg bg-zinc-800/40 border border-zinc-800 text-xs text-zinc-400 space-y-1">
+                  <div className="flex items-center gap-1.5 text-zinc-300 font-medium text-[11px]">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Priority Queue for Pro Resellers</span>
+                  </div>
+                  <p className="text-[11px] text-zinc-500">
+                    Engineers inspect full system context, browser runtime state, and marketplace logs.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => openSpadasSupport({ mode: "escalate" })}
+              className="w-full mt-2 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white text-xs font-semibold transition active:scale-[0.99] cursor-pointer"
+            >
+              <UserCheck className="w-3.5 h-3.5 text-amber-400" />
+              <span>{activeTicket ? "Update or View Developer Ticket" : "Escalate to Developer"}</span>
+              <ArrowRight className="w-3.5 h-3.5 ml-auto text-zinc-400" />
+            </button>
+          </div>
+        </div>
+      </section>
+
+
       {/* Modals */}
       {confirmUpgrade && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
@@ -593,6 +806,7 @@ export default function SettingsPage() {
       )}
 
       <SubscriptionPaywallModal isOpen={isPaywallOpen} onClose={() => setIsPaywallOpen(false)} />
+      <DashboardSupportDesk />
     </div>
   );
 }

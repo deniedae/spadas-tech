@@ -33,7 +33,14 @@ import {
   ShieldAlert,
   ExternalLink,
   Scan,
+  Headphones,
 } from "lucide-react";
+import dynamic from "next/dynamic";
+import { openSpadasSupport } from "@/components/dashboard-support-desk";
+
+const DashboardSupportDesk = dynamic(() => import("@/components/dashboard-support-desk"), {
+  ssr: false,
+});
 import {
   AlertDialog,
   AlertDialogAction,
@@ -288,6 +295,16 @@ export default function ListingsPage() {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          <button
+            type="button"
+            onClick={() => openSpadasSupport({ mode: "chat" })}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.1] text-zinc-300 hover:text-white font-medium text-xs transition cursor-pointer active:scale-95"
+            title="Launch AI Resale Copilot & Support Desk"
+          >
+            <Headphones className="h-3.5 w-3.5 text-cyan-400" />
+            <span className="hidden sm:inline">Support Desk</span>
+          </button>
+
           <button
             type="button"
             onClick={loadListings}
@@ -857,6 +874,7 @@ export default function ListingsPage() {
           imageUrls={ebayPublishItem.image_url ? [ebayPublishItem.image_url] : []}
         />
       )}
+      <DashboardSupportDesk />
     </main>
   );
 }
