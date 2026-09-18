@@ -58,9 +58,9 @@ export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraH
   };
 
   return (
-    <div className="relative w-full bg-[#08090D] text-white flex flex-col">
+    <div className="relative w-full h-full flex-1 min-h-0 bg-[#08090D] text-white flex flex-col overflow-hidden">
       {/* Top Segmented Mode Slider — Pro Tool Workspace Bar with On-Screen Back & Home */}
-      <div className="sticky top-0 z-40 w-full px-2 sm:px-4 pt-[max(0.75rem,calc(env(safe-area-inset-top)+0.5rem))] pb-2 sm:pb-2.5 glass-nav border-b border-white/[0.06] flex items-center justify-between gap-2 max-w-xl mx-auto">
+      <div className="sticky top-0 z-40 w-full shrink-0 px-2 sm:px-4 pt-[max(0.75rem,calc(env(safe-area-inset-top)+0.5rem))] pb-2 sm:pb-2.5 glass-nav border-b border-white/[0.06] flex items-center justify-between gap-2 max-w-xl mx-auto">
         {/* On-Screen Back Button */}
         <button
           type="button"
@@ -143,9 +143,9 @@ export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraH
       </div>
 
       {/* Dynamic Mode Viewport */}
-      <div className="flex-1 w-full flex flex-col">
+      <div className="flex-1 min-h-0 w-full flex flex-col relative overflow-hidden">
         {activeTab === "lens" && (
-          <div key="lens-tab" className="w-full lens-crossfade">
+          <div key="lens-tab" className="w-full h-full flex-1 min-h-0 flex flex-col relative overflow-hidden lens-crossfade">
             <SpadasLensCamera
               onOpenHaulTab={() => router.push("/haul")}
               onOpenSnapStudio={() => handleTabChange("studio")}
@@ -153,7 +153,7 @@ export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraH
           </div>
         )}
         {activeTab === "studio" && (
-          <div key="studio-tab" className="block w-full lens-crossfade">
+          <div key="studio-tab" className="block w-full h-full flex-1 min-h-0 flex flex-col relative overflow-hidden lens-crossfade">
             <SpadasSnapStudio />
           </div>
         )}

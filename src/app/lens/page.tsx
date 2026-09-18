@@ -12,12 +12,12 @@ export default function LensPage() {
   ];
 
   return (
-    <div className="w-full max-w-full overflow-x-hidden box-border animate-fade-in">
+    <div className="w-full h-full flex-1 min-h-0 flex flex-col overflow-hidden md:overflow-visible box-border animate-fade-in">
       {/* Spadas Lens Unified Camera Hub (Lens AR + Snap Studio) */}
       <UnifiedCameraHub />
 
-      {/* Predictive Heatmap Sourcing Radar */}
-      <div className="space-y-4 pt-6 mt-4 border-t border-border px-3 sm:px-0 pb-[calc(env(safe-area-inset-bottom)+4.5rem)] md:pb-8">
+      {/* Predictive Heatmap Sourcing Radar (Desktop only to prevent mobile camera viewport overflow & scrolling) */}
+      <div className="hidden md:block space-y-4 pt-6 mt-4 border-t border-border px-3 sm:px-0 pb-[calc(env(safe-area-inset-bottom)+4.5rem)] md:pb-8">
         <div className="flex items-center gap-2">
           <Flame className="h-5 w-5 text-amber-500" />
           <h2 className="text-xl font-bold tracking-tight">Predictive Heatmap Sourcing Radar</h2>

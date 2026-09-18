@@ -366,7 +366,9 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
       </aside>
 
       {/* Main content container */}
-      <div className="flex-1 flex flex-col min-w-0 min-h-screen bg-[#05050a] text-white">
+      <div className={`flex-1 flex flex-col min-w-0 bg-[#05050a] text-white ${
+        isCamera ? "h-[100dvh] md:min-h-screen overflow-hidden md:overflow-auto" : "min-h-screen"
+      }`}>
         {/* Owner Account AI Credits Health Banner (Only visible for deniedae@gmail.com) */}
         <OwnerAiStatusBanner />
 
@@ -447,7 +449,7 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
         <main
           className={`page-slot scroll-touch flex-1 w-full ${
             isCamera
-              ? "p-0 md:p-8 md:pb-8 flex flex-col"
+              ? "p-0 md:p-8 md:pb-8 flex flex-col h-full overflow-hidden md:overflow-auto"
               : "page-scroll-container p-3 sm:p-4 md:p-8 pb-28 md:pb-24"
           }`}
           style={!isCamera ? { paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 7rem)" } : undefined}

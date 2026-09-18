@@ -557,7 +557,7 @@ export function SpadasSnapStudio() {
   }
 
   return (
-    <div className="relative h-[100dvh] min-h-[100dvh] w-full bg-black text-white flex flex-col justify-between overflow-hidden select-none">
+    <div className="relative h-full flex-1 min-h-0 w-full bg-black text-white flex flex-col justify-between overflow-hidden select-none">
       {/* Hidden File Input */}
       <input
         ref={fileInputRef}
