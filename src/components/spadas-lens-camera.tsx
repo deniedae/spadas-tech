@@ -3652,25 +3652,6 @@ function SpadasLensCameraCore({
 
           setSessionScanCount((prev) => prev + 1);
 
-          // Stream Background SLAM Anonymized Telemetry to Global Inventory Heatmap Backend
-          if (typeof fetch !== "undefined") {
-            try {
-              void fetch("/api/radar/spatial-slam", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  deviceId: `slam-device-${Math.floor(Math.random() * 1000)}`,
-                  storeName: "Local Sourcing Hub",
-                  scannedItem: {
-                    name: obj.productName,
-                    profit: estimatedProfit,
-                    bbox: obj.bbox,
-                  },
-                }),
-              }).catch(() => { });
-            } catch { }
-          }
-
           if (scanExpiryTimerRef.current) {
             clearTimeout(scanExpiryTimerRef.current);
             scanExpiryTimerRef.current = null;

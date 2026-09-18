@@ -14,9 +14,30 @@ const EBAY_MARKETPLACE: Record<SupportedCurrency, { id: string; country: string 
 /** Module-level app token cache — shared across all requests in the same server instance */
 let _appToken: { token: string; expiresAt: number } | null = null;
 
-/** Module-level in-memory comps cache — 3600s TTL, normalized query key */
+/** Module-level in-memory comps cache — 3600s TTL, max 500 entries LRU */
 const _compsCache = new Map<string, { result: EbayCompsResult; expiresAt: number }>();
 const COMPS_CACHE_TTL_MS = 3_600_000; // 1 hour
+const COMPS_CACHE_MAX_ENTRIES = 500;
+
+function setCompsCacheEntry(key: string, result: EbayCompsResult): void {
+  const now = Date.now();
+  // Evict expired entries if approaching capacity
+  if (_compsCache.size >= COMPS_CACHE_MAX_ENTRIES) {
+    for (const [k, v] of _compsCache.entries()) {
+      if (now >= v.expiresAt) {
+        _compsCache.delete(k);
+      }
+    }
+  }
+  // If still at capacity, evict the oldest entry (LRU order preserved in Map)
+  if (_compsCache.size >= COMPS_CACHE_MAX_ENTRIES) {
+    const oldestKey = _compsCache.keys().next().value;
+    if (oldestKey) {
+      _compsCache.delete(oldestKey);
+    }
+  }
+  _compsCache.set(key, { result, expiresAt: now + COMPS_CACHE_TTL_MS });
+}
 
 function normalizeCompsCacheKey(productName: string, currency: string): string {
   return `${currency}::${productName.toLowerCase().replace(/\s+/g, " ").trim()}`;
@@ -438,6 +459,8 @@ export async function fetchEbayAustraliaSoldComps(
   const cached = _compsCache.get(cacheKey);
   if (cached && Date.now() < cached.expiresAt) {
     console.log(`[eBay Comps] Cache hit (0ms): "${productName}"`);
+    _compsCache.delete(cacheKey);
+    _compsCache.set(cacheKey, cached);
     return cached.result;
   }
 
@@ -646,7 +669,7 @@ export async function fetchEbayAustraliaSoldComps(
           .slice(0, 5),
         iqrBounds: { lower: lowerBound, upper: upperBound },
       };
-      _compsCache.set(cacheKey, { result: domesticResult, expiresAt: Date.now() + COMPS_CACHE_TTL_MS });
+      setCompsCacheEntry(cacheKey, domesticResult);
       return domesticResult;
     }
 
@@ -713,7 +736,7 @@ export async function fetchEbayAustraliaSoldComps(
             .slice(0, 5),
           iqrBounds: { lower: lowerBound, upper: upperBound },
         };
-        _compsCache.set(cacheKey, { result: usResult, expiresAt: Date.now() + COMPS_CACHE_TTL_MS });
+        setCompsCacheEntry(cacheKey, usResult);
         return usResult;
       }
     }
@@ -736,7 +759,7 @@ export async function fetchEbayAustraliaSoldComps(
         marketOrigin: isRegionAU ? "AU" : (targetCurrency as "AU" | "US"),
         rawComps: activeComps.slice(0, 5),
       };
-      _compsCache.set(cacheKey, { result: partialResult, expiresAt: Date.now() + COMPS_CACHE_TTL_MS });
+      setCompsCacheEntry(cacheKey, partialResult);
       return partialResult;
     }
   }

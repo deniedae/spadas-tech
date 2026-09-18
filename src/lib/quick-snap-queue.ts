@@ -356,6 +356,12 @@ class QuickSnapQueueService {
     const items = haulStore.getState().filter((item: RapidThriftItem) => item.syncStatus === "pending");
     if (items.length === 0) return;
 
+    try {
+      toast.info(`Signal restored: syncing ${items.length} offline scan${items.length === 1 ? "" : "s"}...`, {
+        id: "offline-reconnect-sync",
+      });
+    } catch { }
+
     console.log(`[QuickSnapQueue] Retrying ${items.length} offline pending items...`);
     
     for (const item of items) {

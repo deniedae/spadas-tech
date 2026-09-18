@@ -6,6 +6,23 @@
 
 // Singleton AudioContext cache
 let audioCtx: AudioContext | null = null;
+let isVisibilityListenerAttached = false;
+
+function attachVisibilityListener(): void {
+  if (typeof document === "undefined" || isVisibilityListenerAttached) return;
+  isVisibilityListenerAttached = true;
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      if (audioCtx && audioCtx.state === "running") {
+        audioCtx.suspend().catch(() => {});
+      }
+    } else {
+      if (audioCtx && audioCtx.state === "suspended") {
+        audioCtx.resume().catch(() => {});
+      }
+    }
+  });
+}
 
 function getAudioContext(): AudioContext | null {
   if (typeof window === "undefined") return null;
@@ -16,9 +33,10 @@ function getAudioContext(): AudioContext | null {
         (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       if (AudioContextClass) {
         audioCtx = new AudioContextClass();
+        attachVisibilityListener();
       }
     }
-    if (audioCtx && audioCtx.state === "suspended") {
+    if (audioCtx && audioCtx.state === "suspended" && typeof document !== "undefined" && !document.hidden) {
       audioCtx.resume().catch(() => {});
     }
     return audioCtx;
