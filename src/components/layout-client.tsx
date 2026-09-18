@@ -38,17 +38,6 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
   const pathname = usePathname();
   const isCameraRoute = pathname === "/lens" || pathname === "/ironman" || pathname === "/snap" || pathname === "/studio";
 
-  // Only lock scrolling strictly when on the active camera lens route
-  useEffect(() => {
-    if (isCameraRoute) {
-      document.body.classList.add("camera-active");
-    } else {
-      document.body.classList.remove("camera-active");
-    }
-    return () => {
-      document.body.classList.remove("camera-active");
-    };
-  }, [isCameraRoute]);
   
   // Sidebar open/close state
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -458,14 +447,14 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
                 </div>
               </header>
 
-              {/* Page content with native zero-padding edge-to-edge on mobile for camera viewports */}
+              {/* Page content with native zero-padding edge-to-edge on mobile for camera viewports, fully scrollable */}
               <main
-                className={`page-slot scroll-touch flex-1 ${
+                className={`page-slot scroll-touch flex-1 w-full ${
                   isCameraRoute
-                    ? "p-0 pb-[calc(env(safe-area-inset-bottom)+4.5rem)] md:p-8 md:pb-8 flex flex-col min-h-0"
-                    : "page-scroll-container p-3 sm:p-4 md:p-8 pb-28 md:pb-24 overflow-y-auto"
+                    ? "p-0 pb-28 md:p-8 md:pb-8 flex flex-col"
+                    : "page-scroll-container p-3 sm:p-4 md:p-8 pb-28 md:pb-24"
                 }`}
-                style={!isCameraRoute ? { paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 7rem)" } : undefined}
+                style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 7rem)" }}
               >
                 {children}
               </main>
