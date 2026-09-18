@@ -50,6 +50,14 @@ nav button {
   --sar: env(safe-area-inset-right, 0px);
 }
 
+html,
+body {
+  overscroll-behavior: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
 html {
   overflow-x: hidden;
   overflow-y: auto;
