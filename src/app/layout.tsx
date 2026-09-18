@@ -6,6 +6,7 @@ import LayoutClient from "@/components/layout-client";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Toaster } from "@/components/ui/sonner";
+import Script from "next/script";
 
 const geistSans = Geist({
   subsets: ["latin"],
@@ -106,26 +107,10 @@ export default function RootLayout({
   return (
     <html lang="en" className={cn("dark font-sans", geistSans.variable, geistMono.variable)}>
       <head>
-        {/* Google tag (gtag.js) */}
-        <script
-          async
-          src="https://www.googletagmanager.com/gtag/js?id=AW-18430569894"
-        />
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              window.dataLayer = window.dataLayer || [];
-              function gtag(){dataLayer.push(arguments);}
-              gtag('js', new Date());
-              gtag('config', 'AW-18430569894');
-            `,
-          }}
-        />
         <link rel="canonical" href="https://spadas.ai" />
         <link rel="preload" href="/icon-192.png" as="image" type="image/png" />
         <link rel="dns-prefetch" href="https://api.ebay.com" />
         <link rel="dns-prefetch" href="https://i.ebayimg.com" />
-        <link rel="preconnect" href="https://api.openai.com" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://i.ebayimg.com" crossOrigin="anonymous" />
         <meta property="og:image" content="https://spadas.ai/og-preview.jpg" />
         <meta name="theme-color" content="#0a0a0a" />
@@ -152,6 +137,19 @@ export default function RootLayout({
         <Analytics />
         <SpeedInsights />
         <Toaster position="bottom-right" richColors closeButton />
+        {/* Google tag (gtag.js) deferred to non-blocking afterInteractive execution */}
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=AW-18430569894"
+          strategy="afterInteractive"
+        />
+        <Script id="google-gtag-init" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'AW-18430569894');
+          `}
+        </Script>
       </body>
     </html>
   );

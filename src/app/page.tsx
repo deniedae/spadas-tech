@@ -1,10 +1,20 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import MuxScannerShowcase from "@/components/mux-scanner-showcase";
-import LandingBeforeAfterDemo from "@/components/landing-before-after-demo";
-import LandingFeatures from "@/components/landing-features";
-import LandingPricing from "@/components/landing-pricing";
+import dynamic from "next/dynamic";
 import { Scan, Download, ArrowRight } from "lucide-react";
+
+const MuxScannerShowcase = dynamic(() => import("@/components/mux-scanner-showcase"), {
+  ssr: true,
+});
+const LandingBeforeAfterDemo = dynamic(() => import("@/components/landing-before-after-demo"), {
+  ssr: true,
+});
+const LandingFeatures = dynamic(() => import("@/components/landing-features"), {
+  ssr: true,
+});
+const LandingPricing = dynamic(() => import("@/components/landing-pricing"), {
+  ssr: true,
+});
 
 export const metadata: Metadata = {
   title: "Spadas Lens — Turn Photos into Finished Reseller Listings in Seconds",

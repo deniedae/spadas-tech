@@ -36,7 +36,7 @@ import { triggerTactileHaptic } from "@/lib/android-bridge";
  */
 export default function LayoutClient({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const isCamera = pathname === "/lens" || pathname === "/";
+  const isCamera = pathname === "/lens";
 
   
   // Sidebar open/close state

@@ -16,11 +16,13 @@ import {
   Layers,
   CheckCircle2,
 } from "lucide-react";
+import dynamic from "next/dynamic";
 import { ClearAllHistoryButton } from "./delete-button";
 import { ScanItemCard } from "./scan-item-card";
-import ItemComparisonModal, { ComparisonItem } from "@/components/item-comparison-modal";
-import EbayListingModal from "@/components/ebay-listing-modal";
-import SubscriptionPaywallModal from "@/components/subscription-paywall-modal";
+import { type ComparisonItem } from "@/components/item-comparison-modal";
+const ItemComparisonModal = dynamic(() => import("@/components/item-comparison-modal"), { ssr: false });
+const EbayListingModal = dynamic(() => import("@/components/ebay-listing-modal"), { ssr: false });
+const SubscriptionPaywallModal = dynamic(() => import("@/components/subscription-paywall-modal"), { ssr: false });
 import { supabase } from "@/app/lib/supabase";
 import { triggerTactileHaptic } from "@/lib/android-bridge";
 import { cleanBrandText, cleanConditionText, cleanCategoryText } from "@/lib/lens-utils";

@@ -4,9 +4,28 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Camera, Zap, ShoppingBag, ChevronLeft, Home } from "lucide-react";
 import dynamic from "next/dynamic";
-import SpadasLensCamera, { releasePersistentMediaStream } from "@/components/spadas-lens-camera";
+import { cameraStreamManager } from "@/lib/camera-stream-provider";
 import { useHaulStore } from "@/lib/haul-store";
 import { triggerTactileHaptic } from "@/lib/android-bridge";
+
+const releasePersistentMediaStream = () => {
+  cameraStreamManager.releaseCamera(undefined, true);
+};
+
+const SpadasLensCamera = dynamic(
+  () => import("@/components/spadas-lens-camera"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-full flex-1 min-h-0 flex flex-col items-center justify-center bg-[#08090D] text-white">
+        <div className="flex items-center gap-2 text-xs font-mono text-zinc-400">
+          <span className="h-2 w-2 rounded-full bg-cyan-400 animate-ping" />
+          <span>CONNECTING OPTICAL SENSOR...</span>
+        </div>
+      </div>
+    ),
+  }
+);
 
 const SpadasSnapStudio = dynamic(
   () => import("@/components/spadas-snap-studio").then((m) => m.SpadasSnapStudio),

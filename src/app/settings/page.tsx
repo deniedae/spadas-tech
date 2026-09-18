@@ -24,7 +24,10 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import dynamic from "next/dynamic";
-import SubscriptionPaywallModal from "@/components/subscription-paywall-modal";
+const SubscriptionPaywallModal = dynamic(
+  () => import("@/components/subscription-paywall-modal"),
+  { ssr: false }
+);
 import { CURRENCY_CONFIGS, SupportedCurrency, detectGeoCurrency } from "@/app/lib/currency-routing";
 import { openSpadasSupport } from "@/components/dashboard-support-desk";
 import { isOwnerEmail } from "@/app/lib/auth-admin";
