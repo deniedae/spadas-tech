@@ -36,6 +36,19 @@ import { triggerTactileHaptic } from "@/lib/android-bridge";
  */
 export default function LayoutClient({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const isCameraRoute = pathname === "/lens" || pathname === "/ironman" || pathname === "/snap" || pathname === "/studio";
+
+  // Only lock scrolling strictly when on the active camera lens route
+  useEffect(() => {
+    if (isCameraRoute) {
+      document.body.classList.add("camera-active");
+    } else {
+      document.body.classList.remove("camera-active");
+    }
+    return () => {
+      document.body.classList.remove("camera-active");
+    };
+  }, [isCameraRoute]);
   
   // Sidebar open/close state
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -450,7 +463,7 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
                 className={`page-slot scroll-touch flex-1 ${
                   isCameraRoute
                     ? "p-0 pb-[calc(env(safe-area-inset-bottom)+4.5rem)] md:p-8 md:pb-8 flex flex-col min-h-0"
-                    : "p-3 sm:p-4 md:p-8 pb-28 md:pb-24 overflow-y-auto"
+                    : "page-scroll-container p-3 sm:p-4 md:p-8 pb-28 md:pb-24 overflow-y-auto"
                 }`}
                 style={!isCameraRoute ? { paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 7rem)" } : undefined}
               >
@@ -460,8 +473,8 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
           );
         })()}
 
-        {/* Sticky Mobile Bottom Navigation */}
-        <MobileNav />
+        {/* Sticky Mobile Bottom Navigation (Hidden on camera routes to eliminate dual-nav overlay) */}
+        {!isCameraRoute && <MobileNav />}
       </div>
     </div>
   );

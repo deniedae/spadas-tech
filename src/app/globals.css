@@ -52,10 +52,23 @@ nav button {
 
 html,
 body {
-  overscroll-behavior: none;
-  user-select: none;
-  -webkit-user-select: none;
+  height: 100%;
+  width: 100%;
   -webkit-tap-highlight-color: transparent;
+}
+
+/* Only lock scrolling strictly when on the active camera lens route */
+body.camera-active {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+/* Ensure Haul, Listings, and other pages can scroll freely */
+.page-scroll-container {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  height: 100%;
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 6rem);
 }
 
 html {
