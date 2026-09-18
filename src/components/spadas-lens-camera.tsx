@@ -57,7 +57,6 @@ import {
   triggerDialTickHaptic,
 } from "@/lib/audio-haptic-engine";
 import LensHitCard from "@/components/lens-hit-card";
-import LensControlsBar from "@/components/lens-controls-bar";
 import { ensureVerifiedSoldComps } from "@/components/AuditCompsLedger";
 import { estimateCategoryShippingCost, calculateThriftCopVerdict } from "@/lib/thrift-cop-engine";
 import { checkNeedsVerification } from "@/lib/forensic-knowledge";
@@ -4163,7 +4162,7 @@ function SpadasLensCameraCore({
   }, []);
 
   return (
-    <div className="spadas-lens-camera w-full max-w-full overflow-x-hidden box-border pb-[calc(env(safe-area-inset-bottom)+4.5rem)] mx-auto animate-fade-in">
+    <div className="spadas-lens-camera w-full max-w-full overflow-x-hidden box-border mx-auto animate-fade-in">
       {/* Video Viewport Container (Tap Anywhere to Focus or Dismiss Card) */}
       <div
         onClick={() => {
@@ -4176,7 +4175,7 @@ function SpadasLensCameraCore({
             handleResumeScanning();
           }
         }}
-        className="relative w-full aspect-[3/4] sm:aspect-[16/9] max-h-[65svh] max-w-full box-border overflow-hidden rounded-none sm:rounded-3xl border-0 sm:border sm:border-cyan-500/30 bg-slate-950 sm:shadow-[0_0_50px_rgba(6,182,212,0.15)] cursor-pointer"
+        className="relative w-full h-[100dvh] sm:h-auto sm:aspect-[16/9] sm:max-h-[75vh] max-w-full box-border overflow-hidden rounded-none sm:rounded-3xl border-0 sm:border sm:border-cyan-500/30 bg-slate-950 sm:shadow-[0_0_50px_rgba(6,182,212,0.15)] cursor-pointer"
       >
         <CameraViewportErrorBoundary onRestart={startCamera}>
           {!isCameraPoweredOn ? (
@@ -5279,8 +5278,8 @@ function SpadasLensCameraCore({
                 )}
               </div>
 
-              {/* Dedicated Quick Snap Stream Shutter (Bottom Left — Instant Live Frame Capture into Background Valuation Queue) */}
-              <div className={`absolute bottom-[max(1.25rem,calc(env(safe-area-inset-bottom,0px)+0.75rem))] sm:bottom-5 left-[max(0.75rem,env(safe-area-inset-left,0px))] z-40 transition-opacity duration-150 ${scanStage === "confirmation" ? "opacity-0 pointer-events-none" : "opacity-100 pointer-events-auto"
+              {/* Dedicated Quick Snap Stream Shutter (Hidden on mobile to preserve single SNAP cluster) */}
+              <div className={`hidden sm:block absolute bottom-[max(1.25rem,calc(env(safe-area-inset-bottom,0px)+0.75rem))] sm:bottom-5 left-[max(0.75rem,env(safe-area-inset-left,0px))] z-40 transition-opacity duration-150 ${scanStage === "confirmation" ? "opacity-0 pointer-events-none" : "opacity-100 pointer-events-auto"
                 }`}>
                 <button
                   type="button"
@@ -5314,9 +5313,9 @@ function SpadasLensCameraCore({
                 </button>
               </div>
 
-              {/* Telemetry Haul Counter Badge (Bottom Right — Clean Data Telemetry Readout) */}
+              {/* Telemetry Haul Counter Badge (Hidden on mobile to preserve single SNAP cluster) */}
               {isRapidScanMode && (
-                <div className={`absolute bottom-[max(1.25rem,calc(env(safe-area-inset-bottom,0px)+0.75rem))] sm:bottom-5 right-[max(0.75rem,env(safe-area-inset-right,0px))] z-40 transition-opacity duration-150 ${scanStage === "confirmation" ? "opacity-0 pointer-events-none" : "opacity-100 pointer-events-auto"
+                <div className={`hidden sm:block absolute bottom-[max(1.25rem,calc(env(safe-area-inset-bottom,0px)+0.75rem))] sm:bottom-5 right-[max(0.75rem,env(safe-area-inset-right,0px))] z-40 transition-opacity duration-150 ${scanStage === "confirmation" ? "opacity-0 pointer-events-none" : "opacity-100 pointer-events-auto"
                   }`}>
                   <button
                     type="button"
@@ -5361,61 +5360,6 @@ function SpadasLensCameraCore({
           )}
         </CameraViewportErrorBoundary>
       </div>
-
-      {/* Pinned Controls Bar (Always Mounted to Guarantee Zero Cumulative Layout Shift) */}
-      <LensControlsBar
-        scan={{
-          mode: scanMode,
-          setMode: setScanMode,
-          isAnalyzing: analyzingRealFrame,
-          autoActive: autoScanActive,
-          setAutoActive: setAutoScanActive,
-          onScanNow: () => {
-            if (analyzingRef.current || analyzingRealFrame || isCoolingDown) return;
-            void processCurrentFrame(true);
-          },
-          onStop: stopCamera,
-          cameraMoving,
-          rateLimited,
-        }}
-        hardware={{
-          torchEnabled,
-          torchSupported,
-          onToggleTorch: toggleTorch,
-          zoomLevel,
-          setZoomLevel,
-        }}
-        audio={{
-          soundEnabled,
-          onToggleSound: () => setSoundEnabled(!soundEnabled),
-          voiceListening,
-          voiceSupported: typeof window !== "undefined" && ("SpeechRecognition" in window || "webkitSpeechRecognition" in window),
-          onToggleVoice: toggleVoiceAssistant,
-        }}
-        prefs={{
-          grailMode,
-          setGrailMode,
-          currency: selectedCurrency,
-          setCurrency: (c) => setSelectedCurrency(c),
-          isPro,
-          onUpgrade: () => setIsPaywallOpen(true),
-          minProfitThreshold,
-          updateProfitThreshold,
-        }}
-        nav={{
-          onGuide: () => setIsOnboardingOpen(true),
-          onHistory: () => setIsHistoryDrawerOpen(true),
-          historyCount: capturedLog.length,
-        }}
-        debug={{
-          isOwner,
-          showDebugDrawer,
-          setShowDebugDrawer,
-          lastRawApiResponse,
-          latestApiError,
-          isMockFallback,
-        }}
-      />
 
       {/* Non-Intrusive In-Stream Audit-Grade Sold Comps Ledger (Anchored in document flow exclusively after scan payload resolves) */}
       {activeValuationHit && !activeCompsHit && (

@@ -99,12 +99,12 @@ export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraH
         </button>
 
         {/* 3-Mode Segmented Switcher */}
-        <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-[#0D0F15] border border-white/[0.08] shadow-lg flex-1 max-w-sm">
+        <div className="flex items-center justify-center gap-1 p-1 rounded-xl bg-[#0D0F15] border border-white/[0.08] shadow-lg flex-1 max-w-sm">
           {/* Mode 1: Lens AR */}
           <button
             type="button"
             onClick={() => handleTabChange("lens")}
-            className={`py-2 px-2 sm:px-3 rounded-lg text-xs font-bold transition-all duration-150 flex items-center justify-center gap-1.5 cursor-pointer text-center active:scale-95 ${
+            className={`flex-1 py-2 px-2.5 sm:px-3 rounded-lg text-xs font-bold transition-all duration-150 flex items-center justify-center gap-1.5 cursor-pointer text-center active:scale-95 ${
               activeTab === "lens"
                 ? "bg-[#1A1E29] text-white shadow-sm border border-white/[0.12]"
                 : "text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.03]"
@@ -118,7 +118,7 @@ export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraH
           <button
             type="button"
             onClick={() => handleTabChange("studio")}
-            className={`py-2 px-2 sm:px-3 rounded-lg text-xs font-bold transition-all duration-150 flex items-center justify-center gap-1.5 cursor-pointer text-center active:scale-95 ${
+            className={`flex-1 py-2 px-2.5 sm:px-3 rounded-lg text-xs font-bold transition-all duration-150 flex items-center justify-center gap-1.5 cursor-pointer text-center active:scale-95 ${
               activeTab === "studio"
                 ? "bg-[#1A1E29] text-white shadow-sm border border-white/[0.12]"
                 : "text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.03]"
@@ -135,13 +135,13 @@ export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraH
               triggerTactileHaptic("selection");
               router.push("/haul");
             }}
-            className="py-2 px-2 sm:px-3 rounded-lg text-xs font-bold transition-all duration-150 flex items-center justify-center gap-1.5 cursor-pointer text-center text-zinc-300 hover:text-white hover:bg-white/[0.04] active:scale-95"
+            className="shrink-0 min-w-fit px-3 py-2 rounded-lg text-xs font-bold transition-all duration-150 flex items-center justify-center gap-1.5 cursor-pointer text-center text-zinc-300 hover:text-white hover:bg-white/[0.04] active:scale-95"
             title="Open Haul Session & Manifest"
           >
             <ShoppingBag className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
-            <span className="truncate tracking-tight">Haul</span>
+            <span className="whitespace-nowrap tracking-tight">Haul</span>
             {haulCount > 0 && (
-              <span className="ml-1 px-1.5 py-0.2 rounded-md text-[10px] font-mono font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+              <span className="ml-1 px-1.5 py-0.2 rounded-md text-[10px] font-mono font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shrink-0 tabular-nums">
                 {haulCount}
               </span>
             )}

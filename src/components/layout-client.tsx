@@ -447,14 +447,14 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
                 </div>
               </header>
 
-              {/* Page content with native zero-padding edge-to-edge on mobile for camera viewports, fully scrollable */}
+              {/* Page content with native zero-padding edge-to-edge on mobile for camera viewports */}
               <main
                 className={`page-slot scroll-touch flex-1 w-full ${
                   isCameraRoute
-                    ? "p-0 pb-28 md:p-8 md:pb-8 flex flex-col"
+                    ? "p-0 md:p-8 md:pb-8 flex flex-col"
                     : "page-scroll-container p-3 sm:p-4 md:p-8 pb-28 md:pb-24"
                 }`}
-                style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 7rem)" }}
+                style={!isCameraRoute ? { paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 7rem)" } : undefined}
               >
                 {children}
               </main>
