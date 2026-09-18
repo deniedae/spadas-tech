@@ -5162,121 +5162,21 @@ function SpadasLensCameraCore({
                 <div className="absolute inset-0 z-30 pointer-events-none lens-miss-fade bg-rose-500/[0.07] shadow-[inset_0_0_60px_rgba(244,63,94,0.25)]" />
               )}
 
-              {/* Intelligent Optical Target Sweet-Spot Guide & Precision Rangefinder Reticle */}
+              {/* Minimalist Viewfinder Framing Brackets (Clean Google Lens / iOS style) */}
               {isCameraPoweredOn && !activeValuationHit && !activeCompsHit && !deepVerifyItem && (
-                <div className="absolute inset-0 z-20 pointer-events-none flex flex-col items-center justify-center px-4 pt-10 pb-20 sm:pb-24">
+                <div className="absolute inset-0 z-20 pointer-events-none flex items-center justify-center p-6">
                   <div
                     ref={reticleRef}
-                    className={`relative w-[84%] sm:w-[62%] max-w-[370px] aspect-[3/4] sm:aspect-[4/3] max-h-[50vh] sm:max-h-[52vh] transition-all duration-300 flex flex-col items-center justify-between p-3 rounded-2xl ${
-                      analyzingRealFrame
-                        ? "border border-cyan-400/80 shadow-[0_0_25px_rgba(6,182,212,0.25)] bg-cyan-500/[0.02] scale-[1.01]"
-                        : cameraMoving
-                          ? "border border-dashed border-white/20 bg-transparent"
-                          : confidencePercent >= 75
-                            ? "border border-emerald-400/50 shadow-[0_0_20px_rgba(52,211,153,0.15)] bg-emerald-500/[0.01]"
-                            : "border border-white/25 bg-black/[0.04]"
-                    }`}
+                    className="relative w-[76%] sm:w-[55%] max-w-[320px] aspect-[3/4] sm:aspect-[4/3] max-h-[48vh] transition-opacity duration-200"
                   >
-                    {/* 4 Precision Machined Corner L-Brackets */}
-                    <div className={`absolute -top-[2px] -left-[2px] w-6 h-6 border-t-2 border-l-2 rounded-tl-xl transition-colors duration-200 ${
-                      analyzingRealFrame
-                        ? "border-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.8)]"
-                        : confidencePercent >= 75 && !cameraMoving
-                          ? "border-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]"
-                          : "border-white/80"
-                    }`} />
-                    
-                    <div className={`absolute -top-[2px] -right-[2px] w-6 h-6 border-t-2 border-r-2 rounded-tr-xl transition-colors duration-200 ${
-                      analyzingRealFrame
-                        ? "border-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.8)]"
-                        : confidencePercent >= 75 && !cameraMoving
-                          ? "border-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]"
-                          : "border-white/80"
-                    }`} />
-
-                    <div className={`absolute -bottom-[2px] -left-[2px] w-6 h-6 border-b-2 border-l-2 rounded-bl-xl transition-colors duration-200 ${
-                      analyzingRealFrame
-                        ? "border-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.8)]"
-                        : confidencePercent >= 75 && !cameraMoving
-                          ? "border-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]"
-                          : "border-white/80"
-                    }`} />
-
-                    <div className={`absolute -bottom-[2px] -right-[2px] w-6 h-6 border-b-2 border-r-2 rounded-br-xl transition-colors duration-200 ${
-                      analyzingRealFrame
-                        ? "border-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.8)]"
-                        : confidencePercent >= 75 && !cameraMoving
-                          ? "border-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]"
-                          : "border-white/80"
-                    }`} />
-
-                    {/* Subtle Corner Axis Telemetry Ticks */}
-                    <span className="absolute top-1 left-2 text-[8px] font-mono font-bold text-zinc-400/70 select-none">
-                      SCAN:OPTIMAL
-                    </span>
-                    <span className="absolute top-1 right-2 text-[8px] font-mono font-bold text-zinc-400/70 select-none">
-                      {confidencePercent}% FOCUS
-                    </span>
-
-                    {/* Center Circular Precision Crosshairs */}
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                      <div className="w-8 h-8 rounded-full border border-white/20 flex items-center justify-center">
-                        <div className={`w-3 h-[1.5px] rounded-full transition-colors duration-200 ${
-                          analyzingRealFrame ? "bg-cyan-400 shadow-[0_0_6px_rgba(6,182,212,0.8)]" : "bg-white/40"
-                        }`} />
-                        <div className={`h-3 w-[1.5px] absolute rounded-full transition-colors duration-200 ${
-                          analyzingRealFrame ? "bg-cyan-400 shadow-[0_0_6px_rgba(6,182,212,0.8)]" : "bg-white/40"
-                        }`} />
-                      </div>
-                    </div>
-
-                    {/* Active Scan Laser Wave Animation while processing frame */}
-                    {analyzingRealFrame && (
-                      <div className="absolute inset-x-2 top-0 h-0.5 bg-gradient-to-r from-transparent via-cyan-400 to-transparent shadow-[0_0_14px_rgba(6,182,212,1)] animate-pulse" />
-                    )}
-
-                    {/* Top Sweet-Spot Guide Badge */}
-                    <div className="self-center -mt-6">
-                      <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-[#0A0D15]/90 border border-white/[0.12] backdrop-blur-md shadow-md text-[10px] font-mono font-semibold text-zinc-200">
-                        <Scan className={`h-3 w-3 shrink-0 ${analyzingRealFrame ? "text-cyan-400 animate-spin" : confidencePercent >= 75 && !cameraMoving ? "text-emerald-400" : "text-cyan-400"}`} />
-                        <span>
-                          {analyzingRealFrame
-                            ? "Analyzing Frame..."
-                            : cameraMoving
-                              ? "Hold Device Steady"
-                              : confidencePercent >= 75
-                                ? "Target In Focus"
-                                : "Optimal Scan Zone"}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Bottom Dynamic Scanning Tip */}
-                    <div className="self-center -mb-6">
-                      <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-[#0A0D15]/85 border border-white/[0.08] backdrop-blur-md shadow-sm text-[10px] font-medium text-zinc-300">
-                        {analyzingRealFrame ? (
-                          <>
-                            <RefreshCw className="h-2.5 w-2.5 text-cyan-400 animate-spin shrink-0" />
-                            <span>Detecting item & sold comps...</span>
-                          </>
-                        ) : cameraMoving ? (
-                          <>
-                            <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-ping shrink-0" />
-                            <span>Center item inside brackets</span>
-                          </>
-                        ) : confidencePercent >= 75 ? (
-                          <>
-                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shrink-0" />
-                            <span>Ready • Tap SNAP to value</span>
-                          </>
-                        ) : (
-                          <>
-                            <Sparkles className="h-2.5 w-2.5 text-cyan-400 shrink-0" />
-                            <span>Align item inside frame for best scan</span>
-                          </>
-                        )}
-                      </div>
-                    </div>
+                    {/* Top Left */}
+                    <div className="absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2 border-white/60 rounded-tl-xl" />
+                    {/* Top Right */}
+                    <div className="absolute top-0 right-0 w-6 h-6 border-t-2 border-r-2 border-white/60 rounded-tr-xl" />
+                    {/* Bottom Left */}
+                    <div className="absolute bottom-0 left-0 w-6 h-6 border-b-2 border-l-2 border-white/60 rounded-bl-xl" />
+                    {/* Bottom Right */}
+                    <div className="absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 border-white/60 rounded-br-xl" />
                   </div>
                 </div>
               )}
