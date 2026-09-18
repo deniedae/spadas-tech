@@ -1,10 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Spadas AI</string>
-    <string name="tile_quick_scan_label">⚡ Spadas Scan</string>
-    <string name="tile_quick_scan_desc">Launch Spadas Lens Reseller Scanner</string>
-    <string name="widget_title">Spadas Inventory &amp; Comps</string>
-    <string name="widget_scan_btn">⚡ Quick Scan</string>
-    <string name="widget_stat_label">Est. Active Profit</string>
-    <string name="widget_stat_value">$1,420 AUD</string>
-    <string name="scanner_align_hint">Align barcode or label in frame</string>
+    <string name="app_name">Spadas Lens</string>
+    <string name="title_activity_main">Spadas Lens</string>
+    <string name="package_name">com.spadas.lens</string>
+    <string name="custom_url_scheme">com.spadas.lens</string>
 </resources>
