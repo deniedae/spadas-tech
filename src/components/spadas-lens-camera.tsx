@@ -158,7 +158,9 @@ function SpadasLensCameraCore({
   const router = useRouter();
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const isInitializingRef = useRef<boolean>(false);
   const isStartingCameraRef = useRef<boolean>(false);
+  const [isCameraReady, setIsCameraReady] = useState<boolean>(false);
   /** Ref to the inner viewfinder reticle box — used for captureTargetBox crop */
   const reticleRef = useRef<HTMLDivElement | null>(null);
   const [scanMode, setScanMode] = useState<"snap" | "sweep" | "barcode" | "live">("snap");
@@ -1413,13 +1415,53 @@ function SpadasLensCameraCore({
       }
     } catch { }
 
-    // Auto-Start Camera Stream on Mount
-    void startCamera();
+    let isMounted = true;
+
+    async function initCamera() {
+      if (streamRef.current || isInitializingRef.current) return;
+      isInitializingRef.current = true;
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: "environment" },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+          },
+          audio: false,
+        });
+
+        if (!isMounted) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+
+        streamRef.current = stream;
+        setStream(stream);
+        setIsCameraPoweredOn(true);
+        setScanning(true);
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          await videoRef.current.play().catch(() => {});
+          setIsCameraReady(true);
+        } else {
+          setIsCameraReady(true);
+        }
+      } catch (err) {
+        console.error("Camera acquisition failed:", err);
+      } finally {
+        isInitializingRef.current = false;
+      }
+    }
+
+    initCamera();
 
     return () => {
-      // Gracefully release camera ownership for Lens via unified camera provider
-      cameraStreamManager.releaseCamera("lens");
-      streamRef.current = null;
+      isMounted = false;
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+      }
     };
   }, []);
 
@@ -1988,15 +2030,23 @@ function SpadasLensCameraCore({
 
   // Bind stream to video element whenever stream changes with playback watchdog
   useEffect(() => {
-    streamRef.current = stream;
+    if (stream) {
+      streamRef.current = stream;
+    }
     if (videoRef.current && stream) {
       const video = videoRef.current;
-      video.srcObject = stream;
-      video.play().catch(() => { });
+      if (video.srcObject !== stream) {
+        video.srcObject = stream;
+      }
+      video.play().then(() => {
+        setIsCameraReady(true);
+      }).catch(() => { });
 
       const watchdog = setTimeout(() => {
         if (video && (video.paused || video.readyState < 2)) {
-          video.play().catch(() => { });
+          video.play().then(() => {
+            setIsCameraReady(true);
+          }).catch(() => { });
         }
       }, 500);
 
@@ -2006,11 +2056,14 @@ function SpadasLensCameraCore({
     }
   }, [stream]);
 
-  // Stop Camera Stream (Releases camera ownership via unified provider)
+  // Stop Camera Stream (Releases camera stream)
   const stopCamera = useCallback((force = false) => {
-    cameraStreamManager.releaseCamera("lens", force);
-    streamRef.current = null;
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
     setStream(null);
+    setIsCameraReady(false);
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
@@ -2021,23 +2074,39 @@ function SpadasLensCameraCore({
     analyzingRef.current = false;
   }, []);
 
-  // Start Camera Stream via Unified Camera Stream Manager with zero-latency reuse
+  // Start Camera Stream via navigator.mediaDevices.getUserMedia with zero-latency reuse
   const startCamera = async () => {
-    if (isStartingCameraRef.current) return;
-    isStartingCameraRef.current = true;
+    if (streamRef.current && streamRef.current.active) {
+      setStream(streamRef.current);
+      if (videoRef.current) {
+        videoRef.current.srcObject = streamRef.current;
+        void videoRef.current.play().catch(() => {});
+      }
+      setIsCameraReady(true);
+      setIsCameraPoweredOn(true);
+      setScanning(true);
+      return;
+    }
+    if (isInitializingRef.current) return;
+    isInitializingRef.current = true;
     try {
       setCameraError(null);
-      const mediaStream = await cameraStreamManager.acquireCamera({
-        mode: "lens",
-        facingMode: "environment",
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: "environment" },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+        },
+        audio: false,
       });
 
       streamRef.current = mediaStream;
       setStream(mediaStream);
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
-        void videoRef.current.play().catch(() => { });
+        await videoRef.current.play().catch(() => {});
       }
+      setIsCameraReady(true);
       setIsCameraPoweredOn(true);
       setScanning(true);
     } catch (err) {
@@ -2047,7 +2116,7 @@ function SpadasLensCameraCore({
       setScanning(true);
       toast.info("Activated Interactive AR Test Scanner Mode.");
     } finally {
-      isStartingCameraRef.current = false;
+      isInitializingRef.current = false;
     }
   };
 
@@ -2088,6 +2157,7 @@ function SpadasLensCameraCore({
     }
     // 3. Clear stream state & camera power
     setStream(null);
+    setIsCameraReady(false);
     setIsCameraPoweredOn(false);
     setScanning(false);
     analyzingRef.current = false;
@@ -4253,7 +4323,7 @@ function SpadasLensCameraCore({
                 className="h-full w-full object-cover"
               />
               {/* Connecting optical sensor placeholder if stream is currently binding */}
-              {!stream && (
+              {!isCameraReady && !stream && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/80 text-slate-400 space-y-2 pointer-events-none">
                   <RefreshCw className="h-6 w-6 text-cyan-400 animate-spin" />
                   <span className="text-xs font-mono tracking-wider text-slate-400">CONNECTING OPTICAL SENSOR...</span>

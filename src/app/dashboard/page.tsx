@@ -86,7 +86,7 @@ function StatCard({
   loading: boolean;
 }) {
   return (
-    <div className="p-4 glass-card relative overflow-hidden rounded-xl transition-all shadow-sm">
+    <div className="p-3 sm:p-4 glass-card relative overflow-hidden rounded-xl transition-all shadow-sm">
       <div className="flex items-center justify-between gap-2">
         <p className="hud-label truncate">{label}</p>
         {Icon && (
@@ -496,7 +496,7 @@ export default function DashboardPage() {
         )}
 
         {/* ── Hero Number: Total Net Profit */}
-        <div className="p-5 sm:p-6 glass-card backdrop-blur-sm rounded-xl shadow-sm">
+        <div className="p-3.5 sm:p-5 glass-card backdrop-blur-sm rounded-xl shadow-sm">
           <p className="text-xs font-medium text-zinc-500 mb-1">
             Total Net Profit
           </p>
@@ -582,7 +582,7 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
           <Link
             href="/lens"
-            className="p-4 glass-card card-specular rounded-xl transition-all flex items-center justify-between group cursor-pointer active:scale-[0.98]"
+            className="p-3 sm:p-4 glass-card card-specular rounded-xl transition-all flex items-center justify-between group cursor-pointer active:scale-[0.98]"
           >
             <div className="flex items-center gap-3 min-w-0">
               <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 shrink-0 group-hover:scale-105 transition">
@@ -598,7 +598,7 @@ export default function DashboardPage() {
 
           <Link
             href="/haul"
-            className="p-4 glass-card card-specular rounded-xl transition-all flex items-center justify-between group cursor-pointer active:scale-[0.98]"
+            className="p-3 sm:p-4 glass-card card-specular rounded-xl transition-all flex items-center justify-between group cursor-pointer active:scale-[0.98]"
           >
             <div className="flex items-center gap-3 min-w-0">
               <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 shrink-0 group-hover:scale-105 transition">
@@ -614,7 +614,7 @@ export default function DashboardPage() {
 
           <Link
             href="/history"
-            className="p-4 glass-card card-specular rounded-xl transition-all flex items-center justify-between group cursor-pointer active:scale-[0.98]"
+            className="p-3 sm:p-4 glass-card card-specular rounded-xl transition-all flex items-center justify-between group cursor-pointer active:scale-[0.98]"
           >
             <div className="flex items-center gap-3 min-w-0">
               <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 shrink-0 group-hover:scale-105 transition">
@@ -630,7 +630,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Inventory Grid Section */}
-        <div className="p-4 sm:p-6 glass-card rounded-xl space-y-4 shadow-sm">
+        <div className="p-3.5 sm:p-5 glass-card rounded-xl space-y-4 shadow-sm">
           {/* Header & Controls */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-4 border-b border-white/[0.08]">
             <div>

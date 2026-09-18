@@ -92,14 +92,10 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   width: "device-width",
-  initialScale: 1.0,
-  maximumScale: 1.0,
+  initialScale: 1,
+  maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#0a0a0a" },
-    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
-  ],
 };
 
 export default function RootLayout({
@@ -132,7 +128,6 @@ export default function RootLayout({
         <link rel="preconnect" href="https://api.openai.com" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://i.ebayimg.com" crossOrigin="anonymous" />
         <meta property="og:image" content="https://spadas.ai/og-preview.jpg" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
         <meta name="theme-color" content="#0a0a0a" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-touch-fullscreen" content="yes" />

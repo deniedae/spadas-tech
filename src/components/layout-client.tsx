@@ -36,7 +36,7 @@ import { triggerTactileHaptic } from "@/lib/android-bridge";
  */
 export default function LayoutClient({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const isCameraRoute = pathname === "/lens" || pathname === "/ironman" || pathname === "/snap" || pathname === "/studio";
+  const isCamera = pathname === "/lens" || pathname === "/";
 
   
   // Sidebar open/close state
@@ -371,99 +371,92 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
         <OwnerAiStatusBanner />
 
         {/* Header (Hidden on mobile for camera routes to provide native full-screen camera viewport) */}
-        {(() => {
-          const isCameraRoute = pathname === "/lens" || pathname === "/ironman" || pathname === "/snap" || pathname === "/studio";
-          return (
-            <>
-              <header className={`bg-[#05050a]/90 backdrop-blur-2xl border-b border-white/10 px-4 pt-[max(0.75rem,calc(env(safe-area-inset-top)+0.5rem))] pb-3 flex items-center justify-between md:px-8 md:py-3.5 shadow-sm ${
-                isCameraRoute ? "hidden md:flex" : "flex"
-              }`}>
-                {/* Mobile hamburger & Title */}
-                <div className="flex items-center gap-3">
-                  <button
-                    ref={hamburgerButtonRef}
-                    className="md:hidden p-2 rounded-xl text-zinc-400 hover:bg-white/[0.06] hover:text-white focus:outline-none transition-colors cursor-pointer active:scale-95"
-                    aria-label="Open sidebar"
-                    aria-expanded={sidebarOpen}
-                    onClick={() => {
-                      triggerTactileHaptic("tap");
-                      setSidebarOpen(true);
-                    }}
-                  >
-                    <AlignJustify className="h-5 w-5" />
-                  </button>
+        <header className={`bg-[#05050a]/90 backdrop-blur-2xl border-b border-white/10 px-4 pt-[max(0.75rem,calc(env(safe-area-inset-top)+0.5rem))] pb-3 flex items-center justify-between md:px-8 md:py-3.5 shadow-sm ${
+          isCamera ? "hidden md:flex" : "flex"
+        }`}>
+          {/* Mobile hamburger & Title */}
+          <div className="flex items-center gap-3">
+            <button
+              ref={hamburgerButtonRef}
+              className="md:hidden p-2 rounded-xl text-zinc-400 hover:bg-white/[0.06] hover:text-white focus:outline-none transition-colors cursor-pointer active:scale-95"
+              aria-label="Open sidebar"
+              aria-expanded={sidebarOpen}
+              onClick={() => {
+                triggerTactileHaptic("tap");
+                setSidebarOpen(true);
+              }}
+            >
+              <AlignJustify className="h-5 w-5" />
+            </button>
 
-                  {/* Page title */}
-                  <h2 className="text-lg sm:text-xl font-bold text-zinc-100 select-none tracking-tight">{pageTitle}</h2>
-                </div>
+            {/* Page title */}
+            <h2 className="text-lg sm:text-xl font-bold text-zinc-100 select-none tracking-tight">{pageTitle}</h2>
+          </div>
 
-                {/* Header Right Actions & Live Market Sync Status */}
-                <div className="hidden sm:flex items-center gap-3">
-                  {isEbayConnected ? (
-                    <Link
-                      href="/settings"
-                      className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 text-xs font-medium text-emerald-400 hover:bg-emerald-500/15 transition cursor-pointer"
-                      title="eBay Account Connected - 1-Click Publishing Active"
-                    >
-                      <span className="status-active-dot pulse" />
-                      <span>eBay Synchronized</span>
-                    </Link>
-                  ) : (
-                    <Link
-                      href="/settings"
-                      className="badge-info cursor-pointer hover:border-white/20 transition"
-                      title="Click to Connect your eBay Seller Hub"
-                    >
-                      <span className="status-loading-dot" />
-                      <span>Connect eBay</span>
-                    </Link>
-                  )}
-
-                  <Link
-                    href="/haul"
-                    className={`inline-flex h-8 items-center gap-1.5 rounded-xl border px-3 text-xs font-semibold transition-all cursor-pointer shadow-sm active:scale-95 ${
-                      pathname === "/haul"
-                        ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-[0_0_12px_rgba(52,211,153,0.3)]"
-                        : "bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
-                    }`}
-                    title="Open Haul Batch Manager & CSV Export"
-                  >
-                    <ShoppingBag className="h-3.5 w-3.5" />
-                    <span>Haul</span>
-                    {haulCount > 0 && (
-                      <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-emerald-500/30 text-emerald-200">
-                        {haulCount}
-                      </span>
-                    )}
-                  </Link>
-
-                  <Link
-                    href="/lens"
-                    className="inline-flex h-8 items-center gap-1.5 rounded-xl bg-white text-zinc-950 font-bold px-3.5 text-xs hover:bg-zinc-200 transition-all cursor-pointer shadow-sm active:scale-95"
-                  >
-                    <Scan className="h-3.5 w-3.5" />
-                    <span>Launch Lens AR</span>
-                  </Link>
-                </div>
-              </header>
-
-              {/* Page content with native zero-padding edge-to-edge on mobile for camera viewports */}
-              <main
-                className={`page-slot scroll-touch flex-1 w-full ${
-                  isCameraRoute
-                    ? "p-0 md:p-8 md:pb-8 flex flex-col"
-                    : "page-scroll-container p-3 sm:p-4 md:p-8 pb-28 md:pb-24"
-                }`}
-                style={!isCameraRoute ? { paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 7rem)" } : undefined}
+          {/* Header Right Actions & Live Market Sync Status */}
+          <div className="hidden sm:flex items-center gap-3">
+            {isEbayConnected ? (
+              <Link
+                href="/settings"
+                className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 text-xs font-medium text-emerald-400 hover:bg-emerald-500/15 transition cursor-pointer"
+                title="eBay Account Connected - 1-Click Publishing Active"
               >
-                {children}
-              </main>
-            </>
-          );
-        })()}
+                <span className="status-active-dot pulse" />
+                <span>eBay Synchronized</span>
+              </Link>
+            ) : (
+              <Link
+                href="/settings"
+                className="badge-info cursor-pointer hover:border-white/20 transition"
+                title="Click to Connect your eBay Seller Hub"
+              >
+                <span className="status-loading-dot" />
+                <span>Connect eBay</span>
+              </Link>
+            )}
+
+            <Link
+              href="/haul"
+              className={`inline-flex h-8 items-center gap-1.5 rounded-xl border px-3 text-xs font-semibold transition-all cursor-pointer shadow-sm active:scale-95 ${
+                pathname === "/haul"
+                  ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-[0_0_12px_rgba(52,211,153,0.3)]"
+                  : "bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+              }`}
+              title="Open Haul Batch Manager & CSV Export"
+            >
+              <ShoppingBag className="h-3.5 w-3.5" />
+              <span>Haul</span>
+              {haulCount > 0 && (
+                <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-emerald-500/30 text-emerald-200">
+                  {haulCount}
+                </span>
+              )}
+            </Link>
+
+            <Link
+              href="/lens"
+              className="inline-flex h-8 items-center gap-1.5 rounded-xl bg-white text-zinc-950 font-bold px-3.5 text-xs hover:bg-zinc-200 transition-all cursor-pointer shadow-sm active:scale-95"
+            >
+              <Scan className="h-3.5 w-3.5" />
+              <span>Launch Lens AR</span>
+            </Link>
+          </div>
+        </header>
+
+        {/* Page content with native zero-padding edge-to-edge on mobile for camera viewports */}
+        <main
+          className={`page-slot scroll-touch flex-1 w-full ${
+            isCamera
+              ? "p-0 md:p-8 md:pb-8 flex flex-col"
+              : "page-scroll-container p-3 sm:p-4 md:p-8 pb-28 md:pb-24"
+          }`}
+          style={!isCamera ? { paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 7rem)" } : undefined}
+        >
+          {children}
+        </main>
 
         {/* Sticky Mobile Bottom Navigation (Hidden on camera routes to eliminate dual-nav overlay) */}
-        {!isCameraRoute && <MobileNav />}
+        {!isCamera && <MobileNav />}
       </div>
     </div>
   );
