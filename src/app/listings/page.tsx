@@ -254,7 +254,10 @@ export default function ListingsPage() {
 
   if (loading) {
     return (
-      <main className="space-y-6 animate-fade-in max-w-7xl mx-auto px-4 sm:px-6 py-6 text-zinc-100">
+      <main
+        className="space-y-6 animate-fade-in max-w-7xl mx-auto px-4 sm:px-6 py-6 text-zinc-100 pb-28 md:pb-24 overflow-y-auto"
+        style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 7rem)" }}
+      >
         <div className="flex items-center justify-between">
           <div className="space-y-2">
             <div className="h-8 w-48 rounded bg-zinc-800 animate-pulse" />
@@ -276,7 +279,10 @@ export default function ListingsPage() {
   }
 
   return (
-    <main className="space-y-6 animate-fade-in max-w-7xl mx-auto px-4 sm:px-6 py-6 text-zinc-100 pb-32 sm:pb-36 pb-[calc(env(safe-area-inset-bottom,0px)+8rem)]">
+    <main
+      className="space-y-6 animate-fade-in max-w-7xl mx-auto px-4 sm:px-6 py-6 text-zinc-100 pb-28 md:pb-24 overflow-y-auto"
+      style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 7rem)" }}
+    >
       {/* Executive Portfolio Header */}
       <div className="p-5 sm:p-6 rounded-2xl glass-card card-specular surface-elevation-2 border border-white/10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">

@@ -776,7 +776,10 @@ export function SpadasHaulSection({
           No items match the active search filter.
         </div>
       ) : (
-        <div className="space-y-3">
+        <div
+          className="space-y-3 pb-28 md:pb-24"
+          style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 7rem)" }}
+        >
           {filteredItems.map((item) => {
             const photoUrl = photoUrls[item.photoId];
             const velocity = calculateSalesVelocity({
@@ -1045,6 +1048,40 @@ export function SpadasHaulSection({
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Persistent Floating Action Footer for Quick Intake & CSV Export on Mobile (Anchored strictly above bottom nav) */}
+      {items.length > 0 && (
+        <div className="fixed bottom-20 left-0 right-0 z-40 px-4 md:hidden pointer-events-none animate-fade-in">
+          <div className="max-w-md mx-auto flex items-center justify-between gap-2 p-2 rounded-2xl bg-slate-950/95 border border-white/10 backdrop-blur-xl shadow-2xl pointer-events-auto">
+            <button
+              type="button"
+              onClick={handleBatchCommitToInventory}
+              disabled={isBatchCommitting || stats.profitableCount === 0}
+              className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs transition shadow-md active:scale-95 disabled:opacity-40"
+              title="Commit All Profitable Items to Inventory"
+            >
+              {isBatchCommitting ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-950" />
+              ) : (
+                <PackagePlus className="h-3.5 w-3.5" />
+              )}
+              <span>Commit All ({stats.profitableCount})</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                triggerTactileHaptic("tap");
+                handleExportCsv();
+              }}
+              className="inline-flex items-center gap-1 px-3.5 py-2.5 rounded-xl bg-white/[0.08] hover:bg-white/[0.12] text-zinc-100 border border-white/10 text-xs font-semibold active:scale-95 transition"
+              title="Export Manifest CSV"
+            >
+              <Download className="h-3.5 w-3.5" />
+              <span>CSV</span>
+            </button>
+          </div>
         </div>
       )}
 

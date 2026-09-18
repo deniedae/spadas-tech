@@ -446,11 +446,14 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
               </header>
 
               {/* Page content with native zero-padding edge-to-edge on mobile for camera viewports */}
-              <main className={`page-slot scroll-touch flex-1 ${
-                isCameraRoute
-                  ? "p-0 pb-[calc(env(safe-area-inset-bottom)+4.5rem)] md:p-8 md:pb-8 flex flex-col min-h-0"
-                  : "p-3 sm:p-4 md:p-8 pb-[calc(env(safe-area-inset-bottom)+4.5rem)] md:pb-8"
-              }`}>
+              <main
+                className={`page-slot scroll-touch flex-1 ${
+                  isCameraRoute
+                    ? "p-0 pb-[calc(env(safe-area-inset-bottom)+4.5rem)] md:p-8 md:pb-8 flex flex-col min-h-0"
+                    : "p-3 sm:p-4 md:p-8 pb-28 md:pb-24 overflow-y-auto"
+                }`}
+                style={!isCameraRoute ? { paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 7rem)" } : undefined}
+              >
                 {children}
               </main>
             </>
