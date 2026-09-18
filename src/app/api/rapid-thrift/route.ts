@@ -33,44 +33,6 @@ interface RapidThriftResponse {
   };
 }
 
-function generateLocalThriftFallback(currency = "AUD"): RapidThriftResponse {
-  const catalog = [
-    { name: "Vintage Nike Embroidered Swoosh Crewneck", brand: "Nike", category: "Streetwear & Apparel", val: 85, cost: 8 },
-    { name: "Carhartt J97 Detroit Canvas Work Jacket", brand: "Carhartt", category: "Workwear & Outerwear", val: 175, cost: 15 },
-    { name: "Patagonia Synchilla Snap-T Fleece Pullover", brand: "Patagonia", category: "Outdoor Apparel", val: 95, cost: 10 },
-    { name: "Vintage Sony Walkman Portable Cassette Player", brand: "Sony", category: "Vintage Electronics", val: 120, cost: 12 },
-    { name: "Prada Saffiano Leather Bifold Wallet", brand: "Prada", category: "Small Leather Goods", val: 190, cost: 14 },
-    { name: "Ralph Lauren Heavy Cable-Knit Wool Sweater", brand: "Ralph Lauren", category: "Designer Knitwear", val: 65, cost: 9 },
-  ];
-  const pick = catalog[Math.floor(Math.random() * catalog.length)];
-  const fee = pick.val * 0.134 + 0.33;
-  const net = Math.max(0, Math.round((pick.val - pick.cost - fee) * 100) / 100);
-  const roi = pick.cost > 0 ? Math.round((net / pick.cost) * 100) : 0;
-  const isHighProfit = net >= 50;
-
-  const verification = checkNeedsVerification({
-    name: pick.name,
-    brand: pick.brand,
-    category: pick.category,
-    estimatedValue: pick.val,
-  });
-
-  return {
-    product_name: pick.name,
-    brand: pick.brand,
-    category: pick.category,
-    condition: "Used - Good",
-    estimated_value: pick.val,
-    thrift_cost: pick.cost,
-    true_net_profit: net,
-    roi_percentage: roi,
-    cop_verdict: net >= 50 ? "MUST_COP" : net >= 15 ? "QUICK_FLIP" : "PASS_RISKY",
-    is_grail: isHighProfit,
-    needs_verification: verification.needsVerification,
-    notes: isHighProfit ? `High velocity thrift flip in ${currency}!` : `Steady turnover item`,
-  };
-}
-
 export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => ({}));
@@ -127,8 +89,15 @@ export async function POST(req: Request) {
 
     const apiKey = getPrimaryAiApiKey();
     if (!apiKey) {
-      console.log("[Rapid Thrift API] No AI Key configured, returning local appraisal.");
-      return NextResponse.json(generateLocalThriftFallback(currency));
+      console.warn("[Rapid Thrift API] No AI API Key configured on server.");
+      return NextResponse.json(
+        {
+          error: "AI Vision API key is not configured on the server",
+          code: "MISSING_API_KEY",
+          recoverable: false,
+        },
+        { status: 503 }
+      );
     }
 
 
@@ -203,7 +172,10 @@ Output ONLY valid JSON adhering strictly to:
 
     const rawContent = completion.choices[0]?.message?.content;
     if (!rawContent) {
-      return NextResponse.json(generateLocalThriftFallback(currency));
+      return NextResponse.json(
+        { error: "Vision appraisal model produced an empty response", code: "EMPTY_MODEL_RESPONSE", recoverable: true },
+        { status: 502 }
+      );
     }
 
 
@@ -346,8 +318,15 @@ Output ONLY valid JSON adhering strictly to:
 
     return NextResponse.json(result);
   } catch (err: any) {
-    console.error("[Rapid Thrift API] Error, returning local fallback:", err);
-    return NextResponse.json(generateLocalThriftFallback());
+    console.error("[Rapid Thrift API] Appraisal processing failed:", err?.message || err);
+    return NextResponse.json(
+      {
+        error: err?.message || "Vision appraisal failed",
+        code: "SERVICE_UNAVAILABLE",
+        recoverable: true,
+      },
+      { status: 503 }
+    );
   }
 }
 

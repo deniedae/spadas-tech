@@ -1458,6 +1458,14 @@ function SpadasLensCameraCore({
 
     return () => {
       isMounted = false;
+      if (activeAbortControllerRef.current) {
+        try {
+          activeAbortControllerRef.current.abort();
+        } catch (abortErr) {
+          console.warn("[Spadas Lens] Abort controller unmount cleanup warning:", abortErr);
+        }
+        activeAbortControllerRef.current = null;
+      }
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((track) => track.stop());
         streamRef.current = null;
@@ -2058,6 +2066,14 @@ function SpadasLensCameraCore({
 
   // Stop Camera Stream (Releases camera stream)
   const stopCamera = useCallback((force = false) => {
+    if (activeAbortControllerRef.current) {
+      try {
+        activeAbortControllerRef.current.abort();
+      } catch (abortErr) {
+        console.warn("[Spadas Lens] Abort controller cleanup warning:", abortErr);
+      }
+      activeAbortControllerRef.current = null;
+    }
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => track.stop());
       streamRef.current = null;

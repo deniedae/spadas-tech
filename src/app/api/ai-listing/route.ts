@@ -1,7 +1,3 @@
-if (process.env.NODE_ENV === "development") {
-  process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
-}
-
 import OpenAI from "openai";
 import { zodResponseFormat } from "openai/helpers/zod";
 import { NextResponse } from "next/server";

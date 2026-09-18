@@ -28,43 +28,20 @@ export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraH
   const handleExitCamera = useCallback(() => {
     releasePersistentMediaStream();
     if (typeof window !== "undefined") {
-      if (window.history.state?.modal === "camera") {
-        if (window.history.length > 2) {
-          window.history.go(-2);
-        } else {
-          router.push("/");
-        }
+      if (window.history.length > 1) {
+        router.back();
       } else {
-        if (window.history.length > 1) {
-          router.back();
-        } else {
-          router.push("/");
-        }
+        router.push("/");
       }
     }
   }, [router]);
 
+  // Ensure camera hardware resources are released whenever component unmounts
   useEffect(() => {
-    // Push sentinel state so hardware back key fires popstate instead of exiting the PWA
-    window.history.pushState({ modal: "camera" }, "");
-
-    const onPopState = (e: PopStateEvent) => {
-      // Intercept hardware back button press
-      if (window.history.state?.modal === "camera" || e.state?.modal === "camera") {
-        return;
-      }
-      handleExitCamera();
-    };
-
-    window.addEventListener("popstate", onPopState);
-
     return () => {
-      window.removeEventListener("popstate", onPopState);
-      if (window.history.state?.modal === "camera") {
-        window.history.back();
-      }
+      releasePersistentMediaStream();
     };
-  }, [handleExitCamera]);
+  }, []);
 
   useEffect(() => {
     if (initialTab === "haul") {
@@ -75,6 +52,7 @@ export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraH
   const handleTabChange = (tab: "lens" | "studio") => {
     if (activeTab !== tab) {
       triggerTactileHaptic("selection");
+      releasePersistentMediaStream();
       setActiveTab(tab);
     }
   };

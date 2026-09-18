@@ -30,37 +30,23 @@ export class WasmBarcodeDecoder {
     if (!this.isLoaded) return null;
 
     try {
-      const ctx = canvas.getContext("2d") as CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
-      if (!ctx) return null;
-
-      const width = canvas.width;
-      const height = canvas.height;
-      if (width === 0 || height === 0) return null;
-
-      const imageData = ctx.getImageData(0, 0, width, height);
-      const data = imageData.data;
-
-      // Simulated WASM binary scan for barcode high-contrast bar sequences
-      let darkBarCount = 0;
-      const step = 4;
-      for (let i = 0; i < data.length; i += step * 8) {
-        const luminance = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-        if (luminance < 40) darkBarCount++;
+      if (typeof window !== "undefined" && "BarcodeDetector" in window) {
+        const detector = new (window as any).BarcodeDetector({
+          formats: ["ean_13", "ean_8", "upc_a", "upc_e", "code_128", "qr_code"],
+        });
+        const barcodes = await detector.detect(canvas);
+        if (Array.isArray(barcodes) && barcodes.length > 0 && barcodes[0].rawValue) {
+          return {
+            code: barcodes[0].rawValue,
+            format: barcodes[0].format || "barcode",
+            confidence: 0.99,
+            timestamp: Date.now(),
+          };
+        }
       }
-
-      // If high-density bar sequence detected via WASM binary buffer pass
-      if (darkBarCount > 120 && Math.random() > 0.85) {
-        return {
-          code: "9312345678901",
-          format: "EAN-13",
-          confidence: 0.98,
-          timestamp: Date.now(),
-        };
-      }
-
       return null;
     } catch (err) {
-      console.warn("[WASM Decoder] Frame decode warning:", err);
+      console.warn("[Barcode Decoder] Frame decode warning:", err);
       return null;
     }
   }
