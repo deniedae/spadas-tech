@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Camera, Zap, ShoppingBag } from "lucide-react";
+import { Camera, Zap, ShoppingBag, ChevronLeft, Home } from "lucide-react";
 import dynamic from "next/dynamic";
 import SpadasLensCamera, { releasePersistentMediaStream } from "@/components/spadas-lens-camera";
 import { useHaulStore } from "@/lib/haul-store";
@@ -24,22 +24,32 @@ export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraH
   );
   const { haulCount } = useHaulStore();
 
-  // Android back-button sentinel:
-  // Push a dummy history entry when the camera mounts so that pressing the
-  // hardware Back key fires "popstate" (consuming the dummy entry) instead of
-  // navigating the whole PWA away. We clean up the media stream and route to
-  // the previous page manually.
+  // Clean exit handler: releases hardware media stream and navigates back or home
   const handleExitCamera = useCallback(() => {
     releasePersistentMediaStream();
-    router.back();
+    if (typeof window !== "undefined") {
+      if (window.history.state?.modal === "camera") {
+        if (window.history.length > 2) {
+          window.history.go(-2);
+        } else {
+          router.push("/");
+        }
+      } else {
+        if (window.history.length > 1) {
+          router.back();
+        } else {
+          router.push("/");
+        }
+      }
+    }
   }, [router]);
 
   useEffect(() => {
-    // Push sentinel state so the next back-press hits this popstate, not the browser's
+    // Push sentinel state so hardware back key fires popstate instead of exiting the PWA
     window.history.pushState({ modal: "camera" }, "");
 
     const onPopState = (e: PopStateEvent) => {
-      // Only intercept when the sentinel state has actually been popped
+      // Intercept hardware back button press
       if (window.history.state?.modal === "camera" || e.state?.modal === "camera") {
         return;
       }
@@ -50,8 +60,6 @@ export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraH
 
     return () => {
       window.removeEventListener("popstate", onPopState);
-      // If the sentinel is still in history on unmount (user navigated forward),
-      // pop it so we don't leave stale entries
       if (window.history.state?.modal === "camera") {
         window.history.back();
       }
@@ -73,14 +81,30 @@ export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraH
 
   return (
     <div className="relative w-full bg-[#08090D] text-white flex flex-col">
-      {/* Top Segmented Mode Slider — Pro Tool Workspace Bar */}
-      <div className="sticky top-0 z-40 w-full px-2.5 sm:px-3 pt-[max(0.75rem,calc(env(safe-area-inset-top)+0.5rem))] pb-2 sm:pb-2.5 glass-nav border-b border-white/[0.06] flex items-center justify-center">
-        <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-[#0D0F15] border border-white/[0.08] shadow-lg max-w-md w-full">
+      {/* Top Segmented Mode Slider — Pro Tool Workspace Bar with On-Screen Back & Home */}
+      <div className="sticky top-0 z-40 w-full px-2 sm:px-4 pt-[max(0.75rem,calc(env(safe-area-inset-top)+0.5rem))] pb-2 sm:pb-2.5 glass-nav border-b border-white/[0.06] flex items-center justify-between gap-2 max-w-xl mx-auto">
+        {/* On-Screen Back Button */}
+        <button
+          type="button"
+          onClick={() => {
+            triggerTactileHaptic("tap");
+            handleExitCamera();
+          }}
+          className="flex items-center gap-1 h-9 px-2.5 rounded-xl bg-[#0D0F15] border border-white/[0.1] text-zinc-300 hover:text-white hover:bg-white/[0.06] active:scale-95 transition shadow-md cursor-pointer shrink-0"
+          title="Back to previous page"
+          aria-label="Back to previous page"
+        >
+          <ChevronLeft className="h-4 w-4" />
+          <span className="text-xs font-semibold pr-0.5 hidden xs:inline">Back</span>
+        </button>
+
+        {/* 3-Mode Segmented Switcher */}
+        <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-[#0D0F15] border border-white/[0.08] shadow-lg flex-1 max-w-sm">
           {/* Mode 1: Lens AR */}
           <button
             type="button"
             onClick={() => handleTabChange("lens")}
-            className={`py-2 px-3 rounded-lg text-xs font-bold transition-all duration-150 flex items-center justify-center gap-1.5 cursor-pointer text-center active:scale-95 ${
+            className={`py-2 px-2 sm:px-3 rounded-lg text-xs font-bold transition-all duration-150 flex items-center justify-center gap-1.5 cursor-pointer text-center active:scale-95 ${
               activeTab === "lens"
                 ? "bg-[#1A1E29] text-white shadow-sm border border-white/[0.12]"
                 : "text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.03]"
@@ -94,7 +118,7 @@ export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraH
           <button
             type="button"
             onClick={() => handleTabChange("studio")}
-            className={`py-2 px-3 rounded-lg text-xs font-bold transition-all duration-150 flex items-center justify-center gap-1.5 cursor-pointer text-center active:scale-95 ${
+            className={`py-2 px-2 sm:px-3 rounded-lg text-xs font-bold transition-all duration-150 flex items-center justify-center gap-1.5 cursor-pointer text-center active:scale-95 ${
               activeTab === "studio"
                 ? "bg-[#1A1E29] text-white shadow-sm border border-white/[0.12]"
                 : "text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.03]"
@@ -111,7 +135,7 @@ export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraH
               triggerTactileHaptic("selection");
               router.push("/haul");
             }}
-            className="py-2 px-3 rounded-lg text-xs font-bold transition-all duration-150 flex items-center justify-center gap-1.5 cursor-pointer text-center text-zinc-300 hover:text-white hover:bg-white/[0.04] active:scale-95"
+            className="py-2 px-2 sm:px-3 rounded-lg text-xs font-bold transition-all duration-150 flex items-center justify-center gap-1.5 cursor-pointer text-center text-zinc-300 hover:text-white hover:bg-white/[0.04] active:scale-95"
             title="Open Haul Session & Manifest"
           >
             <ShoppingBag className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
@@ -123,6 +147,21 @@ export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraH
             )}
           </button>
         </div>
+
+        {/* Dashboard Overview Shortcut */}
+        <button
+          type="button"
+          onClick={() => {
+            triggerTactileHaptic("tap");
+            releasePersistentMediaStream();
+            router.push("/");
+          }}
+          className="flex items-center justify-center h-9 w-9 rounded-xl bg-[#0D0F15] border border-white/[0.1] text-zinc-300 hover:text-white hover:bg-white/[0.06] active:scale-95 transition shadow-md cursor-pointer shrink-0"
+          title="Dashboard Overview"
+          aria-label="Dashboard Overview"
+        >
+          <Home className="h-4 w-4" />
+        </button>
       </div>
 
       {/* Dynamic Mode Viewport */}
