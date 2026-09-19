@@ -26,14 +26,14 @@ function getStoredShowcase(): ShowcaseData {
   }
 
   return {
-    playbackId: process.env.NEXT_PUBLIC_MUX_PLAYBACK_ID || null,
-    title: "Spadas Lens — Real-Time AR Reseller Scanner Demo",
-    description: "Watch how Spadas Lens identifies items in under 300ms, calculates net profit after platform fees & shipping, and generates 80-char SEO listings in 1 tap.",
+    playbackId: process.env.NEXT_PUBLIC_MUX_PLAYBACK_ID || "nN8jeCu7U3Ko01TD3OyhfVWuCj3q00WEUvrngondd7blk",
+    title: "Spadas Lens — AR Reseller Scanner in Action",
+    description: "Watch how Spadas Lens identifies items in under 300ms, calculates take-home net profit, and generates 80-char SEO listings in seconds.",
     chapters: [
-      { time: 0, title: "Sub-300ms AR Camera Detection" },
-      { time: 12, title: "Real-Time Australian Sold Comps" },
-      { time: 25, title: "Take-Home Net Profit & Margin Engine" },
-      { time: 42, title: "Media Format OCR & 1-Tap SEO Listings" },
+      { time: 0, title: "Sub-300ms Optical Capture" },
+      { time: 4, title: "Real-Time Australian Sold Comps" },
+      { time: 8, title: "Take-Home Net Profit & Margin Engine" },
+      { time: 11, title: "Instant 1-Tap SEO Listings" },
     ],
   };
 }

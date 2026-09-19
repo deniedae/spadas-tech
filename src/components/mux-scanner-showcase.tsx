@@ -42,22 +42,24 @@ interface ShowcaseState {
   configured: boolean;
 }
 
+const DEFAULT_SHOWCASE_PLAYBACK_ID = "nN8jeCu7U3Ko01TD3OyhfVWuCj3q00WEUvrngondd7blk";
+
 export default function MuxScannerShowcase({ isAdmin = false }: { isAdmin?: boolean }) {
   const [canUpload, setCanUpload] = useState(isAdmin);
   const [showcase, setShowcase] = useState<ShowcaseState>({
-    playbackId: null,
+    playbackId: process.env.NEXT_PUBLIC_MUX_PLAYBACK_ID || DEFAULT_SHOWCASE_PLAYBACK_ID,
     title: "Spadas Lens — AR Reseller Scanner in Action",
-    description: "Watch how Spadas Lens identifies items in under 300ms, calculates take-home net profit, and generates 80-char SEO listings.",
+    description: "Watch how Spadas Lens identifies items in under 300ms, calculates take-home net profit, and generates 80-char SEO listings in seconds.",
     chapters: [
-      { time: 0, title: "Sub-300ms AR Camera Detection" },
-      { time: 12, title: "Real-Time Australian Sold Comps" },
-      { time: 25, title: "Take-Home Net Profit & Margin Engine" },
-      { time: 42, title: "Media Format OCR & 1-Tap SEO Listings" },
+      { time: 0, title: "Sub-300ms Optical Capture" },
+      { time: 4, title: "Real-Time Australian Sold Comps" },
+      { time: 8, title: "Take-Home Net Profit & Margin Engine" },
+      { time: 11, title: "Instant 1-Tap SEO Listings" },
     ],
-    configured: false,
+    configured: true,
   });
 
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -283,7 +285,7 @@ export default function MuxScannerShowcase({ isAdmin = false }: { isAdmin?: bool
       {/* Video Container */}
       <div className="relative rounded-3xl overflow-hidden border border-white/[0.12] bg-[#0A0D14] shadow-2xl p-2 sm:p-3">
         {showcase.playbackId ? (
-          <div className="relative rounded-2xl overflow-hidden aspect-video bg-black">
+          <div className="relative rounded-2xl overflow-hidden aspect-video bg-black flex items-center justify-center">
             <MuxPlayer
               ref={playerRef}
               playbackId={showcase.playbackId}
@@ -294,7 +296,7 @@ export default function MuxScannerShowcase({ isAdmin = false }: { isAdmin?: bool
               }}
               streamType="on-demand"
               accentColor="#22d3ee"
-              className="w-full h-full object-cover"
+              className="w-full h-full object-contain"
               primaryColor="#ffffff"
               secondaryColor="#0a0d14"
             />
