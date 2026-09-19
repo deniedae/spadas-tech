@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Camera, Zap, ShoppingBag, ChevronLeft, Home } from "lucide-react";
+import { Camera, Zap, ShoppingBag, ChevronLeft, Home, HelpCircle } from "lucide-react";
 import dynamic from "next/dynamic";
 import SpadasLensCamera, { releasePersistentMediaStream } from "@/components/spadas-lens-camera";
 import { useHaulStore } from "@/lib/haul-store";
@@ -10,6 +10,11 @@ import { triggerTactileHaptic } from "@/lib/android-bridge";
 
 const SpadasSnapStudio = dynamic(
   () => import("@/components/spadas-snap-studio").then((m) => m.SpadasSnapStudio),
+  { ssr: false }
+);
+
+const ScannerGuideModal = dynamic(
+  () => import("@/components/scanner-guide-modal").then((m) => m.ScannerGuideModal),
   { ssr: false }
 );
 
@@ -22,6 +27,7 @@ export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraH
   const [activeTab, setActiveTab] = useState<"lens" | "studio">(
     initialTab === "studio" ? "studio" : "lens"
   );
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
   const { haulCount } = useHaulStore();
 
   // Clean exit handler: releases hardware media stream and navigates back or home
@@ -126,20 +132,37 @@ export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraH
           </button>
         </div>
 
-        {/* Dashboard Overview Shortcut */}
-        <button
-          type="button"
-          onClick={() => {
-            triggerTactileHaptic("tap");
-            releasePersistentMediaStream();
-            router.push("/");
-          }}
-          className="flex items-center justify-center h-9 w-9 rounded-xl bg-[#0D0F15] border border-white/[0.1] text-zinc-300 hover:text-white hover:bg-white/[0.06] active:scale-95 transition shadow-md cursor-pointer shrink-0"
-          title="Dashboard Overview"
-          aria-label="Dashboard Overview"
-        >
-          <Home className="h-4 w-4" />
-        </button>
+        {/* Header Right Utility Buttons */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {/* How to Scan Guide Button */}
+          <button
+            type="button"
+            onClick={() => {
+              triggerTactileHaptic("tap");
+              setIsGuideOpen(true);
+            }}
+            className="flex items-center justify-center h-9 w-9 rounded-xl bg-[#0D0F15] border border-cyan-500/30 text-cyan-400 hover:text-white hover:bg-cyan-500/10 active:scale-95 transition shadow-md cursor-pointer"
+            title="How to Scan Guide"
+            aria-label="How to Scan Guide"
+          >
+            <HelpCircle className="h-4 w-4" />
+          </button>
+
+          {/* Dashboard Overview Shortcut */}
+          <button
+            type="button"
+            onClick={() => {
+              triggerTactileHaptic("tap");
+              releasePersistentMediaStream();
+              router.push("/");
+            }}
+            className="flex items-center justify-center h-9 w-9 rounded-xl bg-[#0D0F15] border border-white/[0.1] text-zinc-300 hover:text-white hover:bg-white/[0.06] active:scale-95 transition shadow-md cursor-pointer"
+            title="Dashboard Overview"
+            aria-label="Dashboard Overview"
+          >
+            <Home className="h-4 w-4" />
+          </button>
+        </div>
       </div>
 
       {/* Dynamic Mode Viewport */}
@@ -158,6 +181,12 @@ export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraH
           </div>
         )}
       </div>
+
+      {/* In-Camera Quick Guide Modal */}
+      <ScannerGuideModal
+        isOpen={isGuideOpen}
+        onClose={() => setIsGuideOpen(false)}
+      />
     </div>
   );
 }

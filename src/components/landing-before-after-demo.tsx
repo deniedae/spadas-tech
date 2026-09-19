@@ -345,8 +345,16 @@ export default function LandingBeforeAfterDemo() {
                   className="h-full w-full object-cover group-hover:scale-105 transition duration-500"
                 />
 
+                {/* 4 Minimalist Optical Focus Brackets */}
+                <div className="absolute inset-5 pointer-events-none z-10">
+                  <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-emerald-400" />
+                  <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-emerald-400" />
+                  <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-emerald-400" />
+                  <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-emerald-400" />
+                </div>
+
                 {/* Shutter Telemetry Pill Overlay */}
-                <div className="absolute top-3 left-3 bg-black/70 backdrop-blur-md px-2.5 py-1 rounded-lg border border-white/10 flex items-center gap-1.5">
+                <div className="absolute top-3 left-3 bg-black/70 backdrop-blur-md px-2.5 py-1 rounded-lg border border-white/10 flex items-center gap-1.5 z-20">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
                   <span className="text-[10px] font-medium text-zinc-200">
                     Identified in 1.1s

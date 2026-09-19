@@ -34,6 +34,16 @@ interface Chapter {
   title: string;
 }
 
+interface ShowcaseClip {
+  id: string;
+  title: string;
+  badge: string;
+  duration: string;
+  playbackId: string;
+  description: string;
+  chapters: Chapter[];
+}
+
 interface ShowcaseState {
   playbackId: string | null;
   title: string;
@@ -44,11 +54,13 @@ interface ShowcaseState {
 
 const DEFAULT_SHOWCASE_PLAYBACK_ID = "nN8jeCu7U3Ko01TD3OyhfVWuCj3q00WEUvrngondd7blk";
 
-export default function MuxScannerShowcase({ isAdmin = false }: { isAdmin?: boolean }) {
-  const [canUpload, setCanUpload] = useState(isAdmin);
-  const [showcase, setShowcase] = useState<ShowcaseState>({
-    playbackId: process.env.NEXT_PUBLIC_MUX_PLAYBACK_ID || DEFAULT_SHOWCASE_PLAYBACK_ID,
-    title: "Spadas Lens — AR Reseller Scanner in Action",
+const SHOWCASE_CLIPS: ShowcaseClip[] = [
+  {
+    id: "clip-1",
+    title: "1. 300ms Optical Scan",
+    badge: "Core Feature",
+    duration: "0:12",
+    playbackId: DEFAULT_SHOWCASE_PLAYBACK_ID,
     description: "Watch how Spadas Lens identifies items in under 300ms, calculates take-home net profit, and generates 80-char SEO listings in seconds.",
     chapters: [
       { time: 0, title: "Sub-300ms Optical Capture" },
@@ -56,6 +68,43 @@ export default function MuxScannerShowcase({ isAdmin = false }: { isAdmin?: bool
       { time: 8, title: "Take-Home Net Profit & Margin Engine" },
       { time: 11, title: "Instant 1-Tap SEO Listings" },
     ],
+  },
+  {
+    id: "clip-2",
+    title: "2. Aisle Sourcing & Rapid Haul",
+    badge: "Op-Shop Mode",
+    duration: "0:12",
+    playbackId: DEFAULT_SHOWCASE_PLAYBACK_ID,
+    description: "Walk thrift racks in Rapid Sourcing Mode. Every item you scan automatically aggregates into your haul ledger with live sell-through rates and CSV export.",
+    chapters: [
+      { time: 0, title: "Aisle Walkthrough" },
+      { time: 4, title: "Continuous Scan" },
+      { time: 8, title: "Ledger Sync" },
+    ],
+  },
+  {
+    id: "clip-3",
+    title: "3. 1-Tap eBay Drafts",
+    badge: "Seller Hub",
+    duration: "0:12",
+    playbackId: DEFAULT_SHOWCASE_PLAYBACK_ID,
+    description: "Push complete listings straight to your eBay account drafts with pre-filled item specifics, condition grades, and optimized 80-character SEO titles.",
+    chapters: [
+      { time: 0, title: "Instant Appraisal" },
+      { time: 5, title: "Item Specifics" },
+      { time: 9, title: "1-Tap Publish" },
+    ],
+  },
+];
+
+export default function MuxScannerShowcase({ isAdmin = false }: { isAdmin?: boolean }) {
+  const [canUpload, setCanUpload] = useState(isAdmin);
+  const [selectedClipId, setSelectedClipId] = useState<string>("clip-1");
+  const [showcase, setShowcase] = useState<ShowcaseState>({
+    playbackId: process.env.NEXT_PUBLIC_MUX_PLAYBACK_ID || DEFAULT_SHOWCASE_PLAYBACK_ID,
+    title: SHOWCASE_CLIPS[0].title,
+    description: SHOWCASE_CLIPS[0].description,
+    chapters: SHOWCASE_CLIPS[0].chapters,
     configured: true,
   });
 
@@ -251,10 +300,26 @@ export default function MuxScannerShowcase({ isAdmin = false }: { isAdmin?: bool
     }
   };
 
+  const handleSelectClip = (clip: ShowcaseClip) => {
+    setSelectedClipId(clip.id);
+    setShowcase((prev) => ({
+      ...prev,
+      playbackId: clip.playbackId,
+      title: clip.title,
+      description: clip.description,
+      chapters: clip.chapters,
+    }));
+    try {
+      if (playerRef.current) {
+        playerRef.current.currentTime = 0;
+      }
+    } catch {}
+  };
+
   return (
     <section id="demo-video" className="py-12 sm:py-16 px-4 max-w-5xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6">
         <div>
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 mb-3">
             <Video className="w-3.5 h-3.5" />
@@ -280,6 +345,40 @@ export default function MuxScannerShowcase({ isAdmin = false }: { isAdmin?: bool
             </button>
           </div>
         )}
+      </div>
+
+      {/* Multi-Video Reel Tabs */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-4 scrollbar-none">
+        {SHOWCASE_CLIPS.map((clip) => {
+          const isSelected = selectedClipId === clip.id;
+          return (
+            <button
+              key={clip.id}
+              onClick={() => handleSelectClip(clip)}
+              className={`flex items-center gap-2.5 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap active:scale-95 border ${
+                isSelected
+                  ? "bg-white text-zinc-950 border-white shadow-lg font-black"
+                  : "bg-[#0A0D14] hover:bg-zinc-900 text-zinc-300 border-white/[0.08]"
+              }`}
+            >
+              <div
+                className={`w-2 h-2 rounded-full ${
+                  isSelected ? "bg-cyan-500 animate-pulse" : "bg-zinc-600"
+                }`}
+              />
+              <span>{clip.title}</span>
+              <span
+                className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${
+                  isSelected
+                    ? "bg-zinc-200 text-zinc-900"
+                    : "bg-white/[0.05] text-zinc-400"
+                }`}
+              >
+                {clip.duration}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       {/* Video Container */}

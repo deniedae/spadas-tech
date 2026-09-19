@@ -21,6 +21,7 @@
 /build
 
 # scratch & extracted
+/base/
 /extracted_apk/
 /scratch_xapk/
 /scratch/
