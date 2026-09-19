@@ -4229,6 +4229,9 @@ function SpadasLensCameraCore({
     };
   }, []);
 
+  // Focus lock state for viewfinder framing animation (steady + high confidence or paused)
+  const isFocusLocked = isScanPaused || (!cameraMoving && confidencePercent >= 80);
+
   return (
     <div className="spadas-lens-camera w-full h-full flex-1 min-h-0 flex flex-col max-w-full overflow-hidden box-border mx-auto animate-fade-in">
       {/* Video Viewport Container (Tap Anywhere to Focus or Dismiss Card) */}
@@ -5162,21 +5165,43 @@ function SpadasLensCameraCore({
                 <div className="absolute inset-0 z-30 pointer-events-none lens-miss-fade bg-rose-500/[0.07] shadow-[inset_0_0_60px_rgba(244,63,94,0.25)]" />
               )}
 
-              {/* Minimalist Viewfinder Framing Brackets (Clean Google Lens / iOS style) */}
-              {isCameraPoweredOn && !activeValuationHit && !activeCompsHit && !deepVerifyItem && (
-                <div className="absolute inset-0 z-20 pointer-events-none flex items-center justify-center p-6">
+              {/* Minimalist Viewfinder Framing Brackets (Clean Apple / Google Lens style) */}
+              {isCameraPoweredOn && (
+                <div
+                  className={`absolute inset-0 z-20 pointer-events-none flex items-center justify-center p-6 transition-opacity duration-150 ${
+                    activeValuationHit || activeCompsHit || deepVerifyItem ? "opacity-0" : "opacity-100"
+                  }`}
+                >
                   <div
                     ref={reticleRef}
-                    className="relative w-[76%] sm:w-[55%] max-w-[320px] aspect-[3/4] sm:aspect-[4/3] max-h-[48vh] transition-opacity duration-200"
+                    className={`relative w-[76%] sm:w-[55%] max-w-[320px] aspect-[3/4] sm:aspect-[4/3] max-h-[48vh] transition-transform duration-200 ease-out ${
+                      isFocusLocked ? "scale-[1.015]" : "scale-100"
+                    }`}
                   >
                     {/* Top Left */}
-                    <div className="absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2 border-white/60 rounded-tl-xl" />
+                    <div
+                      className={`absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2 rounded-tl-xl transition-colors duration-200 ${
+                        isFocusLocked ? "border-emerald-400" : "border-white/70"
+                      }`}
+                    />
                     {/* Top Right */}
-                    <div className="absolute top-0 right-0 w-6 h-6 border-t-2 border-r-2 border-white/60 rounded-tr-xl" />
+                    <div
+                      className={`absolute top-0 right-0 w-6 h-6 border-t-2 border-r-2 rounded-tr-xl transition-colors duration-200 ${
+                        isFocusLocked ? "border-emerald-400" : "border-white/70"
+                      }`}
+                    />
                     {/* Bottom Left */}
-                    <div className="absolute bottom-0 left-0 w-6 h-6 border-b-2 border-l-2 border-white/60 rounded-bl-xl" />
+                    <div
+                      className={`absolute bottom-0 left-0 w-6 h-6 border-b-2 border-l-2 rounded-bl-xl transition-colors duration-200 ${
+                        isFocusLocked ? "border-emerald-400" : "border-white/70"
+                      }`}
+                    />
                     {/* Bottom Right */}
-                    <div className="absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 border-white/60 rounded-br-xl" />
+                    <div
+                      className={`absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 rounded-br-xl transition-colors duration-200 ${
+                        isFocusLocked ? "border-emerald-400" : "border-white/70"
+                      }`}
+                    />
                   </div>
                 </div>
               )}
