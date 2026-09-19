@@ -338,6 +338,10 @@ export default function LandingBeforeAfterDemo() {
                 <img
                   src={selectedItem.photoUrl}
                   alt={selectedItem.tabLabel}
+                  width={600}
+                  height={600}
+                  loading="lazy"
+                  decoding="async"
                   className="h-full w-full object-cover group-hover:scale-105 transition duration-500"
                 />
 

@@ -7,6 +7,7 @@ import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Toaster } from "@/components/ui/sonner";
 import Script from "next/script";
+import { WebVitals } from "@/components/web-vitals";
 
 const geistSans = Geist({
   subsets: ["latin"],
@@ -109,7 +110,6 @@ export default function RootLayout({
       <head>
         <link rel="canonical" href="https://spadas.ai" />
         <link rel="preload" href="/icon-192.png" as="image" type="image/png" />
-        <link rel="dns-prefetch" href="https://api.ebay.com" />
         <link rel="dns-prefetch" href="https://i.ebayimg.com" />
         <link rel="preconnect" href="https://i.ebayimg.com" crossOrigin="anonymous" />
         <meta property="og:image" content="https://spadas.ai/og-preview.jpg" />
@@ -135,7 +135,8 @@ export default function RootLayout({
       <body className="min-h-screen bg-[#090A0F] text-zinc-100 antialiased selection:bg-cyan-500/30 selection:text-cyan-200">
         <LayoutClient>{children}</LayoutClient>
         <Analytics />
-        <SpeedInsights />
+        <SpeedInsights sampleRate={1} />
+        <WebVitals />
         <Toaster position="bottom-right" richColors closeButton />
         {/* Google tag (gtag.js) deferred to non-blocking afterInteractive execution */}
         <Script

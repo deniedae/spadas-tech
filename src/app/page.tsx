@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import dynamic from "next/dynamic";
+import { Suspense } from "react";
 import { Scan, Download, ArrowRight } from "lucide-react";
 
 const MuxScannerShowcase = dynamic(() => import("@/components/mux-scanner-showcase"), {
@@ -144,16 +145,51 @@ export default function Home() {
       </section>
 
       {/* ── Mux Video Demo Section ─────────── */}
-      <MuxScannerShowcase />
+      <Suspense
+        fallback={
+          <div className="max-w-5xl mx-auto px-4 py-16 min-h-[460px] flex items-center justify-center">
+            <div className="w-full aspect-video rounded-2xl bg-zinc-950/60 border border-white/[0.08] animate-pulse" />
+          </div>
+        }
+      >
+        <MuxScannerShowcase />
+      </Suspense>
 
       {/* ── Demo Section ───────────────────── */}
-      <LandingBeforeAfterDemo />
+      <Suspense
+        fallback={
+          <div className="max-w-5xl mx-auto px-4 py-12 min-h-[420px] flex items-center justify-center">
+            <div className="w-full h-80 rounded-2xl bg-zinc-950/60 border border-white/[0.08] animate-pulse" />
+          </div>
+        }
+      >
+        <LandingBeforeAfterDemo />
+      </Suspense>
 
       {/* ── Features Section ──────────────────── */}
-      <LandingFeatures />
+      <Suspense
+        fallback={
+          <div className="max-w-5xl mx-auto px-4 py-16 min-h-[380px] grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[1, 2, 3].map((n) => (
+              <div key={n} className="h-44 rounded-2xl bg-zinc-950/60 border border-white/[0.08] animate-pulse" />
+            ))}
+          </div>
+        }
+      >
+        <LandingFeatures />
+      </Suspense>
 
       {/* ── Pricing Section ────────────────────── */}
-      <LandingPricing />
+      <Suspense
+        fallback={
+          <div className="max-w-5xl mx-auto px-4 py-16 min-h-[440px] grid md:grid-cols-2 gap-6">
+            <div className="h-96 rounded-2xl bg-zinc-950/60 border border-white/[0.08] animate-pulse" />
+            <div className="h-96 rounded-2xl bg-zinc-950/60 border border-white/[0.08] animate-pulse" />
+          </div>
+        }
+      >
+        <LandingPricing />
+      </Suspense>
 
       {/* ── Final CTA ──────────────────────── */}
       <section className="max-w-5xl mx-auto px-4 my-16">

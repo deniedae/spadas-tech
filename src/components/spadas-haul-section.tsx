@@ -75,6 +75,11 @@ export function SpadasHaulSection({
   const [loadingPhotos, setLoadingPhotos] = useState<boolean>(false);
   const [searchFilter, setSearchFilter] = useState<string>("");
   const [activeTabFilter, setActiveTabFilter] = useState<"all" | "profitable" | "grails" | "traps">("all");
+  const [isHydrated, setIsHydrated] = useState<boolean>(false);
+
+  useEffect(() => {
+    setIsHydrated(true);
+  }, []);
 
   // In-flight commitment states for UI stability
   const [committingId, setCommittingId] = useState<string | null>(null);
@@ -720,8 +725,30 @@ export function SpadasHaulSection({
         </div>
       </div>
 
-      {/* Lot Manifest List / Empty State */}
-      {items.length === 0 ? (
+      {/* Lot Manifest List / Empty State / Hydration Skeleton */}
+      {!isHydrated ? (
+        <div className="space-y-3 pb-28 md:pb-24">
+          {[1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="p-4 sm:p-5 rounded-2xl glass-card card-specular border border-white/[0.08] flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-pulse"
+            >
+              <div className="flex items-start gap-3.5 min-w-0 flex-1">
+                <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-xl bg-zinc-900/80 border border-white/5 shrink-0" />
+                <div className="min-w-0 flex-1 space-y-2 py-1">
+                  <div className="h-3 w-20 bg-zinc-800/80 rounded" />
+                  <div className="h-4 w-48 sm:w-64 bg-zinc-800 rounded" />
+                  <div className="h-3 w-32 bg-zinc-900 rounded" />
+                </div>
+              </div>
+              <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-white/5">
+                <div className="h-6 w-20 bg-zinc-800 rounded" />
+                <div className="h-3 w-14 bg-zinc-900 rounded" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : items.length === 0 ? (
         <div className="py-16 px-6 text-center rounded-2xl glass-card card-specular surface-elevation-1 border border-white/10 space-y-4">
           <div className="flex h-14 w-14 mx-auto items-center justify-center rounded-2xl bg-white/[0.03] border border-white/10 text-zinc-400 shadow-inner">
             <ShoppingBag className="h-6 w-6 stroke-1 text-zinc-400" />
@@ -813,6 +840,10 @@ export function SpadasHaulSection({
                       <img
                         src={photoUrl || item.thumbnailUrl || item.image || item.imageUrl}
                         alt={item.productName || "Haul Item"}
+                        width={80}
+                        height={80}
+                        loading="lazy"
+                        decoding="async"
                         className="h-full w-full object-cover"
                       />
                     ) : (
