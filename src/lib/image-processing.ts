@@ -145,3 +145,8 @@ export async function processFocalCrop(
     sizeBytesApprox,
   };
 }
+
+/**
+ * Convenient alias for processFocalCrop matching reticle crop naming conventions.
+ */
+export const extractReticleCrop = processFocalCrop;

@@ -198,8 +198,18 @@ export function ensureVerifiedSoldComps(
   const safeBrand = cleanBrandText(brand);
   const safeCondition = cleanConditionText(condition, "Used - Good");
 
+  const parseCompPrice = (c: any): number => {
+    if (typeof c?.price === "number") return isNaN(c.price) ? 0 : c.price;
+    if (typeof c?.price === "string") {
+      const cleaned = c.price.replace(/^(aud|au)?\s*\$+/i, "").trim().replace(/[^0-9.-]+/g, "");
+      const num = parseFloat(cleaned);
+      return isNaN(num) ? 0 : num;
+    }
+    return 0;
+  };
+
   const valid = (existingComps || []).filter(
-    (c) => c && (c.title || (typeof c.price === "number" && c.price > 0))
+    (c) => c && (c.title || parseCompPrice(c) > 0)
   );
 
   // If no genuine comps exist, return [] (Zero Fake Comps guarantee)
@@ -224,7 +234,7 @@ export function ensureVerifiedSoldComps(
   const candidates = nonLotFiltered.length > 0 ? nonLotFiltered : valid;
 
   // 2. Outlier filter using Interquartile Range (IQR): Cap / filter extreme outlier listings (> Q3 + 1.5 * IQR)
-  const validPrices = candidates.map((c) => Number(c.price)).filter((p) => p > 0).sort((a, b) => a - b);
+  const validPrices = candidates.map((c) => parseCompPrice(c)).filter((p) => p > 0).sort((a, b) => a - b);
   let maxIqrPrice = Infinity;
   let minIqrPrice = 1;
   if (validPrices.length >= 3) {
@@ -244,7 +254,7 @@ export function ensureVerifiedSoldComps(
   }
 
   const iqrCleaned = candidates.filter((c) => {
-    const p = Number(c.price);
+    const p = parseCompPrice(c);
     return !p || (p <= maxIqrPrice && p >= minIqrPrice);
   });
 
@@ -273,7 +283,7 @@ export function ensureVerifiedSoldComps(
     return {
       id: c.id || `comp-${idx}-${Date.now()}`,
       title,
-      price: Number(c.price) || Math.round(estimatedPrice),
+      price: parseCompPrice(c) || Math.round(estimatedPrice),
       condition: cleanConditionText(c.condition, safeCondition),
       soldDate,
       shippingIncluded: getCompShippingIncluded(c) ?? (idx % 2 === 0),

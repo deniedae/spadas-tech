@@ -5,6 +5,7 @@
  */
 
 import { calculateSalesVelocity, type SalesVelocityProfile } from "./turnover-velocity-engine";
+import { getAusPostShippingRate, EBAY_AU_FEE_RATE, EBAY_AU_FIXED_FEE } from "./fee-engine";
 
 export interface ThriftPricingEstimate {
   estimatedResalePrice: number;
@@ -55,49 +56,12 @@ export function estimateThriftCost(category?: string | null): number {
 }
 
 /**
- * Realistic parcel & packaging shipping cost estimates by category.
- * Accounts for dimensional weight, boxed keyboards, heavy ceramic bubble-wrap, and tracked media.
+ * AusPost Domestic Parcel Shipping Rate Matrix (Standard Parcel Post):
+ * Small (<500g): $10.90 AUD, Medium (500g–1kg): $14.80 AUD,
+ * Large (1kg–3kg): $18.65 AUD, Extra Large (>3kg): $22.75 AUD.
  */
 export function estimateCategoryShippingCost(category?: string | null, productName?: string | null): number {
-  const text = `${category || ""} ${productName || ""}`.toLowerCase();
-
-  // 1. Bulky Peripherals & Keyboards (require 18"+ box, 1.5 - 2.5 lbs)
-  if (text.includes("keyboard") || text.includes("monitor") || text.includes("printer") || text.includes("stereo") || text.includes("receiver") || text.includes("blender")) {
-    return 9.50;
-  }
-
-  // 2. Fragile Ceramic / Glassware / Mugs (heavy bubble-wrap + 6x6x6 box to prevent transit breakage)
-  if (text.includes("mug") || text.includes("cup") || text.includes("glass") || text.includes("ceramic") || text.includes("porcelain") || text.includes("vase") || text.includes("plate") || text.includes("bowl")) {
-    return 8.50;
-  }
-
-  // 3. Heavy Footwear & Boots (Shoebox dimensions, 2 - 3 lbs)
-  if (text.includes("boot") || text.includes("sneaker") || text.includes("shoe") || text.includes("cleat")) {
-    return 11.00;
-  }
-
-  // 4. Heavy Outerwear & Jackets (Over 500g satchel)
-  if (text.includes("jacket") || text.includes("coat") || text.includes("parka") || text.includes("hoodie") || text.includes("sweatshirt") || text.includes("sweater")) {
-    return 10.50;
-  }
-
-  // 5. Media & Literature (Tracked Media Mail / Rigid Padded Mailer)
-  if (text.includes("dvd") || text.includes("cd") || text.includes("vhs") || text.includes("bluray") || text.includes("blu-ray") || text.includes("book") || text.includes("cassette") || text.includes("media")) {
-    return 4.20;
-  }
-
-  // 6. Lightweight Apparel (T-shirts, shirts, shorts under 500g satchel)
-  if (text.includes("t-shirt") || text.includes("tee") || text.includes("shirt") || text.includes("shorts") || text.includes("jersey") || text.includes("hat") || text.includes("cap")) {
-    return 5.50;
-  }
-
-  // 7. Small Handheld Tech (Digicams, iPods, phones, small gadgets)
-  if (text.includes("camera") || text.includes("digicam") || text.includes("ipod") || text.includes("phone") || text.includes("game boy") || text.includes("nintendo ds")) {
-    return 6.00;
-  }
-
-  // Default standard tracked domestic parcel
-  return 6.50;
+  return getAusPostShippingRate(category, productName).rate;
 }
 
 export interface ThriftTrapResult {
@@ -182,8 +146,8 @@ export interface CalculateCopVerdictOptions {
   category?: string | null;
   productName?: string | null;
   brand?: string | null;
-  platformFeeRate?: number; // default 0.134 (eBay standard)
-  fixedFee?: number; // default 0.33
+  platformFeeRate?: number; // default EBAY_AU_FEE_RATE (12.5% eBay AU standard)
+  fixedFee?: number; // default EBAY_AU_FIXED_FEE ($0.33 AUD)
   shippingCost?: number;
   confidenceScore?: number; // 0.0 to 1.0 or 0 to 100
   variantAudit?: {
@@ -211,8 +175,8 @@ export function calculateThriftCopVerdict(options: CalculateCopVerdictOptions): 
     category,
     productName,
     brand,
-    platformFeeRate = 0.134,
-    fixedFee = 0.33,
+    platformFeeRate = EBAY_AU_FEE_RATE,
+    fixedFee = EBAY_AU_FIXED_FEE,
     shippingCost,
   } = options;
 

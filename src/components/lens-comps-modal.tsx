@@ -1033,12 +1033,12 @@ export default function LensCompsModal({
                                 <div>
                                   <div className="text-[10px] text-cyan-400 font-semibold leading-tight">Active Ask</div>
                                   <div className="text-base font-bold text-cyan-400 tabular-nums">
-                                    ${fmtMoney(comp.price)}
+                                    {fmtMoney(comp.price)}
                                   </div>
                                 </div>
                               ) : (
                                 <div className="text-base font-bold text-white tabular-nums">
-                                  ${fmtMoney(comp.price)}
+                                  {fmtMoney(comp.price)}
                                 </div>
                               )}
                               <div className="text-[11px] text-zinc-300 font-medium truncate mt-0.5">
@@ -1105,11 +1105,11 @@ export default function LensCompsModal({
                             <div className="flex items-center gap-1.5">
                               {isCompActiveAsk ? (
                                 <span className="text-sm font-bold text-cyan-400 tabular-nums">
-                                  Active Ask ${fmtMoney(comp.price)}
+                                  Active Ask {fmtMoney(comp.price)}
                                 </span>
                               ) : (
                                 <span className="text-sm font-bold text-white tabular-nums">
-                                  ${fmtMoney(comp.price)}
+                                  {fmtMoney(comp.price)}
                                 </span>
                               )}
                               <span className="text-[10px] text-zinc-400">

@@ -1,18 +1,22 @@
 export const formatAUD = (val: number | string | null | undefined): string => {
-  if (typeof val === "string") val = val.replace(/[^0-9.-]+/g, "");
+  if (typeof val === "string") {
+    val = val.replace(/^(aud|au)?\s*\$+/i, "").trim().replace(/[^0-9.-]+/g, "");
+  }
   const num = Number(val) || 0;
   const prefix = num < 0 ? "-$" : "+$";
   return `${prefix}${Math.abs(num).toFixed(2)}`;
 };
 
 export function fmtMoney(n: number | string | null | undefined): string {
-  if (typeof n === "string") n = n.replace(/[^0-9.-]+/g, "");
+  if (typeof n === "string") {
+    n = n.replace(/^(aud|au)?\s*\$+/i, "").trim().replace(/[^0-9.-]+/g, "");
+  }
   const num = Number(n) || 0;
   return num < 0 ? `-$${Math.abs(num).toFixed(2)}` : `$${num.toFixed(2)}`;
 }
 
 export const PLATFORM_FEE_RATES: Record<string, number> = {
-  ebay: 0.1325,
+  ebay: 0.125, // eBay Australia standard final value fee (12.5%)
   poshmark: 0.2,
   mercari: 0.1,
   depop: 0.1,

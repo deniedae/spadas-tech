@@ -561,7 +561,10 @@ export async function fetchEbayAustraliaSoldComps(
       const validCompItems: EbaySoldCompItem[] = [];
 
       for (const item of rawItems) {
-        const rawPrice = Number(item.soldPrice);
+        const rawPrice =
+          typeof item.soldPrice === "number"
+            ? item.soldPrice
+            : Number(String(item.soldPrice || "").replace(/^(aud|au)?\s*\$+/i, "").trim().replace(/[^0-9.-]+/g, "")) || 0;
         const title = String(item.title || "").trim();
         const itemId = String(item.itemId || item.id || `${title.toLowerCase()}::${rawPrice}`);
 
