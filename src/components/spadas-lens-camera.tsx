@@ -98,6 +98,7 @@ import {
 } from "@/lib/lens-intel-engine";
 import type { DetectedHit, ActiveScanItem, CopVerdict } from "@/types/lens";
 export type { DetectedHit, ActiveScanItem, CopVerdict } from "@/types/lens";
+import { processFocalCrop } from "@/lib/image-processing";
 import {
   processFrameForVision,
   poolConsecutiveFrames,
@@ -2436,46 +2437,36 @@ function SpadasLensCameraCore({
     let instantSnapshotUrl: string | null = null;
     let centerCropDataUrl = "";
 
+    // 4. Asynchronous Reticle Focal Bounding Crop & WebP Compression Pipeline:
+    // Extract only the framed center 60% reticle area, constrain to <= 768px,
+    // apply +10% contrast boost & low-light exposure normalization, and export as <120KB WebP.
     if (video && video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0) {
       try {
-        if (!offscreenCanvasRef.current) {
-          offscreenCanvasRef.current = document.createElement("canvas");
-        }
-        instantCanvas = offscreenCanvasRef.current;
-        const maxDim = 800;
-        const fullW = video.videoWidth;
-        const fullH = video.videoHeight;
-        let tw = fullW;
-        let th = fullH;
-        if (fullW >= fullH) {
-          tw = Math.min(maxDim, fullW);
-          th = Math.round((fullH * tw) / fullW);
-        } else {
-          th = Math.min(maxDim, fullH);
-          tw = Math.round((fullW * th) / fullH);
-        }
-        instantCanvas.width = tw;
-        instantCanvas.height = th;
-        const ctx = instantCanvas.getContext("2d", { willReadFrequently: true });
-        if (ctx) {
-          ctx.drawImage(video, 0, 0, fullW, fullH, 0, 0, tw, th);
-        }
-        instantSnapshotUrl = await exportCanvasToOptimizedDataUrlAsync(instantCanvas, 0.70);
-      } catch (err) {
-        console.warn("[Spadas Lens] Asynchronous snapshot capture warning:", err);
+        const cropResult = await processFocalCrop(video, {
+          cropFactor: 0.60,
+          maxDimension: 768,
+          quality: 0.82,
+          contrastBoost: 1.10,
+          normalizeExposure: true,
+        });
+        centerCropDataUrl = cropResult.dataUrl;
+        instantSnapshotUrl = cropResult.dataUrl;
+      } catch (cropErr) {
+        console.warn("[Spadas Lens] processFocalCrop failed, using fallback:", cropErr);
       }
     }
 
-    // Optical reticle macro crop asynchronously off main thread
-    if (video && video.readyState >= 2 && video.videoWidth > 0) {
+    // Fallback if processFocalCrop was unavailable
+    if (!centerCropDataUrl && video && video.readyState >= 2 && video.videoWidth > 0) {
       try {
         const reticleMacro = await extractReticleMacroCropAsync(video, {
-          cropFactor: 0.65,
-          targetDimension: 640,
+          cropFactor: 0.60,
+          targetDimension: 768,
           quality: 0.82,
           boostContrast: true,
         });
         centerCropDataUrl = reticleMacro.cropDataUrl;
+        instantSnapshotUrl = reticleMacro.cropDataUrl;
       } catch (mErr) {
         console.warn("[Spadas Lens] Async reticle macro crop error, falling back:", mErr);
       }
