@@ -36,7 +36,7 @@ import { supabase } from "@/app/lib/supabase";
 import { detectGeoCurrency, CURRENCY_CONFIGS, SupportedCurrency } from "@/app/lib/currency-routing";
 import { isOwnerEmail } from "@/app/lib/auth-admin";
 import { resilientFetch } from "@/app/lib/resilient-fetch";
-import { playScanBeep, triggerScanHaptic, createNativeBarcodeScanner, isNativeBarcodeDetectorSupported } from "@/lib/barcode-detector";
+import { playScanBeep, triggerScanHaptic, createNativeBarcodeScanner, isNativeBarcodeDetectorSupported, CORE_BARCODE_FORMATS } from "@/lib/barcode-detector";
 import { syncProfitToAndroidWidget, triggerTactileHaptic, openExternalUrlSafely } from "@/lib/android-bridge";
 import { sourcingBus } from "@/lib/sourcing-event-bus";
 import { setCachedValuation, getCachedValuation, findBestCachedValuation } from "@/lib/offline-lru-cache";
@@ -992,106 +992,155 @@ function SpadasLensCameraCore({
       triggerScanHaptic([45, 25, 45]);
 
       try {
-        const bRes = await fetch("/api/barcode", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ barcode: codeVal }),
-        });
+        // 1. Resolve barcode via dedicated deterministic resolver (/api/lookup/barcode)
+        let pName = "";
+        let pBrand = "Authentic";
+        let pCat = "Barcode Find";
+        let pPrice = 35;
+        let pImg: string | null = snapshotUrl || null;
 
-        if (bRes.ok) {
-          const bData = await bRes.json();
-          const pName = (bData?.product?.name || "").trim();
-          if (bData?.product && pName && !pName.toLowerCase().includes("unknown")) {
-            const isGrocery = (bData.product.category || "").toLowerCase().includes("grocer") || (bData.product.category || "").toLowerCase().includes("beverage") || (bData.product.category || "").toLowerCase().includes("food");
-            const estValue = Number(bData.product.suggestedPrice) || (isGrocery ? 2.5 : 35);
-            const estCost = estValue <= 5 ? Math.max(1, Math.round(estValue * 0.65 * 100) / 100) : Math.max(2, Math.round(estValue * 0.15));
-            const ebayFee = estValue * 0.134 + 0.33;
-            const estProfit = Math.max(0, Math.round((estValue - estCost - ebayFee) * 100) / 100);
-            const estRoi = estCost > 0 ? Math.round((estProfit / estCost) * 100) : 0;
-            const copVerdict =
-              estProfit < 3
-                ? "PASS_RISKY"
-                : estRoi >= 300 && estProfit >= 25
-                  ? "MUST_COP"
-                  : estRoi >= 100
-                    ? "QUICK_FLIP"
-                    : "FAIR_MARGIN";
-
-            const productImg = bData.product.image || snapshotUrl || null;
-
-            const scanObj: ActiveScanItem = {
-              id: `barcode-${Date.now()}`,
-              productName: pName,
-              brand: bData.product.brand || "Authentic",
-              category: bData.product.category || (isGrocery ? "Groceries & Beverages" : "Barcode Find"),
-              condition: "Used - Good",
-              bbox: { x: 15, y: 15, width: 70, height: 70 },
-              status: "valued",
-              estimatedValue: estValue,
-              estCost,
-              estimatedProfit: estProfit,
-              estRoi,
-              tagPrice: estCost,
-              trueNetProfit: estProfit,
-              roiPercentage: estRoi,
-              copVerdict,
-              image: productImg,
-              timestamp: Date.now(),
-            };
-
-            const verifiedHit: DetectedHit = {
-              id: `hit-${Date.now()}`,
-              name: pName,
-              brand: cleanBrandText(bData.product.brand, "Unbranded") || "Unbranded",
-              category: cleanCategoryText(bData.product.category, isGrocery ? "Groceries & Beverages" : "Barcode Find") || "Barcode Find",
-              condition: cleanConditionText(bData.product.condition, "Used - Good"),
-              estimatedValue: estValue,
-              estCost,
-              estimatedProfit: estProfit,
-              estRoi,
-              tagPrice: estCost,
-              trueNetProfit: estProfit,
-              roiPercentage: estRoi,
-              copVerdict,
-              verdict: estProfit >= 15 ? "BUY" : estProfit >= 5 ? "CAUTION" : "PASS",
-              confidence: 0.99,
-              bbox: { x: 15, y: 15, width: 70, height: 70 },
-              image: productImg,
-              timestamp: Date.now(),
-            };
-
-            if (snapshotUrl || productImg) {
-              setFrozenFrameUrl(snapshotUrl || productImg);
-            }
-            setActiveScans([scanObj]);
-            setCapturedLog((prev) => [verifiedHit, ...prev.filter((h) => h.name !== pName)].slice(0, 50));
-            setSessionScanCount((prev) => prev + 1);
-
-            const rapidBarcodeItem: RapidThriftItem = {
-              id: verifiedHit.id,
-              photoId: `photo_${verifiedHit.id}`,
-              timestamp: verifiedHit.timestamp,
-              status: "completed",
-              productName: verifiedHit.name,
-              brand: cleanBrandText(verifiedHit.brand, "Unbranded"),
-              category: cleanCategoryText(verifiedHit.category, "Barcode Find"),
-              condition: cleanConditionText(verifiedHit.condition, "Used - Good"),
-              estimatedValue: verifiedHit.estimatedValue || 0,
-              thriftCost: verifiedHit.tagPrice || verifiedHit.estCost || 0,
-              trueNetProfit: verifiedHit.trueNetProfit || verifiedHit.estimatedProfit || 0,
-              roiPercentage: verifiedHit.roiPercentage || verifiedHit.estRoi || 0,
-              copVerdict: verifiedHit.copVerdict === "MUST_COP" ? "MUST_COP" : "QUICK_FLIP",
-              isGrail: Boolean(verifiedHit.isGrail),
-              thumbnailUrl: snapshotUrl || productImg || undefined,
-              image: snapshotUrl || productImg || undefined,
-              imageUrl: snapshotUrl || productImg || undefined,
-            };
-            setRapidItems((prev) => [rapidBarcodeItem, ...prev.filter((i) => i.id !== rapidBarcodeItem.id)]);
-
-            triggerActiveValuationHit(verifiedHit, snapshotUrl || productImg);
-            setConfidencePercent(99);
-            toast.success(`⚡ Barcode Lock: ${pName.slice(0, 24)}... (+$${estProfit} Net)`);
+        const lookupRes = await fetch(`/api/lookup/barcode?code=${encodeURIComponent(codeVal)}`);
+        if (lookupRes.ok) {
+          const lData = await lookupRes.json();
+          if (lData?.product?.title) {
+            pName = lData.product.title.trim();
+            pBrand = lData.product.brand || "Authentic";
+            pCat = lData.product.category || "Barcode Find";
+            pPrice = Number(lData.product.suggestedPrice) || 35;
+            pImg = lData.product.image || snapshotUrl || null;
           }
+        }
+
+        // Fallback to legacy barcode resolver if lookup returned 404
+        if (!pName) {
+          const bRes = await fetch("/api/barcode", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ barcode: codeVal }),
+          });
+          if (bRes.ok) {
+            const bData = await bRes.json();
+            if (bData?.product?.name) {
+              pName = bData.product.name.trim();
+              pBrand = bData.product.brand || "Authentic";
+              pCat = bData.product.category || "Barcode Find";
+              pPrice = Number(bData.product.suggestedPrice) || 35;
+              pImg = bData.product.image || snapshotUrl || null;
+            }
+          }
+        }
+
+        if (pName && !pName.toLowerCase().includes("unknown")) {
+          // 2. Immediately trigger eBay AU sold comp query using exact verified title (Zero Vision AI latency)
+          let resolvedMedian = pPrice;
+          let verifiedRawComps: any[] = [];
+
+          try {
+            const compsUrl = `/api/ebay-australia-comps?q=${encodeURIComponent(pName)}&brand=${encodeURIComponent(pBrand)}&category=${encodeURIComponent(pCat)}&currency=AUD`;
+            const compsRes = await fetch(compsUrl);
+            if (compsRes.ok) {
+              const compsData = await compsRes.json();
+              if (compsData?.median && Number(compsData.median) > 0) {
+                resolvedMedian = Number(compsData.median);
+              }
+              if (Array.isArray(compsData?.rawComps) && compsData.rawComps.length > 0) {
+                verifiedRawComps = compsData.rawComps;
+              }
+            }
+          } catch (compsErr) {
+            console.warn("[Spadas Lens] Barcode eBay AU comps fetch error:", compsErr);
+          }
+
+          const isGrocery = (pCat || "").toLowerCase().includes("grocer") || (pCat || "").toLowerCase().includes("beverage") || (pCat || "").toLowerCase().includes("food");
+          const estValue = resolvedMedian;
+          const estCost = estValue <= 5 ? Math.max(1, Math.round(estValue * 0.65 * 100) / 100) : Math.max(2, Math.round(estValue * 0.15));
+          const ebayFee = estValue * 0.134 + 0.33;
+          const estProfit = Math.max(0, Math.round((estValue - estCost - ebayFee) * 100) / 100);
+          const estRoi = estCost > 0 ? Math.round((estProfit / estCost) * 100) : 0;
+          const copVerdict =
+            estProfit < 3
+              ? "PASS_RISKY"
+              : estRoi >= 300 && estProfit >= 25
+                ? "MUST_COP"
+                : estRoi >= 100
+                  ? "QUICK_FLIP"
+                  : "FAIR_MARGIN";
+
+          const productImg = pImg;
+
+          const scanObj: ActiveScanItem = {
+            id: `barcode-${Date.now()}`,
+            productName: pName,
+            brand: pBrand,
+            category: pCat,
+            condition: "Used - Good",
+            bbox: { x: 15, y: 15, width: 70, height: 70 },
+            status: "valued",
+            estimatedValue: estValue,
+            estCost,
+            estimatedProfit: estProfit,
+            estRoi,
+            tagPrice: estCost,
+            trueNetProfit: estProfit,
+            roiPercentage: estRoi,
+            copVerdict,
+            image: productImg,
+            timestamp: Date.now(),
+          };
+
+          const verifiedHit: DetectedHit = {
+            id: `hit-${Date.now()}`,
+            name: pName,
+            brand: cleanBrandText(pBrand, "Unbranded") || "Unbranded",
+            category: cleanCategoryText(pCat, isGrocery ? "Groceries & Beverages" : "Barcode Find") || "Barcode Find",
+            condition: "Used - Good",
+            estimatedValue: estValue,
+            estCost,
+            estimatedProfit: estProfit,
+            estRoi,
+            tagPrice: estCost,
+            trueNetProfit: estProfit,
+            roiPercentage: estRoi,
+            copVerdict,
+            verdict: estProfit >= 15 ? "BUY" : estProfit >= 5 ? "CAUTION" : "PASS",
+            confidence: 0.99,
+            bbox: { x: 15, y: 15, width: 70, height: 70 },
+            image: productImg,
+            timestamp: Date.now(),
+            rawComps: verifiedRawComps,
+          };
+
+          if (snapshotUrl || productImg) {
+            setFrozenFrameUrl(snapshotUrl || productImg);
+          }
+          setActiveScans([scanObj]);
+          setCapturedLog((prev) => [verifiedHit, ...prev.filter((h) => h.name !== pName)].slice(0, 50));
+          setSessionScanCount((prev) => prev + 1);
+
+          const rapidBarcodeItem: RapidThriftItem = {
+            id: verifiedHit.id,
+            photoId: `photo_${verifiedHit.id}`,
+            timestamp: verifiedHit.timestamp,
+            status: "completed",
+            productName: verifiedHit.name,
+            brand: cleanBrandText(verifiedHit.brand, "Unbranded"),
+            category: cleanCategoryText(verifiedHit.category, "Barcode Find"),
+            condition: cleanConditionText(verifiedHit.condition, "Used - Good"),
+            estimatedValue: verifiedHit.estimatedValue || 0,
+            thriftCost: verifiedHit.tagPrice || verifiedHit.estCost || 0,
+            trueNetProfit: verifiedHit.trueNetProfit || verifiedHit.estimatedProfit || 0,
+            roiPercentage: verifiedHit.roiPercentage || verifiedHit.estRoi || 0,
+            copVerdict: verifiedHit.copVerdict === "MUST_COP" ? "MUST_COP" : "QUICK_FLIP",
+            isGrail: Boolean(verifiedHit.isGrail),
+            thumbnailUrl: snapshotUrl || productImg || undefined,
+            image: snapshotUrl || productImg || undefined,
+            imageUrl: snapshotUrl || productImg || undefined,
+          };
+          setRapidItems((prev) => [rapidBarcodeItem, ...prev.filter((i) => i.id !== rapidBarcodeItem.id)]);
+
+          triggerActiveValuationHit(verifiedHit, snapshotUrl || productImg);
+          setConfidencePercent(99);
+          toast.success(`⚡ Barcode Lock: ${pName.slice(0, 24)}... (+$${estProfit} Net)`);
         }
       } catch (err) {
         console.warn("[Spadas Lens] Continuous barcode lookup error:", err);
@@ -1101,14 +1150,13 @@ function SpadasLensCameraCore({
   );
 
   useEffect(() => {
-    // Continuous native barcode detector:
+    // Continuous hardware barcode detector:
     // Only active in Barcode mode or when Auto mode is enabled (never in Manual / Snap mode).
     // Pauses while scanning, cooling down, or reviewing an active hit to free CPU and eliminate stutter.
     const isAutoOrBarcodeMode = scanMode === "barcode" || (autoScanActive && scanMode !== "snap");
     if (
       !stream ||
       !videoRef.current ||
-      !isNativeBarcodeDetectorSupported() ||
       isScanPaused ||
       analyzingRealFrame ||
       isCoolingDown ||
@@ -1131,7 +1179,10 @@ function SpadasLensCameraCore({
           void handleNativeBarcode(res.rawValue);
         }
       },
-      { fpsThrottle: 15 } // Frame-skip sampling: 15 FPS sampling interval prevents CPU saturation & frame jitter
+      {
+        samplingIntervalMs: 200,
+        formats: [...CORE_BARCODE_FORMATS],
+      }
     );
 
     nativeScanner.start();

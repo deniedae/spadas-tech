@@ -5,13 +5,17 @@
  */
 
 // Format definitions for native BarcodeDetector
-export const SUPPORTED_BARCODE_FORMATS = [
-  "qr_code",
+export const CORE_BARCODE_FORMATS = [
   "ean_13",
   "ean_8",
   "upc_a",
   "upc_e",
   "code_128",
+  "qr_code",
+] as const;
+
+export const SUPPORTED_BARCODE_FORMATS = [
+  ...CORE_BARCODE_FORMATS,
   "code_39",
   "code_93",
   "itf",
@@ -130,6 +134,7 @@ export function createNativeBarcodeScanner(
   options?: {
     formats?: string[];
     fpsThrottle?: number;
+    samplingIntervalMs?: number;
   }
 ): {
   start: () => void;
@@ -137,40 +142,87 @@ export function createNativeBarcodeScanner(
 } {
   let isRunning = false;
   let animFrameId: number | null = null;
+  let intervalId: ReturnType<typeof setInterval> | null = null;
   let lastScanTime = 0;
-  const throttleMs = 1000 / (options?.fpsThrottle || 45);
+  const throttleMs = options?.samplingIntervalMs || (options?.fpsThrottle ? 1000 / options.fpsThrottle : 200);
 
-  if (!isNativeBarcodeDetectorSupported()) {
+  const hasNative = isNativeBarcodeDetectorSupported();
+
+  // 1. Native BarcodeDetector (Chrome, Edge, Android WebView)
+  if (hasNative) {
+    const detector = new window.BarcodeDetector!({
+      formats: options?.formats || (CORE_BARCODE_FORMATS as unknown as string[]),
+    });
+
+    const scanLoop = async (now: number) => {
+      if (!isRunning) return;
+
+      if (now - lastScanTime >= throttleMs && videoElement.readyState >= 2 && !videoElement.paused) {
+        lastScanTime = now;
+        try {
+          const barcodes = await detector.detect(videoElement);
+          if (barcodes && barcodes.length > 0) {
+            const first = barcodes[0];
+            if (first && first.rawValue) {
+              onDetected(first);
+            }
+          }
+        } catch {
+          // Frame might be blank or video in transition, continue loop
+        }
+      }
+
+      if (isRunning) {
+        animFrameId = requestAnimationFrame(scanLoop);
+      }
+    };
+
     return {
-      start: () => console.warn("[BarcodeDetector] Native API not supported in this browser."),
-      stop: () => {},
+      start: () => {
+        if (isRunning) return;
+        isRunning = true;
+        lastScanTime = 0;
+        animFrameId = requestAnimationFrame(scanLoop);
+      },
+      stop: () => {
+        isRunning = false;
+        if (animFrameId !== null) {
+          cancelAnimationFrame(animFrameId);
+          animFrameId = null;
+        }
+      },
     };
   }
 
-  const detector = new window.BarcodeDetector!({
-    formats: options?.formats || (SUPPORTED_BARCODE_FORMATS as unknown as string[]),
-  });
+  // 2. Dynamic ZXing fallback (Safari, Firefox, legacy WebView)
+  const startZxingFallback = async () => {
+    try {
+      const { BrowserMultiFormatReader } = await import("@zxing/library");
+      const reader = new BrowserMultiFormatReader();
 
-  const scanLoop = async (now: number) => {
-    if (!isRunning) return;
-
-    if (now - lastScanTime >= throttleMs && videoElement.readyState >= 2 && !videoElement.paused) {
-      lastScanTime = now;
-      try {
-        const barcodes = await detector.detect(videoElement);
-        if (barcodes && barcodes.length > 0) {
-          const first = barcodes[0];
-          if (first && first.rawValue) {
-            onDetected(first);
-          }
+      intervalId = setInterval(() => {
+        if (!isRunning || !videoElement || videoElement.readyState < 2 || videoElement.paused) {
+          return;
         }
-      } catch {
-        // Frame might be blank or video in transition, continue loop
-      }
-    }
 
-    if (isRunning) {
-      animFrameId = requestAnimationFrame(scanLoop);
+        try {
+          const vw = videoElement.videoWidth;
+          const vh = videoElement.videoHeight;
+          if (vw === 0 || vh === 0) return;
+
+          const result = reader.decode(videoElement);
+          if (result && result.getText()) {
+            onDetected({
+              rawValue: result.getText(),
+              format: result.getBarcodeFormat() ? result.getBarcodeFormat().toString() : "barcode",
+            });
+          }
+        } catch {
+          // No barcode in frame, silently continue sampling loop
+        }
+      }, throttleMs);
+    } catch (err) {
+      console.warn("[BarcodeDetector] ZXing fallback failed to initialize:", err);
     }
   };
 
@@ -178,14 +230,13 @@ export function createNativeBarcodeScanner(
     start: () => {
       if (isRunning) return;
       isRunning = true;
-      lastScanTime = 0;
-      animFrameId = requestAnimationFrame(scanLoop);
+      void startZxingFallback();
     },
     stop: () => {
       isRunning = false;
-      if (animFrameId !== null) {
-        cancelAnimationFrame(animFrameId);
-        animFrameId = null;
+      if (intervalId !== null) {
+        clearInterval(intervalId);
+        intervalId = null;
       }
     },
   };
