@@ -35,6 +35,10 @@ import {
   detectThriftTrap,
   calculateThriftCopVerdict,
 } from "@/lib/thrift-cop-engine";
+import {
+  AUSPOST_PARCEL_RATES,
+  type AusPostParcelTier,
+} from "@/lib/fee-engine";
 import { calculateSalesVelocity } from "@/lib/turnover-velocity-engine";
 import {
   calculateConditionValuation,
@@ -109,6 +113,8 @@ export default function LensCompsModal({
     : 10;
 
   const [customTagCost, setCustomTagCost] = useState<number>(initialTagCost);
+  // Manual AusPost parcel-tier override — null means "Auto" (heuristic)
+  const [customPostageTier, setCustomPostageTier] = useState<AusPostParcelTier | null>(null);
 
   const title = (item as any)?.name || (item as any)?.productName || (item as any)?.title || "Scanned Item";
   const brand = cleanBrandText(item?.brand, "Unbranded") || "Unbranded";
@@ -207,6 +213,8 @@ export default function LensCompsModal({
       setHasCap(attrs.hasCap);
       setIsTester(attrs.isTester);
       setHasBox(attrs.hasBox);
+      // Reset postage override for each new scan
+      setCustomPostageTier(null);
     }
   }, [item, title, category, condition, isLiquidOrFragrance]);
 
@@ -316,7 +324,10 @@ export default function LensCompsModal({
   // Dynamic calculations (utilizing deferred values for smooth 60fps main thread)
   const activeResalePrice = compsRange.median || ((isLiquidOrFragrance && isFragranceActive) ? Math.round(initialEstValue * fragranceMultiplier * 100) / 100 : initialEstValue);
   const effectiveTagCost = Math.max(0, Math.round(deferredTagCost * 100) / 100);
-  const estShipping = estimateCategoryShippingCost(category, title);
+  const autoShipping = estimateCategoryShippingCost(category, title);
+  const estShipping = customPostageTier !== null
+    ? AUSPOST_PARCEL_RATES[customPostageTier]
+    : autoShipping;
   detectThriftTrap(title, activeResalePrice, brand);
 
   const confidenceScore = (item as any)?.confidenceScore || (item as any)?.confidence || 0.96;
@@ -369,7 +380,7 @@ export default function LensCompsModal({
   // ── Advanced Analytics Calculations ──────────────────────────────────────
   const marketplaceArbitrage = useMemo(() => {
     const ebayGross = activeResalePrice;
-    const ebayFees = Math.round((ebayGross * 0.134 + 0.33) * 100) / 100;
+    const ebayFees = Math.round((ebayGross * 0.134 + 0.30) * 100) / 100;
     const ebayNet = Math.max(0, Math.round((ebayGross - effectiveTagCost - ebayFees - estShipping) * 100) / 100);
 
     const depopGross = Math.round(activeResalePrice * 0.96);
@@ -742,7 +753,47 @@ export default function LensCompsModal({
               </div>
             </div>
 
-            {/* Fragrance / Liquid Bottle Fill Level & Condition Panel */}
+            {/* AusPost Parcel Tier Override Picker */}
+            <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-zinc-900 border border-zinc-800">
+              <div className="flex items-center gap-1.5 shrink-0">
+                <Sliders className="w-3.5 h-3.5 text-zinc-400" />
+                <span className="text-xs font-medium text-zinc-300">Post:</span>
+                <span className="text-xs text-zinc-400 tabular-nums">${estShipping.toFixed(2)}</span>
+              </div>
+              <div className="flex items-center gap-1 overflow-x-auto py-0.5 custom-scrollbar">
+                {/* Auto (heuristic) */}
+                <button
+                  type="button"
+                  onClick={() => { startTransition(() => { setCustomPostageTier(null); }); triggerTactileHaptic("light"); }}
+                  className={`px-2 py-0.5 rounded-md text-[11px] font-semibold transition cursor-pointer tabular-nums ${
+                    customPostageTier === null
+                      ? "bg-zinc-700 text-white border border-zinc-600"
+                      : "bg-zinc-800 text-zinc-400 hover:text-zinc-200 border border-zinc-700/50"
+                  }`}
+                >
+                  Auto
+                </button>
+                {([
+                  { tier: "small" as AusPostParcelTier, label: `S $${AUSPOST_PARCEL_RATES.small.toFixed(2)}` },
+                  { tier: "medium" as AusPostParcelTier, label: `M $${AUSPOST_PARCEL_RATES.medium.toFixed(2)}` },
+                  { tier: "large" as AusPostParcelTier, label: `L $${AUSPOST_PARCEL_RATES.large.toFixed(2)}` },
+                  { tier: "extraLarge" as AusPostParcelTier, label: `XL $${AUSPOST_PARCEL_RATES.extraLarge.toFixed(2)}` },
+                ] as const).map(({ tier, label }) => (
+                  <button
+                    key={tier}
+                    type="button"
+                    onClick={() => { startTransition(() => { setCustomPostageTier(tier); }); triggerTactileHaptic("light"); }}
+                    className={`px-2 py-0.5 rounded-md text-[11px] font-semibold transition cursor-pointer tabular-nums ${
+                      customPostageTier === tier
+                        ? "bg-amber-500/20 text-amber-300 border border-amber-500/40"
+                        : "bg-zinc-800 text-zinc-400 hover:text-zinc-200 border border-zinc-700/50"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
             {isLiquidOrFragrance && (
               isFragranceActive ? (
                 <div className="p-3 rounded-2xl bg-zinc-900 border border-cyan-500/30 space-y-2.5 shadow-sm">

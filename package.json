@@ -11,6 +11,7 @@
     "type-check": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "test": "node scripts/run-benchmarks.mjs",
+    "test:fees": "vitest run --config vitest.config.ts",
     "verify-scans": "node scratch/verify_3_scans.js",
     "preflight": "npm run type-check && npm run build",
     "build:store": "node scripts/build_store_packages.js",
@@ -69,6 +70,9 @@
     "eslint-plugin-react": "^7",
     "eslint-plugin-react-hooks": "^4",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vite": "^8.3.0",
+    "vite-tsconfig-paths": "^6.1.1",
+    "vitest": "^5.0.1"
   }
 }

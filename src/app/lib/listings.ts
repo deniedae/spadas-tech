@@ -16,7 +16,7 @@ export function fmtMoney(n: number | string | null | undefined): string {
 }
 
 export const PLATFORM_FEE_RATES: Record<string, number> = {
-  ebay: 0.125, // eBay Australia standard final value fee (12.5%)
+  ebay: 0.134, // eBay Australia Pro Starter final value fee (13.4%, incl. GST, 2026)
   poshmark: 0.2,
   mercari: 0.1,
   depop: 0.1,

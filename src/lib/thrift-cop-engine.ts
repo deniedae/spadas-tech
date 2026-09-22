@@ -146,8 +146,8 @@ export interface CalculateCopVerdictOptions {
   category?: string | null;
   productName?: string | null;
   brand?: string | null;
-  platformFeeRate?: number; // default EBAY_AU_FEE_RATE (12.5% eBay AU standard)
-  fixedFee?: number; // default EBAY_AU_FIXED_FEE ($0.33 AUD)
+  platformFeeRate?: number; // default EBAY_AU_FEE_RATE (13.4% eBay AU Pro Starter, incl. GST)
+  fixedFee?: number; // default EBAY_AU_FIXED_FEE ($0.30 AUD, Pro Starter)
   shippingCost?: number;
   confidenceScore?: number; // 0.0 to 1.0 or 0 to 100
   variantAudit?: {
@@ -274,8 +274,8 @@ export function calculateThriftCopVerdict(options: CalculateCopVerdictOptions): 
     };
   } else if (netProfit <= 0 || (resalePrice < 14 && category?.toLowerCase().includes("media"))) {
     copVerdict = "PASS_RISKY";
-    verdictLabel = "🛑 HARD PASS (Negative Margin)";
-    verdictDescription = `Net profit is negative (-$${Math.abs(netProfit).toFixed(2)}) after $${effectiveShipping.toFixed(2)} shipping and platform fees. Leave on shelf.`;
+    verdictLabel = "🛑 HARD PASS (Loss)";
+    verdictDescription = `Net profit is negative ($${netProfit.toFixed(2)}) after $${effectiveShipping.toFixed(2)} shipping and platform fees. Leave on shelf.`;
     badgeStyle = {
       bg: "bg-rose-500/20",
       text: "text-rose-400",

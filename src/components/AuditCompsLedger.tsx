@@ -762,13 +762,13 @@ export default function AuditCompsLedger({
                     <span className="text-zinc-600">−</span>
                     <span>Tag {fmtMoney(activeValuation?.thriftCost ?? 0)}</span>
                     <span className="text-zinc-600">−</span>
-                    <span>Fees ~{fmtMoney(Math.round((stats.median * 0.134 + 0.33) * 100) / 100)}</span>
+                    <span>Fees ~{fmtMoney(Math.round((stats.median * 0.134 + 0.30) * 100) / 100)}</span>
                     <span className="text-zinc-600">−</span>
                     <span>Post ~$9.50</span>
                   </div>
                   <div className="flex items-center gap-1 text-emerald-400 font-bold ml-auto">
                     <span>=</span>
-                    <span>+{fmtMoney(typeof netProfit === "number" ? netProfit : Math.max(0, stats.median - (activeValuation?.thriftCost ?? 0) - Math.round((stats.median * 0.134 + 0.33) * 100) / 100 - 9.5))} Take-Home</span>
+                    <span>+{fmtMoney(typeof netProfit === "number" ? netProfit : Math.max(0, stats.median - (activeValuation?.thriftCost ?? 0) - Math.round((stats.median * 0.134 + 0.30) * 100) / 100 - 9.5))} Take-Home</span>
                   </div>
                 </div>
               )}

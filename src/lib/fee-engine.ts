@@ -1,20 +1,30 @@
 /**
  * Strict Australian Marketplace Fee & AusPost Domestic Shipping Rate Matrix
- * 
+ *
  * Provides deterministic mathematical calculations for eBay Australia:
- * 1. eBay AU Final Value Fee: 12.5% + $0.33 AUD fixed transaction fee.
+ * 1. eBay AU Final Value Fee (Pro Starter / >$25K annual sellers, incl. GST):
+ *    - 13.4% of total sale amount (all standard categories) + $0.30 fixed order fee.
+ *    - High-value threshold: 2.5% on the portion of any sale exceeding $4,000.
+ *    - NOTE: The 8% footwear reduced rate exists on eBay US but does NOT apply to eBay.com.au.
+ *    - Source: ebay.com.au/help/selling/fees-credits-invoices/pro-selling-fees (verified June 2026)
  * 2. AusPost Domestic Parcel Rates:
- *    - Small (<500g, media/games/jewelry): $10.90 AUD
+ *    - Small  (<500g, media/games/jewelry): $10.90 AUD
  *    - Medium (500g–1kg, lightweight apparel): $14.80 AUD
- *    - Large (1kg–3kg, shoes/hoodies/jackets): $18.65 AUD
+ *    - Large  (1kg–3kg, shoes/hoodies/jackets): $18.65 AUD
  *    - Extra Large (>3kg / bulky goods): $22.75 AUD
  * 3. Deterministic net profit, ROI%, and COGS calculations without LLM estimation.
  * 4. Bulletproof single-$ currency formatting and price sanitization.
  */
 
-/** Official eBay Australia standard category rates */
-export const EBAY_AU_FEE_RATE = 0.125; // 12.5%
-export const EBAY_AU_FIXED_FEE = 0.33; // $0.33 AUD fixed transaction fee
+/**
+ * Official eBay Australia Pro Starter / >$25K seller transaction fee rates (incl. GST).
+ * Pro Basic/Featured/Anchor use a $0.33 fixed fee but lower percentage — Pro Starter is
+ * the conservative default for thrift resellers auto-upgraded past the $25K annual threshold.
+ */
+export const EBAY_AU_FEE_RATE = 0.134;   // 13.4% FVF (Pro Starter, incl. GST)
+export const EBAY_AU_FIXED_FEE = 0.30;   // $0.30 AUD fixed order fee (Pro Starter)
+export const EBAY_AU_HIGH_VALUE_THRESHOLD = 4000;  // Portion above $4,000 charged at reduced rate
+export const EBAY_AU_HIGH_VALUE_RATE = 0.025;       // 2.5% on sale amount exceeding $4,000
 
 /** AusPost Standard Parcel Post national delivery matrix */
 export const AUSPOST_PARCEL_RATES = {
@@ -165,17 +175,28 @@ export function getAusPostShippingRate(
 }
 
 /**
- * Calculates exact eBay AU final value fees (12.5% + $0.33 AUD).
+ * Calculates exact eBay AU final value fees.
+ * Pro Starter rate: 13.4% + $0.30 fixed fee.
+ * High-value threshold: 2.5% on the portion of any sale exceeding $4,000.
+ * Source: ebay.com.au Pro Selling Fees (verified June 2026).
  */
 export function calculateEbayAuFees(salePrice: number): number {
   if (salePrice <= 0) return 0;
-  return Math.round((salePrice * EBAY_AU_FEE_RATE + EBAY_AU_FIXED_FEE) * 100) / 100;
+  if (salePrice <= EBAY_AU_HIGH_VALUE_THRESHOLD) {
+    return Math.round((salePrice * EBAY_AU_FEE_RATE + EBAY_AU_FIXED_FEE) * 100) / 100;
+  }
+  // Split: standard rate on first $4,000, reduced rate on the excess
+  const standardPortion = Math.round(EBAY_AU_HIGH_VALUE_THRESHOLD * EBAY_AU_FEE_RATE * 100) / 100;
+  const excessPortion = Math.round((salePrice - EBAY_AU_HIGH_VALUE_THRESHOLD) * EBAY_AU_HIGH_VALUE_RATE * 100) / 100;
+  return Math.round((standardPortion + excessPortion + EBAY_AU_FIXED_FEE) * 100) / 100;
 }
 
 export interface AuFinancialBreakdown {
   salePrice: number;
   thriftCost: number;
   ebayFee: number;
+  /** Effective percentage rate applied (e.g. 0.134 for 13.4%) */
+  feeRateApplied: number;
   ebayFeeRate: number;
   fixedFee: number;
   postage: number;
@@ -184,6 +205,7 @@ export interface AuFinancialBreakdown {
   netProfit: number;
   roiPercentage: number;
   profitMarginPercentage: number;
+  isLoss: boolean;
   copVerdict: "MUST_COP" | "QUICK_FLIP" | "FAIR_MARGIN" | "PASS_RISKY";
 }
 
@@ -213,7 +235,7 @@ export function calculateAuResellerFinancials(params: {
     }
   }
 
-  // eBay AU Fees: 12.5% + $0.33
+  // eBay AU Fees: 13.4% + $0.30 (Pro Starter, incl. GST) with >$4K high-value tier
   const ebayFee = calculateEbayAuFees(salePrice);
 
   // AusPost Postage
@@ -223,12 +245,11 @@ export function calculateAuResellerFinancials(params: {
       ? Math.round(params.customPostage * 100) / 100
       : postageResult.rate;
 
-  // True Reseller Net Profit: Sale Price - Thrift Cost - eBay AU Fees
-  // (In eBay AU, postage is usually charged to buyer or accounted in all-in comps)
-  const netProfit = Math.max(
-    -thriftCost,
-    Math.round((salePrice - thriftCost - ebayFee) * 100) / 100
-  );
+  // True Reseller Net Profit: Sale Price − Thrift Cost − eBay AU Fees
+  // (In eBay AU, postage is typically paid by the buyer or accounted for in all-in comp prices)
+  const rawNetProfit = Math.round((salePrice - thriftCost - ebayFee) * 100) / 100;
+  const netProfit = Math.round(Math.max(-thriftCost, rawNetProfit) * 100) / 100;
+  const isLoss = netProfit < 0;
 
   const roiPercentage =
     thriftCost > 0 ? Math.round((netProfit / thriftCost) * 100) : 0;
@@ -236,9 +257,9 @@ export function calculateAuResellerFinancials(params: {
   const profitMarginPercentage =
     salePrice > 0 ? Math.round((netProfit / salePrice) * 100) : 0;
 
-  // Algorithmic Cop Verdict
+  // Algorithmic Cop Verdict — GUARD: never emit BUY signal on a loss
   let copVerdict: "MUST_COP" | "QUICK_FLIP" | "FAIR_MARGIN" | "PASS_RISKY" = "FAIR_MARGIN";
-  if (netProfit < 3) {
+  if (netProfit < 3 || isLoss) {
     copVerdict = "PASS_RISKY";
   } else if (roiPercentage >= 250 && netProfit >= 25) {
     copVerdict = "MUST_COP";
@@ -252,6 +273,7 @@ export function calculateAuResellerFinancials(params: {
     salePrice,
     thriftCost,
     ebayFee,
+    feeRateApplied: EBAY_AU_FEE_RATE,
     ebayFeeRate: EBAY_AU_FEE_RATE,
     fixedFee: EBAY_AU_FIXED_FEE,
     postage,
@@ -260,6 +282,7 @@ export function calculateAuResellerFinancials(params: {
     netProfit,
     roiPercentage,
     profitMarginPercentage,
+    isLoss,
     copVerdict,
   };
 }
