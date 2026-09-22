@@ -10,7 +10,7 @@ export default defineConfig({
     // Run in Node (no JSDOM needed for pure-math libs)
     environment: "node",
     // Colour the output and show per-test timings
-    reporter: "verbose",
+    reporters: ["verbose"],
     // Only pick up files under src/lib/__tests__ to avoid touching Next route files
     include: ["src/lib/__tests__/**/*.test.ts"],
   },
