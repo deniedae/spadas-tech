@@ -42,6 +42,8 @@ const RawCompsModal = dynamic(() => import("@/components/raw-comps-modal"), { ss
 import { supabase } from "@/app/lib/supabase";
 import { triggerTactileHaptic } from "@/lib/android-bridge";
 import { isMeaningfulMeta } from "@/lib/lens-utils";
+import { createListing } from "@/app/lib/createlisting";
+import { saveListingToFirestore } from "@/app/lib/firestore-listings";
 
 interface SpadasHaulSectionProps {
   onSwitchToLens?: () => void;
@@ -294,30 +296,92 @@ export function SpadasHaulSection({
     async (item: RapidThriftItem) => {
       if (committingId === item.id) return;
       setCommittingId(item.id);
+      triggerTactileHaptic("light");
       try {
         const { data: authData } = await supabase.auth.getUser();
         const user = authData?.user;
 
-        const listingPayload = {
-          user_id: user?.id || null,
-          product: item.productName || "Sourced Thrift Item",
-          category: item.category || "General",
-          price: item.estimatedValue || 25,
-          estimated_profit: item.trueNetProfit || 15,
-          status: "Active",
-          confidence: 0.95,
-          currency: currency,
-          cost_price: item.thriftCost || 5,
-          image_url: item.thumbnailUrl || item.image || item.imageUrl || photoUrls[item.photoId] || null,
-        };
+        const resolvedImg =
+          item.thumbnailUrl ||
+          item.image ||
+          item.imageUrl ||
+          (item.photoId ? photoUrls[item.photoId] : null) ||
+          "";
 
-        const { error } = await supabase.from("listings").insert([listingPayload]);
-        if (error) {
-          console.warn("[Spadas Haul] Database insert warning:", error);
-          toast.error(`Database commit error: ${error.message || "Unable to save"}`);
-          return;
+        const metaParts: string[] = [];
+        if (item.category && item.category !== "General" && item.category !== "Secondary Asset") {
+          metaParts.push(`Category: ${item.category}`);
         }
-        toast.success(`"${item.productName || "Item"}" committed to Active Inventory!`);
+        if (item.brand && item.brand !== "Unbranded" && item.brand !== "Unknown") {
+          metaParts.push(`Brand: ${item.brand}`);
+        }
+        if (item.condition) {
+          metaParts.push(`Condition: ${item.condition}`);
+        }
+        if (typeof item.trueNetProfit === "number" && item.trueNetProfit > 0) {
+          metaParts.push(`Est. Net Profit: $${item.trueNetProfit.toFixed(2)} ${currency}`);
+        }
+        if (item.notes) {
+          metaParts.push(`Notes: ${item.notes}`);
+        }
+        const description = metaParts.length > 0
+          ? `Sourced via Spadas Haul. ${metaParts.join(" • ")}`
+          : "Sourced via Spadas Haul.";
+
+        const price = Number(item.estimatedValue) || 25;
+        const cost = Number(item.thriftCost) || 5;
+
+        if (user?.id) {
+          const { error } = await createListing({
+            userId: user.id,
+            product: item.productName || "Sourced Thrift Item",
+            description,
+            price,
+            cost,
+            purchase_price: cost,
+            image: resolvedImg,
+            status: "Active",
+          });
+
+          if (error) {
+            console.warn("[Spadas Haul] Database insert warning, saving to pending queue:", error);
+            const queueStr = localStorage.getItem("spadas_pending_listings_queue");
+            const listQueue = queueStr ? JSON.parse(queueStr) : [];
+            listQueue.push({
+              userId: user.id,
+              product: item.productName || "Sourced Thrift Item",
+              description,
+              price,
+              cost,
+              purchase_price: cost,
+              image_url: resolvedImg,
+              status: "Active",
+              timestamp: Date.now(),
+            });
+            localStorage.setItem("spadas_pending_listings_queue", JSON.stringify(listQueue.slice(-50)));
+            toast.success(`"${item.productName || "Item"}" saved to inventory queue (will sync automatically)`);
+            return;
+          }
+          toast.success(`"${item.productName || "Item"}" committed to Active Inventory!`);
+        } else {
+          // Guest or unauthenticated user: queue locally
+          const queueStr = localStorage.getItem("spadas_pending_listings_queue");
+          const listQueue = queueStr ? JSON.parse(queueStr) : [];
+          listQueue.push({
+            userId: "guest-user",
+            product: item.productName || "Sourced Thrift Item",
+            description,
+            price,
+            cost,
+            purchase_price: cost,
+            image_url: resolvedImg,
+            status: "Active",
+            timestamp: Date.now(),
+          });
+          localStorage.setItem("spadas_pending_listings_queue", JSON.stringify(listQueue.slice(-50)));
+          toast.success(`"${item.productName || "Item"}" queued for inventory! Sign in to sync.`);
+        }
+        triggerTactileHaptic("success");
       } catch (err) {
         console.error("[Spadas Haul] Failed to commit to inventory:", err);
         toast.error("Failed to commit item to inventory.");
@@ -338,30 +402,111 @@ export function SpadasHaulSection({
     }
 
     setIsBatchCommitting(true);
+    triggerTactileHaptic("medium");
     try {
       const { data: authData } = await supabase.auth.getUser();
       const user = authData?.user;
 
-      const payloads = profitable.map((item) => ({
-        user_id: user?.id || null,
-        product: item.productName || "Sourced Thrift Item",
-        category: item.category || "General",
-        price: item.estimatedValue || 25,
-        estimated_profit: item.trueNetProfit || 15,
-        status: "Active",
-        confidence: 0.95,
-        currency: currency,
-        cost_price: item.thriftCost || 5,
-        image_url: item.thumbnailUrl || item.image || item.imageUrl || photoUrls[item.photoId] || null,
-      }));
+      const buildItemMeta = (item: RapidThriftItem) => {
+        const resolvedImg =
+          item.thumbnailUrl ||
+          item.image ||
+          item.imageUrl ||
+          (item.photoId ? photoUrls[item.photoId] : null) ||
+          "";
 
-      const { error } = await supabase.from("listings").insert(payloads);
-      if (error) {
-        console.warn("[Spadas Haul] Batch insert warning:", error);
-        toast.error(`Batch commit error: ${error.message || "Failed to commit batch"}`);
-        return;
+        const metaParts: string[] = [];
+        if (item.category && item.category !== "General" && item.category !== "Secondary Asset") {
+          metaParts.push(`Category: ${item.category}`);
+        }
+        if (item.brand && item.brand !== "Unbranded" && item.brand !== "Unknown") {
+          metaParts.push(`Brand: ${item.brand}`);
+        }
+        if (item.condition) {
+          metaParts.push(`Condition: ${item.condition}`);
+        }
+        if (typeof item.trueNetProfit === "number" && item.trueNetProfit > 0) {
+          metaParts.push(`Est. Net Profit: $${item.trueNetProfit.toFixed(2)} ${currency}`);
+        }
+        if (item.notes) {
+          metaParts.push(`Notes: ${item.notes}`);
+        }
+        const description = metaParts.length > 0
+          ? `Sourced via Spadas Haul. ${metaParts.join(" • ")}`
+          : "Sourced via Spadas Haul.";
+
+        const price = Number(item.estimatedValue) || 25;
+        const cost = Number(item.thriftCost) || 5;
+
+        return { resolvedImg, description, price, cost };
+      };
+
+      if (user?.id) {
+        const dbPayloads = profitable.map((item) => {
+          const { resolvedImg, description, price, cost } = buildItemMeta(item);
+          return {
+            user_id: user.id,
+            title: item.productName || "Sourced Thrift Item",
+            product: item.productName || "Sourced Thrift Item",
+            description,
+            price,
+            cost,
+            purchase_price: cost,
+            image_url: resolvedImg,
+            status: "Active" as const,
+          };
+        });
+
+        const { error } = await supabase.from("listings").insert(dbPayloads);
+        if (error) {
+          console.warn("[Spadas Haul] Batch insert warning, falling back to local queue:", error);
+          const queueStr = localStorage.getItem("spadas_pending_listings_queue");
+          const listQueue = queueStr ? JSON.parse(queueStr) : [];
+          for (const p of dbPayloads) {
+            listQueue.push({ ...p, userId: user.id, timestamp: Date.now() });
+          }
+          localStorage.setItem("spadas_pending_listings_queue", JSON.stringify(listQueue.slice(-100)));
+          toast.success(`Saved ${profitable.length} finds to offline queue (will sync automatically)`);
+          return;
+        }
+
+        // Background sync to Firestore dual-store for each item
+        for (const item of profitable) {
+          const { resolvedImg, description, price, cost } = buildItemMeta(item);
+          void saveListingToFirestore(user.id, {
+            product: item.productName || "Sourced Thrift Item",
+            description,
+            price,
+            cost,
+            image: resolvedImg,
+            status: "Active",
+          });
+        }
+
+        triggerTactileHaptic("success");
+        toast.success(`Committed ${profitable.length} profitable finds to Active Inventory!`);
+      } else {
+        // Guest user: save all to local queue
+        const queueStr = localStorage.getItem("spadas_pending_listings_queue");
+        const listQueue = queueStr ? JSON.parse(queueStr) : [];
+        for (const item of profitable) {
+          const { resolvedImg, description, price, cost } = buildItemMeta(item);
+          listQueue.push({
+            userId: "guest-user",
+            product: item.productName || "Sourced Thrift Item",
+            description,
+            price,
+            cost,
+            purchase_price: cost,
+            image_url: resolvedImg,
+            status: "Active",
+            timestamp: Date.now(),
+          });
+        }
+        localStorage.setItem("spadas_pending_listings_queue", JSON.stringify(listQueue.slice(-100)));
+        triggerTactileHaptic("success");
+        toast.success(`Saved ${profitable.length} finds to local inventory queue! Sign in to sync.`);
       }
-      toast.success(`Committed ${profitable.length} profitable finds to Active Inventory!`);
     } catch (err) {
       console.error("[Spadas Haul] Batch commit error:", err);
       toast.error("Error committing batch to inventory.");
