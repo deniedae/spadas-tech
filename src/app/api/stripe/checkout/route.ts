@@ -2,11 +2,28 @@ import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createClient } from "@/app/lib/server";
 
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
 export async function POST(request: Request) {
   try {
     const secretKey = process.env.STRIPE_SECRET_KEY;
     const priceId = process.env.STRIPE_PRICE_ID;
-    const rawAppUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || "http://localhost:3000";
+
+    // Dynamically derive current origin from request headers with safe production fallback
+    const originHeader = request.headers.get("origin") || request.headers.get("referer");
+    let derivedOrigin = "";
+    if (originHeader) {
+      try {
+        derivedOrigin = new URL(originHeader).origin;
+      } catch {}
+    }
+
+    const rawAppUrl =
+      derivedOrigin ||
+      process.env.NEXT_PUBLIC_APP_URL ||
+      process.env.APP_URL ||
+      "https://spadas-tech.vercel.app";
     const appUrl = rawAppUrl.replace(/\/+$/, "");
 
     if (!secretKey || !priceId) {

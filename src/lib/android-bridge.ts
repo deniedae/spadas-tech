@@ -1,8 +1,5 @@
-/**
- * Spadas Android Native Bridge & Widget Synchronizer
- * Enables bidirectional communication between the Spadas web/PWA interface
- * and the native Android Kotlin companion suite (Widgets, Quick Settings, Haptics).
- */
+import { useEffect } from "react";
+
 
 declare global {
   interface Window {
@@ -252,4 +249,50 @@ export function openExternalUrlSafely(
     console.error("[openExternalUrlSafely] Failed to open URL:", err);
   }
 }
+
+/**
+ * Intercepts Android hardware / gesture Back button and Escape key
+ * to smoothly close active modals/drawers instead of navigating backwards or exiting the app.
+ */
+export function useAndroidBackHandler(isOpen: boolean, onClose: () => void): void {
+  useEffect(() => {
+    if (!isOpen || typeof window === "undefined") return;
+
+    let isClosedByBack = false;
+
+    // Push dummy history entry so back button pops it instead of exiting the page
+    try {
+      window.history.pushState({ spadasModalOpen: true }, "");
+    } catch {}
+
+    const handlePopState = () => {
+      isClosedByBack = true;
+      onClose();
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+      window.removeEventListener("keydown", handleKeyDown);
+
+      // If closed programmatically by tapping close button or overlay, revert the pushed history entry
+      if (!isClosedByBack) {
+        try {
+          if (window.history.state?.spadasModalOpen) {
+            window.history.back();
+          }
+        } catch {}
+      }
+    };
+  }, [isOpen, onClose]);
+}
+
 

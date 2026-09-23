@@ -219,6 +219,10 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
     "/generator": "AI Listing Studio",
     "/calculator": "Calculator",
     "/settings": "Settings",
+    "/sourcing": "Sourcing Copilot",
+    "/radar": "Market Radar",
+    "/velocity": "Sales Speed Analytics",
+    "/analytics": "Performance Analytics",
   };
   const pageTitle = pageTitleMap[pathname] || "Spadas Lens";
 
