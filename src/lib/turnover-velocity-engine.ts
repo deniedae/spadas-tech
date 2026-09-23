@@ -77,7 +77,7 @@ const VELOCITY_RULES: CategoryVelocityRule[] = [
     baseStr: 18,
     avgDays: 65,
     tier: "HOARDER_RISK",
-    warning: "🛑 Junkyard Hoarder Trap: Heavy & bulky. Sells <20% STR with 60+ day holding time.",
+    warning: "🛑 Junkyard Hoarder Trap: Heavy & bulky. Sells <20% sell-through with 60+ day holding time.",
   },
 
   // ── VINTAGE & STREETWEAR ───────────────────────────────────────────────────
@@ -167,7 +167,7 @@ export function calculateSalesVelocity(options: {
       str: rawStr,
       avgDays: estDays,
       tier,
-      customWarning: tier === "HOARDER_RISK" ? "🛑 Low Sell-Through (<25% STR): High hoarding risk." : undefined,
+      customWarning: tier === "HOARDER_RISK" ? "🛑 Low Sell-Through (<25% sold): High hoarding risk." : undefined,
     });
   }
 

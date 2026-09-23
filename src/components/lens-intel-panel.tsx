@@ -766,7 +766,7 @@ export const LensIntelPanel: React.FC<LensIntelPanelProps> = ({
 
               <div className="space-y-1">
                 <div className="flex items-center justify-between text-[10px] font-mono text-slate-400">
-                  <span>90-Day Sell-Through Rate (STR)</span>
+                  <span>90-Day Sell-Through Rate</span>
                   <span className="font-bold text-white">{intel.turnaroundVelocity.sellThroughRate}%</span>
                 </div>
                 <div className="w-full h-2 rounded-full bg-slate-800 overflow-hidden">

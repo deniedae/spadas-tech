@@ -126,6 +126,95 @@ export async function toggleCameraTorch(stream: MediaStream | null, enable: bool
 }
 
 /**
+ * Safely create a native BarcodeDetector instance with supported formats.
+ */
+async function getSafeNativeBarcodeDetector(requestedFormats?: string[]) {
+  if (!isNativeBarcodeDetectorSupported()) return null;
+  try {
+    let formats = requestedFormats || (CORE_BARCODE_FORMATS as unknown as string[]);
+    if (typeof window.BarcodeDetector?.getSupportedFormats === "function") {
+      try {
+        const supported = await window.BarcodeDetector.getSupportedFormats();
+        if (Array.isArray(supported) && supported.length > 0) {
+          formats = formats.filter((f) => supported.includes(f));
+        }
+      } catch {
+        // Fallback to core formats
+      }
+    }
+    if (formats.length === 0) {
+      return new window.BarcodeDetector!();
+    }
+    return new window.BarcodeDetector!({ formats });
+  } catch (err) {
+    console.warn("[BarcodeDetector] Custom formats initialization failed, falling back to default:", err);
+    try {
+      return new window.BarcodeDetector!();
+    } catch {
+      return null;
+    }
+  }
+}
+
+/**
+ * Decode barcode from a single image/canvas/video source on demand.
+ */
+export async function decodeBarcodeFromImageSource(
+  source: ImageBitmapSource
+): Promise<DetectedBarcodeResult | null> {
+  if (typeof window === "undefined") return null;
+
+  // 1. Try native BarcodeDetector
+  if (isNativeBarcodeDetectorSupported()) {
+    try {
+      const detector = await getSafeNativeBarcodeDetector();
+      if (detector) {
+        const barcodes = await detector.detect(source);
+        if (barcodes && barcodes.length > 0 && barcodes[0]?.rawValue) {
+          return barcodes[0];
+        }
+      }
+    } catch {
+      // Continue to ZXing fallback
+    }
+  }
+
+  // 2. Try ZXing fallback on canvas / video element
+  try {
+    const { BrowserMultiFormatReader } = await import("@zxing/library");
+    const reader = new BrowserMultiFormatReader();
+    if (source instanceof HTMLVideoElement) {
+      const result = await reader.decodeFromVideoElement(source);
+      if (result && result.getText()) {
+        return {
+          rawValue: result.getText(),
+          format: result.getBarcodeFormat() ? result.getBarcodeFormat().toString() : "barcode",
+        };
+      }
+    } else if (source instanceof HTMLCanvasElement) {
+      const dataUrl = source.toDataURL("image/jpeg", 0.95);
+      const img = new Image();
+      img.src = dataUrl;
+      await new Promise((res) => {
+        if (img.complete) res(null);
+        else img.onload = () => res(null);
+      });
+      const result = await reader.decodeFromImageElement(img);
+      if (result && result.getText()) {
+        return {
+          rawValue: result.getText(),
+          format: result.getBarcodeFormat() ? result.getBarcodeFormat().toString() : "barcode",
+        };
+      }
+    }
+  } catch {
+    // No barcode decoded
+  }
+
+  return null;
+}
+
+/**
  * Create and initialize a native hardware barcode detector session.
  */
 export function createNativeBarcodeScanner(
@@ -144,15 +233,13 @@ export function createNativeBarcodeScanner(
   let animFrameId: number | null = null;
   let intervalId: ReturnType<typeof setInterval> | null = null;
   let lastScanTime = 0;
-  const throttleMs = options?.samplingIntervalMs || (options?.fpsThrottle ? 1000 / options.fpsThrottle : 200);
+  const throttleMs = options?.samplingIntervalMs || (options?.fpsThrottle ? 1000 / options.fpsThrottle : 180);
 
   const hasNative = isNativeBarcodeDetectorSupported();
 
   // 1. Native BarcodeDetector (Chrome, Edge, Android WebView)
   if (hasNative) {
-    const detector = new window.BarcodeDetector!({
-      formats: options?.formats || (CORE_BARCODE_FORMATS as unknown as string[]),
-    });
+    let detectorPromise = getSafeNativeBarcodeDetector(options?.formats);
 
     const scanLoop = async (now: number) => {
       if (!isRunning) return;
@@ -160,11 +247,14 @@ export function createNativeBarcodeScanner(
       if (now - lastScanTime >= throttleMs && videoElement.readyState >= 2 && !videoElement.paused) {
         lastScanTime = now;
         try {
-          const barcodes = await detector.detect(videoElement);
-          if (barcodes && barcodes.length > 0) {
-            const first = barcodes[0];
-            if (first && first.rawValue) {
-              onDetected(first);
+          const detector = await detectorPromise;
+          if (detector) {
+            const barcodes = await detector.detect(videoElement);
+            if (barcodes && barcodes.length > 0) {
+              const first = barcodes[0];
+              if (first && first.rawValue) {
+                onDetected(first);
+              }
             }
           }
         } catch {
@@ -195,12 +285,14 @@ export function createNativeBarcodeScanner(
   }
 
   // 2. Dynamic ZXing fallback (Safari, Firefox, legacy WebView)
+  let zxingReader: any = null;
+
   const startZxingFallback = async () => {
     try {
       const { BrowserMultiFormatReader } = await import("@zxing/library");
-      const reader = new BrowserMultiFormatReader();
+      zxingReader = new BrowserMultiFormatReader();
 
-      intervalId = setInterval(() => {
+      intervalId = setInterval(async () => {
         if (!isRunning || !videoElement || videoElement.readyState < 2 || videoElement.paused) {
           return;
         }
@@ -210,7 +302,7 @@ export function createNativeBarcodeScanner(
           const vh = videoElement.videoHeight;
           if (vw === 0 || vh === 0) return;
 
-          const result = reader.decode(videoElement);
+          const result = await zxingReader.decodeFromVideoElement(videoElement);
           if (result && result.getText()) {
             onDetected({
               rawValue: result.getText(),
@@ -237,6 +329,11 @@ export function createNativeBarcodeScanner(
       if (intervalId !== null) {
         clearInterval(intervalId);
         intervalId = null;
+      }
+      if (zxingReader) {
+        try {
+          zxingReader.reset();
+        } catch {}
       }
     },
   };

@@ -1,6 +1,5 @@
 "use client";
-
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
   Package,
   AlertTriangle,
@@ -12,7 +11,12 @@ import {
   ThumbsUp,
   ThumbsDown,
   ExternalLink,
+  Sparkles,
+  ShoppingBasket,
+  Check,
+  Tag,
 } from "lucide-react";
+import { toast } from "sonner";
 import { DeleteScanButton } from "./delete-button";
 import EbayListingModal from "@/components/ebay-listing-modal";
 import CrossListModal from "@/components/cross-list-modal";
@@ -21,6 +25,9 @@ import RawCompsModal from "@/components/raw-comps-modal";
 import { supabase } from "@/app/lib/supabase";
 import { triggerTactileHaptic } from "@/lib/android-bridge";
 import { sanitizeMetaText, cleanBrandText, cleanCategoryText, cleanConditionText } from "@/lib/lens-utils";
+import { useHaulStore, haulStore } from "@/lib/haul-store";
+import { createListing } from "@/app/lib/createlisting";
+import type { RapidThriftItem } from "@/lib/rapid-thrift-engine";
 
 interface ScanRecord {
   id: string;
@@ -130,6 +137,119 @@ export function ScanItemCard({
     setActiveCompsCount(activeCount);
   }, []);
 
+  // Haul session sync
+  const { items: haulItems } = useHaulStore();
+  const isInHaul = haulItems.some(
+    (h) => h.id === scan.id || (h.productName && h.productName.toLowerCase() === title.toLowerCase())
+  );
+
+  // Listings draft state
+  const [isListed, setIsListed] = useState<boolean>(false);
+  const [isAddingListing, setIsAddingListing] = useState<boolean>(false);
+  const [isAddingHaul, setIsAddingHaul] = useState<boolean>(false);
+
+  useEffect(() => {
+    try {
+      const listedKey = `spadas_listed_scan_${scan.id}`;
+      if (localStorage.getItem(listedKey) === "true") {
+        setIsListed(true);
+      }
+    } catch {}
+  }, [scan.id]);
+
+  const handleAddToListings = async () => {
+    if (isAddingListing || isListed) return;
+    triggerTactileHaptic("light");
+    setIsAddingListing(true);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user?.id || "guest-user";
+
+      const listingPayload = {
+        userId,
+        product: title,
+        description:
+          res?.seo_description ||
+          res?.detailed_description ||
+          `Sourced via Spadas Lens. Category: ${category}. Condition: ${cleanConditionText(
+            res?.analysis?.condition,
+            "Used - Good"
+          )}. Resale valuation: $${(minPrice || 25).toFixed(2)} – $${(maxPrice || 50).toFixed(2)} AUD.`,
+        price: maxPrice || minPrice || 25,
+        cost: res?.tagPrice || res?.cost || 10,
+        purchase_price: res?.tagPrice || res?.cost || 10,
+        image: resolvedThumbnail || "",
+        status: "Draft" as const,
+      };
+
+      if (session?.user?.id) {
+        const { error } = await createListing(listingPayload);
+        if (error) {
+          console.warn("[History] Fallback to local queue on listing insert:", error);
+          const queueStr = localStorage.getItem("spadas_pending_listings_queue");
+          const listQueue = queueStr ? JSON.parse(queueStr) : [];
+          listQueue.push({ ...listingPayload, timestamp: Date.now() });
+          localStorage.setItem("spadas_pending_listings_queue", JSON.stringify(listQueue.slice(-50)));
+        }
+      } else {
+        const queueStr = localStorage.getItem("spadas_pending_listings_queue");
+        const listQueue = queueStr ? JSON.parse(queueStr) : [];
+        listQueue.push({ ...listingPayload, timestamp: Date.now() });
+        localStorage.setItem("spadas_pending_listings_queue", JSON.stringify(listQueue.slice(-50)));
+      }
+
+      localStorage.setItem(`spadas_listed_scan_${scan.id}`, "true");
+      setIsListed(true);
+      triggerTactileHaptic("success");
+      toast.success(`Draft added to Listings: "${title.slice(0, 32)}..."`);
+    } catch (err) {
+      console.error("[History] Error adding to listings:", err);
+      toast.error("Could not add draft to listings");
+    } finally {
+      setIsAddingListing(false);
+    }
+  };
+
+  const handleAddToHaul = () => {
+    if (isInHaul || isAddingHaul) return;
+    triggerTactileHaptic("selection");
+    setIsAddingHaul(true);
+
+    try {
+      const haulItem: RapidThriftItem = {
+        id: scan.id,
+        photoId: `photo_${scan.id}`,
+        timestamp: new Date(scan.created_at).getTime() || Date.now(),
+        status: "completed",
+        productName: title,
+        brand: validBrand || undefined,
+        category: validCategory || undefined,
+        condition: cleanConditionText(res?.analysis?.condition, "Used - Good"),
+        estimatedValue: maxPrice || minPrice || 25,
+        thriftCost: res?.tagPrice || res?.cost || 10,
+        trueNetProfit: (maxPrice || minPrice || 25) - (res?.tagPrice || res?.cost || 10),
+        roiPercentage: Math.round(
+          (((maxPrice || minPrice || 25) - (res?.tagPrice || res?.cost || 10)) /
+            (res?.tagPrice || res?.cost || 10 || 1)) *
+            100
+        ),
+        image: resolvedThumbnail || undefined,
+        imageUrl: resolvedThumbnail || undefined,
+        copVerdict: res?.cop_verdict || "MUST_COP",
+      };
+
+      haulStore.addItem(haulItem);
+      triggerTactileHaptic("success");
+      toast.success(`Added to Haul session: "${title.slice(0, 32)}..."`);
+    } catch (err) {
+      console.error("[History] Error adding to haul:", err);
+      toast.error("Could not add to Haul");
+    } finally {
+      setIsAddingHaul(false);
+    }
+  };
+
   const isFailed = scan.status === "failed";
   const formattedDate = new Date(scan.created_at).toLocaleString("en-AU", {
     dateStyle: "medium",
@@ -215,6 +335,26 @@ export function ScanItemCard({
                   </>
                 )}
               </span>
+
+              {/* Listing & Haul status indicator */}
+              {!isFailed && (
+                isListed ? (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider flex items-center gap-1 bg-cyan-500/15 text-cyan-300 border border-cyan-500/40">
+                    <Check className="w-2.5 h-2.5" />
+                    <span>Draft in Listings</span>
+                  </span>
+                ) : isInHaul ? (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider flex items-center gap-1 bg-emerald-500/15 text-emerald-300 border border-emerald-500/40">
+                    <ShoppingBasket className="w-2.5 h-2.5" />
+                    <span>In Haul Batch</span>
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider flex items-center gap-1 bg-amber-500/15 text-amber-300 border border-amber-500/40">
+                    <Tag className="w-2.5 h-2.5" />
+                    <span>Needs Listing</span>
+                  </span>
+                )
+              )}
             </div>
 
             <div className="flex items-center gap-2 font-mono text-[11px] text-zinc-400 flex-wrap">
@@ -274,7 +414,39 @@ export function ScanItemCard({
           )}
 
           {!isFailed && (
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {/* Add to Listings Action */}
+              <button
+                type="button"
+                onClick={handleAddToListings}
+                disabled={isListed || isAddingListing}
+                className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-mono font-semibold transition cursor-pointer ${
+                  isListed
+                    ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 opacity-90 cursor-default"
+                    : "bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 active:scale-95"
+                }`}
+                title={isListed ? "Draft already created in Listings" : "Add to Listings as Draft"}
+              >
+                {isListed ? <Check className="w-3 h-3" /> : <Sparkles className="w-3 h-3" />}
+                <span>{isListed ? "LISTED" : "+ LISTING"}</span>
+              </button>
+
+              {/* Add to Haul Action */}
+              <button
+                type="button"
+                onClick={handleAddToHaul}
+                disabled={isInHaul || isAddingHaul}
+                className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-mono font-semibold transition cursor-pointer ${
+                  isInHaul
+                    ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 opacity-90 cursor-default"
+                    : "bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 active:scale-95"
+                }`}
+                title={isInHaul ? "Already in current Haul batch" : "Add to active thrift Haul batch"}
+              >
+                {isInHaul ? <Check className="w-3 h-3" /> : <ShoppingBasket className="w-3 h-3" />}
+                <span>{isInHaul ? "IN HAUL" : "+ HAUL"}</span>
+              </button>
+
               <button
                 type="button"
                 onClick={() => {

@@ -402,7 +402,7 @@ export function SpadasHaulSection({
       "Est Value ($)",
       "Thrift Cost ($)",
       "Net Profit ($)",
-      "STR Velocity",
+      "Sales Speed",
       "Cop Verdict",
       "Timestamp",
     ];
@@ -420,7 +420,7 @@ export function SpadasHaulSection({
         itm.estimatedValue || 0,
         itm.thriftCost || 0,
         itm.trueNetProfit || 0,
-        `"${vel.velocityLabel} (${vel.sellThroughRate}% STR)"`,
+        `"${vel.velocityLabel} (${vel.sellThroughRate}% sell-through)"`,
         itm.copVerdict || "PASS_RISKY",
         new Date(itm.timestamp).toISOString(),
       ];
@@ -1021,7 +1021,7 @@ export function SpadasHaulSection({
                       >
                         {velocity.turnoverTier === "RAPID_FIRE" && "⚡ "}
                         {velocity.turnoverTier === "HOARDER_RISK" && "🛑 "}
-                        {velocity.velocityLabel} ({velocity.sellThroughRate}% STR • ~{velocity.estDaysToSell}d turn)
+                        {velocity.velocityLabel} ({velocity.sellThroughRate}% sold • ~{velocity.estDaysToSell}d turn)
                       </span>
                     </div>
                   </div>

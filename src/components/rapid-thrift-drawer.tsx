@@ -434,7 +434,7 @@ export const RapidThriftDrawer: React.FC<RapidThriftDrawerProps> = ({
                               }`}
                               title={velocity.warning || `${velocity.sellThroughRate}% Sell-Through Rate`}
                             >
-                              {velocity.velocityLabel} ({velocity.sellThroughRate}% STR)
+                              {velocity.velocityLabel} ({velocity.sellThroughRate}% sell-through)
                             </span>
                           </div>
                         );

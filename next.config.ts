@@ -128,6 +128,16 @@ const nextConfig: NextConfig = {
         destination: "/listings",
         permanent: true,
       },
+      {
+        source: "/scanner",
+        destination: "/lens",
+        permanent: true,
+      },
+      {
+        source: "/ironman",
+        destination: "/lens",
+        permanent: true,
+      },
     ];
   },
   async rewrites() {

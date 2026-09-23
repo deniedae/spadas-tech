@@ -574,7 +574,7 @@ export default function ListingsPage() {
                       >
                         {isFastFlip && "⚡"}
                         {isTrap && "🛑"}
-                        {item.velocity.sellThroughRate}% STR
+                        {item.velocity.sellThroughRate}% sold
                       </span>
                       <span className="text-zinc-500 font-mono">
                         ~{item.velocity.estDaysToSell}d
@@ -677,7 +677,7 @@ export default function ListingsPage() {
                       Net Profit
                     </th>
                     <th scope="col" className="py-3 px-3.5 text-center">
-                      STR% (Velocity)
+                      Sales Speed
                     </th>
                     <th scope="col" className="py-3 px-3.5 text-center">
                       Turn Days
@@ -755,7 +755,7 @@ export default function ListingsPage() {
                             : fmtMoney(item.calculatedProfit)}
                         </td>
 
-                        {/* Step 2: STR% Velocity (Strictly Color-Coded) */}
+                        {/* Step 2: Sales Velocity (Strictly Color-Coded) */}
                         <td className="py-3 px-3.5 text-center">
                           <span
                             className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border tabular-nums ${
@@ -768,7 +768,7 @@ export default function ListingsPage() {
                           >
                             {isFastFlip && "⚡ "}
                             {isTrap && "🛑 "}
-                            {item.velocity.sellThroughRate}% STR
+                            {item.velocity.sellThroughRate}% sold
                           </span>
                         </td>
 

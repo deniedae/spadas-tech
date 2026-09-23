@@ -17,8 +17,6 @@ import {
   ShieldCheck,
   Clock,
   Inbox,
-  Video,
-  Upload,
   CheckCircle2,
   Trash2,
   TriangleAlert,
@@ -76,84 +74,7 @@ export default function SettingsPage() {
     issueDescription?: string;
   } | null>(null);
 
-  const [muxPlaybackId, setMuxPlaybackId] = useState<string | null>(null);
-  const [uploadingMux, setUploadingMux] = useState(false);
-  const [muxProgress, setMuxProgress] = useState(0);
-  const [muxStatusText, setMuxStatusText] = useState("");
 
-  // Load active Mux showcase video
-  useEffect(() => {
-    fetch("/api/mux/showcase")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.playbackId) setMuxPlaybackId(data.playbackId);
-      })
-      .catch(() => {});
-  }, []);
-
-  const handleMuxUpload = async (file: File) => {
-    if (!file) return;
-    try {
-      setUploadingMux(true);
-      setMuxProgress(10);
-      setMuxStatusText("Requesting Mux direct upload...");
-
-      const initRes = await fetch("/api/mux/upload", { method: "POST" });
-      const initData = await initRes.json();
-      if (!initData.success || !initData.uploadUrl) {
-        throw new Error(initData.error || "Failed to initialize upload");
-      }
-
-      setMuxStatusText("Uploading video file directly to Mux...");
-      await new Promise<void>((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open("PUT", initData.uploadUrl, true);
-        xhr.upload.onprogress = (e) => {
-          if (e.lengthComputable) {
-            setMuxProgress(Math.round((e.loaded / e.total) * 80) + 10);
-          }
-        };
-        xhr.onload = () => (xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error("Upload failed")));
-        xhr.onerror = () => reject(new Error("Network error"));
-        xhr.send(file);
-      });
-
-      setMuxProgress(92);
-      setMuxStatusText("Processing video stream with Mux...");
-
-      let readyPlaybackId: string | null = null;
-      let attempts = 0;
-      while (attempts < 30 && !readyPlaybackId) {
-        attempts++;
-        await new Promise((r) => setTimeout(r, 2000));
-        const stRes = await fetch(`/api/mux/upload?uploadId=${encodeURIComponent(initData.uploadId)}`);
-        if (stRes.ok) {
-          const stData = await stRes.json();
-          if (stData.playbackId) {
-            readyPlaybackId = stData.playbackId;
-            break;
-          }
-        }
-      }
-
-      if (!readyPlaybackId) throw new Error("Processing took longer than expected. Please check back shortly.");
-
-      await fetch("/api/mux/showcase", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ playbackId: readyPlaybackId }),
-      });
-
-      setMuxPlaybackId(readyPlaybackId);
-      toast.success("Scanner video uploaded and published to Mux!");
-    } catch (err: any) {
-      toast.error(err.message || "Upload failed");
-    } finally {
-      setUploadingMux(false);
-      setMuxProgress(0);
-      setMuxStatusText("");
-    }
-  };
 
   useEffect(() => {
     try {
@@ -789,7 +710,7 @@ export default function SettingsPage() {
                   {[
                     { label: "🇦🇺 AU vs US Comps", prompt: "How does the geo-strict eBay Australia comps engine work?" },
                     { label: "💰 Net Margin Formula", prompt: "What exact fees and deductions are in the Net Profit calculation?" },
-                    { label: "⚡ Fast Flip / STR", prompt: "How is the sell-through rate velocity computed?" },
+                    { label: "⚡ Sales Velocity & Turnover", prompt: "How is the sell-through rate velocity computed?" },
                     { label: "🛒 Publish to eBay", prompt: "How do I connect and publish items directly to eBay AU?" },
                   ].map((chip) => (
                     <button
@@ -919,68 +840,6 @@ export default function SettingsPage() {
               </button>
             )}
 
-            {/* Owner Section: Scanner Showcase Video Manager */}
-            {isOwnerEmail(user?.email) && (
-              <div className="rounded-xl border border-cyan-500/20 bg-cyan-950/10 p-4 space-y-3 mt-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Video className="w-4 h-4 text-cyan-400" />
-                    <span className="text-xs font-bold text-white uppercase tracking-wider">
-                      Scanner Video Showcase
-                    </span>
-                  </div>
-                  <span className="inline-flex items-center gap-1 text-[11px] text-emerald-400 font-medium">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    Video Engine Active
-                  </span>
-                </div>
-                <p className="text-xs text-zinc-400">
-                  This video streams in the landing page demo and the in-camera AR scanner tutorial guide.
-                </p>
-
-                <div className="p-2.5 rounded-lg bg-zinc-900 border border-zinc-800 text-xs flex items-center justify-between">
-                  <span className="text-zinc-500">Active Video ID:</span>
-                  <span className="font-mono text-cyan-400 font-semibold">
-                    {muxPlaybackId || "No video uploaded yet"}
-                  </span>
-                </div>
-
-                <div className="flex gap-2">
-                  <input
-                    type="file"
-                    id="settings-mux-file"
-                    accept="video/*"
-                    className="hidden"
-                    disabled={uploadingMux}
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) handleMuxUpload(file);
-                    }}
-                  />
-                  <button
-                    type="button"
-                    disabled={uploadingMux}
-                    onClick={() => document.getElementById("settings-mux-file")?.click()}
-                    className="flex-1 inline-flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-black font-bold text-xs transition active:scale-95 cursor-pointer disabled:opacity-50 shadow-md"
-                  >
-                    <Upload className="w-3.5 h-3.5" />
-                    <span>{uploadingMux ? "Uploading to Mux..." : "Upload New Scanner Video"}</span>
-                  </button>
-                </div>
-
-                {uploadingMux && (
-                  <div className="space-y-1 pt-1">
-                    <div className="w-full bg-zinc-800 rounded-full h-1.5 overflow-hidden">
-                      <div
-                        className="bg-cyan-400 h-full transition-all duration-300"
-                        style={{ width: `${muxProgress}%` }}
-                      />
-                    </div>
-                    <div className="text-[11px] text-cyan-400">{muxStatusText}</div>
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         </div>
       </section>

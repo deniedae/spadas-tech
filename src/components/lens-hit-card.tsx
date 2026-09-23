@@ -238,7 +238,7 @@ export default function LensHitCard({
               <span className="opacity-90 font-mono text-[8.5px] bg-black/20 px-1 rounded">
                 {item.salesVelocity.sell_through_rate.includes("%")
                   ? item.salesVelocity.sell_through_rate
-                  : `${item.salesVelocity.sell_through_rate}% STR`}
+                  : `${item.salesVelocity.sell_through_rate}% sold`}
               </span>
             )}
           </span>

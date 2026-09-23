@@ -219,7 +219,7 @@ export function calculateThriftCopVerdict(options: CalculateCopVerdictOptions): 
 
   let copVerdict: ThriftPricingEstimate["copVerdict"] = "FAIR_MARGIN";
   let verdictLabel = "⚖️ Fair Margin";
-  let verdictDescription = `Moderate margin. Turnover speed: ${salesVelocity.estDaysToSell} (${salesVelocity.sellThroughRate}% STR).`;
+  let verdictDescription = `Moderate margin. Turnover speed: ${salesVelocity.estDaysToSell} (${salesVelocity.sellThroughRate}% sold).`;
   let badgeStyle = {
     bg: "bg-blue-500/20",
     text: "text-blue-400",
@@ -266,7 +266,7 @@ export function calculateThriftCopVerdict(options: CalculateCopVerdictOptions): 
     verdictLabel = "🛑 HARD PASS (Hoarder / Space Trap)";
     verdictDescription =
       salesVelocity.warning ||
-      `Sluggish turnover (${salesVelocity.sellThroughRate}% STR, ${salesVelocity.estDaysToSell}). Ties up cash and shelf space.`;
+      `Sluggish turnover (${salesVelocity.sellThroughRate}% sold, ${salesVelocity.estDaysToSell}). Ties up cash and shelf space.`;
     badgeStyle = {
       bg: "bg-rose-500/20",
       text: "text-rose-400",
@@ -357,7 +357,7 @@ export function calculateThriftCopVerdict(options: CalculateCopVerdictOptions): 
     } else {
       copVerdict = "QUICK_FLIP";
       verdictLabel = `⚡ Quick Flip (~${salesVelocity.estDaysToSell})`;
-      verdictDescription = `Solid net profit ($${netProfit.toFixed(0)}) with rapid turnaround (${salesVelocity.sellThroughRate}% STR).`;
+      verdictDescription = `Solid net profit ($${netProfit.toFixed(0)}) with rapid turnaround (${salesVelocity.sellThroughRate}% sold).`;
       badgeStyle = {
         bg: "bg-cyan-500/20",
         text: "text-cyan-300",

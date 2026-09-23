@@ -15,7 +15,10 @@ import {
   X,
   Layers,
   CheckCircle2,
+  Sparkles,
+  ShoppingBasket,
 } from "lucide-react";
+import { toast } from "sonner";
 import dynamic from "next/dynamic";
 import { ClearAllHistoryButton } from "./delete-button";
 import { ScanItemCard } from "./scan-item-card";
@@ -26,6 +29,9 @@ const SubscriptionPaywallModal = dynamic(() => import("@/components/subscription
 import { supabase } from "@/app/lib/supabase";
 import { triggerTactileHaptic } from "@/lib/android-bridge";
 import { cleanBrandText, cleanConditionText, cleanCategoryText } from "@/lib/lens-utils";
+import { haulStore } from "@/lib/haul-store";
+import { createListing } from "@/app/lib/createlisting";
+import type { RapidThriftItem } from "@/lib/rapid-thrift-engine";
 
 interface ScanRecord {
   id: string;
@@ -117,22 +123,36 @@ export function HistoryFeedView({
     void checkPro();
   }, []);
 
-  // Reconcile and restore thumbnails from local storage cache if database stored truncated data URLs
+  // Reconcile and ensure 100% of scans taken with Lens appear in History (including offline/guest/pending queue)
   useEffect(() => {
     try {
       const cachedStr = localStorage.getItem("spadas_cached_lens_hits");
-      if (!cachedStr) return;
-      const cachedHits: any[] = JSON.parse(cachedStr);
-      if (!Array.isArray(cachedHits) || cachedHits.length === 0) return;
+      const pendingStr = localStorage.getItem("spadas_pending_scans_queue");
+      const cachedHits: any[] = cachedStr ? JSON.parse(cachedStr) : [];
+      const pendingScans: any[] = pendingStr ? JSON.parse(pendingStr) : [];
 
       setItems((prevItems) => {
+        const existingIds = new Set(prevItems.map((s) => s.id));
+        const existingTitles = new Set(
+          prevItems
+            .map(
+              (s) =>
+                s.result_json?.analysis?.product_name ||
+                s.result_json?.product_name ||
+                ""
+            )
+            .filter(Boolean)
+            .map((t) => t.trim().toLowerCase())
+        );
+
         let hasChanges = false;
+        // 1. Repair thumbnails of existing items if corrupted
         const updated = prevItems.map((scan) => {
           const isCorrupted =
             !scan.image_url ||
             /^data:image\/[a-z]+;base64,\.\.\./i.test(scan.image_url);
 
-          if (isCorrupted) {
+          if (isCorrupted && Array.isArray(cachedHits)) {
             const scanTitle = (
               scan.result_json?.analysis?.product_name ||
               scan.result_json?.product_name ||
@@ -154,10 +174,171 @@ export function HistoryFeedView({
           }
           return scan;
         });
+
+        // 2. Synthesize new ScanRecord entries for local hits not in Supabase DB yet
+        const missingLocalRecords: ScanRecord[] = [];
+
+        if (Array.isArray(cachedHits)) {
+          for (const hit of cachedHits) {
+            const hitId = String(hit.id || `cached_${hit.timestamp || Date.now()}`);
+            const hitTitle = (hit.name || hit.productName || "").trim().toLowerCase();
+            if (!existingIds.has(hitId) && (!hitTitle || !existingTitles.has(hitTitle))) {
+              existingIds.add(hitId);
+              if (hitTitle) existingTitles.add(hitTitle);
+              missingLocalRecords.push({
+                id: hitId,
+                user_id: hit.user_id || "local-user",
+                created_at: new Date(hit.timestamp || Date.now()).toISOString(),
+                image_url: hit.image || hit.imageUrl || null,
+                result_json: {
+                  analysis: {
+                    product_name: hit.name || hit.productName || "Scanned Specimen",
+                    brand: hit.brand || "Unbranded",
+                    category: hit.category || "General",
+                    condition: hit.condition || "Used - Good",
+                  },
+                  suggested_price_min:
+                    hit.suggested_price_min || (hit.estimatedValue ? Math.round(hit.estimatedValue * 0.8) : 20),
+                  suggested_price_max:
+                    hit.suggested_price_max || (hit.estimatedValue ? Math.round(hit.estimatedValue * 1.2) : 50),
+                  estimated_profit: hit.trueNetProfit ?? hit.estimatedProfit,
+                  sales_velocity: hit.salesVelocity ?? hit.turnoverRate,
+                  comps: hit.comps || [],
+                  currency: hit.currency || "AUD",
+                },
+                token_count: 0,
+                status: "completed",
+              });
+            }
+          }
+        }
+
+        if (Array.isArray(pendingScans)) {
+          for (const qItem of pendingScans) {
+            const qId = String(qItem.id || `queue_${qItem.timestamp || Date.now()}`);
+            if (!existingIds.has(qId)) {
+              existingIds.add(qId);
+              missingLocalRecords.push({
+                id: qId,
+                user_id: qItem.user_id || "local-user",
+                created_at: new Date(qItem.timestamp || Date.now()).toISOString(),
+                image_url: qItem.image_url || null,
+                result_json: qItem.result_json || {},
+                token_count: 0,
+                status: qItem.status === "failed" ? "failed" : "completed",
+              });
+            }
+          }
+        }
+
+        if (missingLocalRecords.length > 0) {
+          return [...missingLocalRecords, ...updated];
+        }
+
         return hasChanges ? updated : prevItems;
       });
-    } catch {}
+    } catch (err) {
+      console.warn("[History Feed] Local storage merge warning:", err);
+    }
   }, []);
+
+  const handleBatchAddToListings = async () => {
+    if (selectedIds.length === 0) return;
+    triggerTactileHaptic("light");
+    const targetScans = items.filter((s) => selectedIds.includes(s.id));
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user?.id || "guest-user";
+
+      for (const scan of targetScans) {
+        const res = scan.result_json || {};
+        const title =
+          res.analysis?.product_name ||
+          res.detected_objects?.[0]?.product_name ||
+          res.product_name ||
+          "Scanned Specimen";
+        const minPrice = res.suggested_price_min || 0;
+        const maxPrice = res.suggested_price_max || 0;
+
+        const payload = {
+          userId,
+          product: title,
+          description:
+            res.seo_description ||
+            res.detailed_description ||
+            `Sourced via Spadas Lens. Resale valuation: $${(minPrice || 25).toFixed(2)} – $${(maxPrice || 50).toFixed(2)} AUD.`,
+          price: maxPrice || minPrice || 25,
+          cost: res.tagPrice || res.cost || 10,
+          purchase_price: res.tagPrice || res.cost || 10,
+          image: scan.image_url || "",
+          status: "Draft" as const,
+        };
+
+        if (session?.user?.id) {
+          void createListing(payload);
+        } else {
+          const queueStr = localStorage.getItem("spadas_pending_listings_queue");
+          const listQueue = queueStr ? JSON.parse(queueStr) : [];
+          listQueue.push({ ...payload, timestamp: Date.now() });
+          localStorage.setItem("spadas_pending_listings_queue", JSON.stringify(listQueue.slice(-50)));
+        }
+
+        try {
+          localStorage.setItem(`spadas_listed_scan_${scan.id}`, "true");
+        } catch {}
+      }
+
+      triggerTactileHaptic("success");
+      toast.success(`Created ${targetScans.length} draft listings!`);
+      setSelectedIds([]);
+    } catch (err) {
+      console.error("[History] Batch listing error:", err);
+      toast.error("Failed to add some items to listings");
+    }
+  };
+
+  const handleBatchAddToHaul = () => {
+    if (selectedIds.length === 0) return;
+    triggerTactileHaptic("selection");
+    const targetScans = items.filter((s) => selectedIds.includes(s.id));
+
+    const haulItemsToAdd: RapidThriftItem[] = targetScans.map((scan) => {
+      const res = scan.result_json || {};
+      const title =
+        res.analysis?.product_name ||
+        res.detected_objects?.[0]?.product_name ||
+        res.product_name ||
+        "Scanned Specimen";
+      const minPrice = res.suggested_price_min || 0;
+      const maxPrice = res.suggested_price_max || 0;
+      const cost = res.tagPrice || res.cost || 10;
+      const value = maxPrice || minPrice || 25;
+
+      return {
+        id: scan.id,
+        photoId: `photo_${scan.id}`,
+        timestamp: new Date(scan.created_at).getTime() || Date.now(),
+        status: "completed",
+        productName: title,
+        brand: res.analysis?.brand || res.brand,
+        category: res.analysis?.category || res.category,
+        condition: cleanConditionText(res.analysis?.condition, "Used - Good"),
+        estimatedValue: value,
+        thriftCost: cost,
+        trueNetProfit: value - cost,
+        roiPercentage: Math.round(((value - cost) / (cost || 1)) * 100),
+        image: scan.image_url || undefined,
+        imageUrl: scan.image_url || undefined,
+        copVerdict: res.cop_verdict || "MUST_COP",
+      };
+    });
+
+    haulStore.addItems(haulItemsToAdd);
+    triggerTactileHaptic("success");
+    toast.success(`Added ${haulItemsToAdd.length} items to Haul session!`);
+    setSelectedIds([]);
+  };
 
   const toggleSelect = (id: string) => {
     triggerTactileHaptic("selection");
@@ -459,9 +640,32 @@ export function HistoryFeedView({
         </div>
       )}
 
-      {/* Sticky Bottom Comparison Floating Toolbar */}
+      {/* Sticky Bottom Multi-Action Floating Toolbar */}
       {selectedIds.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 z-[55] selection-bar-enter max-w-[92vw]">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[55] selection-bar-enter max-w-[96vw] flex items-center gap-2 p-1.5 rounded-2xl bg-[#0B0F17]/95 border border-white/20 backdrop-blur-xl shadow-2xl overflow-x-auto scrollbar-none">
+          {/* Batch Add to Listings */}
+          <button
+            type="button"
+            onClick={handleBatchAddToListings}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-cyan-400 hover:bg-cyan-300 px-3.5 py-2 text-xs font-black text-slate-950 shadow-md active:scale-95 transition cursor-pointer whitespace-nowrap"
+            title="Create drafts in Listings for all selected scans"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-slate-950" />
+            <span>+ Listings ({selectedIds.length})</span>
+          </button>
+
+          {/* Batch Add to Haul */}
+          <button
+            type="button"
+            onClick={handleBatchAddToHaul}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-400 hover:bg-emerald-300 px-3.5 py-2 text-xs font-black text-slate-950 shadow-md active:scale-95 transition cursor-pointer whitespace-nowrap"
+            title="Add all selected scans to active thrift Haul session"
+          >
+            <ShoppingBasket className="w-3.5 h-3.5 text-slate-950" />
+            <span>+ Haul ({selectedIds.length})</span>
+          </button>
+
+          {/* Pro Comparison */}
           <button
             type="button"
             onClick={() => {
@@ -473,13 +677,22 @@ export function HistoryFeedView({
               triggerTactileHaptic("medium");
               setIsCompareOpen(true);
             }}
-            className="inline-flex items-center gap-2.5 rounded-xl bg-white hover:bg-zinc-200 px-5 py-2.5 text-xs sm:text-sm font-bold text-zinc-950 shadow-md active:scale-95 transition cursor-pointer whitespace-nowrap"
+            className="inline-flex items-center gap-2 rounded-xl bg-white/[0.08] hover:bg-white/[0.15] border border-white/10 px-3 py-2 text-xs font-bold text-white shadow-md active:scale-95 transition cursor-pointer whitespace-nowrap"
           >
-            <Scale className="w-4 h-4 text-zinc-950" />
-            <span>Compare Selected ({selectedIds.length} Items)</span>
-            <span className="bg-zinc-900 text-zinc-200 border border-zinc-700 text-[10px] font-mono px-2 py-0.5 rounded-md font-medium flex items-center gap-1">
+            <Scale className="w-3.5 h-3.5 text-cyan-400" />
+            <span>Compare</span>
+            <span className="bg-zinc-900 text-zinc-300 border border-zinc-700 text-[9px] font-mono px-1.5 py-0.2 rounded font-medium flex items-center gap-0.5">
               <Lock className="w-2.5 h-2.5 text-zinc-400" /> PRO
             </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setSelectedIds([])}
+            className="p-1.5 rounded-xl text-zinc-400 hover:text-white transition cursor-pointer"
+            title="Deselect all"
+          >
+            <X className="w-4 h-4" />
           </button>
         </div>
       )}

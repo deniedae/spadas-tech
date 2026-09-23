@@ -1329,7 +1329,7 @@ export default function LensCompsModal({
                     </div>
                     <div className="p-1.5 rounded-lg bg-zinc-950 border border-zinc-800">
                       <span className="text-[10px] text-zinc-400 block">Sell-Through</span>
-                      <span className="text-xs font-bold text-amber-300 tabular-nums">{salesVelocity.sellThroughRate}% STR</span>
+                      <span className="text-xs font-bold text-amber-300 tabular-nums">{salesVelocity.sellThroughRate}% sold</span>
                     </div>
                   </div>
 

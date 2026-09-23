@@ -1,11 +1,14 @@
 "use client";
 
-import UnifiedCameraHub from "@/components/unified-camera-hub";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 export default function IronmanPage() {
-  return (
-    <div className="w-full min-h-screen bg-black">
-      <UnifiedCameraHub initialTab="ironman" />
-    </div>
-  );
+  const router = useRouter();
+
+  useEffect(() => {
+    router.replace("/lens");
+  }, [router]);
+
+  return null;
 }

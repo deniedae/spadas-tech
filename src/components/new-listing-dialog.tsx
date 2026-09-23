@@ -290,7 +290,7 @@ export default function NewListingDialog({
             Log New Inventory Unit
           </h2>
           <p className="text-xs text-zinc-400 font-mono">
-            Catalog newly acquired stock with automated margin & STR% turnover analysis.
+            Catalog newly acquired stock with automated margin & sales speed turnover analysis.
           </p>
         </div>
 
@@ -357,7 +357,7 @@ export default function NewListingDialog({
             <div className="p-3 rounded-lg bg-[#090A0F] border border-zinc-800/90 font-mono text-xs space-y-1.5 animate-fade-in">
               <div className="flex items-center justify-between text-[10px] text-zinc-500 uppercase pb-1 border-b border-zinc-800/60">
                 <span>ESTIMATED UNIT TELEMETRY</span>
-                <span>STR: {telemetry.velocity.sellThroughRate}%</span>
+                <span>Sell-Through: {telemetry.velocity.sellThroughRate}%</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-zinc-400">Net Take-Home:</span>

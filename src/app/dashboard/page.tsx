@@ -825,7 +825,7 @@ export default function DashboardPage() {
                             >
                               {isFastFlip && "⚡"}
                               {isTrap && "🛑"}
-                              {item.velocity.sellThroughRate}% STR
+                              {item.velocity.sellThroughRate}% sold
                             </span>
 
                             <span className="text-zinc-500">
@@ -874,7 +874,7 @@ export default function DashboardPage() {
                   <th className="py-2 px-3 text-right">Cost</th>
                   <th className="py-2 px-3 text-right">Price</th>
                   <th className="py-2 px-3 text-right">Net Profit</th>
-                  <th className="py-2 px-3 text-center">STR% (Velocity)</th>
+                  <th className="py-2 px-3 text-center">Sales Speed</th>
                   <th className="py-2 px-3 text-center">Turn Days</th>
                   <th className="py-2 px-3 text-center">Status</th>
                   <th className="py-2 px-3 text-right">Actions</th>
@@ -973,7 +973,7 @@ export default function DashboardPage() {
                             : fmtMoney(item.calculatedProfit)}
                         </td>
 
-                        {/* STR% Velocity */}
+                        {/* Sales Speed Velocity */}
                         <td className="py-2 px-3 text-center">
                           <span
                             className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-black border tabular-nums data-readout ${
@@ -986,7 +986,7 @@ export default function DashboardPage() {
                           >
                             {isFastFlip && "⚡ "}
                             {isTrap && "🛑 "}
-                            {item.velocity.sellThroughRate}% STR
+                            {item.velocity.sellThroughRate}% sold
                           </span>
                         </td>
 

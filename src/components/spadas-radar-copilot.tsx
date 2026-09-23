@@ -267,7 +267,7 @@ export default function SpadasRadarCopilot() {
 
           <div className="mt-6 border-t border-white/10 pt-4 flex items-center justify-between">
             <span className="text-xs text-slate-400">
-              STR Rate: <strong className="text-emerald-400">{selectedDeal.sellThroughRate}% Sell-Through</strong>
+              Sales Velocity: <strong className="text-emerald-400">{selectedDeal.sellThroughRate}% Sell-Through</strong>
             </span>
 
             <button

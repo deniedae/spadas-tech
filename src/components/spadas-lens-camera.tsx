@@ -36,7 +36,7 @@ import { supabase } from "@/app/lib/supabase";
 import { detectGeoCurrency, CURRENCY_CONFIGS, SupportedCurrency } from "@/app/lib/currency-routing";
 import { isOwnerEmail } from "@/app/lib/auth-admin";
 import { resilientFetch } from "@/app/lib/resilient-fetch";
-import { playScanBeep, triggerScanHaptic, createNativeBarcodeScanner, isNativeBarcodeDetectorSupported, CORE_BARCODE_FORMATS } from "@/lib/barcode-detector";
+import { playScanBeep, triggerScanHaptic, createNativeBarcodeScanner, isNativeBarcodeDetectorSupported, CORE_BARCODE_FORMATS, decodeBarcodeFromImageSource } from "@/lib/barcode-detector";
 import { syncProfitToAndroidWidget, triggerTactileHaptic, openExternalUrlSafely } from "@/lib/android-bridge";
 import { sourcingBus } from "@/lib/sourcing-event-bus";
 import { setCachedValuation, getCachedValuation, findBestCachedValuation } from "@/lib/offline-lru-cache";
@@ -1031,7 +1031,14 @@ function SpadasLensCameraCore({
           }
         }
 
-        if (pName && !pName.toLowerCase().includes("unknown")) {
+        if (!pName || pName.toLowerCase().includes("unknown")) {
+          pName = `Barcode #${codeVal}`;
+          pBrand = "Authentic";
+          pCat = "Barcode Find";
+          pPrice = 25;
+        }
+
+        if (pName) {
           // 2. Immediately trigger eBay AU sold comp query using exact verified title (Zero Vision AI latency)
           let resolvedMedian = pPrice;
           let verifiedRawComps: any[] = [];
@@ -1147,8 +1154,65 @@ function SpadasLensCameraCore({
         console.warn("[Spadas Lens] Continuous barcode lookup error:", err);
       }
     },
-    [soundEnabled, isScanPaused, triggerActiveValuationHit]
+    [soundEnabled, isScanPaused, triggerActiveValuationHit, setRapidItems]
   );
+
+  const [isBarcodeScanning, setIsBarcodeScanning] = useState<boolean>(false);
+
+  const handleFastBarcodeScan = useCallback(async () => {
+    triggerTactileHaptic("medium");
+    if (!videoRef.current || videoRef.current.videoWidth === 0) {
+      toast.info("Camera initializing... point at barcode.");
+      return;
+    }
+
+    if (scanMode === "barcode") {
+      setScanMode("snap");
+      toast.info("Switched to Snap Camera Mode");
+      return;
+    }
+
+    setScanMode("barcode");
+    setIsBarcodeScanning(true);
+
+    try {
+      const canvas = document.createElement("canvas");
+      canvas.width = videoRef.current.videoWidth;
+      canvas.height = videoRef.current.videoHeight;
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+        const result = await decodeBarcodeFromImageSource(canvas);
+        if (result && result.rawValue) {
+          playScanBeep();
+          triggerScanHaptic([45, 25, 45]);
+          toast.success(`Barcode Locked: ${result.rawValue}`);
+          await handleNativeBarcode(result.rawValue);
+          setIsBarcodeScanning(false);
+          return;
+        }
+      }
+
+      const videoResult = await decodeBarcodeFromImageSource(videoRef.current);
+      if (videoResult && videoResult.rawValue) {
+        playScanBeep();
+        triggerScanHaptic([45, 25, 45]);
+        toast.success(`Barcode Locked: ${videoResult.rawValue}`);
+        await handleNativeBarcode(videoResult.rawValue);
+        setIsBarcodeScanning(false);
+        return;
+      }
+
+      toast.info("Fast Barcode Mode Active — Center the barcode in the reticle.", {
+        duration: 3500,
+      });
+    } catch (err) {
+      console.warn("[Spadas Lens] Fast barcode scan error:", err);
+      toast.info("Barcode Mode Active — Align barcode in center");
+    } finally {
+      setIsBarcodeScanning(false);
+    }
+  }, [scanMode, handleNativeBarcode]);
 
   useEffect(() => {
     // Continuous hardware barcode detector:
@@ -3791,7 +3855,7 @@ function SpadasLensCameraCore({
                 sell_speed: v.turnoverTier === "RAPID_FIRE" ? "FAST_FLIP" : v.turnoverTier === "STEADY_TURN" ? "MODERATE" : "SLOW_BURNER",
                 est_days_to_sell: v.estDaysToSell,
                 demand_score: v.demandScore,
-                sell_through_rate: `${v.sellThroughRate}% STR`,
+                sell_through_rate: `${v.sellThroughRate}% sold`,
               };
             })(),
             futureGrail: data?.future_grail || (
@@ -4102,7 +4166,7 @@ function SpadasLensCameraCore({
                 sell_speed: v.turnoverTier === "RAPID_FIRE" ? "FAST_FLIP" : v.turnoverTier === "STEADY_TURN" ? "MODERATE" : "SLOW_BURNER",
                 est_days_to_sell: v.estDaysToSell,
                 demand_score: v.demandScore,
-                sell_through_rate: `${v.sellThroughRate}% STR`,
+                sell_through_rate: `${v.sellThroughRate}% sold`,
               };
             })(),
           };
@@ -5408,15 +5472,45 @@ function SpadasLensCameraCore({
                 )}
               </div>
 
-              {/* Dedicated Quick Snap Stream Shutter (Hidden on mobile to preserve single SNAP cluster) */}
-              <div className={`hidden sm:block absolute bottom-[max(1.25rem,calc(env(safe-area-inset-bottom,0px)+0.75rem))] sm:bottom-5 left-[max(0.75rem,env(safe-area-inset-left,0px))] z-40 transition-opacity duration-150 ${scanStage === "confirmation" ? "opacity-0 pointer-events-none" : "opacity-100 pointer-events-auto"
+              {/* Dedicated Fast Barcode Comps Button (Visible on mobile & desktop) */}
+              <div className={`absolute bottom-[max(1.25rem,calc(env(safe-area-inset-bottom,0px)+0.75rem))] sm:bottom-5 left-[max(0.75rem,env(safe-area-inset-left,0px))] z-40 transition-opacity duration-150 ${scanStage === "confirmation" ? "opacity-0 pointer-events-none" : "opacity-100 pointer-events-auto"
                 }`}>
                 <button
                   type="button"
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    triggerTactileHaptic("shutter");
+                    void handleFastBarcodeScan();
+                  }}
+                  onPointerDown={(e) => {
+                    e.stopPropagation();
+                  }}
+                  disabled={isBarcodeScanning}
+                  className={`group flex min-h-[44px] min-w-[44px] touch-manipulation items-center gap-2 px-3 py-1.5 rounded-xl border shadow-md backdrop-blur-md transition-all duration-75 cursor-pointer active:scale-95 ${
+                    scanMode === "barcode"
+                      ? "bg-amber-500/25 border-amber-400 text-amber-200 shadow-[0_0_20px_rgba(245,158,11,0.4)] ring-1 ring-amber-400/50"
+                      : "bg-[#0E1017]/90 border-white/[0.12] hover:border-amber-400/40 text-zinc-300 hover:text-white"
+                  }`}
+                  title="Fast Barcode Comps — Instant 1-tap barcode scanner"
+                  aria-label="Fast Barcode Comps"
+                >
+                  <Barcode className={`h-4 w-4 shrink-0 transition-transform ${
+                    isBarcodeScanning ? "animate-spin text-amber-400" : "text-amber-400 group-hover:scale-110"
+                  }`} />
+                  <span className="text-xs font-bold tracking-tight text-white whitespace-nowrap">
+                    {isBarcodeScanning ? "Scanning..." : scanMode === "barcode" ? "Barcode Active" : "Barcode Comps"}
+                  </span>
+                </button>
+              </div>
+
+              {/* Dedicated Quick Snap Stream Shutter (Desktop auxiliary) */}
+              <div className={`hidden md:block absolute bottom-5 left-44 z-40 transition-opacity duration-150 ${scanStage === "confirmation" ? "opacity-0 pointer-events-none" : "opacity-100 pointer-events-auto"
+                }`}>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
                     void handleQuickSnapCapture();
                   }}
                   onPointerDown={(e) => {

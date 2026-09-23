@@ -20,7 +20,10 @@ import {
   ShieldCheck,
   Tag,
   Camera,
+  ShoppingBasket,
 } from "lucide-react";
+import { toast } from "sonner";
+import { haulStore } from "@/lib/haul-store";
 import type { DetectedHit } from "@/types/lens";
 
 interface QuickHistoryDrawerProps {
@@ -423,6 +426,35 @@ export const QuickHistoryDrawer: React.FC<QuickHistoryDrawerProps> = ({
                         </div>
 
                         <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              haulStore.addItem({
+                                id: hit.id,
+                                photoId: `photo_${hit.id}`,
+                                timestamp: hit.timestamp || Date.now(),
+                                status: "completed",
+                                productName: hit.name,
+                                brand: hit.brand || undefined,
+                                category: hit.category || undefined,
+                                condition: hit.condition || undefined,
+                                estimatedValue: hit.estimatedValue,
+                                thriftCost: hit.tagPrice ?? hit.estCost ?? 10,
+                                trueNetProfit: hit.trueNetProfit ?? hit.estimatedProfit,
+                                roiPercentage: hit.roiPercentage ?? hit.estRoi,
+                                image: hit.image || undefined,
+                                imageUrl: hit.image || undefined,
+                                copVerdict: hit.copVerdict,
+                              });
+                              toast.success(`Added to Haul: "${(hit.name || "Item").slice(0, 24)}..."`);
+                            }}
+                            className="inline-flex items-center gap-1 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-2 py-1 text-[11px] font-black transition cursor-pointer shadow-xs active:scale-95"
+                            title="Add item to active thrift Haul session"
+                          >
+                            <ShoppingBasket className="h-3 w-3" />
+                            <span>+ Haul</span>
+                          </button>
+
                           {onSaveDraft && (
                             <button
                               type="button"
