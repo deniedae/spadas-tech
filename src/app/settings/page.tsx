@@ -552,7 +552,12 @@ export default function SettingsPage() {
             <p className="text-lg font-bold text-white tracking-tight mt-0.5">{plan === "Pro" ? "Spadas Pro Unlimited" : "Free Starter Plan"}</p>
             <p className="text-xs text-zinc-500 mt-0.5">{plan === "Pro" ? "Unlimited instant AR scans, automated copywriting, and priority live eBay sync." : "10 free optical scans daily. Upgrade anytime."}</p>
           </div>
-          {plan !== "Pro" && (
+          {plan === "Pro" ? (
+            <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-mono font-bold shrink-0">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              <span>Active Pro Membership</span>
+            </div>
+          ) : (
             <button
               onClick={() => setConfirmUpgrade(true)}
               className="px-5 py-2.5 rounded-xl bg-white text-zinc-950 font-bold text-xs hover:bg-zinc-200 transition cursor-pointer active:scale-95 shadow-md shrink-0"

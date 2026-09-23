@@ -138,6 +138,11 @@ const nextConfig: NextConfig = {
         destination: "/lens",
         permanent: true,
       },
+      {
+        source: "/radar",
+        destination: "/lens",
+        permanent: false,
+      },
     ];
   },
   async rewrites() {
