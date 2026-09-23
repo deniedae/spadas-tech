@@ -187,7 +187,6 @@ export function loadRapidSession(): RapidThriftItem[] {
 export function saveRapidSession(items: RapidThriftItem[]): void {
   if (typeof window === "undefined") return;
   try {
-    // Strip any accidental blobs or giant strings — strictly lightweight metadata
     const lightweight = items.map((item) => ({
       id: item.id,
       photoId: item.photoId,
@@ -205,6 +204,12 @@ export function saveRapidSession(items: RapidThriftItem[]): void {
       isGrail: item.isGrail,
       needsVerification: item.needsVerification,
       errorMessage: item.errorMessage,
+      image: item.image,
+      imageUrl: item.imageUrl,
+      thumbnailUrl: item.thumbnailUrl,
+      rawComps: item.rawComps,
+      comps: item.comps,
+      searchTitle: item.searchTitle,
     }));
     localStorage.setItem(LOCAL_STORAGE_SESSION_KEY, JSON.stringify(lightweight));
   } catch (err) {

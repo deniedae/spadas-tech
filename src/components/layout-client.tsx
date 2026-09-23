@@ -21,7 +21,6 @@ import {
 } from "lucide-react";
 import FocusLock from "react-focus-lock";
 import MobileNav from "@/components/mobile-nav";
-import OwnerAiStatusBanner from "@/components/owner-ai-status-banner";
 import { supabase } from "@/app/lib/supabase";
 import { isOwnerEmail } from "@/app/lib/auth-admin";
 import { resetGuestScanState } from "@/lib/guest-scan-tracker";
@@ -369,10 +368,8 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
 
       {/* Main content container */}
       <div className={`flex-1 flex flex-col min-w-0 bg-[#05050a] text-white ${
-        isCamera ? "h-[100dvh] md:min-h-screen overflow-hidden md:overflow-auto" : "min-h-screen"
+        isCamera ? "min-h-[100dvh] flex flex-col overflow-y-auto" : "min-h-screen"
       }`}>
-        {/* Owner Account AI Credits Health Banner (Only visible for deniedae@gmail.com) */}
-        <OwnerAiStatusBanner />
 
         {/* Header (Hidden on mobile for camera routes to provide native full-screen camera viewport) */}
         <header className={`bg-[#05050a]/90 backdrop-blur-2xl border-b border-white/10 px-4 pt-[max(0.75rem,calc(env(safe-area-inset-top)+0.5rem))] pb-3 flex items-center justify-between md:px-8 md:py-3.5 shadow-sm ${

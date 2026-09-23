@@ -167,7 +167,7 @@ export default function DashboardSupportDesk({
           {
             id: "welcome",
             role: "assistant",
-            content: "👋 Welcome to the **Spadas Support & Copilot Desk**! I'm your AI Resale Guide. Ask me anything about camera scanning, eBay AU sold comps, P&L formulas, or tap **[Request Developer Support]** if you need a human engineer.",
+            content: "👋 Welcome to the **Spadas Support Desk**! I'm your Resale Assistant. Ask me anything about camera scanning, eBay AU sold comps, P&L formulas, or tap **[Request Developer Support]** if you need a human engineer.",
             timestamp: Date.now(),
           },
         ]);
@@ -627,7 +627,7 @@ export default function DashboardSupportDesk({
                   }`}
                 >
                   <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>AI Copilot</span>
+                  <span>Resale Assistant</span>
                 </button>
 
                 <button
@@ -915,7 +915,7 @@ export default function DashboardSupportDesk({
                   {isStreaming && (
                     <div className="flex items-center gap-2 text-zinc-500 text-xs px-2 py-1">
                       <Loader2 className="w-3.5 h-3.5 animate-spin text-cyan-400" />
-                      <span className="font-mono text-[11px]">AI Copilot typing...</span>
+                      <span className="font-mono text-[11px]">Assistant typing...</span>
                     </div>
                   )}
 

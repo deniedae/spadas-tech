@@ -256,16 +256,18 @@ export default function DashboardPage() {
 
     async function loadDashboard() {
       try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
+        const { data: { session } } = await supabase.auth.getSession();
+        let user = session?.user ?? null;
+        if (!user) {
+          const { data } = await supabase.auth.getUser();
+          user = data.user;
+        }
 
         if (!user) {
           router.push("/login");
           return;
         }
 
-        const { data: { session } } = await supabase.auth.getSession();
         const authHeaders: Record<string, string> = {};
         if (session?.access_token) {
           authHeaders["Authorization"] = `Bearer ${session.access_token}`;
@@ -445,17 +447,6 @@ export default function DashboardPage() {
             </div>
 
             <div className="flex items-center gap-2.5 shrink-0">
-              <button
-                type="button"
-                onClick={() => openSpadasSupport({ mode: "chat" })}
-                className="h-9 px-3 text-xs font-semibold gap-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.1] text-zinc-300 hover:text-white transition-all flex items-center shadow-sm cursor-pointer active:scale-95"
-                title="Launch AI Resale Copilot & Support Desk"
-              >
-                <Headphones className="h-3.5 w-3.5 text-cyan-400" />
-                <span className="hidden sm:inline">Support Desk</span>
-                <span className="sm:hidden">Support</span>
-              </button>
-
               <Link
                 href="/lens"
                 className="h-9 px-4 text-xs font-semibold gap-2 rounded-lg bg-white text-zinc-950 hover:bg-zinc-200 transition-all flex items-center shadow-sm active:scale-95 cursor-pointer"
@@ -825,7 +816,7 @@ export default function DashboardPage() {
                             >
                               {isFastFlip && "⚡"}
                               {isTrap && "🛑"}
-                              {item.velocity.sellThroughRate}% sold
+                              {item.velocity.velocityLabel}
                             </span>
 
                             <span className="text-zinc-500">
@@ -986,7 +977,7 @@ export default function DashboardPage() {
                           >
                             {isFastFlip && "⚡ "}
                             {isTrap && "🛑 "}
-                            {item.velocity.sellThroughRate}% sold
+                            {item.velocity.velocityLabel}
                           </span>
                         </td>
 
@@ -1049,14 +1040,6 @@ export default function DashboardPage() {
               SHOWING <strong className="text-zinc-300">{displayedItems.length}</strong> ACTIVE ASSETS
             </div>
             <div className="flex items-center gap-4">
-              <button
-                type="button"
-                onClick={() => openSpadasSupport({ mode: "chat" })}
-                className="hover:text-cyan-400 text-zinc-400 transition flex items-center gap-1.5 cursor-pointer text-[11px]"
-              >
-                <Headphones className="h-3 w-3 text-cyan-400" />
-                <span className="hidden sm:inline">AI COPILOT SUPPORT</span>
-              </button>
               <Link
                 href="/listings"
                 className="hover:text-zinc-200 transition flex items-center gap-1 text-[#F97316] font-bold"

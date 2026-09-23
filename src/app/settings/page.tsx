@@ -568,48 +568,6 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      {/* Notifications Section */}
-      <section className="glass-card card-specular p-5 sm:p-6 rounded-2xl space-y-5">
-        <div>
-          <h2 className="text-base font-bold text-white tracking-tight">Audio &amp; Chime Telemetry</h2>
-          <p className="text-xs text-zinc-400 mt-1">Configure audio synthesizer thresholds for live camera scanning. Cash chime plays when both criteria are met.</p>
-        </div>
-        
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-2">
-          <div className="space-y-2">
-            <div className="flex justify-between text-xs font-semibold text-zinc-300">
-              <span className="uppercase tracking-wider text-zinc-400">Minimum Net Profit</span>
-              <span className="text-cyan-400 font-mono font-bold">{CURRENCY_CONFIGS[defaultCurrency]?.symbol || "$"}{minProfit}</span>
-            </div>
-            <input
-              type="range"
-              min="5"
-              max="100"
-              step="5"
-              value={minProfit}
-              onChange={(e) => handleUpdateMinProfit(Number(e.target.value))}
-              className="w-full accent-cyan-400 h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex justify-between text-xs font-semibold text-zinc-300">
-              <span className="uppercase tracking-wider text-zinc-400">Minimum ROI Target</span>
-              <span className="text-cyan-400 font-mono font-bold">{minRoi}%</span>
-            </div>
-            <input
-              type="range"
-              min="0"
-              max="300"
-              step="25"
-              value={minRoi}
-              onChange={(e) => handleUpdateMinRoi(Number(e.target.value))}
-              className="w-full accent-cyan-400 h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer"
-            />
-          </div>
-        </div>
-      </section>
-
       {/* Connected Accounts Section */}
       <section className="glass-card card-specular p-5 sm:p-6 rounded-2xl space-y-4">
         <div>
@@ -693,7 +651,7 @@ export default function SettingsPage() {
                     <Sparkles className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-semibold text-white">AI Resale Copilot</h3>
+                    <h3 className="text-sm font-semibold text-white">Resale Assistant</h3>
                     <p className="text-[11px] text-zinc-400 font-mono">Gemini 2.5 Flash • Real-Time Diagnostics</p>
                   </div>
                 </div>

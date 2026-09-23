@@ -303,16 +303,6 @@ export default function ListingsPage() {
         <div className="flex items-center gap-2 flex-wrap">
           <button
             type="button"
-            onClick={() => openSpadasSupport({ mode: "chat" })}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-zinc-300 hover:text-white font-medium text-xs transition cursor-pointer active:scale-95"
-            title="Launch AI Resale Copilot & Support Desk"
-          >
-            <Headphones className="h-3.5 w-3.5 text-cyan-400" />
-            <span className="hidden sm:inline">Support Desk</span>
-          </button>
-
-          <button
-            type="button"
             onClick={loadListings}
             className="h-9 w-9 flex items-center justify-center rounded-xl bg-white/[0.04] border border-white/10 text-zinc-300 hover:text-white hover:bg-white/[0.08] transition cursor-pointer active:scale-95"
             title="Refresh Listings"
@@ -574,7 +564,7 @@ export default function ListingsPage() {
                       >
                         {isFastFlip && "⚡"}
                         {isTrap && "🛑"}
-                        {item.velocity.sellThroughRate}% sold
+                        {item.velocity.velocityLabel}
                       </span>
                       <span className="text-zinc-500 font-mono">
                         ~{item.velocity.estDaysToSell}d
@@ -768,7 +758,7 @@ export default function ListingsPage() {
                           >
                             {isFastFlip && "⚡ "}
                             {isTrap && "🛑 "}
-                            {item.velocity.sellThroughRate}% sold
+                            {item.velocity.velocityLabel}
                           </span>
                         </td>
 

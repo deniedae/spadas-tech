@@ -6,7 +6,6 @@ import {
   CheckCircle2,
   Clock,
   ShoppingBag,
-  Share2,
   Lock,
   ThumbsUp,
   ThumbsDown,
@@ -19,7 +18,6 @@ import {
 import { toast } from "sonner";
 import { DeleteScanButton } from "./delete-button";
 import EbayListingModal from "@/components/ebay-listing-modal";
-import CrossListModal from "@/components/cross-list-modal";
 import SubscriptionPaywallModal from "@/components/subscription-paywall-modal";
 import RawCompsModal from "@/components/raw-comps-modal";
 import { supabase } from "@/app/lib/supabase";
@@ -49,7 +47,6 @@ export function ScanItemCard({
   const [deleted, setDeleted] = useState(false);
   const [rating, setRating] = useState<"up" | "down" | null>(null);
   const [isEbayModalOpen, setIsEbayModalOpen] = useState(false);
-  const [isCrossListOpen, setIsCrossListOpen] = useState(false);
   const [isPaywallOpen, setIsPaywallOpen] = useState(false);
 
   if (deleted) return null;
@@ -68,29 +65,6 @@ export function ScanItemCard({
     triggerTactileHaptic("medium");
     setDeleted(true);
     if (onDeleted) onDeleted();
-  };
-
-  const handleCrossListClick = async () => {
-    triggerTactileHaptic("light");
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const authHeaders: Record<string, string> = {};
-      if (session?.access_token) {
-        authHeaders["Authorization"] = `Bearer ${session.access_token}`;
-      }
-
-      const res = await fetch("/api/stripe/status", { headers: authHeaders });
-      const data = await res.json().catch(() => ({}));
-      const isPro = Boolean(data?.active || data?.plan === "Pro");
-      if (!isPro && scan.user_id !== "owner") {
-        triggerTactileHaptic("warning");
-        setIsPaywallOpen(true);
-        return;
-      }
-    } catch {
-      // Fallback
-    }
-    setIsCrossListOpen(true);
   };
 
   const res = scan.result_json || {};
@@ -459,19 +433,6 @@ export function ScanItemCard({
                 <ShoppingBag className="w-3 h-3 text-amber-400" />
                 <span>EBAY</span>
               </button>
-
-              <button
-                type="button"
-                onClick={handleCrossListClick}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 border border-white/10 text-xs font-mono font-semibold transition cursor-pointer"
-                title="Cross-list across multiple marketplaces (PRO)"
-              >
-                <Share2 className="w-3 h-3" />
-                <span>CROSS-LIST</span>
-                <span className="bg-white/[0.10] text-zinc-300 border border-white/[0.15] text-[9px] px-1 py-0.2 rounded font-mono font-semibold">
-                  PRO
-                </span>
-              </button>
             </div>
           )}
 
@@ -517,17 +478,6 @@ export function ScanItemCard({
         condition={cleanConditionText(res?.analysis?.condition, "Used - Good")}
         description={res?.seo_description || res?.detailed_description || ""}
         imageUrls={scan.image_url ? [scan.image_url] : []}
-      />
-
-      <CrossListModal
-        isOpen={isCrossListOpen}
-        onClose={() => setIsCrossListOpen(false)}
-        productName={title}
-        brand={brand}
-        price={maxPrice || minPrice || 25}
-        condition={cleanConditionText(res?.analysis?.condition, "Used - Good")}
-        category={category}
-        description={res?.seo_description || res?.detailed_description || ""}
       />
 
       <SubscriptionPaywallModal

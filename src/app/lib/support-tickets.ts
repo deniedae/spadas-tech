@@ -1,15 +1,4 @@
-import {
-  collection,
-  doc,
-  setDoc,
-  getDoc,
-  getDocs,
-  updateDoc,
-  query,
-  orderBy,
-  limit,
-} from "firebase/firestore";
-import { db } from "./firebase";
+import { createClient } from "@supabase/supabase-js";
 
 export interface SupportTicketRecord {
   ticketId: string;
@@ -27,23 +16,46 @@ export interface SupportTicketRecord {
   metadata?: Record<string, any>;
 }
 
-const COLLECTION_NAME = "support_tickets";
+const BUCKET_NAME = "listing-images";
+const TICKETS_DIR = "_tickets";
+
+function getStorageClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || "https://placeholder.supabase.co";
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder-key";
+  return createClient(url, key);
+}
+
+// In-memory cache for fast local reads and resilient fallback
+const memoryCache = new Map<string, SupportTicketRecord>();
 
 /**
- * Save a new or escalated support ticket to Firestore.
+ * Save a new or escalated support ticket to persistent Supabase storage + memory cache.
  */
 export async function saveSupportTicket(
-  ticket: Omit<SupportTicketRecord, "createdAt" | "updatedAt">
+  ticket: Omit<SupportTicketRecord, "createdAt" | "updatedAt"> & { createdAt?: number; updatedAt?: number }
 ): Promise<SupportTicketRecord> {
   const now = Date.now();
   const record: SupportTicketRecord = {
     ...ticket,
-    createdAt: now,
+    createdAt: ticket.createdAt || now,
     updatedAt: now,
   };
 
-  const docRef = doc(db, COLLECTION_NAME, ticket.ticketId);
-  await setDoc(docRef, record);
+  memoryCache.set(ticket.ticketId, record);
+
+  try {
+    const supabase = getStorageClient();
+    const filePath = `${TICKETS_DIR}/${ticket.ticketId}.json`;
+    await supabase.storage
+      .from(BUCKET_NAME)
+      .upload(filePath, Buffer.from(JSON.stringify(record, null, 2)), {
+        upsert: true,
+        contentType: "application/json",
+      });
+  } catch (err) {
+    console.warn("[SupportTickets] Storage upload error (cached in-memory):", err);
+  }
+
   return record;
 }
 
@@ -52,11 +64,20 @@ export async function saveSupportTicket(
  */
 export async function getSupportTicketById(ticketId: string): Promise<SupportTicketRecord | null> {
   if (!ticketId) return null;
+  if (memoryCache.has(ticketId)) {
+    return memoryCache.get(ticketId)!;
+  }
+
   try {
-    const docRef = doc(db, COLLECTION_NAME, ticketId);
-    const snap = await getDoc(docRef);
-    if (!snap.exists()) return null;
-    return snap.data() as SupportTicketRecord;
+    const supabase = getStorageClient();
+    const filePath = `${TICKETS_DIR}/${ticketId}.json`;
+    const { data, error } = await supabase.storage.from(BUCKET_NAME).download(filePath);
+    if (error || !data) return null;
+
+    const text = await data.text();
+    const parsed = JSON.parse(text) as SupportTicketRecord;
+    memoryCache.set(ticketId, parsed);
+    return parsed;
   } catch (err) {
     console.error("[SupportTickets] Error fetching ticket:", err);
     return null;
@@ -65,33 +86,44 @@ export async function getSupportTicketById(ticketId: string): Promise<SupportTic
 
 /**
  * Fetch all support tickets for the developer inbox.
- * Falls back to in-memory sorting if composite indices are building.
  */
 export async function getAllSupportTickets(max: number = 50): Promise<SupportTicketRecord[]> {
+  const resultsMap = new Map<string, SupportTicketRecord>();
+  memoryCache.forEach((rec, id) => resultsMap.set(id, rec));
+
   try {
-    const colRef = collection(db, COLLECTION_NAME);
-    const q = query(colRef, orderBy("createdAt", "desc"), limit(max));
-    const snap = await getDocs(q);
-    const results: SupportTicketRecord[] = [];
-    snap.forEach((d) => {
-      results.push(d.data() as SupportTicketRecord);
+    const supabase = getStorageClient();
+    const { data: fileList, error } = await supabase.storage.from(BUCKET_NAME).list(TICKETS_DIR, {
+      limit: max,
+      sortBy: { column: "created_at", order: "desc" },
     });
-    return results;
-  } catch (err) {
-    console.warn("[SupportTickets] Query fallback sorting in-memory:", err);
-    try {
-      const colRef = collection(db, COLLECTION_NAME);
-      const snap = await getDocs(colRef);
-      const results: SupportTicketRecord[] = [];
-      snap.forEach((d) => {
-        results.push(d.data() as SupportTicketRecord);
-      });
-      return results.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, max);
-    } catch (e) {
-      console.error("[SupportTickets] Failed to read tickets:", e);
-      return [];
+
+    if (!error && Array.isArray(fileList)) {
+      await Promise.all(
+        fileList.map(async (file) => {
+          if (!file.name.endsWith(".json")) return;
+          const ticketId = file.name.replace(/\.json$/, "");
+          if (resultsMap.has(ticketId)) return;
+
+          try {
+            const { data } = await supabase.storage.from(BUCKET_NAME).download(`${TICKETS_DIR}/${file.name}`);
+            if (data) {
+              const text = await data.text();
+              const parsed = JSON.parse(text) as SupportTicketRecord;
+              resultsMap.set(ticketId, parsed);
+              memoryCache.set(ticketId, parsed);
+            }
+          } catch {}
+        })
+      );
     }
+  } catch (err) {
+    console.warn("[SupportTickets] Storage list error, falling back to cache:", err);
   }
+
+  return Array.from(resultsMap.values())
+    .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+    .slice(0, max);
 }
 
 /**
@@ -104,12 +136,12 @@ export async function replyToSupportTicket(
   status: "answered" | "resolved" = "answered"
 ): Promise<SupportTicketRecord | null> {
   try {
-    const docRef = doc(db, COLLECTION_NAME, ticketId);
-    const snap = await getDoc(docRef);
-    if (!snap.exists()) return null;
+    const existing = await getSupportTicketById(ticketId);
+    if (!existing) return null;
 
     const now = Date.now();
-    const updates: Partial<SupportTicketRecord> = {
+    const updated: SupportTicketRecord = {
+      ...existing,
       developerReply: replyMessage,
       repliedAt: now,
       repliedBy: developerEmail,
@@ -117,9 +149,7 @@ export async function replyToSupportTicket(
       updatedAt: now,
     };
 
-    await updateDoc(docRef, updates);
-    const updatedSnap = await getDoc(docRef);
-    return updatedSnap.data() as SupportTicketRecord;
+    return await saveSupportTicket(updated);
   } catch (err) {
     console.error("[SupportTickets] Failed to reply to ticket:", err);
     return null;

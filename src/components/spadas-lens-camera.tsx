@@ -662,6 +662,7 @@ function SpadasLensCameraCore({
   const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const cropCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const isAnalyzingRef = useRef<boolean>(false);
+  const persistHitRef = useRef<((hit: DetectedHit, rawResultJson?: any) => Promise<void>) | null>(null);
 
   const profitableCount = capturedLog.filter((h) => (h.estimatedProfit || 0) >= minProfitThreshold).length;
   const bestProfit = capturedLog.reduce((max, h) => Math.max(max, h.estimatedProfit || 0), 0);
@@ -1148,6 +1149,7 @@ function SpadasLensCameraCore({
 
           triggerActiveValuationHit(verifiedHit, snapshotUrl || productImg);
           setConfidencePercent(99);
+          void persistHitRef.current?.(verifiedHit);
           toast.success(`⚡ Barcode Lock: ${pName.slice(0, 24)}... (+$${estProfit} Net)`);
         }
       } catch (err) {
@@ -1168,6 +1170,7 @@ function SpadasLensCameraCore({
 
     if (scanMode === "barcode") {
       setScanMode("snap");
+      setIsBarcodeScanning(false);
       toast.info("Switched to Snap Camera Mode");
       return;
     }
@@ -1836,6 +1839,7 @@ function SpadasLensCameraCore({
     },
     [flushPendingSyncQueue]
   );
+  persistHitRef.current = persistHitAndSyncToSupabase;
 
   useEffect(() => {
     try {
@@ -4339,7 +4343,7 @@ function SpadasLensCameraCore({
   const isFocusLocked = isScanPaused || (!cameraMoving && confidencePercent >= 80);
 
   return (
-    <div className="spadas-lens-camera w-full h-full flex-1 min-h-0 flex flex-col max-w-full overflow-hidden box-border mx-auto animate-fade-in">
+    <div className="spadas-lens-camera w-full min-h-full flex-1 flex flex-col max-w-full overflow-y-auto box-border mx-auto animate-fade-in">
       {/* Video Viewport Container (Tap Anywhere to Focus or Dismiss Card) */}
       <div
         onClick={() => {
@@ -4459,6 +4463,24 @@ function SpadasLensCameraCore({
               )}
 
               {/* Top HUD Bar: Dynamic Confidence Indicator, Credit Badge & Camera Controls with Safe-Area Insets */}
+              {scanMode === "barcode" && (
+                <div className="absolute top-[max(3.25rem,calc(env(safe-area-inset-top,0px)+3rem))] left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 bg-amber-500/95 text-slate-950 font-bold px-3 py-1 rounded-full shadow-lg text-xs backdrop-blur-md pointer-events-auto">
+                  <span>⚡ Barcode Mode Active</span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setScanMode("snap");
+                      setIsBarcodeScanning(false);
+                      toast.info("Switched to Snap Camera Mode");
+                    }}
+                    className="bg-black/20 hover:bg-black/30 px-2 py-0.5 rounded-full text-[10px] font-extrabold text-slate-950 border border-black/20 cursor-pointer active:scale-95"
+                  >
+                    Turn Off ✕
+                  </button>
+                </div>
+              )}
               <div className={`absolute top-[max(0.625rem,calc(env(safe-area-inset-top,0px)+0.375rem))] left-[max(0.625rem,env(safe-area-inset-left,0px))] right-[max(0.625rem,env(safe-area-inset-right,0px))] z-30 flex flex-wrap items-center justify-between gap-2 pointer-events-none transition-all duration-300 ease-out ${
                 activeCompsHit ? "opacity-0 pointer-events-none -translate-y-4" : "opacity-100"
               }`}>
@@ -5480,25 +5502,30 @@ function SpadasLensCameraCore({
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    void handleFastBarcodeScan();
+                    if (scanMode === "barcode") {
+                      setScanMode("snap");
+                      setIsBarcodeScanning(false);
+                      toast.info("Switched to Snap Camera Mode");
+                    } else {
+                      void handleFastBarcodeScan();
+                    }
                   }}
                   onPointerDown={(e) => {
                     e.stopPropagation();
                   }}
-                  disabled={isBarcodeScanning}
                   className={`group flex min-h-[44px] min-w-[44px] touch-manipulation items-center gap-2 px-3 py-1.5 rounded-xl border shadow-md backdrop-blur-md transition-all duration-75 cursor-pointer active:scale-95 ${
                     scanMode === "barcode"
                       ? "bg-amber-500/25 border-amber-400 text-amber-200 shadow-[0_0_20px_rgba(245,158,11,0.4)] ring-1 ring-amber-400/50"
                       : "bg-[#0E1017]/90 border-white/[0.12] hover:border-amber-400/40 text-zinc-300 hover:text-white"
                   }`}
-                  title="Fast Barcode Comps — Instant 1-tap barcode scanner"
+                  title={scanMode === "barcode" ? "Tap to turn off Barcode Mode" : "Fast Barcode Comps — Instant 1-tap barcode scanner"}
                   aria-label="Fast Barcode Comps"
                 >
                   <Barcode className={`h-4 w-4 shrink-0 transition-transform ${
                     isBarcodeScanning ? "animate-spin text-amber-400" : "text-amber-400 group-hover:scale-110"
                   }`} />
                   <span className="text-xs font-bold tracking-tight text-white whitespace-nowrap">
-                    {isBarcodeScanning ? "Scanning..." : scanMode === "barcode" ? "Barcode Active" : "Barcode Comps"}
+                    {scanMode === "barcode" ? "Turn Off Barcode" : "Barcode Comps"}
                   </span>
                 </button>
               </div>

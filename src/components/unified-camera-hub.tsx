@@ -30,16 +30,10 @@ export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraH
   const [isGuideOpen, setIsGuideOpen] = useState(false);
   const { haulCount } = useHaulStore();
 
-  // Clean exit handler: releases hardware media stream and navigates back or home
+  // Clean exit handler: releases hardware media stream and navigates to dashboard
   const handleExitCamera = useCallback(() => {
     releasePersistentMediaStream();
-    if (typeof window !== "undefined") {
-      if (window.history.length > 1) {
-        router.back();
-      } else {
-        router.push("/");
-      }
-    }
+    router.push("/dashboard");
   }, [router]);
 
   // Ensure camera hardware resources are released whenever component unmounts
@@ -64,7 +58,7 @@ export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraH
   };
 
   return (
-    <div className="relative w-full h-full flex-1 min-h-0 bg-[#08090D] text-white flex flex-col overflow-hidden">
+    <div className="relative w-full min-h-full flex-1 bg-[#08090D] text-white flex flex-col overflow-y-auto">
       {/* Top Segmented Mode Slider — Pro Tool Workspace Bar with On-Screen Back & Home */}
       <div className="sticky top-0 z-40 w-full shrink-0 px-2 sm:px-4 pt-[max(0.75rem,calc(env(safe-area-inset-top)+0.5rem))] pb-2 sm:pb-2.5 glass-nav border-b border-white/[0.06] flex items-center justify-between gap-2 max-w-xl mx-auto">
         {/* On-Screen Back Button */}
@@ -154,7 +148,7 @@ export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraH
             onClick={() => {
               triggerTactileHaptic("tap");
               releasePersistentMediaStream();
-              router.push("/");
+              router.push("/dashboard");
             }}
             className="flex items-center justify-center h-9 w-9 rounded-xl bg-[#0D0F15] border border-white/[0.1] text-zinc-300 hover:text-white hover:bg-white/[0.06] active:scale-95 transition shadow-md cursor-pointer"
             title="Dashboard Overview"
@@ -166,9 +160,9 @@ export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraH
       </div>
 
       {/* Dynamic Mode Viewport */}
-      <div className="flex-1 min-h-0 w-full flex flex-col relative overflow-hidden">
+      <div className="flex-1 min-h-0 w-full flex flex-col relative overflow-y-auto">
         {activeTab === "lens" && (
-          <div key="lens-tab" className="w-full h-full flex-1 min-h-0 flex flex-col relative overflow-hidden lens-crossfade">
+          <div key="lens-tab" className="w-full min-h-full flex-1 flex flex-col relative overflow-y-auto lens-crossfade">
             <SpadasLensCamera
               onOpenHaulTab={() => router.push("/haul")}
               onOpenSnapStudio={() => handleTabChange("studio")}

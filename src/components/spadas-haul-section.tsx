@@ -440,12 +440,44 @@ export function SpadasHaulSection({
   }, [items]);
 
   const ebayItemImageUrls = useMemo(() => {
-    if (!ebayItem?.photoId || !photoUrls[ebayItem.photoId]) return [];
-    return [photoUrls[ebayItem.photoId]];
-  }, [ebayItem?.photoId, photoUrls]);
+    if (!ebayItem) return [];
+    const directPhoto = (ebayItem.photoId && photoUrls[ebayItem.photoId]) || ebayItem.thumbnailUrl || ebayItem.imageUrl || ebayItem.image;
+    return directPhoto ? [directPhoto] : [];
+  }, [ebayItem, photoUrls]);
 
   return (
     <div className="w-full max-w-6xl mx-auto space-y-6 pb-20 animate-in fade-in duration-200">
+      {/* Plain-English Haul vs Listings Interactive Guide Banner */}
+      <div className="rounded-2xl border border-emerald-500/25 bg-gradient-to-r from-emerald-950/30 via-[#0D141C] to-cyan-950/20 p-4 sm:p-5 text-xs text-zinc-300 space-y-2.5 shadow-md">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <ShoppingBag className="h-4 w-4 text-emerald-400" />
+            <h3 className="text-sm font-bold text-white tracking-tight">How Haul Works (vs. Listings)</h3>
+          </div>
+          <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-400">
+            Sourcing Cart
+          </span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+          <div className="p-3 rounded-xl bg-black/40 border border-white/[0.06] space-y-1">
+            <p className="font-bold text-emerald-400 flex items-center gap-1.5 text-xs">
+              <span>🛒</span> <span>1. Haul = Your Sourcing Cart Today</span>
+            </p>
+            <p className="text-[11px] text-zinc-400 leading-relaxed">
+              When thrifting or at garage sales, add scans here to tally total cost basis, gross value, and projected net profit before paying at the register.
+            </p>
+          </div>
+          <div className="p-3 rounded-xl bg-black/40 border border-white/[0.06] space-y-1">
+            <p className="font-bold text-cyan-400 flex items-center gap-1.5 text-xs">
+              <span>📦</span> <span>2. Listings = Inventory Ready to Sell</span>
+            </p>
+            <p className="text-[11px] text-zinc-400 leading-relaxed">
+              Once you buy items, tap <strong>&quot;Commit All Profitable&quot;</strong> or <strong>&quot;INTAKE&quot;</strong> to move them into Listings inventory to publish across eBay and marketplaces.
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Executive Sourcing Control Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-5 sm:p-6 rounded-2xl glass-card card-specular surface-elevation-2 border border-white/10">
         <div className="space-y-1">
@@ -809,7 +841,7 @@ export function SpadasHaulSection({
           style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 7rem)" }}
         >
           {filteredItems.map((item) => {
-            const photoUrl = photoUrls[item.photoId];
+            const photoUrl = photoUrls[item.photoId] || item.thumbnailUrl || item.imageUrl || item.image || null;
             const velocity = calculateSalesVelocity({
               productName: item.productName,
               category: item.category,
@@ -1021,7 +1053,7 @@ export function SpadasHaulSection({
                       >
                         {velocity.turnoverTier === "RAPID_FIRE" && "⚡ "}
                         {velocity.turnoverTier === "HOARDER_RISK" && "🛑 "}
-                        {velocity.velocityLabel} ({velocity.sellThroughRate}% sold • ~{velocity.estDaysToSell}d turn)
+                        {velocity.velocityLabel} {item.compsCount ? `• ${item.compsCount} sold comps` : `• ~${velocity.estDaysToSell}d`}
                       </span>
                     </div>
                   </div>
@@ -1125,7 +1157,14 @@ export function SpadasHaulSection({
           title={ebayItem.productName || "Sourced Thrift Item"}
           price={Number(ebayItem.estimatedValue) || 25}
           currency={currency}
-          description={`Authentic ${ebayItem.productName || "Thrift Item"}. Professionally sourced & verified via Spadas Lens.`}
+          description={[
+            ebayItem.productName || "Sourced Item",
+            ebayItem.brand ? `Brand: ${ebayItem.brand}` : "",
+            ebayItem.condition ? `Condition: ${ebayItem.condition}` : "Condition: Pre-owned, good condition",
+            ebayItem.category ? `Category: ${ebayItem.category}` : "",
+            "",
+            "Photos show the exact item you will receive. Carefully packaged and dispatched promptly with tracking.",
+          ].filter(Boolean).join("\n")}
           imageUrls={ebayItemImageUrls}
         />
       )}
