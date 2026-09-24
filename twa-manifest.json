@@ -1,7 +1,7 @@
 {
   "packageId": "com.spadas.ai",
   "host": "spadas-tech.vercel.app",
-  "name": "Spadas Lens: Reseller Scanner",
+  "name": "Reseller Scanner - Spadas Lens",
   "launcherName": "Spadas Lens",
   "display": "standalone",
   "themeColor": "#2563eb",

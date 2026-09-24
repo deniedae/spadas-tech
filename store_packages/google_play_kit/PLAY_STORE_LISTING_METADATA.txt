@@ -1,56 +1,36 @@
-# ==============================================================================
-# SPADAS LENS: RESELLER SCANNER — GOOGLE PLAY STORE LISTING METADATA
-# ==============================================================================
+# Spadas AI — Google Play Store Listing Copy
 
-## 1. APP NAME (Official Active Name)
---------------------------------------------------------------------------------
-Spadas Lens: Reseller Scanner
-(29 / 30 characters — Fits Google Play maximum 30 character limit)
+## App Title (Max 30 chars):
+Reseller Scanner - Spadas Lens
 
-Short Launcher Name:
-Spadas Lens
+## Short Description (Max 80 chars):
+Instant barcode scanner, real eBay sold comps & net profit calculator.
 
+## Full Description:
+Supercharge your thrift, garage sale, and retail arbitrage flips with Spadas AI!
 
-## 2. SHORT DESCRIPTION (Active Copy)
---------------------------------------------------------------------------------
-High-throughput computer vision, margin modeling & secondary market liquidity.
-(77 / 80 characters — Fits Google Play maximum 80 character limit)
+⚡ ULTRA-FAST HARDWARE SCANNER
+• Scan 60 FPS barcodes and item labels in rapid succession with Turbo Batch Mode.
+• Built-in camera flashlight control to illuminate dim thrift store shelves.
+• Audio and tactile haptic scan feedback.
 
+💰 REAL-TIME EBAY PRICE COMPS & VALUE APPRAISAL
+• Instant estimated resale prices, net profit calculations, and ROI metrics.
+• Live sales velocity indicators (Sell-through rate, fast-flip vs slow-burner tags).
+• Grail detector alerts for high-value collectibles and rare vintage items.
 
-## 3. FULL DESCRIPTION (Ready to Copy-Paste into Google Play Console)
---------------------------------------------------------------------------------
-Eliminate speculative capital allocation and manual lookup friction in secondary market sourcing. Spadas Lens deploys sub-second edge computer vision, real-time clearinghouse comps, and automated margin underwriting directly through your device’s optical sensor.
+📸 1-CLICK AI LISTING CREATOR
+• Generate optimized eBay, Poshmark, and Mercari titles, item specifics, and descriptions from photos.
+• Auto-enhancement & contrast tuning for high-accuracy product matching.
 
-Designed for high-throughput arbitrage operators, estate liquidators, and commercial resellers, Spadas Lens transforms raw visual input into actionable unit economics in real time. 
+📊 COMPLETE INVENTORY & PROFIT TRACKER
+• Track cost of goods (COGS), active inventory value, and monthly net profit.
+• Android Home Screen Widget with live stats & 1-tap scan shortcut.
+• Quick Settings drop-down tile to scan from anywhere on your phone.
 
-
-CONTINUOUS OPTICAL INFERENCE (60 FPS)
-• High-Throughput Scan Stream: Ingest shelves, apparel racks, electronics bins, and media lots without manual shutter latency or repetitive query typing.
-• Edge OCR & Taxonomic Parsing: Sub-second extraction of manufacturer model numbers, UPC/EAN barcodes, serial identifiers, and vintage garment tags.
-• Precision Haptic & Acoustic Telemetry: Low-latency sensory signaling confirms asset identification and instantaneous margin viability.
-• Dynamic Luminance Control: Integrated hardware torch toggle calibrated for low-light warehouse aisles and liquidation storage bins.
-
-
-QUANTITATIVE LIQUIDITY & TRUE NET MARGIN UNDERWRITING
-• Verified Clearinghouse Comps: Real-time query architecture pulls confirmed transaction data from global secondary marketplaces—filtering out speculative, unsold asking prices.
-• Automated Unit Economics Engine: Input purchase cost basis and instantly compute net realized margins after marketplace final value fees, payment gateway splits, dynamic category tariffs, and dimensional weight parcel logistics.
-• Liquidity Underwriting & Sourcing Verdicts: Quantitative clearance indicators isolate rapid turnover inventory from stagnant capital traps using 90-day sell-through distributions.
-• Outlier & Bundle Noise Filtering: Algorithmic screening strips out irrelevant accessory lots, damaged parts, and digital download listings to preserve comp integrity.
-
-
-FORENSIC AUTHENTICATION & COUNTERFEIT TRIAGE
-• High-Risk Specimen Flagging: Immediate algorithmic risk alerts triggered upon scanning high-counterfeit luxury silhouettes, designer footwear, and fine timepieces.
-• Structural Inspection Protocols: Guided micro-inspection prompts evaluate stitching density, heat stamps, font kerning, and hardware engravings to protect enterprise seller metrics and prevent marketplace compliance strikes.
-
-
-OMNICHANNEL CATALOG SYNCHRONIZATION
-• Algorithmic Listing Ingestion: Convert physical scans into publication-ready draft catalogs featuring algorithmic SEO title generation, structured item specifics, and condition taxonomy.
-• Multi-Marketplace Dispatch: Directly stage and synchronize inventory pipelines across eBay, Depop, Poshmark, and regional liquidation exchanges.
-• Working Capital Analytics: Track portfolio gross merchandise value (GMV), unrealized asset value, historical turnover rate, and realized capital gains within a unified operational dashboard.
-
-
-OFFLINE-FIRST EDGE RESILIENCE
-• Localized Model Caching: Execute continuous inference and local inventory logging without mobile carrier connectivity—engineered for metal-clad thrift outlets, rural auctions, and subterranean liquidation vaults.
-• Lot Intake Manifest: Stage, batch-review, and adjust purchase basis across high-volume sourcing runs before committing capital at point of sale.
-
-Deploy Spadas Lens into your sourcing operations and underwrite secondary market inventory with institutional precision.
+---
+## Required Store Info:
+• Category: Business / Shopping
+• Privacy Policy URL: https://spadas-tech.vercel.app/privacy
+• Support Email: support@spadas.tech (or your email)
+• Target Audience: 13+

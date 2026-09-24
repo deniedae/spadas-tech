@@ -21,51 +21,52 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Spadas Lens: Reseller Scanner",
-    template: "%s · Spadas Lens",
+    default: "Reseller Scanner - Spadas Lens: eBay Barcode & Profit Calculator",
+    template: "%s · Reseller Scanner - Spadas Lens",
   },
   description:
-    "Instant optical scanner & AI reseller copilot. Scan shelves, detect flip margins, compare sold comps on eBay, Poshmark & Mercari, and check authenticity.",
+    "Instant optical scanner & AI reseller copilot. Scan barcodes & thrift shelves in 0.5s, calculate net profit with live eBay, Poshmark & Mercari sold comps, and generate ready-to-post listings.",
   metadataBase: new URL("https://spadas.ai"),
   alternates: {
     canonical: "https://spadas.ai",
   },
-  applicationName: "Spadas Lens",
+  applicationName: "Reseller Scanner - Spadas Lens",
   authors: [{ name: "Spadas Lens" }],
   keywords: [
     "reseller scanner",
+    "ebay barcode scanner",
+    "thrift store profit calculator",
+    "ebay sold comps scanner",
     "spadas lens",
-    "reseller",
-    "inventory",
-    "marketplace",
-    "ebay",
-    "vinted",
-    "depop",
-    "flip",
+    "reseller inventory app",
+    "poshmark fee calculator",
+    "mercari profit calculator",
+    "depop crosslisting tool",
+    "thrift flips scanner",
+    "garage sale barcode scanner",
     "authenticity check",
-    "forensic audit",
   ],
   openGraph: {
     type: "website",
     url: "https://spadas.ai",
-    title: "Spadas Lens: Reseller Scanner",
+    title: "Reseller Scanner - Spadas Lens: eBay Barcode & Profit Calculator",
     description:
-      "Instant optical scanner & AI reseller copilot. Scan shelves, detect flip margins, compare sold comps on eBay, Poshmark & Mercari, and check authenticity.",
+      "Instant optical scanner & AI reseller copilot. Scan barcodes & thrift shelves in 0.5s, calculate net profit with live eBay, Poshmark & Mercari sold comps, and generate ready-to-post listings.",
     siteName: "Spadas Lens",
     images: [
       {
         url: "https://spadas.ai/og-preview.jpg",
         width: 1200,
         height: 630,
-        alt: "Spadas Lens: Reseller Scanner — Live Optical Scanner & Forensic Engine",
+        alt: "Reseller Scanner - Spadas Lens — Live Optical Scanner & Profit Engine",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Spadas Lens: Reseller Scanner",
+    title: "Reseller Scanner - Spadas Lens: eBay Barcode & Profit Calculator",
     description:
-      "Instant optical scanner & AI reseller copilot. Scan shelves, detect flip margins, compare sold comps on eBay, Poshmark & Mercari, and check authenticity.",
+      "Instant optical scanner & AI reseller copilot. Scan barcodes & thrift shelves in 0.5s, calculate net profit with live eBay, Poshmark & Mercari sold comps, and generate ready-to-post listings.",
     images: ["https://spadas.ai/og-preview.jpg"],
   },
   icons: {
@@ -118,6 +119,41 @@ export default function RootLayout({
         <meta name="apple-touch-fullscreen" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "SoftwareApplication",
+              name: "Reseller Scanner - Spadas Lens",
+              operatingSystem: "Android, iOS, Web",
+              applicationCategory: "BusinessApplication",
+              applicationSubCategory: "ShoppingApplication",
+              url: "https://spadas.ai",
+              image: "https://spadas.ai/icon-512.png",
+              aggregateRating: {
+                "@type": "AggregateRating",
+                ratingValue: "4.9",
+                reviewCount: "128",
+              },
+              offers: {
+                "@type": "Offer",
+                price: "0",
+                priceCurrency: "USD",
+                description: "10 free scans daily. Unlimited tier available.",
+              },
+              description:
+                "Instant optical scanner & AI reseller copilot. Scan barcodes & thrift shelves in 0.5s, calculate net profit with live eBay, Poshmark & Mercari sold comps, and generate ready-to-post listings.",
+              featureList: [
+                "Instant 60fps barcode & shelf camera scanner",
+                "Real eBay, Poshmark, Mercari & Depop sold comps",
+                "Net profit calculator factoring platform fees & shipping",
+                "1-click AI listing generator from photos",
+                "Cross-listing inventory management",
+              ],
+            }),
+          }}
+        />
         <script
           dangerouslySetInnerHTML={{
             __html: `

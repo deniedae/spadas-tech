@@ -1,7 +1,7 @@
 {
-  "name": "Spadas Lens: Reseller Scanner",
+  "name": "Reseller Scanner - Spadas Lens",
   "short_name": "Spadas Lens",
-  "description": "Instant optical scanner & AI reseller copilot. Scan shelves, detect flip margins, compare sold comps on eBay, Poshmark & Mercari, and check authenticity.",
+  "description": "Instant optical scanner & AI reseller copilot. Scan shelves and barcodes, detect flip margins, compare sold comps on eBay, Poshmark & Mercari, and calculate net profit.",
   "start_url": "/dashboard",
   "scope": "/",
   "id": "/dashboard",

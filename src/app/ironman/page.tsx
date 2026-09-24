@@ -1,14 +1,11 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import UnifiedCameraHub from "@/components/unified-camera-hub";
 
 export default function IronmanPage() {
-  const router = useRouter();
-
-  useEffect(() => {
-    router.replace("/lens");
-  }, [router]);
-
-  return null;
+  return (
+    <div className="w-full min-h-full flex-1 flex flex-col overflow-y-auto md:overflow-visible box-border animate-fade-in">
+      <UnifiedCameraHub initialTab="cyber" />
+    </div>
+  );
 }

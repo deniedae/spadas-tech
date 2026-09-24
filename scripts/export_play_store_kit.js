@@ -48,10 +48,10 @@ screenshots.forEach((s) => {
 const metadataText = `# Spadas AI — Google Play Store Listing Copy
 
 ## App Title (Max 30 chars):
-Spadas AI: Reseller Lens & OCR
+Reseller Scanner - Spadas Lens
 
 ## Short Description (Max 80 chars):
-Instant 60 FPS barcode scanner, real-time eBay comps, and AI listing generator.
+Instant barcode scanner, real eBay sold comps & net profit calculator.
 
 ## Full Description:
 Supercharge your thrift, garage sale, and retail arbitrage flips with Spadas AI!

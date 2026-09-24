@@ -18,6 +18,7 @@ import {
   ExternalLink,
   Search,
   Headphones,
+  Sparkles,
 } from "lucide-react";
 import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
@@ -446,19 +447,27 @@ export default function DashboardPage() {
               </p>
             </div>
 
-            <div className="flex items-center gap-2.5 shrink-0">
+            <div className="flex items-center gap-2 shrink-0 flex-wrap">
               <Link
                 href="/lens"
-                className="h-9 px-4 text-xs font-semibold gap-2 rounded-lg bg-white text-zinc-950 hover:bg-zinc-200 transition-all flex items-center shadow-sm active:scale-95 cursor-pointer"
+                className="h-9 px-3.5 text-xs font-bold gap-1.5 rounded-xl bg-gradient-to-r from-cyan-400 to-emerald-400 text-zinc-950 hover:from-cyan-300 hover:to-emerald-300 transition-all flex items-center shadow-md shadow-cyan-950/40 active:scale-95 cursor-pointer"
               >
                 <Camera className="h-3.5 w-3.5" />
-                <span>Launch Lens AR</span>
+                <span>Lens AR</span>
+              </Link>
+
+              <Link
+                href="/ironman"
+                className="h-9 px-3 text-xs font-bold gap-1.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 transition-all flex items-center active:scale-95 cursor-pointer"
+              >
+                <Sparkles className="h-3.5 w-3.5 text-cyan-400 animate-pulse" />
+                <span>Cyber HUD</span>
               </Link>
 
               <NewListingDialog
                 trigger={
-                  <button className="h-9 px-4 text-xs font-medium rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.1] text-zinc-300 transition cursor-pointer flex items-center gap-2">
-                    <span>+ Intake Lot</span>
+                  <button className="h-9 px-3 text-xs font-medium rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.1] text-zinc-300 transition cursor-pointer flex items-center gap-1.5">
+                    <span>+ Intake</span>
                   </button>
                 }
               />

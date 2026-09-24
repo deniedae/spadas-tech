@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Camera, Zap, ShoppingBag, ChevronLeft, Home, HelpCircle } from "lucide-react";
+import { Camera, Zap, ShoppingBag, ChevronLeft, Home, HelpCircle, Sparkles } from "lucide-react";
 import dynamic from "next/dynamic";
 import SpadasLensCamera, { releasePersistentMediaStream } from "@/components/spadas-lens-camera";
 import { useHaulStore } from "@/lib/haul-store";
@@ -13,19 +13,28 @@ const SpadasSnapStudio = dynamic(
   { ssr: false }
 );
 
+const IronmanHudCamera = dynamic(
+  () => import("@/components/ironman-hud-camera"),
+  { ssr: false }
+);
+
 const ScannerGuideModal = dynamic(
   () => import("@/components/scanner-guide-modal").then((m) => m.ScannerGuideModal),
   { ssr: false }
 );
 
 interface UnifiedCameraHubProps {
-  initialTab?: "lens" | "studio" | "haul" | "ironman";
+  initialTab?: "lens" | "cyber" | "studio" | "haul" | "ironman";
 }
 
 export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraHubProps) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"lens" | "studio">(
-    initialTab === "studio" ? "studio" : "lens"
+  const [activeTab, setActiveTab] = useState<"lens" | "cyber" | "studio">(
+    initialTab === "studio"
+      ? "studio"
+      : initialTab === "ironman" || initialTab === "cyber"
+      ? "cyber"
+      : "lens"
   );
   const [isGuideOpen, setIsGuideOpen] = useState(false);
   const { haulCount } = useHaulStore();
@@ -49,7 +58,7 @@ export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraH
     }
   }, [initialTab, router]);
 
-  const handleTabChange = (tab: "lens" | "studio") => {
+  const handleTabChange = (tab: "lens" | "cyber" | "studio") => {
     if (activeTab !== tab) {
       triggerTactileHaptic("selection");
       releasePersistentMediaStream();
@@ -76,15 +85,15 @@ export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraH
           <span className="text-xs font-semibold pr-0.5 hidden xs:inline">Back</span>
         </button>
 
-        {/* 3-Mode Segmented Switcher */}
-        <div className="flex items-center justify-center gap-1 p-1 rounded-xl bg-[#0D0F15] border border-white/[0.08] shadow-lg flex-1 max-w-sm">
+        {/* 4-Mode Segmented Switcher */}
+        <div className="flex items-center justify-center gap-1 p-1 rounded-2xl bg-[#090D16] border border-white/[0.08] shadow-xl flex-1 max-w-md">
           {/* Mode 1: Lens AR */}
           <button
             type="button"
             onClick={() => handleTabChange("lens")}
-            className={`flex-1 py-2 px-2.5 sm:px-3 rounded-lg text-xs font-bold transition-all duration-150 flex items-center justify-center gap-1.5 cursor-pointer text-center active:scale-95 ${
+            className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-bold transition-all duration-150 flex items-center justify-center gap-1.5 cursor-pointer text-center active:scale-95 ${
               activeTab === "lens"
-                ? "bg-[#1A1E29] text-white shadow-sm border border-white/[0.12]"
+                ? "bg-gradient-to-r from-emerald-500/20 to-teal-500/10 text-emerald-300 shadow-sm border border-emerald-500/30"
                 : "text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.03]"
             }`}
           >
@@ -92,34 +101,48 @@ export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraH
             <span className="truncate tracking-tight">Lens</span>
           </button>
 
-          {/* Mode 2: Studio */}
+          {/* Mode 2: Cyber AR HUD */}
           <button
             type="button"
-            onClick={() => handleTabChange("studio")}
-            className={`flex-1 py-2 px-2.5 sm:px-3 rounded-lg text-xs font-bold transition-all duration-150 flex items-center justify-center gap-1.5 cursor-pointer text-center active:scale-95 ${
-              activeTab === "studio"
-                ? "bg-[#1A1E29] text-white shadow-sm border border-white/[0.12]"
+            onClick={() => handleTabChange("cyber")}
+            className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-bold transition-all duration-150 flex items-center justify-center gap-1.5 cursor-pointer text-center active:scale-95 ${
+              activeTab === "cyber"
+                ? "bg-gradient-to-r from-cyan-500/20 to-blue-500/10 text-cyan-300 shadow-sm border border-cyan-500/40"
                 : "text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.03]"
             }`}
           >
-            <Camera className={`h-3.5 w-3.5 shrink-0 ${activeTab === "studio" ? "text-cyan-400" : "text-zinc-400"}`} />
+            <Sparkles className={`h-3.5 w-3.5 shrink-0 ${activeTab === "cyber" ? "text-cyan-400 animate-pulse" : "text-zinc-400"}`} />
+            <span className="truncate tracking-tight">Cyber HUD</span>
+          </button>
+
+          {/* Mode 3: Studio */}
+          <button
+            type="button"
+            onClick={() => handleTabChange("studio")}
+            className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-bold transition-all duration-150 flex items-center justify-center gap-1.5 cursor-pointer text-center active:scale-95 ${
+              activeTab === "studio"
+                ? "bg-gradient-to-r from-amber-500/20 to-orange-500/10 text-amber-300 shadow-sm border border-amber-500/30"
+                : "text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.03]"
+            }`}
+          >
+            <Camera className={`h-3.5 w-3.5 shrink-0 ${activeTab === "studio" ? "text-amber-400" : "text-zinc-400"}`} />
             <span className="truncate tracking-tight">Studio</span>
           </button>
 
-          {/* Mode 3: Haul (Navigates to standalone /haul intake) */}
+          {/* Mode 4: Haul */}
           <button
             type="button"
             onClick={() => {
               triggerTactileHaptic("selection");
               router.push("/haul");
             }}
-            className="shrink-0 min-w-fit px-3 py-2 rounded-lg text-xs font-bold transition-all duration-150 flex items-center justify-center gap-1.5 cursor-pointer text-center text-zinc-300 hover:text-white hover:bg-white/[0.04] active:scale-95"
+            className="shrink-0 min-w-fit px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all duration-150 flex items-center justify-center gap-1 cursor-pointer text-center text-zinc-400 hover:text-white hover:bg-white/[0.04] active:scale-95"
             title="Open Haul Session & Manifest"
           >
-            <ShoppingBag className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
-            <span className="whitespace-nowrap tracking-tight">Haul</span>
+            <ShoppingBag className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
+            <span className="hidden xs:inline whitespace-nowrap tracking-tight">Haul</span>
             {haulCount > 0 && (
-              <span className="ml-1 px-1.5 py-0.2 rounded-md text-[10px] font-mono font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shrink-0 tabular-nums">
+              <span className="ml-0.5 px-1.5 py-0.2 rounded-md text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shrink-0 tabular-nums">
                 {haulCount}
               </span>
             )}
@@ -167,6 +190,11 @@ export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraH
               onOpenHaulTab={() => router.push("/haul")}
               onOpenSnapStudio={() => handleTabChange("studio")}
             />
+          </div>
+        )}
+        {activeTab === "cyber" && (
+          <div key="cyber-tab" className="block w-full h-full flex-1 min-h-0 flex flex-col relative overflow-hidden lens-crossfade">
+            <IronmanHudCamera />
           </div>
         )}
         {activeTab === "studio" && (
