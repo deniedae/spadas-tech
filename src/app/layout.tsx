@@ -109,6 +109,12 @@ export default function RootLayout({
   return (
     <html lang="en" className={cn("dark font-sans", geistSans.variable, geistMono.variable)}>
       <head>
+        {/* Google AdSense Verification & Auto-Ads Tag (Publisher ID: pub-7262955524032732) */}
+        <script
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7262955524032732"
+          crossOrigin="anonymous"
+        />
         <link rel="canonical" href="https://spadas.ai" />
         <link rel="preload" href="/icon-192.png" as="image" type="image/png" />
         <link rel="dns-prefetch" href="https://i.ebayimg.com" />
@@ -173,13 +179,6 @@ export default function RootLayout({
         <Analytics />
         <SpeedInsights sampleRate={1} />
         <WebVitals />
-        {/* Google AdSense / Web Monetization (Publisher ID: pub-7262955524032732) */}
-        <Script
-          async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7262955524032732"
-          crossOrigin="anonymous"
-          strategy="afterInteractive"
-        />
         {/* Google tag (gtag.js) deferred to non-blocking afterInteractive execution */}
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=AW-18430569894"
