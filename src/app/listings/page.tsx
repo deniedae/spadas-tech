@@ -91,10 +91,17 @@ export default function ListingsPage() {
 
   async function loadListings() {
     setLoading(true);
+    setError(null);
     try {
       const {
-        data: { user },
-      } = await supabase.auth.getUser();
+        data: { session },
+      } = await supabase.auth.getSession();
+      let user = session?.user ?? null;
+
+      if (!user) {
+        const { data } = await supabase.auth.getUser();
+        user = data?.user ?? null;
+      }
 
       if (!user) {
         router.push("/login");
@@ -110,26 +117,36 @@ export default function ListingsPage() {
           .eq("user_id", user.id)
           .order("created_at", { ascending: false });
 
-        if (error) throw error;
-        primaryListings = data || [];
+        if (error) {
+          console.warn("Supabase listings error:", error.message);
+        } else if (data) {
+          primaryListings = data;
+        }
       } catch (sbErr: any) {
-        console.warn("Supabase fetch failed, attempting Firestore fallback:", sbErr);
+        console.warn("Supabase fetch failed:", sbErr);
       }
 
-      // If Supabase was empty or failed, attempt Firestore sync fallback
-      if (primaryListings.length === 0) {
+      // Fast non-blocking Firestore fallback only if real Firebase keys are present
+      if (
+        primaryListings.length === 0 &&
+        process.env.NEXT_PUBLIC_FIREBASE_API_KEY &&
+        !process.env.NEXT_PUBLIC_FIREBASE_API_KEY.startsWith("AIzaSyDummy")
+      ) {
         try {
-          const firestoreItems = await fetchUserListings(user.id);
+          const timeoutPromise = new Promise<Listing[]>((resolve) => setTimeout(() => resolve([]), 1200));
+          const fsPromise = fetchUserListings(user.id).then((items) => (items || []) as unknown as Listing[]);
+          const firestoreItems = await Promise.race([fsPromise, timeoutPromise]);
           if (firestoreItems && firestoreItems.length > 0) {
-            primaryListings = firestoreItems as unknown as Listing[];
+            primaryListings = firestoreItems;
           }
         } catch (fsErr) {
-          console.warn("Firestore sync fallback also empty/failed:", fsErr);
+          console.warn("Firestore sync fallback warning:", fsErr);
         }
       }
 
       setListings(primaryListings);
     } catch (err: unknown) {
+      console.error("Listings load error:", err);
       setError((err as Error)?.message || "Failed to load listings");
     } finally {
       setLoading(false);
