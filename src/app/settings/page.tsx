@@ -20,6 +20,7 @@ import {
   CheckCircle2,
   Trash2,
   TriangleAlert,
+  Zap,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 const SubscriptionPaywallModal = dynamic(
@@ -73,6 +74,35 @@ export default function SettingsPage() {
     createdAt: number;
     issueDescription?: string;
   } | null>(null);
+
+  async function handleUpgrade() {
+    setUpgrading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (session?.access_token) {
+        headers["Authorization"] = `Bearer ${session.access_token}`;
+      }
+
+      const res = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ planId: "starter" }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.url) {
+        window.location.href = data.url;
+        return;
+      }
+
+      toast.error(data?.message || "Checkout unavailable. Please try again.");
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to start checkout. Try again.");
+    } finally {
+      setUpgrading(false);
+    }
+  }
 
 
 
@@ -537,22 +567,102 @@ export default function SettingsPage() {
       <section className="glass-card card-specular p-5 sm:p-6 rounded-2xl space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-base font-bold text-white tracking-tight">Subscription &amp; Usage</h2>
-          <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full uppercase tracking-wider bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">
-            Launch Access
+          <span className={`text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
+            plan === "Pro"
+              ? "bg-emerald-500/15 border border-emerald-500/30 text-emerald-400"
+              : "bg-blue-500/15 border border-blue-500/30 text-blue-400"
+          }`}>
+            {plan === "Pro" ? "Pro Unlimited" : "Free Plan"}
           </span>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl bg-white/[0.02] border border-white/[0.06]">
-          <div>
-            <p className="text-xs text-zinc-400">Current Reseller Tier</p>
-            <p className="text-lg font-bold text-white tracking-tight mt-0.5">Spadas Early Adopter Access</p>
-            <p className="text-xs text-zinc-500 mt-0.5">Unlimited camera scans, AI valuations, and 1-tap eBay Seller Hub sync unlocked.</p>
+        {plan === "Pro" ? (
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl bg-white/[0.02] border border-white/[0.06]">
+            <div>
+              <p className="text-xs text-zinc-400">Current Reseller Tier</p>
+              <p className="text-lg font-bold text-white tracking-tight mt-0.5">Spadas Pro Member</p>
+              <p className="text-xs text-zinc-400 mt-0.5">Unlimited 60FPS AR camera scans, live eBay sold comps, 1-tap cross-listing &amp; 100% ad-free.</p>
+            </div>
+            <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-mono font-bold shrink-0">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              <span>Active Pro Membership</span>
+            </div>
           </div>
-          <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-mono font-bold shrink-0">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-            <span>Active Launch Access</span>
+        ) : (
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl bg-white/[0.02] border border-white/[0.06]">
+              <div>
+                <p className="text-xs text-zinc-400">Current Tier</p>
+                <p className="text-base font-bold text-white tracking-tight mt-0.5">Free Beta (10 Scans / Day)</p>
+                <p className="text-xs text-zinc-400 mt-0.5">Basic camera scanning with community ads and daily quota.</p>
+              </div>
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-zinc-800/80 border border-zinc-700/60 text-zinc-300 text-xs font-mono shrink-0">
+                <span>Free Plan</span>
+              </div>
+            </div>
+
+            {/* Live Stripe Upgrade Card */}
+            <div className="p-5 rounded-2xl bg-gradient-to-br from-blue-950/40 via-zinc-900 to-indigo-950/30 border border-blue-500/30 shadow-lg relative overflow-hidden space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-blue-400" />
+                    <h3 className="text-base font-bold text-white">Upgrade to Spadas Pro</h3>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 uppercase tracking-wide">
+                      $10 AUD / month
+                    </span>
+                  </div>
+                  <p className="text-xs text-zinc-300">
+                    Built for serious resellers and op-shop flippers. Multiply your sourcing speed.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleUpgrade}
+                  disabled={upgrading}
+                  className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition shadow-md active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 shrink-0 cursor-pointer"
+                >
+                  {upgrading ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Opening Stripe Checkout...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="w-3.5 h-3.5" />
+                      <span>Upgrade to Pro ($10 AUD/mo)</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </>
+                  )}
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-zinc-300 pt-2 border-t border-white/[0.08]">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                  <span>Unlimited 60FPS AR scans &amp; barcode lookup</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                  <span>Real eBay Australia &amp; US sold comps (STR%)</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                  <span>100% Ad-Free experience</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                  <span>1-Click multi-platform cross-lister</span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 text-[11px] text-zinc-500 font-mono pt-1">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Secured by Stripe · Cancel anytime with 1 click</span>
+              </div>
+            </div>
           </div>
-        </div>
+        )}
       </section>
 
       {/* Connected Accounts Section */}
