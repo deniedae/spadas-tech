@@ -1,4 +1,4 @@
-# Google AdMob app-ads.txt
-# Publisher ID: pub-1804367864263274
+# Google AdMob & AdSense app-ads.txt
 # Package ID: com.spadas.ai
+google.com, pub-7262955524032732, DIRECT, f08c47fec0942fa0
 google.com, pub-1804367864263274, DIRECT, f08c47fec0942fa0

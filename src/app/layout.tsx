@@ -173,10 +173,10 @@ export default function RootLayout({
         <Analytics />
         <SpeedInsights sampleRate={1} />
         <WebVitals />
-        {/* Google AdSense / Web Monetization (Publisher ID: pub-1804367864263274) */}
+        {/* Google AdSense / Web Monetization (Publisher ID: pub-7262955524032732) */}
         <Script
           async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1804367864263274"
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7262955524032732"
           crossOrigin="anonymous"
           strategy="afterInteractive"
         />

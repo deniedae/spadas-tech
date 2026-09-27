@@ -1,3 +1,6 @@
-# Google AdMob / AdSense ads.txt
-# Publisher ID: pub-1804367864263274
+# Google AdSense & AdMob ads.txt
+# Web Publisher ID: pub-7262955524032732
+google.com, pub-7262955524032732, DIRECT, f08c47fec0942fa0
+
+# AdMob / Mobile Publisher ID: pub-1804367864263274
 google.com, pub-1804367864263274, DIRECT, f08c47fec0942fa0

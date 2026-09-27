@@ -80,7 +80,7 @@ export default function AdMobBanner({
           ref={adRef}
           className="adsbygoogle"
           style={{ display: "block", minWidth: "300px", height: "50px", textAlign: "center" }}
-          data-ad-client="ca-pub-1804367864263274"
+          data-ad-client="ca-pub-7262955524032732"
           data-ad-slot="1361556776"
           data-ad-format="horizontal"
           data-full-width-responsive="true"
