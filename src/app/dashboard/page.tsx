@@ -30,6 +30,7 @@ import EbayListingModal from "@/components/ebay-listing-modal";
 import { fmtMoney, calcProfit } from "@/app/lib/listings";
 import PullToRefresh from "@/components/pull-to-refresh";
 import SubscriptionPaywallModal from "@/components/subscription-paywall-modal";
+import AdMobBanner from "@/components/admob-banner";
 import { calculateSalesVelocity } from "@/lib/turnover-velocity-engine";
 import dynamic from "next/dynamic";
 import { openSpadasSupport } from "@/components/dashboard-support-desk";
@@ -1060,6 +1061,7 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+      <AdMobBanner isPro={isPro} slotPlacement="dashboard-footer" />
       <SubscriptionPaywallModal isOpen={isPaywallOpen} onClose={() => setIsPaywallOpen(false)} />
       <DashboardSupportDesk />
 

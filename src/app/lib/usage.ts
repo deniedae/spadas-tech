@@ -1,5 +1,4 @@
 import { createServerClient } from "@supabase/ssr";
-import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { isOwnerEmail } from "@/app/lib/auth-admin";
 
@@ -19,6 +18,7 @@ export async function checkUserUsage(userId: string, userEmail?: string): Promis
 
   let dbClient: any;
   if (supabaseUrl && serviceRoleKey) {
+    const { createClient: createAdminClient } = await import("@supabase/supabase-js");
     dbClient = createAdminClient(supabaseUrl, serviceRoleKey, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
@@ -44,21 +44,16 @@ export async function checkUserUsage(userId: string, userEmail?: string): Promis
 
   // Admin & Owner Account Lifetime Pro Grant
   let isOwner = isOwnerEmail(userEmail);
-  let hasMetadataPro = false;
-  try {
-    const { data: authUserData } = await dbClient.auth.admin.getUserById(userId);
-    const authUser = authUserData?.user;
-    if (isOwnerEmail(authUser?.email)) {
-      isOwner = true;
+  if (!isOwner) {
+    try {
+      const { data: authUserData } = await dbClient.auth.admin.getUserById(userId);
+      if (isOwnerEmail(authUserData?.user?.email)) {
+        isOwner = true;
+      }
+    } catch {
+      // Fallback
     }
-    if (
-      authUser?.app_metadata?.is_pro ||
-      authUser?.user_metadata?.is_pro ||
-      authUser?.app_metadata?.plan === "pro"
-    ) {
-      hasMetadataPro = true;
-    }
-  } catch {}
+  }
 
   // 1. Check if user is an active Pro subscriber in Stripe / Supabase
   const { data: sub, error: subError } = await dbClient
@@ -72,7 +67,7 @@ export async function checkUserUsage(userId: string, userEmail?: string): Promis
   }
 
   const status = sub?.status as string | undefined;
-  const isPro = isOwner || hasMetadataPro || status === "active" || status === "trialing" || status === "past_due";
+  const isPro = isOwner || status === "active" || status === "trialing" || status === "past_due";
 
   if (isPro) {
     // Upsert subscription record if owner

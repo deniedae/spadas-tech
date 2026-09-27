@@ -9,7 +9,6 @@ console.log('======================================================\n');
 const rootDir = path.resolve(__dirname, '..');
 const playKitDir = path.join(rootDir, 'store_packages', 'google_play_kit');
 const publicDir = path.join(rootDir, 'public');
-const rawDir = path.join(rootDir, 'scratch', 'raw_screenshots');
 const downloadsDir = path.join(process.env.USERPROFILE || 'C:\\Users\\denie', 'Downloads', 'Google_Play_Screenshots');
 
 if (!fs.existsSync(playKitDir)) {
@@ -21,6 +20,7 @@ if (!fs.existsSync(downloadsDir)) {
 
 // -------------------------------------------------------------
 // 1. GENERATE ULTRA-PREMIUM 512x512 APP ICON
+// Full bleed square canvas (rx=0) as strictly required by Google Play
 // -------------------------------------------------------------
 async function generateAppIcon() {
   console.log('--- Generating 512x512 App Icon ---');
@@ -29,94 +29,129 @@ async function generateAppIcon() {
   const iconSvg = Buffer.from(`
     <svg width="${SIZE}" height="${SIZE}" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
       <defs>
-        <!-- Background Obsidian Gradient -->
-        <linearGradient id="bgObsidian" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stop-color="#0b1120"/>
-          <stop offset="50%" stop-color="#060911"/>
+        <!-- Background Radial Gradient (Obsidian to Deep Navy Void) -->
+        <radialGradient id="bgGrad" cx="50%" cy="40%" r="70%">
+          <stop offset="0%" stop-color="#0e1726"/>
+          <stop offset="45%" stop-color="#070c16"/>
           <stop offset="100%" stop-color="#020408"/>
-        </linearGradient>
+        </radialGradient>
 
-        <!-- Outer Ring Cyan Glow Gradient -->
+        <!-- Outer Cyan Lens Glow -->
         <linearGradient id="ringCyan" x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stop-color="#38bdf8"/>
-          <stop offset="50%" stop-color="#06b6d4"/>
+          <stop offset="40%" stop-color="#06b6d4"/>
           <stop offset="100%" stop-color="#2563eb"/>
         </linearGradient>
 
-        <!-- Amber Core Shutter Gradient -->
+        <!-- Inner Amber Shutter Gradient -->
         <linearGradient id="amberCore" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stop-color="#fbbf24"/>
-          <stop offset="50%" stop-color="#f59e0b"/>
-          <stop offset="100%" stop-color="#ea580c"/>
+          <stop offset="0%" stop-color="#fef08a"/>
+          <stop offset="30%" stop-color="#fbbf24"/>
+          <stop offset="70%" stop-color="#f59e0b"/>
+          <stop offset="100%" stop-color="#d97706"/>
         </linearGradient>
 
-        <!-- Glass Gloss Sheen -->
+        <!-- Metallic Titanium Bezel Ring -->
+        <linearGradient id="metalBezel" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#475569"/>
+          <stop offset="30%" stop-color="#1e293b"/>
+          <stop offset="70%" stop-color="#334155"/>
+          <stop offset="100%" stop-color="#0f172a"/>
+        </linearGradient>
+
+        <!-- Glass Sheen Linear Gradient -->
         <linearGradient id="glassGloss" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stop-color="#ffffff" stop-opacity="0.18"/>
-          <stop offset="45%" stop-color="#ffffff" stop-opacity="0.04"/>
-          <stop offset="50%" stop-color="#ffffff" stop-opacity="0"/>
+          <stop offset="0%" stop-color="#ffffff" stop-opacity="0.22"/>
+          <stop offset="40%" stop-color="#ffffff" stop-opacity="0.05"/>
+          <stop offset="60%" stop-color="#ffffff" stop-opacity="0"/>
         </linearGradient>
 
-        <!-- Glow Filter -->
-        <filter id="glowFilter" x="-30%" y="-30%" width="160%" height="160%">
+        <!-- Glow Filters -->
+        <filter id="glowCyan" x="-40%" y="-40%" width="180%" height="180%">
           <feGaussianBlur stdDeviation="16" result="blur"/>
           <feComposite in="SourceGraphic" in2="blur" operator="over"/>
         </filter>
-        <filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%">
-          <feGaussianBlur stdDeviation="8" result="blur"/>
+        <filter id="softGlowAmber" x="-40%" y="-40%" width="180%" height="180%">
+          <feGaussianBlur stdDeviation="10" result="blur"/>
           <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+        </filter>
+        <filter id="dropShadow" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.9"/>
         </filter>
       </defs>
 
-      <!-- App Icon Squircle Base (Google Play rounded squircle standard) -->
-      <rect x="0" y="0" width="512" height="512" rx="115" ry="115" fill="url(#bgObsidian)"/>
-      <rect x="2" y="2" width="508" height="508" rx="113" ry="113" fill="none" stroke="#1e293b" stroke-width="4"/>
-      <rect x="6" y="6" width="500" height="500" rx="109" ry="109" fill="none" stroke="#0ea5e9" stroke-opacity="0.2" stroke-width="2"/>
+      <!-- Full Bleed Square Canvas (Google Play dynamically applies 20% squircle mask) -->
+      <rect width="512" height="512" fill="url(#bgGrad)"/>
 
-      <!-- Ambient Glow Behind Aperture -->
-      <circle cx="256" cy="256" r="160" fill="#0284c7" opacity="0.18" filter="url(#glowFilter)"/>
-      <circle cx="256" cy="256" r="90" fill="#f59e0b" opacity="0.12" filter="url(#glowFilter)"/>
-
-      <!-- Outer AR Viewfinder Corner Reticles -->
-      <path d="M 80,140 L 80,80 L 140,80" fill="none" stroke="#38bdf8" stroke-width="8" stroke-linecap="round"/>
-      <path d="M 432,140 L 432,80 L 372,80" fill="none" stroke="#38bdf8" stroke-width="8" stroke-linecap="round"/>
-      <path d="M 80,372 L 80,432 L 140,432" fill="none" stroke="#38bdf8" stroke-width="8" stroke-linecap="round"/>
-      <path d="M 432,372 L 432,432 L 372,432" fill="none" stroke="#38bdf8" stroke-width="8" stroke-linecap="round"/>
-
-      <!-- Outer Optical Lens Ring -->
-      <circle cx="256" cy="256" r="158" fill="#090e1a" stroke="url(#ringCyan)" stroke-width="8" filter="url(#softGlow)"/>
-      <circle cx="256" cy="256" r="142" fill="none" stroke="#1e293b" stroke-width="3" stroke-dasharray="12 8"/>
-
-      <!-- Intermediate Lens Ring with Metallic Chamfer -->
-      <circle cx="256" cy="256" r="124" fill="#0c1322" stroke="#334155" stroke-width="4"/>
-      <circle cx="256" cy="256" r="110" fill="#070c16"/>
-
-      <!-- Glowing Cyan Camera Aperture Blades (6 Blades) -->
-      <g stroke="#0369a1" stroke-width="2" opacity="0.85">
-        <line x1="256" y1="146" x2="330" y2="210"/>
-        <line x1="351" y1="201" x2="330" y2="300"/>
-        <line x1="351" y1="311" x2="256" y2="366"/>
-        <line x1="256" y1="366" x2="182" y2="300"/>
-        <line x1="161" y1="311" x2="182" y2="210"/>
-        <line x1="161" y1="201" x2="256" y2="146"/>
+      <!-- Subtle Cyber Optics Grid -->
+      <g stroke="#1e293b" stroke-width="1" stroke-opacity="0.4">
+        <line x1="0" y1="128" x2="512" y2="128"/>
+        <line x1="0" y1="256" x2="512" y2="256"/>
+        <line x1="0" y1="384" x2="512" y2="384"/>
+        <line x1="128" y1="0" x2="128" y2="512"/>
+        <line x1="256" y1="0" x2="256" y2="512"/>
+        <line x1="384" y1="0" x2="384" y2="512"/>
       </g>
 
-      <!-- Center Holographic Shutter Ring -->
-      <circle cx="256" cy="256" r="76" fill="url(#bgObsidian)" stroke="url(#amberCore)" stroke-width="6" filter="url(#softGlow)"/>
-      <circle cx="256" cy="256" r="62" fill="#050811" stroke="#f59e0b" stroke-opacity="0.4" stroke-width="2"/>
+      <!-- Center Ambient Glow -->
+      <circle cx="256" cy="256" r="180" fill="#0284c7" opacity="0.2" filter="url(#glowCyan)"/>
+      <circle cx="256" cy="256" r="100" fill="#f59e0b" opacity="0.16" filter="url(#softGlowAmber)"/>
 
-      <!-- Central Lightning Flash Bolt (Instant Sourcing & Camera Speed Emblem) -->
-      <g filter="url(#softGlow)">
-        <polygon points="266,206 234,258 260,258 246,306 284,248 258,248" fill="url(#amberCore)" stroke="#fef08a" stroke-width="2" stroke-linejoin="round"/>
+      <!-- Outer AR Reticle Brackets (High-Tech Viewfinder HUD) -->
+      <g stroke="#38bdf8" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" opacity="0.95" filter="url(#glowCyan)">
+        <!-- Top Left -->
+        <path d="M 64,124 L 64,64 L 124,64"/>
+        <!-- Top Right -->
+        <path d="M 448,124 L 448,64 L 388,64"/>
+        <!-- Bottom Left -->
+        <path d="M 64,388 L 64,448 L 124,448"/>
+        <!-- Bottom Right -->
+        <path d="M 448,388 L 448,448 L 388,448"/>
       </g>
 
-      <!-- Optical Lens Glass Reflection (Top Half Sheen) -->
-      <path d="M 100,200 C 130,130 190,100 256,100 C 322,100 382,130 412,200 C 350,220 280,230 200,220 Z" fill="url(#glassGloss)"/>
+      <!-- Outer Optical Lens Ring (Heavy Titanium Chassis) -->
+      <circle cx="256" cy="256" r="172" fill="none" stroke="url(#metalBezel)" stroke-width="12" filter="url(#dropShadow)"/>
+      <circle cx="256" cy="256" r="162" fill="#070c16" stroke="url(#ringCyan)" stroke-width="6" filter="url(#glowCyan)"/>
 
-      <!-- Subtle SPADAS Brand Wordmark at Bottom of Emblem -->
-      <text x="256" y="475" font-size="24" font-weight="900" fill="#38bdf8" text-anchor="middle" letter-spacing="7" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" opacity="0.9">
-        SPADAS
-      </text>
+      <!-- Precision Optical Tick Marks (360 Degree Dial) -->
+      <g stroke="#0ea5e9" stroke-width="2" opacity="0.75">
+        <line x1="256" y1="88" x2="256" y2="102"/>
+        <line x1="256" y1="410" x2="256" y2="424"/>
+        <line x1="88" y1="256" x2="102" y2="256"/>
+        <line x1="410" y1="256" x2="424" y2="256"/>
+        <!-- 45-degree ticks -->
+        <line x1="138" y1="138" x2="148" y2="148"/>
+        <line x1="374" y1="138" x2="364" y2="148"/>
+        <line x1="138" y1="374" x2="148" y2="364"/>
+        <line x1="374" y1="374" x2="364" y2="364"/>
+      </g>
+      <circle cx="256" cy="256" r="144" fill="none" stroke="#1e293b" stroke-width="2.5" stroke-dasharray="8 6"/>
+
+      <!-- Camera Lens Barrel Dark Well -->
+      <circle cx="256" cy="256" r="130" fill="#04070e" stroke="#334155" stroke-width="4"/>
+
+      <!-- 6 Mechanical Camera Aperture Blades -->
+      <g stroke="#0369a1" stroke-width="2.5" opacity="0.9">
+        <line x1="256" y1="134" x2="338" y2="204"/>
+        <line x1="362" y1="194" x2="338" y2="304"/>
+        <line x1="362" y1="316" x2="256" y2="376"/>
+        <line x1="256" y1="376" x2="174" y2="304"/>
+        <line x1="150" y1="316" x2="174" y2="204"/>
+        <line x1="150" y1="194" x2="256" y2="134"/>
+      </g>
+
+      <!-- Center Holographic Gold Shutter Core (Reseller Profit Ring) -->
+      <circle cx="256" cy="256" r="88" fill="#080d19" stroke="url(#amberCore)" stroke-width="8" filter="url(#softGlowAmber)"/>
+      <circle cx="256" cy="256" r="72" fill="#050811" stroke="#f59e0b" stroke-opacity="0.4" stroke-width="2"/>
+
+      <!-- Central Lightning Spark Emblem (Instant Sourcing & Camera Speed) -->
+      <g filter="url(#softGlowAmber)">
+        <polygon points="268,198 232,258 262,258 244,314 290,246 260,246" fill="url(#amberCore)" stroke="#ffffff" stroke-width="2" stroke-linejoin="round"/>
+      </g>
+
+      <!-- Optical Glass Reflection / Specular Highlight (Lens Curve) -->
+      <path d="M 110,210 C 140,140 196,110 256,110 C 316,110 372,140 402,210 C 330,230 260,240 180,230 Z" fill="url(#glassGloss)"/>
+      <ellipse cx="256" cy="140" rx="90" ry="24" fill="#38bdf8" opacity="0.12"/>
     </svg>
   `);
 
@@ -134,7 +169,12 @@ async function generateAppIcon() {
   fs.writeFileSync(iconPublicStandard, iconBuffer);
   fs.writeFileSync(iconDownloads, iconBuffer);
 
-  console.log('✓ Saved App Icon (512x512) to:');
+  // Generate 192x192 icon as well for PWA manifest
+  const icon192 = await sharp(iconBuffer).resize(192, 192).png().toBuffer();
+  fs.writeFileSync(path.join(publicDir, 'icon-192.png'), icon192);
+  fs.writeFileSync(path.join(publicDir, 'apple-touch-icon.png'), icon192);
+
+  console.log('✓ Saved 512x512 App Icon to:');
   console.log('  •', iconPlayKit);
   console.log('  •', iconPublic);
   console.log('  •', iconDownloads);
@@ -142,78 +182,56 @@ async function generateAppIcon() {
 
 // -------------------------------------------------------------
 // 2. GENERATE ULTRA-PREMIUM 1024x500 FEATURE GRAPHIC
+// Strictly 1024x500 24-bit RGB (No Alpha), zero debug banners
 // -------------------------------------------------------------
 async function generateFeatureGraphic() {
   console.log('\n--- Generating 1024x500 Feature Graphic ---');
   const WIDTH = 1024;
   const HEIGHT = 500;
 
-  // Prepare device preview on right side using real Christian Dior Valuation scan
-  const diorScreenshotPath = path.join(rawDir, 'media_1788866120491.jpg');
-  const MOCKUP_W = 320;
-  const MOCKUP_H = 430;
-
-  let phoneScreenBuffer = null;
-  if (fs.existsSync(diorScreenshotPath)) {
-    const croppedScreen = await sharp(diorScreenshotPath)
-      .extract({ left: 0, top: 116, width: 472, height: 848 })
-      .resize(MOCKUP_W - 16, MOCKUP_H - 16, { fit: 'cover', position: 'top' })
-      .sharpen({ sigma: 0.8, m1: 1.0, m2: 2.0 })
-      .toBuffer();
-
-    const phoneMask = Buffer.from(`
-      <svg width="${MOCKUP_W - 16}" height="${MOCKUP_H - 16}" xmlns="http://www.w3.org/2000/svg">
-        <rect width="${MOCKUP_W - 16}" height="${MOCKUP_H - 16}" rx="24" ry="24" fill="#ffffff"/>
-      </svg>
-    `);
-
-    phoneScreenBuffer = await sharp(croppedScreen)
-      .composite([{ input: phoneMask, blend: 'dest-in' }])
-      .png()
-      .toBuffer();
-  }
-
+  // We construct a clean smartphone UI showing the AR Viewfinder scanning
+  // a high-margin thrift flip with 100% sanitized, professional UI (NO email, NO debug buttons).
   const featureSvg = Buffer.from(`
     <svg width="${WIDTH}" height="${HEIGHT}" viewBox="0 0 1024 500" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <!-- Deep Cinematic Dark Background -->
         <linearGradient id="featBg" x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stop-color="#060911"/>
-          <stop offset="45%" stop-color="#09101f"/>
-          <stop offset="100%" stop-color="#04070d"/>
+          <stop offset="50%" stop-color="#0a1224"/>
+          <stop offset="100%" stop-color="#03060c"/>
         </linearGradient>
 
-        <!-- Ambient Cyan/Indigo Glow on Left -->
-        <radialGradient id="leftGlow" cx="25%" cy="50%" r="60%">
-          <stop offset="0%" stop-color="#0284c7" stop-opacity="0.32"/>
-          <stop offset="50%" stop-color="#3b82f6" stop-opacity="0.12"/>
+        <!-- Ambient Cyan Glow Left -->
+        <radialGradient id="leftGlow" cx="22%" cy="48%" r="65%">
+          <stop offset="0%" stop-color="#0284c7" stop-opacity="0.36"/>
+          <stop offset="45%" stop-color="#3b82f6" stop-opacity="0.14"/>
           <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
         </radialGradient>
 
-        <!-- Ambient Amber/Emerald Glow behind Phone on Right -->
-        <radialGradient id="rightGlow" cx="78%" cy="50%" r="55%">
-          <stop offset="0%" stop-color="#10b981" stop-opacity="0.25"/>
+        <!-- Ambient Emerald Glow behind Phone on Right -->
+        <radialGradient id="rightGlow" cx="80%" cy="50%" r="55%">
+          <stop offset="0%" stop-color="#10b981" stop-opacity="0.30"/>
           <stop offset="45%" stop-color="#06b6d4" stop-opacity="0.15"/>
           <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
         </radialGradient>
 
-        <!-- Brand Text Cyan Gradient -->
+        <!-- Headline Cyan Gradient -->
         <linearGradient id="cyanTextGrad" x1="0%" y1="0%" x2="100%" y2="0%">
           <stop offset="0%" stop-color="#38bdf8"/>
           <stop offset="50%" stop-color="#22d3ee"/>
           <stop offset="100%" stop-color="#34d399"/>
         </linearGradient>
 
-        <!-- Gold Pill Gradient -->
-        <linearGradient id="goldPill" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stop-color="#f59e0b"/>
-          <stop offset="100%" stop-color="#ea580c"/>
-        </linearGradient>
-
         <!-- Phone Drop Shadow -->
         <filter id="phoneShadow" x="-20%" y="-20%" width="140%" height="140%">
-          <feDropShadow dx="-10" dy="18" stdDeviation="22" flood-color="#000000" flood-opacity="0.85"/>
-          <feDropShadow dx="0" dy="0" stdDeviation="25" flood-color="#06b6d4" flood-opacity="0.3"/>
+          <feDropShadow dx="-14" dy="20" stdDeviation="24" flood-color="#000000" flood-opacity="0.9"/>
+          <feDropShadow dx="0" dy="0" stdDeviation="28" flood-color="#06b6d4" flood-opacity="0.25"/>
+        </filter>
+
+        <!-- Card Glow Filter -->
+        <filter id="cardGlow" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#000000" flood-opacity="0.75"/>
+          <feDropShadow dx="0" dy="0" stdDeviation="10" flood-color="#10b981" flood-opacity="0.3"/>
         </filter>
       </defs>
 
@@ -222,139 +240,226 @@ async function generateFeatureGraphic() {
       <rect width="1024" height="500" fill="url(#leftGlow)"/>
       <rect width="1024" height="500" fill="url(#rightGlow)"/>
 
-      <!-- Grid Overlay Lines (Tech Cyber Vibe) -->
+      <!-- Subtle Cyber Grid -->
       <g stroke="#1e293b" stroke-width="1" stroke-opacity="0.35">
         <line x1="0" y1="100" x2="1024" y2="100"/>
         <line x1="0" y1="200" x2="1024" y2="200"/>
         <line x1="0" y1="300" x2="1024" y2="300"/>
         <line x1="0" y1="400" x2="1024" y2="400"/>
-        <line x1="150" y1="0" x2="150" y2="500"/>
-        <line x1="300" y1="0" x2="300" y2="500"/>
-        <line x1="450" y1="0" x2="450" y2="500"/>
-        <line x1="600" y1="0" x2="600" y2="500"/>
+        <line x1="160" y1="0" x2="160" y2="500"/>
+        <line x1="320" y1="0" x2="320" y2="500"/>
+        <line x1="480" y1="0" x2="480" y2="500"/>
+        <line x1="640" y1="0" x2="640" y2="500"/>
       </g>
 
-      <!-- LEFT COLUMN: Brand, Headline, Value Props -->
-      <g transform="translate(60, 0)">
+      <!-- ============================================== -->
+      <!-- LEFT COLUMN: Brand, Headline, Feature Badges   -->
+      <!-- ============================================== -->
+      <g transform="translate(64, 0)">
         <!-- Brand Eyebrow Tag -->
-        <g transform="translate(0, 58)">
-          <rect width="250" height="34" rx="17" ry="17" fill="#0f172a" stroke="#38bdf8" stroke-width="1.5"/>
+        <g transform="translate(0, 52)">
+          <rect width="295" height="34" rx="17" fill="#0f172a" stroke="#38bdf8" stroke-width="1.5"/>
           <circle cx="18" cy="17" r="5" fill="#38bdf8"/>
-          <text x="32" y="22" font-size="12" font-weight="900" fill="#38bdf8" letter-spacing="1.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">
-            SPADAS LENS AR 2.0
+          <text x="32" y="22" font-size="12" font-weight="900" fill="#38bdf8" letter-spacing="1.2" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">
+            ⚡ RESELLER SCANNER · SPADAS LENS
           </text>
         </g>
 
         <!-- Big Bold Hero Title -->
-        <text x="0" y="152" font-size="52" font-weight="900" fill="#ffffff" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" letter-spacing="-1">
+        <text x="0" y="148" font-size="52" font-weight="900" fill="#ffffff" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" letter-spacing="-1">
           Scan Thrift Aisles.
         </text>
-        <text x="0" y="210" font-size="52" font-weight="900" fill="url(#cyanTextGrad)" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" letter-spacing="-1">
+        <text x="0" y="206" font-size="52" font-weight="900" fill="url(#cyanTextGrad)" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" letter-spacing="-1">
           Know Exact Profit.
         </text>
 
         <!-- Subtitle -->
-        <text x="0" y="258" font-size="18" font-weight="500" fill="#94a3b8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">
+        <text x="0" y="254" font-size="17" font-weight="500" fill="#94a3b8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">
           Instant 60 FPS camera scanner with real eBay Australia sold comps,
         </text>
-        <text x="0" y="284" font-size="18" font-weight="500" fill="#94a3b8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">
-          automated profit deduction, and 1-click cross-listing.
+        <text x="0" y="278" font-size="17" font-weight="500" fill="#94a3b8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">
+          automated net profit deduction, and 1-click cross-listing.
         </text>
 
-        <!-- Feature Highlight Badges / Pills -->
-        <g transform="translate(0, 328)">
+        <!-- Feature Highlight Badges -->
+        <g transform="translate(0, 320)">
           <!-- Pill 1: 60 FPS Scanner -->
           <g transform="translate(0, 0)">
-            <rect width="168" height="40" rx="12" ry="12" fill="#0f172a" stroke="#0284c7" stroke-width="1.2"/>
-            <text x="14" y="25" font-size="13" font-weight="800" fill="#38bdf8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">
+            <rect width="170" height="42" rx="12" fill="#0f172a" stroke="#0284c7" stroke-width="1.4"/>
+            <text x="14" y="26" font-size="13" font-weight="800" fill="#38bdf8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">
               ⚡ 60 FPS AR Vision
             </text>
           </g>
 
           <!-- Pill 2: Real eBay Comps -->
-          <g transform="translate(180, 0)">
-            <rect width="186" height="40" rx="12" ry="12" fill="#0f172a" stroke="#059669" stroke-width="1.2"/>
-            <text x="14" y="25" font-size="13" font-weight="800" fill="#34d399" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">
+          <g transform="translate(182, 0)">
+            <rect width="190" height="42" rx="12" fill="#0f172a" stroke="#059669" stroke-width="1.4"/>
+            <text x="14" y="26" font-size="13" font-weight="800" fill="#34d399" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">
               💰 Live eBay Sold Comps
             </text>
           </g>
 
           <!-- Pill 3: 1-Click Listing -->
-          <g transform="translate(378, 0)">
-            <rect width="176" height="40" rx="12" ry="12" fill="#0f172a" stroke="#d97706" stroke-width="1.2"/>
-            <text x="14" y="25" font-size="13" font-weight="800" fill="#fbbf24" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">
+          <g transform="translate(384, 0)">
+            <rect width="176" height="42" rx="12" fill="#0f172a" stroke="#d97706" stroke-width="1.4"/>
+            <text x="14" y="26" font-size="13" font-weight="800" fill="#fbbf24" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">
               🚀 1-Click Cross-List
             </text>
           </g>
         </g>
 
-        <!-- Trust / Rating Footer -->
+        <!-- Social Proof Trust Footer -->
         <g transform="translate(0, 412)">
           <text x="0" y="24" font-size="20" fill="#fbbf24">★★★★★</text>
-          <text x="95" y="22" font-size="13" font-weight="700" fill="#e2e8f0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">
+          <text x="96" y="22" font-size="13" font-weight="700" fill="#e2e8f0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">
             Rated 4.9/5 by Australian Resellers &amp; PowerSellers
           </text>
         </g>
       </g>
 
-      <!-- RIGHT COLUMN: Smartphone Chassis Mockup -->
-      <g transform="translate(660, 35)" filter="url(#phoneShadow)">
+      <!-- ============================================== -->
+      <!-- RIGHT COLUMN: Smartphone Chassis Mockup        -->
+      <!-- ============================================== -->
+      <g transform="translate(670, 24)" filter="url(#phoneShadow)">
         <!-- Outer Titanium Bezel -->
-        <rect width="${MOCKUP_W}" height="${MOCKUP_H}" rx="32" ry="32" fill="#0a0f1d" stroke="#334155" stroke-width="3"/>
-        <rect x="2" y="2" width="${MOCKUP_W - 4}" height="${MOCKUP_H - 4}" rx="30" ry="30" fill="none" stroke="#1e293b" stroke-width="1.5"/>
+        <rect width="324" height="456" rx="34" fill="#0a0f1d" stroke="#334155" stroke-width="3"/>
+        <rect x="2" y="2" width="320" height="452" rx="32" fill="none" stroke="#1e293b" stroke-width="1.5"/>
+
+        <!-- Phone Inner Screen (304 x 436) -->
+        <g transform="translate(10, 10)">
+          <clipPath id="screenClip">
+            <rect width="304" height="436" rx="24"/>
+          </clipPath>
+
+          <g clip-path="url(#screenClip)">
+            <!-- Screen Background Viewfinder Feed -->
+            <rect width="304" height="436" fill="#040812"/>
+
+            <!-- Subtle Thrift Shelf / Item Silhouette in background -->
+            <rect x="20" y="70" width="264" height="180" rx="16" fill="#0a1224" stroke="#1e293b" stroke-width="1.5"/>
+
+            <!-- Authentic Clean Android Status Bar (No battery leak / no ugly icons) -->
+            <rect width="304" height="28" fill="#040812" fill-opacity="0.95"/>
+            <text x="18" y="19" font-size="11" font-weight="700" fill="#cbd5e1" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">
+              12:00
+            </text>
+            <text x="256" y="19" font-size="11" font-weight="700" fill="#94a3b8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">
+              5G  100%
+            </text>
+
+            <!-- Dynamic Island Notch -->
+            <rect x="117" y="6" width="70" height="14" rx="7" fill="#000000" stroke="#1e293b" stroke-width="1"/>
+
+            <!-- App Bar (Clean, Professional Spadas Lens Navigation) -->
+            <g transform="translate(16, 36)">
+              <rect width="130" height="26" rx="13" fill="#0f172a" stroke="#0ea5e9" stroke-width="1"/>
+              <circle cx="13" cy="13" r="4" fill="#10b981"/>
+              <text x="24" y="18" font-size="10" font-weight="800" fill="#38bdf8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">
+                SPADAS LENS AR
+              </text>
+              <!-- 60 FPS Badge -->
+              <rect x="214" y="0" width="58" height="26" rx="13" fill="#0f172a" stroke="#334155" stroke-width="1"/>
+              <text x="243" y="17" font-size="10" font-weight="700" fill="#34d399" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">
+                60 FPS
+              </text>
+            </g>
+
+            <!-- AR Viewfinder Reticle Scanning Target Item -->
+            <g transform="translate(42, 85)">
+              <!-- Scanning Crosshairs -->
+              <path d="M 0,25 L 0,0 L 25,0" fill="none" stroke="#22d3ee" stroke-width="3" stroke-linecap="round"/>
+              <path d="M 220,25 L 220,0 L 195,0" fill="none" stroke="#22d3ee" stroke-width="3" stroke-linecap="round"/>
+              <path d="M 0,115 L 0,140 L 25,140" fill="none" stroke="#22d3ee" stroke-width="3" stroke-linecap="round"/>
+              <path d="M 220,115 L 220,140 L 195,140" fill="none" stroke="#22d3ee" stroke-width="3" stroke-linecap="round"/>
+
+              <!-- Central Scanner Pulse Laser Line -->
+              <line x1="10" y1="70" x2="210" y2="70" stroke="#06b6d4" stroke-width="2" stroke-opacity="0.8"/>
+              <rect x="10" y="66" width="200" height="8" fill="#38bdf8" opacity="0.15"/>
+
+              <!-- Detected Tag Label -->
+              <rect x="50" y="10" width="120" height="22" rx="11" fill="#0f172a" fill-opacity="0.9" stroke="#10b981" stroke-width="1.2"/>
+              <text x="110" y="25" font-size="10" font-weight="800" fill="#34d399" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">
+                🏷️ Thrift Tag: $18.00
+              </text>
+            </g>
+
+            <!-- Floating High-Profit Valuation Card (MUST COP) -->
+            <g transform="translate(14, 246)" filter="url(#cardGlow)">
+              <rect width="276" height="136" rx="16" fill="#090f1d" stroke="#10b981" stroke-width="1.5"/>
+
+              <!-- Top Row: Badge + Category -->
+              <g transform="translate(12, 12)">
+                <rect width="90" height="20" rx="10" fill="#065f46" stroke="#34d399" stroke-width="1"/>
+                <text x="45" y="14" font-size="9" font-weight="900" fill="#a7f3d0" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">
+                  🔥 MUST COP
+                </text>
+                <text x="100" y="15" font-size="10" font-weight="700" fill="#38bdf8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">
+                  94% Sold Velocity
+                </text>
+              </g>
+
+              <!-- Item Title -->
+              <text x="12" y="52" font-size="13" font-weight="800" fill="#ffffff" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">
+                Carhartt Detroit Jacket J97
+              </text>
+
+              <!-- Divider -->
+              <line x1="12" y1="62" x2="264" y2="62" stroke="#1e293b" stroke-width="1"/>
+
+              <!-- 3-Column Valuation Breakdown -->
+              <g transform="translate(12, 78)">
+                <text x="0" y="0" font-size="9" font-weight="700" fill="#94a3b8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">EST RESALE</text>
+                <text x="0" y="18" font-size="14" font-weight="900" fill="#38bdf8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">$280.00</text>
+
+                <text x="90" y="0" font-size="9" font-weight="700" fill="#94a3b8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">BUY COST</text>
+                <text x="90" y="18" font-size="14" font-weight="900" fill="#fbbf24" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">$18.00</text>
+
+                <text x="175" y="0" font-size="9" font-weight="700" fill="#34d399" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">NET PROFIT</text>
+                <text x="175" y="18" font-size="15" font-weight="900" fill="#10b981" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">+$204.40</text>
+              </g>
+
+              <!-- Bottom Action Pill: +Add to Vault -->
+              <g transform="translate(12, 106)">
+                <rect width="252" height="22" rx="11" fill="#047857"/>
+                <text x="126" y="15" font-size="10" font-weight="800" fill="#ffffff" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">
+                  ✓ Add To Reseller Vault &amp; Cross-List
+                </text>
+              </g>
+            </g>
+
+            <!-- Bottom Floating Action Shutter & Navigation -->
+            <g transform="translate(0, 394)">
+              <rect width="304" height="42" fill="#070c18" stroke="#1e293b" stroke-width="1"/>
+              <!-- Camera Action Circle -->
+              <circle cx="152" cy="18" r="16" fill="#f59e0b" stroke="#ffffff" stroke-width="2"/>
+              <polygon points="155,10 147,19 152,19 149,26 157,17 152,17" fill="#050811"/>
+            </g>
+          </g>
+        </g>
       </g>
     </svg>
   `);
 
-  const baseFeature = await sharp(featureSvg).png().toBuffer();
+  // Google Play strictly requires 24-bit RGB PNG or JPEG (no alpha) for feature graphic
+  const baseFeature = await sharp(featureSvg)
+    .removeAlpha()
+    .png()
+    .toBuffer();
 
-  // Composite real device screen onto phone chassis if available
-  let finalFeatureBuffer = baseFeature;
-  if (phoneScreenBuffer) {
-    finalFeatureBuffer = await sharp(baseFeature)
-      .composite([
-        {
-          input: phoneScreenBuffer,
-          left: 668,
-          top: 43,
-        },
-        // Overlay Camera Punch-hole Notch
-        {
-          input: Buffer.from(`
-            <svg width="80" height="18" xmlns="http://www.w3.org/2000/svg">
-              <rect width="80" height="18" rx="9" ry="9" fill="#000000" stroke="#1e293b" stroke-width="1"/>
-              <circle cx="58" cy="9" r="4" fill="#070b14"/>
-            </svg>
-          `),
-          left: 660 + Math.round((MOCKUP_W - 80) / 2),
-          top: 43 + 8,
-        },
-      ])
-      .png({ quality: 95 })
-      .toBuffer();
-  }
+  const jpgFeature = await sharp(featureSvg)
+    .jpeg({ quality: 96, mozjpeg: true })
+    .toBuffer();
 
-  // 1. Google Play 24-bit RGB PNG (1024x500, no alpha for strict Google Play store requirements)
   const featPlayKit = path.join(playKitDir, '2_feature_graphic_1024x500.png');
   const featPlayKitJpg = path.join(playKitDir, 'promo_1024x500.jpg');
   const featPublic = path.join(publicDir, 'store-feature-graphic-1024x500.png');
   const featDownloadsPng = path.join(downloadsDir, '2_feature_graphic_1024x500.png');
   const featDownloadsJpg = path.join(downloadsDir, '2_feature_graphic_1024x500.jpg');
 
-  // Convert to 24-bit RGB (remove alpha channel)
-  const rgbFeature = await sharp(finalFeatureBuffer)
-    .removeAlpha()
-    .png()
-    .toBuffer();
-
-  const jpgFeature = await sharp(finalFeatureBuffer)
-    .jpeg({ quality: 94, mozjpeg: true })
-    .toBuffer();
-
-  fs.writeFileSync(featPlayKit, rgbFeature);
+  fs.writeFileSync(featPlayKit, baseFeature);
   fs.writeFileSync(featPlayKitJpg, jpgFeature);
-  fs.writeFileSync(featPublic, rgbFeature);
-  fs.writeFileSync(featDownloadsPng, rgbFeature);
+  fs.writeFileSync(featPublic, baseFeature);
+  fs.writeFileSync(featDownloadsPng, baseFeature);
   fs.writeFileSync(featDownloadsJpg, jpgFeature);
 
   console.log('✓ Saved Feature Graphic (1024x500) to:');
@@ -362,7 +467,6 @@ async function generateFeatureGraphic() {
   console.log('  •', featPlayKitJpg);
   console.log('  •', featPublic);
   console.log('  •', featDownloadsPng);
-  console.log('  •', featDownloadsJpg);
 }
 
 async function main() {

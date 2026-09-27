@@ -59,10 +59,11 @@ export async function GET(req: NextRequest) {
       ]);
     }
 
+    // Google Play Launch: All users receive active Pro access with zero external paywalls
     return NextResponse.json({
-      active: isActive,
-      plan: isActive ? "Pro" : "Free Beta",
-      status: isActive ? "active" : status,
+      active: true,
+      plan: "Pro",
+      status: "active",
     });
   } catch (error) {
     console.error("Stripe status error:", error);

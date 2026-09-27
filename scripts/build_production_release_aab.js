@@ -38,10 +38,14 @@ execSync(`${jarExe} xf "${aabPath}" base/manifest/AndroidManifest.xml`, { cwd: r
 const manifestPath = path.join(rootDir, 'base', 'manifest', 'AndroidManifest.xml');
 let buf = fs.readFileSync(manifestPath);
 
-// STEP 3: Patch versionCode (to 4), versionName (to 1.2.1.0), and targetSdkVersion (confirm 36)
-console.log('\n--- Step 3: Patching versionCode, versionName & targetSdkVersion ---');
+// Target versionCode and versionName (Default: 4 / 1.2.1.0, or pass code as arg: e.g. "node scripts/build_production_release_aab.js 5")
+const targetVerCode = parseInt(process.argv[2] || process.env.VERSION_CODE || '4', 10);
+const targetVerName = process.argv[3] || process.env.VERSION_NAME || (targetVerCode >= 5 ? `1.2.${targetVerCode - 3}.0` : '1.2.1.0');
 
-// 1. versionCode -> 4
+// STEP 3: Patch versionCode, versionName, and targetSdkVersion (confirm 36)
+console.log(`\n--- Step 3: Patching versionCode (to ${targetVerCode}), versionName (to ${targetVerName}) & targetSdkVersion (36) ---`);
+
+// 1. versionCode
 const verCodeIdx = buf.indexOf('versionCode');
 if (verCodeIdx === -1) {
   console.error('✗ versionCode not found in manifest protobuf!');
@@ -51,17 +55,17 @@ console.log('Found versionCode at offset:', verCodeIdx);
 console.log('Before versionCode:', buf.slice(verCodeIdx, verCodeIdx + 32));
 
 // ASCII representation:
-buf[verCodeIdx + 13] = 0x34; // ASCII '4'
+buf[verCodeIdx + 13] = 0x30 + (targetVerCode % 10);
 // Integer representation:
-buf[verCodeIdx + 28] = 0x04; // integer 4
+buf[verCodeIdx + 28] = targetVerCode;
 console.log('After versionCode:', buf.slice(verCodeIdx, verCodeIdx + 32));
 
-// 2. versionName -> "1.2.1.0"
+// 2. versionName
 const verNameIdx = buf.indexOf('versionName');
 if (verNameIdx !== -1) {
   console.log('Found versionName at offset:', verNameIdx);
   console.log('Before versionName:', buf.slice(verNameIdx, verNameIdx + 22));
-  const newVerName = Buffer.from('1.2.1.0', 'ascii');
+  const newVerName = Buffer.from(targetVerName, 'ascii');
   newVerName.copy(buf, verNameIdx + 13);
   console.log('After versionName:', buf.slice(verNameIdx, verNameIdx + 22));
 }
@@ -155,8 +159,8 @@ console.log('\n====================================================');
 console.log('🎉 PRODUCTION APP BUNDLE (.AAB) READY FOR GOOGLE PLAY');
 console.log('====================================================');
 console.log(`• Package ID:         com.spadas.ai`);
-console.log(`• Version Code:       4 (Incremented for Play Console release)`);
-console.log(`• Version Name:       1.2.1.0`);
+console.log(`• Version Code:       ${targetVerCode} (Incremented for Play Console release)`);
+console.log(`• Version Name:       ${targetVerName}`);
 console.log(`• Target SDK Version: 36 (Android 15 / 16 Compliant)`);
 console.log(`• Large-Screen Mode:  Unspecified Orientation & Universal Resizable`);
 console.log(`• Edge-to-Edge Mode:  Fully Compliant (Deprecated window params purged)`);

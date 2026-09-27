@@ -537,34 +537,21 @@ export default function SettingsPage() {
       <section className="glass-card card-specular p-5 sm:p-6 rounded-2xl space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-base font-bold text-white tracking-tight">Subscription &amp; Usage</h2>
-          <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
-            plan === "Pro"
-              ? "bg-cyan-500/15 border border-cyan-500/30 text-cyan-400"
-              : "bg-white/[0.04] border border-white/[0.08] text-zinc-400"
-          }`}>
-            {plan}
+          <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full uppercase tracking-wider bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">
+            Launch Access
           </span>
         </div>
 
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl bg-white/[0.02] border border-white/[0.06]">
           <div>
             <p className="text-xs text-zinc-400">Current Reseller Tier</p>
-            <p className="text-lg font-bold text-white tracking-tight mt-0.5">{plan === "Pro" ? "Spadas Pro Unlimited" : "Free Starter Plan"}</p>
-            <p className="text-xs text-zinc-500 mt-0.5">{plan === "Pro" ? "Unlimited instant AR scans, automated copywriting, and priority live eBay sync." : "10 free optical scans daily. Upgrade anytime."}</p>
+            <p className="text-lg font-bold text-white tracking-tight mt-0.5">Spadas Early Adopter Access</p>
+            <p className="text-xs text-zinc-500 mt-0.5">Unlimited camera scans, AI valuations, and 1-tap eBay Seller Hub sync unlocked.</p>
           </div>
-          {plan === "Pro" ? (
-            <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-mono font-bold shrink-0">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-              <span>Active Pro Membership</span>
-            </div>
-          ) : (
-            <button
-              onClick={() => setConfirmUpgrade(true)}
-              className="px-5 py-2.5 rounded-xl bg-white text-zinc-950 font-bold text-xs hover:bg-zinc-200 transition cursor-pointer active:scale-95 shadow-md shrink-0"
-            >
-              Upgrade to Pro ($10/mo)
-            </button>
-          )}
+          <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-mono font-bold shrink-0">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+            <span>Active Launch Access</span>
+          </div>
         </div>
       </section>
 

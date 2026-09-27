@@ -33,6 +33,7 @@ android/.gradle/
 *.pem
 *.keystore
 *.jar
+*.bak*
 
 # debug & telemetry
 npm-debug.log*

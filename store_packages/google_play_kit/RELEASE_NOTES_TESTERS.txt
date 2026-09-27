@@ -1,0 +1,65 @@
+================================================================================
+  SPADAS AI: RESELLER SCANNER — GOOGLE PLAY STORE TESTER RELEASE NOTES
+================================================================================
+
+--------------------------------------------------------------------------------
+OPTION 1: OFFICIAL GOOGLE PLAY CONSOLE RELEASE NOTES (< 500 CHARACTERS)
+(Copy & paste directly into the Play Console "Release notes" box)
+--------------------------------------------------------------------------------
+<en-US>
+⚡ Welcome to the Spadas Lens Reseller Beta!
+• 0.4s Optical & Barcode Scanner: Rapid recognition for thrift racks and barcodes.
+• Real eBay Sold Comps: View verified sold prices & sell-through rates (STR%).
+• Automated Net Profit Engine: Real-time calculation deducting eBay fees & shipping.
+• Low-Light Thrift Torch: Built-in camera flashlight for bottom-shelf hunting.
+• Inventory Sourcing Vault: 1-tap save and draft export.
+Bugs or feedback? Tap Support in Dashboard. Happy thrifting!
+</en-US>
+
+
+--------------------------------------------------------------------------------
+OPTION 2: BULLET-FOCUSED TESTER CHANGELOG (< 500 CHARACTERS)
+--------------------------------------------------------------------------------
+<en-US>
+What’s New in Beta v1.2.3 (Build 6):
+• Instant 0.4s AI scanning for op-shop shelves, clothes tags & barcodes
+• Live eBay Australia & US sold comps with real-time liquidity indicators
+• Net Profit Calculator with automatic eBay fee & postage deductions
+• Low-light camera flashlight toggle & haptic vibration pulses
+• Faster offline caching & Android 15/16 edge-to-edge support
+Feedback: Use the in-app support desk or email support@spadas.tech
+</en-US>
+
+
+--------------------------------------------------------------------------------
+OPTION 3: EXTENDED TESTER INVITATION / EMAIL / COMMUNITY POST
+(For sharing via Google Groups, WhatsApp/Discord, or Tester Onboarding Emails)
+--------------------------------------------------------------------------------
+Subject: You're invited to test Spadas AI: Reseller Scanner on Android!
+
+Hey Thrifters & Resellers,
+
+Thank you for joining our private beta test track for Spadas Lens on Google Play!
+
+Spadas Lens is built specifically to cut your thrift research time in half and ensure you never buy a bad flip again. Here is what we need you to test on your next sourcing run:
+
+🔍 WHAT TO TEST:
+1. Optical & Barcode Scanner (/lens):
+   - Test scanning barcodes on books, video games, toys, and electronics.
+   - Test camera scanning on clothing tags, shoe labels, and vintage items.
+   - Try the built-in torch toggle in low-light thrift store corners.
+
+2. Sold Comps & Net Profit Calculation:
+   - Check if eBay sold comps load quickly.
+   - Verify that the Net Profit, ROI %, and fee breakdown look accurate for your marketplace.
+
+3. Sourcing Vault & Drafts (/haul & /listings):
+   - Try saving items to your inventory vault while on the move.
+   - Test the 1-click export/draft feature.
+
+🐞 HOW TO REPORT BUGS:
+- Tap the "Support" desk floating button inside the app dashboard.
+- Or email our dev team directly at support@spadas.tech with screenshots or notes.
+
+Thank you for helping us make Spadas the fastest reseller tool on Android!
+================================================================================

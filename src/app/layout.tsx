@@ -173,7 +173,13 @@ export default function RootLayout({
         <Analytics />
         <SpeedInsights sampleRate={1} />
         <WebVitals />
-        <Toaster position="bottom-right" richColors closeButton />
+        {/* Google AdSense / Web Monetization (Publisher ID: pub-1804367864263274) */}
+        <Script
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1804367864263274"
+          crossOrigin="anonymous"
+          strategy="afterInteractive"
+        />
         {/* Google tag (gtag.js) deferred to non-blocking afterInteractive execution */}
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=AW-18430569894"

@@ -14,6 +14,8 @@ const PUBLIC_PATHS = [
   "/creators",
   "/spadas-ai.apk",
   "/favicon.ico",
+  "/app-ads.txt",
+  "/ads.txt",
 ];
 
 export async function middleware(request: NextRequest) {

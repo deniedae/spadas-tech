@@ -8,9 +8,13 @@ console.log("==========================================\n");
 const rootDir = path.join(__dirname, "..");
 const publicDir = path.join(rootDir, "public");
 const outDir = path.join(rootDir, "store_packages", "google_play_kit");
+const downloadsDir = path.join(process.env.USERPROFILE || 'C:\\Users\\denie', 'Downloads', 'Google_Play_Screenshots');
 
 if (!fs.existsSync(outDir)) {
   fs.mkdirSync(outDir, { recursive: true });
+}
+if (!fs.existsSync(downloadsDir)) {
+  fs.mkdirSync(downloadsDir, { recursive: true });
 }
 
 // 1. Copy Store Icon (512x512)
@@ -18,7 +22,8 @@ const iconSrc = path.join(publicDir, "store-icon-512.png");
 const iconDest = path.join(outDir, "1_app_icon_512x512.png");
 if (fs.existsSync(iconSrc)) {
   fs.copyFileSync(iconSrc, iconDest);
-  console.log("✓ Copied App Icon: 1_app_icon_512x512.png");
+  fs.copyFileSync(iconSrc, path.join(downloadsDir, "1_app_icon_512x512.png"));
+  console.log("✓ Copied App Icon: 1_app_icon_512x512.png (512x512, Full Bleed Square)");
 }
 
 // 2. Copy Feature Graphic (1024x500)
@@ -26,21 +31,25 @@ const featSrc = path.join(publicDir, "store-feature-graphic-1024x500.png");
 const featDest = path.join(outDir, "2_feature_graphic_1024x500.png");
 if (fs.existsSync(featSrc)) {
   fs.copyFileSync(featSrc, featDest);
-  console.log("✓ Copied Feature Graphic: 2_feature_graphic_1024x500.png");
+  fs.copyFileSync(featSrc, path.join(downloadsDir, "2_feature_graphic_1024x500.png"));
+  console.log("✓ Copied Feature Graphic: 2_feature_graphic_1024x500.png (1024x500, 24-bit RGB)");
 }
 
-// 3. Copy Phone Screenshots
+// 3. Copy All 5 Phone Screenshots (1080x1920)
 const screenshots = [
-  { src: "screenshot-lens.png", name: "3_screenshot_lens_scanner.png" },
-  { src: "screenshot-dashboard.png", name: "4_screenshot_inventory_dashboard.png" },
-  { src: "screenshot-generator.png", name: "5_screenshot_ai_listing_generator.png" },
+  { file: "screen_1_lens_scanner_1080.png", slot: "3_screenshot_lens_scanner.png" },
+  { file: "screen_2_valuation_profit_1080.png", slot: "4_screenshot_net_profit_calculator.png" },
+  { file: "screen_3_sold_comps_analysis_1080.png", slot: "5_screenshot_sold_comps.png" },
+  { file: "screen_4_cross_listing_inventory_1080.png", slot: "6_screenshot_inventory_vault.png" },
+  { file: "screen_5_reseller_reviews_1080.png", slot: "7_screenshot_reseller_reviews.png" },
 ];
 
 screenshots.forEach((s) => {
-  const sPath = path.join(publicDir, s.src);
+  const sPath = path.join(outDir, s.file);
   if (fs.existsSync(sPath)) {
-    fs.copyFileSync(sPath, path.join(outDir, s.name));
-    console.log(`✓ Copied Screenshot: ${s.name}`);
+    fs.copyFileSync(sPath, path.join(outDir, s.slot));
+    fs.copyFileSync(sPath, path.join(downloadsDir, s.slot));
+    console.log(`✓ Copied Screenshot: ${s.slot} (1080x1920)`);
   }
 });
 
@@ -84,6 +93,9 @@ Supercharge your thrift, garage sale, and retail arbitrage flips with Spadas AI!
 `;
 
 fs.writeFileSync(path.join(outDir, "PLAY_STORE_LISTING_METADATA.txt"), metadataText, "utf8");
+fs.writeFileSync(path.join(downloadsDir, "PLAY_STORE_LISTING_METADATA.txt"), metadataText, "utf8");
 console.log("✓ Created PLAY_STORE_LISTING_METADATA.txt");
 
-console.log("\n🎉 Google Play Store Kit is ready at: store_packages/google_play_kit/\n");
+console.log("\n🎉 Google Play Store Kit is ready at:");
+console.log("  • Workspace: store_packages/google_play_kit/");
+console.log("  • Windows Downloads: C:\\Users\\denie\\Downloads\\Google_Play_Screenshots\n");

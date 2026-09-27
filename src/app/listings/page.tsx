@@ -11,6 +11,7 @@ import NewListingDialog from "@/components/new-listing-dialog";
 import EbayListingModal from "@/components/ebay-listing-modal";
 import { toast } from "sonner";
 import { fmtMoney, calcProfit, calcInventoryValue } from "@/app/lib/listings";
+import AdMobBanner from "@/components/admob-banner";
 import { fetchUserListings, deleteListingFromFirestore } from "@/app/lib/firestore-listings";
 import { calculateSalesVelocity } from "@/lib/turnover-velocity-engine";
 import {
@@ -871,6 +872,7 @@ export default function ListingsPage() {
           imageUrls={ebayPublishItem.image_url ? [ebayPublishItem.image_url] : []}
         />
       )}
+      <AdMobBanner slotPlacement="inline-feed" />
       <DashboardSupportDesk />
     </main>
   );
