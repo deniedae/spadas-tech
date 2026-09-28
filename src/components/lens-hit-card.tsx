@@ -97,15 +97,15 @@ export default function LensHitCard({
         triggerTactileHaptic("selection");
         onSelect(item.id);
       }}
-      className={`relative w-full min-w-0 box-border overflow-hidden cursor-pointer transition-all duration-200 rounded-xl p-3.5 space-y-2.5 comp-row-glide ${
+      className={`relative w-full min-w-0 box-border overflow-hidden cursor-pointer transition-all duration-200 rounded-2xl p-4 space-y-3 shadow-md backdrop-blur-xl group ${
         isSelected
-          ? "border border-emerald-500/50 bg-[#121820]"
-          : "bg-[#0F1117] border border-white/[0.08] hover:border-white/[0.14]"
+          ? "border-2 border-emerald-400 bg-gradient-to-br from-emerald-950/40 via-slate-900/80 to-slate-900/90 shadow-[0_0_25px_rgba(16,185,129,0.3)]"
+          : "bg-slate-900/70 border border-white/10 hover:border-emerald-400/40 hover:bg-slate-900/90 hover:shadow-xl"
       }`}
     >
       {/* ── Row 1: Name + Verdict ─────────────────────────────────────────── */}
       <div className="flex items-start justify-between gap-2">
-        <div className="flex items-start gap-2 min-w-0 flex-1">
+        <div className="flex items-start gap-2.5 min-w-0 flex-1">
           <input
             type="checkbox"
             checked={isSelected}
@@ -114,44 +114,44 @@ export default function LensHitCard({
               onSelect(item.id);
             }}
             onClick={(e) => e.stopPropagation()}
-            className="h-3.5 w-3.5 mt-0.5 rounded border-white/20 bg-[#161822] text-emerald-500 focus:ring-emerald-400 cursor-pointer shrink-0 accent-emerald-500"
+            className="h-4 w-4 mt-0.5 rounded border-white/20 bg-[#161822] text-emerald-500 focus:ring-emerald-400 cursor-pointer shrink-0 accent-emerald-500"
           />
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-1.5">
-              <h4 className="text-xs font-bold text-white leading-snug line-clamp-2">
+              <h4 className="text-sm font-bold text-white leading-snug line-clamp-2">
                 {item.isGrail && (
-                  <Trophy className="h-3 w-3 text-amber-400 inline mr-1 shrink-0" />
+                  <Trophy className="h-3.5 w-3.5 text-amber-400 inline mr-1 shrink-0 animate-happy-sparkle" />
                 )}
                 {item.name}
               </h4>
               {isSaved && (
-                <span className="inline-flex items-center gap-0.5 text-[9px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-1.5 py-0.5 rounded shrink-0">
-                  [In Haul]
+                <span className="inline-flex items-center gap-0.5 text-[9px] font-mono font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-2 py-0.5 rounded-full shrink-0">
+                  ✓ In Haul
                 </span>
               )}
             </div>
 
             {/* Visual Identification Badges */}
             {(validBrand || validCategory || validCondition) && (
-              <div className="flex flex-wrap items-center gap-1.5 mt-1 font-mono">
+              <div className="flex flex-wrap items-center gap-1.5 mt-1.5 font-mono">
                 {validBrand && (
-                  <span className="inline-flex items-center text-[9px] font-medium bg-[#161822] border border-white/[0.08] text-zinc-300 px-1.5 py-0.5 rounded">
+                  <span className="inline-flex items-center text-[10px] font-bold bg-white/[0.08] border border-white/15 text-zinc-200 px-2 py-0.5 rounded-lg">
                     {validBrand}
                   </span>
                 )}
                 {validCategory && (
-                  <span className="inline-flex items-center text-[9px] font-medium bg-white/[0.04] text-zinc-400 px-1.5 py-0.5 rounded border border-white/[0.06]">
+                  <span className="inline-flex items-center text-[10px] font-medium bg-white/[0.04] text-zinc-300 px-2 py-0.5 rounded-lg border border-white/[0.08]">
                     {validCategory}
                   </span>
                 )}
                 {item.isUsMarketOnly && (
-                  <span className="inline-flex items-center gap-0.5 text-[9px] font-bold bg-amber-500/15 text-amber-300 px-1.5 py-0.5 rounded border border-amber-500/30">
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-amber-500/15 text-amber-300 px-2 py-0.5 rounded-lg border border-amber-500/30">
                     <span>🇺🇸</span>
                     <span>US Comps</span>
                   </span>
                 )}
                 {validCondition && (
-                  <span className="inline-flex items-center text-[9px] font-medium text-zinc-500">
+                  <span className="inline-flex items-center text-[10px] font-medium text-zinc-400">
                     • {validCondition}
                   </span>
                 )}
@@ -160,31 +160,31 @@ export default function LensHitCard({
 
             {/* Verification Requirement Alert */}
             {verificationReq.needsVerification && (
-              <div className="flex items-center gap-1.5 mt-1.5 px-2 py-0.5 rounded-md bg-purple-500/15 border border-purple-500/30 text-[9px] font-medium text-purple-300 w-fit">
-                <ShieldCheck className="w-3 h-3 text-purple-400 shrink-0" />
+              <div className="flex items-center gap-1.5 mt-1.5 px-2.5 py-1 rounded-xl bg-purple-500/20 border border-purple-500/30 text-[10px] font-bold text-purple-300 w-fit">
+                <ShieldCheck className="w-3.5 h-3.5 text-purple-400 shrink-0" />
                 <span>{verificationReq.reason}</span>
               </div>
             )}
 
             {/* OCR Evidence Snippet */}
             {item.visualReasoning?.visible_text_detected && item.visualReasoning.visible_text_detected.length > 0 && (
-              <p className="text-[9px] text-zinc-400 truncate mt-0.5 font-mono">
+              <p className="text-[10px] text-zinc-400 truncate mt-1 font-mono">
                 OCR: {item.visualReasoning.visible_text_detected.slice(0, 3).join(" • ")}
               </p>
             )}
           </div>
         </div>
         <span
-          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-mono font-bold border shrink-0 ${verdictStyle}`}
+          className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-mono font-black border shrink-0 ${verdictStyle}`}
         >
-          {item.verdict}
+          {item.verdict === "BUY" ? "🎉 BUY" : item.verdict}
         </span>
       </div>
 
       {/* ── Row 2: Dominant Profit + Secondary Stats ──────────────────────── */}
-      <div className="flex items-end justify-between gap-3">
+      <div className="flex items-end justify-between gap-3 pt-1">
         <div>
-          <div className="text-[9px] font-mono text-zinc-400 uppercase tracking-wider mb-0.5 flex items-center gap-1.5">
+          <div className="text-[10px] font-mono text-zinc-400 uppercase tracking-wider mb-0.5 flex items-center gap-1.5 font-bold">
             <span>Net Profit</span>
             {item.copVerdict && (
               <span className={
@@ -196,7 +196,7 @@ export default function LensHitCard({
               </span>
             )}
           </div>
-          <div className="text-2xl font-bold text-emerald-400 leading-none tracking-tight font-mono tabular-nums">
+          <div className="text-2xl sm:text-3xl font-black text-emerald-400 leading-none tracking-tight font-mono tabular-nums drop-shadow-[0_0_12px_rgba(52,211,153,0.35)]">
             {formatAUD(item.trueNetProfit || item.estimatedProfit)}
           </div>
         </div>
@@ -293,7 +293,7 @@ export default function LensHitCard({
         className="flex flex-wrap items-center justify-between gap-2 pt-2.5 border-t border-white/[0.08]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex flex-wrap items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             disabled={isSaved}
@@ -302,13 +302,13 @@ export default function LensHitCard({
               triggerTactileHaptic("success");
               onSaveDraft(item);
             }}
-            className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-[10px] font-bold transition shadow-sm ${
+            className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-black transition-all shadow-sm ${
               isSaved
-                ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 opacity-90 cursor-not-allowed"
-                : "bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-zinc-950 cursor-pointer"
+                ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 opacity-90 cursor-not-allowed"
+                : "bg-gradient-to-r from-emerald-400 to-teal-400 hover:from-emerald-300 hover:to-teal-300 active:scale-95 text-slate-950 shadow-[0_0_15px_rgba(16,185,129,0.35)] cursor-pointer"
             }`}
           >
-            {isSaved ? "✓ In Haul" : "+ Save Find"}
+            {isSaved ? "✓ In Haul" : "+ Add to Haul"}
           </button>
           <button
             type="button"
@@ -316,10 +316,10 @@ export default function LensHitCard({
               triggerTactileHaptic("medium");
               setShowCompareModal(true);
             }}
-            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.10] active:scale-95 text-zinc-200 border border-white/[0.08] text-[10px] font-medium transition cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.08] hover:bg-white/[0.14] active:scale-95 text-zinc-100 border border-white/15 text-xs font-bold transition cursor-pointer"
             title="Compare The Market: Net payouts & comps on eBay, Depop, Poshmark, Mercari & FB"
           >
-            <Scale className="w-3 h-3 text-zinc-400" />
+            <Scale className="w-3.5 h-3.5 text-zinc-300" />
             Compare
           </button>
           {verificationReq.needsVerification && (
@@ -329,9 +329,9 @@ export default function LensHitCard({
                 triggerTactileHaptic("heavy");
                 onDeepVerify(item);
               }}
-              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-purple-500/20 hover:bg-purple-500/30 active:scale-95 text-purple-300 text-[10px] font-medium transition cursor-pointer border border-purple-500/30"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-500/25 hover:bg-purple-500/35 active:scale-95 text-purple-200 text-xs font-bold transition cursor-pointer border border-purple-500/40 shadow-sm"
             >
-              <ShieldCheck className="w-3 h-3 text-purple-400" />
+              <ShieldCheck className="w-3.5 h-3.5 text-purple-300" />
               {verificationReq.badgeLabel || "Verify"}
             </button>
           )}
@@ -343,10 +343,10 @@ export default function LensHitCard({
                 triggerTactileHaptic("light");
                 onViewComps(item);
               }}
-              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 active:scale-95 text-cyan-300 border border-cyan-500/30 text-[10px] font-semibold transition cursor-pointer"
-              title="View 3-5 verified sold comps & resale breakdown"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 active:scale-95 text-cyan-200 border border-cyan-400/40 text-xs font-bold transition cursor-pointer shadow-sm"
+              title="View verified sold comps & resale breakdown"
             >
-              <TrendingUp className="w-3 h-3 text-cyan-400" />
+              <TrendingUp className="w-3.5 h-3.5 text-cyan-300" />
               Comps
             </button>
           )}
@@ -357,9 +357,9 @@ export default function LensHitCard({
               triggerTactileHaptic("light");
               onListEbay(item);
             }}
-            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 active:scale-95 text-amber-300 border border-amber-500/30 text-[10px] font-semibold transition cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 active:scale-95 text-amber-200 border border-amber-400/40 text-xs font-bold transition cursor-pointer shadow-sm"
           >
-            eBay List
+            List on eBay
           </button>
         </div>
         <button
@@ -368,7 +368,7 @@ export default function LensHitCard({
             triggerTactileHaptic("warning");
             onReport(item.id, item.name);
           }}
-          className="inline-flex items-center gap-0.5 text-[9px] font-semibold text-zinc-500 hover:text-amber-400 transition cursor-pointer active:scale-95"
+          className="inline-flex items-center gap-1 text-[10px] font-bold text-zinc-400 hover:text-amber-300 transition cursor-pointer active:scale-95"
         >
           <ShieldAlert className="h-3 w-3" />
           Report

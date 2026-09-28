@@ -367,12 +367,12 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
       </aside>
 
       {/* Main content container */}
-      <div className={`flex-1 flex flex-col min-w-0 bg-[#05050a] text-white ${
+      <div className={`flex-1 flex flex-col min-w-0 bg-gradient-to-b from-[#0A0E1A] via-[#0D1220] to-[#0A0E1A] text-white ${
         isCamera ? "min-h-[100dvh] flex flex-col overflow-y-auto" : "min-h-screen"
       }`}>
 
         {/* Header (Hidden on mobile for camera routes to provide native full-screen camera viewport) */}
-        <header className={`bg-[#05050a]/90 backdrop-blur-2xl border-b border-white/10 px-4 pt-[max(0.75rem,calc(env(safe-area-inset-top)+0.5rem))] pb-3 flex items-center justify-between md:px-8 md:py-3.5 shadow-sm ${
+        <header className={`bg-[#0A0E1A]/85 backdrop-blur-2xl border-b border-white/10 px-4 pt-[max(0.75rem,calc(env(safe-area-inset-top)+0.5rem))] pb-3 flex items-center justify-between md:px-8 md:py-3.5 shadow-sm ${
           isCamera ? "hidden md:flex" : "flex"
         }`}>
           {/* Mobile hamburger & Title */}
@@ -436,10 +436,10 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
 
             <Link
               href="/lens"
-              className="inline-flex h-8 items-center gap-1.5 rounded-xl bg-white text-zinc-950 font-bold px-3.5 text-xs hover:bg-zinc-200 transition-all cursor-pointer shadow-sm active:scale-95"
+              className="inline-flex h-8 items-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-400 to-teal-400 hover:from-emerald-300 hover:to-teal-300 text-slate-950 font-black px-3.5 text-xs shadow-[0_0_15px_rgba(16,185,129,0.35)] transition-all cursor-pointer active:scale-95"
             >
-              <Scan className="h-3.5 w-3.5" />
-              <span>Launch Lens AR</span>
+              <Sparkles className="h-3.5 w-3.5" />
+              <span>Launch Lens ✨</span>
             </Link>
           </div>
         </header>

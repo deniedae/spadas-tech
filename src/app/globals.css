@@ -61,7 +61,7 @@ html {
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
   -webkit-tap-highlight-color: transparent;
-  background-color: #030305;
+  background-color: #0A0E1A;
 }
 
 body {
@@ -72,8 +72,13 @@ body {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   -webkit-tap-highlight-color: transparent;
-  background-color: #030305;
-  color: #F4F4F5;
+  background-color: #0A0E1A;
+  background-image: 
+    radial-gradient(at 15% 15%, rgba(16, 185, 129, 0.08) 0px, transparent 50%),
+    radial-gradient(at 85% 10%, rgba(6, 182, 212, 0.08) 0px, transparent 50%),
+    radial-gradient(at 50% 90%, rgba(245, 158, 11, 0.06) 0px, transparent 60%);
+  background-attachment: fixed;
+  color: #F8FAFC;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -476,45 +481,103 @@ body {
 }
 
 /**
- * .glass-nav — nav bar / tab bar: deep black blur with crisp border
- * bg: black/85% | blur: 40px | border-top: white/10%
+ * .glass-nav — modern luminous frosted glass nav bar
  */
 .glass-nav {
-  background: rgba(0, 0, 0, 0.88);
-  backdrop-filter: blur(40px) saturate(200%);
-  -webkit-backdrop-filter: blur(40px) saturate(200%);
-  border-color: rgba(255, 255, 255, 0.10);
-  box-shadow: 0 -8px 32px 0 rgba(0, 0, 0, 0.6);
+  background: rgba(14, 18, 30, 0.78);
+  backdrop-filter: blur(36px) saturate(210%);
+  -webkit-backdrop-filter: blur(36px) saturate(210%);
+  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow: 
+    0 -4px 24px -2px rgba(0, 0, 0, 0.4),
+    0 1px 0 0 rgba(255, 255, 255, 0.08) inset;
 }
 
 /**
- * .glass-hud — floating camera HUD overlays: strong blur, minimal dark bg
- * bg: black/75% | blur: 32px | border: white/10%
+ * .glass-hud — floating camera HUD overlays with bright crisp border
  */
 .glass-hud {
-  background: rgba(0, 0, 0, 0.75);
-  backdrop-filter: blur(32px) saturate(180%);
-  -webkit-backdrop-filter: blur(32px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7);
+  background: rgba(15, 20, 36, 0.82);
+  backdrop-filter: blur(28px) saturate(190%);
+  -webkit-backdrop-filter: blur(28px) saturate(190%);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 
+    0 12px 36px rgba(0, 0, 0, 0.45),
+    0 0 20px rgba(16, 185, 129, 0.12);
 }
 
 /**
- * .cyber-glass — deep tactical OLED glass surface
+ * .cyber-glass — vibrant luminous surface
  */
 .cyber-glass {
-  background: rgba(5, 5, 10, 0.85);
-  backdrop-filter: blur(24px) saturate(190%);
-  -webkit-backdrop-filter: blur(24px) saturate(190%);
-  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(15, 21, 37, 0.85);
+  backdrop-filter: blur(28px) saturate(200%);
+  -webkit-backdrop-filter: blur(28px) saturate(200%);
+  border: 1px solid rgba(255, 255, 255, 0.15);
   box-shadow:
-    0 8px 32px 0 rgba(0, 0, 0, 0.7),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    0 10px 30px 0 rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 
 .cyber-glass:hover {
-  border-color: rgba(255, 255, 255, 0.18);
-  background: rgba(10, 12, 20, 0.90);
+  border-color: rgba(16, 185, 129, 0.35);
+  background: rgba(20, 28, 48, 0.90);
+  box-shadow: 0 12px 36px 0 rgba(16, 185, 129, 0.15);
+}
+
+/* ── Joyful & Uplifting Accent Glows & Gradients ─────────────────── */
+.text-happy-gradient {
+  background: linear-gradient(135deg, #34d399 0%, #38bdf8 50%, #818cf8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.text-sunburst-gradient {
+  background: linear-gradient(135deg, #fbbf24 0%, #f97316 50%, #f43f5e 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.text-magic-gradient {
+  background: linear-gradient(135deg, #a78bfa 0%, #ec4899 50%, #38bdf8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.joy-glow-emerald {
+  box-shadow: 0 0 25px rgba(16, 185, 129, 0.4), 0 0 50px rgba(16, 185, 129, 0.2);
+}
+
+.joy-glow-amber {
+  box-shadow: 0 0 25px rgba(245, 158, 11, 0.45), 0 0 50px rgba(245, 158, 11, 0.2);
+}
+
+.joy-glow-cyan {
+  box-shadow: 0 0 25px rgba(6, 182, 212, 0.45), 0 0 50px rgba(6, 182, 212, 0.2);
+}
+
+.joy-shutter-ring {
+  background: linear-gradient(135deg, #10b981 0%, #06b6d4 50%, #6366f1 100%);
+  padding: 3px;
+  animation: joyRingPulse 3s ease-in-out infinite;
+}
+
+@keyframes joyRingPulse {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(16, 185, 129, 0.45), 0 0 40px rgba(6, 182, 212, 0.25);
+  }
+  50% {
+    box-shadow: 0 0 35px rgba(16, 185, 129, 0.7), 0 0 60px rgba(6, 182, 212, 0.45);
+  }
+}
+
+@keyframes happySparkle {
+  0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.9; }
+  50% { transform: scale(1.15) rotate(15deg); opacity: 1; }
+}
+
+.animate-happy-sparkle {
+  animation: happySparkle 2s ease-in-out infinite;
 }
 
 /* Hyper-Vibrant Neon Accents & Glows for High-Value Triggers */

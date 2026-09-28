@@ -114,14 +114,14 @@ export default function MobileNav() {
                 aria-label="Open Spadas Lens camera"
               >
                 <div
-                  className={`flex h-13 w-13 items-center justify-center rounded-full transition-all duration-200 relative ${
+                  className={`flex h-14 w-14 items-center justify-center rounded-full transition-all duration-200 relative ${
                     active
-                      ? "bg-gradient-to-b from-white to-zinc-200 text-zinc-950 shadow-[0_0_24px_rgba(6,182,212,0.45),0_4px_12px_rgba(0,0,0,0.5)] ring-4 ring-cyan-500/30 scale-105"
-                      : "bg-gradient-to-b from-[#1E2330] to-[#12151E] text-white border border-white/15 shadow-[0_4px_16px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.15)] group-hover:scale-105 group-hover:border-white/25"
+                      ? "bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 text-slate-950 shadow-[0_0_30px_rgba(16,185,129,0.55),0_0_50px_rgba(6,182,212,0.35)] ring-4 ring-emerald-400/40 scale-110"
+                      : "bg-gradient-to-r from-emerald-500/80 via-teal-500/80 to-cyan-500/80 text-white shadow-[0_4px_20px_rgba(16,185,129,0.35)] border-2 border-white/30 group-hover:scale-105 group-hover:shadow-[0_0_25px_rgba(16,185,129,0.5)]"
                   }`}
                 >
-                  <Camera className={`h-6 w-6 transition-colors ${active ? "text-zinc-950" : "text-white"}`} />
-                  <div className="absolute inset-0 rounded-full bg-gradient-to-b from-white/15 to-transparent pointer-events-none" />
+                  <Camera className={`h-6 w-6 transition-transform group-hover:scale-110 ${active ? "text-slate-950" : "text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]"}`} />
+                  <div className="absolute inset-0 rounded-full bg-gradient-to-b from-white/25 to-transparent pointer-events-none" />
                 </div>
               </Link>
             );

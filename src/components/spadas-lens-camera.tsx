@@ -4356,7 +4356,7 @@ function SpadasLensCameraCore({
             handleResumeScanning();
           }
         }}
-        className="relative w-full h-[calc(100dvh-3.25rem)] min-h-[420px] sm:h-auto sm:aspect-[16/9] sm:max-h-[75vh] max-w-full box-border overflow-hidden rounded-none sm:rounded-3xl border-0 sm:border sm:border-cyan-500/30 bg-slate-950 sm:shadow-[0_0_50px_rgba(6,182,212,0.15)] cursor-pointer"
+        className="relative w-full h-[calc(100dvh-3.25rem)] min-h-[420px] sm:h-auto sm:aspect-[16/9] sm:max-h-[75vh] max-w-full box-border overflow-hidden rounded-none sm:rounded-3xl border-0 sm:border sm:border-emerald-500/30 bg-[#0A0E1A] sm:shadow-[0_0_60px_rgba(16,185,129,0.22),0_0_100px_rgba(6,182,212,0.16)] cursor-pointer"
       >
         <CameraViewportErrorBoundary onRestart={startCamera}>
           {!isCameraPoweredOn ? (
@@ -4485,30 +4485,30 @@ function SpadasLensCameraCore({
                 activeCompsHit ? "opacity-0 pointer-events-none -translate-y-4" : "opacity-100"
               }`}>
                 {/* Dynamic Real-Time Focus & Telemetry Indicator */}
-                <div className="inline-flex items-center gap-1.5 rounded-full bg-[#0F1117]/90 border border-white/[0.12] px-2.5 py-1 shadow-md backdrop-blur-md pointer-events-auto">
+                <div className="inline-flex items-center gap-1.5 rounded-full bg-slate-950/80 border border-white/20 px-3 py-1 shadow-lg backdrop-blur-xl pointer-events-auto">
                   <div
-                    className={`h-2 w-2 rounded-full shrink-0 transition-colors ${confidencePercent >= 90
-                        ? "bg-white"
+                    className={`h-2.5 w-2.5 rounded-full shrink-0 transition-colors ${confidencePercent >= 90
+                        ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)] animate-pulse"
                         : confidencePercent >= 75
-                          ? "bg-zinc-300"
-                          : "bg-zinc-600"
+                          ? "bg-cyan-300 shadow-[0_0_8px_rgba(6,182,212,0.6)]"
+                          : "bg-zinc-500"
                       }`}
                   />
-                  <span className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider font-mono">Focus</span>
-                  <span className="text-[11px] font-bold text-white font-mono">
+                  <span className="text-[10px] font-bold text-zinc-300 uppercase tracking-wider font-mono">Focus</span>
+                  <span className="text-[11px] font-black text-emerald-300 font-mono">
                     {confidencePercent}%
                   </span>
                   <span className="text-white/20 text-[8px]">|</span>
-                  <span className="text-[10px] font-medium text-zinc-300 font-mono">
-                    {isScanPaused ? "Locked" : cameraMoving ? "Panning" : "Steady"}
+                  <span className="text-[10px] font-semibold text-zinc-200 font-mono">
+                    {isScanPaused ? "Locked ✨" : cameraMoving ? "Panning" : "Steady 🎯"}
                   </span>
                   <span className="text-white/20 text-[8px]">|</span>
                   {isIntelModeActive ? (
-                    <span className="text-[10px] font-medium text-emerald-400 font-mono inline-flex items-center gap-1">
+                    <span className="text-[10px] font-bold text-emerald-400 font-mono inline-flex items-center gap-1">
                       <Zap className="h-2.5 w-2.5 fill-emerald-400" /> Intel
                     </span>
                   ) : (
-                    <span className="text-[10px] font-medium text-zinc-400 font-mono">eBay</span>
+                    <span className="text-[10px] font-bold text-cyan-300 font-mono">eBay Comps</span>
                   )}
                 </div>
 
@@ -5308,26 +5308,26 @@ function SpadasLensCameraCore({
                   >
                     {/* Top Left */}
                     <div
-                      className={`absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2 rounded-tl-xl transition-colors duration-200 ${
-                        isFocusLocked ? "border-emerald-400" : "border-white/70"
+                      className={`absolute top-0 left-0 w-8 h-8 border-t-[3px] border-l-[3px] rounded-tl-2xl transition-all duration-200 ${
+                        isFocusLocked ? "border-emerald-400 drop-shadow-[0_0_12px_rgba(52,211,153,0.9)]" : "border-white/80 drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]"
                       }`}
                     />
                     {/* Top Right */}
                     <div
-                      className={`absolute top-0 right-0 w-6 h-6 border-t-2 border-r-2 rounded-tr-xl transition-colors duration-200 ${
-                        isFocusLocked ? "border-emerald-400" : "border-white/70"
+                      className={`absolute top-0 right-0 w-8 h-8 border-t-[3px] border-r-[3px] rounded-tr-2xl transition-all duration-200 ${
+                        isFocusLocked ? "border-emerald-400 drop-shadow-[0_0_12px_rgba(52,211,153,0.9)]" : "border-white/80 drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]"
                       }`}
                     />
                     {/* Bottom Left */}
                     <div
-                      className={`absolute bottom-0 left-0 w-6 h-6 border-b-2 border-l-2 rounded-bl-xl transition-colors duration-200 ${
-                        isFocusLocked ? "border-emerald-400" : "border-white/70"
+                      className={`absolute bottom-0 left-0 w-8 h-8 border-b-[3px] border-l-[3px] rounded-bl-2xl transition-all duration-200 ${
+                        isFocusLocked ? "border-emerald-400 drop-shadow-[0_0_12px_rgba(52,211,153,0.9)]" : "border-white/80 drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]"
                       }`}
                     />
                     {/* Bottom Right */}
                     <div
-                      className={`absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 rounded-br-xl transition-colors duration-200 ${
-                        isFocusLocked ? "border-emerald-400" : "border-white/70"
+                      className={`absolute bottom-0 right-0 w-8 h-8 border-b-[3px] border-r-[3px] rounded-br-2xl transition-all duration-200 ${
+                        isFocusLocked ? "border-emerald-400 drop-shadow-[0_0_12px_rgba(52,211,153,0.9)]" : "border-white/80 drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]"
                       }`}
                     />
                   </div>
@@ -5381,7 +5381,7 @@ function SpadasLensCameraCore({
 
               {/* Primary Viewfinder Zoom Controls (1x, 2x, 3x) — Minimalist Matte HUD */}
               {stream && !activeValuationHit && (
-                <div className="absolute bottom-[max(5.5rem,calc(env(safe-area-inset-bottom,0px)+5rem))] sm:bottom-28 left-1/2 -translate-x-1/2 z-30 pointer-events-auto flex items-center gap-1 bg-[#0E1017]/90 border border-white/[0.12] backdrop-blur-md rounded-full px-1.5 py-1 shadow-md">
+                <div className="absolute bottom-[max(5.5rem,calc(env(safe-area-inset-bottom,0px)+5rem))] sm:bottom-28 left-1/2 -translate-x-1/2 z-30 pointer-events-auto flex items-center gap-1.5 bg-slate-950/80 border border-white/20 backdrop-blur-2xl rounded-full px-2 py-1 shadow-xl">
                   {[1, 2, 3].map((z) => (
                     <button
                       key={z}
@@ -5392,9 +5392,9 @@ function SpadasLensCameraCore({
                         if (soundEnabled) playTactileClickSound();
                         setZoomLevel(z);
                       }}
-                      className={`h-7 w-7 sm:h-8 sm:w-8 rounded-full text-xs font-mono font-bold transition cursor-pointer flex items-center justify-center ${zoomLevel === z
-                          ? "bg-white text-zinc-950 shadow-sm scale-105"
-                          : "text-zinc-400 hover:text-white hover:bg-white/[0.06]"
+                      className={`h-7 w-7 sm:h-8 sm:w-8 rounded-full text-xs font-mono font-black transition-all cursor-pointer flex items-center justify-center ${zoomLevel === z
+                          ? "bg-gradient-to-r from-emerald-400 to-teal-400 text-slate-950 shadow-md scale-105"
+                          : "text-zinc-300 hover:text-white hover:bg-white/[0.08]"
                         }`}
                       title={`Set Zoom to ${z}x`}
                     >
@@ -5458,33 +5458,40 @@ function SpadasLensCameraCore({
                       flushScanState();
                       void processCurrentFrame(true);
                     }}
-                    className={`group relative flex items-center justify-center h-18 w-18 sm:h-20 sm:w-20 rounded-full p-1.5 transition-transform duration-100 ease-out ${
+                    className={`group relative flex items-center justify-center h-20 w-20 sm:h-22 sm:w-22 rounded-full p-1.5 transition-transform duration-100 ease-out ${
                       isCoolingDown ? "cursor-not-allowed opacity-80" : "cursor-pointer active:scale-[0.92]"
                     }`}
                     title={isCoolingDown ? "Shutter cooling down..." : "Instant Multi-Frame Snap & Value (Tap to scan)"}
                   >
-                    {/* Outer Concentric Machined Ring */}
-                    <div className={`absolute inset-0 rounded-full border-2 transition-colors ${
-                      isCoolingDown ? "border-cyan-500/50 animate-pulse" : "border-white/40 group-hover:border-white"
+                    {/* Outer Radiant Glowing Jewel Ring */}
+                    <div className={`absolute inset-0 rounded-full transition-all duration-300 ${
+                      isCoolingDown 
+                        ? "border-2 border-cyan-400/50 animate-pulse" 
+                        : "bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 p-[3px] shadow-[0_0_35px_rgba(16,185,129,0.55),0_0_70px_rgba(6,182,212,0.35)] group-hover:shadow-[0_0_45px_rgba(16,185,129,0.7),0_0_90px_rgba(6,182,212,0.5)] group-hover:scale-105"
                     }`} />
 
                     {/* Inner Solid Brushed Trigger Core */}
-                    <div className="flex h-full w-full items-center justify-center rounded-full bg-[#181C26] p-1 border border-white/10 shadow-inner">
-                      <div className="flex h-full w-full items-center justify-center rounded-full bg-[#0F1117] group-hover:bg-[#141822] transition">
+                    <div className="relative flex h-full w-full items-center justify-center rounded-full bg-slate-950 p-1 shadow-inner">
+                      <div className="flex h-full w-full items-center justify-center rounded-full bg-gradient-to-b from-[#141B2D] to-[#0A0F1E] group-hover:from-[#1A243D] group-hover:to-[#0F162B] transition-all">
                         {analyzingRealFrame ? (
-                          <RefreshCw className="h-6 w-6 sm:h-7 sm:w-7 text-white animate-spin" />
+                          <div className="flex flex-col items-center justify-center text-center select-none">
+                            <RefreshCw className="h-6 w-6 sm:h-7 sm:w-7 text-emerald-300 animate-spin" />
+                            <span className="text-[7px] sm:text-[8px] font-mono font-bold uppercase tracking-wider text-emerald-300 mt-0.5">
+                              SCANNING
+                            </span>
+                          </div>
                         ) : isCoolingDown ? (
                           <div className="flex flex-col items-center justify-center text-center select-none">
                             <Clock className="h-5 w-5 sm:h-6 sm:w-6 text-cyan-400 animate-spin" />
                             <span className="text-[7px] sm:text-[8px] font-mono font-bold uppercase tracking-wider text-cyan-300">
-                              COOL
+                              READY
                             </span>
                           </div>
                         ) : (
                           <div className="flex flex-col items-center justify-center text-center select-none">
-                            <Camera className="h-6 w-6 sm:h-7 sm:w-7 group-hover:scale-105 transition-transform text-white" />
-                            <span className="text-[8px] sm:text-[9px] font-mono font-bold uppercase tracking-wider text-zinc-300">
-                              SNAP
+                            <Camera className="h-6 w-6 sm:h-7 sm:w-7 group-hover:scale-110 transition-transform text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]" />
+                            <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-wider text-emerald-300 font-mono mt-0.5 flex items-center gap-0.5">
+                              SNAP <Sparkles className="h-2 w-2 text-emerald-300 animate-happy-sparkle" />
                             </span>
                           </div>
                         )}
@@ -5513,10 +5520,10 @@ function SpadasLensCameraCore({
                   onPointerDown={(e) => {
                     e.stopPropagation();
                   }}
-                  className={`group flex min-h-[44px] min-w-[44px] touch-manipulation items-center gap-2 px-3 py-1.5 rounded-xl border shadow-md backdrop-blur-md transition-all duration-75 cursor-pointer active:scale-95 ${
+                  className={`group flex min-h-[44px] min-w-[44px] touch-manipulation items-center gap-2 px-3.5 py-2 rounded-2xl border shadow-lg backdrop-blur-xl transition-all duration-150 cursor-pointer active:scale-95 ${
                     scanMode === "barcode"
-                      ? "bg-amber-500/25 border-amber-400 text-amber-200 shadow-[0_0_20px_rgba(245,158,11,0.4)] ring-1 ring-amber-400/50"
-                      : "bg-[#0E1017]/90 border-white/[0.12] hover:border-amber-400/40 text-zinc-300 hover:text-white"
+                      ? "bg-gradient-to-r from-amber-500 to-orange-500 border-amber-300 text-slate-950 font-black shadow-[0_0_25px_rgba(245,158,11,0.5)] ring-2 ring-white/50"
+                      : "bg-slate-950/80 border-amber-400/30 hover:border-amber-400/60 text-amber-200 hover:text-white shadow-[0_4px_20px_rgba(245,158,11,0.2)]"
                   }`}
                   title={scanMode === "barcode" ? "Tap to turn off Barcode Mode" : "Fast Barcode Comps — Instant 1-tap barcode scanner"}
                   aria-label="Fast Barcode Comps"
@@ -5666,14 +5673,17 @@ function SpadasLensCameraCore({
 
       {/* Real-Time Scanned Hits Feed */}
       <div className="w-full px-3 sm:px-0 pb-[calc(env(safe-area-inset-bottom)+4.5rem)]">
-        <div id="scanned-hits-feed" className="mt-4 w-full max-w-full overflow-x-hidden box-border rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-lg space-y-4 mx-auto scroll-mt-20">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
-            <h3 className="text-sm font-bold flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
-              <span>Real-Time Scanned Hits ({capturedLog.length})</span>
+        <div id="scanned-hits-feed" className="mt-4 w-full max-w-full overflow-x-hidden box-border rounded-3xl border border-white/10 bg-slate-900/60 p-4 sm:p-6 shadow-xl space-y-4 mx-auto scroll-mt-20 backdrop-blur-xl">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.08] pb-3.5">
+            <h3 className="text-sm sm:text-base font-black text-white flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-emerald-400 shrink-0 animate-happy-sparkle" />
+              <span>Scanned Finds Log</span>
+              <span className="px-2 py-0.5 rounded-full text-xs font-mono font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                {capturedLog.length} {capturedLog.length === 1 ? "Item" : "Items"}
+              </span>
               {capturedLog.length === 0 && (
-                <span className="text-[11px] font-semibold text-muted-foreground animate-pulse ml-2">
-                  (Aim camera at an item or tap "Scan Now")
+                <span className="text-xs font-medium text-zinc-400 animate-pulse ml-1">
+                  (Aim at any item or tap SNAP ✨)
                 </span>
               )}
             </h3>
@@ -5682,7 +5692,7 @@ function SpadasLensCameraCore({
               <button
                 type="button"
                 onClick={selectAllHits}
-                className="text-[11px] font-semibold text-cyan-500 hover:text-cyan-400 hover:underline cursor-pointer"
+                className="text-xs font-bold text-cyan-400 hover:text-cyan-300 transition-colors cursor-pointer"
               >
                 {selectedHitIds.length === capturedLog.length ? "Deselect All" : "Select All"}
               </button>
@@ -5690,7 +5700,7 @@ function SpadasLensCameraCore({
               <button
                 type="button"
                 onClick={clearAllHits}
-                className="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-500 hover:text-rose-400 hover:underline cursor-pointer"
+                className="inline-flex items-center gap-1 text-xs font-bold text-rose-400 hover:text-rose-300 transition-colors cursor-pointer"
               >
                 <Trash2 className="h-3 w-3" /> Clear List
               </button>
