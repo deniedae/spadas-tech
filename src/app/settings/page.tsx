@@ -21,8 +21,10 @@ import {
   Trash2,
   TriangleAlert,
   Zap,
+  ExternalLink,
 } from "lucide-react";
 import dynamic from "next/dynamic";
+import { openPlayStoreReview } from "@/components/in-app-review-modal";
 const SubscriptionPaywallModal = dynamic(
   () => import("@/components/subscription-paywall-modal"),
   { ssr: false }
@@ -563,6 +565,29 @@ export default function SettingsPage() {
                 Delete Account
               </button>
             </div>
+          </div>
+        </div>
+
+        {/* Google Play Rating & Community Review Card */}
+        <div className="glass-card rounded-2xl p-5 border border-amber-500/25 bg-gradient-to-r from-amber-500/10 via-slate-900/80 to-slate-900/40 shadow-lg my-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="text-amber-400 text-sm tracking-wider">★★★★★</span>
+                <span className="text-[10px] font-black text-amber-300 uppercase tracking-wider bg-amber-400/10 px-2 py-0.5 rounded-full border border-amber-400/20">Help Us Grow</span>
+              </div>
+              <h4 className="text-sm font-bold text-white">Rate Spadas Lens on Google Play</h4>
+              <p className="text-xs text-zinc-400 max-w-md leading-relaxed">
+                Your 5-star review helps independent resellers discover Spadas and keeps live Australian sold comps fast and updated.
+              </p>
+            </div>
+            <button
+              onClick={() => openPlayStoreReview()}
+              className="shrink-0 inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 font-black text-xs shadow-md shadow-amber-500/20 hover:brightness-110 active:scale-95 transition cursor-pointer"
+            >
+              <span>Leave a Review</span>
+              <ExternalLink className="h-3.5 w-3.5" />
+            </button>
           </div>
         </div>
 

@@ -81,8 +81,9 @@ import {
 import { useHaulStore, haulStore } from "@/lib/haul-store";
 import { quickSnapQueue, useQuickSnapQueue } from "@/lib/quick-snap-queue";
 
-// Dynamic imports for non-critical modals and drawers to decouple bundle from /lens initial load
 const SubscriptionPaywallModal = dynamic(() => import("@/components/subscription-paywall-modal"), { ssr: false });
+const InAppReviewModal = dynamic(() => import("@/components/in-app-review-modal"), { ssr: false });
+import { recordSuccessfulScanAndCheckReviewPrompt } from "@/components/in-app-review-modal";
 const EbayListingModal = dynamic(() => import("@/components/ebay-listing-modal"), { ssr: false });
 const DeepVerifyModal = dynamic(() => import("@/components/deep-verify-modal").then((m) => m.DeepVerifyModal), { ssr: false });
 const LensCompsModal = dynamic(() => import("@/components/lens-comps-modal"), { ssr: false });
@@ -234,6 +235,7 @@ function SpadasLensCameraCore({
   const [isGuestUser, setIsGuestUser] = useState<boolean>(false); // Default false: never flash paid/logged-in users as guests
   const [guestScanState, setGuestScanState] = useState<GuestScanState>(() => getGuestScanState());
   const [isGuestLimitModalOpen, setIsGuestLimitModalOpen] = useState<boolean>(false);
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState<boolean>(false);
   const [lastGuestScannedItem, setLastGuestScannedItem] = useState<any>(null);
   const [scanFeedback, setScanFeedback] = useState<"HIT" | "MISS" | null>(null);
   const [sessionScanCount, setSessionScanCount] = useState<number>(0);
@@ -3964,6 +3966,18 @@ function SpadasLensCameraCore({
             : Number(data.takeHomeNet || data.true_net_profit || 0).toFixed(2);
 
           toast.success(`🎯 Item Identified: ${obj.productName} (+$${toastNet} AUD Net Profit)`, { id: `hit-toast-${obj.productName}` });
+
+          // In-App Review Prompt Milestone Trigger (after 3 successful scans)
+          try {
+            const shouldPromptReview = recordSuccessfulScanAndCheckReviewPrompt();
+            if (shouldPromptReview) {
+              setTimeout(() => {
+                setIsReviewModalOpen(true);
+              }, 2500);
+            }
+          } catch (e) {
+            console.warn("[Spadas Lens] Review prompt trigger error:", e);
+          }
         } catch (err) {
           console.error("[Spadas Lens] Item valuation formatting error:", err);
           setActiveScans((prev) => prev.filter((s) => s.id !== obj.id));
@@ -5764,6 +5778,13 @@ function SpadasLensCameraCore({
         isOpen={isPaywallOpen && !isPro && !isOwner}
         onClose={() => setIsPaywallOpen(false)}
         currentScans={capturedLog.length}
+      />
+
+      {/* 5-Star Google Play In-App Review & Rating Modal */}
+      <InAppReviewModal
+        isOpen={isReviewModalOpen}
+        onClose={() => setIsReviewModalOpen(false)}
+        scanCount={3}
       />
 
       {/* Instant Guest Scan Limit & Conversion Modal */}
