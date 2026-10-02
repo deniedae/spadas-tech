@@ -86,6 +86,27 @@ export async function purchaseGooglePlaySubscription(
         );
 
         if (service && typeof window.PaymentRequest !== "undefined") {
+          let playAmount = "10.00";
+          let playCurrency = "AUD";
+          let playTitle = "Spadas Pro Monthly";
+
+          if (typeof service.getDetails === "function") {
+            try {
+              const detailsList = await service.getDetails([GOOGLE_PLAY_SKU]);
+              console.log("[Google Play Billing] SKU details from Play Store:", detailsList);
+              if (detailsList && detailsList.length > 0) {
+                const item = detailsList[0];
+                if (item.title) playTitle = item.title;
+                if (item.price?.currency) playCurrency = item.price.currency;
+                if (item.price?.value) playAmount = item.price.value;
+              } else {
+                console.warn("[Google Play Billing] No details returned for SKU:", GOOGLE_PLAY_SKU);
+              }
+            } catch (detailErr) {
+              console.warn("[Google Play Billing] getDetails warning:", detailErr);
+            }
+          }
+
           const paymentMethods = [
             {
               supportedMethods: "https://play.google.com/billing",
@@ -94,8 +115,8 @@ export async function purchaseGooglePlaySubscription(
           ];
           const paymentDetails = {
             total: {
-              label: "Spadas Pro Monthly",
-              amount: { currency: "AUD", value: "10.00" },
+              label: playTitle,
+              amount: { currency: playCurrency, value: playAmount },
             },
           };
 
@@ -151,7 +172,7 @@ export async function purchaseGooglePlaySubscription(
     if (isAndroid) {
       return {
         success: false,
-        error: "Google Play In-App Billing is initializing. Please verify that the Spadas Pro base plan is published in Google Play Console.",
+        error: "Google Play Billing is initializing. Digital Asset Links verification is required to remove the top browser bar and enable in-app payments.",
       };
     }
 

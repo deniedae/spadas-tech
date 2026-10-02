@@ -18,7 +18,7 @@ export async function GET() {
   return NextResponse.json(assetLinks, {
     headers: {
       "Content-Type": "application/json",
-      "Cache-Control": "public, max-age=86400, immutable",
+      "Cache-Control": "public, max-age=60, s-maxage=60, stale-while-revalidate=120",
     },
   });
 }
