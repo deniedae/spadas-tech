@@ -25,7 +25,7 @@ const PLANS: PlanTier[] = [
   {
     id: "starter",
     name: "Spadas Pro Reseller",
-    badge: "GOOGLE PLAY SUBSCRIPTION",
+    badge: "UNLIMITED PRO ACCESS",
     price: "$10 AUD",
     period: "per month",
     popular: true,
@@ -38,7 +38,7 @@ const PLANS: PlanTier[] = [
       "📦 Unlimited History Feed & Thrifting Haul Calculator",
       "🔊 Motion-Lock Audio Chimes & Voice Commands",
     ],
-    ctaText: "Subscribe with Google Play ($10 AUD/mo)",
+    ctaText: "Upgrade to Spadas Pro ($10 AUD/mo)",
     color: "border-cyan-400 bg-gradient-to-b from-slate-900 via-slate-900 to-cyan-950/40 shadow-[0_0_40px_rgba(6,182,212,0.3)]",
   },
 ];
@@ -189,7 +189,7 @@ export default function SubscriptionPaywallModal({
 
               <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-400 font-medium pt-1">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Secured by Google Play · Cancel anytime in Play Store</span>
+                <span>Google Pay &amp; Cards Accepted · Cancel anytime with 1 click</span>
               </div>
             </div>
           ))}

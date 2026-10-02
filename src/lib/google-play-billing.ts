@@ -15,6 +15,11 @@ export interface PurchaseResult {
   error?: string;
 }
 
+export interface PurchaseOptions {
+  planId?: string;
+  returnPath?: string;
+}
+
 /**
  * Checks whether the current runtime environment supports W3C Digital Goods API
  * backed by Google Play Billing (typically Chrome on Android inside a TWA).
@@ -28,11 +33,17 @@ export function isDigitalGoodsSupported(): boolean {
 }
 
 /**
- * Initiates the Google Play subscription flow for Spadas Pro ($10 AUD/month).
- * On Android TWA, triggers the native bottom sheet via Digital Goods / Payment Request API.
- * Outside Android TWA, redirects/opens the Google Play Store listing so users can subscribe on Android.
+ * Initiates the subscription checkout for Spadas Pro ($10 AUD/month).
+ *
+ * 1. If running inside an Android TWA with Google Play Billing enabled:
+ *    Triggers the native Google Play purchase bottom sheet via the Digital Goods API.
+ * 2. If running on Desktop, Web Browser, iOS, or outside the TWA container:
+ *    Launches the real checkout session supporting Google Pay and Card payments,
+ *    giving the user an immediate, working payment sheet instead of an empty store page.
  */
-export async function purchaseGooglePlaySubscription(): Promise<PurchaseResult> {
+export async function purchaseGooglePlaySubscription(
+  options?: PurchaseOptions
+): Promise<PurchaseResult> {
   try {
     const {
       data: { session },
@@ -41,8 +52,15 @@ export async function purchaseGooglePlaySubscription(): Promise<PurchaseResult> 
     if (!session?.user) {
       return {
         success: false,
-        error: "Please sign in to link your Google Play subscription.",
+        error: "Please sign in first to link your Spadas Pro subscription.",
       };
+    }
+
+    const authHeaders: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    if (session.access_token) {
+      authHeaders["Authorization"] = `Bearer ${session.access_token}`;
     }
 
     // 1. Android TWA / Digital Goods API native in-app billing
@@ -73,10 +91,7 @@ export async function purchaseGooglePlaySubscription(): Promise<PurchaseResult> 
           if (purchaseToken) {
             const verifyRes = await fetch("/api/billing/google-play/verify", {
               method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${session.access_token}`,
-              },
+              headers: authHeaders,
               body: JSON.stringify({
                 purchaseToken,
                 sku: GOOGLE_PLAY_SKU,
@@ -96,41 +111,48 @@ export async function purchaseGooglePlaySubscription(): Promise<PurchaseResult> 
             }
           } else {
             await response.complete("fail");
-            return {
-              success: false,
-              error: "Google Play purchase token was not received.",
-            };
           }
         }
       } catch (playErr: any) {
         if (playErr?.name === "AbortError") {
-          // User dismissed or closed the Google Play payment sheet
+          // User intentionally closed the Google Play bottom sheet
           return { success: false, canceled: true };
         }
-        console.warn("[Google Play Billing] PaymentRequest error:", playErr);
+        console.warn("[Google Play Billing] In-app billing unavailable or errored:", playErr);
       }
     }
 
-    // 2. Desktop or external browser fallback:
-    // Open Google Play Store app listing directly
-    if (typeof window !== "undefined") {
-      window.open(GOOGLE_PLAY_STORE_URL, "_blank");
-      return {
-        success: true,
-        isDesktopRedirect: true,
-        error: "Opening Spadas Lens on Google Play. Subscribe directly in Google Play on your Android device.",
-      };
+    // 2. Web / Desktop / Browser Checkout Flow (Supports Google Pay + Cards)
+    // Seamlessly generates a real checkout session so the user can actually pay.
+    const checkoutRes = await fetch("/api/billing/checkout", {
+      method: "POST",
+      headers: authHeaders,
+      body: JSON.stringify({
+        planId: options?.planId || "starter",
+        returnPath: options?.returnPath || "settings",
+      }),
+    });
+
+    const checkoutData = await checkoutRes.json().catch(() => ({}));
+    if (checkoutRes.ok && checkoutData?.url) {
+      window.location.href = checkoutData.url;
+      return { success: true };
     }
 
+    const message =
+      checkoutData?.message ||
+      "Unable to initiate payment session. Please check your connection.";
     return {
       success: false,
-      error: "Google Play Billing is not supported on this browser.",
+      error: message,
     };
   } catch (err: any) {
-    console.error("[Google Play Billing] Unexpected error:", err);
+    console.error("[Billing Checkout Error]:", err);
     return {
       success: false,
-      error: err?.message || "An unexpected error occurred during Google Play checkout.",
+      error:
+        err?.message ||
+        "An unexpected error occurred during checkout. Please try again.",
     };
   }
 }
