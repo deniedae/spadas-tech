@@ -14,8 +14,8 @@
   "startUrl": "/dashboard",
   "iconUrl": "https://spadas-tech.vercel.app/icon-512.png",
   "orientation": "any",
-  "appVersionName": "1.2.3.0",
-  "appVersionCode": 6,
+  "appVersionName": "1.2.4.0",
+  "appVersionCode": 8,
   "signingKey": {
     "path": "./signing.keystore",
     "alias": "my-key-alias"
@@ -43,9 +43,16 @@
   "generatorApp": "bubblewrap-cli",
   "webManifestUrl": "https://spadas-tech.vercel.app/manifest.json",
   "fallbackType": "customtabs",
+  "splashScreenFadeOutDuration": 300,
   "features": {
+    "playBilling": {
+      "enabled": true
+    },
     "locationDelegation": {
       "enabled": true
     }
+  },
+  "alphaDependencies": {
+    "enabled": true
   }
 }

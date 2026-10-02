@@ -84,6 +84,59 @@ export default function SettingsPage() {
         headers["Authorization"] = `Bearer ${session.access_token}`;
       }
 
+      // 1. Google Play In-App Billing (for Android Play Store / TWA users)
+      if (typeof window !== "undefined" && "getDigitalGoodsService" in window) {
+        try {
+          const service = await (window as any).getDigitalGoodsService("https://play.google.com/billing");
+          if (service && typeof window.PaymentRequest !== "undefined") {
+            const sku = "spadas_pro_monthly";
+            const paymentMethods = [
+              {
+                supportedMethods: "https://play.google.com/billing",
+                data: { sku },
+              },
+            ];
+            const paymentDetails = {
+              total: {
+                label: "Spadas Pro Monthly",
+                amount: { currency: "AUD", value: "10.00" },
+              },
+            };
+
+            const request = new PaymentRequest(paymentMethods, paymentDetails);
+            const response = await request.show();
+            const { purchaseToken } = (response.details as any) || {};
+
+            if (purchaseToken) {
+              const verifyRes = await fetch("/api/billing/google-play/verify", {
+                method: "POST",
+                headers,
+                body: JSON.stringify({ purchaseToken, sku }),
+              });
+              const verifyData = await verifyRes.json();
+              if (verifyRes.ok && verifyData.success) {
+                await response.complete("success");
+                toast.success("🎉 Welcome to Spadas Pro! Unlimited scanning unlocked.");
+                window.location.reload();
+                return;
+              } else {
+                await response.complete("fail");
+                toast.error(verifyData.error || "Failed to link Google Play purchase.");
+                return;
+              }
+            } else {
+              await response.complete("fail");
+            }
+          }
+        } catch (playErr: any) {
+          if (playErr?.name === "AbortError") {
+            return;
+          }
+          console.warn("[Play Billing] Not available, falling back to Stripe:", playErr);
+        }
+      }
+
+      // 2. Stripe Checkout (for Web / Desktop users)
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
         headers,

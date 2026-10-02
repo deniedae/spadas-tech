@@ -13,24 +13,24 @@ or "scanner" in the Google Play search bar, while keeping your brand "Spadas Len
 
 
 ================================================================================
-2. SHORT DESCRIPTION (Strictly 80 Characters Maximum)
+2. SHORT DESCRIPTION (Strictly 80 Characters Maximum — 100% Policy Compliant)
 ================================================================================
-PRIMARY (RECOMMENDED - 78 Characters):
-Scan thrift aisles, check real eBay sold comps & calculate net profit in 0.5s.
+PRIMARY (RECOMMENDED - 74 Characters — No Trademarks, No #1/Superlatives):
+Scan thrift finds, check real sold comps, and calculate net profit in 0.5s.
 
-ALTERNATIVE A (71 Characters):
-Instant barcode scanner, real eBay sold comps & net profit calculator.
+ALTERNATIVE A (77 Characters — High ASO Keyword Value):
+Instant reseller camera scanner for thrift flips, sold comps & net profit.
 
-ALTERNATIVE B (80 Characters):
-The #1 reseller camera scanner for thrift flips, eBay comps & profit calculation.
+ALTERNATIVE B (78 Characters):
+Optical barcode scanner, verified market sold comps & net profit calculator.
 
 
 ================================================================================
-3. FULL DESCRIPTION (Copy & Paste directly into Google Play Console)
+3. FULL DESCRIPTION (Policy-Compliant with Trademark Disclaimer)
 ================================================================================
-Stop guessing what’s worth buying. Scan thrift shelves, barcodes, and tags in 0.4 seconds, view 100% verified eBay sold comps, and calculate your exact net in-pocket profit before spending a single dollar.
+Stop guessing what’s worth buying. Scan thrift shelves, barcodes, and tags in 0.4 seconds, view 100% verified market sold comps, and calculate your exact net in-pocket profit before spending a single dollar.
 
-Built by resellers for resellers, Spadas Lens is the ultimate sourcing companion for op-shop flippers, thrift store hunters, garage sale pickers, flea market arbiters, and eBay PowerSellers in Australia and worldwide.
+Built by resellers for resellers, Spadas Lens is the ultimate sourcing companion for op-shop flippers, thrift store hunters, garage sale pickers, flea market arbiters, and marketplace power-sellers in Australia and worldwide.
 
 Whether you're hunting vintage 90s streetwear, retro video games, designer bags, shoes, or retail clearance arbitrage, Spadas Lens cuts your research time in half and guarantees you never buy a bad flip again.
 
@@ -45,7 +45,7 @@ Whether you're hunting vintage 90s streetwear, retro video games, designer bags,
 ----------------------------------------------------------------------
 💰 AUTOMATED REAL-TIME NET PROFIT CALCULATOR
 ----------------------------------------------------------------------
-• Know Your Exact In-Pocket Profit: Auto-deducts eBay Final Value Fees (13.4% + $0.30), payment processing fees (2.6%), and parcel shipping costs before you pay.
+• Know Your Exact In-Pocket Profit: Auto-deducts platform selling fees (13.4% + $0.30), payment processing fees (2.6%), and parcel shipping costs before you pay.
 • Instant Color-Coded Verdicts: Get clear indicators on every scan:
   🔥 MUST COP (High-profit margin & rapid turnover)
   ✅ BUY (Solid profitable flip)
@@ -53,7 +53,7 @@ Whether you're hunting vintage 90s streetwear, retro video games, designer bags,
 • Key Metrics at a Glance: Displays Net Profit ($), Profit Margin (%), and Net ROI (%) on every scan.
 
 ----------------------------------------------------------------------
-🔍 100% VERIFIED REAL EBAY SOLD COMPS
+🔍 100% VERIFIED REAL MARKETPLACE SOLD COMPS
 ----------------------------------------------------------------------
 • Real Sold Prices Only: Automatically filters out unrealistic active asking prices, price gougers, and stale unsold inventory.
 • Historical Sales Accuracy: Inspect real completed sales data with timestamps, auction bids, and best offers accepted.
@@ -61,11 +61,11 @@ Whether you're hunting vintage 90s streetwear, retro video games, designer bags,
 • Market Demand Trends: Identify whether prices for a brand or category are rising or falling.
 
 ----------------------------------------------------------------------
-🚀 1-CLICK CROSS-LISTING & RESELLER VAULT
+🚀 1-CLICK INVENTORY VAULT & EXPORT
 ----------------------------------------------------------------------
 • Save to Inventory Vault: 1-tap save profitable finds directly to your sourcing vault while still in the store.
 • Inventory Performance Tracker: Monitor your Cost of Goods (COGS), total active vault value, and projected monthly net profits.
-• 1-Click Multi-Platform Export: Instantly generate SEO-optimized titles, condition descriptions, and price suggestions for eBay and Depop.
+• 1-Click Multi-Platform Export: Instantly generate SEO-optimized titles, condition descriptions, and price suggestions for top online marketplaces.
 
 ----------------------------------------------------------------------
 📱 DESIGNED FOR PRO RESELLERS ON ANDROID
@@ -75,6 +75,11 @@ Whether you're hunting vintage 90s streetwear, retro video games, designer bags,
 • Fast & Lightweight: Zero battery drain, sub-2MB app bundle, and optimized for fast 60 FPS camera performance.
 
 Stop wasting hours manually typing product codes into search bars. Download Reseller Scanner - Spadas Lens today and double your sourcing speed on your next thrift run!
+
+----------------------------------------------------------------------
+⚖️ DISCLAIMER
+----------------------------------------------------------------------
+Spadas Lens is an independent sourcing and valuation utility for resellers. It is not affiliated with, sponsored, or endorsed by eBay, Depop, Mercari, Poshmark, or any other mentioned marketplace. All trademarks belong to their respective owners.
 
 ================================================================================
 4. STORE CATEGORY & CONTACT DETAILS
