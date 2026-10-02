@@ -11,8 +11,8 @@ export default function manifest(): MetadataRoute.Manifest {
     id: "/dashboard",
     display: "standalone",
     display_override: [
-      "window-controls-overlay",
       "standalone",
+      "fullscreen",
     ],
     orientation: "portrait",
     background_color: "#0a0a0a",
@@ -35,8 +35,7 @@ export default function manifest(): MetadataRoute.Manifest {
       },
     ],
     scope_extensions: [
-      { origin: "*.spadas.tech" },
-      { origin: "spadas.tech" },
+      { origin: "https://spadas-tech.vercel.app" },
     ],
     launch_handler: {
       client_mode: "focus-existing",

@@ -7,8 +7,8 @@
   "id": "/dashboard",
   "display": "standalone",
   "display_override": [
-    "window-controls-overlay",
-    "standalone"
+    "standalone",
+    "fullscreen"
   ],
   "orientation": "portrait",
   "background_color": "#0a0a0a",
@@ -36,10 +36,7 @@
   ],
   "scope_extensions": [
     {
-      "origin": "*.spadas.tech"
-    },
-    {
-      "origin": "spadas.tech"
+      "origin": "https://spadas-tech.vercel.app"
     }
   ],
   "launch_handler": {

@@ -55,12 +55,14 @@ export default function SubscriptionPaywallModal({
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [isAppStoreClient, setIsAppStoreClient] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
+  const [isAndroid, setIsAndroid] = useState(false);
 
   React.useEffect(() => {
     if (typeof window !== "undefined") {
       const isStandalone = window.matchMedia("(display-mode: standalone)").matches;
       const isWebView = /wv|Android.*Version\/[0-9.]+|Silk-Accelerated/i.test(navigator.userAgent);
       setIsAppStoreClient(isStandalone || isWebView);
+      setIsAndroid(/Android/i.test(navigator.userAgent));
     }
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user && isOwnerEmail(session.user.email)) {
@@ -181,7 +183,7 @@ export default function SubscriptionPaywallModal({
                   <Loader2 className="h-4 w-4 animate-spin text-white" />
                 ) : (
                   <>
-                    <span>{plan.ctaText}</span>
+                    <span>{isAndroid ? "Subscribe with Google Play ($10 AUD/mo)" : plan.ctaText}</span>
                     <ArrowRight className="h-4 w-4" />
                   </>
                 )}
@@ -189,7 +191,11 @@ export default function SubscriptionPaywallModal({
 
               <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-400 font-medium pt-1">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Google Pay &amp; Cards Accepted · Cancel anytime with 1 click</span>
+                <span>
+                  {isAndroid
+                    ? "Secured by Google Play Billing · Cancel anytime in Play Store"
+                    : "Google Pay & Cards Accepted · Cancel anytime with 1 click"}
+                </span>
               </div>
             </div>
           ))}

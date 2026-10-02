@@ -21,6 +21,20 @@ export interface PurchaseOptions {
 }
 
 /**
+ * Detects whether the user is running inside the Android App (TWA, PWA standalone, or Android WebView).
+ */
+export function isAndroidAppEnvironment(): boolean {
+  if (typeof window === "undefined") return false;
+  const isAndroidUA = /Android/i.test(navigator.userAgent);
+  if (!isAndroidUA) return false;
+
+  const isStandalone = window.matchMedia("(display-mode: standalone)").matches;
+  const isAppWebView = /wv|Android.*Version\/[0-9.]+|Silk-Accelerated/i.test(navigator.userAgent);
+  const isTWA = document.referrer.includes("android-app://") || isStandalone;
+  return isStandalone || isAppWebView || isTWA || Boolean((window as any).AndroidBridge);
+}
+
+/**
  * Checks whether the current runtime environment supports W3C Digital Goods API
  * backed by Google Play Billing (typically Chrome on Android inside a TWA).
  */
@@ -35,11 +49,10 @@ export function isDigitalGoodsSupported(): boolean {
 /**
  * Initiates the subscription checkout for Spadas Pro ($10 AUD/month).
  *
- * 1. If running inside an Android TWA with Google Play Billing enabled:
- *    Triggers the native Google Play purchase bottom sheet via the Digital Goods API.
- * 2. If running on Desktop, Web Browser, iOS, or outside the TWA container:
- *    Launches the real checkout session supporting Google Pay and Card payments,
- *    giving the user an immediate, working payment sheet instead of an empty store page.
+ * CRITICAL POLICY ENFORCEMENT:
+ * - On Android / in the Android app: ONLY Google Play In-App Billing is used.
+ *   Stripe checkout is 100% blocked on Android to protect Google Play compliance.
+ * - On Web / Desktop / iPhone: Uses the web checkout session.
  */
 export async function purchaseGooglePlaySubscription(
   options?: PurchaseOptions
@@ -63,8 +76,10 @@ export async function purchaseGooglePlaySubscription(
       authHeaders["Authorization"] = `Bearer ${session.access_token}`;
     }
 
+    const isAndroid = isAndroidAppEnvironment() || (typeof window !== "undefined" && /Android/i.test(navigator.userAgent));
+
     // 1. Android TWA / Digital Goods API native in-app billing
-    if (isDigitalGoodsSupported()) {
+    if (typeof window !== "undefined" && "getDigitalGoodsService" in window) {
       try {
         const service = await (window as any).getDigitalGoodsService(
           "https://play.google.com/billing"
@@ -111,6 +126,10 @@ export async function purchaseGooglePlaySubscription(
             }
           } else {
             await response.complete("fail");
+            return {
+              success: false,
+              error: "Google Play purchase was not completed.",
+            };
           }
         }
       } catch (playErr: any) {
@@ -118,12 +137,25 @@ export async function purchaseGooglePlaySubscription(
           // User intentionally closed the Google Play bottom sheet
           return { success: false, canceled: true };
         }
-        console.warn("[Google Play Billing] In-app billing unavailable or errored:", playErr);
+        console.warn("[Google Play Billing] In-app billing error:", playErr);
+        if (isAndroid) {
+          return {
+            success: false,
+            error: "Google Play Billing: " + (playErr?.message || "Please ensure Google Play Services is updated and you are connected to the Play Store."),
+          };
+        }
       }
     }
 
-    // 2. Web / Desktop / Browser Checkout Flow (Supports Google Pay + Cards)
-    // Seamlessly generates a real checkout session so the user can actually pay.
+    // If on Android, NEVER EVER open Stripe!
+    if (isAndroid) {
+      return {
+        success: false,
+        error: "Google Play In-App Billing is initializing. Please verify that the Spadas Pro base plan is published in Google Play Console.",
+      };
+    }
+
+    // 2. Web / Desktop Only (Mac, Windows, iOS)
     const checkoutRes = await fetch("/api/billing/checkout", {
       method: "POST",
       headers: authHeaders,
@@ -141,7 +173,7 @@ export async function purchaseGooglePlaySubscription(
 
     const message =
       checkoutData?.message ||
-      "Unable to initiate payment session. Please check your connection.";
+      "Unable to initiate checkout session. Please check your connection.";
     return {
       success: false,
       error: message,
@@ -152,7 +184,7 @@ export async function purchaseGooglePlaySubscription(
       success: false,
       error:
         err?.message ||
-        "An unexpected error occurred during checkout. Please try again.",
+        "An unexpected error occurred. Please try again.",
     };
   }
 }

@@ -80,6 +80,13 @@ export default function SettingsPage() {
     createdAt: number;
     issueDescription?: string;
   } | null>(null);
+  const [isAndroid, setIsAndroid] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setIsAndroid(/Android/i.test(navigator.userAgent));
+    }
+  }, []);
 
   async function handleUpgrade() {
     setUpgrading(true);
@@ -638,12 +645,12 @@ export default function SettingsPage() {
                   {upgrading ? (
                     <>
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      <span>Opening Secure Checkout...</span>
+                      <span>{isAndroid ? "Connecting to Google Play..." : "Opening Secure Checkout..."}</span>
                     </>
                   ) : (
                     <>
                       <Zap className="w-3.5 h-3.5" />
-                      <span>Upgrade to Pro ($10 AUD/mo)</span>
+                      <span>{isAndroid ? "Upgrade with Google Play ($10 AUD/mo)" : "Upgrade to Pro ($10 AUD/mo)"}</span>
                       <ArrowRight className="w-3.5 h-3.5" />
                     </>
                   )}
@@ -671,7 +678,11 @@ export default function SettingsPage() {
 
               <div className="flex items-center gap-2 text-[11px] text-zinc-400 font-mono pt-1">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Google Pay &amp; Cards Accepted · Cancel anytime with 1 click</span>
+                <span>
+                  {isAndroid
+                    ? "Secured by Google Play Billing · Cancel anytime in Play Store"
+                    : "Google Pay & Cards Accepted · Cancel anytime with 1 click"}
+                </span>
               </div>
             </div>
           </div>
