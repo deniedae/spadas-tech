@@ -111,7 +111,7 @@ export function HistoryFeedView({
         authHeaders["Authorization"] = `Bearer ${session.access_token}`;
       }
 
-      fetch("/api/stripe/status", { headers: authHeaders })
+      fetch("/api/billing/status", { headers: authHeaders })
         .then((r) => (r.ok ? r.json() : ({} as any)))
         .then((d: any) => {
           if (d?.active || d?.plan === "Pro") {

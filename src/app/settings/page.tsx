@@ -32,6 +32,10 @@ const SubscriptionPaywallModal = dynamic(
 import { CURRENCY_CONFIGS, SupportedCurrency, detectGeoCurrency } from "@/app/lib/currency-routing";
 import { openSpadasSupport } from "@/components/dashboard-support-desk";
 import { isOwnerEmail } from "@/app/lib/auth-admin";
+import {
+  purchaseGooglePlaySubscription,
+  openGooglePlaySubscriptionManager,
+} from "@/lib/google-play-billing";
 
 const DashboardSupportDesk = dynamic(() => import("@/components/dashboard-support-desk"), {
   ssr: false,
@@ -80,80 +84,26 @@ export default function SettingsPage() {
   async function handleUpgrade() {
     setUpgrading(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      if (session?.access_token) {
-        headers["Authorization"] = `Bearer ${session.access_token}`;
-      }
-
-      // 1. Google Play In-App Billing (for Android Play Store / TWA users)
-      if (typeof window !== "undefined" && "getDigitalGoodsService" in window) {
-        try {
-          const service = await (window as any).getDigitalGoodsService("https://play.google.com/billing");
-          if (service && typeof window.PaymentRequest !== "undefined") {
-            const sku = "spadas_pro_monthly";
-            const paymentMethods = [
-              {
-                supportedMethods: "https://play.google.com/billing",
-                data: { sku },
-              },
-            ];
-            const paymentDetails = {
-              total: {
-                label: "Spadas Pro Monthly",
-                amount: { currency: "AUD", value: "10.00" },
-              },
-            };
-
-            const request = new PaymentRequest(paymentMethods, paymentDetails);
-            const response = await request.show();
-            const { purchaseToken } = (response.details as any) || {};
-
-            if (purchaseToken) {
-              const verifyRes = await fetch("/api/billing/google-play/verify", {
-                method: "POST",
-                headers,
-                body: JSON.stringify({ purchaseToken, sku }),
-              });
-              const verifyData = await verifyRes.json();
-              if (verifyRes.ok && verifyData.success) {
-                await response.complete("success");
-                toast.success("🎉 Welcome to Spadas Pro! Unlimited scanning unlocked.");
-                window.location.reload();
-                return;
-              } else {
-                await response.complete("fail");
-                toast.error(verifyData.error || "Failed to link Google Play purchase.");
-                return;
-              }
-            } else {
-              await response.complete("fail");
-            }
-          }
-        } catch (playErr: any) {
-          if (playErr?.name === "AbortError") {
-            return;
-          }
-          console.warn("[Play Billing] Not available, falling back to Stripe:", playErr);
-        }
-      }
-
-      // 2. Stripe Checkout (for Web / Desktop users)
-      const res = await fetch("/api/stripe/checkout", {
-        method: "POST",
-        headers,
-        body: JSON.stringify({ planId: "starter" }),
-      });
-
-      const data = await res.json();
-      if (res.ok && data.url) {
-        window.location.href = data.url;
+      const res = await purchaseGooglePlaySubscription();
+      if (res.active) {
+        toast.success("🎉 Welcome to Spadas Pro! Unlimited scanning unlocked.");
+        setPlan("Pro");
+        setPlanStatus("active");
+        window.location.reload();
         return;
       }
-
-      toast.error(data?.message || "Checkout unavailable. Please try again.");
+      if (res.canceled) {
+        return;
+      }
+      if (res.isDesktopRedirect) {
+        toast.info("Opened Google Play Store. Complete your subscription on Android to unlock Spadas Pro across all your devices!");
+        return;
+      }
+      if (res.error) {
+        toast.error(res.error);
+      }
     } catch (err: any) {
-      toast.error(err?.message || "Failed to start checkout. Try again.");
+      toast.error(err?.message || "Failed to start Google Play checkout. Try again.");
     } finally {
       setUpgrading(false);
     }
@@ -388,7 +338,7 @@ export default function SettingsPage() {
           authHeaders["Authorization"] = `Bearer ${session.access_token}`;
         }
 
-        const res = await fetch("/api/stripe/status", { headers: authHeaders });
+        const res = await fetch("/api/billing/status", { headers: authHeaders });
         if (res.ok) {
           const statusData = await res.json();
           if (statusData.active || statusData.plan === "Pro") {
@@ -463,33 +413,7 @@ export default function SettingsPage() {
   }
 
   async function upgradeToPro() {
-    setUpgrading(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      if (session?.access_token) {
-        headers["Authorization"] = `Bearer ${session.access_token}`;
-      }
-
-      const response = await fetch("/api/stripe/checkout", {
-        method: "POST",
-        headers,
-        body: JSON.stringify({ planId: "starter", email: user?.email ?? "" }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok && data.url) {
-        toast.success("Redirecting to Stripe Checkout ($10 AUD/mo)...");
-        window.location.href = data.url;
-      } else {
-        setIsPaywallOpen(true);
-        setUpgrading(false);
-      }
-    } catch {
-      setIsPaywallOpen(true);
-      setUpgrading(false);
-    }
+    return handleUpgrade();
   }
 
   return (
@@ -661,9 +585,20 @@ export default function SettingsPage() {
               <p className="text-lg font-bold text-white tracking-tight mt-0.5">Spadas Pro Member</p>
               <p className="text-xs text-zinc-400 mt-0.5">Unlimited 60FPS AR camera scans, live eBay sold comps, 1-tap cross-listing &amp; 100% ad-free.</p>
             </div>
-            <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-mono font-bold shrink-0">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-              <span>Active Pro Membership</span>
+            <div className="flex items-center gap-2.5 shrink-0">
+              <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-mono font-bold">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <span>Active Pro Membership</span>
+              </div>
+              <button
+                type="button"
+                onClick={openGooglePlaySubscriptionManager}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 text-xs font-semibold transition cursor-pointer"
+                title="Manage or cancel your subscription in Google Play Store"
+              >
+                <ExternalLink className="w-3.5 h-3.5 text-zinc-400" />
+                <span>Manage in Play Store</span>
+              </button>
             </div>
           </div>
         ) : (
@@ -679,7 +614,7 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            {/* Live Stripe Upgrade Card */}
+            {/* Live Google Play Upgrade Card */}
             <div className="p-5 rounded-2xl bg-gradient-to-br from-blue-950/40 via-zinc-900 to-indigo-950/30 border border-blue-500/30 shadow-lg relative overflow-hidden space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="space-y-1">
@@ -703,12 +638,12 @@ export default function SettingsPage() {
                   {upgrading ? (
                     <>
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      <span>Opening Stripe Checkout...</span>
+                      <span>Connecting to Google Play...</span>
                     </>
                   ) : (
                     <>
                       <Zap className="w-3.5 h-3.5" />
-                      <span>Upgrade to Pro ($10 AUD/mo)</span>
+                      <span>Upgrade with Google Play ($10 AUD/mo)</span>
                       <ArrowRight className="w-3.5 h-3.5" />
                     </>
                   )}
@@ -734,9 +669,9 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 text-[11px] text-zinc-500 font-mono pt-1">
+              <div className="flex items-center gap-2 text-[11px] text-zinc-400 font-mono pt-1">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Secured by Stripe · Cancel anytime with 1 click</span>
+                <span>Secured by Google Play Billing · Cancel anytime in Play Store</span>
               </div>
             </div>
           </div>

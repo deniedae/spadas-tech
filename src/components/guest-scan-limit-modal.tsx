@@ -18,6 +18,7 @@ import { supabase } from "@/app/lib/supabase";
 import { toast } from "sonner";
 import { getGuestScannedItems, MAX_GUEST_SCANS } from "@/lib/guest-scan-tracker";
 import { isOwnerEmail } from "@/app/lib/auth-admin";
+import { purchaseGooglePlaySubscription } from "@/lib/google-play-billing";
 
 interface GuestScanLimitModalProps {
   isOpen: boolean;
@@ -63,7 +64,7 @@ export function GuestScanLimitModal({
           setHasActiveSub(true);
         } else if (session.access_token) {
           try {
-            const res = await fetch("/api/stripe/status", {
+            const res = await fetch("/api/billing/status", {
               headers: { Authorization: `Bearer ${session.access_token}` },
             });
             if (res.ok) {
@@ -136,25 +137,26 @@ export function GuestScanLimitModal({
         return handleGoogleSignIn();
       }
 
-      const res = await fetch("/api/stripe/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          planId: "pro",
-          returnPath: "/lens",
-        }),
-      });
-
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(data.message || "Failed to start checkout.");
+      const res = await purchaseGooglePlaySubscription();
+      if (res.active) {
+        toast.success("🎉 Welcome to Spadas Pro! Unlimited scanning unlocked.");
+        setHasActiveSub(true);
+        if (onClose) onClose();
+        window.location.reload();
+        return;
       }
-
-      if (data.url) {
-        window.location.href = data.url;
+      if (res.canceled) {
+        return;
+      }
+      if (res.isDesktopRedirect) {
+        toast.info("Opened Google Play Store. Complete your subscription on Android to unlock Spadas Pro across all your devices!");
+        return;
+      }
+      if (res.error) {
+        setErrorMsg(res.error);
       }
     } catch (err: any) {
-      setErrorMsg(err?.message || "Failed to initiate checkout.");
+      setErrorMsg(err?.message || "Failed to initiate Google Play checkout.");
     } finally {
       setUpgradingToPro(false);
     }

@@ -55,7 +55,7 @@ export async function checkUserUsage(userId: string, userEmail?: string): Promis
     }
   }
 
-  // 1. Check if user is an active Pro subscriber in Stripe / Supabase
+  // 1. Check if user is an active Pro subscriber in Google Play / Supabase
   const { data: sub, error: subError } = await dbClient
     .from("user_subscriptions")
     .select("status, current_period_end")

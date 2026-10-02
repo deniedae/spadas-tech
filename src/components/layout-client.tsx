@@ -115,15 +115,15 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
             setIsProUser(true);
           }
 
-          // Check eBay connection and live Stripe status passing Bearer token
+          // Check eBay connection and live subscription status passing Bearer token
           const authHeaders: Record<string, string> = {};
           if (session?.access_token) {
             authHeaders["Authorization"] = `Bearer ${session.access_token}`;
           }
 
-          const [mktRes, stripeRes] = await Promise.all([
+          const [mktRes, billingRes] = await Promise.all([
             fetch("/api/marketplaces/status", { headers: authHeaders }).catch(() => null),
-            fetch("/api/stripe/status", { headers: authHeaders }).catch(() => null),
+            fetch("/api/billing/status", { headers: authHeaders }).catch(() => null),
           ]);
 
           if (isMounted) {
@@ -132,9 +132,9 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
               setIsEbayConnected(Boolean(mktData.isConnected));
             }
 
-            if (stripeRes && stripeRes.ok) {
-              const stripeData = await stripeRes.json().catch(() => ({}));
-              if (stripeData.active || stripeData.plan === "Pro" || isOwner) {
+            if (billingRes && billingRes.ok) {
+              const billingData = await billingRes.json().catch(() => ({}));
+              if (billingData.active || billingData.plan === "Pro" || isOwner) {
                 setIsProUser(true);
               }
             }

@@ -86,16 +86,16 @@ export function SpadasSnapStudio() {
           const token = session.access_token;
           const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
 
-          const [usageRes, stripeRes] = await Promise.all([
+          const [usageRes, billingRes] = await Promise.all([
             fetch("/api/usage", { headers }).catch(() => null),
-            fetch("/api/stripe/status", { headers }).catch(() => null),
+            fetch("/api/billing/status", { headers }).catch(() => null),
           ]);
 
           let proStatus = isUserAdmin;
 
-          if (stripeRes && stripeRes.ok) {
-            const stripeData = await stripeRes.json().catch(() => ({}));
-            if (stripeData.active || stripeData.plan === "Pro" || stripeData.status === "active") {
+          if (billingRes && billingRes.ok) {
+            const billingData = await billingRes.json().catch(() => ({}));
+            if (billingData.active || billingData.plan === "Pro" || billingData.status === "active") {
               proStatus = true;
             }
           }

@@ -6,6 +6,8 @@ import type { UsageStatus } from "@/app/lib/usage";
 import { toast } from "sonner";
 import { supabase } from "@/app/lib/supabase";
 
+import { purchaseGooglePlaySubscription } from "@/lib/google-play-billing";
+
 export default function UsageBadge({
   onUsageLoaded,
 }: {
@@ -43,23 +45,21 @@ export default function UsageBadge({
   async function handleUpgrade() {
     setUpgrading(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      if (session?.access_token) {
-        headers["Authorization"] = `Bearer ${session.access_token}`;
+      const res = await purchaseGooglePlaySubscription();
+      if (res.active) {
+        toast.success("🎉 Welcome to Spadas Pro! Unlimited scanning unlocked.");
+        window.location.reload();
+        return;
       }
-
-      const res = await fetch("/api/stripe/checkout", {
-        method: "POST",
-        headers,
-        body: JSON.stringify({ planId: "starter", email: session?.user?.email || "" }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Checkout failed");
-      if (data.url) window.location.href = data.url;
+      if (res.canceled) return;
+      if (res.isDesktopRedirect) {
+        toast.info("Opened Google Play Store. Complete your subscription on Android!");
+        return;
+      }
+      if (res.error) toast.error(res.error);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Upgrade failed.");
+    } finally {
       setUpgrading(false);
     }
   }

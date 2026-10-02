@@ -1,0 +1,83 @@
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/app/lib/server";
+import { isOwnerEmail } from "@/app/lib/auth-admin";
+
+export const dynamic = "force-dynamic";
+
+export async function GET(req: NextRequest) {
+  try {
+    const supabase = await createClient();
+    const authHeader = req.headers.get("authorization");
+
+    let user: any = null;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      const token = authHeader.replace("Bearer ", "").trim();
+      const { data } = await supabase.auth.getUser(token);
+      user = data?.user;
+    }
+
+    if (!user) {
+      const {
+        data: { user: sessionUser },
+        error: authError,
+      } = await supabase.auth.getUser();
+      if (!authError) user = sessionUser;
+    }
+
+    if (!user) {
+      return NextResponse.json(
+        { error: "Authentication required. Please sign in to view subscription status." },
+        { status: 401 }
+      );
+    }
+
+    const { data, error } = await supabase
+      .from("user_subscriptions")
+      .select("status, current_period_end, price_id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (error && error.code !== "PGRST116") {
+      throw error;
+    }
+
+    const isOwner = isOwnerEmail(user.email);
+    const hasMetadataPro = Boolean(
+      user.app_metadata?.is_pro ||
+      user.user_metadata?.is_pro ||
+      user.app_metadata?.plan === "pro"
+    );
+    const status = (data?.status as string | undefined) || "inactive";
+    const isActive = isOwner || hasMetadataPro || status === "active" || status === "trialing" || status === "past_due";
+
+    if (isOwner && status !== "active") {
+      await supabase.from("user_subscriptions").upsert([
+        {
+          user_id: user.id,
+          status: "active",
+          price_id: "pro_owner_grant",
+          current_period_end: "2099-12-31T23:59:59Z",
+        },
+      ]);
+    }
+
+    return NextResponse.json({
+      active: isActive,
+      plan: isActive ? "Pro" : "Free Beta",
+      status: isActive ? "active" : status,
+      currentPeriodEnd: data?.current_period_end,
+      isOwner,
+      provider: "google-play",
+    });
+  } catch (error) {
+    console.error("[billing/status] error:", error);
+    return NextResponse.json(
+      {
+        active: false,
+        plan: "Free Beta",
+        status: "inactive",
+      },
+      { status: 500 }
+    );
+  }
+}

@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import { supabase } from "@/app/lib/supabase";
 import { isOwnerEmail } from "@/app/lib/auth-admin";
 
+import { purchaseGooglePlaySubscription } from "@/lib/google-play-billing";
+
 export interface PlanTier {
   id: string;
   name: string;
@@ -23,7 +25,7 @@ const PLANS: PlanTier[] = [
   {
     id: "starter",
     name: "Spadas Pro Reseller",
-    badge: "UNLIMITED ACCESS",
+    badge: "GOOGLE PLAY SUBSCRIPTION",
     price: "$10 AUD",
     period: "per month",
     popular: true,
@@ -36,7 +38,7 @@ const PLANS: PlanTier[] = [
       "📦 Unlimited History Feed & Thrifting Haul Calculator",
       "🔊 Motion-Lock Audio Chimes & Voice Commands",
     ],
-    ctaText: "Get Spadas Pro ($10 AUD/mo)",
+    ctaText: "Subscribe with Google Play ($10 AUD/mo)",
     color: "border-cyan-400 bg-gradient-to-b from-slate-900 via-slate-900 to-cyan-950/40 shadow-[0_0_40px_rgba(6,182,212,0.3)]",
   },
 ];
@@ -77,82 +79,24 @@ export default function SubscriptionPaywallModal({
 
     setLoadingPlan(plan.id);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      if (session?.access_token) {
-        headers["Authorization"] = `Bearer ${session.access_token}`;
-      }
-
-      // 1. Google Play In-App Billing (for Android Play Store / TWA users)
-      if (typeof window !== "undefined" && "getDigitalGoodsService" in window) {
-        try {
-          const service = await (window as any).getDigitalGoodsService("https://play.google.com/billing");
-          if (service && typeof window.PaymentRequest !== "undefined") {
-            const sku = "spadas_pro_monthly";
-            const paymentMethods = [
-              {
-                supportedMethods: "https://play.google.com/billing",
-                data: { sku },
-              },
-            ];
-            const paymentDetails = {
-              total: {
-                label: "Spadas Pro Monthly",
-                amount: { currency: "AUD", value: "10.00" },
-              },
-            };
-
-            const request = new PaymentRequest(paymentMethods, paymentDetails);
-            const response = await request.show();
-            const { purchaseToken } = (response.details as any) || {};
-
-            if (purchaseToken) {
-              const verifyRes = await fetch("/api/billing/google-play/verify", {
-                method: "POST",
-                headers,
-                body: JSON.stringify({ purchaseToken, sku }),
-              });
-              const verifyData = await verifyRes.json();
-              if (verifyRes.ok && verifyData.success) {
-                await response.complete("success");
-                toast.success("🎉 Welcome to Spadas Pro! Unlimited scanning unlocked.");
-                onClose();
-                window.location.reload();
-                return;
-              } else {
-                await response.complete("fail");
-                toast.error(verifyData.error || "Failed to link Google Play purchase.");
-                return;
-              }
-            } else {
-              await response.complete("fail");
-            }
-          }
-        } catch (playErr: any) {
-          if (playErr?.name === "AbortError") {
-            // User dismissed the Google Play bottom sheet
-            return;
-          }
-          console.warn("[Play Billing] Not available, falling back to Stripe:", playErr);
-        }
-      }
-
-      // 2. Stripe Checkout (for Web / Desktop users)
-      const res = await fetch("/api/stripe/checkout", {
-        method: "POST",
-        headers,
-        body: JSON.stringify({ planId: plan.id }),
-      });
-
-      const data = await res.json();
-
-      if (res.ok && data.url) {
-        window.location.href = data.url;
+      const res = await purchaseGooglePlaySubscription();
+      if (res.active) {
+        toast.success("🎉 Welcome to Spadas Pro! Unlimited scanning unlocked.");
+        onClose();
+        window.location.reload();
         return;
       }
-
-      const message = data?.message || "Checkout unavailable. Please try again.";
-      toast.error(`Checkout failed: ${message}`);
+      if (res.canceled) {
+        // User closed or dismissed the Google Play sheet
+        return;
+      }
+      if (res.isDesktopRedirect) {
+        toast.info("Opened Google Play Store. Subscribe on Android to unlock Spadas Pro across all your devices!");
+        return;
+      }
+      if (res.error) {
+        toast.error(res.error);
+      }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Network error. Please check your connection.";
       toast.error(message);
@@ -242,6 +186,11 @@ export default function SubscriptionPaywallModal({
                   </>
                 )}
               </button>
+
+              <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-400 font-medium pt-1">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Secured by Google Play · Cancel anytime in Play Store</span>
+              </div>
             </div>
           ))}
         </div>
