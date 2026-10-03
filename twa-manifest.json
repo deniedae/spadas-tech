@@ -14,8 +14,8 @@
   "startUrl": "/dashboard",
   "iconUrl": "https://spadas-tech.vercel.app/icon-512.png",
   "orientation": "any",
-  "appVersionName": "1.2.4.0",
-  "appVersionCode": 8,
+  "appVersionName": "1.2.5",
+  "appVersionCode": 9,
   "signingKey": {
     "path": "./signing.keystore",
     "alias": "my-key-alias"

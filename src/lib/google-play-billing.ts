@@ -122,7 +122,8 @@ export async function purchaseGooglePlaySubscription(
 
           const request = new PaymentRequest(paymentMethods, paymentDetails);
           const response = await request.show();
-          const { purchaseToken } = (response.details as any) || {};
+          const details = (response.details as any) || {};
+          const purchaseToken = details.purchaseToken || details.token;
 
           if (purchaseToken) {
             const verifyRes = await fetch("/api/billing/google-play/verify", {
@@ -172,7 +173,7 @@ export async function purchaseGooglePlaySubscription(
     if (isAndroid) {
       return {
         success: false,
-        error: "Google Play Billing is initializing. Digital Asset Links verification is required to remove the top browser bar and enable in-app payments.",
+        error: "Google Play Billing is initializing. Please ensure you are running the latest app build from Google Play and that the base plan is active.",
       };
     }
 
