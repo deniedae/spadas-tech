@@ -165,7 +165,7 @@ function SpadasLensCameraCore({
   const [isCameraPoweredOn, setIsCameraPoweredOn] = useState<boolean>(true);
   const [scanning, setScanning] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
-  const [autoScanActive, setAutoScanActive] = useState<boolean>(true);
+  const [autoScanActive, setAutoScanActive] = useState<boolean>(false);
   const [analyzingRealFrame, setAnalyzingRealFrame] = useState(false);
   const [scanStage, setScanStage] = useState<ScanStage>("idle");
   const [pendingIdentifiedItem, setPendingIdentifiedItem] = useState<{
@@ -2354,16 +2354,8 @@ function SpadasLensCameraCore({
 
   // Frame Scanner with Instantaneous Shutter Trigger & Responsive Viewfinder State
   const processCurrentFrame = useCallback(async (forceManual = false) => {
-    // 0. Manual / Auto Gate & Concurrency Lock:
-    if (analyzingRef.current) return;
-
-    // In manual mode without explicit shutter tap, never process frames
-    if (!forceManual && !autoScanActive && scanMode === "snap") {
-      return;
-    }
-
-    // Cooldown Lock: in automatic mode, do not process frames while cooling down
-    if (!forceManual && isCoolingDownRef.current) {
+    // 0. Manual Shutter Gate: Scans are strictly user-initiated by tapping the Shutter or Scan button
+    if (!forceManual) {
       return;
     }
 
@@ -4050,51 +4042,12 @@ function SpadasLensCameraCore({
       if (isPanning) {
         setCameraMoving(true);
         cameraMovingRef.current = true;
-        lastMotionTimeRef.current = Date.now();
         wasMoving = true;
         stableTicks = 0;
-        // User panned away to a new scene — clear duplicate lock
-        lastRecognizedSignatureRef.current = null;
       } else if (isStill) {
         setCameraMoving(false);
         cameraMovingRef.current = false;
         stableTicks++;
-      }
-
-      if (!autoScanActive) return;
-
-      const now = Date.now();
-      const timeSinceLast = now - Math.max(lastAutoTriggerTime, lastScanTimeRef.current);
-
-      // Duplicate Prevention: If camera is holding still over an item already identified in the last 12s, DO NOT rescan
-      const hasRecentDetection =
-        lastRecognizedSignatureRef.current &&
-        now - lastRecognizedSignatureRef.current.timestamp < 12000;
-
-      if (hasRecentDetection && !wasMoving) {
-        return;
-      }
-
-      // Mode 1: AUTO AR SCAN (sweep, snap, or live) -> settled frame confirmation
-      if (scanMode === "sweep" || scanMode === "snap" || scanMode === "live") {
-        if (!isPanning) {
-          const justSettled = wasMoving && stableTicks >= 3 && timeSinceLast >= 2800;
-          const periodicScan = stableTicks >= 10 && timeSinceLast >= 3800;
-
-          if (justSettled || periodicScan) {
-            wasMoving = false;
-            lastAutoTriggerTime = now;
-            void processFrameRef.current(false);
-          }
-        }
-      }
-      // Mode 2: BARCODE MODE -> sampled debounce
-      else if (scanMode === "barcode") {
-        if (stableTicks >= 3 && timeSinceLast >= 2000) {
-          wasMoving = false;
-          lastAutoTriggerTime = now;
-          void processFrameRef.current(false);
-        }
       }
     }, SAMPLING_INTERVAL_MS);
 
