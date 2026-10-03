@@ -129,7 +129,7 @@ export default function SubscriptionPaywallModal({
             Unlock Unlimited Reseller Profit
           </h2>
           <p className="text-xs text-slate-300">
-            You have reached the limit of <strong className="text-cyan-400 font-black">10 Free Daily Scans</strong>. Upgrade to Spadas Pro for unlimited 60FPS AR scanning, live sold comps, and 1-click cross-listing.
+            You have reached the limit of <strong className="text-cyan-400 font-black">50 Free Daily Scans</strong>. Upgrade to Spadas Pro for unlimited 60FPS AR scanning, live sold comps, and 1-click cross-listing.
           </p>
         </div>
 

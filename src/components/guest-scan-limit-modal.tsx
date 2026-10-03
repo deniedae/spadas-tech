@@ -230,7 +230,7 @@ export function GuestScanLimitModal({
       }
 
       if (data?.user) {
-        toast.success("Account created! 10 Daily Scans Unlocked.");
+        toast.success("Account created! 50 Daily Scans Unlocked.");
         if (onClose) onClose();
         router.refresh();
       }
@@ -249,10 +249,10 @@ export function GuestScanLimitModal({
           <div className="space-y-2">
             <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-mono uppercase tracking-wider bg-white/[0.06] text-zinc-300 border border-white/[0.08]">
               <Zap className="h-3 w-3 text-amber-400" />
-              <span>3 of 3 Guest Scans Used</span>
+              <span>{scannedCount} of {MAX_GUEST_SCANS} Free Guest Scans Used</span>
             </div>
             <h2 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
-              Unlock 10 Free Scans Daily
+              Unlock 50 Free Scans Daily
             </h2>
           </div>
           {onClose && (
@@ -300,7 +300,7 @@ export function GuestScanLimitModal({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-zinc-300">
           <div className="flex items-center gap-2 bg-[#141721] border border-white/[0.06] rounded-lg p-2.5">
             <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-            <span><strong>10 Scans/Day</strong> (Free Forever)</span>
+            <span><strong>50 Scans/Day</strong> (Free Forever)</span>
           </div>
           <div className="flex items-center gap-2 bg-[#141721] border border-white/[0.06] rounded-lg p-2.5">
             <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
@@ -326,7 +326,7 @@ export function GuestScanLimitModal({
             <p className="text-xs font-semibold text-white truncate mt-0.5">
               Unlimited Scans &bull; 1-Tap eBay Direct List
             </p>
-            <p className="text-[10px] text-zinc-400 font-mono mt-0.5">$29 AUD / mo &bull; Cancel anytime</p>
+            <p className="text-[10px] text-zinc-400 font-mono mt-0.5">$10 AUD / mo &bull; Cancel anytime</p>
           </div>
           <button
             type="button"

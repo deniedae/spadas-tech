@@ -66,9 +66,14 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // If user is not authenticated, block access to all app features and redirect to /login
+  // If user is not authenticated:
   if (!user) {
     const url = request.nextUrl.clone();
+    // If arriving at /dashboard as a guest (e.g. fresh install launch), route straight to /lens for instant scanning
+    if (pathname === "/dashboard") {
+      url.pathname = "/lens";
+      return NextResponse.redirect(url);
+    }
     url.pathname = "/login";
     url.searchParams.set("redirect", pathname);
     return NextResponse.redirect(url);

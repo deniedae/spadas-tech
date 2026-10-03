@@ -16,38 +16,28 @@ export function GuestScanHud({
   onOpenAuthModal,
   className = "",
 }: GuestScanHudProps) {
-  const scansUsed = Math.max(0, MAX_GUEST_SCANS - remainingScans);
+  const pct = Math.min(100, Math.max(0, (remainingScans / MAX_GUEST_SCANS) * 100));
 
   return (
     <div
-      className={`inline-flex items-center gap-2.5 rounded-lg bg-[#0F1117]/90 border border-white/[0.10] px-2.5 py-1 text-zinc-200 backdrop-blur-md transition ${className}`}
+      className={`inline-flex items-center gap-2 rounded-lg bg-[#0F1117]/95 border border-white/[0.12] px-2.5 py-1 text-zinc-200 backdrop-blur-md shadow-lg transition ${className}`}
     >
       {/* Label */}
       <div className="flex items-center gap-1.5">
-        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
         <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400">Guest</span>
       </div>
 
-      {/* Pip counter */}
-      <div className="flex items-center gap-1">
-        {Array.from({ length: MAX_GUEST_SCANS }).map((_, idx) => {
-          const isFilled = idx < scansUsed;
-          return (
-            <div
-              key={idx}
-              className={`h-1.5 w-2 rounded-[2px] transition-all duration-200 ${
-                isFilled
-                  ? "bg-zinc-700"
-                  : "bg-white/80"
-              }`}
-              title={`Scan ${idx + 1}`}
-            />
-          );
-        })}
+      {/* Sleek Mini Progress Bar */}
+      <div className="w-12 h-1.5 rounded-full bg-zinc-800 overflow-hidden relative">
+        <div
+          className="h-full bg-gradient-to-r from-emerald-500 to-cyan-400 transition-all duration-300 rounded-full"
+          style={{ width: `${pct}%` }}
+        />
       </div>
 
       {/* Count readout */}
-      <span className="font-mono text-[11px] font-semibold text-white">
+      <span className="font-mono text-[11px] font-bold text-white tabular-nums">
         {remainingScans}/{MAX_GUEST_SCANS}
       </span>
 
@@ -55,10 +45,10 @@ export function GuestScanHud({
       <button
         type="button"
         onClick={onOpenAuthModal}
-        className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-white text-black text-[10px] font-bold hover:bg-zinc-200 transition cursor-pointer active:scale-95"
+        className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-white text-black text-[10px] font-bold hover:bg-zinc-200 transition cursor-pointer active:scale-95 shadow-sm"
       >
-        <UserPlus className="h-2.5 w-2.5" />
-        <span>Unlock</span>
+        <Zap className="h-2.5 w-2.5 fill-black" />
+        <span>Unlock 50/day</span>
       </button>
     </div>
   );

@@ -637,13 +637,13 @@ function SpadasLensCameraCore({
     if (!isAuthed && isGuestUser && sessionScanCount >= MAX_GUEST_SCANS) {
       setIsScanPaused(true);
       setIsGuestLimitModalOpen(true);
-      toast.info("You've used all 3 free instant guest scans! Create a free account to unlock 10 daily scans.");
+      toast.info(`You've used all ${MAX_GUEST_SCANS} free guest scans! Create a free account to unlock 50 daily scans.`);
       return;
     }
     if (!currentPro && !isUserAdmin && isLimitReached) {
       setIsScanPaused(true);
       setIsPaywallOpen(true);
-      toast.error("You've used all 10 free daily scans! Upgrade to Pro for unlimited scans.", {
+      toast.error("You've used all 50 free daily scans! Upgrade to Pro for unlimited scans.", {
         id: "daily-limit-toast",
       });
       return;
@@ -2845,7 +2845,7 @@ function SpadasLensCameraCore({
         setIsScanPaused(true);
         setIsGuestLimitModalOpen(true);
         setAnalyzingRealFrame(false);
-        toast.info("You've used all 3 free instant guest scans! Create a free account to unlock 10 daily scans.");
+        toast.info(`You've used all ${MAX_GUEST_SCANS} free guest scans! Create a free account to unlock 50 daily scans.`);
         return;
       }
 
