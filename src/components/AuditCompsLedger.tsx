@@ -276,7 +276,7 @@ export function ensureVerifiedSoldComps(
   return conditionSanitized.slice(0, 5).map((c, idx) => {
     const explicitMatch = getCompMatch(c);
     const rawDate = getCompSoldDate(c);
-    const soldDate = rawDate ? formatSoldDate(rawDate) : "Recent sale";
+    const soldDate = rawDate ? (rawDate === "Active Ask" ? "Active Ask" : formatSoldDate(rawDate)) : "Recent sale";
     const title = c.title || `${safeBrand ? safeBrand + " " : ""}${cleanTitle}`;
     const matchScore = calculateMatchPercentage(cleanTitle, title, explicitMatch);
 
@@ -289,7 +289,14 @@ export function ensureVerifiedSoldComps(
       shippingIncluded: getCompShippingIncluded(c) ?? (idx % 2 === 0),
       shippingPrice: getCompShippingPrice(c) ?? 0,
       url: c.url || undefined,
-      thumbnail: c.thumbnail,
+      thumbnail:
+        c.thumbnail ||
+        (c as any).thumbnailUrl ||
+        (c as any).fullResThumbnailUrl ||
+        (c as any).image?.imageUrl ||
+        (c as any).imageUrl ||
+        (c as any).galleryURL ||
+        undefined,
       matchPercentage: matchScore,
       isUsComp: (c as any).isUsComp,
       originalCurrency: (c as any).originalCurrency,

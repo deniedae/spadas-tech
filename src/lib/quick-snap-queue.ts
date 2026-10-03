@@ -10,7 +10,6 @@ import {
 } from "./rapid-thrift-engine";
 import { resilientFetch } from "@/app/lib/resilient-fetch";
 import { supabase } from "@/app/lib/supabase";
-import { appraiseItemLocally } from "@/app/lib/offline/offline-engine";
 import { toast } from "sonner";
 
 interface QueueTask {
@@ -190,24 +189,15 @@ class QuickSnapQueueService {
             data = await res.json().catch(() => null);
           }
 
-          let isOfflineSyncPending = false;
-          // Fallback to local offline catalog if network dropped or rate limited
           if (!data || data.error) {
-            isOfflineSyncPending = true;
-            const offline = appraiseItemLocally();
-            data = {
-              product_name: offline.productName,
-              brand: offline.brand,
-              category: offline.category,
-              condition: offline.condition,
-              estimated_value: offline.estimatedValue,
-              thrift_cost: offline.tagPrice,
-              true_net_profit: offline.trueNetProfit,
-              roi_percentage: offline.roiPercentage,
-              cop_verdict: offline.copVerdict,
-              is_grail: offline.trueNetProfit >= 50,
-              needs_verification: false,
-            };
+            haulStore.updateItem(task.id, {
+              status: "error",
+              notes: "Couldn't get a value — check connection and retry",
+            });
+            this.activeWorkers = Math.max(0, this.activeWorkers - 1);
+            this.notify();
+            void this.processQueue();
+            return;
           }
 
           const profit = Number(data.true_net_profit) || 0;
@@ -232,13 +222,13 @@ class QuickSnapQueueService {
             thumbnailUrl: base64Data,
             image: base64Data,
             imageUrl: base64Data,
-            syncStatus: isOfflineSyncPending ? "pending" : "synced",
+            syncStatus: "synced",
             rawComps: data.comps || [],
             comps: data.comps || [],
           });
 
           // 2. Background Comps Chaining: query /api/ebay-australia-comps with title sanitization & fallbacks
-          if (!isOfflineSyncPending && data.product_name) {
+          if (data.product_name) {
             try {
               const compsRes = await resilientFetch(
                 "/api/ebay-australia-comps",
@@ -296,23 +286,11 @@ class QuickSnapQueueService {
 
           // Haptic alert on high-value grails
           triggerPocketAlert(profit, isHighRisk);
-        } catch (err) {
-          console.warn("[QuickSnapQueue] Valuation worker error:", err);
-          // Graceful fallback to completed offline estimate so items are never stuck
-          const offline = appraiseItemLocally();
+        } catch (err: any) {
+          console.warn("[QuickSnapQueue] Valuation worker error:", err?.message || err);
           haulStore.updateItem(task.id, {
-            status: "completed",
-            productName: offline.productName,
-            brand: offline.brand,
-            category: offline.category,
-            condition: offline.condition,
-            estimatedValue: offline.estimatedValue,
-            thriftCost: offline.tagPrice,
-            trueNetProfit: offline.trueNetProfit,
-            roiPercentage: offline.roiPercentage,
-            copVerdict: offline.copVerdict,
-            isGrail: offline.trueNetProfit >= 50,
-            syncStatus: "pending",
+            status: "error",
+            notes: "Couldn't get a value — check connection and retry",
           });
         } finally {
           this.activeWorkers = Math.max(0, this.activeWorkers - 1);

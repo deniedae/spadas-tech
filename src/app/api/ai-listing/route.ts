@@ -488,7 +488,7 @@ Identify ONLY the single primary physical item positioned in the center target r
             ? {
               model: "gpt-4o-mini",
               temperature: 0.0,
-              max_tokens: 60,
+              max_tokens: 250,
               response_format: zodResponseFormat(MinimalArScanSchema, "minimal_ar_scan"),
               messages: [
                 {
@@ -652,7 +652,7 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
             completion = await openai.chat.completions.create(reqParams);
             if (completion?.choices?.[0]?.message?.content) break;
           } catch (err1: any) {
-            console.warn(`[ai-listing] Primary call on ${modelName} failed:`, err1?.message);
+            console.warn(`[ai-listing] Upstream OpenAI call on ${modelName} failed (${err1?.status || "error"}):`, err1?.message || err1);
 
             if (isRateLimitError(err1) || isCreditOrQuotaError(err1)) {
               console.warn(`[ai-listing] Upstream quota/rate issue on ${modelName} — falling through to next provider.`);
@@ -1043,71 +1043,12 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
     }
 
     if (!result) {
-      if (isArScan) {
-        return NextResponse.json(createEmptyScanResult());
-      }
-      const fallbackAppraisal = appraiseItemLocally(body.productName || body.query);
-      result = {
-        status: "identified",
-        isMockFallback: true,
-        inventory_condition: "used_working",
-        defect_notes: [],
-        suggested_price_min: Math.round(fallbackAppraisal.estimatedValue * 0.7),
-        suggested_price_max: Math.round(fallbackAppraisal.estimatedValue * 1.3),
-        suggested_price_median: fallbackAppraisal.estimatedValue,
-        suggested_price_currency: "AUD",
-        item_specifics: {},
-        suggested_keywords: [fallbackAppraisal.brand, fallbackAppraisal.category, "Resale", "Thrift"],
-        shipping_estimate: {
-          size: "small",
-          estimated_weight_grams: 500,
-          dimensions_cm: { length: 25, width: 20, height: 5 },
-          notes: "Standard satchel packaging",
-        },
-        market_titles: {
-          ebay: `${fallbackAppraisal.productName} Great Condition Resale Find`,
-          facebook_marketplace: `${fallbackAppraisal.productName} - Great Condition`,
-          vinted: `${fallbackAppraisal.productName} - Great Condition`,
-          depop: `${fallbackAppraisal.productName.toLowerCase()} #vintage #resale #thrift`,
-        },
-        seo_description: `Authentic ${fallbackAppraisal.brand || ""} ${fallbackAppraisal.productName} in clean condition.\n\n• Brand: ${fallbackAppraisal.brand || "Authentic"}\n• Model: ${fallbackAppraisal.productName}\n• Material/Color: Standard finish\n• Condition: Pre-owned - Good. Tested and functional.`,
-        detailed_description: `Authentic ${fallbackAppraisal.brand || ""} ${fallbackAppraisal.productName} in clean condition.\n\n• Brand: ${fallbackAppraisal.brand || "Authentic"}\n• Model: ${fallbackAppraisal.productName}\n• Material/Color: Standard finish\n• Condition: Pre-owned - Good. Tested, inspected, and operating as intended.\n\nPlease review all photos for exact condition details.`,
-        detected_tag_price: fallbackAppraisal.tagPrice,
-        true_net_profit: fallbackAppraisal.trueNetProfit,
-        takeHomeNet: fallbackAppraisal.trueNetProfit,
-        roi_percentage: fallbackAppraisal.roiPercentage,
-        cop_verdict: fallbackAppraisal.copVerdict,
-        detected_objects: [
-          {
-            id: "offline-heuristics-1",
-            product_name: fallbackAppraisal.productName,
-            brand: fallbackAppraisal.brand,
-            category: fallbackAppraisal.category,
-            condition: fallbackAppraisal.condition,
-            confidence_score: 0.92,
-            detected_tag_price: fallbackAppraisal.tagPrice,
-            true_net_profit: fallbackAppraisal.trueNetProfit,
-            takeHomeNet: fallbackAppraisal.trueNetProfit,
-            roi_percentage: fallbackAppraisal.roiPercentage,
-            cop_verdict: fallbackAppraisal.copVerdict,
-            bbox: { x: 15, y: 15, width: 70, height: 70 },
-          },
-        ],
-        analysis: {
-          status: "identified",
-          product_name: fallbackAppraisal.productName,
-          brand: fallbackAppraisal.brand,
-          model: null,
-          color: null,
-          material: null,
-          accessories_detected: [],
-          category: fallbackAppraisal.category,
-          condition: fallbackAppraisal.condition,
-          confidence: "high",
-          confidence_score: 0.92,
-        },
-      };
-      activeProvider = "offline-heuristics";
+      console.warn("[ai-listing] Upstream vision identification produced no valid result — returning unidentified status (zero mock fallback)");
+      return NextResponse.json({
+        ...createEmptyScanResult(),
+        status: "unidentified",
+        error: "Unable to identify item. Please center the item with good lighting and retry.",
+      }, { status: 422 });
     }
 
     (result as any).provider = activeProvider;
@@ -1186,17 +1127,30 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
           }
           if (
             ebayComps &&
+            !ebayComps.noMarketData &&
             typeof ebayComps.median === "number" &&
             !isNaN(ebayComps.median) &&
-            ebayComps.median > 0 &&
-            ebayComps.count > 0
+            ebayComps.median > 0
           ) {
-            // Single-Source Guardrail: Strict normalized baseline unit value assignment (never accumulated across response nodes)
-            result.suggested_price_min = ebayComps.min;
-            result.suggested_price_max = ebayComps.max;
-            result.suggested_price_median = ebayComps.median;
-            result.ebay_comps_count = ebayComps.count;
-            (result as any).comps_source = ebayComps.source;
+            if (ebayComps.isActiveAskOnly) {
+              // 0 sold comps, but active listings exist — "Currently listed — not sold prices."
+              result.suggested_price_min = ebayComps.min;
+              result.suggested_price_max = ebayComps.max;
+              result.suggested_price_median = ebayComps.median;
+              result.ebay_comps_count = 0;
+              (result as any).active_comps_count = ebayComps.activeListingsCount || (ebayComps.rawComps || []).length;
+              (result as any).is_active_ask = true;
+              (result as any).comps_source = "browse_api";
+              (result as any).arbitrage_signal = "Currently listed — not sold prices.";
+            } else {
+              // Real sold comps verified!
+              result.suggested_price_min = ebayComps.min;
+              result.suggested_price_max = ebayComps.max;
+              result.suggested_price_median = ebayComps.median;
+              result.ebay_comps_count = ebayComps.count;
+              (result as any).comps_source = ebayComps.source;
+            }
+
             result.raw_sold_comps = (ebayComps.rawComps || []).map((c: any) => ({
               id: c.id,
               title: c.title,
@@ -1206,7 +1160,8 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
               shipping_included: c.shippingIncluded,
               shipping_price: c.shippingPrice,
               url: c.url,
-              thumbnail: c.thumbnail,
+              thumbnail: c.fullResThumbnailUrl || c.thumbnailUrl || (c.image?.imageUrl || c.image) || c.thumbnail,
+              is_active_ask: Boolean(c.isActiveAsk || ebayComps.isActiveAskOnly),
             }));
             result.comps_range = {
               min: ebayComps.min,
@@ -1214,25 +1169,36 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
               median: ebayComps.median,
             };
             if (result.detected_objects && result.detected_objects.length > 0) {
-              result.detected_objects[0].ebay_comps_count = ebayComps.count;
-              (result.detected_objects[0] as any).comps_source = ebayComps.source;
+              result.detected_objects[0].ebay_comps_count = result.ebay_comps_count;
+              (result.detected_objects[0] as any).comps_source = (result as any).comps_source;
               result.detected_objects[0].raw_sold_comps = result.raw_sold_comps;
             }
           } else {
+            // 0 sold comps AND 0 active listings — Real Zero Market Data
             result.ebay_comps_count = 0;
-            (result as any).comps_source = "intrinsic_estimate";
+            result.suggested_price_min = 0;
+            result.suggested_price_max = 0;
+            result.suggested_price_median = 0;
+            (result as any).comps_source = "browse_api";
+            (result as any).no_market_data = true;
+            (result as any).arbitrage_signal = "Not enough market data to value this item";
             result.raw_sold_comps = [];
             if (result.detected_objects && result.detected_objects.length > 0) {
               result.detected_objects[0].ebay_comps_count = 0;
-              (result.detected_objects[0] as any).comps_source = "intrinsic_estimate";
+              (result.detected_objects[0] as any).comps_source = "browse_api";
+              (result.detected_objects[0] as any).no_market_data = true;
               result.detected_objects[0].raw_sold_comps = [];
             }
           }
-        } catch (compErr) {
-          console.warn("[ai-listing] Live eBay comps lookup warning:", compErr);
+        } catch (compErr: any) {
+          console.warn("[ai-listing] Live eBay comps lookup warning:", compErr?.message || compErr);
           result.ebay_comps_count = 0;
+          result.suggested_price_min = 0;
+          result.suggested_price_max = 0;
+          result.suggested_price_median = 0;
           result.raw_sold_comps = [];
-          (result as any).comps_source = "intrinsic_estimate";
+          (result as any).no_market_data = true;
+          (result as any).comps_source = "browse_api";
         }
       }
 
@@ -1460,53 +1426,69 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
         category: pCategory,
       });
 
-      const baselineSellPrice = Number(result.suggested_price_median) && Number(result.suggested_price_median) > 0
-        ? Number(result.suggested_price_median)
-        : catVal.estimatedMedian;
+      // Muted Category Hint: Strictly displayed as an informational reference, NEVER feeds profit/verdict
+      (result as any).category_hint = `Similar brands often sell for $${catVal.minPrice}–$${catVal.maxPrice} — verify on eBay`;
 
-      const sellPrice = Math.max(1, Math.round(baselineSellPrice * conditionModifier * 100) / 100);
-      result.suggested_price_median = sellPrice;
-      if (result.suggested_price_min) {
-        result.suggested_price_min = Math.max(1, Math.round(result.suggested_price_min * conditionModifier * 100) / 100);
+      const isZeroMarketData = Boolean((result as any).no_market_data || (result.ebay_comps_count === 0 && !(result as any).is_active_ask));
+
+      if (isZeroMarketData) {
+        // RULE: If 0 sold AND 0 active: "Not enough market data to value this item", NO price, NO net profit, NO verdict
+        result.suggested_price_min = 0;
+        result.suggested_price_max = 0;
+        result.suggested_price_median = 0;
+        result.true_net_profit = 0;
+        (result as any).takeHomeNet = 0;
+        result.roi_percentage = 0;
+        result.cop_verdict = undefined;
+        (result as any).arbitrage_signal = "Not enough market data to value this item";
       } else {
-        result.suggested_price_min = catVal.minPrice;
-      }
-      if (result.suggested_price_max) {
-        result.suggested_price_max = Math.max(1, Math.round(result.suggested_price_max * conditionModifier * 100) / 100);
-      } else {
-        result.suggested_price_max = catVal.maxPrice;
-      }
+        const baselineSellPrice = Number(result.suggested_price_median) || 0;
+        const sellPrice = Math.max(0, Math.round(baselineSellPrice * conditionModifier * 100) / 100);
+        result.suggested_price_median = sellPrice;
+        if (result.suggested_price_min) {
+          result.suggested_price_min = Math.max(0, Math.round(result.suggested_price_min * conditionModifier * 100) / 100);
+        }
+        if (result.suggested_price_max) {
+          result.suggested_price_max = Math.max(0, Math.round(result.suggested_price_max * conditionModifier * 100) / 100);
+        }
 
-      const tagPrice = Number(result.detected_tag_price) || (result.analysis?.product_name && result.analysis.product_name !== "NO_CENTER_ITEM" ? catVal.typicalOpShopCost : null);
+        const tagPrice = Number(result.detected_tag_price) || (result.analysis?.product_name && result.analysis.product_name !== "NO_CENTER_ITEM" ? catVal.typicalOpShopCost : null);
 
-      if (tagPrice && sellPrice > 0) {
-        const copEstimate = calculateThriftCopVerdict({
-          resalePrice: sellPrice,
-          customCost: tagPrice,
-          category: pCategory,
-          productName: pName,
-          brand: pBrand,
-          shippingCost,
-          confidenceScore: result.analysis?.confidence_score,
-          variantAudit: result.analysis?.variant_audit || result.variant_audit,
-          needsVerification: Boolean(result.retake_recommended?.required),
-        });
+        // Never show a BUY verdict on active ask listings alone or without sold comps
+        if (tagPrice && sellPrice > 0 && Number(result.ebay_comps_count || 0) > 0 && !(result as any).is_active_ask) {
+          const copEstimate = calculateThriftCopVerdict({
+            resalePrice: sellPrice,
+            customCost: tagPrice,
+            category: pCategory,
+            productName: pName,
+            brand: pBrand,
+            shippingCost,
+            confidenceScore: result.analysis?.confidence_score,
+            variantAudit: result.analysis?.variant_audit || result.variant_audit,
+            needsVerification: Boolean(result.retake_recommended?.required),
+          });
 
-        result.detected_tag_price = tagPrice;
-        result.true_net_profit = copEstimate.netProfit;
-        (result as any).takeHomeNet = copEstimate.netProfit;
-        result.roi_percentage = copEstimate.roiPercentage;
-        result.cop_verdict = copEstimate.copVerdict;
-        result.requires_secondary_verification = copEstimate.requiresSecondaryVerification;
-        result.verification_reason = copEstimate.verificationReason;
-        result.fallback_protocol = copEstimate.fallbackProtocol;
+          result.detected_tag_price = tagPrice;
+          result.true_net_profit = copEstimate.netProfit;
+          (result as any).takeHomeNet = copEstimate.netProfit;
+          result.roi_percentage = copEstimate.roiPercentage;
+          result.cop_verdict = copEstimate.copVerdict;
+          result.requires_secondary_verification = copEstimate.requiresSecondaryVerification;
+          result.verification_reason = copEstimate.verificationReason;
+          result.fallback_protocol = copEstimate.fallbackProtocol;
 
-        if (result.detected_objects && result.detected_objects.length > 0) {
-          result.detected_objects[0].detected_tag_price = tagPrice;
-          result.detected_objects[0].true_net_profit = copEstimate.netProfit;
-          (result.detected_objects[0] as any).takeHomeNet = copEstimate.netProfit;
-          result.detected_objects[0].roi_percentage = copEstimate.roiPercentage;
-          result.detected_objects[0].cop_verdict = copEstimate.copVerdict;
+          if (result.detected_objects && result.detected_objects.length > 0) {
+            result.detected_objects[0].detected_tag_price = tagPrice;
+            result.detected_objects[0].true_net_profit = copEstimate.netProfit;
+            (result.detected_objects[0] as any).takeHomeNet = copEstimate.netProfit;
+            result.detected_objects[0].roi_percentage = copEstimate.roiPercentage;
+            result.detected_objects[0].cop_verdict = copEstimate.copVerdict;
+          }
+        } else {
+          // If active ask only, or tag price not set: clear verdict (never show blind BUY verdict)
+          result.cop_verdict = undefined;
+          result.true_net_profit = 0;
+          result.roi_percentage = 0;
         }
       }
 

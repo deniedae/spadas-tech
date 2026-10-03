@@ -122,14 +122,7 @@ export default function SettingsPage() {
         window.location.reload();
         return;
       }
-      if (res.canceled) {
-        if (res.error) {
-          toast.info(res.error);
-        }
-        return;
-      }
-      if (res.isDesktopRedirect) {
-        toast.info("Opened Google Play Store. Complete your subscription on Android to unlock Spadas Pro across all your devices!");
+      if (res.canceled && res.dismissedByUser) {
         return;
       }
       if (res.error) {
@@ -138,6 +131,7 @@ export default function SettingsPage() {
           setShowDiagPanel(true);
           void runBillingDiagnostics();
         }
+        return;
       }
     } catch (err: any) {
       toast.error(err?.message || "Failed to start Google Play checkout. Try again.");
@@ -732,16 +726,6 @@ export default function SettingsPage() {
                         </>
                       )}
                     </button>
-
-                    <a
-                      href="/spadas-ai.apk"
-                      download
-                      className="inline-flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-200 transition"
-                      title="Download direct v1.2.5 APK release"
-                    >
-                      <span>Direct APK (v1.2.5)</span>
-                      <ExternalLink className="w-3 h-3" />
-                    </a>
                   </div>
 
                   {showDiagPanel && billingDiag && (

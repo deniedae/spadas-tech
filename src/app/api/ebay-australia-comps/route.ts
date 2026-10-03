@@ -89,39 +89,36 @@ async function handleCompsSearch(
 
   // ── ATTEMPT 3: Cross-border US fallback (LH_PrefLoc=2 with $25 AUD penalty) ──
   // Note: fetchEbayAustraliaSoldComps natively queries US with crossBorderShippingCost: 25 if AU has 0 comps.
-  // If compsResult was found from US, mark tier
   if (compsResult && compsResult.isUsMarketOnly) {
     attemptTier = "us_fallback";
+  } else if (compsResult && compsResult.isActiveAskOnly) {
+    attemptTier = "broadened";
   }
 
-  // Fallback: If still null or 0 comps, provide intelligent Australian category valuation
-  // rather than a dead-end or faking mock $30 comps.
-  let categoryEstimate: any = null;
-  if (!compsResult || compsResult.count === 0) {
-    categoryEstimate = estimateAustralianMarketValue({
+  // ── RULE: 0 Sold Comps + 0 Active Listings ──
+  // Never fabricate prices, net profit, or verdicts.
+  // Category benchmarks may only show as a muted hint: "Similar brands often sell for $X–$Y — verify on eBay"
+  let categoryHint: string | null = null;
+  const isZeroMarketData = Boolean(
+    !compsResult ||
+    compsResult.noMarketData ||
+    (compsResult.count === 0 && !compsResult.isActiveAskOnly)
+  );
+
+  if (isZeroMarketData) {
+    const catEstimate = estimateAustralianMarketValue({
       title: trimmed,
       brand,
       category,
       condition,
     });
-    compsResult = {
-      min: categoryEstimate.minPrice,
-      max: categoryEstimate.maxPrice,
-      median: categoryEstimate.estimatedMedian,
-      count: 0, // Real 0 comps count so UI knows it's an intelligent estimate, not fabricated sales
-      currency,
-      source: "category_valuation",
-      isUsMarketOnly: false,
-      arbitrageSignal: `No recent direct eBay AU sales. Estimated from Australian secondary market category trends: ${categoryEstimate.resaleAdvice}`,
-      rawComps: [],
-    };
-    attemptTier = "synthetic";
+    categoryHint = `Similar brands often sell for $${catEstimate.minPrice}–$${catEstimate.maxPrice} — verify on eBay`;
   }
 
   // ── RETAIL CAP & PRICE-BAND SANITY GUARD (Multi-Pack & Pack-Size Normalizer) ──
   const isQueryMultiPack = /\b(pack|lot|bundle|set|box|bulk|\d+x|\d+\s*pk)\b/i.test(trimmed);
 
-  if (compsResult && compsResult.rawComps && compsResult.rawComps.length > 0) {
+  if (!isZeroMarketData && compsResult && compsResult.rawComps && compsResult.rawComps.length > 0) {
     let processedComps: EbaySoldCompItem[] = [];
 
     for (const comp of compsResult.rawComps) {
@@ -158,28 +155,37 @@ async function handleCompsSearch(
       compsResult.min = prices[0];
       compsResult.max = prices[prices.length - 1];
       compsResult.median = Math.round(calcMedian(prices) * 100) / 100;
-      compsResult.count = processedComps.length;
+      if (!compsResult.isActiveAskOnly) {
+        compsResult.count = processedComps.length;
+      }
       compsResult.rawComps = processedComps;
     }
   }
+
+  const finalComps = isZeroMarketData ? [] : (compsResult?.rawComps || []);
+  const finalCount = isZeroMarketData ? 0 : (compsResult?.count || 0);
+  const activeCount = isZeroMarketData ? 0 : (compsResult?.activeListingsCount || (compsResult?.isActiveAskOnly ? finalComps.length : 0));
 
   return NextResponse.json({
     success: true,
     productName: trimmed,
     queryUsed,
     attemptTier,
-    comps: compsResult?.rawComps || [],
-    rawComps: compsResult?.rawComps || [],
-    compsCount: compsResult?.count || 0,
-    minPrice: compsResult?.min || 0,
-    maxPrice: compsResult?.max || 0,
-    median: compsResult?.median || 0,
+    comps: finalComps,
+    rawComps: finalComps,
+    compsCount: finalCount,
+    activeCount,
+    isActiveAskOnly: Boolean(compsResult?.isActiveAskOnly),
+    noMarketData: isZeroMarketData,
+    minPrice: isZeroMarketData ? 0 : (compsResult?.min || 0),
+    maxPrice: isZeroMarketData ? 0 : (compsResult?.max || 0),
+    median: isZeroMarketData ? 0 : (compsResult?.median || 0),
     currency: compsResult?.currency || currency,
     isUsMarketOnly: Boolean(compsResult?.isUsMarketOnly),
     crossBorderShippingCost: compsResult?.crossBorderShippingCost || 0,
-    arbitrageSignal: compsResult?.arbitrageSignal,
-    isCategoryEstimate: Boolean(categoryEstimate),
-    categoryTier: categoryEstimate?.categoryTier || null,
-    typicalOpShopCost: categoryEstimate?.typicalOpShopCost || null,
+    arbitrageSignal: isZeroMarketData
+      ? "Not enough market data to value this item"
+      : (compsResult?.arbitrageSignal || (compsResult?.isActiveAskOnly ? "Currently listed — not sold prices." : undefined)),
+    categoryHint,
   });
 }

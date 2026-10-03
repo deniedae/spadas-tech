@@ -145,15 +145,13 @@ export function GuestScanLimitModal({
         window.location.reload();
         return;
       }
-      if (res.canceled) {
-        return;
-      }
-      if (res.isDesktopRedirect) {
-        toast.info("Opened Google Play Store. Complete your subscription on Android to unlock Spadas Pro across all your devices!");
+      if (res.canceled && res.dismissedByUser) {
         return;
       }
       if (res.error) {
         setErrorMsg(res.error);
+        toast.error(res.error);
+        return;
       }
     } catch (err: any) {
       setErrorMsg(err?.message || "Failed to initiate Google Play checkout.");

@@ -39,11 +39,10 @@ import { resilientFetch } from "@/app/lib/resilient-fetch";
 import { playScanBeep, triggerScanHaptic, createNativeBarcodeScanner, isNativeBarcodeDetectorSupported, CORE_BARCODE_FORMATS, decodeBarcodeFromImageSource } from "@/lib/barcode-detector";
 import { syncProfitToAndroidWidget, triggerTactileHaptic, openExternalUrlSafely } from "@/lib/android-bridge";
 import { sourcingBus } from "@/lib/sourcing-event-bus";
-import { setCachedValuation, getCachedValuation, findBestCachedValuation } from "@/lib/offline-lru-cache";
+import { setCachedValuation, getCachedValuation } from "@/lib/offline-lru-cache";
 import { executeParallelAppraisal } from "@/lib/concurrent-appraiser";
 import { ScanTrace } from "@/lib/scan-trace";
 import { saveScanOffline } from "@/app/lib/offline-storage";
-import { appraiseItemLocally, saveOfflineHitLocally } from "@/app/lib/offline/offline-engine";
 import dynamic from "next/dynamic";
 import CameraOnboardingOverlay from "@/components/camera-onboarding-overlay";
 import OpticalHorizonLeveler from "@/components/optical-horizon-leveler";
@@ -91,12 +90,6 @@ const AuditCompsLedger = dynamic(() => import("@/components/AuditCompsLedger"), 
 const RapidThriftDrawer = dynamic(() => import("@/components/rapid-thrift-drawer").then((m) => m.RapidThriftDrawer), { ssr: false });
 const QuickHistoryDrawer = dynamic(() => import("@/components/quick-history-drawer").then((m) => m.QuickHistoryDrawer), { ssr: false });
 import { calculateSalesVelocity } from "@/lib/turnover-velocity-engine";
-import { LensIntelPanel } from "@/components/lens-intel-panel";
-import {
-  generateTacticalIntel,
-  LensIntelData,
-  fetchMarketplaceIntelligenceAsync,
-} from "@/lib/lens-intel-engine";
 import type { DetectedHit, ActiveScanItem, CopVerdict } from "@/types/lens";
 export type { DetectedHit, ActiveScanItem, CopVerdict } from "@/types/lens";
 import { processFocalCrop } from "@/lib/image-processing";
@@ -205,7 +198,6 @@ function SpadasLensCameraCore({
   const [selectedHitIds, setSelectedHitIds] = useState<string[]>([]);
   const [exporting, setExporting] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
-  const [isMockFallback, setIsMockFallback] = useState(false);
   const [minProfitThreshold, setMinProfitThreshold] = useState<number>(5);
   const [minRoiThreshold, setMinRoiThreshold] = useState<number>(0);
   const [showDebugDrawer, setShowDebugDrawer] = useState<boolean>(false);
@@ -322,7 +314,6 @@ function SpadasLensCameraCore({
     setLastRawApiResponse(null);
     setRetakeRecommendation(null);
     setSecondaryImagePayload(null);
-    setConfidencePercent(0);
     setIsLoaderTransitioning(false);
     setIsScanPaused(false);
     isScanPausedRef.current = false;
@@ -394,10 +385,6 @@ function SpadasLensCameraCore({
     }
     return detectGeoCurrency().currency;
   });
-  const [isIntelModeActive, setIsIntelModeActive] = useState<boolean>(false);
-  const [activeIntelData, setActiveIntelData] = useState<LensIntelData | null>(null);
-  const [isIntelPanelOpen, setIsIntelPanelOpen] = useState<boolean>(false);
-  const [isIntelAnalyzing, setIsIntelAnalyzing] = useState<boolean>(false);
   const [isRapidDrawerOpen, setIsRapidDrawerOpen] = useState<boolean>(false);
   const rapidQueueRef = useRef<Array<{ item: RapidThriftItem; blob: Blob }>>([]);
   const activeRapidWorkersRef = useRef<number>(0);
@@ -592,7 +579,6 @@ function SpadasLensCameraCore({
   }, []);
   const [frozenFrameUrl, setFrozenFrameUrl] = useState<string | null>(null);
   const [activeCompsHit, setActiveCompsHit] = useState<DetectedHit | ActiveScanItem | null>(null);
-  const [confidencePercent, setConfidencePercent] = useState<number>(94);
   const [isLoaderTransitioning, setIsLoaderTransitioning] = useState<boolean>(false);
   const [isValuationCardMounted, setIsValuationCardMounted] = useState<boolean>(false);
 
@@ -879,62 +865,8 @@ function SpadasLensCameraCore({
       // 6. Strict 3.5-second Shutter Cooldown: Prevents trailing auto-snaps and runaway scene captures
       triggerCooldown(3500);
 
-      // 7. Standard Lens AR appraisal preserves pure historical eBay sold comps pipeline.
-      // If Intel Mode is active, prepare instant 0ms offline baseline heuristics without calling /api/marketplace-intel over network
-      if (isIntelModeActive) {
-        try {
-          const baselineIntel = generateTacticalIntel(hit, selectedCurrency);
-          setActiveIntelData(baselineIntel);
-        } catch { }
-      }
     },
-    [soundEnabled, playChime, minProfitThreshold, isIntelModeActive, selectedCurrency, triggerCooldown]
-  );
-
-  // Open Tactical Intel Panel (Deep multi-prompt resell & P2P marketplace insights strictly on-demand)
-  const handleOpenTacticalIntel = useCallback(
-    (hit?: DetectedHit | null, imageSnapshot?: string) => {
-      const target = hit || activeValuationHit;
-      if (!target) {
-        toast.info("Aim camera and scan an item to view tactical intel.");
-        return;
-      }
-
-      setIsIntelPanelOpen(true);
-
-      // Instantly seed baseline 0ms heuristics if not already populated
-      try {
-        const baseline = generateTacticalIntel(target, selectedCurrency);
-        setActiveIntelData((prev) => prev || baseline);
-      } catch { }
-
-      // Fire secondary marketplace & off-market intelligence pipeline strictly on-demand
-      setIsIntelAnalyzing(true);
-      void fetchMarketplaceIntelligenceAsync({
-        image: imageSnapshot || frozenFrameUrl || (target as any).image,
-        productName: target.name,
-        brand: target.brand,
-        category: target.category,
-        estimatedValue: target.estimatedValue,
-        currency: selectedCurrency,
-      })
-        .then((p2p) => {
-          if (p2p) {
-            setActiveIntelData((prev) => {
-              const base = prev || generateTacticalIntel(target, selectedCurrency);
-              return { ...base, marketplaceIntelligence: p2p };
-            });
-          }
-        })
-        .catch((err) => {
-          console.error("[Spadas Lens] Tactical intel generation error:", err);
-          toast.error("Could not load real-time marketplace intel.");
-        })
-        .finally(() => {
-          setIsIntelAnalyzing(false);
-        });
-    },
-    [activeValuationHit, selectedCurrency, frozenFrameUrl]
+    [soundEnabled, playChime, minProfitThreshold, selectedCurrency, triggerCooldown]
   );
 
   // Smooth result card exit handler (200ms slide-down ease-out with camera live underneath)
@@ -1151,7 +1083,6 @@ function SpadasLensCameraCore({
           setRapidItems((prev) => [rapidBarcodeItem, ...prev.filter((i) => i.id !== rapidBarcodeItem.id)]);
 
           triggerActiveValuationHit(verifiedHit, snapshotUrl || productImg);
-          setConfidencePercent(99);
           void persistHitRef.current?.(verifiedHit);
           toast.success(`⚡ Barcode Lock: ${pName.slice(0, 24)}... (+$${estProfit} Net)`);
         }
@@ -2259,11 +2190,10 @@ function SpadasLensCameraCore({
       setIsCameraPoweredOn(true);
       setScanning(true);
     } catch (err) {
-      console.warn("[Spadas Lens] Physical camera access blocked or unavailable — Activating Test Scanner Mode:", err);
-      setIsMockFallback(true);
-      setIsCameraPoweredOn(true);
-      setScanning(true);
-      toast.info("Activated Interactive AR Test Scanner Mode.");
+      console.warn("[Spadas Lens] Physical camera access blocked or unavailable:", err);
+      setCameraError("Camera unavailable — allow camera access in settings");
+      setIsCameraPoweredOn(false);
+      setScanning(false);
     } finally {
       isInitializingRef.current = false;
     }
@@ -2701,7 +2631,6 @@ function SpadasLensCameraCore({
                   void persistHitAndSyncToSupabase(verifiedHit);
                   setSessionScanCount((prev) => prev + 1);
                   triggerActiveValuationHit(verifiedHit, snapshotUrl || productImg);
-                  setConfidencePercent(99);
 
                   if (scanExpiryTimerRef.current) {
                     clearTimeout(scanExpiryTimerRef.current);
@@ -2786,41 +2715,6 @@ function SpadasLensCameraCore({
 
       if (!frameDataUrl && instantSnapshotUrl) {
         frameDataUrl = instantSnapshotUrl;
-      }
-
-      // Fallback Canvas for Manual Scan & Mock Mode: Guarantees frameDataUrl is never dropped on manual scan
-      if (
-        (!frameDataUrl || (!frameDataUrl.startsWith("data:image/jpeg;base64,") && !frameDataUrl.startsWith("data:image/webp;base64,")) || frameDataUrl.length < 1000) &&
-        (forceManual || isMockFallback)
-      ) {
-        try {
-          if (!offscreenCanvasRef.current) {
-            offscreenCanvasRef.current = document.createElement("canvas");
-          }
-          const canvas = offscreenCanvasRef.current;
-          canvas.width = 640;
-          canvas.height = 480;
-          const ctx = canvas.getContext("2d");
-          if (ctx) {
-            ctx.fillStyle = "#12151E";
-            ctx.fillRect(0, 0, 640, 480);
-            ctx.strokeStyle = "rgba(255,255,255,0.25)";
-            ctx.lineWidth = 2;
-            ctx.strokeRect(100, 80, 440, 320);
-            ctx.fillStyle = "#FFFFFF";
-            ctx.font = "bold 18px monospace";
-            ctx.textAlign = "center";
-            ctx.fillText("SPADAS LENS AR SCAN", 320, 230);
-            ctx.fillStyle = "#94A3B8";
-            ctx.font = "13px monospace";
-            ctx.fillText(new Date().toLocaleTimeString(), 320, 260);
-            frameDataUrl = canvas.toDataURL("image/jpeg", 0.70);
-            centerCropDataUrl = frameDataUrl;
-            instantSnapshotUrl = frameDataUrl;
-          }
-        } catch (canvasErr) {
-          console.warn("[Spadas Lens] Fallback canvas generation error:", canvasErr);
-        }
       }
 
       // 1. Live Session & Pro/Admin Verification prior to scan limit evaluation
@@ -3172,7 +3066,6 @@ function SpadasLensCameraCore({
 
                       setActiveScans([scanObj]);
                       setCapturedLog((prev) => [verifiedHit, ...prev.filter((h) => h.name !== verifiedHit.name)].slice(0, 50));
-                      setConfidencePercent(98);
                       setCachedValuation(verifiedHit.name, verifiedHit);
                       activeValuationHitRef.current = verifiedHit;
                       data = valData;
@@ -3387,165 +3280,27 @@ function SpadasLensCameraCore({
       }
 
       if (!data || data.error || !res) {
-        // 1. Try best cached valuation fallback first (from LRU or persistent local storage)
-        const queryText = pendingIdentifiedItem?.productName || lastDetectedBarcodeRef.current || undefined;
-        const cachedHit = findBestCachedValuation(queryText, pendingIdentifiedItem?.brand || undefined);
-
-        if (cachedHit) {
-          console.log("[Spadas Lens] Found matching cached valuation for offline/timeout fallback:", cachedHit.name);
-          const fallbackScanObj: ActiveScanItem = {
-            id: `cached-${Date.now()}`,
-            productName: cachedHit.name,
-            brand: cachedHit.brand || undefined,
-            category: cachedHit.category,
-            condition: cachedHit.condition,
-            inventoryCondition: "used_working",
-            defectNotes: cachedHit.defectNotes || [],
-            asIsDisclaimer: cachedHit.asIsDisclaimer || "",
-            bbox: cachedHit.bbox || { x: 15, y: 15, width: 70, height: 70 },
-            status: "valued",
-            estimatedValue: cachedHit.estimatedValue,
-            suggestedPriceMin: Math.round(cachedHit.estimatedValue * 0.7),
-            suggestedPriceMax: Math.round(cachedHit.estimatedValue * 1.3),
-            confidenceScore: 0.92,
-            estCost: cachedHit.estCost || cachedHit.tagPrice,
-            estimatedProfit: cachedHit.trueNetProfit || cachedHit.estimatedProfit,
-            estRoi: cachedHit.estRoi || cachedHit.roiPercentage,
-            tagPrice: cachedHit.tagPrice,
-            trueNetProfit: cachedHit.trueNetProfit || cachedHit.estimatedProfit,
-            roiPercentage: cachedHit.roiPercentage || cachedHit.estRoi,
-            copVerdict: cachedHit.copVerdict,
-            timestamp: Date.now(),
-          };
-
-          const cachedHitWithBadge: DetectedHit = {
-            ...cachedHit,
-            compsSource: "cached_last_check" as any,
-          };
-
-          setActiveScans([fallbackScanObj]);
-          setCapturedLog((prev) => [cachedHitWithBadge, ...prev.filter((h) => h.name !== cachedHit.name)].slice(0, 50));
-          setSessionScanCount((prev) => prev + 1);
-          triggerActiveValuationHit(cachedHitWithBadge, frozenFrameUrl);
-
-          toast.info("Using last check", {
-            id: "timeout-cached-hit",
-            description: "Loaded previous valuation data",
-            duration: 3000,
-          });
-
-          setAnalyzingRealFrame(false);
-          return;
-        }
-
-        // 2. If dead-zone offline mode is active OR network dropped/failed, use autonomous on-device heuristics:
-        if (isOffline || !res || (typeof navigator !== "undefined" && !navigator.onLine)) {
-          console.log("[Spadas Lens] Offline or network failure — Activating Autonomous On-Device Heuristics...");
-          const offlineAppraisal = appraiseItemLocally();
-
-          const scanObj: ActiveScanItem = {
-            id: `offline-${Date.now()}`,
-            productName: offlineAppraisal.productName,
-            brand: offlineAppraisal.brand,
-            category: offlineAppraisal.category,
-            condition: offlineAppraisal.condition,
-            inventoryCondition: "used_working",
-            defectNotes: [],
-            asIsDisclaimer: "",
-            bbox: { x: 15, y: 15, width: 70, height: 70 },
-            status: "valued",
-            estimatedValue: offlineAppraisal.estimatedValue,
-            suggestedPriceMin: Math.round(offlineAppraisal.estimatedValue * 0.7),
-            suggestedPriceMax: Math.round(offlineAppraisal.estimatedValue * 1.3),
-            confidenceScore: 0.95,
-            estCost: offlineAppraisal.tagPrice,
-            estimatedProfit: offlineAppraisal.trueNetProfit,
-            estRoi: offlineAppraisal.roiPercentage,
-            tagPrice: offlineAppraisal.tagPrice,
-            trueNetProfit: offlineAppraisal.trueNetProfit,
-            roiPercentage: offlineAppraisal.roiPercentage,
-            copVerdict: offlineAppraisal.copVerdict,
-            timestamp: Date.now(),
-          };
-
-          const verifiedHit: DetectedHit = {
-            id: `hit-${Date.now()}`,
-            name: offlineAppraisal.productName,
-            brand: offlineAppraisal.brand,
-            category: offlineAppraisal.category,
-            condition: offlineAppraisal.condition,
-            inventoryCondition: "used_working",
-            defectNotes: [],
-            asIsDisclaimer: "",
-            estimatedValue: offlineAppraisal.estimatedValue,
-            estCost: offlineAppraisal.tagPrice,
-            estimatedProfit: offlineAppraisal.trueNetProfit,
-            estRoi: offlineAppraisal.roiPercentage,
-            tagPrice: offlineAppraisal.tagPrice,
-            trueNetProfit: offlineAppraisal.trueNetProfit,
-            roiPercentage: offlineAppraisal.roiPercentage,
-            copVerdict: offlineAppraisal.copVerdict,
-            verdict: offlineAppraisal.trueNetProfit >= 15 ? "BUY" : "CAUTION",
-            confidence: 0.95,
-            bbox: { x: 15, y: 15, width: 70, height: 70 },
-            timestamp: Date.now(),
-          };
-
-          setActiveScans([scanObj]);
-          setCapturedLog((prev) => [verifiedHit, ...prev.filter((h) => h.name !== verifiedHit.name)].slice(0, 50));
-          saveOfflineHitLocally(verifiedHit);
-          void persistHitAndSyncToSupabase(verifiedHit);
-          setSessionScanCount((prev) => prev + 1);
-
-          const offlineRapidItem: RapidThriftItem = {
-            id: verifiedHit.id || `rapid_${Date.now()}`,
-            photoId: verifiedHit.id ? `photo_${verifiedHit.id}` : `photo_${Date.now()}`,
-            timestamp: verifiedHit.timestamp,
-            status: "completed",
-            productName: verifiedHit.name,
-            brand: cleanBrandText(verifiedHit.brand, "Unbranded"),
-            category: cleanCategoryText(verifiedHit.category, "General"),
-            condition: cleanConditionText(verifiedHit.condition, "Used - Good"),
-            estimatedValue: verifiedHit.estimatedValue || 0,
-            thriftCost: verifiedHit.tagPrice || verifiedHit.estCost || 0,
-            trueNetProfit: verifiedHit.trueNetProfit || verifiedHit.estimatedProfit || 0,
-            roiPercentage: verifiedHit.roiPercentage || verifiedHit.estRoi || 0,
-            copVerdict: verifiedHit.copVerdict === "MUST_COP" ? "MUST_COP" : "QUICK_FLIP",
-            isGrail: Boolean(verifiedHit.isGrail),
-            thumbnailUrl: frozenFrameUrl || verifiedHit.image || undefined,
-            image: frozenFrameUrl || verifiedHit.image || undefined,
-            imageUrl: frozenFrameUrl || verifiedHit.image || undefined,
-          };
-          setRapidItems((prev) => [offlineRapidItem, ...prev.filter((i) => i.id !== offlineRapidItem.id)]);
+        // If offline or network dropped, enqueue to quickSnapQueue without inventing an appraisal
+        if (isOffline || (typeof navigator !== "undefined" && !navigator.onLine)) {
           if (frozenFrameUrl) {
             try {
               const blob = dataUriToBlob(frozenFrameUrl);
-              void savePhotoBlob(offlineRapidItem.photoId, blob);
-            } catch { }
+              void quickSnapQueue.enqueuePhoto(Promise.resolve(blob), undefined, selectedCurrency);
+              toast.info("Offline — item saved to queue for sync when connected");
+            } catch (err) {
+              console.warn("[Spadas Lens] Failed to queue offline photo:", err);
+            }
           }
-
-          if (scanExpiryTimerRef.current) {
-            clearTimeout(scanExpiryTimerRef.current);
-            scanExpiryTimerRef.current = null;
-          }
-
-          triggerActiveValuationHit(verifiedHit, frozenFrameUrl);
-          toast.success(`📶 Autonomous Appraisal: ${offlineAppraisal.productName} (+${fmtMoney(offlineAppraisal.trueNetProfit)} Net)`);
           setAnalyzingRealFrame(false);
           return;
         }
 
-        // 3. Otherwise, live scan connection dropped or API timed out with no cache:
-        // Gracefully display clean, non-intrusive error pill with 1-tap retry WITHOUT resetting active scan session!
-        const isConnDropped = typeof navigator !== "undefined" && !navigator.onLine;
-        const errorLabel = isConnDropped ? "Connection dropped" : "Scan timed out";
-        console.warn("[Spadas Lens] Live scan connection dropped/timed out without cache:", errorLabel);
-
+        const errMsg = data?.error || (res?.status ? `Scan failed (${res.status})` : "Couldn't get a value — check connection and retry");
         setScanRetryPrompt({
-          message: errorLabel,
+          message: errMsg,
           canRetry: true,
         });
-        toast.warning(`${errorLabel} — tap Retry on camera to scan again`, { id: "scan-retry-toast" });
+        toast.error(errMsg, { id: "scan-retry-toast" });
         setAnalyzingRealFrame(false);
         return;
       }
@@ -3948,7 +3703,6 @@ function SpadasLensCameraCore({
 
           // Automatically trigger active result state so the valuation card slides into view instantly
           triggerActiveValuationHit(verifiedHit, snapshotImage || frozenFrameUrl);
-          setConfidencePercent(98);
 
           if (!isAuthed && isGuestUser && !isPro && !isUserAdmin) {
             const nextGuestState = recordGuestScan();
@@ -4026,7 +3780,6 @@ function SpadasLensCameraCore({
     frozenFrameUrl,
     triggerActiveValuationHit,
     persistHitAndSyncToSupabase,
-    isMockFallback,
   ]);
 
   // HUD STATE MACHINE: Keep recognized item cards visible indefinitely (Pinned) until manually dismissed
@@ -4110,20 +3863,19 @@ function SpadasLensCameraCore({
           }
 
           if (!data || data.error) {
-            const offline = appraiseItemLocally();
-            data = {
-              product_name: offline.productName,
-              brand: offline.brand,
-              category: offline.category,
-              condition: offline.condition,
-              estimated_value: offline.estimatedValue,
-              thrift_cost: offline.tagPrice,
-              true_net_profit: offline.trueNetProfit,
-              roi_percentage: offline.roiPercentage,
-              cop_verdict: offline.copVerdict,
-              is_grail: offline.trueNetProfit >= 50,
-              needs_verification: false,
-            };
+            setRapidItems((prev) =>
+              prev.map((i) =>
+                i.id === task.item.id
+                  ? {
+                      ...i,
+                      status: "error",
+                      error: data?.error || "Appraisal failed",
+                    }
+                  : i
+              )
+            );
+            activeRapidWorkersRef.current = Math.max(0, activeRapidWorkersRef.current - 1);
+            return;
           }
 
           const profit = Number(data.true_net_profit) || 0;
@@ -4295,7 +4047,6 @@ function SpadasLensCameraCore({
         setCameraMoving(true);
         cameraMovingRef.current = true;
         lastMotionTimeRef.current = Date.now();
-        setConfidencePercent(Math.max(68, Math.round(78 - avgDiff * 40)));
         wasMoving = true;
         stableTicks = 0;
         // User panned away to a new scene — clear duplicate lock
@@ -4303,7 +4054,6 @@ function SpadasLensCameraCore({
       } else if (isStill) {
         setCameraMoving(false);
         cameraMovingRef.current = false;
-        setConfidencePercent((prev) => Math.min(96, Math.max(90, prev + 1)));
         stableTicks++;
       }
 
@@ -4363,8 +4113,8 @@ function SpadasLensCameraCore({
     };
   }, []);
 
-  // Focus lock state for viewfinder framing animation (steady + high confidence or paused)
-  const isFocusLocked = isScanPaused || (!cameraMoving && confidencePercent >= 80);
+  // Focus lock state for viewfinder framing animation (steady or paused)
+  const isFocusLocked = isScanPaused || !cameraMoving;
 
   return (
     <div className="spadas-lens-camera w-full min-h-full flex-1 flex flex-col max-w-full overflow-y-auto box-border mx-auto animate-fade-in">
@@ -4509,31 +4259,19 @@ function SpadasLensCameraCore({
                 activeCompsHit ? "opacity-0 pointer-events-none -translate-y-4" : "opacity-100"
               }`}>
                 {/* Dynamic Real-Time Focus & Telemetry Indicator */}
-                <div className="inline-flex items-center gap-1.5 rounded-full bg-slate-950/80 border border-white/20 px-3 py-1 shadow-lg backdrop-blur-xl pointer-events-auto">
+                <div className="inline-flex items-center gap-1.5 rounded-full bg-slate-950/80 border border-white/20 px-3 py-1 shadow-lg backdrop-blur-xl pointer-events-auto text-[10px]">
                   <div
-                    className={`h-2.5 w-2.5 rounded-full shrink-0 transition-colors ${confidencePercent >= 90
-                        ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)] animate-pulse"
-                        : confidencePercent >= 75
-                          ? "bg-cyan-300 shadow-[0_0_8px_rgba(6,182,212,0.6)]"
-                          : "bg-zinc-500"
-                      }`}
+                    className={`h-2 w-2 rounded-full shrink-0 ${
+                      !cameraMoving ? "bg-emerald-400" : "bg-zinc-400"
+                    }`}
                   />
-                  <span className="text-[10px] font-bold text-zinc-300 uppercase tracking-wider font-mono">Focus</span>
-                  <span className="text-[11px] font-black text-emerald-300 font-mono">
-                    {confidencePercent}%
+                  <span className="font-bold text-zinc-300 uppercase tracking-wider">Focus</span>
+                  <span className="text-white/20 text-[8px]">|</span>
+                  <span className="font-semibold text-zinc-200">
+                    {isScanPaused ? "Locked" : cameraMoving ? "Panning" : "Steady"}
                   </span>
                   <span className="text-white/20 text-[8px]">|</span>
-                  <span className="text-[10px] font-semibold text-zinc-200 font-mono">
-                    {isScanPaused ? "Locked ✨" : cameraMoving ? "Panning" : "Steady 🎯"}
-                  </span>
-                  <span className="text-white/20 text-[8px]">|</span>
-                  {isIntelModeActive ? (
-                    <span className="text-[10px] font-bold text-emerald-400 font-mono inline-flex items-center gap-1">
-                      <Zap className="h-2.5 w-2.5 fill-emerald-400" /> Intel
-                    </span>
-                  ) : (
-                    <span className="text-[10px] font-bold text-cyan-300 font-mono">eBay Comps</span>
-                  )}
+                  <span className="font-bold text-cyan-300">eBay Comps</span>
                 </div>
 
                 {/* Geolocation & Category Biasing Prior Badge */}
@@ -4688,29 +4426,7 @@ function SpadasLensCameraCore({
                           </button>
                         </div>
 
-                        {/* Tool 3: Tactical Intel Mode */}
-                        <div className="flex items-center justify-between py-1">
-                          <span className="text-xs text-zinc-300 font-medium flex items-center gap-1.5">
-                            <Zap className="h-3.5 w-3.5 text-zinc-400" /> Intel Mode
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const next = !isIntelModeActive;
-                              setIsIntelModeActive(next);
-                              if (next) toast.success("⚡ Intel Mode ON: Local P2P & Resell Intel active");
-                              else toast.info("Intel Mode OFF: Standard rapid scan active");
-                            }}
-                            className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition cursor-pointer border ${isIntelModeActive
-                                ? "bg-cyan-500/20 text-cyan-300 border-cyan-400/50 shadow-sm"
-                                : "bg-slate-900 text-slate-400 border-slate-800 hover:text-white"
-                              }`}
-                          >
-                            {isIntelModeActive ? "ON" : "OFF"}
-                          </button>
-                        </div>
-
-                        {/* Tool 4: Camera Power */}
+                        {/* Tool 3: Camera Power */}
                         <div className="flex items-center justify-between py-1 border-t border-slate-800/80 pt-2">
                           <span className="text-xs text-slate-300 font-medium flex items-center gap-1.5">
                             <Power className="h-3.5 w-3.5 text-emerald-400" /> Camera Stream
@@ -4744,7 +4460,6 @@ function SpadasLensCameraCore({
                   <ScanProgressiveLoader
                     isActive={true}
                     stage={scanStage}
-                    isIntelMode={isIntelModeActive}
                     detectedTitle={pendingIdentifiedItem?.productName}
                     detectedBrand={pendingIdentifiedItem?.brand ?? undefined}
                     previewImage={frozenFrameUrl}
@@ -6021,32 +5736,6 @@ function SpadasLensCameraCore({
         pendingSyncCount={pendingSyncCount}
         currency={selectedCurrency}
         onNavigateFullHistory={() => router.push("/history")}
-      />
-
-      {/* Tactical Reseller & Local Marketplace Intelligence Overlay */}
-      <LensIntelPanel
-        isOpen={isIntelPanelOpen}
-        onClose={() => setIsIntelPanelOpen(false)}
-        intel={activeIntelData}
-        isLoading={isIntelAnalyzing}
-        onAddToHaul={
-          activeValuationHit
-            ? () => {
-              void handleSaveDraftHit(activeValuationHit);
-              setActiveValuationHit(null);
-              setFrozenFrameUrl(null);
-            }
-            : undefined
-        }
-        onViewComps={
-          activeValuationHit
-            ? () => {
-              setActiveCompsHit(activeValuationHit);
-              setActiveValuationHit(null);
-            }
-            : undefined
-        }
-        currency={selectedCurrency}
       />
 
     </div>

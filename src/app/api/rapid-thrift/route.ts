@@ -7,6 +7,7 @@ import { checkNeedsVerification } from "@/lib/forensic-knowledge";
 import { estimateAustralianMarketValue } from "@/lib/valuation-heuristics";
 import { estimateCategoryShippingCost, detectThriftTrap, calculateThriftCopVerdict } from "@/lib/thrift-cop-engine";
 import { calculateSalesVelocity } from "@/lib/turnover-velocity-engine";
+import { fetchEbayAustraliaSoldComps } from "@/app/lib/ebay-australia-comps";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -147,38 +148,53 @@ Output ONLY valid JSON adhering strictly to:
 
     const cleanImage = image.trim().replace(/[\r\n]/g, "");
 
-    // Fast completion with safe token limit to prevent JSON truncation
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-2024-08-06",
-      response_format: { type: "json_object" },
-      temperature: 0.1,
-      max_tokens: 600,
-      messages: [
-        { role: "system", content: systemPrompt },
-        {
-          role: "user",
-          content: [
-            { type: "text", text: `Appraise the item in the image for resale in ${currency}.` },
-            {
-              type: "image_url",
-              image_url: {
-                url: cleanImage,
-                detail: "auto",
+    let completion: any = null;
+    try {
+      completion = await openai.chat.completions.create({
+        model: "gpt-4o-2024-08-06",
+        response_format: { type: "json_object" },
+        temperature: 0.1,
+        max_tokens: 600,
+        messages: [
+          { role: "system", content: systemPrompt },
+          {
+            role: "user",
+            content: [
+              { type: "text", text: `Appraise the item in the image for resale in ${currency}.` },
+              {
+                type: "image_url",
+                image_url: {
+                  url: cleanImage,
+                  detail: "auto",
+                },
               },
-            },
-          ],
+            ],
+          },
+        ],
+      });
+    } catch (openaiErr: any) {
+      console.error(
+        `[Rapid Thrift API] Upstream OpenAI call failed (${openaiErr?.status || 500}):`,
+        openaiErr?.message || openaiErr
+      );
+      return NextResponse.json(
+        {
+          error: "Upstream AI vision model call failed. Please check connection and retry.",
+          code: "UPSTREAM_AI_ERROR",
+          status: openaiErr?.status || 500,
         },
-      ],
-    });
+        { status: openaiErr?.status || 500 }
+      );
+    }
 
-    const rawContent = completion.choices[0]?.message?.content;
+    const rawContent = completion?.choices?.[0]?.message?.content;
     if (!rawContent) {
+      console.warn("[Rapid Thrift API] Vision appraisal model produced an empty response");
       return NextResponse.json(
         { error: "Vision appraisal model produced an empty response", code: "EMPTY_MODEL_RESPONSE", recoverable: true },
         { status: 502 }
       );
     }
-
 
     const parsed = JSON.parse(rawContent);
 
@@ -186,6 +202,13 @@ Output ONLY valid JSON adhering strictly to:
     const pBrand = parsed.brand || "Authentic";
     const pCategory = parsed.category || "General";
 
+    // Query real eBay sold comps to ground rapid-thrift in verified market data
+    const compsData = await fetchEbayAustraliaSoldComps(pName, currency as any, pBrand, pCategory).catch((cErr: any) => {
+      console.warn("[Rapid Thrift API] Comps lookup error:", cErr?.message || cErr);
+      return null;
+    });
+
+    const hasRealComps = Boolean(compsData && !compsData.noMarketData && compsData.median > 0);
     const catEst = estimateAustralianMarketValue({
       title: pName,
       brand: pBrand,
@@ -193,13 +216,13 @@ Output ONLY valid JSON adhering strictly to:
       condition: parsed.condition,
     });
 
-    const estVal = Number(parsed.estimated_value) || catEst.estimatedMedian;
+    const estVal = hasRealComps ? compsData!.median : (compsData?.noMarketData ? 0 : catEst.estimatedMedian);
     const estCost = Number(parsed.thrift_cost) || catEst.typicalOpShopCost;
-    const ebayFee = estVal * 0.134 + 0.33;
+    const ebayFee = estVal > 0 ? estVal * 0.134 + 0.33 : 0;
 
     // Deduct realistic category parcel shipping
     const shippingCost = estimateCategoryShippingCost(pCategory, pName);
-    const calculatedNetProfit = Math.max(0, Math.round((estVal - estCost - ebayFee - shippingCost) * 100) / 100);
+    const calculatedNetProfit = estVal > 0 ? Math.max(0, Math.round((estVal - estCost - ebayFee - shippingCost) * 100) / 100) : 0;
     const netProfit = typeof parsed.true_net_profit === "number" && parsed.true_net_profit < calculatedNetProfit
       ? parsed.true_net_profit
       : calculatedNetProfit;

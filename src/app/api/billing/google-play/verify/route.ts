@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { isOwnerEmail } from "@/app/lib/auth-admin";
+import {
+  verifySubscriptionTokenWithGoogle,
+  acknowledgeSubscriptionWithGoogle,
+  GOOGLE_PLAY_PACKAGE_NAME,
+  GOOGLE_PLAY_PRODUCT_ID,
+} from "@/lib/google-play-publisher";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +25,7 @@ export async function POST(req: NextRequest) {
       auth: { persistSession: false, autoRefreshToken: false },
     });
 
-    // 1. Authenticate user from Bearer token or Supabase Auth header
+    // 1. Authenticate user from Bearer token
     const authHeader = req.headers.get("authorization");
     let user: any = null;
 
@@ -39,8 +44,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const body = await req.json();
-    const { purchaseToken, sku = "spadas_pro_monthly" } = body;
+    const body = await req.json().catch(() => ({}));
+    const {
+      purchaseToken,
+      sku = GOOGLE_PLAY_PRODUCT_ID,
+      packageName = GOOGLE_PLAY_PACKAGE_NAME,
+    } = body;
 
     if (!purchaseToken) {
       return NextResponse.json(
@@ -49,19 +58,84 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const isOwner = isOwnerEmail(user.email);
-    const expiresAt = isOwner
-      ? "2099-12-31T23:59:59Z"
-      : new Date(Date.now() + 32 * 24 * 60 * 60 * 1000).toISOString();
+    if (packageName !== GOOGLE_PLAY_PACKAGE_NAME) {
+      return NextResponse.json(
+        {
+          error: `Package name mismatch. Expected ${GOOGLE_PLAY_PACKAGE_NAME}, received ${packageName}`,
+        },
+        { status: 400 }
+      );
+    }
 
-    // 2. Upsert subscription in Supabase user_subscriptions
+    // 2. Verify subscription token with Google Play AndroidPublisher API
+    let verification;
+    try {
+      verification = await verifySubscriptionTokenWithGoogle(
+        purchaseToken,
+        sku,
+        packageName
+      );
+    } catch (apiErr: any) {
+      console.error("[google-play/verify] Google Play verification error:", apiErr);
+      if (apiErr?.message?.includes("Missing Google Play service account credentials")) {
+        return NextResponse.json(
+          {
+            error:
+              "Server configuration error: GOOGLE_PLAY_SERVICE_ACCOUNT_JSON credentials are missing.",
+          },
+          { status: 500 }
+        );
+      }
+      return NextResponse.json(
+        {
+          error: `Google Play purchase verification failed: ${apiErr?.message || "Invalid token"}`,
+        },
+        { status: 400 }
+      );
+    }
+
+    // 3. Only set Pro if Google says active and productId/packageName match
+    if (!verification.isValid || verification.productId !== sku) {
+      console.warn(
+        `[google-play/verify] Rejected token: valid=${verification.isValid}, state=${verification.state}, sku=${verification.productId}, expectedSku=${sku}`
+      );
+      return NextResponse.json(
+        {
+          error: "Subscription is not active or product does not match.",
+          state: verification.state,
+          productId: verification.productId,
+          isValid: false,
+        },
+        { status: 400 }
+      );
+    }
+
+    // 4. Acknowledge subscription with Google Play if not already acknowledged
+    if (!verification.isAcknowledged) {
+      try {
+        await acknowledgeSubscriptionWithGoogle(purchaseToken, sku, packageName);
+        console.log(`[google-play/verify] Successfully acknowledged subscription with Google Play`);
+      } catch (ackErr: any) {
+        console.error("[google-play/verify] Failed to acknowledge subscription:", ackErr);
+        return NextResponse.json(
+          {
+            error: `Failed to acknowledge subscription with Google Play: ${ackErr?.message || ackErr}`,
+          },
+          { status: 500 }
+        );
+      }
+    }
+
+    // 5. Store the real expiry from Google, not a calculated one
+    const realExpiryIso = new Date(verification.expiryTime).toISOString();
+
     const subscriptionRecord = {
       user_id: user.id,
       stripe_customer_id: `gplay_${purchaseToken.slice(0, 24)}`,
       stripe_subscription_id: `gplay_sub_${purchaseToken}`,
       status: "active",
-      price_id: sku,
-      current_period_end: expiresAt,
+      price_id: verification.productId,
+      current_period_end: realExpiryIso,
       updated_at: new Date().toISOString(),
     };
 
@@ -77,7 +151,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Also update user metadata if possible
+    // Also update user metadata in Supabase Auth
     try {
       await supabaseAdmin.auth.admin.updateUserById(user.id, {
         app_metadata: { is_pro: true, plan: "pro" },
@@ -88,7 +162,7 @@ export async function POST(req: NextRequest) {
     }
 
     console.log(
-      `[google-play/verify] Successfully activated Spadas Pro for user ${user.id} (${user.email}) via Google Play`
+      `[google-play/verify] Successfully activated Spadas Pro for user ${user.id} (${user.email}) via Google Play. Expiry: ${realExpiryIso}`
     );
 
     return NextResponse.json({
@@ -96,8 +170,9 @@ export async function POST(req: NextRequest) {
       active: true,
       isPro: true,
       plan: "Pro",
-      currentPeriodEnd: expiresAt,
-      message: "Spadas Pro successfully activated via Google Play!",
+      productId: verification.productId,
+      currentPeriodEnd: realExpiryIso,
+      message: "Spadas Pro successfully verified and activated via Google Play!",
     });
   } catch (error: any) {
     console.error("[google-play/verify] Unexpected error:", error);

@@ -38,9 +38,9 @@ execSync(`${jarExe} xf "${aabPath}" base/manifest/AndroidManifest.xml`, { cwd: r
 const manifestPath = path.join(rootDir, 'base', 'manifest', 'AndroidManifest.xml');
 let buf = fs.readFileSync(manifestPath);
 
-// Target versionCode and versionName (Default: 4 / 1.2.1.0, or pass code as arg: e.g. "node scripts/build_production_release_aab.js 5")
-const targetVerCode = parseInt(process.argv[2] || process.env.VERSION_CODE || '4', 10);
-const targetVerName = process.argv[3] || process.env.VERSION_NAME || (targetVerCode >= 5 ? `1.2.${targetVerCode - 3}.0` : '1.2.1.0');
+// Target versionCode and versionName (Default: 12 / 1.2.8)
+const targetVerCode = parseInt(process.argv[2] || process.env.VERSION_CODE || '12', 10);
+const targetVerName = process.argv[3] || process.env.VERSION_NAME || '1.2.8';
 
 // STEP 3: Patch versionCode, versionName, and targetSdkVersion (confirm 36)
 console.log(`\n--- Step 3: Patching versionCode (to ${targetVerCode}), versionName (to ${targetVerName}) & targetSdkVersion (36) ---`);
@@ -55,10 +55,23 @@ console.log('Found versionCode at offset:', verCodeIdx);
 console.log('Before versionCode:', buf.slice(verCodeIdx, verCodeIdx + 32));
 
 // ASCII representation:
-buf[verCodeIdx + 13] = 0x30 + (targetVerCode % 10);
-// Integer representation:
-buf[verCodeIdx + 28] = targetVerCode;
-console.log('After versionCode:', buf.slice(verCodeIdx, verCodeIdx + 32));
+const strLen = buf[verCodeIdx + 12];
+const verStr = String(targetVerCode);
+if (verStr.length === strLen) {
+  for (let i = 0; i < strLen; i++) {
+    buf[verCodeIdx + 13 + i] = verStr.charCodeAt(i);
+  }
+}
+
+// Integer representation in Primitive int_decimal_value (Tag 0x30 following 0x3a, 0x02)
+const primIdx = buf.indexOf(Buffer.from([0x3a, 0x02, 0x30]), verCodeIdx);
+if (primIdx !== -1 && primIdx < verCodeIdx + 40) {
+  buf[primIdx + 3] = targetVerCode;
+  console.log(`✓ Set integer versionCode at offset ${primIdx + 3} to ${targetVerCode}`);
+} else {
+  console.warn('⚠️ Could not locate [0x3a, 0x02, 0x30] tag for integer versionCode');
+}
+console.log('After versionCode:', buf.slice(verCodeIdx, verCodeIdx + 35));
 
 // 2. versionName
 const verNameIdx = buf.indexOf('versionName');

@@ -88,16 +88,13 @@ export default function SubscriptionPaywallModal({
         window.location.reload();
         return;
       }
-      if (res.canceled) {
-        // User closed or dismissed the Google Play sheet
-        return;
-      }
-      if (res.isDesktopRedirect) {
-        toast.info("Opened Google Play Store. Subscribe on Android to unlock Spadas Pro across all your devices!");
+      if (res.canceled && res.dismissedByUser) {
+        // User explicitly dismissed the Google Play bottom sheet
         return;
       }
       if (res.error) {
         toast.error(res.error);
+        return;
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Network error. Please check your connection.";

@@ -11,6 +11,7 @@ export interface PurchaseResult {
   success: boolean;
   active?: boolean;
   canceled?: boolean;
+  dismissedByUser?: boolean;
   isDesktopRedirect?: boolean;
   error?: string;
 }
@@ -50,9 +51,9 @@ export function isDigitalGoodsSupported(): boolean {
  * Initiates the subscription checkout for Spadas Pro ($10 AUD/month).
  *
  * CRITICAL POLICY ENFORCEMENT:
- * - On Android / in the Android app: ONLY Google Play In-App Billing is used.
- *   Stripe checkout is 100% blocked on Android to protect Google Play compliance.
- * - On Web / Desktop / iPhone: Uses the web checkout session.
+ * - Inside the Android TWA / app: ONLY Google Play In-App Billing is used.
+ *   Stripe checkout and web purchases are 100% hidden and blocked inside the TWA.
+ * - On Web / Desktop / iPhone: Uses the standard web checkout session.
  */
 export async function purchaseGooglePlaySubscription(
   options?: PurchaseOptions
@@ -76,70 +77,101 @@ export async function purchaseGooglePlaySubscription(
       authHeaders["Authorization"] = `Bearer ${session.access_token}`;
     }
 
-    const isAndroid = isAndroidAppEnvironment() || (typeof window !== "undefined" && /Android/i.test(navigator.userAgent));
+    const isAndroid =
+      isAndroidAppEnvironment() ||
+      (typeof window !== "undefined" && /Android/i.test(navigator.userAgent));
 
     // 1. Android TWA / Digital Goods API native in-app billing
-    if (typeof window !== "undefined" && "getDigitalGoodsService" in window) {
+    if (isAndroid) {
+      if (!isDigitalGoodsSupported()) {
+        return {
+          success: false,
+          error: "Subscriptions aren't available here — open Spadas from the Play Store app",
+        };
+      }
+
+      let service: any = null;
       try {
-        const service = await (window as any).getDigitalGoodsService(
+        service = await (window as any).getDigitalGoodsService(
           "https://play.google.com/billing"
         );
-
-        if (!service) {
-          throw new Error("Google Play Digital Goods service could not be initialized.");
-        }
-
-        if (typeof window.PaymentRequest === "undefined") {
-          throw new Error("PaymentRequest API is not supported in this browser engine.");
-        }
-
-        let playAmount = "10.00";
-        let playCurrency = "AUD";
-        let playTitle = "Spadas Pro Monthly";
-        let skuFound = false;
-
-        if (typeof service.getDetails === "function") {
-          try {
-            const detailsList = await service.getDetails([GOOGLE_PLAY_SKU]);
-            console.log("[Google Play Billing] SKU details from Play Store:", detailsList);
-            if (detailsList && detailsList.length > 0) {
-              skuFound = true;
-              const item = detailsList[0];
-              if (item.title) playTitle = item.title;
-              if (item.price?.currency) playCurrency = item.price.currency;
-              if (item.price?.value) playAmount = item.price.value;
-            } else {
-              console.warn("[Google Play Billing] Play Store returned 0 items for SKU:", GOOGLE_PLAY_SKU);
-            }
-          } catch (detailErr: any) {
-            console.warn("[Google Play Billing] getDetails warning:", detailErr);
-          }
-        }
-
-        // If Play Store does not recognize the SKU, abort early with a clear actionable instruction
-        if (!skuFound) {
-          return {
-            success: false,
-            error: `Google Play SKU '${GOOGLE_PLAY_SKU}' is not active or available. In Google Play Console under Monetize > Subscriptions > ${GOOGLE_PLAY_SKU}, ensure the Base Plan is set to 'Active' and your account is added to License Testing.`,
-          };
-        }
-
-        const paymentMethods = [
-          {
-            supportedMethods: "https://play.google.com/billing",
-            data: {
-              sku: GOOGLE_PLAY_SKU,
-              itemId: GOOGLE_PLAY_SKU,
-            },
-          },
-        ];
-        const paymentDetails = {
-          total: {
-            label: playTitle,
-            amount: { currency: playCurrency, value: playAmount },
-          },
+      } catch (serviceErr: any) {
+        console.warn("[Google Play Billing] Failed to connect to billing service:", serviceErr);
+        return {
+          success: false,
+          error: "Subscriptions aren't available here — open Spadas from the Play Store app",
         };
+      }
 
+      if (!service) {
+        return {
+          success: false,
+          error: "Subscriptions aren't available here — open Spadas from the Play Store app",
+        };
+      }
+
+      let playAmount = "10.00";
+      let playCurrency = "AUD";
+      let playTitle = "Spadas Pro Monthly";
+      let skuFound = false;
+
+      if (typeof service.getDetails === "function") {
+        try {
+          const detailsList = await service.getDetails([GOOGLE_PLAY_SKU]);
+          console.log("[Google Play Billing] SKU details from Play Store:", detailsList);
+          if (detailsList && detailsList.length > 0) {
+            skuFound = true;
+            const item = detailsList[0];
+            if (item.title) playTitle = item.title;
+            if (item.price?.currency) playCurrency = item.price.currency;
+            if (item.price?.value) playAmount = item.price.value;
+          } else {
+            console.warn("[Google Play Billing] Play Store returned 0 items for SKU:", GOOGLE_PLAY_SKU);
+          }
+        } catch (detailErr: any) {
+          console.warn("[Google Play Billing] getDetails warning:", detailErr);
+        }
+      }
+
+      // If Play Store does not recognize the SKU, surface actionable error
+      if (!skuFound) {
+        return {
+          success: false,
+          error: `Google Play SKU '${GOOGLE_PLAY_SKU}' is not active or available. In Google Play Console under Monetize > Subscriptions > ${GOOGLE_PLAY_SKU}, ensure the Base Plan is Active and your email is in License Testing.`,
+        };
+      }
+
+      const paymentMethods = [
+        {
+          supportedMethods: "https://play.google.com/billing",
+          data: {
+            sku: GOOGLE_PLAY_SKU,
+            itemId: GOOGLE_PLAY_SKU,
+          },
+        },
+      ];
+      const paymentDetails = {
+        total: {
+          label: playTitle,
+          amount: { currency: playCurrency, value: playAmount },
+        },
+      };
+
+      // Track whether the native Google Play bottom sheet actually took focus over the browser window
+      let hasShownSheet = false;
+      const onBlur = () => {
+        hasShownSheet = true;
+      };
+      const onVisibilityChange = () => {
+        if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+          hasShownSheet = true;
+        }
+      };
+
+      window.addEventListener("blur", onBlur);
+      document.addEventListener("visibilitychange", onVisibilityChange);
+
+      try {
         const request = new PaymentRequest(paymentMethods, paymentDetails);
         const response = await request.show();
         const details = (response.details as any) || {};
@@ -152,10 +184,11 @@ export async function purchaseGooglePlaySubscription(
             body: JSON.stringify({
               purchaseToken,
               sku: GOOGLE_PLAY_SKU,
+              packageName: GOOGLE_PLAY_PACKAGE,
             }),
           });
 
-          const verifyData = await verifyRes.json();
+          const verifyData = await verifyRes.json().catch(() => ({}));
           if (verifyRes.ok && verifyData.success) {
             await response.complete("success");
             return { success: true, active: true };
@@ -163,7 +196,7 @@ export async function purchaseGooglePlaySubscription(
             await response.complete("fail");
             return {
               success: false,
-              error: verifyData.error || "Failed to link Google Play purchase.",
+              error: verifyData.error || "Failed to verify Google Play purchase token.",
             };
           }
         } else {
@@ -174,32 +207,41 @@ export async function purchaseGooglePlaySubscription(
           };
         }
       } catch (playErr: any) {
-        console.warn("[Google Play Billing] In-app billing error:", playErr);
+        console.warn("[Google Play Billing] PaymentRequest error:", playErr);
+
+        // AbortError can mean either the user dismissed the bottom sheet,
+        // OR the native dialog was aborted before ever showing (e.g. signature mismatch, license issue)
         if (playErr?.name === "AbortError") {
+          if (hasShownSheet) {
+            return {
+              success: false,
+              canceled: true,
+              dismissedByUser: true,
+            };
+          }
           return {
             success: false,
-            canceled: true,
-            error: "Google Play checkout was closed or cancelled. If the Play payment dialog didn't appear, verify your Google account is added under Google Play Console > Settings > License Testing.",
+            canceled: false,
+            dismissedByUser: false,
+            error:
+              "Google Play payment sheet failed to launch. Verify your Google Play tester account is active and registered under License Testing in Google Play Console.",
           };
         }
-        if (isAndroid) {
-          return {
-            success: false,
-            error: "Google Play Billing: " + (playErr?.message || "Please ensure Google Play Services is updated and you are connected to the Play Store."),
-          };
-        }
+
+        return {
+          success: false,
+          error:
+            playErr?.message ||
+            "Google Play Billing encountered an error. Please ensure Google Play Services is updated.",
+        };
+      } finally {
+        window.removeEventListener("blur", onBlur);
+        document.removeEventListener("visibilitychange", onVisibilityChange);
       }
     }
 
-    // If on Android, NEVER EVER open Stripe!
-    if (isAndroid) {
-      return {
-        success: false,
-        error: "Google Play Billing requires the updated app build (v1.2.6+) installed on your device. If you recently uploaded the update, Google Play takes a few hours to publish. You can install the direct v1.2.6 update right now from spadas-tech.vercel.app/spadas-ai.apk.",
-      };
-    }
-
     // 2. Web / Desktop Only (Mac, Windows, iOS)
+    // Never reach this on Android or inside TWA
     const checkoutRes = await fetch("/api/billing/checkout", {
       method: "POST",
       headers: authHeaders,
@@ -297,7 +339,7 @@ export async function checkGooglePlayBillingDiagnostics(): Promise<BillingDiagno
   if (!diag.hasDigitalGoodsApi) {
     diag.error = "Digital Goods API not detected in this session.";
     diag.recommendation =
-      "Your phone is either running the older app build (pre-v1.2.5) or running inside a standard web browser. Install the direct v1.2.5 APK from /spadas-ai.apk to test immediately.";
+      "Subscriptions aren't available here — open Spadas from the Play Store app.";
     return diag;
   }
 

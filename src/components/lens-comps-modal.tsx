@@ -15,6 +15,8 @@ import {
   Zap,
   Droplets,
   Globe,
+  Search,
+  Loader2,
 } from "lucide-react";
 import { track } from "@vercel/analytics";
 import { scannerAudio } from "@/lib/scanner-audio";

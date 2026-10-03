@@ -68,7 +68,8 @@ async function getEbayAppToken(): Promise<string | null> {
     });
 
     if (!res.ok) {
-      console.warn(`[eBay Comps] App token fetch failed (${res.status})`);
+      const errBody = await res.text().catch(() => "");
+      console.warn(`[eBay Comps] App token fetch failed (${res.status}): ${errBody.slice(0, 300)}`);
       return null;
     }
 
@@ -80,9 +81,72 @@ async function getEbayAppToken(): Promise<string | null> {
       expiresAt: Date.now() + (data.expires_in || 7200) * 1000,
     };
     return _appToken.token;
-  } catch (err) {
-    console.warn("[eBay Comps] App token error:", err);
+  } catch (err: any) {
+    console.warn("[eBay Comps] App token error:", err?.message || err);
     return null;
+  }
+}
+
+/**
+ * Queries real active listings from eBay Official Browse API (EBAY_AU / regional).
+ * Used when 0 sold comps exist to show verified active ask prices ("Currently listed — not sold prices").
+ */
+export async function fetchEbayActiveListings(
+  query: string,
+  targetCurrency: SupportedCurrency = "AUD",
+  limit = 6
+): Promise<EbaySoldCompItem[]> {
+  try {
+    const token = await getEbayAppToken();
+    if (!token) return [];
+
+    const marketplaceId = EBAY_MARKETPLACE[targetCurrency]?.id || "EBAY_AU";
+    const env = (process.env.EBAY_ENVIRONMENT || "production").toLowerCase();
+    const host = env === "production" ? "api.ebay.com" : "api.sandbox.ebay.com";
+    const url = `https://${host}/buy/browse/v1/item_summary/search?q=${encodeURIComponent(query)}&limit=${limit}`;
+
+    const res = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "X-EBAY-C-MARKETPLACE-ID": marketplaceId,
+      },
+    });
+
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => "");
+      console.warn(`[eBay Browse API] Search failed for query "${query}" (${res.status}): ${errBody.slice(0, 300)}`);
+      return [];
+    }
+
+    const data = await res.json().catch(() => null);
+    const itemSummaries: any[] = data?.itemSummaries || [];
+    const validItems: EbaySoldCompItem[] = [];
+
+    for (const item of itemSummaries) {
+      const rawPrice = parseFloat(item.price?.value || "0");
+      if (isNaN(rawPrice) || rawPrice <= 0) continue;
+
+      const title = String(item.title || "").trim();
+      const itemId = String(item.itemId || `active-${Date.now()}`);
+      const img = item.image?.imageUrl || item.thumbnailImages?.[0]?.imageUrl || undefined;
+
+      validItems.push({
+        id: itemId,
+        title,
+        price: Math.round(rawPrice * 100) / 100,
+        condition: String(item.condition || "Used"),
+        url: item.itemWebUrl || `https://www.ebay.com.au/itm/${itemId}`,
+        thumbnail: img,
+        shippingIncluded: item.shippingOptions?.[0]?.shippingCost?.value === "0.00",
+        shippingPrice: parseFloat(item.shippingOptions?.[0]?.shippingCost?.value || "0") || 0,
+        isActiveAsk: true,
+      });
+    }
+
+    return validItems;
+  } catch (err: any) {
+    console.warn("[eBay Browse API] Active listings error:", err?.message || err);
+    return [];
   }
 }
 
@@ -132,6 +196,7 @@ export interface EbaySoldCompItem {
   thumbnail?: string;
   rawDate?: number;
   isUsComp?: boolean;
+  isActiveAsk?: boolean;
   originalCurrency?: string;
   originalPrice?: number;
   isNormalized?: boolean;
@@ -149,6 +214,9 @@ export interface EbayCompsResult {
   rawComps?: EbaySoldCompItem[];
   iqrBounds?: { lower: number; upper: number };
   isUsMarketOnly?: boolean;
+  isActiveAskOnly?: boolean;
+  noMarketData?: boolean;
+  activeListingsCount?: number;
   marketOrigin?: "AU" | "US";
   usMedianUsd?: number;
   arbitrageSignal?: string;
@@ -545,15 +613,26 @@ export async function fetchEbayAustraliaSoldComps(
       // count=10: cap payload to top-10 results — 6× less data, faster parse & transfer
       const url = `https://api.sold-comps.com/v1/scrape?keyword=${encodeURIComponent(q)}&ebaySite=${ebaySite}&page=1&count=10&daysToScrape=30&sortOrder=endedRecently${conditionParam}${locParam}`;
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 2500); // 2500ms: fail fast, avoid long-tail hangs
+      const timer = setTimeout(() => controller.abort(), 5000); // 5000ms: allow real scrape to complete
 
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${process.env.SOLD_COMPS_API_KEY}` },
         signal: controller.signal,
-      }).catch(() => null);
+      }).catch((fetchErr: any) => {
+        console.warn(`[Sold Comps API] Fetch network error for query "${q}":`, fetchErr?.name === "AbortError" ? "Timed out (5s)" : fetchErr?.message || fetchErr);
+        return null;
+      });
       clearTimeout(timer);
 
-      if (!res?.ok) return [];
+      if (!res) {
+        return [];
+      }
+
+      if (!res.ok) {
+        const errBody = await res.text().catch(() => "");
+        console.warn(`[Sold Comps API] Upstream error for query "${q}" (${res.status}): ${errBody.slice(0, 300)}`);
+        return [];
+      }
       const data = await res.json().catch(() => null);
       const rawItems: any[] = data?.items ?? [];
 
@@ -603,7 +682,7 @@ export async function fetchEbayAustraliaSoldComps(
             shippingIncluded: item.shippingType === "free" || Number(item.shippingPrice) === 0 || item.shippingCost === 0 || item.freeShipping === true,
             shippingPrice: Number(item.shippingPrice) || Number(item.shippingCost) || 0,
             url: item.url || item.viewItemUrl || (item.itemId ? (isAU ? `https://www.ebay.com.au/itm/${item.itemId}` : `https://www.ebay.com/itm/${item.itemId}`) : undefined),
-            thumbnail: item.thumbnailUrl || item.galleryURL || item.image,
+            thumbnail: item.fullResThumbnailUrl || item.thumbnailUrl || (item.image?.imageUrl || item.image) || item.galleryURL,
             isNormalized,
             packMultiplier,
             originalMultiPrice,
@@ -767,6 +846,48 @@ export async function fetchEbayAustraliaSoldComps(
     }
   }
 
-  return null;
+  // ── PHASE 3: 0 Sold Comps — Query Live Active Listings (Browse API) ──
+  // Show active listings data clearly labelled "Currently listed — not sold prices"
+  const primaryQuery = searchQueries[0] || productName;
+  const activeListings = await fetchEbayActiveListings(primaryQuery, targetCurrency);
+
+  if (activeListings.length > 0) {
+    activeListings.sort((a, b) => a.price - b.price);
+    const activePrices = activeListings.map((c) => c.price);
+    const activeResult: EbayCompsResult = {
+      min: activePrices[0],
+      max: activePrices[activePrices.length - 1],
+      median: calcMedian(activePrices),
+      count: 0, // 0 sold comps!
+      activeListingsCount: activeListings.length,
+      currency: targetCurrency,
+      source: "browse_api",
+      isActiveAskOnly: true,
+      noMarketData: false,
+      marketOrigin: targetCurrency === "AUD" ? "AU" : "US",
+      rawComps: activeListings.slice(0, 5),
+      arbitrageSignal: "Currently listed — not sold prices.",
+    };
+    setCompsCacheEntry(cacheKey, activeResult);
+    return activeResult;
+  }
+
+  // ── PHASE 4: 0 Sold AND 0 Active — Return Empty Real Zero Data ──
+  // Strictly zero price, zero profit, no BUY/PASS verdict
+  const zeroResult: EbayCompsResult = {
+    min: 0,
+    max: 0,
+    median: 0,
+    count: 0,
+    activeListingsCount: 0,
+    currency: targetCurrency,
+    source: "browse_api",
+    isActiveAskOnly: false,
+    noMarketData: true,
+    rawComps: [],
+    arbitrageSignal: "Not enough market data to value this item.",
+  };
+  setCompsCacheEntry(cacheKey, zeroResult);
+  return zeroResult;
 }
 

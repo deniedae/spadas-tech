@@ -51,12 +51,11 @@ export default function UsageBadge({
         window.location.reload();
         return;
       }
-      if (res.canceled) return;
-      if (res.isDesktopRedirect) {
-        toast.info("Opened Google Play Store. Complete your subscription on Android!");
+      if (res.canceled && res.dismissedByUser) return;
+      if (res.error) {
+        toast.error(res.error);
         return;
       }
-      if (res.error) toast.error(res.error);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Upgrade failed.");
     } finally {
