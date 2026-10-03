@@ -776,6 +776,12 @@ export default function SettingsPage() {
                         </div>
                       </div>
 
+                      {billingDiag.error && (
+                        <div className="p-2 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-300 text-[11px] font-mono break-all">
+                          ⚠️ {billingDiag.error}
+                        </div>
+                      )}
+
                       {billingDiag.recommendation && (
                         <p className="text-[11px] text-zinc-300 bg-white/[0.03] p-2 rounded-lg border border-white/[0.06] leading-relaxed">
                           💡 <span className="font-medium">{billingDiag.recommendation}</span>

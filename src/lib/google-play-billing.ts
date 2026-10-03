@@ -301,15 +301,23 @@ export async function checkGooglePlayBillingDiagnostics(): Promise<BillingDiagno
     return diag;
   }
 
+  let service: any = null;
   try {
-    const service = await (window as any).getDigitalGoodsService("https://play.google.com/billing");
+    service = await (window as any).getDigitalGoodsService("https://play.google.com/billing");
     if (!service) {
       diag.error = "Play Billing Digital Goods Service returned null.";
       diag.recommendation = "Ensure Google Play Services on your device is updated.";
       return diag;
     }
     diag.serviceAvailable = true;
+  } catch (err: any) {
+    diag.error = `Service Connection: ${err?.name || "Error"} - ${err?.message || String(err)}`;
+    diag.recommendation =
+      "Google Play rejected the billing connection. This happens when the current build (versionCode 9) hasn't been uploaded to Google Play Console yet, or when your Google account is not added to License Testing in Play Console.";
+    return diag;
+  }
 
+  try {
     if (typeof service.getDetails === "function") {
       const detailsList = await service.getDetails([GOOGLE_PLAY_SKU]);
       if (detailsList && detailsList.length > 0) {
@@ -329,8 +337,9 @@ export async function checkGooglePlayBillingDiagnostics(): Promise<BillingDiagno
       }
     }
   } catch (err: any) {
-    diag.error = err?.message || String(err);
-    diag.recommendation = "Play Store service connection error. Ensure your test device is logged into an account in Play Console License Testing.";
+    diag.error = `SKU Query: ${err?.name || "Error"} - ${err?.message || String(err)}`;
+    diag.recommendation =
+      "Play Store could not query subscription details. Verify the Base Plan is Active and backwards-compatible in Play Console.";
   }
 
   return diag;
