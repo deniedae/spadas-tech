@@ -85,81 +85,103 @@ export async function purchaseGooglePlaySubscription(
           "https://play.google.com/billing"
         );
 
-        if (service && typeof window.PaymentRequest !== "undefined") {
-          let playAmount = "10.00";
-          let playCurrency = "AUD";
-          let playTitle = "Spadas Pro Monthly";
+        if (!service) {
+          throw new Error("Google Play Digital Goods service could not be initialized.");
+        }
 
-          if (typeof service.getDetails === "function") {
-            try {
-              const detailsList = await service.getDetails([GOOGLE_PLAY_SKU]);
-              console.log("[Google Play Billing] SKU details from Play Store:", detailsList);
-              if (detailsList && detailsList.length > 0) {
-                const item = detailsList[0];
-                if (item.title) playTitle = item.title;
-                if (item.price?.currency) playCurrency = item.price.currency;
-                if (item.price?.value) playAmount = item.price.value;
-              } else {
-                console.warn("[Google Play Billing] No details returned for SKU:", GOOGLE_PLAY_SKU);
-              }
-            } catch (detailErr) {
-              console.warn("[Google Play Billing] getDetails warning:", detailErr);
-            }
-          }
+        if (typeof window.PaymentRequest === "undefined") {
+          throw new Error("PaymentRequest API is not supported in this browser engine.");
+        }
 
-          const paymentMethods = [
-            {
-              supportedMethods: "https://play.google.com/billing",
-              data: { sku: GOOGLE_PLAY_SKU },
-            },
-          ];
-          const paymentDetails = {
-            total: {
-              label: playTitle,
-              amount: { currency: playCurrency, value: playAmount },
-            },
-          };
+        let playAmount = "10.00";
+        let playCurrency = "AUD";
+        let playTitle = "Spadas Pro Monthly";
+        let skuFound = false;
 
-          const request = new PaymentRequest(paymentMethods, paymentDetails);
-          const response = await request.show();
-          const details = (response.details as any) || {};
-          const purchaseToken = details.purchaseToken || details.token;
-
-          if (purchaseToken) {
-            const verifyRes = await fetch("/api/billing/google-play/verify", {
-              method: "POST",
-              headers: authHeaders,
-              body: JSON.stringify({
-                purchaseToken,
-                sku: GOOGLE_PLAY_SKU,
-              }),
-            });
-
-            const verifyData = await verifyRes.json();
-            if (verifyRes.ok && verifyData.success) {
-              await response.complete("success");
-              return { success: true, active: true };
+        if (typeof service.getDetails === "function") {
+          try {
+            const detailsList = await service.getDetails([GOOGLE_PLAY_SKU]);
+            console.log("[Google Play Billing] SKU details from Play Store:", detailsList);
+            if (detailsList && detailsList.length > 0) {
+              skuFound = true;
+              const item = detailsList[0];
+              if (item.title) playTitle = item.title;
+              if (item.price?.currency) playCurrency = item.price.currency;
+              if (item.price?.value) playAmount = item.price.value;
             } else {
-              await response.complete("fail");
-              return {
-                success: false,
-                error: verifyData.error || "Failed to link Google Play purchase.",
-              };
+              console.warn("[Google Play Billing] Play Store returned 0 items for SKU:", GOOGLE_PLAY_SKU);
             }
+          } catch (detailErr: any) {
+            console.warn("[Google Play Billing] getDetails warning:", detailErr);
+          }
+        }
+
+        // If Play Store does not recognize the SKU, abort early with a clear actionable instruction
+        if (!skuFound) {
+          return {
+            success: false,
+            error: `Google Play SKU '${GOOGLE_PLAY_SKU}' is not active or available. In Google Play Console under Monetize > Subscriptions > ${GOOGLE_PLAY_SKU}, ensure the Base Plan is set to 'Active' and your account is added to License Testing.`,
+          };
+        }
+
+        const paymentMethods = [
+          {
+            supportedMethods: "https://play.google.com/billing",
+            data: {
+              sku: GOOGLE_PLAY_SKU,
+              itemId: GOOGLE_PLAY_SKU,
+            },
+          },
+        ];
+        const paymentDetails = {
+          total: {
+            label: playTitle,
+            amount: { currency: playCurrency, value: playAmount },
+          },
+        };
+
+        const request = new PaymentRequest(paymentMethods, paymentDetails);
+        const response = await request.show();
+        const details = (response.details as any) || {};
+        const purchaseToken = details.purchaseToken || details.token;
+
+        if (purchaseToken) {
+          const verifyRes = await fetch("/api/billing/google-play/verify", {
+            method: "POST",
+            headers: authHeaders,
+            body: JSON.stringify({
+              purchaseToken,
+              sku: GOOGLE_PLAY_SKU,
+            }),
+          });
+
+          const verifyData = await verifyRes.json();
+          if (verifyRes.ok && verifyData.success) {
+            await response.complete("success");
+            return { success: true, active: true };
           } else {
             await response.complete("fail");
             return {
               success: false,
-              error: "Google Play purchase was not completed.",
+              error: verifyData.error || "Failed to link Google Play purchase.",
             };
           }
+        } else {
+          await response.complete("fail");
+          return {
+            success: false,
+            error: "Google Play purchase was not completed.",
+          };
         }
       } catch (playErr: any) {
-        if (playErr?.name === "AbortError") {
-          // User intentionally closed the Google Play bottom sheet
-          return { success: false, canceled: true };
-        }
         console.warn("[Google Play Billing] In-app billing error:", playErr);
+        if (playErr?.name === "AbortError") {
+          return {
+            success: false,
+            canceled: true,
+            error: "Google Play checkout was closed or cancelled. If the Play payment dialog didn't appear, verify your Google account is added under Google Play Console > Settings > License Testing.",
+          };
+        }
         if (isAndroid) {
           return {
             success: false,
@@ -173,7 +195,7 @@ export async function purchaseGooglePlaySubscription(
     if (isAndroid) {
       return {
         success: false,
-        error: "Google Play Billing is initializing. Please ensure you are running the latest app build from Google Play and that the base plan is active.",
+        error: "Google Play Billing requires the updated v1.2.5 app build installed on your device. If you recently uploaded the update, Google Play takes a few hours to publish. You can install the direct v1.2.5 update right now from spadas-tech.vercel.app/spadas-ai.apk.",
       };
     }
 
@@ -228,4 +250,88 @@ export function openGooglePlayStore(): void {
   if (typeof window !== "undefined") {
     window.open(GOOGLE_PLAY_STORE_URL, "_blank");
   }
+}
+
+export interface BillingDiagnostics {
+  isAndroid: boolean;
+  isStandalone: boolean;
+  isTWA: boolean;
+  hasDigitalGoodsApi: boolean;
+  hasPaymentRequest: boolean;
+  serviceAvailable: boolean;
+  skuFound: boolean;
+  skuDetails: {
+    title?: string;
+    price?: string;
+    currency?: string;
+  } | null;
+  error?: string;
+  recommendation?: string;
+}
+
+/**
+ * Runs a non-destructive runtime health-check on Google Play Billing on the current device.
+ * Identifies whether the app has the new billing library, if Google Play recognizes the SKU,
+ * and outputs actionable guidance.
+ */
+export async function checkGooglePlayBillingDiagnostics(): Promise<BillingDiagnostics> {
+  const diag: BillingDiagnostics = {
+    isAndroid: false,
+    isStandalone: false,
+    isTWA: false,
+    hasDigitalGoodsApi: false,
+    hasPaymentRequest: false,
+    serviceAvailable: false,
+    skuFound: false,
+    skuDetails: null,
+  };
+
+  if (typeof window === "undefined") return diag;
+
+  diag.isAndroid = /Android/i.test(navigator.userAgent);
+  diag.isStandalone = window.matchMedia("(display-mode: standalone)").matches;
+  diag.isTWA = document.referrer.includes("android-app://") || diag.isStandalone;
+  diag.hasDigitalGoodsApi = "getDigitalGoodsService" in window;
+  diag.hasPaymentRequest = typeof (window as any).PaymentRequest !== "undefined";
+
+  if (!diag.hasDigitalGoodsApi) {
+    diag.error = "Digital Goods API not detected in this session.";
+    diag.recommendation =
+      "Your phone is either running the older app build (pre-v1.2.5) or running inside a standard web browser. Install the direct v1.2.5 APK from /spadas-ai.apk to test immediately.";
+    return diag;
+  }
+
+  try {
+    const service = await (window as any).getDigitalGoodsService("https://play.google.com/billing");
+    if (!service) {
+      diag.error = "Play Billing Digital Goods Service returned null.";
+      diag.recommendation = "Ensure Google Play Services on your device is updated.";
+      return diag;
+    }
+    diag.serviceAvailable = true;
+
+    if (typeof service.getDetails === "function") {
+      const detailsList = await service.getDetails([GOOGLE_PLAY_SKU]);
+      if (detailsList && detailsList.length > 0) {
+        diag.skuFound = true;
+        const item = detailsList[0];
+        diag.skuDetails = {
+          title: item.title,
+          price: item.price?.value,
+          currency: item.price?.currency,
+        };
+        diag.recommendation = "Google Play Billing is 100% active, recognized by Play Store, and ready for purchases!";
+      } else {
+        diag.skuFound = false;
+        diag.error = `Play Store returned 0 items for SKU '${GOOGLE_PLAY_SKU}'.`;
+        diag.recommendation =
+          "In Google Play Console > Monetize > Subscriptions > spadas_pro_monthly, confirm the Base Plan is 'Active' (not Draft) and that your test email is listed under Setup > License testing.";
+      }
+    }
+  } catch (err: any) {
+    diag.error = err?.message || String(err);
+    diag.recommendation = "Play Store service connection error. Ensure your test device is logged into an account in Play Console License Testing.";
+  }
+
+  return diag;
 }
