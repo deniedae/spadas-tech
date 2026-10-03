@@ -90,35 +90,49 @@ class CameraStreamManager {
 
         let stream: MediaStream | null = null;
 
-        // Primary: Back Camera (Environment Lens with Full HD 1080p & Continuous Autofocus)
-        try {
-          stream = await navigator.mediaDevices.getUserMedia({
-            video: {
-              facingMode: { ideal: targetFacing },
-              width: { ideal: 1920, min: 1280 },
-              height: { ideal: 1080, min: 720 },
-              // @ts-ignore - Hardware hints for sharpest focus
-              focusMode: { ideal: "continuous" },
-            },
-            audio: false,
-          });
-        } catch {
-          // Fallback 1: Flexible Environment Mode
+        const requestWithFallbacks = async (facing: "environment" | "user"): Promise<MediaStream> => {
+          // Primary Tier: Back Camera with Full HD 1080p & Continuous Autofocus
           try {
-            stream = await navigator.mediaDevices.getUserMedia({
+            return await navigator.mediaDevices.getUserMedia({
               video: {
-                facingMode: targetFacing,
-                width: { ideal: 1280 },
-                height: { ideal: 720 },
+                facingMode: { ideal: facing },
+                width: { ideal: 1920, min: 1280 },
+                height: { ideal: 1080, min: 720 },
+                // @ts-ignore - Hardware hints for sharpest focus
+                focusMode: { ideal: "continuous" },
               },
               audio: false,
             });
           } catch {
-            // Fallback 2: Any Available Video Source
-            stream = await navigator.mediaDevices.getUserMedia({
-              video: true,
-              audio: false,
-            });
+            // Fallback Tier 1: Flexible 720p Mode
+            try {
+              return await navigator.mediaDevices.getUserMedia({
+                video: {
+                  facingMode: { ideal: facing },
+                  width: { ideal: 1280 },
+                  height: { ideal: 720 },
+                },
+                audio: false,
+              });
+            } catch {
+              // Fallback Tier 2: Any Available Video Device
+              return await navigator.mediaDevices.getUserMedia({
+                video: true,
+                audio: false,
+              });
+            }
+          }
+        };
+
+        try {
+          stream = await requestWithFallbacks(targetFacing);
+        } catch (initialErr: any) {
+          if (initialErr?.name === "NotReadableError" || initialErr?.name === "TrackStartError") {
+            // Camera hardware releasing delay: wait 120ms and retry once
+            await new Promise((r) => setTimeout(r, 120));
+            stream = await requestWithFallbacks(targetFacing);
+          } else {
+            throw initialErr;
           }
         }
 

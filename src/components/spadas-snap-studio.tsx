@@ -212,9 +212,29 @@ export function SpadasSnapStudio() {
     };
   }, [startCamera, stopCamera]);
 
+  const setVideoRef = useCallback((node: HTMLVideoElement | null) => {
+    videoRef.current = node;
+    if (node) {
+      node.setAttribute("playsinline", "true");
+      node.setAttribute("webkit-playsinline", "true");
+      node.muted = true;
+      node.defaultMuted = true;
+      node.autoplay = true;
+      const activeStream = streamRef.current || cameraStreamManager.getActiveStream();
+      if (activeStream && activeStream.active) {
+        if (node.srcObject !== activeStream) {
+          node.srcObject = activeStream;
+        }
+        void node.play().catch(() => {});
+      }
+    }
+  }, []);
+
   useEffect(() => {
     if (videoRef.current && stream) {
-      videoRef.current.srcObject = stream;
+      if (videoRef.current.srcObject !== stream) {
+        videoRef.current.srcObject = stream;
+      }
       void videoRef.current.play().catch(() => {});
     }
   }, [stream]);
@@ -607,7 +627,7 @@ export function SpadasSnapStudio() {
       <div className="relative flex-1 w-full flex items-center justify-center overflow-hidden">
         {stream ? (
           <video
-            ref={videoRef}
+            ref={setVideoRef}
             autoPlay
             playsInline
             muted

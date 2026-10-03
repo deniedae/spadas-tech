@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Camera, Zap, ShoppingBag, ChevronLeft, Home, HelpCircle, Sparkles } from "lucide-react";
 import dynamic from "next/dynamic";
 import SpadasLensCamera, { releasePersistentMediaStream } from "@/components/spadas-lens-camera";
+import { cameraStreamManager } from "@/lib/camera-stream-provider";
 import { useHaulStore } from "@/lib/haul-store";
 import { triggerTactileHaptic } from "@/lib/android-bridge";
 
@@ -61,7 +62,11 @@ export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraH
   const handleTabChange = (tab: "lens" | "cyber" | "studio") => {
     if (activeTab !== tab) {
       triggerTactileHaptic("selection");
-      releasePersistentMediaStream();
+      if (tab === "cyber" || activeTab === "cyber") {
+        releasePersistentMediaStream();
+      } else {
+        cameraStreamManager.releaseCamera(activeTab === "lens" ? "lens" : "studio");
+      }
       setActiveTab(tab);
     }
   };

@@ -207,7 +207,7 @@ export type AiListingResultSchemaType = z.infer<typeof AiListingResultSchema>;
  * Strictly extracts essential item query, brand, category, condition, and media format for instant eBay comps lookup.
  */
 export const MinimalArScanSchema = z.object({
-  query: z.string().describe("Exact commercial product search query to find Australian eBay sold comps (e.g. 'Dove Men Care Fresh Deodorant', 'Sony WH-1000XM4')"),
+  query: z.string().describe("Exact commercial product search query to find marketplace sold comps (e.g. 'Sony WH-1000XM4', 'Vintage Carhartt Detroit Jacket J97', 'Nike Tech Fleece Hoodie Black')"),
   brand: z.string().nullable().describe("Brand name or null if unbranded"),
   category: z.string().describe("Primary resale category (e.g. Personal Care, Clothing, Electronics, Shoes, Media & Movies, Video Games, General)"),
   condition: z.string().describe("Item condition (e.g. 'New', 'Used - Good', 'Used - Fair', 'For Parts')"),

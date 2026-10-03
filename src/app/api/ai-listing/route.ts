@@ -448,9 +448,8 @@ RULES:
       }
     }
 
-    // Set low detail for high-speed live AR viewfinder scans (<800ms single pass),
-    // while keeping high detail for snap shutter snaps and deep forensic tag inspection
-    const visionDetail = (isArScan && mode !== "snap" && mode !== "deep") ? "low" : "high";
+    // High visual detail across all scans ensures razor-sharp OCR for tags, serials, logos, and fine text
+    const visionDetail = "high";
 
     const imageContent = imageUrls.map((url) => {
       // Clean base64 strings (remove whitespace/newlines) to prevent OpenAI 400 "unsupported image" errors
@@ -492,19 +491,33 @@ Identify ONLY the single primary physical item positioned in the center target r
             ? {
               model: "gpt-4o-mini",
               temperature: 0.0,
-              max_tokens: 250,
+              max_tokens: 350,
               response_format: zodResponseFormat(MinimalArScanSchema, "minimal_ar_scan"),
               messages: [
                 {
                   role: "system",
-                  content: 'Identify Brand, Model, and Format only. Output strictly raw JSON: {"query": "string"}. No markdown, no commentary.',
+                  content: `You are an expert commercial reseller appraiser and luxury authenticator with forensic OCR capabilities.
+Identify the centered physical item with the highest possible accuracy.
+
+CRITICAL IDENTIFICATION RULES:
+1. OPTICAL CHARACTER RECOGNITION (OCR): Read all visible text, brand logos, care tags, inner collar tags, serial numbers, model codes, and labels. Never output a generic noun when a brand or model is legible.
+2. COMMERCIAL SEARCH QUERY CONSTRUCTION:
+   Construct the exact commercial product search query that buyers and sellers use on eBay to find sold comps.
+   - For Apparel: [Brand] + [Model/Line/Fit] + [Item Type] + [Color/Pattern/Wash] (e.g. "Vintage Carhartt Detroit Jacket J97 DKB Brown", "Nike Tech Fleece Full Zip Hoodie Black", "Ralph Lauren Polo Bear Sweater Navy").
+   - For Electronics/Tech: [Brand] + [Exact Model Number] + [Device Type] (e.g. "Sony WH-1000XM4 Noise Canceling Headphones", "Nintendo Switch OLED Console White", "Bose QuietComfort 45 Headphones").
+   - For Media/Entertainment: [Title] + [Media Format] (e.g. "Interstellar 4K UHD Blu-ray", "Pokemon HeartGold Version Nintendo DS", "Pink Floyd Dark Side of the Moon Vinyl LP").
+   - For Shoes: [Brand] + [Silhouette/Model] + [Colorway] (e.g. "Nike Dunk Low Retro Panda White Black", "Air Jordan 4 Retro Military Black").
+   - For Collectibles/Toys: [Brand/Maker] + [Character/Set] + [Item Type] (e.g. "Lego Star Wars 75192 Millennium Falcon", "Pokemon Base Set Charizard Holo").
+   - For Unbranded/Vintage: Describe style, material, and type (e.g. "Mid Century Modern Amber Glass Ribbed Vase").
+3. NEVER return vague queries like "Shirt", "Jacket", "Shoe", "Pants", "Item", "Bottle", or "Box".
+4. If no physical product is centered or the frame is blank/empty background, return query: "NO_CENTER_ITEM".`,
                 },
                 {
                   role: "user",
                   content: [
                     {
                       type: "text",
-                      text: `Identify the centered item. Return query as an exact eBay sold comps search string (e.g. "Sony WH-1000XM4", "Universal Bad Neighbours Blu-ray", "Dove Men Care Fresh Deodorant"). Also set brand, category, condition, and media_format. Plain JSON only.`,
+                      text: `Examine the centered item closely. Perform deep OCR on all text, brand emblems, and tags. Construct the most accurate eBay sold comps search query. Return strictly JSON matching the schema.`,
                     },
                     ...imageContent,
                   ],

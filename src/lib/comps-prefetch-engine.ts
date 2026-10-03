@@ -204,30 +204,42 @@ export async function resolveSpatialMetadata(
     }
   } catch {}
 
-  // Non-blocking background geolocation refresh
+  // Silent background geolocation refresh (only if already explicitly granted to prevent startling users)
   if ("geolocation" in navigator) {
     try {
-      const pos = await new Promise<GeolocationPosition | null>((resolve) => {
-        navigator.geolocation.getCurrentPosition(
-          (p) => resolve(p),
-          () => resolve(null),
-          { timeout: 2500, maximumAge: 300000 }
-        );
-      });
-
-      if (pos && pos.coords) {
-        const updated: SpatialMetadata = {
-          ...cached,
-          latitude: pos.coords.latitude,
-          longitude: pos.coords.longitude,
-          storeName: cached.storeName || "Local Sourcing Hub / Op-Shop",
-          venueType: "thrift_shop",
-          categoryBias: activeBias !== "auto" ? activeBias : "vintage_clothing",
-        };
+      let isAllowed = false;
+      if (typeof navigator.permissions !== "undefined") {
         try {
-          localStorage.setItem(SPATIAL_STORAGE_KEY, JSON.stringify(updated));
-        } catch {}
-        return updated;
+          const perm = await navigator.permissions.query({ name: "geolocation" as PermissionName });
+          isAllowed = perm.state === "granted";
+        } catch {
+          isAllowed = false;
+        }
+      }
+
+      if (isAllowed) {
+        const pos = await new Promise<GeolocationPosition | null>((resolve) => {
+          navigator.geolocation.getCurrentPosition(
+            (p) => resolve(p),
+            () => resolve(null),
+            { timeout: 2500, maximumAge: 300000 }
+          );
+        });
+
+        if (pos && pos.coords) {
+          const updated: SpatialMetadata = {
+            ...cached,
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude,
+            storeName: cached.storeName || "Local Sourcing Hub / Op-Shop",
+            venueType: "thrift_shop",
+            categoryBias: activeBias !== "auto" ? activeBias : "vintage_clothing",
+          };
+          try {
+            localStorage.setItem(SPATIAL_STORAGE_KEY, JSON.stringify(updated));
+          } catch {}
+          return updated;
+        }
       }
     } catch {}
   }

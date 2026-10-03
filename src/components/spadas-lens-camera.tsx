@@ -165,7 +165,7 @@ function SpadasLensCameraCore({
   const [isCameraPoweredOn, setIsCameraPoweredOn] = useState<boolean>(true);
   const [scanning, setScanning] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
-  const [autoScanActive, setAutoScanActive] = useState(false);
+  const [autoScanActive, setAutoScanActive] = useState<boolean>(true);
   const [analyzingRealFrame, setAnalyzingRealFrame] = useState(false);
   const [scanStage, setScanStage] = useState<ScanStage>("idle");
   const [pendingIdentifiedItem, setPendingIdentifiedItem] = useState<{
@@ -199,6 +199,164 @@ function SpadasLensCameraCore({
   const [selectedHitIds, setSelectedHitIds] = useState<string[]>([]);
   const [exporting, setExporting] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [cameraStalled, setCameraStalled] = useState<boolean>(false);
+  const cameraStalledTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Callback ref guarantees immediate stream binding the exact millisecond <video> mounts into DOM
+  const setVideoRef = useCallback((node: HTMLVideoElement | null) => {
+    videoRef.current = node;
+    if (node) {
+      // Ensure mobile WebKit and Chrome autoplay permissions
+      node.setAttribute("playsinline", "true");
+      node.setAttribute("webkit-playsinline", "true");
+      node.muted = true;
+      node.defaultMuted = true;
+      node.autoplay = true;
+
+      const activeStream = streamRef.current || cameraStreamManager.getActiveStream();
+      if (activeStream && activeStream.active) {
+        if (node.srcObject !== activeStream) {
+          node.srcObject = activeStream;
+        }
+        node.play().then(() => {
+          setIsCameraReady(true);
+          setCameraStalled(false);
+        }).catch((err) => {
+          console.warn("[Spadas Lens] Video playback on mount caught:", err);
+        });
+      }
+    }
+  }, []);
+
+  // Unified Camera Acquisition via CameraStreamManager with 3-tier hardware fallback and stall detection
+  const startCamera = useCallback(async () => {
+    if (isStartingCameraRef.current) return;
+    isStartingCameraRef.current = true;
+    setCameraError(null);
+    setCameraStalled(false);
+
+    if (cameraStalledTimerRef.current) {
+      clearTimeout(cameraStalledTimerRef.current);
+    }
+    cameraStalledTimerRef.current = setTimeout(() => {
+      if (!isCameraReady) {
+        setCameraStalled(true);
+      }
+    }, 4500);
+
+    try {
+      // 1. Instant stream reuse check from ref or singleton manager
+      const existing = streamRef.current && streamRef.current.active
+        ? streamRef.current
+        : cameraStreamManager.getActiveStream();
+
+      let mediaStream: MediaStream;
+      if (existing && existing.active && existing.getVideoTracks().some((t) => t.readyState === "live" && t.enabled)) {
+        mediaStream = existing;
+      } else {
+        mediaStream = await cameraStreamManager.acquireCamera({
+          mode: "lens",
+          facingMode: "environment",
+        });
+      }
+
+      streamRef.current = mediaStream;
+      setStream(mediaStream);
+      setIsCameraPoweredOn(true);
+      setScanning(true);
+
+      const video = videoRef.current;
+      if (video) {
+        if (video.srcObject !== mediaStream) {
+          video.srcObject = mediaStream;
+        }
+        video.play().then(() => {
+          setIsCameraReady(true);
+          setCameraStalled(false);
+        }).catch((err) => {
+          console.warn("[Spadas Lens] Video play() in startCamera caught:", err);
+        });
+      }
+    } catch (err: any) {
+      console.warn("[Spadas Lens] Physical camera access blocked or unavailable:", err);
+      const isPermDenied = err?.name === "NotAllowedError" || err?.name === "PermissionDeniedError";
+      setCameraError(
+        isPermDenied
+          ? "Camera permission denied — please allow camera access in browser settings"
+          : "Camera unavailable — allow camera access in settings or tap retry"
+      );
+      setIsCameraPoweredOn(false);
+      setIsCameraReady(false);
+      setScanning(false);
+    } finally {
+      isStartingCameraRef.current = false;
+    }
+  }, [isCameraReady]);
+
+  // Stop Camera Stream (Releases camera ownership through unified provider)
+  const stopCamera = useCallback((force = false) => {
+    if (activeAbortControllerRef.current) {
+      try {
+        activeAbortControllerRef.current.abort();
+      } catch (abortErr) {
+        console.warn("[Spadas Lens] Abort controller cleanup warning:", abortErr);
+      }
+      activeAbortControllerRef.current = null;
+    }
+    cameraStreamManager.releaseCamera("lens", force);
+    if (streamRef.current) {
+      if (force) {
+        try {
+          streamRef.current.getTracks().forEach((track) => {
+            track.stop();
+            track.enabled = false;
+          });
+        } catch {}
+      }
+      streamRef.current = null;
+    }
+    setStream(null);
+    setIsCameraReady(false);
+    setCameraStalled(false);
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    setIsCameraPoweredOn(false);
+    setScanning(false);
+    setActiveScans([]);
+    setAnalyzingRealFrame(false);
+    analyzingRef.current = false;
+  }, []);
+
+  // Bind stream to video element whenever stream changes with playback watchdog
+  useEffect(() => {
+    if (stream) {
+      streamRef.current = stream;
+    }
+    const video = videoRef.current;
+    if (video && stream) {
+      if (video.srcObject !== stream) {
+        video.srcObject = stream;
+      }
+      video.play().then(() => {
+        setIsCameraReady(true);
+        setCameraStalled(false);
+      }).catch(() => { });
+
+      const watchdog = setTimeout(() => {
+        if (video && (video.paused || video.readyState < 2)) {
+          video.play().then(() => {
+            setIsCameraReady(true);
+            setCameraStalled(false);
+          }).catch(() => { });
+        }
+      }, 500);
+
+      return () => {
+        clearTimeout(watchdog);
+      };
+    }
+  }, [stream]);
   const [minProfitThreshold, setMinProfitThreshold] = useState<number>(5);
   const [minRoiThreshold, setMinRoiThreshold] = useState<number>(0);
   const [showDebugDrawer, setShowDebugDrawer] = useState<boolean>(false);
@@ -1479,49 +1637,10 @@ function SpadasLensCameraCore({
       }
     } catch { }
 
-    let isMounted = true;
-
-    async function initCamera() {
-      if (streamRef.current || isInitializingRef.current) return;
-      isInitializingRef.current = true;
-
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: { ideal: "environment" },
-            width: { ideal: 1920 },
-            height: { ideal: 1080 },
-          },
-          audio: false,
-        });
-
-        if (!isMounted) {
-          stream.getTracks().forEach((track) => track.stop());
-          return;
-        }
-
-        streamRef.current = stream;
-        setStream(stream);
-        setIsCameraPoweredOn(true);
-        setScanning(true);
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          await videoRef.current.play().catch(() => {});
-          setIsCameraReady(true);
-        } else {
-          setIsCameraReady(true);
-        }
-      } catch (err) {
-        console.error("Camera acquisition failed:", err);
-      } finally {
-        isInitializingRef.current = false;
-      }
-    }
-
-    initCamera();
+    // Mount camera stream via unified manager
+    void startCamera();
 
     return () => {
-      isMounted = false;
       if (activeAbortControllerRef.current) {
         try {
           activeAbortControllerRef.current.abort();
@@ -1530,12 +1649,12 @@ function SpadasLensCameraCore({
         }
         activeAbortControllerRef.current = null;
       }
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((track) => track.stop());
-        streamRef.current = null;
+      if (cameraStalledTimerRef.current) {
+        clearTimeout(cameraStalledTimerRef.current);
       }
+      cameraStreamManager.releaseCamera("lens");
     };
-  }, []);
+  }, [startCamera]);
 
   // Reactive synchronization: keep localStorage up to date with capturedLog at all times (additions, deletions, clear)
   useEffect(() => {
@@ -2082,104 +2201,6 @@ function SpadasLensCameraCore({
     }
   };
 
-  // Bind stream to video element whenever stream changes with playback watchdog
-  useEffect(() => {
-    if (stream) {
-      streamRef.current = stream;
-    }
-    if (videoRef.current && stream) {
-      const video = videoRef.current;
-      if (video.srcObject !== stream) {
-        video.srcObject = stream;
-      }
-      video.play().then(() => {
-        setIsCameraReady(true);
-      }).catch(() => { });
-
-      const watchdog = setTimeout(() => {
-        if (video && (video.paused || video.readyState < 2)) {
-          video.play().then(() => {
-            setIsCameraReady(true);
-          }).catch(() => { });
-        }
-      }, 500);
-
-      return () => {
-        clearTimeout(watchdog);
-      };
-    }
-  }, [stream]);
-
-  // Stop Camera Stream (Releases camera stream)
-  const stopCamera = useCallback((force = false) => {
-    if (activeAbortControllerRef.current) {
-      try {
-        activeAbortControllerRef.current.abort();
-      } catch (abortErr) {
-        console.warn("[Spadas Lens] Abort controller cleanup warning:", abortErr);
-      }
-      activeAbortControllerRef.current = null;
-    }
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-    }
-    setStream(null);
-    setIsCameraReady(false);
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
-    setIsCameraPoweredOn(false);
-    setScanning(false);
-    setActiveScans([]);
-    setAnalyzingRealFrame(false);
-    analyzingRef.current = false;
-  }, []);
-
-  // Start Camera Stream via navigator.mediaDevices.getUserMedia with zero-latency reuse
-  const startCamera = async () => {
-    if (streamRef.current && streamRef.current.active) {
-      setStream(streamRef.current);
-      if (videoRef.current) {
-        videoRef.current.srcObject = streamRef.current;
-        void videoRef.current.play().catch(() => {});
-      }
-      setIsCameraReady(true);
-      setIsCameraPoweredOn(true);
-      setScanning(true);
-      return;
-    }
-    if (isInitializingRef.current) return;
-    isInitializingRef.current = true;
-    try {
-      setCameraError(null);
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: "environment" },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-        },
-        audio: false,
-      });
-
-      streamRef.current = mediaStream;
-      setStream(mediaStream);
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-        await videoRef.current.play().catch(() => {});
-      }
-      setIsCameraReady(true);
-      setIsCameraPoweredOn(true);
-      setScanning(true);
-    } catch (err) {
-      console.warn("[Spadas Lens] Physical camera access blocked or unavailable:", err);
-      setCameraError("Camera unavailable — allow camera access in settings");
-      setIsCameraPoweredOn(false);
-      setScanning(false);
-    } finally {
-      isInitializingRef.current = false;
-    }
-  };
 
   // Camera Power Toggle (Explicitly releases all hardware tracks & stream locks)
   const handleToggleCameraPower = useCallback(() => {
@@ -3961,7 +3982,7 @@ function SpadasLensCameraCore({
   useEffect(() => {
     // In Manual / Snap mode or while scanning/cooling down, completely freeze motion tracking and continuous passes
     if (!stream || !!deepVerifyItem || isScanPaused || !!activeCompsHit || !!activeValuationHit || analyzingRealFrame || isCoolingDown) return;
-    if (!autoScanActive && scanMode === "snap") return;
+    if (!autoScanActive) return;
 
     let isDestroyed = false;
     const offCanvas = document.createElement("canvas");
@@ -3984,7 +4005,7 @@ function SpadasLensCameraCore({
         isCoolingDownRef.current ||
         isScanPausedRef.current ||
         activeValuationHitRef.current ||
-        (!autoScanActive && scanMode === "snap")
+        !autoScanActive
       ) {
         return;
       }
@@ -4054,17 +4075,11 @@ function SpadasLensCameraCore({
         return;
       }
 
-      // Strict Throttling & Cooldowns:
-      // In Rapid Mode, NEVER auto-sample frames — only user shutter taps are processed!
-      if (isRapidScanMode) {
-        return;
-      }
-
-      // Mode 1: SWEEP / AUTO AR MODE -> 3500ms min cooldown + settled frame confirmation
-      if (scanMode === "sweep") {
+      // Mode 1: AUTO AR SCAN (sweep, snap, or live) -> settled frame confirmation
+      if (scanMode === "sweep" || scanMode === "snap" || scanMode === "live") {
         if (!isPanning) {
-          const justSettled = wasMoving && stableTicks >= 3 && timeSinceLast >= 3200;
-          const periodicScan = stableTicks >= 12 && timeSinceLast >= 4500;
+          const justSettled = wasMoving && stableTicks >= 3 && timeSinceLast >= 2800;
+          const periodicScan = stableTicks >= 10 && timeSinceLast >= 3800;
 
           if (justSettled || periodicScan) {
             wasMoving = false;
@@ -4184,17 +4199,44 @@ function SpadasLensCameraCore({
             <>
               {/* Raw Camera Video Stream running smooth at 60fps */}
               <video
-                ref={videoRef}
+                ref={setVideoRef}
                 autoPlay
                 playsInline
                 muted
+                onLoadedMetadata={() => {
+                  setIsCameraReady(true);
+                  setCameraStalled(false);
+                  if (videoRef.current && videoRef.current.paused) {
+                    videoRef.current.play().catch(() => {});
+                  }
+                }}
+                onCanPlay={() => {
+                  setIsCameraReady(true);
+                  setCameraStalled(false);
+                }}
+                onPlaying={() => {
+                  setIsCameraReady(true);
+                  setCameraStalled(false);
+                }}
                 className="h-full w-full object-cover"
               />
               {/* Connecting optical sensor placeholder if stream is currently binding */}
-              {!isCameraReady && !stream && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/80 text-slate-400 space-y-2 pointer-events-none">
+              {!isCameraReady && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/85 text-slate-400 space-y-2 pointer-events-auto">
                   <RefreshCw className="h-6 w-6 text-cyan-400 animate-spin" />
-                  <span className="text-xs font-mono tracking-wider text-slate-400">CONNECTING OPTICAL SENSOR...</span>
+                  <span className="text-xs font-mono tracking-wider text-slate-300 font-semibold">CONNECTING OPTICAL SENSOR...</span>
+                  {cameraStalled && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void startCamera();
+                      }}
+                      className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-600/90 hover:bg-cyan-500 text-white text-xs font-bold transition shadow-md cursor-pointer pointer-events-auto active:scale-95"
+                    >
+                      <RefreshCw className="h-3.5 w-3.5" /> Reconnect Sensor
+                    </button>
+                  )}
                 </div>
               )}
 
