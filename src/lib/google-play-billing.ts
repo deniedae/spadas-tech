@@ -195,7 +195,7 @@ export async function purchaseGooglePlaySubscription(
     if (isAndroid) {
       return {
         success: false,
-        error: "Google Play Billing requires the updated v1.2.5 app build installed on your device. If you recently uploaded the update, Google Play takes a few hours to publish. You can install the direct v1.2.5 update right now from spadas-tech.vercel.app/spadas-ai.apk.",
+        error: "Google Play Billing requires the updated app build (v1.2.6+) installed on your device. If you recently uploaded the update, Google Play takes a few hours to publish. You can install the direct v1.2.6 update right now from spadas-tech.vercel.app/spadas-ai.apk.",
       };
     }
 
@@ -313,7 +313,7 @@ export async function checkGooglePlayBillingDiagnostics(): Promise<BillingDiagno
   } catch (err: any) {
     diag.error = `Service Connection: ${err?.name || "Error"} - ${err?.message || String(err)}`;
     diag.recommendation =
-      "Google Play rejected the billing connection. This happens when the current build (versionCode 9) hasn't been uploaded to Google Play Console yet, or when your Google account is not added to License Testing in Play Console.";
+      "Google Play rejected the billing connection. This happens when the current build (versionCode 10) hasn't been uploaded to Google Play Console yet, or when your Google account is not added to License Testing in Play Console.";
     return diag;
   }
 

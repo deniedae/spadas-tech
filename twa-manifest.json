@@ -1,8 +1,8 @@
 {
   "packageId": "com.spadas.ai",
   "host": "spadas-tech.vercel.app",
-  "name": "Reseller Scanner - Spadas Lens",
-  "launcherName": "Spadas Lens",
+  "name": "Reseller Scanner: Thrift Flip",
+  "launcherName": "Thrift Flip",
   "display": "standalone",
   "themeColor": "#2563eb",
   "navigationColor": "#090d16",
@@ -14,8 +14,8 @@
   "startUrl": "/dashboard",
   "iconUrl": "https://spadas-tech.vercel.app/icon-512.png",
   "orientation": "any",
-  "appVersionName": "1.2.5",
-  "appVersionCode": 9,
+  "appVersionName": "1.2.6",
+  "appVersionCode": 10,
   "signingKey": {
     "path": "./signing.keystore",
     "alias": "my-key-alias"

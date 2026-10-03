@@ -21,8 +21,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Reseller Scanner - Spadas Lens: eBay Barcode & Profit Calculator",
-    template: "%s · Reseller Scanner - Spadas Lens",
+    default: "Reseller Scanner: Thrift Flip - Live Sold Comps & Barcode Scanner",
+    template: "%s · Reseller Scanner: Thrift Flip",
   },
   description:
     "Instant optical scanner & AI reseller copilot. Scan barcodes & thrift shelves in 0.5s, calculate net profit with live eBay, Poshmark & Mercari sold comps, and generate ready-to-post listings.",
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "https://spadas.ai",
   },
-  applicationName: "Reseller Scanner - Spadas Lens",
+  applicationName: "Reseller Scanner: Thrift Flip",
   authors: [{ name: "Spadas Lens" }],
   keywords: [
     "reseller scanner",

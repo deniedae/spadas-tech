@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Spadas Lens: Reseller Scanner",
-    short_name: "Spadas Lens",
+    name: "Reseller Scanner: Thrift Flip",
+    short_name: "Thrift Flip",
     description:
       "Instant optical scanner & AI reseller copilot. Scan shelves, detect flip margins, compare sold comps on eBay, Poshmark & Mercari, and check authenticity.",
     start_url: "/dashboard",
