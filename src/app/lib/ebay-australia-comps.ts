@@ -613,13 +613,17 @@ export async function fetchEbayAustraliaSoldComps(
       // count=10: cap payload to top-10 results — 6× less data, faster parse & transfer
       const url = `https://api.sold-comps.com/v1/scrape?keyword=${encodeURIComponent(q)}&ebaySite=${ebaySite}&page=1&count=10&daysToScrape=30&sortOrder=endedRecently${conditionParam}${locParam}`;
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 5000); // 5000ms: allow real scrape to complete
+      const timer = setTimeout(() => controller.abort(), 1200); // 1200ms strict race limit
 
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${process.env.SOLD_COMPS_API_KEY}` },
         signal: controller.signal,
       }).catch((fetchErr: any) => {
-        console.warn(`[Sold Comps API] Fetch network error for query "${q}":`, fetchErr?.name === "AbortError" ? "Timed out (5s)" : fetchErr?.message || fetchErr);
+        const isTimeout = fetchErr?.name === "AbortError";
+        console.warn(
+          `[Sold Comps API] ${isTimeout ? "Timed out (1.2s race limit)" : "Network failure"} for query "${q}":`,
+          fetchErr?.message || fetchErr
+        );
         return null;
       });
       clearTimeout(timer);
@@ -630,7 +634,9 @@ export async function fetchEbayAustraliaSoldComps(
 
       if (!res.ok) {
         const errBody = await res.text().catch(() => "");
-        console.warn(`[Sold Comps API] Upstream error for query "${q}" (${res.status}): ${errBody.slice(0, 300)}`);
+        console.warn(
+          `[Sold Comps API] Upstream HTTP error for query "${q}" [Status ${res.status} ${res.statusText}]: ${errBody.slice(0, 300) || "(empty body)"}`
+        );
         return [];
       }
       const data = await res.json().catch(() => null);
@@ -707,25 +713,25 @@ export async function fetchEbayAustraliaSoldComps(
     }
   }
 
-  // ── 1. Paid sold-comps API (real 30-day sold data) ─────────────────────────
+  const primaryQuery = searchQueries[0] || productName;
+  // Fire official eBay Browse API in parallel as guaranteed primary data source
+  const officialBrowsePromise = fetchEbayActiveListings(primaryQuery, targetCurrency).catch((err) => {
+    console.warn("[eBay Browse API] Parallel active listings error:", err);
+    return [];
+  });
+
+  // ── 1. Paid sold-comps API (Race against 1.2s timeout) ──────────────────────
   if (process.env.SOLD_COMPS_API_KEY) {
     const isTargetUsed = !condition || !/\b(brand new|new with tags|nwt|sealed|bnib|nib)\b/i.test(condition);
     const isRegionAU = targetCurrency === "AUD";
 
-    // --- PHASE 1: Strictly Domestic Australian Sold Comps (LH_PrefLoc=1) ---
-    let domesticComps: EbaySoldCompItem[] = [];
-    for (const q of searchQueries.slice(0, 2)) {
-      const results = await fetchSoldCompsFromApi(
-        q,
-        isRegionAU ? "ebay.com.au" : (CURRENCY_CONFIGS[targetCurrency]?.ebaySite || "ebay.com.au"),
-        isRegionAU, // strictly AU Only if target is AUD
-        isTargetUsed
-      );
-      if (results.length > domesticComps.length) {
-        domesticComps = results;
-      }
-      if (domesticComps.length >= 3) break;
-    }
+    // Race primary query against 1.2s timeout (zero blocking loops)
+    const domesticComps = await fetchSoldCompsFromApi(
+      primaryQuery,
+      isRegionAU ? "ebay.com.au" : (CURRENCY_CONFIGS[targetCurrency]?.ebaySite || "ebay.com.au"),
+      isRegionAU,
+      isTargetUsed
+    );
 
     if (domesticComps.length >= 3) {
       // Apply Tight Cluster & Price-Band Sanity Guard
@@ -754,102 +760,11 @@ export async function fetchEbayAustraliaSoldComps(
       setCompsCacheEntry(cacheKey, domesticResult);
       return domesticResult;
     }
-
-    // --- PHASE 2: US-Only Fallback & Cross-Border Arbitrage Intelligence ---
-    // If domestic AU sold comps return zero or fewer than 3 verified results, automatically query the US market (EBAY_US)
-    if (isRegionAU) {
-      let usComps: EbaySoldCompItem[] = [];
-      for (const q of searchQueries.slice(0, 2)) {
-        const results = await fetchSoldCompsFromApi(
-          q,
-          "ebay.com",
-          false,
-          isTargetUsed
-        );
-        if (results.length > usComps.length) {
-          usComps = results;
-        }
-        if (usComps.length >= 3) break;
-      }
-
-      if (usComps.length >= 3) {
-        // Apply Tight Cluster & Price-Band Sanity Guard on US comps
-        const sanityUs = applyTightClusterSanityGuard(usComps, isQueryMultiPack);
-        const activeUsComps = sanityUs.appliedGuard ? sanityUs.filteredComps : usComps;
-
-        activeUsComps.sort((a, b) => a.price - b.price);
-        const usPrices = activeUsComps.map((c) => c.price);
-        const usMedian = calcMedian(usPrices);
-
-        // Convert USD comps to AUD with cross-border attributes
-        const convertedComps: EbaySoldCompItem[] = activeUsComps.map((c) => {
-          const convertedAud = Math.round(convertCurrency(c.price, "USD", "AUD") * 100) / 100;
-          return {
-            ...c,
-            originalPrice: c.price,
-            originalCurrency: "USD",
-            isUsComp: true,
-            price: convertedAud,
-          };
-        });
-
-        const audPrices = convertedComps.map((c) => c.price);
-        const { valid, lowerBound, upperBound } = computeIqrStats(audPrices);
-        const filteredComps = convertedComps.filter((c) => c.price >= lowerBound && c.price <= upperBound);
-        const medianAud = calcMedian(valid);
-
-        const estUsdMedian = Math.round(usMedian * 100) / 100;
-        const estAudMedian = Math.round(medianAud * 100) / 100;
-
-        const usResult: EbayCompsResult = {
-          min: Math.round(valid[0] * 100) / 100,
-          max: Math.round(valid[valid.length - 1] * 100) / 100,
-          median: estAudMedian,
-          count: valid.length,
-          currency: "AUD",
-          source: "sold_comps_api",
-          isUsMarketOnly: true,
-          marketOrigin: "US",
-          usMedianUsd: estUsdMedian,
-          crossBorderShippingCost: 25,
-          arbitrageSignal: `No AU sales recorded. High US liquidity ($${Math.round(estUsdMedian)} USD / ~$${Math.round(estAudMedian)} AUD). Profitable for international export or domestic scarcity pricing.`,
-          rawComps: (filteredComps.length > 0 ? filteredComps : convertedComps)
-            .sort((a, b) => (b.rawDate || 0) - (a.rawDate || 0))
-            .slice(0, 5),
-          iqrBounds: { lower: lowerBound, upper: upperBound },
-        };
-        setCompsCacheEntry(cacheKey, usResult);
-        return usResult;
-      }
-    }
-
-    // If domestic comps had 1-2 items and US also had none, return the domestic ones rather than nothing
-    if (domesticComps.length > 0) {
-      const sanity = applyTightClusterSanityGuard(domesticComps, isQueryMultiPack);
-      const activeComps = sanity.appliedGuard ? sanity.filteredComps : domesticComps;
-
-      activeComps.sort((a, b) => a.price - b.price);
-      const prices = activeComps.map((c) => c.price);
-      const partialResult: EbayCompsResult = {
-        min: prices[0],
-        max: prices[prices.length - 1],
-        median: calcMedian(prices),
-        count: prices.length,
-        currency: targetCurrency,
-        source: "sold_comps_api",
-        isUsMarketOnly: false,
-        marketOrigin: isRegionAU ? "AU" : (targetCurrency as "AU" | "US"),
-        rawComps: activeComps.slice(0, 5),
-      };
-      setCompsCacheEntry(cacheKey, partialResult);
-      return partialResult;
-    }
   }
 
-  // ── PHASE 3: 0 Sold Comps — Query Live Active Listings (Browse API) ──
+  // ── PHASE 2: Official eBay Browse API (Parallel Hit Guaranteed < 1.2s) ────
   // Show active listings data clearly labelled "Currently listed — not sold prices"
-  const primaryQuery = searchQueries[0] || productName;
-  const activeListings = await fetchEbayActiveListings(primaryQuery, targetCurrency);
+  const activeListings = await officialBrowsePromise;
 
   if (activeListings.length > 0) {
     activeListings.sort((a, b) => a.price - b.price);

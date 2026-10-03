@@ -54,6 +54,18 @@ export async function getOfflineScans(): Promise<any[]> {
   }
 }
 
+export async function removeOfflineScan(id: string): Promise<void> {
+  try {
+    const db = await openDB();
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    const store = tx.objectStore(STORE_NAME);
+    store.delete(id);
+    await new Promise((res) => (tx.oncomplete = res));
+  } catch (err) {
+    console.warn("[IndexedDB] Remove offline scan warning:", err);
+  }
+}
+
 export async function clearOfflineScans(): Promise<void> {
   try {
     const db = await openDB();
@@ -63,3 +75,4 @@ export async function clearOfflineScans(): Promise<void> {
     await new Promise((res) => (tx.oncomplete = res));
   } catch {}
 }
+

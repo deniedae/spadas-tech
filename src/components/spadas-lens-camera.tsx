@@ -43,6 +43,7 @@ import { setCachedValuation, getCachedValuation } from "@/lib/offline-lru-cache"
 import { executeParallelAppraisal } from "@/lib/concurrent-appraiser";
 import { ScanTrace } from "@/lib/scan-trace";
 import { saveScanOffline } from "@/app/lib/offline-storage";
+import { enqueueScanForBackgroundUpload, flushScanHistoryQueue, initScanHistoryQueue } from "@/lib/scan-history-queue";
 import dynamic from "next/dynamic";
 import CameraOnboardingOverlay from "@/components/camera-onboarding-overlay";
 import OpticalHorizonLeveler from "@/components/optical-horizon-leveler";
@@ -1552,35 +1553,13 @@ function SpadasLensCameraCore({
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) return;
 
-      // 1. Flush pending scans queue to supabase.from("scans")
-      const queueStr = localStorage.getItem("spadas_pending_scans_queue");
-      if (queueStr) {
-        const queue: any[] = JSON.parse(queueStr);
-        if (Array.isArray(queue) && queue.length > 0) {
-          const unSynced: any[] = [];
-          for (const item of queue) {
-            try {
-              const { error } = await supabase.from("scans").insert([
-                {
-                  user_id: session.user.id,
-                  image_url: item.image_url,
-                  result_json: item.result_json,
-                  token_count: 2600,
-                  status: "completed",
-                },
-              ]);
-              if (error) {
-                console.warn("[Spadas Lens] Background scan sync insert warning:", error.message);
-                unSynced.push(item);
-              }
-            } catch {
-              unSynced.push(item);
-            }
-          }
-          localStorage.setItem("spadas_pending_scans_queue", JSON.stringify(unSynced));
-          setPendingSyncCount(unSynced.length);
-        }
-      }
+      // 1. Flush pending scans queue via dedicated background upload engine
+      await flushScanHistoryQueue(false);
+      try {
+        const remainingStr = localStorage.getItem("spadas_pending_scans_queue");
+        const remaining = remainingStr ? JSON.parse(remainingStr) : [];
+        setPendingSyncCount(Array.isArray(remaining) ? remaining.length : 0);
+      } catch { }
 
       // 2. Flush pending listings queue to supabase.from("listings")
       const listQueueStr = localStorage.getItem("spadas_pending_listings_queue");
@@ -1767,24 +1746,27 @@ function SpadasLensCameraCore({
         status: "completed",
       };
 
+      // 3. Queue for persistent background Supabase sync to scans table (zero-drop guarantee)
+      void enqueueScanForBackgroundUpload({
+        id: hit.id,
+        timestamp: hit.timestamp,
+        imageUrl: hit.image || null,
+        resultJson: scanRecord.result_json,
+        tokenCount: 2600,
+        status: "pending",
+      });
       try {
         const queueStr = localStorage.getItem("spadas_pending_scans_queue");
         const queue = queueStr ? JSON.parse(queueStr) : [];
-        queue.push(scanRecord);
-        localStorage.setItem("spadas_pending_scans_queue", JSON.stringify(queue.slice(-50)));
         setPendingSyncCount(queue.length);
       } catch { }
-
-      // 4. Attempt immediate background sync if online
-      if (typeof navigator !== "undefined" && navigator.onLine) {
-        void flushPendingSyncQueue();
-      }
     },
     [flushPendingSyncQueue]
   );
   persistHitRef.current = persistHitAndSyncToSupabase;
 
   useEffect(() => {
+    initScanHistoryQueue();
     try {
       const q = localStorage.getItem("spadas_pending_scans_queue");
       if (q) {
@@ -3075,6 +3057,7 @@ function SpadasLensCameraCore({
                         if (abortController.signal.aborted || cycleId !== activeCycleIdRef.current) return;
                         setScanStage("complete");
                         triggerActiveValuationHit(verifiedHit, snapImg);
+                        void persistHitAndSyncToSupabase(verifiedHit, valData);
                       }, 180);
                     }
                   } else if (chunk.event === "listing_complete") {

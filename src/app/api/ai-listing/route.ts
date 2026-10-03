@@ -448,6 +448,10 @@ RULES:
       }
     }
 
+    // Set low detail for high-speed live AR viewfinder scans (<800ms single pass),
+    // while keeping high detail for snap shutter snaps and deep forensic tag inspection
+    const visionDetail = (isArScan && mode !== "snap" && mode !== "deep") ? "low" : "high";
+
     const imageContent = imageUrls.map((url) => {
       // Clean base64 strings (remove whitespace/newlines) to prevent OpenAI 400 "unsupported image" errors
       const cleanUrl = url.trim().replace(/[\r\n]/g, "");
@@ -455,7 +459,7 @@ RULES:
         type: "image_url" as const,
         image_url: {
           url: cleanUrl,
-          detail: "high" as const, // High-Detail 512px tile resolution for 100% OCR & brand identification
+          detail: visionDetail as "low" | "high",
         },
       };
     });
@@ -1506,72 +1510,84 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
       if (result && result.status === "identified" && rawTitle && !isSentinelScan) {
         void saveProductToCache(rawTitle, result);
       }
+    };
 
-      if (user && !isSentinelScan) {
-        try {
-          const firstImg = imageUrls[0] || "";
-          let finalImageUrl = firstImg;
+    // Background asynchronous persistence helper: uploads image to Supabase Storage and records scan
+    const saveScanInBackground = async () => {
+      const rawTitle = result.analysis?.product_name || (result as any).product_name || "";
+      const isSentinelScan =
+        !result ||
+        rawTitle === "NO_CENTER_ITEM" ||
+        rawTitle.length < 3 ||
+        /^[.\/_\-–—:;,\s]+$/.test(rawTitle) ||
+        (result as any).category === "NO_CENTER_ITEM" ||
+        result.analysis?.category === "NO_CENTER_ITEM";
 
-          const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-          const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-          const dbClient =
-            supabaseUrl && serviceRoleKey
-              ? (await import("@supabase/supabase-js")).createClient(supabaseUrl, serviceRoleKey, {
-                auth: { persistSession: false, autoRefreshToken: false },
-              })
-              : supabase;
+      if (!user || isSentinelScan) return;
 
-          // If base64, attempt uploading to Supabase Storage 'listing-images' bucket for permanent hosting
-          if (firstImg.startsWith("data:")) {
-            try {
-              const matches = firstImg.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
-              if (matches && matches.length === 3) {
-                const mimeType = matches[1];
-                const base64Data = matches[2];
-                const buffer = Buffer.from(base64Data, "base64");
-                const ext = mimeType.split("/")[1] || "jpeg";
-                const filename = `scans/${user.id}-${Date.now()}.${ext}`;
+      try {
+        const firstImg = imageUrls[0] || "";
+        let finalImageUrl = firstImg;
 
-                const { data: uploadData, error: uploadErr } = await dbClient.storage
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        const dbClient =
+          supabaseUrl && serviceRoleKey
+            ? (await import("@supabase/supabase-js")).createClient(supabaseUrl, serviceRoleKey, {
+              auth: { persistSession: false, autoRefreshToken: false },
+            })
+            : supabase;
+
+        // If base64, attempt uploading to Supabase Storage 'listing-images' bucket for permanent hosting
+        if (firstImg.startsWith("data:")) {
+          try {
+            const matches = firstImg.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+            if (matches && matches.length === 3) {
+              const mimeType = matches[1];
+              const base64Data = matches[2];
+              const buffer = Buffer.from(base64Data, "base64");
+              const ext = mimeType.split("/")[1] || "jpeg";
+              const filename = `scans/${user.id}-${Date.now()}.${ext}`;
+
+              const { data: uploadData, error: uploadErr } = await dbClient.storage
+                .from("listing-images")
+                .upload(filename, buffer, {
+                  contentType: mimeType,
+                  upsert: true,
+                });
+
+              if (!uploadErr && uploadData) {
+                const { data: publicUrlData } = dbClient.storage
                   .from("listing-images")
-                  .upload(filename, buffer, {
-                    contentType: mimeType,
-                    upsert: true,
-                  });
-
-                if (!uploadErr && uploadData) {
-                  const { data: publicUrlData } = dbClient.storage
-                    .from("listing-images")
-                    .getPublicUrl(filename);
-                  if (publicUrlData?.publicUrl) {
-                    finalImageUrl = publicUrlData.publicUrl;
-                  }
+                  .getPublicUrl(filename);
+                if (publicUrlData?.publicUrl) {
+                  finalImageUrl = publicUrlData.publicUrl;
                 }
               }
-            } catch {
-              // If storage upload fails, preserve firstImg directly
             }
+          } catch {
+            // If storage upload fails, preserve firstImg directly
           }
-
-          console.log('[Spadas Lens] Inserting scan record:', {
-            userId: user.id,
-            imageUrl: finalImageUrl.startsWith("data:") ? `data:image/jpeg;base64,...(${finalImageUrl.length} bytes)` : finalImageUrl,
-            tokenCount: 2600,
-            status: "completed"
-          });
-
-          await dbClient.from("scans").insert([
-            {
-              user_id: user.id,
-              image_url: finalImageUrl,
-              result_json: result,
-              token_count: 2600,
-              status: "completed",
-            },
-          ]);
-        } catch (dbErr) {
-          console.error('[Spadas Lens] Error inserting scan record:', dbErr);
         }
+
+        console.log('[Spadas Lens] Inserting background scan record:', {
+          userId: user.id,
+          imageUrl: finalImageUrl.startsWith("data:") ? `data:image/jpeg;base64,...(${finalImageUrl.length} bytes)` : finalImageUrl,
+          tokenCount: 2600,
+          status: "completed"
+        });
+
+        await dbClient.from("scans").insert([
+          {
+            user_id: user.id,
+            image_url: finalImageUrl,
+            result_json: result,
+            token_count: 2600,
+            status: "completed",
+          },
+        ]);
+      } catch (dbErr) {
+        console.error('[Spadas Lens] Error in background scan record persistence:', dbErr);
       }
     };
 
@@ -1613,6 +1629,10 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
               data: result,
             };
             controller.enqueue(encoder.encode(JSON.stringify(valuationReadyEvent) + "\n"));
+
+            // 4. Background History Upload (Non-blocking):
+            // Upload to Supabase Storage & insert to scans table in background AFTER valuation_ready is sent
+            void saveScanInBackground();
 
             if (request.signal?.aborted) return;
 
@@ -1801,6 +1821,9 @@ Fair Market Resale Value: $${result.suggested_price_median} ${targetCurrency}`,
         console.warn("[ai-listing] Non-streaming copywriting warning:", copyErr);
       }
     }
+
+    // Background History Upload (Non-blocking)
+    void saveScanInBackground();
 
     return NextResponse.json(result);
   } catch (err: any) {
