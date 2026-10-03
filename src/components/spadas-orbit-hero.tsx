@@ -153,9 +153,9 @@ export function SpadasOrbitHero() {
                 d
               </div>
 
-              {/* Poshmark */}
-              <div className="absolute bottom-4 right-1/4 flex items-center justify-center h-10 w-10 rounded-full bg-[#79242F] text-white font-black text-xs shadow-xl border border-pink-400/40">
-                P
+              {/* Gumtree AU */}
+              <div className="absolute bottom-4 right-1/4 flex items-center justify-center h-10 w-10 rounded-full bg-[#72EF36] text-slate-950 font-black text-xs shadow-xl border border-emerald-400/40">
+                G
               </div>
 
               {/* GOAT */}

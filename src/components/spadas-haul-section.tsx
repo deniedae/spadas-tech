@@ -39,11 +39,11 @@ import { toast } from "sonner";
 const EbayListingModal = dynamic(() => import("@/components/ebay-listing-modal"), { ssr: false });
 const DeepVerifyModal = dynamic(() => import("@/components/deep-verify-modal").then((m) => m.DeepVerifyModal), { ssr: false });
 const RawCompsModal = dynamic(() => import("@/components/raw-comps-modal"), { ssr: false });
+const InAppReviewModal = dynamic(() => import("@/components/in-app-review-modal"), { ssr: false });
+import { checkWinDelightPrompt } from "@/components/in-app-review-modal";
 import { supabase } from "@/app/lib/supabase";
 import { triggerTactileHaptic } from "@/lib/android-bridge";
 import { isMeaningfulMeta } from "@/lib/lens-utils";
-import { createListing } from "@/app/lib/createlisting";
-import { saveListingToFirestore } from "@/app/lib/firestore-listings";
 
 interface SpadasHaulSectionProps {
   onSwitchToLens?: () => void;
@@ -93,6 +93,8 @@ export function SpadasHaulSection({
   // Modals state
   const [ebayItem, setEbayItem] = useState<RapidThriftItem | null>(null);
   const [verifyItem, setVerifyItem] = useState<RapidThriftItem | null>(null);
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState<boolean>(false);
+  const [reviewWinMeta, setReviewWinMeta] = useState<{ profit?: number; name?: string } | null>(null);
 
   const handleCloseEbayModal = useCallback(() => setEbayItem(null), []);
   const handleCloseVerifyModal = useCallback(() => setVerifyItem(null), []);
@@ -142,11 +144,11 @@ export function SpadasHaulSection({
         }
 
         const data = await res.json();
-        if (data && data.compsCount > 0) {
-          const medianPrice = Number(data.median) || Number(item.estimatedValue) || 25;
-          const cost = Number(item.thriftCost) || 5;
+        if (data && (data.compsCount > 0 || data.median)) {
+          const medianPrice = Number(data.median) || Number(item.estimatedValue) || 35;
+          const cost = Number(item.thriftCost) || data.typicalOpShopCost || 6;
           const fee = medianPrice * 0.134 + 0.33;
-          const shipping = data.crossBorderShippingCost ? 25 : 8.50;
+          const shipping = data.crossBorderShippingCost ? 25 : 10.90;
           const recalculatedNet = Math.max(0, Math.round((medianPrice - cost - fee - shipping) * 100) / 100);
           const recalculatedRoi = cost > 0 ? Math.round((recalculatedNet / cost) * 100) : 0;
           const recalculatedVerdict = recalculatedNet >= 40 ? "MUST_COP" : recalculatedNet >= 15 ? "QUICK_FLIP" : "PASS_RISKY";
@@ -156,7 +158,7 @@ export function SpadasHaulSection({
             estimatedValue: medianPrice,
             minPrice: data.minPrice,
             maxPrice: data.maxPrice,
-            compsCount: data.compsCount,
+            compsCount: data.compsCount || 0,
             rawComps: data.comps || data.rawComps || [],
             comps: data.comps || data.rawComps || [],
             searchTitle: queryToUse,
@@ -166,7 +168,11 @@ export function SpadasHaulSection({
             isGrail: recalculatedNet >= 50,
           });
 
-          toast.success(`Found ${data.compsCount} sold comps for "${queryToUse}"!`, { id: toastId });
+          if (data.compsCount > 0) {
+            toast.success(`Found ${data.compsCount} sold comps for "${queryToUse}"!`, { id: toastId });
+          } else {
+            toast.success(`Benchmarked against Australian ${data.categoryTier || "secondary market"} ($${medianPrice})`, { id: toastId });
+          }
           setEditingQueryItemId(null);
         } else {
           updateItem(itemId, { status: "completed", compsCount: 0 });
@@ -332,6 +338,7 @@ export function SpadasHaulSection({
         const cost = Number(item.thriftCost) || 5;
 
         if (user?.id) {
+          const { createListing } = await import("@/app/lib/createlisting");
           const { error } = await createListing({
             userId: user.id,
             product: item.productName || "Sourced Thrift Item",
@@ -471,6 +478,7 @@ export function SpadasHaulSection({
         }
 
         // Background sync to Firestore dual-store for each item
+        const { saveListingToFirestore } = await import("@/app/lib/firestore-listings");
         for (const item of profitable) {
           const { resolvedImg, description, price, cost } = buildItemMeta(item);
           void saveListingToFirestore(user.id, {
@@ -485,6 +493,14 @@ export function SpadasHaulSection({
 
         triggerTactileHaptic("success");
         toast.success(`Committed ${profitable.length} profitable finds to Active Inventory!`);
+
+        const batchTotalProfit = profitable.reduce((acc, curr) => acc + (curr.trueNetProfit || 0), 0);
+        if (checkWinDelightPrompt(batchTotalProfit)) {
+          setTimeout(() => {
+            setReviewWinMeta({ profit: batchTotalProfit });
+            setIsReviewModalOpen(true);
+          }, 1100);
+        }
       } else {
         // Guest user: save all to local queue
         const queueStr = localStorage.getItem("spadas_pending_listings_queue");
@@ -506,6 +522,14 @@ export function SpadasHaulSection({
         localStorage.setItem("spadas_pending_listings_queue", JSON.stringify(listQueue.slice(-100)));
         triggerTactileHaptic("success");
         toast.success(`Saved ${profitable.length} finds to local inventory queue! Sign in to sync.`);
+
+        const batchTotalProfit = profitable.reduce((acc, curr) => acc + (curr.trueNetProfit || 0), 0);
+        if (checkWinDelightPrompt(batchTotalProfit)) {
+          setTimeout(() => {
+            setReviewWinMeta({ profit: batchTotalProfit });
+            setIsReviewModalOpen(true);
+          }, 1100);
+        }
       }
     } catch (err) {
       console.error("[Spadas Haul] Batch commit error:", err);
@@ -1337,6 +1361,21 @@ export function SpadasHaulSection({
           onRecalculate={handleRecalculateComps}
         />
       )}
+
+      {/* 5-Star Google Play In-App Review & Rating Modal */}
+      <InAppReviewModal
+        isOpen={isReviewModalOpen}
+        onClose={() => {
+          setIsReviewModalOpen(false);
+          setReviewWinMeta(null);
+        }}
+        scanCount={haulCount || items.length}
+        profitAmount={reviewWinMeta?.profit}
+        itemName={reviewWinMeta?.name}
+        customTitle="Profitable Haul Sourced! 🚀"
+        customBadge="HAUL BATCH COMMITTED!"
+        customSubtitle={`You just secured a profitable haul (${reviewWinMeta?.profit ? `+$${reviewWinMeta.profit.toFixed(0)} projected net profit` : `${items.length} flips`})! If Spadas is giving you an edge, 5 stars on Google Play helps us keep Australian sold comps fast and accurate.`}
+      />
     </div>
   );
 }

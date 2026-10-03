@@ -258,11 +258,11 @@ class QuickSnapQueueService {
 
               if (compsRes && compsRes.ok) {
                 const compsData = await compsRes.json().catch(() => null);
-                if (compsData && compsData.compsCount > 0) {
-                  const medianPrice = Number(compsData.median) || Number(data.estimated_value) || 25;
-                  const cost = Number(data.thrift_cost) || 5;
+                if (compsData && (compsData.compsCount > 0 || compsData.median)) {
+                  const medianPrice = Number(compsData.median) || Number(data.estimated_value) || 35;
+                  const cost = Number(data.thrift_cost) || compsData.typicalOpShopCost || 6;
                   const fee = medianPrice * 0.134 + 0.33;
-                  const shipping = compsData.crossBorderShippingCost ? 25 : 8.50;
+                  const shipping = compsData.crossBorderShippingCost ? 25 : 10.90;
                   const recalculatedNet = Math.max(0, Math.round((medianPrice - cost - fee - shipping) * 100) / 100);
                   const recalculatedRoi = cost > 0 ? Math.round((recalculatedNet / cost) * 100) : 0;
                   const recalculatedVerdict = recalculatedNet >= 40 ? "MUST_COP" : recalculatedNet >= 15 ? "QUICK_FLIP" : "PASS_RISKY";
@@ -272,7 +272,7 @@ class QuickSnapQueueService {
                     estimatedValue: medianPrice,
                     minPrice: compsData.minPrice,
                     maxPrice: compsData.maxPrice,
-                    compsCount: compsData.compsCount,
+                    compsCount: compsData.compsCount || 0,
                     rawComps: compsData.comps || compsData.rawComps || [],
                     comps: compsData.comps || compsData.rawComps || [],
                     trueNetProfit: recalculatedNet,

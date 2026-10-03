@@ -8,7 +8,7 @@ export default function LandingPricing() {
   const launchPerks = [
     "Unlimited AR camera scanner sessions",
     "Live Australia & Global eBay 30-day sold comps",
-    "1-Click multi-platform cross-lister (eBay, Depop, Poshmark)",
+    "1-Click multi-platform cross-lister (eBay AU, Depop AU, Gumtree)",
     "1-Tap direct-to-eBay Seller Hub draft publishing",
     "Price surge & trend profit comps",
     "Unlimited history feed & haul profit calculator",

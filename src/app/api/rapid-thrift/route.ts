@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { checkUserUsage } from "@/app/lib/usage";
 import { createOpenAiClient, getPrimaryAiApiKey } from "@/app/lib/config/ai-models";
 import { checkNeedsVerification } from "@/lib/forensic-knowledge";
+import { estimateAustralianMarketValue } from "@/lib/valuation-heuristics";
 import { estimateCategoryShippingCost, detectThriftTrap, calculateThriftCopVerdict } from "@/lib/thrift-cop-engine";
 import { calculateSalesVelocity } from "@/lib/turnover-velocity-engine";
 
@@ -181,13 +182,20 @@ Output ONLY valid JSON adhering strictly to:
 
     const parsed = JSON.parse(rawContent);
 
-    const estVal = Number(parsed.estimated_value) || 20;
-    const estCost = Number(parsed.thrift_cost) || (estVal <= 5 ? 1 : Math.max(2, Math.round(estVal * 0.15)));
-    const ebayFee = estVal * 0.134 + 0.33;
-
     const pName = parsed.product_name || "Thrift Item";
     const pBrand = parsed.brand || "Authentic";
     const pCategory = parsed.category || "General";
+
+    const catEst = estimateAustralianMarketValue({
+      title: pName,
+      brand: pBrand,
+      category: pCategory,
+      condition: parsed.condition,
+    });
+
+    const estVal = Number(parsed.estimated_value) || catEst.estimatedMedian;
+    const estCost = Number(parsed.thrift_cost) || catEst.typicalOpShopCost;
+    const ebayFee = estVal * 0.134 + 0.33;
 
     // Deduct realistic category parcel shipping
     const shippingCost = estimateCategoryShippingCost(pCategory, pName);

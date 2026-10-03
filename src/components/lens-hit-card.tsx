@@ -317,7 +317,7 @@ export default function LensHitCard({
               setShowCompareModal(true);
             }}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.08] hover:bg-white/[0.14] active:scale-95 text-zinc-100 border border-white/15 text-xs font-bold transition cursor-pointer"
-            title="Compare The Market: Net payouts & comps on eBay, Depop, Poshmark, Mercari & FB"
+            title="Compare The Market: Net payouts & comps on eBay AU, Depop AU, Gumtree & FB Marketplace"
           >
             <Scale className="w-3.5 h-3.5 text-zinc-300" />
             Compare

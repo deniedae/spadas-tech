@@ -59,7 +59,7 @@ export interface LensIntelData {
     maxProfit: number;
   };
   fastestChannel: {
-    name: "eBay" | "Depop" | "Poshmark" | "Mercari" | "Facebook Marketplace";
+    name: "eBay" | "Depop" | "Gumtree" | "Facebook Marketplace";
     reason: string;
     commissionRate: string;
     targetAudience: string;
@@ -82,7 +82,7 @@ export function determineFastestChannel(
 ): LensIntelData["fastestChannel"] {
   const text = `${category} ${productName}`.toLowerCase();
 
-  // 1. Streetwear / Vintage / Y2K Apparel -> Depop
+  // 1. Streetwear / Vintage / Y2K Apparel -> Depop AU
   if (
     text.includes("vintage") ||
     text.includes("single stitch") ||
@@ -96,13 +96,13 @@ export function determineFastestChannel(
   ) {
     return {
       name: "Depop",
-      reason: "High Gen-Z buyer liquidity and search traffic for vintage streetwear and Y2K silhouettes.",
+      reason: "High Australian Gen-Z buyer liquidity and search traffic for vintage streetwear and Y2K silhouettes.",
       commissionRate: "10% Platform Fee",
-      targetAudience: "Gen-Z & Vintage Fashion Collectors",
+      targetAudience: "Gen-Z & Vintage Fashion Collectors in AU",
     };
   }
 
-  // 2. Women's Designer / Contemporary Fashion / Luxury Handbags -> Poshmark
+  // 2. Women's Designer / Contemporary Fashion (Zimmermann, Camilla, Oroton, etc.) -> Depop / eBay AU
   if (
     text.includes("handbag") ||
     text.includes("tote") ||
@@ -113,17 +113,19 @@ export function determineFastestChannel(
     text.includes("coach") ||
     text.includes("michael kors") ||
     text.includes("lululemon") ||
-    text.includes("zimmermann")
+    text.includes("zimmermann") ||
+    text.includes("oroton") ||
+    text.includes("camilla")
   ) {
     return {
-      name: "Poshmark",
-      reason: "Pre-paid bundled shipping and massive buyer active engagement for women's fashion and leather goods.",
-      commissionRate: "20% (Includes Shipping Subsidy)",
-      targetAudience: "Fashion Arbitrage & Capsule Wardrobes",
+      name: "Depop",
+      reason: "Massive active engagement for designer fashion, formal dresses, and leather goods across Australia.",
+      commissionRate: "10% Marketplace Fee",
+      targetAudience: "Australian Fashion Arbitrage & Designer Wardrobes",
     };
   }
 
-  // 3. Bulky, Heavy, or Fragile Items -> Facebook Marketplace
+  // 3. Bulky, Heavy, or Fragile Items -> Facebook Marketplace / Gumtree
   if (
     text.includes("speaker") ||
     text.includes("furniture") ||
@@ -134,39 +136,41 @@ export function determineFastestChannel(
     text.includes("bumper") ||
     text.includes("engine") ||
     text.includes("television") ||
-    text.includes("monitor")
+    text.includes("monitor") ||
+    text.includes("bike") ||
+    text.includes("lawnmower")
   ) {
     return {
       name: "Facebook Marketplace",
-      reason: "Zero shipping overhead, local cash pickup, and eliminate postal return/damage liabilities on bulky goods.",
+      reason: "Zero shipping overhead, local cash pickup, and eliminate postal damage risks on bulky Australian items.",
       commissionRate: "0% (Local Cash on Pickup)",
-      targetAudience: "Local Pickers & DIY Enthusiasts",
+      targetAudience: "Local Aussie Pickers & Community Buyers",
     };
   }
 
-  // 4. Collectibles & Trading Cards under $100 -> Mercari / eBay
+  // 4. Tools, Bulky Hardware, Garage Items -> Gumtree
   if (
-    text.includes("pokemon") ||
-    text.includes("trading card") ||
-    text.includes("tcg") ||
-    text.includes("action figure") ||
-    text.includes("plush") ||
-    text.includes("funko")
+    text.includes("tool") ||
+    text.includes("drill") ||
+    text.includes("generator") ||
+    text.includes("ladder") ||
+    text.includes("chainsaw") ||
+    text.includes("timber")
   ) {
     return {
-      name: "Mercari",
-      reason: "Zero-fee seller structure with brisk turnover on compact collectibles and anime/gaming merch.",
-      commissionRate: "0% Seller Fee (Buyer pays fees)",
-      targetAudience: "Passionate Pop Culture Collectors",
+      name: "Gumtree",
+      reason: "Classic Australian marketplace for trades, tools, and local classifieds with 0% seller fee.",
+      commissionRate: "0% (Free Standard Listing)",
+      targetAudience: "Local Australian Tradies & DIY Enthusiasts",
     };
   }
 
-  // 5. Default Universal Secondary Clearinghouse -> eBay
+  // 5. Default Universal Secondary Clearinghouse -> eBay Australia
   return {
     name: "eBay",
-    reason: "Deepest global buyer reach, automated International Shipping, and definitive comps clearinghouse.",
-    commissionRate: "13.25% + $0.30 Final Value Fee",
-    targetAudience: "Global Intent-Driven Buyers",
+    reason: "Deepest Australian buyer reach, automated AusPost shipping integration, and verified comps clearinghouse.",
+    commissionRate: "13.4% Final Value Fee (incl. GST)",
+    targetAudience: "High-Intent Australian Secondary Buyers",
   };
 }
 

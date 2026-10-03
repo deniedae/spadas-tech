@@ -118,7 +118,7 @@ export function calcMedian(sorted: number[]): number {
     : sorted[mid];
 }
 
-export type CompsSource = "browse_api" | "sold_comps_api" | "ai_estimate";
+export type CompsSource = "browse_api" | "sold_comps_api" | "ai_estimate" | "category_valuation";
 
 export interface EbaySoldCompItem {
   id: string;

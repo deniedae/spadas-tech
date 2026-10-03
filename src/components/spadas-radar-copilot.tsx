@@ -18,8 +18,8 @@ interface CopilotItem {
   imageUrl: string;
   ebayFormat: { title: string; desc: string; price: number; tags: string[] };
   depopFormat: { title: string; desc: string; price: number; hashtags: string[] };
-  poshmarkFormat: { title: string; desc: string; price: number; category: string };
-  mercariFormat: { title: string; desc: string; price: number; shippingTier: string };
+  gumtreeFormat: { title: string; desc: string; price: number; pickupLocation: string };
+  facebookFormat: { title: string; desc: string; price: number; meetupTip: string };
 }
 
 const SAMPLE_ARBITRAGE_DEALS: CopilotItem[] = [
@@ -46,17 +46,17 @@ const SAMPLE_ARBITRAGE_DEALS: CopilotItem[] = [
       price: 110.00,
       hashtags: ["#nikeacg", "#vintage", "#gorpcore", "#streetwear", "#90s"],
     },
-    poshmarkFormat: {
-      title: "Nike ACG Vintage Teal Zip Fleece Jacket",
-      desc: "Gorgeous vintage Nike ACG full zip fleece jacket. High quality warmth, comfortable athletic fit. Clean condition.",
-      price: 98.00,
-      category: "Men > Jackets & Coats > Fleece",
+    gumtreeFormat: {
+      title: "Vintage Nike ACG Fleece Jacket Teal Mens M",
+      desc: "Original vintage Nike ACG fleece in teal. Super warm, great condition. Pick up locally or can post via AusPost tracked satchel.",
+      price: 90.00,
+      pickupLocation: "Australia Wide Post / Local Pickup",
     },
-    mercariFormat: {
-      title: "Nike ACG Vintage Fleece Jacket Teal M",
-      desc: "Men's Medium vintage Nike ACG fleece. Fast shipping guaranteed!",
-      price: 92.00,
-      shippingTier: "1 lb 4 oz ($7.99)",
+    facebookFormat: {
+      title: "Nike ACG Vintage Teal Zip Fleece Jacket",
+      desc: "Men's Medium vintage Nike ACG fleece. Clean condition, smoke-free home. Cash on pickup preferred or bank transfer for post.",
+      price: 85.00,
+      meetupTip: "Instant Cash Pickup (0% Fees)",
     },
   },
   {
@@ -82,24 +82,24 @@ const SAMPLE_ARBITRAGE_DEALS: CopilotItem[] = [
       price: 160.00,
       hashtags: ["#camcorder", "#y2k", "#sony", "#skatevideo", "#retro"],
     },
-    poshmarkFormat: {
+    gumtreeFormat: {
       title: "Sony Handycam Digital8 Video Camera Tested",
-      desc: "Tested Sony Digital8 video camera. Includes battery and charger cable. Great condition.",
-      price: 150.00,
-      category: "Electronics > Cameras > Camcorders",
-    },
-    mercariFormat: {
-      title: "Sony Handycam Digital8 Camcorder Tested",
-      desc: "Sony Digital8 DCR-TRV280. Works great for tape transfers!",
+      desc: "Tested Sony Digital8 video camera. Includes battery and charger cable. Ideal for digital conversion of family tapes.",
       price: 140.00,
-      shippingTier: "2 lbs ($9.99)",
+      pickupLocation: "Local Pickup / Tracked Express Post",
+    },
+    facebookFormat: {
+      title: "Sony Handycam DCR-TRV280 Digital8 - Tested Working",
+      desc: "Sony Digital8 camcorder. Works great for tape transfers! Comes with charger and battery.",
+      price: 135.00,
+      meetupTip: "Demo on pickup / Cash preferred",
     },
   },
 ];
 
 export default function SpadasRadarCopilot() {
   const [selectedDeal, setSelectedDeal] = useState<CopilotItem>(SAMPLE_ARBITRAGE_DEALS[0]);
-  const [activePlatform, setActivePlatform] = useState<"ebay" | "depop" | "poshmark" | "mercari">("ebay");
+  const [activePlatform, setActivePlatform] = useState<"ebay" | "depop" | "gumtree" | "facebook">("ebay");
   const [copied, setCopied] = useState(false);
 
   const handleCopyListing = () => {
@@ -108,10 +108,10 @@ export default function SpadasRadarCopilot() {
       content = `TITLE: ${selectedDeal.ebayFormat.title}\nPRICE: $${selectedDeal.ebayFormat.price}\n\nDESCRIPTION:\n${selectedDeal.ebayFormat.desc}\n\nKEYWORDS: ${selectedDeal.ebayFormat.tags.join(", ")}`;
     } else if (activePlatform === "depop") {
       content = `TITLE: ${selectedDeal.depopFormat.title}\nPRICE: $${selectedDeal.depopFormat.price}\n\nDESCRIPTION:\n${selectedDeal.depopFormat.desc}\n\nHASHTAGS: ${selectedDeal.depopFormat.hashtags.join(" ")}`;
-    } else if (activePlatform === "poshmark") {
-      content = `TITLE: ${selectedDeal.poshmarkFormat.title}\nPRICE: $${selectedDeal.poshmarkFormat.price}\nCATEGORY: ${selectedDeal.poshmarkFormat.category}\n\nDESCRIPTION:\n${selectedDeal.poshmarkFormat.desc}`;
+    } else if (activePlatform === "gumtree") {
+      content = `TITLE: ${selectedDeal.gumtreeFormat.title}\nPRICE: $${selectedDeal.gumtreeFormat.price}\nDELIVERY: ${selectedDeal.gumtreeFormat.pickupLocation}\n\nDESCRIPTION:\n${selectedDeal.gumtreeFormat.desc}`;
     } else {
-      content = `TITLE: ${selectedDeal.mercariFormat.title}\nPRICE: $${selectedDeal.mercariFormat.price}\nSHIPPING: ${selectedDeal.mercariFormat.shippingTier}\n\nDESCRIPTION:\n${selectedDeal.mercariFormat.desc}`;
+      content = `TITLE: ${selectedDeal.facebookFormat.title}\nPRICE: $${selectedDeal.facebookFormat.price}\nPAYMENT: ${selectedDeal.facebookFormat.meetupTip}\n\nDESCRIPTION:\n${selectedDeal.facebookFormat.desc}`;
     }
 
     navigator.clipboard.writeText(content);
@@ -132,7 +132,7 @@ export default function SpadasRadarCopilot() {
             Live Arbitrage Radar & Cross-Platform Exporter
           </h2>
           <p className="mt-1 text-xs md:text-sm text-slate-300">
-            AI evaluates real-time sell-through rates and instantly formats listings for eBay, Depop, Poshmark & Mercari.
+            AI evaluates real-time sell-through rates and instantly formats listings for eBay Australia, Depop AU, Gumtree & FB Marketplace.
           </p>
         </div>
 
@@ -210,7 +210,7 @@ export default function SpadasRadarCopilot() {
 
               {/* Platform Switcher */}
               <div className="flex items-center rounded-xl border border-white/10 bg-white/5 p-1">
-                {(["ebay", "depop", "poshmark", "mercari"] as const).map((platform) => (
+                {(["ebay", "depop", "gumtree", "facebook"] as const).map((platform) => (
                   <button
                     key={platform}
                     onClick={() => setActivePlatform(platform)}
@@ -220,7 +220,7 @@ export default function SpadasRadarCopilot() {
                         : "text-slate-400 hover:text-white"
                     }`}
                   >
-                    {platform}
+                    {platform === "facebook" ? "FB Market" : platform}
                   </button>
                 ))}
               </div>
@@ -233,8 +233,8 @@ export default function SpadasRadarCopilot() {
                 <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-white font-mono leading-relaxed">
                   {activePlatform === "ebay" && selectedDeal.ebayFormat.title}
                   {activePlatform === "depop" && selectedDeal.depopFormat.title}
-                  {activePlatform === "poshmark" && selectedDeal.poshmarkFormat.title}
-                  {activePlatform === "mercari" && selectedDeal.mercariFormat.title}
+                  {activePlatform === "gumtree" && selectedDeal.gumtreeFormat.title}
+                  {activePlatform === "facebook" && selectedDeal.facebookFormat.title}
                 </div>
               </div>
 
@@ -243,13 +243,13 @@ export default function SpadasRadarCopilot() {
                 <div className="text-lg font-bold text-emerald-400 font-mono">
                   ${activePlatform === "ebay" && selectedDeal.ebayFormat.price}
                   ${activePlatform === "depop" && selectedDeal.depopFormat.price}
-                  ${activePlatform === "poshmark" && selectedDeal.poshmarkFormat.price}
-                  ${activePlatform === "mercari" && selectedDeal.mercariFormat.price}
+                  ${activePlatform === "gumtree" && selectedDeal.gumtreeFormat.price}
+                  ${activePlatform === "facebook" && selectedDeal.facebookFormat.price}
                 </div>
               </div>
 
               <div>
-                <label className="text-[11px] font-medium text-slate-400 block mb-1">Description & Keywords</label>
+                <label className="text-[11px] font-medium text-slate-400 block mb-1">Description & Details</label>
                 <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-slate-200 leading-relaxed font-sans min-h-[90px]">
                   {activePlatform === "ebay" && selectedDeal.ebayFormat.desc}
                   {activePlatform === "depop" && (
@@ -258,8 +258,8 @@ export default function SpadasRadarCopilot() {
                       <p className="mt-2 text-blue-400 font-mono">{selectedDeal.depopFormat.hashtags.join(" ")}</p>
                     </>
                   )}
-                  {activePlatform === "poshmark" && selectedDeal.poshmarkFormat.desc}
-                  {activePlatform === "mercari" && selectedDeal.mercariFormat.desc}
+                  {activePlatform === "gumtree" && selectedDeal.gumtreeFormat.desc}
+                  {activePlatform === "facebook" && selectedDeal.facebookFormat.desc}
                 </div>
               </div>
             </div>

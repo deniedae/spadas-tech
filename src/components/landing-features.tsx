@@ -20,10 +20,10 @@ const FEATURES: FeatureCard[] = [
     id: "photo-to-listing",
     headline: "Photo to ready-to-post listing",
     detail:
-      "Snap a photo and get an 80-character eBay title, condition notes, and platform-specific descriptions for eBay, Depop, Poshmark, and Facebook — in seconds.",
+      "Snap a photo and get an 80-character eBay title, condition notes, and platform-specific descriptions for eBay Australia, Depop, Gumtree, and Facebook Marketplace — in seconds.",
     bullets: [
       "Optimized 80-char eBay SEO titles",
-      "Tailored tags & descriptions for Depop & Poshmark",
+      "Tailored tags & descriptions for Depop & Gumtree",
       "Automatic material, era & defect detection",
     ],
     icon: <Sparkles className="h-5 w-5 text-cyan-400" />,

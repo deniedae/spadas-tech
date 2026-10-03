@@ -1,7 +1,27 @@
 "use client";
 
-import UnifiedCameraHub from "@/components/unified-camera-hub";
+import dynamic from "next/dynamic";
 import { Sparkles, Flame, TrendingUp, Zap, Trophy, Lightbulb, ArrowUpRight, DollarSign } from "lucide-react";
+
+const UnifiedCameraHub = dynamic(() => import("@/components/unified-camera-hub"), {
+  ssr: false,
+  loading: () => (
+    <div className="relative w-full h-[100dvh] bg-[#070A10] flex flex-col items-center justify-center p-6 text-center select-none overflow-hidden">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(6,182,212,0.08)_0%,transparent_70%)] pointer-events-none" />
+      <div className="relative w-64 h-64 border-2 border-cyan-500/20 rounded-3xl flex items-center justify-center animate-pulse">
+        <div className="w-10 h-10 border-t-2 border-l-2 border-cyan-400 absolute top-4 left-4 rounded-tl-xl" />
+        <div className="w-10 h-10 border-t-2 border-r-2 border-cyan-400 absolute top-4 right-4 rounded-tr-xl" />
+        <div className="w-10 h-10 border-b-2 border-l-2 border-cyan-400 absolute bottom-4 left-4 rounded-bl-xl" />
+        <div className="w-10 h-10 border-b-2 border-r-2 border-cyan-400 absolute bottom-4 right-4 rounded-br-xl" />
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-7 w-7 rounded-full border-2 border-cyan-400/40 border-t-cyan-400 animate-spin" />
+          <span className="text-[11px] font-mono tracking-widest text-cyan-300 font-bold uppercase">Spadas Lens Engine</span>
+        </div>
+      </div>
+      <p className="mt-6 text-xs text-zinc-400 font-medium">Calibrating optical vision &amp; comps pipeline...</p>
+    </div>
+  ),
+});
 
 export default function LensPage() {
   const hotTrends = [

@@ -30,7 +30,7 @@ export default function CrossListModal({
   category = "Resale",
   description = "",
 }: CrossListModalProps) {
-  const [activePlatform, setActivePlatform] = useState<"ebay" | "depop" | "poshmark" | "mercari" | "facebook">("depop");
+  const [activePlatform, setActivePlatform] = useState<"ebay" | "depop" | "gumtree" | "facebook">("ebay");
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
   if (!isOpen) return null;
@@ -52,11 +52,8 @@ export default function CrossListModal({
   const depopHashtags = `#${itemBrand.toLowerCase().replace(/\s+/g, "")} #vintage #y2k #streetwear #thrift`;
   const depopDesc = `${productName}\nBrand: ${itemBrand}\nCondition: ${itemCond}\n\nPrice: $${itemPrice} AUD\n\n${depopHashtags}`;
 
-  const poshmarkTitle = `${itemBrand} ${productName}`.slice(0, 50);
-  const poshmarkDesc = `Authentic ${itemBrand} ${productName}.\nSize: One Size / See details.\nCondition: ${itemCond}.\n\nFast shipping & smoke-free home! Reasonable offers welcome.`;
-
-  const mercariTitle = `${itemBrand} ${productName}`.slice(0, 40);
-  const mercariDesc = `Authentic ${itemBrand} ${productName}.\nCondition: ${itemCond}.\n\nShips securely within 24 hours. Check photos for exact details!`;
+  const gumtreeTitle = `${itemBrand} ${productName}`.slice(0, 60);
+  const gumtreeDesc = `${itemBrand} ${productName}.\nCondition: ${itemCond}.\n\nPrice: $${itemPrice} AUD.\nPick up locally or happy to post Australia-wide via Australia Post tracked parcel.`;
 
   const fbTitle = `${itemBrand} ${productName} - ${itemCond}`;
   const fbDesc = `Authentic ${productName}.\nCondition: ${itemCond}.\n\nPrice: $${itemPrice} AUD.\nPick up available or fast dispatch with tracking across Australia.`;
@@ -66,10 +63,8 @@ export default function CrossListModal({
       ? ebayTitle
       : activePlatform === "depop"
       ? depopTitle
-      : activePlatform === "poshmark"
-      ? poshmarkTitle
-      : activePlatform === "mercari"
-      ? mercariTitle
+      : activePlatform === "gumtree"
+      ? gumtreeTitle
       : fbTitle;
 
   const currentDesc =
@@ -77,10 +72,8 @@ export default function CrossListModal({
       ? ebayDesc
       : activePlatform === "depop"
       ? depopDesc
-      : activePlatform === "poshmark"
-      ? poshmarkDesc
-      : activePlatform === "mercari"
-      ? mercariDesc
+      : activePlatform === "gumtree"
+      ? gumtreeDesc
       : fbDesc;
 
   const handleCopy = (text: string, label: string) => {
@@ -146,25 +139,14 @@ export default function CrossListModal({
           </button>
           <button
             type="button"
-            onClick={() => setActivePlatform("poshmark")}
+            onClick={() => setActivePlatform("gumtree")}
             className={`px-3 py-1.5 rounded-lg transition shrink-0 cursor-pointer ${
-              activePlatform === "poshmark"
-                ? "bg-rose-700 text-white shadow"
+              activePlatform === "gumtree"
+                ? "bg-emerald-600 text-white shadow"
                 : "text-slate-400 hover:text-slate-200"
             }`}
           >
-            Poshmark
-          </button>
-          <button
-            type="button"
-            onClick={() => setActivePlatform("mercari")}
-            className={`px-3 py-1.5 rounded-lg transition shrink-0 cursor-pointer ${
-              activePlatform === "mercari"
-                ? "bg-blue-500 text-white shadow"
-                : "text-slate-400 hover:text-slate-200"
-            }`}
-          >
-            Mercari
+            Gumtree AU
           </button>
           <button
             type="button"

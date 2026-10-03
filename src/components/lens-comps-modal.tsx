@@ -48,6 +48,7 @@ import {
 import { calculateSpectralComps } from "@/lib/comps-volatility-engine";
 import { calculateSeasonalityProfile } from "@/lib/seasonal-velocity-engine";
 import { ensureVerifiedSoldComps } from "@/components/AuditCompsLedger";
+import { estimateAustralianMarketValue } from "@/lib/valuation-heuristics";
 import {
   isFragranceOrLiquid,
   detectFragranceAttributes,
@@ -106,20 +107,28 @@ export default function LensCompsModal({
   const [conditionTier, setConditionTier] = useState<PhysicalConditionTier>("used_excellent");
   const [isRestorationApplied, setIsRestorationApplied] = useState<boolean>(false);
 
-  // In-aisle interactive tag price
-  const initialEstValue = item ? Number(item.estimatedValue) || 45 : 45;
-  const initialTagCost = item
-    ? Number(item.tagPrice || item.estCost) || Math.max(2, Math.round(initialEstValue * 0.15))
-    : 10;
-
-  const [customTagCost, setCustomTagCost] = useState<number>(initialTagCost);
-  // Manual AusPost parcel-tier override — null means "Auto" (heuristic)
-  const [customPostageTier, setCustomPostageTier] = useState<AusPostParcelTier | null>(null);
-
   const title = (item as any)?.name || (item as any)?.productName || (item as any)?.title || "Scanned Item";
   const brand = cleanBrandText(item?.brand, "Unbranded") || "Unbranded";
   const category = cleanCategoryText(item?.category, "General Resale") || "General Resale";
   const condition = cleanConditionText(item?.condition, "Used - Good");
+
+  const categoryEstimate = useMemo(
+    () => estimateAustralianMarketValue({ title, brand, category, condition }),
+    [title, brand, category, condition]
+  );
+
+  // In-aisle interactive tag price & valuation
+  const initialEstValue = item && Number(item.estimatedValue) && Number(item.estimatedValue) > 0
+    ? Number(item.estimatedValue)
+    : categoryEstimate.estimatedMedian;
+
+  const initialTagCost = item
+    ? Number(item.tagPrice || item.estCost) || categoryEstimate.typicalOpShopCost
+    : categoryEstimate.typicalOpShopCost;
+
+  const [customTagCost, setCustomTagCost] = useState<number>(initialTagCost);
+  // Manual AusPost parcel-tier override — null means "Auto" (heuristic)
+  const [customPostageTier, setCustomPostageTier] = useState<AusPostParcelTier | null>(null);
 
   // Fragrance & Liquid Fill-Level Engine Detection
   const isLiquidOrFragrance = useMemo(() => {
@@ -387,9 +396,8 @@ export default function LensCompsModal({
     const depopFees = Math.round(depopGross * 0.10 * 100) / 100;
     const depopNet = Math.max(0, Math.round((depopGross - effectiveTagCost - depopFees - estShipping) * 100) / 100);
 
-    const poshGross = Math.round(activeResalePrice * 1.05);
-    const poshFees = Math.round(poshGross * 0.20 * 100) / 100;
-    const poshNet = Math.max(0, Math.round((poshGross - effectiveTagCost - poshFees) * 100) / 100);
+    const gumtreeGross = Math.round(activeResalePrice * 0.90);
+    const gumtreeNet = Math.max(0, Math.round((gumtreeGross - effectiveTagCost) * 100) / 100);
 
     const fbGross = Math.round(activeResalePrice * 0.88);
     const fbNet = Math.max(0, Math.round((fbGross - effectiveTagCost) * 100) / 100);
@@ -397,7 +405,7 @@ export default function LensCompsModal({
     const channels = [
       { name: "eBay AU", gross: ebayGross, fees: ebayFees, net: ebayNet, icon: "🛒" },
       { name: "Depop AU", gross: depopGross, fees: depopFees, net: depopNet, icon: "✨" },
-      { name: "Poshmark AU", gross: poshGross, fees: poshFees, net: poshNet, icon: "🏷️" },
+      { name: "Gumtree AU", gross: gumtreeGross, fees: 0, net: gumtreeNet, icon: "🌿" },
       { name: "FB Marketplace", gross: fbGross, fees: 0, net: fbNet, icon: "🤝" },
     ];
     channels.sort((a, b) => b.net - a.net);
@@ -1206,16 +1214,16 @@ export default function LensCompsModal({
               </>
             ) : (
               <div className="p-4 rounded-xl bg-zinc-900 border border-zinc-800 text-center space-y-1.5">
-                <div className="text-sm font-medium text-zinc-300">0 sold comps on record</div>
+                <div className="text-sm font-semibold text-zinc-200">No direct eBay AU sold comps in last 30 days</div>
                 <div className="text-xs text-zinc-400">
-                  Estimated via category replacement and physical condition.
+                  Valuation benchmarked against Australian secondary market {categoryEstimate.categoryTier}.
                 </div>
                 <button
                   type="button"
                   onClick={(e) => openExternalUrlSafely(ebayActiveSearchUrl, title, e)}
-                  className="inline-flex items-center gap-1 text-xs text-cyan-400 hover:underline pt-1 cursor-pointer bg-transparent border-0"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-500/10 border border-cyan-500/25 text-xs text-cyan-300 hover:bg-cyan-500/20 pt-1 cursor-pointer font-semibold transition mt-1"
                 >
-                  <span>Search live eBay listings</span>
+                  <span>Search live eBay AU listings</span>
                   <ExternalLink className="w-3 h-3" />
                 </button>
               </div>

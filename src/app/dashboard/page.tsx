@@ -25,16 +25,16 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabase";
 import Link from "next/link";
 import Image from "next/image";
-import NewListingDialog from "@/components/new-listing-dialog";
-import EbayListingModal from "@/components/ebay-listing-modal";
 import { fmtMoney, calcProfit } from "@/app/lib/listings";
 import PullToRefresh from "@/components/pull-to-refresh";
-import SubscriptionPaywallModal from "@/components/subscription-paywall-modal";
-import AdMobBanner from "@/components/admob-banner";
 import { calculateSalesVelocity } from "@/lib/turnover-velocity-engine";
 import dynamic from "next/dynamic";
 import { openSpadasSupport } from "@/components/dashboard-support-desk";
 
+const NewListingDialog = dynamic(() => import("@/components/new-listing-dialog"), { ssr: false });
+const EbayListingModal = dynamic(() => import("@/components/ebay-listing-modal"), { ssr: false });
+const SubscriptionPaywallModal = dynamic(() => import("@/components/subscription-paywall-modal"), { ssr: false });
+const AdMobBanner = dynamic(() => import("@/components/admob-banner"), { ssr: false });
 const DashboardSupportDesk = dynamic(() => import("@/components/dashboard-support-desk"), {
   ssr: false,
 });

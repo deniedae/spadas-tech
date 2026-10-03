@@ -200,21 +200,7 @@ export default function SettingsPage() {
     }
   }, []);
 
-  useEffect(() => {
-    async function checkEbayStatus() {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-      const authHeaders: Record<string, string> = {
-        Authorization: `Bearer ${session.access_token}`,
-      };
-      const res = await fetch("/api/marketplaces/status", { headers: authHeaders }).catch(() => null);
-      if (res && res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setEbayConnected(Boolean(data.isConnected));
-      }
-    }
-    void checkEbayStatus();
-  }, []);
+  // checkEbayStatus is now handled in parallel with user and billing status in loadUser
 
   async function connectEbay() {
     setEbayConnecting(true);
@@ -375,9 +361,14 @@ export default function SettingsPage() {
           authHeaders["Authorization"] = `Bearer ${session.access_token}`;
         }
 
-        const res = await fetch("/api/billing/status", { headers: authHeaders });
-        if (res.ok) {
-          const statusData = await res.json();
+        // Parallelize billing status and eBay connection status in 1 roundtrip
+        const [billingRes, ebayRes] = await Promise.allSettled([
+          fetch("/api/billing/status", { headers: authHeaders }),
+          fetch("/api/marketplaces/status", { headers: authHeaders }),
+        ]);
+
+        if (billingRes.status === "fulfilled" && billingRes.value.ok) {
+          const statusData = await billingRes.value.json().catch(() => ({}));
           if (statusData.active || statusData.plan === "Pro") {
             setPlan("Pro");
             setPlanStatus("active");
@@ -385,6 +376,11 @@ export default function SettingsPage() {
             setPlan("Free Beta");
             setPlanStatus("active");
           }
+        }
+
+        if (ebayRes.status === "fulfilled" && ebayRes.value.ok) {
+          const ebayData = await ebayRes.value.json().catch(() => ({}));
+          setEbayConnected(Boolean(ebayData.isConnected));
         }
       } catch (err: any) {
         setError(err?.message || "Failed to load user profile.");

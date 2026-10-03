@@ -28,6 +28,7 @@ import { fetchEbayAustraliaSoldComps } from "@/app/lib/ebay-australia-comps";
 import { detectGeoCurrency, SupportedCurrency } from "@/app/lib/currency-routing";
 import { saveProductToCache, getCachedProductScan } from "@/app/lib/cache/product-cache";
 import { appraiseItemLocally } from "@/app/lib/offline/offline-engine";
+import { estimateAustralianMarketValue } from "@/lib/valuation-heuristics";
 import { estimateCategoryShippingCost, detectThriftTrap, calculateThriftCopVerdict } from "@/lib/thrift-cop-engine";
 import type { AiListingResult } from "@/types/ai-listing";
 
@@ -753,9 +754,9 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
               Condition: cond,
             },
             suggested_keywords: [brand || "Resale", cat, "Pre-Owned"].filter(Boolean),
-            suggested_price_min: 15,
-            suggested_price_max: 45,
-            suggested_price_median: 30,
+            suggested_price_min: estimateAustralianMarketValue({ title: pName, brand, category: cat, condition: cond }).minPrice,
+            suggested_price_max: estimateAustralianMarketValue({ title: pName, brand, category: cat, condition: cond }).maxPrice,
+            suggested_price_median: estimateAustralianMarketValue({ title: pName, brand, category: cat, condition: cond }).estimatedMedian,
             suggested_price_currency: targetCurrency,
             retake_recommended: null,
           };
@@ -1145,9 +1146,14 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
       result.analysis.status = "identified";
       result.analysis.product_name = rawProdName;
       if (!result.suggested_price_median || result.suggested_price_median === 0) {
-        result.suggested_price_median = 35;
-        result.suggested_price_min = 20;
-        result.suggested_price_max = 50;
+        const catEst = estimateAustralianMarketValue({
+          title: rawProdName,
+          brand: result.analysis.brand,
+          category: result.analysis.category,
+        });
+        result.suggested_price_median = catEst.estimatedMedian;
+        result.suggested_price_min = catEst.minPrice;
+        result.suggested_price_max = catEst.maxPrice;
       }
     }
 
@@ -1448,17 +1454,30 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
         result.analysis.condition_modifier = conditionModifier;
       }
 
-      const baselineSellPrice = Number(result.suggested_price_median) || 45;
+      const catVal = estimateAustralianMarketValue({
+        title: pName,
+        brand: pBrand,
+        category: pCategory,
+      });
+
+      const baselineSellPrice = Number(result.suggested_price_median) && Number(result.suggested_price_median) > 0
+        ? Number(result.suggested_price_median)
+        : catVal.estimatedMedian;
+
       const sellPrice = Math.max(1, Math.round(baselineSellPrice * conditionModifier * 100) / 100);
       result.suggested_price_median = sellPrice;
       if (result.suggested_price_min) {
         result.suggested_price_min = Math.max(1, Math.round(result.suggested_price_min * conditionModifier * 100) / 100);
+      } else {
+        result.suggested_price_min = catVal.minPrice;
       }
       if (result.suggested_price_max) {
         result.suggested_price_max = Math.max(1, Math.round(result.suggested_price_max * conditionModifier * 100) / 100);
+      } else {
+        result.suggested_price_max = catVal.maxPrice;
       }
 
-      const tagPrice = Number(result.detected_tag_price) || (result.analysis?.product_name && result.analysis.product_name !== "NO_CENTER_ITEM" ? Math.max(3, Math.round(sellPrice * 0.15)) : null);
+      const tagPrice = Number(result.detected_tag_price) || (result.analysis?.product_name && result.analysis.product_name !== "NO_CENTER_ITEM" ? catVal.typicalOpShopCost : null);
 
       if (tagPrice && sellPrice > 0) {
         const copEstimate = calculateThriftCopVerdict({

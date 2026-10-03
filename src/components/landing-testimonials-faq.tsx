@@ -10,7 +10,7 @@ const faqs = [
   },
   {
     q: "Which marketplaces are supported?",
-    a: "Spadas Lens benchmarks pricing and sold comps across eBay (Australia, US, UK, EU) and supports formatted cross-listing data for Facebook Marketplace, Depop, and Poshmark.",
+    a: "Thrift Flip benchmarks pricing and sold comps across eBay (Australia & global) and supports 1-click cross-listing for eBay Australia, Depop, Gumtree, and Facebook Marketplace.",
   },
   {
     q: "How does turnover velocity prevent buying bad stock?",

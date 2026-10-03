@@ -83,7 +83,7 @@ import { quickSnapQueue, useQuickSnapQueue } from "@/lib/quick-snap-queue";
 
 const SubscriptionPaywallModal = dynamic(() => import("@/components/subscription-paywall-modal"), { ssr: false });
 const InAppReviewModal = dynamic(() => import("@/components/in-app-review-modal"), { ssr: false });
-import { recordSuccessfulScanAndCheckReviewPrompt } from "@/components/in-app-review-modal";
+import { recordSuccessfulScanAndCheckReviewPrompt, checkWinDelightPrompt } from "@/components/in-app-review-modal";
 const EbayListingModal = dynamic(() => import("@/components/ebay-listing-modal"), { ssr: false });
 const DeepVerifyModal = dynamic(() => import("@/components/deep-verify-modal").then((m) => m.DeepVerifyModal), { ssr: false });
 const LensCompsModal = dynamic(() => import("@/components/lens-comps-modal"), { ssr: false });
@@ -236,6 +236,7 @@ function SpadasLensCameraCore({
   const [guestScanState, setGuestScanState] = useState<GuestScanState>(() => getGuestScanState());
   const [isGuestLimitModalOpen, setIsGuestLimitModalOpen] = useState<boolean>(false);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState<boolean>(false);
+  const [reviewWinMeta, setReviewWinMeta] = useState<{ profit?: number; name?: string } | null>(null);
   const [lastGuestScannedItem, setLastGuestScannedItem] = useState<any>(null);
   const [scanFeedback, setScanFeedback] = useState<"HIT" | "MISS" | null>(null);
   const [sessionScanCount, setSessionScanCount] = useState<number>(0);
@@ -1375,21 +1376,21 @@ function SpadasLensCameraCore({
 
             if (compsRes && compsRes.ok) {
               const compsData = await compsRes.json().catch(() => null);
-              if (compsData && compsData.compsCount > 0) {
-                const medianPrice = Number(compsData.median) || hit.estimatedValue || 45;
-                const cost = hit.tagPrice ?? hit.estCost ?? 10;
+              if (compsData && (compsData.compsCount > 0 || compsData.median)) {
+                const medianPrice = Number(compsData.median) || hit.estimatedValue || 35;
+                const cost = hit.tagPrice ?? hit.estCost ?? compsData.typicalOpShopCost ?? 6;
                 const fee = medianPrice * 0.134 + 0.33;
-                const shipping = compsData.crossBorderShippingCost ? 25 : 8.50;
+                const shipping = compsData.crossBorderShippingCost ? 25 : 10.90;
                 const recalculatedNet = Math.max(0, Math.round((medianPrice - cost - fee - shipping) * 100) / 100);
                 const recalculatedRoi = cost > 0 ? Math.round((recalculatedNet / cost) * 100) : 0;
-                const recalculatedVerdict = recalculatedNet >= 40 ? "MUST_COP" : recalculatedNet >= 15 ? "QUICK_FLIP" : "PASS_RISKY";
+                const recalculatedVerdict = recalculatedNet >= 35 ? "MUST_COP" : recalculatedNet >= 12 ? "QUICK_FLIP" : "PASS_RISKY";
 
                 haulStore.updateItem(hit.id, {
                   status: "completed",
                   estimatedValue: medianPrice,
                   minPrice: compsData.minPrice,
                   maxPrice: compsData.maxPrice,
-                  compsCount: compsData.compsCount,
+                  compsCount: compsData.compsCount || 0,
                   rawComps: compsData.comps || compsData.rawComps || [],
                   comps: compsData.comps || compsData.rawComps || [],
                   trueNetProfit: recalculatedNet,
@@ -1414,6 +1415,15 @@ function SpadasLensCameraCore({
       triggerTactileHaptic("success");
       syncProfitToAndroidWidget(bestProfit + (hit.estimatedProfit || 0), capturedLog.length + 1);
       toast.success(`✅ Saved "${hit.name}" to Haul & drafts!`);
+
+      // Trigger 5-star Google Play review & win celebration prompt if user hit milestone or high profit find
+      const scanProfit = hit.estimatedProfit || hit.trueNetProfit;
+      if (recordSuccessfulScanAndCheckReviewPrompt(scanProfit)) {
+        setTimeout(() => {
+          setReviewWinMeta({ profit: scanProfit, name: hit.name });
+          setIsReviewModalOpen(true);
+        }, 1200);
+      }
 
       // 2. Asynchronous background persistence (Supabase / pending queues)
       const { data: { session } } = await supabase.auth.getSession();
@@ -5783,8 +5793,13 @@ function SpadasLensCameraCore({
       {/* 5-Star Google Play In-App Review & Rating Modal */}
       <InAppReviewModal
         isOpen={isReviewModalOpen}
-        onClose={() => setIsReviewModalOpen(false)}
-        scanCount={3}
+        onClose={() => {
+          setIsReviewModalOpen(false);
+          setReviewWinMeta(null);
+        }}
+        scanCount={capturedLog.length || 3}
+        profitAmount={reviewWinMeta?.profit}
+        itemName={reviewWinMeta?.name}
       />
 
       {/* Instant Guest Scan Limit & Conversion Modal */}

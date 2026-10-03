@@ -115,7 +115,7 @@ export default function LandingCalculator() {
                 <p className="text-xs uppercase tracking-wider font-semibold text-blue-400">Projected Monthly Resale Profit</p>
                 <div className="mt-1 text-3xl md:text-4xl font-extrabold text-blue-300">
                   ${estimatedMonthlyProfit > 0 ? estimatedMonthlyProfit.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "0.00"}
-                  <span className="text-xs text-slate-400 font-normal block mt-1">/ month across eBay, Depop, Poshmark & Mercari</span>
+                  <span className="text-xs text-slate-400 font-normal block mt-1">/ month across eBay AU, Depop AU, Gumtree & FB Marketplace</span>
                 </div>
               </div>
             </div>

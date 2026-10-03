@@ -25,7 +25,7 @@ export const metadata: Metadata = {
     template: "%s · Reseller Scanner: Thrift Flip",
   },
   description:
-    "Instant optical scanner & AI reseller copilot. Scan barcodes & thrift shelves in 0.5s, calculate net profit with live eBay, Poshmark & Mercari sold comps, and generate ready-to-post listings.",
+    "Instant optical scanner & AI reseller copilot. Scan barcodes & thrift shelves in 0.5s, calculate net profit with live eBay Australia, Depop & Gumtree sold comps, and generate ready-to-post listings.",
   metadataBase: new URL("https://spadas.ai"),
   alternates: {
     canonical: "https://spadas.ai",
@@ -33,40 +33,39 @@ export const metadata: Metadata = {
   applicationName: "Reseller Scanner: Thrift Flip",
   authors: [{ name: "Spadas Lens" }],
   keywords: [
-    "reseller scanner",
-    "ebay barcode scanner",
+    "reseller scanner australia",
+    "ebay australia barcode scanner",
     "thrift store profit calculator",
-    "ebay sold comps scanner",
+    "ebay sold comps scanner au",
     "spadas lens",
     "reseller inventory app",
-    "poshmark fee calculator",
-    "mercari profit calculator",
     "depop crosslisting tool",
+    "gumtree profit calculator",
     "thrift flips scanner",
     "garage sale barcode scanner",
-    "authenticity check",
+    "op shop scanner australia",
   ],
   openGraph: {
     type: "website",
     url: "https://spadas.ai",
-    title: "Reseller Scanner - Spadas Lens: eBay Barcode & Profit Calculator",
+    title: "Reseller Scanner: Thrift Flip — eBay Australia Comps & Profit Scanner",
     description:
-      "Instant optical scanner & AI reseller copilot. Scan barcodes & thrift shelves in 0.5s, calculate net profit with live eBay, Poshmark & Mercari sold comps, and generate ready-to-post listings.",
+      "Instant optical scanner & AI reseller copilot. Scan barcodes & thrift shelves in 0.5s, calculate net profit with live eBay Australia, Depop & Gumtree sold comps, and generate ready-to-post listings.",
     siteName: "Spadas Lens",
     images: [
       {
         url: "https://spadas.ai/og-preview.jpg",
         width: 1200,
         height: 630,
-        alt: "Reseller Scanner - Spadas Lens — Live Optical Scanner & Profit Engine",
+        alt: "Reseller Scanner: Thrift Flip — Live Optical Scanner & Profit Engine",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Reseller Scanner - Spadas Lens: eBay Barcode & Profit Calculator",
+    title: "Reseller Scanner: Thrift Flip — eBay Australia Comps & Profit Scanner",
     description:
-      "Instant optical scanner & AI reseller copilot. Scan barcodes & thrift shelves in 0.5s, calculate net profit with live eBay, Poshmark & Mercari sold comps, and generate ready-to-post listings.",
+      "Instant optical scanner & AI reseller copilot. Scan barcodes & thrift shelves in 0.5s, calculate net profit with live eBay Australia, Depop & Gumtree sold comps, and generate ready-to-post listings.",
     images: ["https://spadas.ai/og-preview.jpg"],
   },
   icons: {
@@ -149,11 +148,11 @@ export default function RootLayout({
                 description: "10 free scans daily. Unlimited tier available.",
               },
               description:
-                "Instant optical scanner & AI reseller copilot. Scan barcodes & thrift shelves in 0.5s, calculate net profit with live eBay, Poshmark & Mercari sold comps, and generate ready-to-post listings.",
+                "Instant optical scanner & AI reseller copilot. Scan barcodes & thrift shelves in 0.5s, calculate net profit with live eBay Australia, Depop & Gumtree sold comps, and generate ready-to-post listings.",
               featureList: [
                 "Instant 60fps barcode & shelf camera scanner",
-                "Real eBay, Poshmark, Mercari & Depop sold comps",
-                "Net profit calculator factoring platform fees & shipping",
+                "Real eBay Australia, Depop AU & Gumtree sold comps",
+                "Net profit calculator factoring Australian platform fees & AusPost shipping",
                 "1-click AI listing generator from photos",
                 "Cross-listing inventory management",
               ],

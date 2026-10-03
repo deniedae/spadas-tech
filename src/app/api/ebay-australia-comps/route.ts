@@ -10,6 +10,7 @@ import {
   EbaySoldCompItem,
 } from "@/app/lib/ebay-australia-comps";
 import { SupportedCurrency } from "@/app/lib/currency-routing";
+import { estimateAustralianMarketValue } from "@/lib/valuation-heuristics";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -93,40 +94,26 @@ async function handleCompsSearch(
     attemptTier = "us_fallback";
   }
 
-  // Fallback: If still null or 0 comps, provide synthetic realistic estimate rather than dead-end
+  // Fallback: If still null or 0 comps, provide intelligent Australian category valuation
+  // rather than a dead-end or faking mock $30 comps.
+  let categoryEstimate: any = null;
   if (!compsResult || compsResult.count === 0) {
-    const baseValue = category?.toLowerCase().includes("tech") ? 45 : 30;
+    categoryEstimate = estimateAustralianMarketValue({
+      title: trimmed,
+      brand,
+      category,
+      condition,
+    });
     compsResult = {
-      min: Math.round(baseValue * 0.7),
-      max: Math.round(baseValue * 1.3),
-      median: baseValue,
-      count: 3,
+      min: categoryEstimate.minPrice,
+      max: categoryEstimate.maxPrice,
+      median: categoryEstimate.estimatedMedian,
+      count: 0, // Real 0 comps count so UI knows it's an intelligent estimate, not fabricated sales
       currency,
-      source: "ai_estimate",
+      source: "category_valuation",
       isUsMarketOnly: false,
-      rawComps: [
-        {
-          id: `est_${Date.now()}_1`,
-          title: trimmed,
-          price: Math.round(baseValue * 0.9),
-          condition: condition || "Used - Good",
-          soldDate: "Recent",
-        },
-        {
-          id: `est_${Date.now()}_2`,
-          title: trimmed,
-          price: baseValue,
-          condition: condition || "Used - Good",
-          soldDate: "Recent",
-        },
-        {
-          id: `est_${Date.now()}_3`,
-          title: trimmed,
-          price: Math.round(baseValue * 1.1),
-          condition: condition || "Used - Good",
-          soldDate: "Recent",
-        },
-      ],
+      arbitrageSignal: `No recent direct eBay AU sales. Estimated from Australian secondary market category trends: ${categoryEstimate.resaleAdvice}`,
+      rawComps: [],
     };
     attemptTier = "synthetic";
   }
@@ -181,15 +168,18 @@ async function handleCompsSearch(
     productName: trimmed,
     queryUsed,
     attemptTier,
-    comps: compsResult.rawComps || [],
-    rawComps: compsResult.rawComps || [],
-    compsCount: compsResult.count,
-    minPrice: compsResult.min,
-    maxPrice: compsResult.max,
-    median: compsResult.median,
-    currency: compsResult.currency,
-    isUsMarketOnly: Boolean(compsResult.isUsMarketOnly),
-    crossBorderShippingCost: compsResult.crossBorderShippingCost || 0,
-    arbitrageSignal: compsResult.arbitrageSignal,
+    comps: compsResult?.rawComps || [],
+    rawComps: compsResult?.rawComps || [],
+    compsCount: compsResult?.count || 0,
+    minPrice: compsResult?.min || 0,
+    maxPrice: compsResult?.max || 0,
+    median: compsResult?.median || 0,
+    currency: compsResult?.currency || currency,
+    isUsMarketOnly: Boolean(compsResult?.isUsMarketOnly),
+    crossBorderShippingCost: compsResult?.crossBorderShippingCost || 0,
+    arbitrageSignal: compsResult?.arbitrageSignal,
+    isCategoryEstimate: Boolean(categoryEstimate),
+    categoryTier: categoryEstimate?.categoryTier || null,
+    typicalOpShopCost: categoryEstimate?.typicalOpShopCost || null,
   });
 }

@@ -14,11 +14,10 @@ interface ListingItem {
 
 export default function PlatformBreakdownCard({ items }: { items: ListingItem[] }) {
   const platforms = [
-    { name: "eBay", rateText: "13.25%", key: "ebay", color: "bg-blue-500 text-blue-500" },
-    { name: "Poshmark", rateText: "20.0%", key: "poshmark", color: "bg-pink-500 text-pink-500" },
-    { name: "Mercari", rateText: "10.0%", key: "mercari", color: "bg-purple-500 text-purple-500" },
-    { name: "Depop", rateText: "10.0%", key: "depop", color: "bg-rose-500 text-rose-400" },
-    { name: "Facebook Marketplace", rateText: "5.0%", key: "facebook", color: "bg-cyan-500 text-cyan-500" },
+    { name: "eBay Australia", rateText: "13.4%", key: "ebay", color: "bg-blue-500 text-blue-500" },
+    { name: "Depop AU", rateText: "10.0%", key: "depop", color: "bg-rose-500 text-rose-400" },
+    { name: "Gumtree AU", rateText: "0.0%", key: "gumtree", color: "bg-emerald-500 text-emerald-500" },
+    { name: "Facebook Marketplace", rateText: "0.0%", key: "facebook", color: "bg-cyan-500 text-cyan-500" },
   ];
 
   const soldItems = items.filter((i) => (i.status ?? "").toLowerCase() === "sold");

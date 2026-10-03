@@ -13,13 +13,13 @@ assert.ok(ebayUrl.includes("Vintage%20Carhartt%20Jacket"), "Query should be prop
 const depopUrl = buildMarketplaceCompUrl("depop", "Nike Dunk Low Panda", "USD");
 assert.ok(depopUrl.includes("depop.com/search"), "Depop search URL formed correctly");
 
-const poshmarkUrl = buildMarketplaceCompUrl("poshmark", "Lululemon Align Pant", "USD");
-assert.ok(poshmarkUrl.includes("type=sold"), "Poshmark should search sold comps");
+const gumtreeUrl = buildMarketplaceCompUrl("gumtree", "Sony PlayStation 5", "AUD");
+assert.ok(gumtreeUrl.includes("gumtree.com.au"), "Gumtree should target gumtree.com.au");
 
 const fbUrl = buildMarketplaceCompUrl("facebook", "Sony PlayStation 5", "AUD");
 assert.ok(fbUrl.includes("facebook.com/marketplace"), "FB Marketplace URL formed correctly");
 
-console.log("  ✓ All 5 marketplace outbound URLs generated accurately with sold filters.");
+console.log("  ✓ All 4 Australian marketplace outbound URLs generated accurately.");
 
 // Test 2: Calculation and Ranking for Streetwear
 console.log("▶ Test 2: Streetwear Pricing & Fee Calculations");
@@ -31,7 +31,7 @@ const streetwearComps = calculateOmniMarketplaceComps({
   customCost: 25,
 });
 
-assert.equal(streetwearComps.marketplaces.length, 5, "Should return 5 marketplace comparisons");
+assert.equal(streetwearComps.marketplaces.length, 4, "Should return 4 marketplace comparisons");
 assert.ok(streetwearComps.bestPlatform, "Should identify best platform");
 assert.ok(streetwearComps.spread.maxNetPayout > streetwearComps.spread.minNetPayout, "Spread max should exceed min");
 

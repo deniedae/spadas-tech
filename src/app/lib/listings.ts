@@ -17,23 +17,19 @@ export function fmtMoney(n: number | string | null | undefined): string {
 
 export const PLATFORM_FEE_RATES: Record<string, number> = {
   ebay: 0.134, // eBay Australia Pro Starter final value fee (13.4%, incl. GST, 2026)
-  poshmark: 0.2,
-  mercari: 0.1,
-  depop: 0.1,
-  facebook: 0.05,
-  vinted: 0.0,
+  depop: 0.10, // Depop AU (10% marketplace fee)
+  gumtree: 0.0, // Gumtree Australia (0% fee, free standard listings)
+  facebook: 0.0, // FB Marketplace AU (0% local cash pickup)
 };
 
 export function getPlatformFeeRate(platformName?: string | null): number {
-  if (!platformName) return 0.1; // Default 10%
+  if (!platformName) return 0.134; // Default to eBay AU
   const p = platformName.toLowerCase().trim();
   if (p.includes("ebay")) return PLATFORM_FEE_RATES.ebay;
-  if (p.includes("poshmark")) return PLATFORM_FEE_RATES.poshmark;
-  if (p.includes("mercari")) return PLATFORM_FEE_RATES.mercari;
   if (p.includes("depop")) return PLATFORM_FEE_RATES.depop;
+  if (p.includes("gumtree")) return PLATFORM_FEE_RATES.gumtree;
   if (p.includes("facebook") || p.includes("fb")) return PLATFORM_FEE_RATES.facebook;
-  if (p.includes("vinted")) return PLATFORM_FEE_RATES.vinted;
-  return 0.1;
+  return 0.134;
 }
 
 export function calcItemFees(
