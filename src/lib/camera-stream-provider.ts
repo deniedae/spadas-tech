@@ -34,6 +34,11 @@ class CameraStreamManager {
       this.activeStream.active &&
       this.activeStream.getVideoTracks().some((t) => t.readyState === "live")
     ) {
+      // If an active stream is alive and being consumed, cancel any pending release timer
+      if (this.releaseTimer) {
+        clearTimeout(this.releaseTimer);
+        this.releaseTimer = null;
+      }
       return this.activeStream;
     }
     return null;

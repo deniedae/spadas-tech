@@ -157,7 +157,12 @@ function SpadasLensCameraCore({
   const streamRef = useRef<MediaStream | null>(null);
   const isInitializingRef = useRef<boolean>(false);
   const isStartingCameraRef = useRef<boolean>(false);
-  const [isCameraReady, setIsCameraReady] = useState<boolean>(false);
+  const [isCameraReady, setIsCameraReadyState] = useState<boolean>(false);
+  const isCameraReadyRef = useRef<boolean>(false);
+  const setIsCameraReady = useCallback((ready: boolean) => {
+    isCameraReadyRef.current = ready;
+    setIsCameraReadyState(ready);
+  }, []);
   /** Ref to the inner viewfinder reticle box — used for captureTargetBox crop */
   const reticleRef = useRef<HTMLDivElement | null>(null);
   const [scanMode, setScanMode] = useState<"snap" | "sweep" | "barcode" | "live">("snap");
@@ -239,7 +244,7 @@ function SpadasLensCameraCore({
       clearTimeout(cameraStalledTimerRef.current);
     }
     cameraStalledTimerRef.current = setTimeout(() => {
-      if (!isCameraReady) {
+      if (!isCameraReadyRef.current) {
         setCameraStalled(true);
       }
     }, 4500);
@@ -291,7 +296,7 @@ function SpadasLensCameraCore({
     } finally {
       isStartingCameraRef.current = false;
     }
-  }, [isCameraReady]);
+  }, []);
 
   // Stop Camera Stream (Releases camera ownership through unified provider)
   const stopCamera = useCallback((force = false) => {
@@ -1654,7 +1659,7 @@ function SpadasLensCameraCore({
       }
       cameraStreamManager.releaseCamera("lens");
     };
-  }, [startCamera]);
+  }, []);
 
   // Reactive synchronization: keep localStorage up to date with capturedLog at all times (additions, deletions, clear)
   useEffect(() => {
