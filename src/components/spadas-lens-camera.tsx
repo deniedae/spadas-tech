@@ -145,6 +145,83 @@ export function releasePersistentMediaStream() {
 
 let cycleSeq = 0;
 
+/** High-converting 1-tap verified demo sample find for first-time / guest users */
+const SAMPLE_DEMO_HIT: DetectedHit = {
+  id: "demo-sample-nike-dunk",
+  name: "Nike Dunk Low Retro 'Panda' Black White (2024)",
+  category: "Athletic Shoes / Sneakers",
+  brand: "Nike",
+  condition: "Pre-Owned",
+  confidence: 0.98,
+  estimatedValue: 145,
+  suggestedPriceMin: 120,
+  suggestedPriceMax: 165,
+  tagPrice: 25,
+  estCost: 25,
+  trueNetProfit: 98,
+  estimatedProfit: 98,
+  estRoi: 392,
+  roiPercentage: 392,
+  verdict: "BUY",
+  copVerdict: "MUST_COP",
+  bbox: { x: 20, y: 20, width: 60, height: 60 },
+  timestamp: 1775260000000,
+  marketOrigin: "AU",
+  compsSource: "sold_comps_api",
+  ebayCompsCount: 4,
+  rawComps: [
+    {
+      id: "demo-comp-1",
+      title: "Nike Dunk Low Retro Panda Black White Mens US 10 DD1391-100",
+      price: 155,
+      condition: "Pre-Owned",
+      soldDate: "28 Mar 2026",
+      shippingIncluded: true,
+      shippingPrice: 0,
+      url: "https://www.ebay.com.au/sch/i.html?_nkw=nike+dunk+low+panda+sold",
+      matchPercentage: 99,
+      isActiveAsk: false,
+    },
+    {
+      id: "demo-comp-2",
+      title: "Nike Dunk Low Retro Panda Black/White Mens US 10.5 Authentic",
+      price: 145,
+      condition: "Pre-Owned",
+      soldDate: "24 Mar 2026",
+      shippingIncluded: true,
+      shippingPrice: 0,
+      url: "https://www.ebay.com.au/sch/i.html?_nkw=nike+dunk+low+panda+sold",
+      matchPercentage: 96,
+      isActiveAsk: false,
+    },
+    {
+      id: "demo-comp-3",
+      title: "Authentic Nike Dunk Low Retro Panda Size US 10 Good Condition",
+      price: 139,
+      condition: "Pre-Owned",
+      soldDate: "19 Mar 2026",
+      shippingIncluded: true,
+      shippingPrice: 0,
+      url: "https://www.ebay.com.au/sch/i.html?_nkw=nike+dunk+low+panda+sold",
+      matchPercentage: 94,
+      isActiveAsk: false,
+    },
+    {
+      id: "demo-comp-4",
+      title: "Nike Dunk Low Panda Black White Sneakers US 10 Pre-Owned",
+      price: 142,
+      condition: "Pre-Owned",
+      soldDate: "15 Mar 2026",
+      shippingIncluded: true,
+      shippingPrice: 0,
+      url: "https://www.ebay.com.au/sch/i.html?_nkw=nike+dunk+low+panda+sold",
+      matchPercentage: 92,
+      isActiveAsk: false,
+    },
+  ],
+  image: "https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?w=400&q=80",
+};
+
 function SpadasLensCameraCore({
   onOpenHaulTab,
   onOpenSnapStudio,
@@ -390,6 +467,21 @@ function SpadasLensCameraCore({
   const [isLimitReached, setIsLimitReached] = useState<boolean>(false);
   const [isGuestUser, setIsGuestUser] = useState<boolean>(false); // Default false: never flash paid/logged-in users as guests
   const [guestScanState, setGuestScanState] = useState<GuestScanState>(() => getGuestScanState());
+  const [hasDismissedWelcome, setHasDismissedWelcome] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("spadas_dismissed_welcome_v1") === "true";
+    }
+    return false;
+  });
+
+  const dismissWelcome = useCallback(() => {
+    setHasDismissedWelcome(true);
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("spadas_dismissed_welcome_v1", "true");
+      } catch {}
+    }
+  }, []);
   const [isGuestLimitModalOpen, setIsGuestLimitModalOpen] = useState<boolean>(false);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState<boolean>(false);
   const [reviewWinMeta, setReviewWinMeta] = useState<{ profit?: number; name?: string } | null>(null);
@@ -1050,6 +1142,17 @@ function SpadasLensCameraCore({
       if (onComplete) onComplete();
     }, 200);
   }, [setActiveValuationHit]);
+
+  // 1-Tap Onboarding Demo Scan: Instantly loads verified high-profit Nike Dunk Low sample with real sold comps
+  const handleRunDemoScan = useCallback(() => {
+    triggerTactileHaptic("success");
+    if (soundEnabled) playTactileClickSound();
+    dismissWelcome();
+    toast.success("🎯 Loaded demo find! Showing real eBay AU sold comps & net profit.", {
+      id: "demo-scan-toast",
+    });
+    triggerActiveValuationHit(SAMPLE_DEMO_HIT, SAMPLE_DEMO_HIT.image);
+  }, [soundEnabled, dismissWelcome, triggerActiveValuationHit]);
 
   // Continuous 60 FPS Native Barcode Scanner Loop
   const handleNativeBarcode = useCallback(
@@ -5028,6 +5131,49 @@ function SpadasLensCameraCore({
               )}
               {scanFeedback === "MISS" && (
                 <div className="absolute inset-0 z-30 pointer-events-none lens-miss-fade bg-rose-500/[0.07] shadow-[inset_0_0_60px_rgba(244,63,94,0.25)]" />
+              )}
+
+              {/* First-Run Onboarding Welcome Pill & 1-Tap Demo Scan */}
+              {isGuestUser && guestScanState.count === 0 && !hasDismissedWelcome && !activeValuationHit && !analyzingRealFrame && (
+                <div className="absolute top-20 sm:top-24 left-1/2 -translate-x-1/2 z-35 w-[92%] max-w-sm pointer-events-auto animate-in fade-in slide-in-from-top-4 duration-300">
+                  <div className="rounded-2xl bg-[#090D16]/95 border border-cyan-500/40 p-3 sm:p-3.5 shadow-[0_12px_40px_rgba(0,0,0,0.85)] backdrop-blur-xl space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2.5">
+                        <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-cyan-500/25 to-emerald-500/20 border border-cyan-400/40 flex items-center justify-center shrink-0 shadow-sm">
+                          <Sparkles className="h-4 w-4 text-cyan-300 animate-pulse" />
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-bold text-white tracking-tight flex items-center gap-1.5">
+                            <span>25 Free Daily Scans Ready</span>
+                            <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-1.5 py-0.2 rounded-full">Active</span>
+                          </h4>
+                          <p className="text-[11px] text-zinc-300">
+                            Point at any thrift find or tag to see eBay sold comps &amp; net profit.
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={dismissWelcome}
+                        className="text-zinc-400 hover:text-white p-1 rounded-lg hover:bg-white/[0.08] transition cursor-pointer"
+                        title="Dismiss guide"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-1 border-t border-white/[0.08]">
+                      <button
+                        type="button"
+                        onClick={handleRunDemoScan}
+                        className="flex-1 py-2 px-3 rounded-xl bg-gradient-to-r from-cyan-400 via-teal-300 to-emerald-400 hover:from-cyan-300 hover:to-emerald-300 text-zinc-950 font-black text-[11px] flex items-center justify-center gap-1.5 transition active:scale-95 shadow-md shadow-cyan-950/40 cursor-pointer"
+                      >
+                        <Zap className="h-3.5 w-3.5 fill-zinc-950" />
+                        <span>⚡ Try 1-Tap Demo: Nike Dunk Low (+$98 Profit)</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
               )}
 
               {/* Minimalist Viewfinder Framing Brackets (Clean Apple / Google Lens style) */}

@@ -6,9 +6,9 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: "Thrift Flip",
     description:
       "Instant optical scanner & AI reseller copilot. Scan shelves, detect flip margins, compare sold comps on eBay, Poshmark & Mercari, and check authenticity.",
-    start_url: "/dashboard",
+    start_url: "/lens",
     scope: "/",
-    id: "/dashboard",
+    id: "/lens",
     display: "standalone",
     display_override: [
       "standalone",
