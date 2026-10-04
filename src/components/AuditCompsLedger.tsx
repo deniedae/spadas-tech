@@ -559,10 +559,15 @@ export default function AuditCompsLedger({
             </h3>
 
             <p className="text-xs text-zinc-400 flex items-center gap-1.5 font-medium">
-              {verifiedListings.length > 0 ? (
+              {isAllActiveAsks && verifiedListings.length > 0 ? (
+                <>
+                  <AlertCircle className="h-3.5 w-3.5 text-cyan-400 shrink-0" />
+                  <span>0 Sold on record • Live competitor asking prices on {currency === "USD" ? "eBay US" : "eBay Australia"} ({currency})</span>
+                </>
+              ) : verifiedListings.length > 0 ? (
                 <>
                   <ShieldCheck className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-                  <span>Verified eBay Australia ({currency}) sold listings data</span>
+                  <span>Verified {currency === "USD" ? "eBay US" : "eBay Australia"} ({currency}) sold listings data</span>
                 </>
               ) : (
                 <>

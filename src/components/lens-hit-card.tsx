@@ -70,7 +70,7 @@ export default function LensHitCard({
       : "status-pill-gold";
 
   // ── eBay comps label — honest about data source ────────────────────────────
-  const hasSoldComps = Boolean(item.ebayCompsCount && item.ebayCompsCount > 0);
+  const hasSoldComps = !item.isActiveAskOnly && !item.noMarketData && Boolean(item.ebayCompsCount && item.ebayCompsCount > 0);
   const hasActiveAsks = Boolean(item.isActiveAskOnly || (item.activeCompsCount && item.activeCompsCount > 0));
   
   let compsLabel = "AI Price Estimate";

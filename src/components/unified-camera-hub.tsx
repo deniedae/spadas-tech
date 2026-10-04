@@ -44,14 +44,19 @@ export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraH
   // Clean exit handler: navigates to dashboard for authenticated users or home for guests
   const handleExitCamera = useCallback(async () => {
     try {
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("spadas_exited_lens", "1");
+      }
+      releasePersistentMediaStream();
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
         router.push("/dashboard");
       } else {
-        router.push("/");
+        router.push("/?ref=exit");
       }
     } catch {
-      router.push("/");
+      releasePersistentMediaStream();
+      router.push("/?ref=exit");
     }
   }, [router]);
 

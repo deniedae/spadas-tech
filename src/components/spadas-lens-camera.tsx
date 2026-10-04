@@ -1081,7 +1081,7 @@ function SpadasLensCameraCore({
         ? Number(finalNetProfit).toFixed(2)
         : Number((hit as any).takeHomeNet || (hit as any).trueNetProfit || 0).toFixed(2);
 
-      toast.success(`🎯 Item Identified: ${verifiedHit.name} (+$${toastNet} AUD Net Profit)`, { id: `hit-toast-${verifiedHit.name}` });
+      toast.success(`🎯 Item Identified: ${verifiedHit.name} (+$${toastNet} ${selectedCurrency} Net Profit)`, { id: `hit-toast-${verifiedHit.name}` });
 
       // 2. Hardware / Tactile Haptic Confirmation (Android Bridge + Web Vibration API)
       if (verifiedHit.copVerdict === "MUST_COP" || verifiedHit.isGrail) {
@@ -1148,7 +1148,8 @@ function SpadasLensCameraCore({
     triggerTactileHaptic("success");
     if (soundEnabled) playTactileClickSound();
     dismissWelcome();
-    toast.success("🎯 Loaded demo find! Showing real eBay AU sold comps & net profit.", {
+    const demoMarketName = selectedCurrency === "USD" ? "eBay US" : "eBay AU";
+    toast.success(`🎯 Loaded demo find! Showing real ${demoMarketName} sold comps & net profit.`, {
       id: "demo-scan-toast",
     });
     triggerActiveValuationHit(SAMPLE_DEMO_HIT, SAMPLE_DEMO_HIT.image);
@@ -4640,6 +4641,27 @@ function SpadasLensCameraCore({
                   activeValuationHit.brand
                 );
 
+                const marketSiteName = selectedCurrency === "USD" ? "eBay US" : "eBay AU";
+                const marketDomain = selectedCurrency === "USD" ? "ebay.com" : "ebay.com.au";
+
+                const isZeroSoldActive = Boolean(
+                  activeValuationHit.isActiveAskOnly ||
+                  activeValuationHit.compsSource === "browse_api" ||
+                  (itemComps.length > 0 && itemComps.every((c) => c.soldDate === "Active Ask" || c.isActiveAsk))
+                );
+
+                const hasRealSoldComps = Boolean(
+                  !isZeroSoldActive &&
+                  !activeValuationHit.noMarketData &&
+                  itemComps.length > 0 &&
+                  itemComps.some((c) => c.soldDate !== "Active Ask" && !c.isActiveAsk)
+                );
+
+                const hasNoMarketData = Boolean(
+                  activeValuationHit.noMarketData ||
+                  (!hasRealSoldComps && !isZeroSoldActive && itemComps.length === 0)
+                );
+
                 const resaleMedian = activeValuationHit.estimatedValue || 0;
                 const resaleMin = activeValuationHit.suggestedPriceMin ?? activeValuationHit.compsRange?.min ?? Math.max(1, Math.round(resaleMedian * 0.75));
                 const resaleMax = activeValuationHit.suggestedPriceMax ?? activeValuationHit.compsRange?.max ?? Math.round(resaleMedian * 1.25);
@@ -4656,8 +4678,10 @@ function SpadasLensCameraCore({
                 const estFees = Math.round((resaleMedian * 0.134 + 0.33) * 100) / 100;
                 const estPost = Math.max(0, Math.round((resaleMedian - thriftCost - estFees - netProfit) * 100) / 100) || 9.5;
 
-                const ebaySearchQuery = encodeURIComponent(activeValuationHit.name ? `${activeValuationHit.name} sold` : "vintage items");
-                const ebayUrl = `https://www.ebay.com.au/sch/i.html?_nkw=${ebaySearchQuery}&LH_Sold=1&LH_Complete=1`;
+                const ebaySearchQuery = encodeURIComponent(activeValuationHit.name ? activeValuationHit.name : "vintage items");
+                const ebayUrl = isZeroSoldActive
+                  ? `https://www.${marketDomain}/sch/i.html?_nkw=${ebaySearchQuery}`
+                  : `https://www.${marketDomain}/sch/i.html?_nkw=${ebaySearchQuery}&LH_Sold=1&LH_Complete=1`;
 
                 const verdictBadge = activeValuationHit.copVerdict === "MUST_COP"
                   ? "badge-verdict-buy"
@@ -4711,13 +4735,18 @@ function SpadasLensCameraCore({
                               )}
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
-                                  {itemComps.length > 0 ? (
+                                  {hasRealSoldComps ? (
                                     <span className="inline-flex items-center gap-1 text-[10px] font-mono font-medium text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/30">
                                       <Sparkles className="w-2.5 h-2.5" />
                                       <span>{itemComps.length} Cleared Sales</span>
                                     </span>
+                                  ) : isZeroSoldActive ? (
+                                    <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold text-cyan-300 bg-cyan-500/15 px-2 py-0.5 rounded-full border border-cyan-500/30">
+                                      <span>0 Sold • {itemComps.length} Active Listings</span>
+                                    </span>
                                   ) : (
                                     <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold text-amber-300 bg-amber-500/15 px-2 py-0.5 rounded-full border border-amber-500/30">
+                                      <AlertTriangle className="w-2.5 h-2.5" />
                                       <span>0 Sold Comps • Algorithmic Appraisal</span>
                                     </span>
                                   )}
@@ -4748,25 +4777,51 @@ function SpadasLensCameraCore({
                             </div>
                           </div>
 
-                          {/* Scrollable Core: Resale Value, Profit Hero, P&L Math & 3-5 Sold Comps */}
+                          {/* Scrollable Core: Resale Value, Profit Hero, P&L Math & Comps / Active Listings */}
                           <div className="overflow-y-auto space-y-2.5 pr-0.5 custom-scrollbar">
+                            {/* Strict Active Asking Notice Banner */}
+                            {isZeroSoldActive && (
+                              <div className="p-2.5 rounded-xl bg-cyan-950/40 border border-cyan-500/30 space-y-1 font-mono">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[10px] font-bold text-cyan-300 uppercase tracking-wider flex items-center gap-1">
+                                    <AlertTriangle className="w-3 h-3 text-cyan-400" />
+                                    <span>0 Sold Comps On Record</span>
+                                  </span>
+                                  <span className="text-[9px] text-cyan-300/90 bg-cyan-500/20 px-1.5 py-0.2 rounded">
+                                    Live Active Listings
+                                  </span>
+                                </div>
+                                <p className="text-[11px] text-zinc-300 font-sans leading-snug">
+                                  No completed sales found on {marketSiteName}. Showing <strong>{itemComps.length} active competitor asking prices</strong>. These are seller asking prices, not realized sale prices.
+                                </p>
+                              </div>
+                            )}
+
                             {/* 1. Clear eBay Resale Value Strip */}
-                            <div className="p-2.5 rounded-xl bg-[#141721] border border-white/[0.06] flex items-center justify-between font-mono">
+                            <div className={`p-2.5 rounded-xl bg-[#141721] border font-mono flex items-center justify-between ${
+                              isZeroSoldActive ? "border-cyan-500/25" : "border-white/[0.06]"
+                            }`}>
                               <div className="flex flex-col">
-                                <span className="text-[9px] uppercase tracking-wider text-zinc-400 font-medium flex items-center gap-1">
-                                  <ShoppingBag className="w-2.5 h-2.5 text-amber-400" />
-                                  <span>Sells on eBay AU</span>
+                                <span className={`text-[9px] uppercase tracking-wider font-medium flex items-center gap-1 ${
+                                  isZeroSoldActive ? "text-cyan-300/80" : "text-zinc-400"
+                                }`}>
+                                  <ShoppingBag className={`w-2.5 h-2.5 ${isZeroSoldActive ? "text-cyan-400" : "text-amber-400"}`} />
+                                  <span>{isZeroSoldActive ? `Active Asks on ${marketSiteName}` : `Sells on ${marketSiteName}`}</span>
                                 </span>
                                 <span className="text-sm sm:text-base font-bold text-white">
                                   {fmtMoney(resaleMin)} – {fmtMoney(resaleMax)}
                                 </span>
                               </div>
                               <div className="flex flex-col items-end">
-                                <span className="text-[9px] uppercase tracking-wider text-zinc-400 font-medium">
-                                  eBay Median Sold
+                                <span className={`text-[9px] uppercase tracking-wider font-medium ${
+                                  isZeroSoldActive ? "text-cyan-300/80" : "text-zinc-400"
+                                }`}>
+                                  {isZeroSoldActive ? "Live Asking Median" : `${marketSiteName} Median Sold`}
                                 </span>
-                                <span className="text-sm sm:text-base font-bold text-emerald-400">
-                                  {fmtMoney(resaleMedian)} AUD
+                                <span className={`text-sm sm:text-base font-bold ${
+                                  isZeroSoldActive ? "text-cyan-300" : "text-emerald-400"
+                                }`}>
+                                  {fmtMoney(resaleMedian)} {selectedCurrency}
                                 </span>
                               </div>
                             </div>
@@ -4808,7 +4863,7 @@ function SpadasLensCameraCore({
                               {/* Transparent Reseller P&L Equation */}
                               <div className="mt-2.5 pt-2 border-t border-emerald-500/20 text-[10px] text-zinc-300 flex items-center justify-between flex-wrap gap-1">
                                 <div className="flex items-center gap-1 flex-wrap">
-                                  <span>Sold {fmtMoney(resaleMedian)}</span>
+                                  <span>{isZeroSoldActive ? "Ask" : "Sold"} {fmtMoney(resaleMedian)}</span>
                                   <span className="text-zinc-500">−</span>
                                   <span>Tag {fmtMoney(thriftCost)}</span>
                                   <span className="text-zinc-500">−</span>
@@ -4822,8 +4877,8 @@ function SpadasLensCameraCore({
                               </div>
                             </div>
 
-                            {/* 3. Revealed Inline 3 to 5 Recent Sold Comps OR Zero Comps Appraisal */}
-                            {itemComps.length > 0 ? (
+                            {/* 3. Revealed Inline 3 to 5 Recent Sold Comps OR Live Active Listings OR Zero Comps Appraisal */}
+                            {hasRealSoldComps ? (
                               <div className="space-y-1.5">
                                 <div className="flex items-center justify-between px-0.5">
                                   <span className="text-[10px] font-mono font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-1">
@@ -4835,7 +4890,7 @@ function SpadasLensCameraCore({
                                     onClick={(e) => openExternalUrlSafely(ebayUrl, activeValuationHit?.name, e)}
                                     className="text-[10px] font-mono text-zinc-400 hover:text-zinc-200 flex items-center gap-1 hover:underline cursor-pointer bg-transparent border-0"
                                   >
-                                    <span>Search eBay</span>
+                                    <span>Search {marketSiteName}</span>
                                     <ExternalLink className="w-2.5 h-2.5" />
                                   </button>
                                 </div>
@@ -4852,7 +4907,7 @@ function SpadasLensCameraCore({
                                             {fmtMoney(comp.price)}
                                           </span>
                                           <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-white/[0.06] text-zinc-300">
-                                            {comp.soldDate}
+                                            {comp.soldDate && comp.soldDate !== "Active Ask" ? comp.soldDate : "Recent"}
                                           </span>
                                           {comp.condition && (
                                             <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-white/[0.04] text-zinc-400 truncate max-w-[110px]">
@@ -4873,7 +4928,65 @@ function SpadasLensCameraCore({
                                         type="button"
                                         onClick={(e) => openExternalUrlSafely(comp.url, comp.title, e)}
                                         className="shrink-0 p-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.10] text-zinc-400 hover:text-white transition cursor-pointer"
-                                        title="View sold listing on eBay AU"
+                                        title={`View sold listing on ${marketSiteName}`}
+                                      >
+                                        <ExternalLink className="w-3 h-3" />
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            ) : isZeroSoldActive ? (
+                              <div className="space-y-1.5">
+                                <div className="flex items-center justify-between px-0.5">
+                                  <span className="text-[10px] font-mono font-bold text-cyan-300 uppercase tracking-wider flex items-center gap-1">
+                                    <ShoppingBag className="w-3 h-3 text-cyan-400" />
+                                    <span>Live Active Competitor Listings ({itemComps.length})</span>
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => openExternalUrlSafely(ebayUrl, activeValuationHit?.name, e)}
+                                    className="text-[10px] font-mono text-zinc-400 hover:text-zinc-200 flex items-center gap-1 hover:underline cursor-pointer bg-transparent border-0"
+                                  >
+                                    <span>Search {marketSiteName}</span>
+                                    <ExternalLink className="w-2.5 h-2.5" />
+                                  </button>
+                                </div>
+
+                                <div className="max-h-32 sm:max-h-36 overflow-y-auto space-y-1.5 custom-scrollbar pr-0.5">
+                                  {itemComps.map((comp, idx) => (
+                                    <div
+                                      key={comp.id || idx}
+                                      className="p-2 rounded-xl bg-[#141721] border border-cyan-500/20 flex items-center justify-between gap-2 hover:border-cyan-500/40 transition"
+                                    >
+                                      <div className="min-w-0 flex-1">
+                                        <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
+                                          <span className="text-xs font-bold font-mono text-cyan-300">
+                                            {fmtMoney(comp.price)}
+                                          </span>
+                                          <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                                            Active Ask
+                                          </span>
+                                          {comp.condition && (
+                                            <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-white/[0.04] text-zinc-400 truncate max-w-[110px]">
+                                              {comp.condition}
+                                            </span>
+                                          )}
+                                          {typeof comp.matchPercentage === "number" && (
+                                            <span className="text-[9px] font-mono text-cyan-400">
+                                              {comp.matchPercentage}% match
+                                            </span>
+                                          )}
+                                        </div>
+                                        <div className="text-[10px] text-zinc-300 truncate font-medium">
+                                          {comp.title}
+                                        </div>
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={(e) => openExternalUrlSafely(comp.url, comp.title, e)}
+                                        className="shrink-0 p-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.10] text-zinc-400 hover:text-white transition cursor-pointer"
+                                        title={`View active listing on ${marketSiteName}`}
                                       >
                                         <ExternalLink className="w-3 h-3" />
                                       </button>
@@ -4893,7 +5006,7 @@ function SpadasLensCameraCore({
                                   </span>
                                 </div>
                                 <p className="text-[11px] text-zinc-300 font-sans leading-snug">
-                                  No completed transactions found on eBay AU. Recommended starting list price is <strong>{fmtMoney(resaleMedian)} AUD</strong> (Buy It Now + Best Offer) with a fast liquidation floor of <strong>{fmtMoney(resaleMin)} AUD</strong>.
+                                  No completed transactions found on {marketSiteName}. Recommended starting list price is <strong>{fmtMoney(resaleMedian)} {selectedCurrency}</strong> (Buy It Now + Best Offer) with a fast liquidation floor of <strong>{fmtMoney(resaleMin)} {selectedCurrency}</strong>.
                                 </p>
                               </div>
                             )}
@@ -4965,7 +5078,7 @@ function SpadasLensCameraCore({
                                   });
                                 }}
                                 className="inline-flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-xl text-[11px] font-semibold transition cursor-pointer active:scale-95 bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30"
-                                title="List this item to eBay AU"
+                                title={`List this item to ${marketSiteName}`}
                               >
                                 <ShoppingBag className="h-3.5 w-3.5 text-amber-400" />
                                 <span>List on eBay</span>

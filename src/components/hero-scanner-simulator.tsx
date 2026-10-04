@@ -83,7 +83,7 @@ const SAMPLES: ThriftSample[] = [
   },
 ];
 
-export default function HeroScannerSimulator() {
+export function HeroScannerSimulator() {
   const [selectedSample, setSelectedSample] = useState<ThriftSample>(SAMPLES[0]);
   const [isScanning, setIsScanning] = useState(false);
 
@@ -295,7 +295,7 @@ export default function HeroScannerSimulator() {
               </Link>
 
               <p className="text-center text-[11px] text-zinc-500">
-                10 free scans daily · Works right in your browser or install as app
+                5 free guest scans · Works right in your mobile browser or install as app
               </p>
             </div>
           </div>
@@ -305,3 +305,5 @@ export default function HeroScannerSimulator() {
     </div>
   );
 }
+
+export default HeroScannerSimulator;

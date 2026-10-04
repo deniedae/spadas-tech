@@ -1,10 +1,10 @@
 /**
  * Spadas Instant Guest Scan Tracker
  * Enables zero-friction, unauthenticated live scanning for new users.
- * Allows up to MAX_GUEST_SCANS (25) scans before prompting account creation.
+ * Allows up to MAX_GUEST_SCANS (5) scans before prompting account creation.
  */
 
-export const MAX_GUEST_SCANS = 25;
+export const MAX_GUEST_SCANS = 5;
 const GUEST_STORAGE_KEY = "spadas_guest_scan_v1";
 const GUEST_ITEMS_KEY = "spadas_guest_saved_items";
 

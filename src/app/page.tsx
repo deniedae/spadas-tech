@@ -17,9 +17,8 @@ const LandingPricing = dynamic(() => import("@/components/landing-pricing"), {
   ssr: true,
 });
 
-const HeroScannerSimulator = dynamic(() => import("@/components/hero-scanner-simulator"), {
-  ssr: true,
-});
+import { HeroScannerSimulator } from "@/components/hero-scanner-simulator";
+import { MobileFirstLaunchRedirect } from "@/components/mobile-first-launch-redirect";
 
 export const metadata: Metadata = {
   title: "Reseller Scanner - Spadas Lens | Instant Barcode & Profit Calculator",
@@ -44,6 +43,9 @@ export const metadata: Metadata = {
 export default function Home() {
   return (
     <main className="min-h-screen bg-[#06080F] text-zinc-100 pb-20 overflow-x-hidden relative">
+      <Suspense fallback={null}>
+        <MobileFirstLaunchRedirect />
+      </Suspense>
 
       {/* Atmospheric Ambient Glow Backdrop */}
       <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[550px] bg-gradient-to-b from-cyan-500/15 via-emerald-500/5 to-transparent blur-3xl opacity-60" />
