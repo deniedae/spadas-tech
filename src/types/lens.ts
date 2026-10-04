@@ -15,6 +15,7 @@ export interface RawSoldComp {
   thumbnail?: string;
   matchPercentage?: number;
   isUsComp?: boolean;
+  isActiveAsk?: boolean;
   originalCurrency?: string;
   originalPrice?: number;
 }
@@ -73,6 +74,12 @@ export interface DetectedHit {
   image?: string | null;
   /** Number of eBay listings found (active or sold depending on compsSource) */
   ebayCompsCount?: number;
+  /** Number of active ask listings when 0 sold comps exist */
+  activeCompsCount?: number;
+  /** Whether the price and comps represent active seller asks (not realized sold prices) */
+  isActiveAskOnly?: boolean;
+  /** True when zero market data (sold or active) exists */
+  noMarketData?: boolean;
   /** Data source used for price comps — drives the UI label */
   compsSource?: "browse_api" | "sold_comps_api" | "ai_estimate" | "cached_last_check";
   /** Flag indicating valuation was retrieved from local/timeout cache */
@@ -148,6 +155,11 @@ export interface ActiveScanItem {
   suggestedPriceMax?: number;
   confidenceScore?: number;
   ebayCompsCount?: number;
+  activeCompsCount?: number;
+  isActiveAskOnly?: boolean;
+  isUsMarketOnly?: boolean;
+  noMarketData?: boolean;
+  arbitrageSignal?: string;
   compsSource?: "browse_api" | "sold_comps_api" | "ai_estimate" | "cached_last_check";
   rawComps?: RawSoldComp[];
   compsRange?: {

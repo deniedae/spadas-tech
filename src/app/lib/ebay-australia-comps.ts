@@ -613,7 +613,7 @@ export async function fetchEbayAustraliaSoldComps(
       // count=10: cap payload to top-10 results — 6× less data, faster parse & transfer
       const url = `https://api.sold-comps.com/v1/scrape?keyword=${encodeURIComponent(q)}&ebaySite=${ebaySite}&page=1&count=10&daysToScrape=30&sortOrder=endedRecently${conditionParam}${locParam}`;
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 6500); // 6.5s timeout allows real sold comps scrape to resolve
+      const timer = setTimeout(() => controller.abort(), 25000); // 25s timeout allows real sold comps scrape to resolve
 
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${process.env.SOLD_COMPS_API_KEY}` },
@@ -621,7 +621,7 @@ export async function fetchEbayAustraliaSoldComps(
       }).catch((fetchErr: any) => {
         const isTimeout = fetchErr?.name === "AbortError";
         console.warn(
-          `[Sold Comps API] ${isTimeout ? "Timed out (6.5s limit)" : "Network failure"} for query "${q}":`,
+          `[Sold Comps API] ${isTimeout ? "Timed out (25s limit)" : "Network failure"} for query "${q}":`,
           fetchErr?.message || fetchErr
         );
         return null;
@@ -729,57 +729,77 @@ export async function fetchEbayAustraliaSoldComps(
     let resolvedSoldComps: EbaySoldCompItem[] = [];
     let isUsMarketFallback = false;
 
-    if (isRegionUS) {
-      // US Users: Query US sold comps directly on ebay.com (USD)
-      const usComps = await fetchSoldCompsFromApi(primaryQuery, "ebay.com", false, isTargetUsed);
-      if (usComps.length >= 2) {
-        resolvedSoldComps = usComps;
+    // Helper to query sold comps across regional & US sites
+    const querySoldCompsForTerm = async (queryTerm: string): Promise<{ comps: EbaySoldCompItem[]; isUsFallback: boolean }> => {
+      if (isRegionUS) {
+        const usComps = await fetchSoldCompsFromApi(queryTerm, "ebay.com", false, isTargetUsed);
+        if (usComps.length >= 1) return { comps: usComps, isUsFallback: false };
+      } else if (isRegionAU) {
+        const [auResult, usResult] = await Promise.allSettled([
+          fetchSoldCompsFromApi(queryTerm, "ebay.com.au", true, isTargetUsed),
+          fetchSoldCompsFromApi(queryTerm, "ebay.com", false, isTargetUsed),
+        ]);
+
+        const auComps = auResult.status === "fulfilled" ? auResult.value : [];
+        const usComps = usResult.status === "fulfilled" ? usResult.value : [];
+
+        if (auComps.length >= 1) {
+          return { comps: auComps, isUsFallback: false };
+        } else if (usComps.length >= 1) {
+          return {
+            comps: usComps.map((c) => ({
+              ...c,
+              price: Math.round(convertCurrency(c.price, "USD", "AUD") * 100) / 100,
+              isUsComp: true,
+            })),
+            isUsFallback: true,
+          };
+        }
+      } else {
+        const regionalSite = CURRENCY_CONFIGS[targetCurrency]?.ebaySite || "ebay.com";
+        const [regResult, usResult] = await Promise.allSettled([
+          fetchSoldCompsFromApi(queryTerm, regionalSite, false, isTargetUsed),
+          fetchSoldCompsFromApi(queryTerm, "ebay.com", false, isTargetUsed),
+        ]);
+
+        const regComps = regResult.status === "fulfilled" ? regResult.value : [];
+        const usComps = usResult.status === "fulfilled" ? usResult.value : [];
+
+        if (regComps.length >= 1) {
+          return { comps: regComps, isUsFallback: false };
+        } else if (usComps.length >= 1) {
+          return {
+            comps: usComps.map((c) => ({
+              ...c,
+              price: Math.round(convertCurrency(c.price, "USD", targetCurrency) * 100) / 100,
+              isUsComp: true,
+            })),
+            isUsFallback: true,
+          };
+        }
       }
-    } else if (isRegionAU) {
-      // AU Users: Query AU sold comps (ebay.com.au) AND US sold comps (ebay.com) concurrently
-      const [auResult, usResult] = await Promise.allSettled([
-        fetchSoldCompsFromApi(primaryQuery, "ebay.com.au", true, isTargetUsed),
-        fetchSoldCompsFromApi(primaryQuery, "ebay.com", false, isTargetUsed),
-      ]);
+      return { comps: [], isUsFallback: false };
+    };
 
-      const auComps = auResult.status === "fulfilled" ? auResult.value : [];
-      const usComps = usResult.status === "fulfilled" ? usResult.value : [];
+    // Attempt 1: Primary query (exact identified item)
+    const primaryAttempt = await querySoldCompsForTerm(primaryQuery);
+    if (primaryAttempt.comps.length >= 1) {
+      resolvedSoldComps = primaryAttempt.comps;
+      isUsMarketFallback = primaryAttempt.isUsFallback;
+    }
 
-      if (auComps.length >= 2) {
-        resolvedSoldComps = auComps;
-      } else if (usComps.length >= 2) {
-        // If AU has scarce sales, fall back to US sold comps converted to AUD
-        resolvedSoldComps = usComps.map((c) => ({
-          ...c,
-          price: Math.round(convertCurrency(c.price, "USD", "AUD") * 100) / 100,
-          isUsComp: true,
-        }));
-        isUsMarketFallback = true;
-      }
-    } else {
-      // Other regions (EUR, GBP): Query regional site and US fallback in parallel
-      const regionalSite = CURRENCY_CONFIGS[targetCurrency]?.ebaySite || "ebay.com";
-      const [regResult, usResult] = await Promise.allSettled([
-        fetchSoldCompsFromApi(primaryQuery, regionalSite, false, isTargetUsed),
-        fetchSoldCompsFromApi(primaryQuery, "ebay.com", false, isTargetUsed),
-      ]);
-
-      const regComps = regResult.status === "fulfilled" ? regResult.value : [];
-      const usComps = usResult.status === "fulfilled" ? usResult.value : [];
-
-      if (regComps.length >= 2) {
-        resolvedSoldComps = regComps;
-      } else if (usComps.length >= 2) {
-        resolvedSoldComps = usComps.map((c) => ({
-          ...c,
-          price: Math.round(convertCurrency(c.price, "USD", targetCurrency) * 100) / 100,
-          isUsComp: true,
-        }));
-        isUsMarketFallback = true;
+    // Attempt 2: If primary had 0 sold comps, try broadened query (strips stop-words & specs)
+    if (resolvedSoldComps.length === 0 && searchQueries.length > 1) {
+      const broadenedQuery = searchQueries[1];
+      console.log(`[eBay Comps] Primary query "${primaryQuery}" had 0 sold comps — trying broadened query "${broadenedQuery}"`);
+      const broadenedAttempt = await querySoldCompsForTerm(broadenedQuery);
+      if (broadenedAttempt.comps.length >= 1) {
+        resolvedSoldComps = broadenedAttempt.comps;
+        isUsMarketFallback = broadenedAttempt.isUsFallback;
       }
     }
 
-    if (resolvedSoldComps.length >= 2) {
+    if (resolvedSoldComps.length >= 1) {
       // Apply Tight Cluster & Price-Band Sanity Guard
       const sanity = applyTightClusterSanityGuard(resolvedSoldComps, isQueryMultiPack);
       const activeComps = sanity.appliedGuard ? sanity.filteredComps : resolvedSoldComps;
@@ -800,7 +820,7 @@ export async function fetchEbayAustraliaSoldComps(
         marketOrigin: isRegionUS ? "US" : isRegionAU ? "AU" : (targetCurrency as "AU" | "US"),
         rawComps: (filteredComps.length > 0 ? filteredComps : activeComps)
           .sort((a, b) => (b.rawDate || 0) - (a.rawDate || 0))
-          .slice(0, 5),
+          .slice(0, 7),
         iqrBounds: { lower: lowerBound, upper: upperBound },
         arbitrageSignal: isUsMarketFallback
           ? "AU sales scarce — converted from live US eBay sold comps."
@@ -830,10 +850,14 @@ export async function fetchEbayAustraliaSoldComps(
       isActiveAskOnly: true,
       noMarketData: false,
       marketOrigin: isRegionUS ? "US" : "AU",
-      rawComps: activeListings.slice(0, 5),
+      rawComps: activeListings.slice(0, 7).map((c) => ({
+        ...c,
+        isActiveAsk: true,
+        soldDate: "Active Ask",
+      })),
       arbitrageSignal: isRegionUS
-        ? "No recent US sold comps — showing live active listings on eBay US."
-        : "No sold comps found — showing live active listings on eBay Australia.",
+        ? "No recent US sold comps found — showing live active listings on eBay US as pricing guidance."
+        : "No sold comps found on eBay — showing live active listings so you know what current sellers are asking.",
     };
     setCompsCacheEntry(cacheKey, activeResult);
     return activeResult;

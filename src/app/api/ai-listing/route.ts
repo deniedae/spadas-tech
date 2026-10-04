@@ -1140,7 +1140,13 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
 
           // 2. Fallback fetch if parallel comps differed or yielded 0 comps
           if (!ebayComps) {
-            ebayComps = await fetchEbayAustraliaSoldComps(verifiedName, targetCurrency);
+            ebayComps = await fetchEbayAustraliaSoldComps(
+              verifiedName,
+              targetCurrency,
+              result.analysis?.brand,
+              result.analysis?.category,
+              result.analysis?.condition
+            );
           }
           if (
             ebayComps &&
@@ -1158,27 +1164,35 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
               (result as any).active_comps_count = ebayComps.activeListingsCount || (ebayComps.rawComps || []).length;
               (result as any).is_active_ask = true;
               (result as any).comps_source = "browse_api";
-              (result as any).arbitrage_signal = "Currently listed — not sold prices.";
+              (result as any).arbitrage_signal = ebayComps.arbitrageSignal || "Currently listed on eBay — live seller asking price guide.";
             } else {
               // Real sold comps verified!
               result.suggested_price_min = ebayComps.min;
               result.suggested_price_max = ebayComps.max;
               result.suggested_price_median = ebayComps.median;
               result.ebay_comps_count = ebayComps.count;
+              (result as any).active_comps_count = 0;
+              (result as any).is_active_ask = false;
               (result as any).comps_source = ebayComps.source;
+              (result as any).arbitrage_signal = ebayComps.arbitrageSignal;
             }
+
+            (result as any).is_us_market_only = Boolean(ebayComps.isUsMarketOnly);
+            (result as any).market_origin = ebayComps.marketOrigin;
+            (result as any).no_market_data = Boolean(ebayComps.noMarketData);
 
             result.raw_sold_comps = (ebayComps.rawComps || []).map((c: any) => ({
               id: c.id,
               title: c.title,
               price: c.price,
               condition: c.condition,
-              sold_date: c.soldDate,
+              sold_date: c.soldDate || (c.isActiveAsk || ebayComps.isActiveAskOnly ? "Active Ask" : "Recent"),
               shipping_included: c.shippingIncluded,
               shipping_price: c.shippingPrice,
               url: c.url,
               thumbnail: c.fullResThumbnailUrl || c.thumbnailUrl || (c.image?.imageUrl || c.image) || c.thumbnail,
               is_active_ask: Boolean(c.isActiveAsk || ebayComps.isActiveAskOnly),
+              is_us_comp: Boolean(c.isUsComp),
             }));
             result.comps_range = {
               min: ebayComps.min,
@@ -1187,12 +1201,18 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
             };
             if (result.detected_objects && result.detected_objects.length > 0) {
               result.detected_objects[0].ebay_comps_count = result.ebay_comps_count;
+              (result.detected_objects[0] as any).active_comps_count = (result as any).active_comps_count;
+              (result.detected_objects[0] as any).is_active_ask = (result as any).is_active_ask;
               (result.detected_objects[0] as any).comps_source = (result as any).comps_source;
+              (result.detected_objects[0] as any).is_us_market_only = (result as any).is_us_market_only;
+              (result.detected_objects[0] as any).arbitrage_signal = (result as any).arbitrage_signal;
               result.detected_objects[0].raw_sold_comps = result.raw_sold_comps;
             }
           } else {
             // 0 sold comps AND 0 active listings — Real Zero Market Data
             result.ebay_comps_count = 0;
+            (result as any).active_comps_count = 0;
+            (result as any).is_active_ask = false;
             result.suggested_price_min = 0;
             result.suggested_price_max = 0;
             result.suggested_price_median = 0;
@@ -1202,6 +1222,8 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
             result.raw_sold_comps = [];
             if (result.detected_objects && result.detected_objects.length > 0) {
               result.detected_objects[0].ebay_comps_count = 0;
+              (result.detected_objects[0] as any).active_comps_count = 0;
+              (result.detected_objects[0] as any).is_active_ask = false;
               (result.detected_objects[0] as any).comps_source = "browse_api";
               (result.detected_objects[0] as any).no_market_data = true;
               result.detected_objects[0].raw_sold_comps = [];

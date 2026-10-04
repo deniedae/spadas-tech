@@ -70,13 +70,23 @@ export default function LensHitCard({
       : "status-pill-gold";
 
   // ── eBay comps label — honest about data source ────────────────────────────
-  const hasRealComps = item.ebayCompsCount && item.ebayCompsCount > 0;
-  const compsLabel = hasRealComps
-    ? item.compsSource === "sold_comps_api"
-      ? `${item.ebayCompsCount} Sold (30d)`
-      : `${item.ebayCompsCount} Active eBay AU`
-    : "AI Price Estimate";
-  const compsStyle = hasRealComps ? "text-emerald-400" : "text-slate-500";
+  const hasSoldComps = Boolean(item.ebayCompsCount && item.ebayCompsCount > 0);
+  const hasActiveAsks = Boolean(item.isActiveAskOnly || (item.activeCompsCount && item.activeCompsCount > 0));
+  
+  let compsLabel = "AI Price Estimate";
+  let compsStyle = "text-slate-500";
+
+  if (hasSoldComps) {
+    compsLabel = `${item.ebayCompsCount} Sold eBay`;
+    compsStyle = "text-emerald-400 font-bold";
+  } else if (hasActiveAsks) {
+    const count = item.activeCompsCount || item.rawComps?.length || 6;
+    compsLabel = `${count} Live eBay Active`;
+    compsStyle = "text-cyan-400 font-bold";
+  } else if (item.noMarketData) {
+    compsLabel = "0 Comps on Record";
+    compsStyle = "text-zinc-500";
+  }
 
   // ── Sanitized Metadata Attributes (Completely hide unpopulated payload fields) ──
   const validBrand = sanitizeMetaText(item.brand);
@@ -148,6 +158,18 @@ export default function LensHitCard({
                   <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-amber-500/15 text-amber-300 px-2 py-0.5 rounded-lg border border-amber-500/30">
                     <span>🇺🇸</span>
                     <span>US Comps</span>
+                  </span>
+                )}
+                {hasSoldComps && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-emerald-500/15 text-emerald-300 px-2 py-0.5 rounded-lg border border-emerald-500/30">
+                    <span>✓</span>
+                    <span>Sold Comps</span>
+                  </span>
+                )}
+                {hasActiveAsks && !hasSoldComps && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-cyan-500/15 text-cyan-300 px-2 py-0.5 rounded-lg border border-cyan-500/30">
+                    <span>🏷️</span>
+                    <span>Live Asks Guide</span>
                   </span>
                 )}
                 {validCondition && (

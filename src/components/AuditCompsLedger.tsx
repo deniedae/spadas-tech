@@ -273,10 +273,21 @@ export function ensureVerifiedSoldComps(
     }
   }
 
-  return conditionSanitized.slice(0, 5).map((c, idx) => {
+  return conditionSanitized.slice(0, 7).map((c, idx) => {
     const explicitMatch = getCompMatch(c);
     const rawDate = getCompSoldDate(c);
-    const soldDate = rawDate ? (rawDate === "Active Ask" ? "Active Ask" : formatSoldDate(rawDate)) : "Recent sale";
+    const isCompActiveAsk = Boolean(
+      (c as any).isActiveAsk ||
+      (c as any).is_active_ask ||
+      rawDate === "Active Ask" ||
+      (c as any).soldDate === "Active Ask" ||
+      (c as any).sold_date === "Active Ask"
+    );
+    const soldDate = isCompActiveAsk
+      ? "Active Ask"
+      : rawDate
+        ? formatSoldDate(rawDate)
+        : "Recent sale";
     const title = c.title || `${safeBrand ? safeBrand + " " : ""}${cleanTitle}`;
     const matchScore = calculateMatchPercentage(cleanTitle, title, explicitMatch);
 
@@ -299,6 +310,7 @@ export function ensureVerifiedSoldComps(
         undefined,
       matchPercentage: matchScore,
       isUsComp: (c as any).isUsComp,
+      isActiveAsk: isCompActiveAsk,
       originalCurrency: (c as any).originalCurrency,
       originalPrice: (c as any).originalPrice,
     };
@@ -382,21 +394,38 @@ export default function AuditCompsLedger({
       const compTitle = comp.title || `Sold Market Comp #${idx + 1}`;
       const matchScore = calculateMatchPercentage(targetTitle, compTitle, explicitMatch);
 
+      const isCompActiveAsk = Boolean(
+        (comp as any).isActiveAsk ||
+        (comp as any).is_active_ask ||
+        (comp as any)?.raw?.isActiveAsk ||
+        (comp as any)?.raw?.is_active_ask ||
+        soldDate === "Active Ask"
+      );
+
       return {
         id: comp.id || `comp-${idx}`,
         title: compTitle,
         price: Number(comp.price) || 0,
         condition: comp.condition || "Pre-Owned",
-        soldDate: soldDate ? formatSoldDate(soldDate) : "Recent sale",
+        soldDate: isCompActiveAsk ? "Active Ask" : soldDate ? formatSoldDate(soldDate) : "Recent sale",
         shippingIncluded: shippingInc,
         shippingPrice: shippingCost,
         url: comp.url || undefined,
         thumbnail: comp.thumbnail,
         matchPercentage: matchScore,
+        isActiveAsk: isCompActiveAsk,
         raw: comp,
       };
     });
   }, [comps, targetTitle, brand, activeValuation]);
+
+  const isAllActiveAsks = useMemo(() => {
+    return (
+      compsSource === "browse_api" ||
+      (verifiedListings.length > 0 && verifiedListings.every((l) => (l as any).isActiveAsk || (l.raw as any)?.isActiveAsk || (l.raw as any)?.is_active_ask)) ||
+      comps.some((c: any) => c.isActiveAsk || c.is_active_ask)
+    );
+  }, [compsSource, verifiedListings, comps]);
 
   const hasUsComps = useMemo(() => {
     return comps.some((c: any) => c.isUsComp) || verifiedListings.some((l) => (l.raw as any)?.isUsComp);
@@ -483,10 +512,15 @@ export default function AuditCompsLedger({
                   <span>🇺🇸</span>
                   <span>US Market Data Only</span>
                 </span>
+              ) : isAllActiveAsks && verifiedListings.length > 0 ? (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-500/35 text-[11px] font-mono font-bold text-cyan-300">
+                  <Tag className="h-3 w-3 text-cyan-400" />
+                  <span>{verifiedListings.length} Live Active Listings (eBay Guidance)</span>
+                </span>
               ) : verifiedListings.length > 0 ? (
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[11px] font-mono font-medium text-emerald-400">
                   <Sparkles className="h-3 w-3 text-emerald-400" />
-                  <span>{verifiedListings.length} Cleared Sales (AU)</span>
+                  <span>{verifiedListings.length} Cleared eBay Sales</span>
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-[11px] font-mono font-bold text-amber-300">
@@ -725,15 +759,15 @@ export default function AuditCompsLedger({
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-3 rounded-xl bg-[#141721] border border-white/[0.06] text-center">
                   <div className="p-2">
                     <span className="text-[10px] font-mono uppercase text-zinc-400 font-medium block mb-0.5">
-                      eBay Sold Median
+                      {isAllActiveAsks ? "eBay Active Ask Median" : "eBay Sold Median"}
                     </span>
-                    <span className="text-base sm:text-lg font-bold font-mono text-emerald-400 tabular-nums">
+                    <span className={`text-base sm:text-lg font-bold font-mono tabular-nums ${isAllActiveAsks ? "text-cyan-400" : "text-emerald-400"}`}>
                       {fmtMoney(stats.median)}
                     </span>
                   </div>
                   <div className="p-2 border-l border-white/[0.06]">
                     <span className="text-[10px] font-mono uppercase text-zinc-400 font-medium block mb-0.5">
-                      eBay Market Range
+                      {isAllActiveAsks ? "Live Asking Range" : "eBay Market Range"}
                     </span>
                     <span className="text-xs sm:text-sm font-semibold font-mono text-zinc-300 tabular-nums">
                       {fmtMoney(stats.min)} – {fmtMoney(stats.max)}
@@ -741,11 +775,11 @@ export default function AuditCompsLedger({
                   </div>
                   <div className="p-2 border-t sm:border-t-0 sm:border-l border-white/[0.06]">
                     <span className="text-[10px] font-mono uppercase text-zinc-400 font-medium block mb-0.5">
-                      Sold Comps Evidence
+                      {isAllActiveAsks ? "Active Market Guide" : "Sold Comps Evidence"}
                     </span>
                     <span className="text-xs sm:text-sm font-semibold font-mono text-zinc-200 flex items-center justify-center gap-1">
                       <CheckCircle2 className="h-3.5 w-3.5 text-zinc-400" />
-                      <span>{verifiedListings.length} Cleared Sales</span>
+                      <span>{verifiedListings.length} {isAllActiveAsks ? "Active Asks" : "Cleared Sales"}</span>
                     </span>
                   </div>
                   <div className="p-2 border-t sm:border-t-0 border-l border-white/[0.06]">
@@ -756,6 +790,21 @@ export default function AuditCompsLedger({
                       <Sparkles className="h-3.5 w-3.5" />
                       <span>{stats.avgMatch}% Match</span>
                     </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Informative Guidance Banner for Active Asks Fallback */}
+              {isAllActiveAsks && (
+                <div className="p-3.5 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-start gap-2.5 text-xs text-cyan-200">
+                  <Tag className="h-4 w-4 text-cyan-400 shrink-0 mt-0.5" />
+                  <div className="space-y-0.5">
+                    <p className="font-bold text-cyan-300 font-mono text-[11px] uppercase tracking-wide">
+                      Live eBay Active Listing Guidance
+                    </p>
+                    <p className="text-zinc-300 text-xs leading-relaxed">
+                      0 completed sales found on eBay. Showing current live competitor listings so you know what sellers are asking and how to price your item.
+                    </p>
                   </div>
                 </div>
               )}
@@ -853,9 +902,22 @@ export default function AuditCompsLedger({
                             )}
 
                             {isMeaningfulMeta(comp.soldDate) && (
-                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-white/[0.04] border border-white/[0.06] text-zinc-300">
-                                <Calendar className="h-2.5 w-2.5 text-zinc-500" />
-                                <span>Sold {comp.soldDate.trim()}</span>
+                              <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[10px] ${
+                                (comp as any).isActiveAsk || comp.soldDate === "Active Ask"
+                                  ? "bg-cyan-500/10 border-cyan-500/30 text-cyan-300"
+                                  : "bg-white/[0.04] border-white/[0.06] text-zinc-300"
+                              }`}>
+                                {(comp as any).isActiveAsk || comp.soldDate === "Active Ask" ? (
+                                  <>
+                                    <Tag className="h-2.5 w-2.5 text-cyan-400" />
+                                    <span>Active Ask</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Calendar className="h-2.5 w-2.5 text-zinc-500" />
+                                    <span>Sold {comp.soldDate.trim()}</span>
+                                  </>
+                                )}
                               </span>
                             )}
 
@@ -873,7 +935,7 @@ export default function AuditCompsLedger({
                         <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center shrink-0 border-t sm:border-t-0 pt-2 sm:pt-0 border-white/[0.06] gap-1.5">
                           <div className="text-left sm:text-right font-mono">
                             <span className="text-[10px] uppercase text-zinc-500 block sm:hidden">
-                              Realized Price:
+                              {(comp as any).isActiveAsk || comp.soldDate === "Active Ask" ? "Asking Price:" : "Realized Price:"}
                             </span>
                             <span className="font-bold text-white text-base sm:text-lg tracking-tight tabular-nums">
                               {fmtMoney(comp.price)}
@@ -889,9 +951,9 @@ export default function AuditCompsLedger({
                             type="button"
                             onClick={(e) => openExternalUrlSafely(comp.url, comp.title, e)}
                             className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.10] text-[10px] font-mono font-medium text-zinc-200 hover:text-white transition active:scale-95 cursor-pointer"
-                            title="Open verified cleared comp listing on eBay in new tab"
+                            title="Open listing on eBay in new tab"
                           >
-                            <span>View Comp</span>
+                            <span>{(comp as any).isActiveAsk || comp.soldDate === "Active Ask" ? "View Listing" : "View Comp"}</span>
                             <ExternalLink className="h-3 w-3 text-zinc-400" />
                           </button>
                         </div>

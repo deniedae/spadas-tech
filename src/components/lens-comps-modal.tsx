@@ -546,10 +546,12 @@ export default function LensCompsModal({
   const previewImageSrc = frozenFrameUrl || (item as any)?.image || null;
 
   const isZeroSoldActive =
+    Boolean((item as any)?.isActiveAskOnly) ||
+    (item as any)?.compsSource === "browse_api" ||
     (item as any)?.compsSource === "active_listings" ||
-    (effectiveComps.length > 0 && effectiveComps.every((c) => c.soldDate === "Active Ask"));
+    (effectiveComps.length > 0 && effectiveComps.every((c) => c.soldDate === "Active Ask" || (c as any).isActiveAsk || (c as any).is_active_ask));
 
-  const activeCount = (item as any)?.activeMarketSupply?.activeCount || effectiveComps.length;
+  const activeCount = (item as any)?.activeCompsCount || (item as any)?.activeMarketSupply?.activeCount || effectiveComps.length;
 
   // Trust line calculation with unbranded & low-comp data guardrails
   const trustLineText = useMemo(() => {
@@ -996,19 +998,21 @@ export default function LensCompsModal({
 
           {/* ── 2. MARKET VALUE SECTION ───────────────────────────────────────── */}
           <div className="p-4 space-y-1 min-h-[92px]">
-            <div className="text-xs text-zinc-400">eBay median sold</div>
+            <div className="text-xs text-zinc-400">
+              {isZeroSoldActive ? "eBay Live Active Ask Median" : "eBay median sold"}
+            </div>
             <div className="text-2xl font-bold text-white tabular-nums">
               {fmtMoney(compsRange.median || initialEstValue)}
             </div>
             <div className="text-sm text-zinc-400 tabular-nums">
-              Range {fmtMoney(compsRange.min)} – {fmtMoney(compsRange.max)}
+              {isZeroSoldActive ? "Asking Range" : "Range"} {fmtMoney(compsRange.min)} – {fmtMoney(compsRange.max)}
             </div>
             <div className="text-xs">
               {effectiveComps.length > 0 && effectiveComps.length < 5 ? (
                 <div className="flex items-center gap-1.5 text-amber-400 font-medium">
                   <span>⚠️</span>
                   <span>{trustLineText}</span>
-                  <span className="text-zinc-500">({effectiveComps.length} sold found)</span>
+                  <span className="text-zinc-500">({effectiveComps.length} {isZeroSoldActive ? "active" : "sold"} found)</span>
                 </div>
               ) : (
                 <span className="text-zinc-500">{trustLineText}</span>
@@ -1020,7 +1024,9 @@ export default function LensCompsModal({
           <div className="p-4 space-y-2.5 min-h-[240px]">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5">
-                <span className="text-xs font-semibold text-white">Top Sold Comps</span>
+                <span className="text-xs font-semibold text-white">
+                  {isZeroSoldActive ? "Live Active Competitor Listings" : "Top Sold Comps"}
+                </span>
                 <span className="text-[11px] text-zinc-400 tabular-nums">({effectiveComps.length})</span>
               </div>
               {effectiveComps.length > 0 && (
@@ -1084,7 +1090,7 @@ export default function LensCompsModal({
                                 </div>
                               )}
                               <span className="absolute bottom-1.5 right-1.5 px-1.5 py-0.5 rounded bg-black/80 text-[10px] font-medium text-zinc-300 tabular-nums backdrop-blur-xs">
-                                {comp.soldDate && comp.soldDate !== "Active Ask" ? comp.soldDate : "2d ago"}
+                                {isCompActiveAsk ? "Active Ask" : comp.soldDate && comp.soldDate !== "Active Ask" ? comp.soldDate : "Recent"}
                               </span>
                             </div>
 
@@ -1113,7 +1119,7 @@ export default function LensCompsModal({
 
                           {/* Link Out */}
                           <div className="pt-2 border-t border-zinc-800/80 mt-2 flex items-center justify-between text-[11px]">
-                            <span className="text-zinc-500">eBay AU Sold</span>
+                            <span className="text-zinc-500">{isCompActiveAsk ? "eBay Active Ask" : "eBay AU Sold"}</span>
                             <button
                               type="button"
                               onClick={(e) => openExternalUrlSafely(comp.url || ebayActiveSearchUrl, comp.title || title, e)}
@@ -1184,8 +1190,8 @@ export default function LensCompsModal({
 
                           {/* Right: Date & Outbound Link */}
                           <div className="shrink-0 flex items-center gap-2">
-                            <span className="text-xs text-zinc-400 tabular-nums">
-                              {comp.soldDate && comp.soldDate !== "Active Ask" ? comp.soldDate : "2d ago"}
+                            <span className={`text-xs tabular-nums ${isCompActiveAsk ? "text-cyan-400 font-semibold" : "text-zinc-400"}`}>
+                              {isCompActiveAsk ? "Active Ask" : comp.soldDate && comp.soldDate !== "Active Ask" ? comp.soldDate : "Recent"}
                             </span>
                             <button
                               type="button"
