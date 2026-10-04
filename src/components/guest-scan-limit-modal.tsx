@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { getGuestScannedItems, MAX_GUEST_SCANS } from "@/lib/guest-scan-tracker";
 import { isOwnerEmail } from "@/app/lib/auth-admin";
 import { purchaseGooglePlaySubscription } from "@/lib/google-play-billing";
+import { promptGoogleOneTap } from "@/lib/google-auth";
 
 interface GuestScanLimitModalProps {
   isOpen: boolean;
@@ -164,6 +165,10 @@ export function GuestScanLimitModal({
     setErrorMsg("");
     setGoogleLoading(true);
     try {
+      if (promptGoogleOneTap()) {
+        setGoogleLoading(false);
+        return;
+      }
       const redirectUrl = `${window.location.origin}/auth/callback?redirect=${encodeURIComponent("/lens")}`;
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",

@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/app/lib/supabase";
+import { initGoogleIdentityServices, promptGoogleOneTap } from "@/lib/google-auth";
 import { toast } from "sonner";
 import {
   Scan,
@@ -33,11 +34,36 @@ export function SpadasAuthCard({ initialMode = "signup" }: Props) {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
+  // Initialize native Google One-Tap on mount (zero redirects, completely in-page)
+  useEffect(() => {
+    const cleanup = initGoogleIdentityServices({
+      autoPrompt: true,
+      onSuccess: () => {
+        toast.success("Signed in with Google!");
+        window.location.href = redirectTarget;
+      },
+      onError: (err: any) => {
+        console.warn("[Google One-Tap] Note:", err?.message || err);
+      },
+    });
+
+    return () => {
+      if (typeof cleanup === "function") cleanup();
+    };
+  }, [redirectTarget]);
+
   async function handleGoogleSignIn() {
     setErrorMsg("");
     setGoogleLoading(true);
 
     try {
+      // 1. Try Google Identity Services native prompt first (in-page, 100% hides supabase.co)
+      if (promptGoogleOneTap()) {
+        setGoogleLoading(false);
+        return;
+      }
+
+      // 2. Standard OAuth fallback
       const redirectUrl = `${window.location.origin}/auth/callback?redirect=${encodeURIComponent(redirectTarget)}`;
       
       const { data, error } = await supabase.auth.signInWithOAuth({

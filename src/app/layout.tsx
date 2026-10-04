@@ -191,6 +191,11 @@ export default function RootLayout({
             gtag('config', 'AW-18430569894');
           `}
         </Script>
+        {/* Google Identity Services / One-Tap */}
+        <Script
+          src="https://accounts.google.com/gsi/client"
+          strategy="afterInteractive"
+        />
       </body>
     </html>
   );
