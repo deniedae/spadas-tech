@@ -44,6 +44,11 @@ export function SpadasAuthCard({ initialMode = "signup" }: Props) {
       },
       onError: (err: any) => {
         console.warn("[Google One-Tap] Note:", err?.message || err);
+        const msg = err?.message || "";
+        if (msg) {
+          toast.error(`Google Sign-In: ${msg}`);
+          setErrorMsg(msg);
+        }
       },
     });
 
@@ -57,13 +62,6 @@ export function SpadasAuthCard({ initialMode = "signup" }: Props) {
     setGoogleLoading(true);
 
     try {
-      // 1. Try Google Identity Services native prompt first (in-page, 100% hides supabase.co)
-      if (promptGoogleOneTap()) {
-        setGoogleLoading(false);
-        return;
-      }
-
-      // 2. Standard OAuth fallback
       const redirectUrl = `${window.location.origin}/auth/callback?redirect=${encodeURIComponent(redirectTarget)}`;
       
       const { data, error } = await supabase.auth.signInWithOAuth({
@@ -129,6 +127,25 @@ export function SpadasAuthCard({ initialMode = "signup" }: Props) {
         });
 
         if (error) {
+          const lower = error.message.toLowerCase();
+          if (lower.includes("already registered") || lower.includes("already exists")) {
+            // User already has an account — attempt automatic login with the provided credentials
+            const loginRes = await supabase.auth.signInWithPassword({
+              email: email.trim(),
+              password,
+            });
+            if (loginRes.error) {
+              setErrorMsg("An account with this email already exists. Please enter your password to sign in.");
+              setMode("login");
+              return;
+            }
+            toast.success("Welcome back! Signed in to Spadas Lens.");
+            await new Promise((r) => setTimeout(r, 250));
+            router.refresh();
+            window.location.href = redirectTarget;
+            return;
+          }
+
           setErrorMsg(error.message);
           toast.error(error.message);
           return;
@@ -140,7 +157,9 @@ export function SpadasAuthCard({ initialMode = "signup" }: Props) {
           return;
         }
 
-        toast.success("Welcome to Spadas Lens!");
+        toast.success("Welcome to Spadas Lens! Account created.");
+        await new Promise((r) => setTimeout(r, 250));
+        router.refresh();
         window.location.href = redirectTarget;
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({
@@ -160,6 +179,8 @@ export function SpadasAuthCard({ initialMode = "signup" }: Props) {
         }
 
         toast.success("Authenticated successfully!");
+        await new Promise((r) => setTimeout(r, 250));
+        router.refresh();
         window.location.href = redirectTarget;
       }
     } catch (err: any) {

@@ -1,30 +1,28 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
   const redirect = searchParams.get("redirect") || "/lens";
+  const cleanRedirect = redirect.startsWith("/") ? redirect : `/${redirect}`;
+  const targetUrl = `${origin}${cleanRedirect}`;
 
   if (code) {
-    const cookieStore = await cookies();
+    let response = NextResponse.redirect(targetUrl);
+
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         cookies: {
           getAll() {
-            return cookieStore.getAll();
+            return request.cookies.getAll();
           },
           setAll(cookiesToSet) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) =>
-                cookieStore.set(name, value, options)
-              );
-            } catch {
-              // Ignore cookie errors in route handlers
-            }
+            cookiesToSet.forEach(({ name, value, options }) => {
+              response.cookies.set(name, value, options);
+            });
           },
         },
       }
@@ -32,12 +30,11 @@ export async function GET(request: Request) {
 
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      const cleanRedirect = redirect.startsWith("/") ? redirect : `/${redirect}`;
-      return NextResponse.redirect(`${origin}${cleanRedirect}`);
+      return response;
     }
+    console.error("[auth/callback] Exchange code error:", error);
   }
 
-  // Fallback to destination or dashboard
-  const fallbackRedirect = redirect.startsWith("/") ? redirect : `/${redirect}`;
-  return NextResponse.redirect(`${origin}${fallbackRedirect}`);
+  // Fallback to destination or lens
+  return NextResponse.redirect(targetUrl);
 }
