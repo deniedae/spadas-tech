@@ -26,12 +26,29 @@ export const EBAY_AU_FIXED_FEE = 0.30;   // $0.30 AUD fixed order fee (Pro Start
 export const EBAY_AU_HIGH_VALUE_THRESHOLD = 4000;  // Portion above $4,000 charged at reduced rate
 export const EBAY_AU_HIGH_VALUE_RATE = 0.025;       // 2.5% on sale amount exceeding $4,000
 
-/** AusPost Standard Parcel Post national delivery matrix */
+/**
+ * Official eBay US standard final value fee rates.
+ * Standard category fee: 13.25% + $0.40 USD per order.
+ */
+export const EBAY_US_FEE_RATE = 0.1325;
+export const EBAY_US_FIXED_FEE = 0.40;
+export const EBAY_US_HIGH_VALUE_THRESHOLD = 7500;
+export const EBAY_US_HIGH_VALUE_RATE = 0.0235;
+
+/** AusPost Standard Parcel Post national delivery matrix (AUD) */
 export const AUSPOST_PARCEL_RATES = {
   small: 10.90,       // Small satchel/box: <500g (media, video games, books, small tech)
   medium: 14.80,      // Medium satchel/box: 500g–1kg (t-shirts, shirts, shorts, hats)
   large: 18.65,       // Large satchel/box: 1kg–3kg (shoes, sneakers, hoodies, outerwear)
   extraLarge: 22.75,  // Extra Large satchel/box: >3kg (heavy electronics, bulky items)
+} as const;
+
+/** USPS Ground Advantage national commercial delivery matrix (USD) */
+export const USPS_PARCEL_RATES = {
+  small: 4.80,        // USPS Ground Advantage <8oz (cards, video games, small tech, books)
+  medium: 6.80,       // USPS Ground Advantage 8oz–1lb (t-shirts, apparel, lightweight goods)
+  large: 9.80,        // USPS Ground Advantage 1lb–3lbs (sneakers, hoodies, outerwear)
+  extraLarge: 15.50,  // USPS Ground Advantage >3lbs (heavy tech, bulky goods)
 } as const;
 
 export type AusPostParcelTier = keyof typeof AUSPOST_PARCEL_RATES;
@@ -189,6 +206,56 @@ export function calculateEbayAuFees(salePrice: number): number {
   const standardPortion = Math.round(EBAY_AU_HIGH_VALUE_THRESHOLD * EBAY_AU_FEE_RATE * 100) / 100;
   const excessPortion = Math.round((salePrice - EBAY_AU_HIGH_VALUE_THRESHOLD) * EBAY_AU_HIGH_VALUE_RATE * 100) / 100;
   return Math.round((standardPortion + excessPortion + EBAY_AU_FIXED_FEE) * 100) / 100;
+}
+
+/**
+ * Resolves domestic parcel shipping according to active marketplace currency:
+ * - USD: USPS Ground Advantage ($4.80 - $15.50 USD)
+ * - AUD: AusPost Standard Parcel Post ($10.90 - $22.75 AUD)
+ */
+export function getDomesticShippingRate(
+  category?: string | null,
+  productName?: string | null,
+  weightGrams?: number,
+  currency: string = "AUD"
+): { rate: number; description: string; tier: string; weightBracket: string } {
+  const auRate = getAusPostShippingRate(category, productName, weightGrams);
+  if (currency.toUpperCase() !== "USD") return auRate;
+
+  const uspsTier = auRate.tier as keyof typeof USPS_PARCEL_RATES;
+  const uspsRate = USPS_PARCEL_RATES[uspsTier] || USPS_PARCEL_RATES.medium;
+  const uspsDescriptions: Record<keyof typeof USPS_PARCEL_RATES, string> = {
+    small: "USPS Ground Advantage (<8oz, Media/Games)",
+    medium: "USPS Ground Advantage (8oz–1lb, Apparel/Goods)",
+    large: "USPS Ground Advantage (1lb–3lbs, Shoes/Outerwear)",
+    extraLarge: "USPS Ground Advantage (>3lbs, Bulky)",
+  };
+
+  return {
+    tier: auRate.tier,
+    rate: uspsRate,
+    weightBracket: auRate.weightBracket,
+    description: uspsDescriptions[uspsTier] || "USPS Ground Advantage",
+  };
+}
+
+/**
+ * Calculates marketplace final value fees tailored to active marketplace currency:
+ * - USD: eBay US standard rate (13.25% + $0.40 USD)
+ * - AUD: eBay AU Pro Starter rate (13.4% + $0.30 AUD)
+ */
+export function calculateMarketplaceFees(salePrice: number, currency: string = "AUD"): number {
+  if (salePrice <= 0) return 0;
+  if (currency.toUpperCase() === "USD") {
+    if (salePrice <= EBAY_US_HIGH_VALUE_THRESHOLD) {
+      return Math.round((salePrice * EBAY_US_FEE_RATE + EBAY_US_FIXED_FEE) * 100) / 100;
+    }
+    const standard = Math.round(EBAY_US_HIGH_VALUE_THRESHOLD * EBAY_US_FEE_RATE * 100) / 100;
+    const excess = Math.round((salePrice - EBAY_US_HIGH_VALUE_THRESHOLD) * EBAY_US_HIGH_VALUE_RATE * 100) / 100;
+    return Math.round((standard + excess + EBAY_US_FIXED_FEE) * 100) / 100;
+  }
+
+  return calculateEbayAuFees(salePrice);
 }
 
 export interface AuFinancialBreakdown {

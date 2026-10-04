@@ -9,7 +9,7 @@ import {
   EbayCompsResult,
   EbaySoldCompItem,
 } from "@/app/lib/ebay-australia-comps";
-import { SupportedCurrency } from "@/app/lib/currency-routing";
+import { SupportedCurrency, detectGeoCurrency } from "@/app/lib/currency-routing";
 import { estimateAustralianMarketValue } from "@/lib/valuation-heuristics";
 
 export const runtime = "nodejs";
@@ -23,7 +23,10 @@ export async function GET(req: Request) {
     const brand = url.searchParams.get("brand") || undefined;
     const category = url.searchParams.get("category") || undefined;
     const condition = url.searchParams.get("condition") || undefined;
-    const currency = (url.searchParams.get("currency") as SupportedCurrency) || "AUD";
+
+    const countryHeader = req.headers.get("x-vercel-ip-country") || req.headers.get("cf-ipcountry");
+    const detectedCurrency = detectGeoCurrency(countryHeader).currency;
+    const currency = (url.searchParams.get("currency") as SupportedCurrency) || detectedCurrency || "AUD";
 
     return await handleCompsSearch(query, brand, category, condition, currency);
   } catch (err: any) {
@@ -39,7 +42,10 @@ export async function POST(req: Request) {
     const brand = body.brand || undefined;
     const category = body.category || undefined;
     const condition = body.condition || undefined;
-    const currency = (body.currency as SupportedCurrency) || "AUD";
+
+    const countryHeader = req.headers.get("x-vercel-ip-country") || req.headers.get("cf-ipcountry");
+    const detectedCurrency = detectGeoCurrency(countryHeader).currency;
+    const currency = (body.currency as SupportedCurrency) || detectedCurrency || "AUD";
 
     return await handleCompsSearch(query, brand, category, condition, currency);
   } catch (err: any) {

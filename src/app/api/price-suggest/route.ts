@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { INVALID_LOT_PATTERNS } from "@/app/lib/ebay-australia-comps";
+import { detectGeoCurrency } from "@/app/lib/currency-routing";
 
 const SOLD_COMPS_KEY = process.env.SOLD_COMPS_API_KEY;
 const SOLD_COMPS_URL = "https://api.sold-comps.com/v1/scrape";
@@ -41,7 +42,8 @@ export async function POST(req: Request) {
       );
     }
 
-    const { product } = (await req.json()) as { product?: string };
+    const body = (await req.json().catch(() => ({}))) as { product?: string; currency?: string };
+    const { product } = body;
 
     if (!product || !product.trim()) {
       return NextResponse.json(
@@ -50,9 +52,14 @@ export async function POST(req: Request) {
       );
     }
 
+    const countryHeader = req.headers.get("x-vercel-ip-country") || req.headers.get("cf-ipcountry");
+    const detectedCurrency = detectGeoCurrency(countryHeader).currency;
+    const currency = body.currency || detectedCurrency || "AUD";
+    const ebaySite = currency.toUpperCase() === "USD" ? "ebay.com" : "ebay.com.au";
+
     const url = new URL(SOLD_COMPS_URL);
     url.searchParams.set("keyword", product.trim());
-    url.searchParams.set("ebaySite", "ebay.com.au");
+    url.searchParams.set("ebaySite", ebaySite);
     url.searchParams.set("page", "1");
     url.searchParams.set("count", "240");
     url.searchParams.set("daysToScrape", "30");
@@ -85,7 +92,7 @@ export async function POST(req: Request) {
         suggested_max: 0,
         suggested_median: 0,
         sample_size: 0,
-        currency: "AUD",
+        currency,
       });
     }
 
@@ -125,7 +132,7 @@ export async function POST(req: Request) {
         suggested_max: 0,
         suggested_median: 0,
         sample_size: 0,
-        currency: "AUD",
+        currency,
       });
     }
 
@@ -141,7 +148,7 @@ export async function POST(req: Request) {
       suggested_max,
       suggested_median: Math.round(med * 100) / 100,
       sample_size: trimmed.length,
-      currency: rawItems[0]?.soldCurrency || "AUD",
+      currency,
     };
 
     return NextResponse.json(result);

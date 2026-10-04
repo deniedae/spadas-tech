@@ -6,8 +6,10 @@ import { createOpenAiClient, getPrimaryAiApiKey } from "@/app/lib/config/ai-mode
 import { checkNeedsVerification } from "@/lib/forensic-knowledge";
 import { estimateAustralianMarketValue } from "@/lib/valuation-heuristics";
 import { estimateCategoryShippingCost, detectThriftTrap, calculateThriftCopVerdict } from "@/lib/thrift-cop-engine";
+import { calculateMarketplaceFees } from "@/lib/fee-engine";
 import { calculateSalesVelocity } from "@/lib/turnover-velocity-engine";
 import { fetchEbayAustraliaSoldComps } from "@/app/lib/ebay-australia-comps";
+import { detectGeoCurrency } from "@/app/lib/currency-routing";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,7 +40,9 @@ interface RapidThriftResponse {
 export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => ({}));
-    const { image, currency = "AUD" } = body;
+    const countryHeader = req.headers.get("x-vercel-ip-country") || req.headers.get("cf-ipcountry");
+    const detectedCurrency = detectGeoCurrency(countryHeader).currency;
+    const { image, currency = detectedCurrency } = body;
 
     if (!image || typeof image !== "string") {
       return NextResponse.json(
@@ -216,12 +220,13 @@ Output ONLY valid JSON adhering strictly to:
       condition: parsed.condition,
     });
 
+    const isRegionUS = (currency || "").toUpperCase() === "USD";
     const estVal = hasRealComps ? compsData!.median : (compsData?.noMarketData ? 0 : catEst.estimatedMedian);
-    const estCost = Number(parsed.thrift_cost) || catEst.typicalOpShopCost;
-    const ebayFee = estVal > 0 ? estVal * 0.134 + 0.33 : 0;
+    const estCost = Number(parsed.thrift_cost) || (isRegionUS ? Math.round(catEst.typicalOpShopCost * 0.7 * 100) / 100 : catEst.typicalOpShopCost);
+    const ebayFee = estVal > 0 ? calculateMarketplaceFees(estVal, currency) : 0;
 
-    // Deduct realistic category parcel shipping
-    const shippingCost = estimateCategoryShippingCost(pCategory, pName);
+    // Deduct realistic category parcel shipping (USPS for USD, AusPost for AUD)
+    const shippingCost = estimateCategoryShippingCost(pCategory, pName, currency);
     const calculatedNetProfit = estVal > 0 ? Math.max(0, Math.round((estVal - estCost - ebayFee - shippingCost) * 100) / 100) : 0;
     const netProfit = typeof parsed.true_net_profit === "number" && parsed.true_net_profit < calculatedNetProfit
       ? parsed.true_net_profit

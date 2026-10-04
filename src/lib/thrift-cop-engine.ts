@@ -5,7 +5,7 @@
  */
 
 import { calculateSalesVelocity, type SalesVelocityProfile } from "./turnover-velocity-engine";
-import { getAusPostShippingRate, EBAY_AU_FEE_RATE, EBAY_AU_FIXED_FEE } from "./fee-engine";
+import { getAusPostShippingRate, getDomesticShippingRate, EBAY_AU_FEE_RATE, EBAY_AU_FIXED_FEE } from "./fee-engine";
 
 export interface ThriftPricingEstimate {
   estimatedResalePrice: number;
@@ -46,22 +46,31 @@ export const CATEGORY_THRIFT_COGS: Record<string, number> = {
   general: 5.0,
 };
 
-export function estimateThriftCost(category?: string | null): number {
-  if (!category) return 5.0;
+export function estimateThriftCost(category?: string | null, currency: string = "AUD"): number {
+  const isUS = currency.toUpperCase() === "USD";
+  if (!category) return isUS ? 3.5 : 5.0;
   const c = category.toLowerCase().trim();
+  let baseCost = 5.0;
   for (const [key, cost] of Object.entries(CATEGORY_THRIFT_COGS)) {
-    if (c.includes(key)) return cost;
+    if (c.includes(key)) {
+      baseCost = cost;
+      break;
+    }
   }
-  return 5.0;
+  return isUS ? Math.max(1.5, Math.round(baseCost * 0.7 * 100) / 100) : baseCost;
 }
 
 /**
- * AusPost Domestic Parcel Shipping Rate Matrix (Standard Parcel Post):
- * Small (<500g): $10.90 AUD, Medium (500g–1kg): $14.80 AUD,
- * Large (1kg–3kg): $18.65 AUD, Extra Large (>3kg): $22.75 AUD.
+ * Domestic Parcel Shipping Rate Matrix:
+ * - US (USD): USPS Ground Advantage ($4.80 - $15.50 USD)
+ * - AU (AUD): AusPost Standard Parcel Post ($10.90 - $22.75 AUD)
  */
-export function estimateCategoryShippingCost(category?: string | null, productName?: string | null): number {
-  return getAusPostShippingRate(category, productName).rate;
+export function estimateCategoryShippingCost(
+  category?: string | null,
+  productName?: string | null,
+  currency: string = "AUD"
+): number {
+  return getDomesticShippingRate(category, productName, undefined, currency).rate;
 }
 
 export interface ThriftTrapResult {

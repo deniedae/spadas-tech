@@ -1247,7 +1247,7 @@ function SpadasLensCameraCore({
           let verifiedRawComps: any[] = [];
 
           try {
-            const compsUrl = `/api/ebay-australia-comps?q=${encodeURIComponent(pName)}&brand=${encodeURIComponent(pBrand)}&category=${encodeURIComponent(pCat)}&currency=AUD`;
+            const compsUrl = `/api/ebay-australia-comps?q=${encodeURIComponent(pName)}&brand=${encodeURIComponent(pBrand)}&category=${encodeURIComponent(pCat)}&currency=${selectedCurrency}`;
             const compsRes = await fetch(compsUrl);
             if (compsRes.ok) {
               const compsData = await compsRes.json();

@@ -7,6 +7,7 @@ import dynamic from "next/dynamic";
 import SpadasLensCamera, { releasePersistentMediaStream } from "@/components/spadas-lens-camera";
 import { cameraStreamManager } from "@/lib/camera-stream-provider";
 import { useHaulStore } from "@/lib/haul-store";
+import { supabase } from "@/app/lib/supabase";
 import { triggerTactileHaptic } from "@/lib/android-bridge";
 
 const SpadasSnapStudio = dynamic(
@@ -40,11 +41,29 @@ export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraH
   const [isGuideOpen, setIsGuideOpen] = useState(false);
   const { haulCount } = useHaulStore();
 
-  // Clean exit handler: releases hardware media stream and navigates to dashboard
-  const handleExitCamera = useCallback(() => {
-    releasePersistentMediaStream();
-    router.push("/dashboard");
+  // Clean exit handler: navigates to dashboard for authenticated users or home for guests
+  const handleExitCamera = useCallback(async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        router.push("/dashboard");
+      } else {
+        router.push("/");
+      }
+    } catch {
+      router.push("/");
+    }
   }, [router]);
+
+  // Support Android hardware back button and browser gesture navigation
+  useEffect(() => {
+    const handlePopState = (e: PopStateEvent) => {
+      e.preventDefault();
+      void handleExitCamera();
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [handleExitCamera]);
 
   // Ensure camera hardware resources are released whenever component unmounts
   useEffect(() => {
