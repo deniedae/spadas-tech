@@ -22,6 +22,7 @@ import {
   AlertCircle,
   Sliders,
   Zap,
+  TrendingUp,
 } from "lucide-react";
 import { fmtMoney } from "@/app/lib/listings";
 import type { RawSoldComp } from "@/types/lens";
@@ -519,7 +520,7 @@ export default function AuditCompsLedger({
                 </span>
               ) : verifiedListings.length > 0 ? (
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[11px] font-mono font-medium text-emerald-400">
-                  <Sparkles className="h-3 w-3 text-emerald-400" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                   <span>{verifiedListings.length} Cleared eBay Sales</span>
                 </span>
               ) : (
@@ -549,7 +550,7 @@ export default function AuditCompsLedger({
                         : "badge-verdict-pass"
                   }
                 >
-                  {copVerdict === "MUST_COP" ? "BUY" : copVerdict === "QUICK_FLIP" ? "QUICK FLIP" : copVerdict === "VERIFY_FIRST" ? "VERIFY" : "PASS"}
+                  {copVerdict === "MUST_COP" ? "ACQUIRE" : copVerdict === "QUICK_FLIP" ? "QUICK FLIP" : copVerdict === "VERIFY_FIRST" ? "VERIFY" : "PASS"}
                 </span>
               )}
             </div>
@@ -582,7 +583,7 @@ export default function AuditCompsLedger({
           <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-white/[0.05]">
             {typeof netProfit === "number" && (
               <div className="flex flex-col text-left sm:text-right font-mono">
-                <span className="text-[9px] uppercase tracking-wider text-emerald-400/90 font-medium">Take-Home Profit</span>
+                <span className="text-[9px] uppercase tracking-wider text-emerald-400/90 font-medium">Net Realization</span>
                 <span className="text-lg sm:text-xl font-bold text-emerald-400 tabular-nums">
                   +{fmtMoney(netProfit)}
                 </span>
@@ -655,7 +656,7 @@ export default function AuditCompsLedger({
                 <div className="p-3.5 rounded-xl bg-gradient-to-b from-emerald-950/40 to-[#141721] border border-emerald-500/40 shadow-sm relative overflow-hidden">
                   <div className="flex items-center justify-between gap-1 mb-1">
                     <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1">
-                      <Sparkles className="h-3 w-3" />
+                      <Tag className="h-3 w-3 text-emerald-400" />
                       <span>Optimal List Price</span>
                     </span>
                     <span className="text-[8px] font-bold uppercase bg-emerald-500/20 text-emerald-300 px-1 rounded border border-emerald-500/30">
@@ -669,7 +670,7 @@ export default function AuditCompsLedger({
                     Buy It Now + Best Offer
                   </span>
                   <div className="mt-2 pt-2 border-t border-emerald-500/20 flex items-center justify-between text-[11px] font-mono">
-                    <span className="text-zinc-400 text-[10px]">Net Take-Home:</span>
+                    <span className="text-zinc-400 text-[10px]">Net Realization:</span>
                     <span className="text-emerald-400 font-bold">+{fmtMoney(intrinsicAppraisal.estimatedNetAtOptimal)}</span>
                   </div>
                 </div>
@@ -692,7 +693,7 @@ export default function AuditCompsLedger({
                     Priced to liquidate in 24–48h
                   </span>
                   <div className="mt-2 pt-2 border-t border-white/[0.06] flex items-center justify-between text-[11px] font-mono">
-                    <span className="text-zinc-400 text-[10px]">Net Take-Home:</span>
+                    <span className="text-zinc-400 text-[10px]">Net Realization:</span>
                     <span className="text-zinc-300 font-bold">+{fmtMoney(intrinsicAppraisal.estimatedNetAtFloor)}</span>
                   </div>
                 </div>
@@ -724,7 +725,7 @@ export default function AuditCompsLedger({
               {/* Seller Strategy & Pricing Rationale */}
               <div className="p-3.5 rounded-xl bg-[#141721] border border-white/[0.06] space-y-2 font-mono text-xs">
                 <div className="text-[11px] font-bold text-zinc-200 flex items-center gap-1.5 uppercase tracking-wider">
-                  <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+                  <TrendingUp className="h-3.5 w-3.5 text-amber-400" />
                   <span>Reseller Pricing Strategy:</span>
                 </div>
                 <p className="text-zinc-300 font-sans text-xs leading-relaxed">
@@ -827,9 +828,9 @@ export default function AuditCompsLedger({
                     <span className="text-zinc-600">−</span>
                     <span>Post ~$9.50</span>
                   </div>
-                  <div className="flex items-center gap-1 text-emerald-400 font-bold ml-auto">
+                  <div className="flex items-center gap-1 text-emerald-400 font-bold ml-auto tabular-nums">
                     <span>=</span>
-                    <span>+{fmtMoney(typeof netProfit === "number" ? netProfit : Math.max(0, stats.median - (activeValuation?.thriftCost ?? 0) - Math.round((stats.median * 0.134 + 0.30) * 100) / 100 - 9.5))} Take-Home</span>
+                    <span>+{fmtMoney(typeof netProfit === "number" ? netProfit : Math.max(0, stats.median - (activeValuation?.thriftCost ?? 0) - Math.round((stats.median * 0.134 + 0.30) * 100) / 100 - 9.5))} Net Realization</span>
                   </div>
                 </div>
               )}
@@ -859,29 +860,73 @@ export default function AuditCompsLedger({
                           onSelectComp?.(comp.raw);
                         }}
                         style={{ animationDelay: `${idx * 40}ms` }}
-                        className="group relative p-3 sm:p-3.5 rounded-xl bg-[#141721] hover:bg-[#181C28] border border-white/[0.06] hover:border-white/[0.12] transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 comp-row-glide cursor-pointer"
+                        className="group relative p-2.5 sm:p-3 rounded-xl bg-[#121622] hover:bg-[#171D2D] border border-white/[0.08] hover:border-white/[0.16] transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 comp-row-glide cursor-pointer shadow-xs"
                       >
-                        {/* Left: Index + Match Badge + Title + Conditions */}
-                        <div className="min-w-0 flex-1 space-y-1.5">
-                          <div className="flex items-start gap-2">
-                            <span className="shrink-0 h-5 w-5 rounded bg-white/[0.04] border border-white/[0.08] text-[10px] font-mono font-medium text-zinc-400 flex items-center justify-center mt-0.5">
-                              {idx + 1}
+                        {/* Left: Listing Thumbnail + Match Badge + Title + Conditions */}
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <div className="relative h-13 w-13 sm:h-14 sm:w-14 rounded-lg overflow-hidden bg-[#0A0D14] border border-white/[0.10] shrink-0">
+                            {comp.thumbnail ? (
+                              <img
+                                src={comp.thumbnail}
+                                alt={comp.title}
+                                loading="lazy"
+                                decoding="async"
+                                className="h-full w-full object-cover group-hover:scale-105 transition duration-200"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).style.display = "none";
+                                }}
+                              />
+                            ) : (
+                              <div className="h-full w-full flex items-center justify-center text-zinc-500 bg-[#0E121B]">
+                                <ShoppingBag className="w-5 h-5 text-zinc-500" />
+                              </div>
+                            )}
+                            <span className="absolute bottom-1 right-1 px-1 py-0.2 rounded bg-black/85 text-[8px] font-mono text-zinc-300 tabular-nums">
+                              {comp.isActiveAsk ? "Ask" : "Sold"}
                             </span>
+                          </div>
 
-                            <span
-                              className={`shrink-0 px-2 py-0.5 rounded font-mono font-medium text-[10px] border flex items-center gap-1 ${badgeStyle.bg} ${badgeStyle.text} ${badgeStyle.border} mt-0.5`}
-                              title={`Feature match confidence: ${comp.matchPercentage}%`}
-                            >
-                              <Percent className="h-2.5 w-2.5" />
-                              <span>{comp.matchPercentage}% Match</span>
-                            </span>
+                          <div className="min-w-0 flex-1 space-y-1">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span
+                                className={`shrink-0 px-2 py-0.5 rounded font-mono font-medium text-[10px] border flex items-center gap-1 ${badgeStyle.bg} ${badgeStyle.text} ${badgeStyle.border}`}
+                                title={`Feature match confidence: ${comp.matchPercentage}%`}
+                              >
+                                <Percent className="h-2.5 w-2.5" />
+                                <span>{comp.matchPercentage}% Match</span>
+                              </span>
+
+                              {isMeaningfulMeta(comp.condition) && (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-white/[0.04] border border-white/[0.06] text-zinc-300 text-[10px] font-mono">
+                                  <span>{comp.condition.trim()}</span>
+                                </span>
+                              )}
+
+                              {isMeaningfulMeta(comp.soldDate) && (
+                                <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[10px] font-mono ${
+                                  comp.isActiveAsk || comp.soldDate === "Active Ask"
+                                    ? "bg-cyan-500/10 border-cyan-500/30 text-cyan-300"
+                                    : "bg-white/[0.04] border-white/[0.06] text-zinc-300"
+                                }`}>
+                                  <span>{comp.soldDate.trim()}</span>
+                                </span>
+                              )}
+
+                              <span className="text-zinc-500 text-[10px] font-mono">
+                                {comp.shippingIncluded
+                                  ? "Free Delivery"
+                                  : comp.shippingPrice
+                                    ? `+${fmtMoney(comp.shippingPrice)} Delivery`
+                                    : "Postage calculated"}
+                              </span>
+                            </div>
 
                             {comp.url ? (
                               <a
                                 href={comp.url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="font-semibold text-xs sm:text-sm text-zinc-100 group-hover:text-white line-clamp-1 leading-snug transition flex-1 hover:underline inline-flex items-center gap-1"
+                                className="font-semibold text-xs sm:text-sm text-zinc-100 group-hover:text-white line-clamp-1 leading-snug transition hover:underline inline-flex items-center gap-1"
                                 title={comp.title}
                                 onClick={(e) => e.stopPropagation()}
                               >
@@ -890,49 +935,12 @@ export default function AuditCompsLedger({
                               </a>
                             ) : (
                               <span
-                                className="font-semibold text-xs sm:text-sm text-zinc-100 line-clamp-1 leading-snug flex-1"
+                                className="font-semibold text-xs sm:text-sm text-zinc-100 line-clamp-1 leading-snug"
                                 title={comp.title}
                               >
                                 {comp.title}
                               </span>
                             )}
-                          </div>
-
-                          <div className="flex flex-wrap items-center gap-2 text-[10px] text-zinc-400 font-mono ml-7">
-                            {isMeaningfulMeta(comp.condition) && (
-                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-white/[0.04] border border-white/[0.06] text-zinc-300">
-                                <Tag className="h-2.5 w-2.5 text-zinc-500" />
-                                <span>{comp.condition.trim()}</span>
-                              </span>
-                            )}
-
-                            {isMeaningfulMeta(comp.soldDate) && (
-                              <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[10px] ${
-                                (comp as any).isActiveAsk || comp.soldDate === "Active Ask"
-                                  ? "bg-cyan-500/10 border-cyan-500/30 text-cyan-300"
-                                  : "bg-white/[0.04] border-white/[0.06] text-zinc-300"
-                              }`}>
-                                {(comp as any).isActiveAsk || comp.soldDate === "Active Ask" ? (
-                                  <>
-                                    <Tag className="h-2.5 w-2.5 text-cyan-400" />
-                                    <span>Active Ask</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <Calendar className="h-2.5 w-2.5 text-zinc-500" />
-                                    <span>Sold {comp.soldDate.trim()}</span>
-                                  </>
-                                )}
-                              </span>
-                            )}
-
-                            <span className="text-zinc-500">
-                              {comp.shippingIncluded
-                                ? "Free Post"
-                                : comp.shippingPrice
-                                  ? `+${fmtMoney(comp.shippingPrice)} Post`
-                                  : "Postage calculated"}
-                            </span>
                           </div>
                         </div>
 
@@ -955,7 +963,7 @@ export default function AuditCompsLedger({
                           <button
                             type="button"
                             onClick={(e) => openExternalUrlSafely(comp.url, comp.title, e)}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.10] text-[10px] font-mono font-medium text-zinc-200 hover:text-white transition active:scale-95 cursor-pointer"
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.12] border border-white/[0.08] text-[10px] font-mono font-medium text-zinc-200 hover:text-white transition active:scale-95 cursor-pointer"
                             title="Open listing on eBay in new tab"
                           >
                             <span>{(comp as any).isActiveAsk || comp.soldDate === "Active Ask" ? "View Listing" : "View Comp"}</span>
