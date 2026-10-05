@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect, useDeferredValue, startTransition, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import {
@@ -96,10 +97,12 @@ export default function LensCompsModal({
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [isCopilotOpen, setIsCopilotOpen] = useState(false);
+  const mountTimeRef = useRef<number>(0);
 
   // Smoothly fade out top floating pill bar when Valuation Modal mounts/opens
   useEffect(() => {
     if (!isOpen) return;
+    mountTimeRef.current = Date.now();
     document.body.setAttribute("data-comps-open", "true");
     document.body.classList.add("valuation-modal-open");
     return () => {
@@ -480,6 +483,9 @@ export default function LensCompsModal({
     if (!isOpen) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Guard against synthetic/queued keystrokes immediately upon modal mount
+      if (Date.now() - mountTimeRef.current < 600) return;
+
       const targetTag = (e.target as HTMLElement)?.tagName?.toLowerCase();
       if (targetTag === "input" || targetTag === "textarea") {
         if (e.key === "Escape") (e.target as HTMLElement)?.blur();
@@ -611,20 +617,21 @@ export default function LensCompsModal({
 
   if (!isOpen || !item) return null;
 
-  return (
+  const modalContent = (
     <div
       className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm animate-fade-in select-none"
       style={{ transform: "translate3d(0,0,0)", willChange: "transform" }}
       onClick={(e) => {
-        if (e.target === e.currentTarget) {
-          onClose();
-        }
+        // Explicit Dismissal Rule: Never close the comps modal on backdrop click or background touches.
+        // The modal must stay up solidly until the user explicitly taps 'Scan Next', 'Save Draft', 'List on eBay', or the 'X' button.
       }}
     >
       <div
         className="relative w-full max-w-md max-h-[92dvh] sm:max-h-[88vh] flex flex-col rounded-t-3xl sm:rounded-2xl bg-zinc-950 border border-zinc-800 text-zinc-100 overflow-hidden shadow-2xl pt-[max(16px,env(safe-area-inset-top))] sm:pt-0"
         style={{ transform: "translate3d(0,0,0)", willChange: "transform" }}
         onClick={(e) => e.stopPropagation()}
+        onTouchStart={(e) => e.stopPropagation()}
+        onTouchEnd={(e) => e.stopPropagation()}
       >
         {/* Mobile drag handle */}
         <div className="mx-auto mt-2 h-1 w-12 rounded-full bg-zinc-700 sm:hidden shrink-0" />
@@ -1502,4 +1509,6 @@ export default function LensCompsModal({
       />
     </div>
   );
+
+  return typeof document !== "undefined" ? createPortal(modalContent, document.body) : null;
 }
