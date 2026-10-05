@@ -1074,11 +1074,11 @@ function SpadasLensCameraCore({
         rawComps: verifiedComps,
       };
 
-      // 1. Immediately activate valuation result state so dedicated Comps Modal dialog mounts and stays open
+      // 1. Immediately activate valuation result state so Trade-Ticket valuation & comps dialog mounts directly
       activeValuationHitRef.current = verifiedHit;
       setActiveValuationHit(verifiedHit);
-      activeCompsHitRef.current = verifiedHit;
-      setActiveCompsHit(verifiedHit);
+      activeCompsHitRef.current = null;
+      setActiveCompsHit(null);
       isScanPausedRef.current = true;
       setIsScanPaused(true);
       setScanStage("complete");
@@ -5512,9 +5512,8 @@ function SpadasLensCameraCore({
             className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-2.5 sm:p-4 bg-black/80 backdrop-blur-md animate-fade-in select-none"
             style={{ transform: "translate3d(0,0,0)", willChange: "transform" }}
             onClick={(e) => {
-              if (e.target === e.currentTarget && Date.now() - valuationModalMountTimeRef.current > 750) {
-                handleDismissCard();
-              }
+              // Explicit Dismissal Rule: Never close the valuation results dialog on accidental backdrop clicks.
+              // The dialog must stay up solidly until the user explicitly taps "Next", "+ Add", "List on eBay", or the close 'X' button.
             }}
           >
             <div
@@ -5978,15 +5977,7 @@ function SpadasLensCameraCore({
         frozenFrameUrl={frozenFrameUrl}
         onClose={() => {
           setActiveCompsHit(null);
-          setActiveValuationHit(null);
-          activeValuationHitRef.current = null;
           activeCompsHitRef.current = null;
-          setIsScanPaused(false);
-          isScanPausedRef.current = false;
-          setScanStage("idle");
-          if (videoRef.current && videoRef.current.paused) {
-            videoRef.current.play().catch(() => { });
-          }
         }}
         onResumeScan={() => {
           setActiveCompsHit(null);
