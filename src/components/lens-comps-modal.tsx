@@ -39,6 +39,11 @@ import {
 } from "@/lib/thrift-cop-engine";
 import {
   AUSPOST_PARCEL_RATES,
+  USPS_PARCEL_RATES,
+  EBAY_AU_FEE_RATE,
+  EBAY_AU_FIXED_FEE,
+  EBAY_US_FEE_RATE,
+  EBAY_US_FIXED_FEE,
   type AusPostParcelTier,
 } from "@/lib/fee-engine";
 import { calculateSalesVelocity } from "@/lib/turnover-velocity-engine";
@@ -68,6 +73,7 @@ interface LensCompsModalProps {
   isOpen: boolean;
   item: DetectedHit | ActiveScanItem | null;
   frozenFrameUrl?: string | null;
+  currency?: string;
   onClose: () => void;
   onResumeScan: () => void;
   onListEbay?: (item: DetectedHit | ActiveScanItem) => void;
@@ -79,9 +85,12 @@ export default function LensCompsModal({
   isOpen,
   item,
   frozenFrameUrl,
+  currency,
   onClose,
   onResumeScan,
   onListEbay,
+  onDeepVerify,
+  onTriggerBarcodeScan,
 }: LensCompsModalProps) {
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
@@ -226,8 +235,10 @@ export default function LensCompsModal({
       setHasBox(attrs.hasBox);
       // Reset postage override for each new scan
       setCustomPostageTier(null);
+      const newCost = Number(item.tagPrice || item.estCost) || categoryEstimate.typicalOpShopCost;
+      setCustomTagCost(newCost);
     }
-  }, [item, title, category, condition, isLiquidOrFragrance]);
+  }, [item, title, category, condition, isLiquidOrFragrance, categoryEstimate.typicalOpShopCost]);
 
   const fragranceMultiplier = useMemo(() => {
     if (!isLiquidOrFragrance || !isFragranceActive) return 1.0;
@@ -332,19 +343,29 @@ export default function LensCompsModal({
     };
   }, [item, initialEstValue, effectiveComps, title, isLiquidOrFragrance, isFragranceActive, fragranceMultiplier]);
 
+  const isUsMarket = Boolean(
+    currency === "USD" ||
+    (item as any)?.currency === "USD" ||
+    (item as any)?.isUsMarketOnly ||
+    effectiveComps.some((c) => (c as any).isUsComp) ||
+    (typeof window !== "undefined" && localStorage.getItem("spadas_selected_currency") === "USD")
+  );
+  const parcelRates = isUsMarket ? USPS_PARCEL_RATES : AUSPOST_PARCEL_RATES;
+  const targetCurrency = isUsMarket ? "USD" : "AUD";
+
   // Dynamic calculations (utilizing deferred values for smooth 60fps main thread)
   const activeResalePrice = compsRange.median || ((isLiquidOrFragrance && isFragranceActive) ? Math.round(initialEstValue * fragranceMultiplier * 100) / 100 : initialEstValue);
   const effectiveTagCost = Math.max(0, Math.round(deferredTagCost * 100) / 100);
-  const autoShipping = estimateCategoryShippingCost(category, title);
+  const autoShipping = estimateCategoryShippingCost(category, title, targetCurrency);
   const estShipping = customPostageTier !== null
-    ? AUSPOST_PARCEL_RATES[customPostageTier]
+    ? parcelRates[customPostageTier]
     : autoShipping;
   detectThriftTrap(title, activeResalePrice, brand);
 
   const confidenceScore = (item as any)?.confidenceScore || (item as any)?.confidence || 0.96;
   const requiresSecondaryVerification = Boolean((item as any)?.requiresSecondaryVerification);
 
-  // Strict algorithmic cop verdict based on dynamic target price
+  // Strict algorithmic cop verdict based on dynamic target price and regional fees
   const copEstimate = useMemo(() => {
     return calculateThriftCopVerdict({
       resalePrice: activeResalePrice,
@@ -353,10 +374,12 @@ export default function LensCompsModal({
       productName: title,
       brand,
       shippingCost: estShipping,
+      platformFeeRate: isUsMarket ? EBAY_US_FEE_RATE : EBAY_AU_FEE_RATE,
+      fixedFee: isUsMarket ? EBAY_US_FIXED_FEE : EBAY_AU_FIXED_FEE,
       confidenceScore,
       needsVerification: requiresSecondaryVerification,
     });
-  }, [activeResalePrice, effectiveTagCost, category, title, brand, estShipping, confidenceScore, requiresSecondaryVerification]);
+  }, [activeResalePrice, effectiveTagCost, category, title, brand, estShipping, isUsMarket, confidenceScore, requiresSecondaryVerification]);
 
   const {
     netProfit,
@@ -385,11 +408,6 @@ export default function LensCompsModal({
     return "FLIP";
   }, [netProfit, copVerdict, hasBrandOrModel, effectiveComps.length, roi, isGrail]);
 
-  const isUsMarket = Boolean(
-    (item as any)?.currency === "USD" ||
-    isUsMarketOnly ||
-    (typeof window !== "undefined" && localStorage.getItem("spadas_selected_currency") === "USD")
-  );
   const ebayDomain = isUsMarket ? "ebay.com" : "ebay.com.au";
   const cleanSearchQuery = encodeURIComponent(title.replace(/[^\w\s-]/g, "").trim());
   const ebayActiveSearchUrl = `https://www.${ebayDomain}/sch/i.html?_nkw=${cleanSearchQuery}`;
@@ -597,10 +615,16 @@ export default function LensCompsModal({
     <div
       className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm animate-fade-in select-none"
       style={{ transform: "translate3d(0,0,0)", willChange: "transform" }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
     >
       <div
         className="relative w-full max-w-md max-h-[92dvh] sm:max-h-[88vh] flex flex-col rounded-t-3xl sm:rounded-2xl bg-zinc-950 border border-zinc-800 text-zinc-100 overflow-hidden shadow-2xl pt-[max(16px,env(safe-area-inset-top))] sm:pt-0"
         style={{ transform: "translate3d(0,0,0)", willChange: "transform" }}
+        onClick={(e) => e.stopPropagation()}
       >
         {/* Mobile drag handle */}
         <div className="mx-auto mt-2 h-1 w-12 rounded-full bg-zinc-700 sm:hidden shrink-0" />
@@ -771,7 +795,7 @@ export default function LensCompsModal({
               </div>
             </div>
 
-            {/* AusPost Parcel Tier Override Picker */}
+            {/* Regional Parcel Tier Override Picker */}
             <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-zinc-900 border border-zinc-800">
               <div className="flex items-center gap-1.5 shrink-0">
                 <Sliders className="w-3.5 h-3.5 text-zinc-400" />
@@ -792,10 +816,10 @@ export default function LensCompsModal({
                   Auto
                 </button>
                 {([
-                  { tier: "small" as AusPostParcelTier, label: `S $${AUSPOST_PARCEL_RATES.small.toFixed(2)}` },
-                  { tier: "medium" as AusPostParcelTier, label: `M $${AUSPOST_PARCEL_RATES.medium.toFixed(2)}` },
-                  { tier: "large" as AusPostParcelTier, label: `L $${AUSPOST_PARCEL_RATES.large.toFixed(2)}` },
-                  { tier: "extraLarge" as AusPostParcelTier, label: `XL $${AUSPOST_PARCEL_RATES.extraLarge.toFixed(2)}` },
+                  { tier: "small" as AusPostParcelTier, label: `S $${parcelRates.small.toFixed(2)}` },
+                  { tier: "medium" as AusPostParcelTier, label: `M $${parcelRates.medium.toFixed(2)}` },
+                  { tier: "large" as AusPostParcelTier, label: `L $${parcelRates.large.toFixed(2)}` },
+                  { tier: "extraLarge" as AusPostParcelTier, label: `XL $${parcelRates.extraLarge.toFixed(2)}` },
                 ] as const).map(({ tier, label }) => (
                   <button
                     key={tier}
@@ -1125,12 +1149,12 @@ export default function LensCompsModal({
 
                           {/* Link Out */}
                           <div className="pt-2 border-t border-zinc-800/80 mt-2 flex items-center justify-between text-[11px]">
-                            <span className="text-zinc-500">{isCompActiveAsk ? "eBay Active Ask" : "eBay AU Sold"}</span>
+                            <span className="text-zinc-500">{isCompActiveAsk ? "eBay Active Ask" : (isUsMarket ? "eBay US Sold" : "eBay AU Sold")}</span>
                             <button
                               type="button"
                               onClick={(e) => openExternalUrlSafely(comp.url || ebayActiveSearchUrl, comp.title || title, e)}
                               className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 transition cursor-pointer"
-                              title="View listing on eBay AU"
+                              title={`View listing on ${isUsMarket ? "eBay US" : "eBay AU"}`}
                             >
                               <ExternalLink className="w-3.5 h-3.5" />
                             </button>
@@ -1203,7 +1227,7 @@ export default function LensCompsModal({
                               type="button"
                               onClick={(e) => openExternalUrlSafely(comp.url || ebayActiveSearchUrl, comp.title || title, e)}
                               className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition cursor-pointer"
-                              title="View listing on eBay AU"
+                              title={`View listing on ${isUsMarket ? "eBay US" : "eBay AU"}`}
                             >
                               <ExternalLink className="w-3.5 h-3.5" />
                             </button>
@@ -1228,16 +1252,18 @@ export default function LensCompsModal({
               </>
             ) : (
               <div className="p-4 rounded-xl bg-zinc-900 border border-zinc-800 text-center space-y-1.5">
-                <div className="text-sm font-semibold text-zinc-200">No direct eBay AU sold comps in last 30 days</div>
+                <div className="text-sm font-semibold text-zinc-200">No direct {isUsMarket ? "eBay US" : "eBay AU"} sold comps in last 30 days</div>
                 <div className="text-xs text-zinc-400">
-                  Valuation benchmarked against Australian secondary market {categoryEstimate.categoryTier}.
+                  {isUsMarket
+                    ? `Valuation benchmarked against US secondary market ${categoryEstimate.categoryTier}.`
+                    : `Valuation benchmarked against Australian secondary market ${categoryEstimate.categoryTier}.`}
                 </div>
                 <button
                   type="button"
                   onClick={(e) => openExternalUrlSafely(ebayActiveSearchUrl, title, e)}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-500/10 border border-cyan-500/25 text-xs text-cyan-300 hover:bg-cyan-500/20 pt-1 cursor-pointer font-semibold transition mt-1"
                 >
-                  <span>Search live eBay AU listings</span>
+                  <span>Search live {isUsMarket ? "eBay US" : "eBay AU"} listings</span>
                   <ExternalLink className="w-3 h-3" />
                 </button>
               </div>

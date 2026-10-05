@@ -834,7 +834,15 @@ function SpadasLensCameraCore({
     });
   }, []);
   const [frozenFrameUrl, setFrozenFrameUrl] = useState<string | null>(null);
-  const [activeCompsHit, setActiveCompsHit] = useState<DetectedHit | ActiveScanItem | null>(null);
+  const [activeCompsHit, setActiveCompsHitState] = useState<DetectedHit | ActiveScanItem | null>(null);
+  const activeCompsHitRef = useRef<DetectedHit | ActiveScanItem | null>(null);
+  const setActiveCompsHit = useCallback((hit: DetectedHit | ActiveScanItem | null | ((prev: DetectedHit | ActiveScanItem | null) => DetectedHit | ActiveScanItem | null)) => {
+    setActiveCompsHitState((prev) => {
+      const next = typeof hit === "function" ? hit(prev) : hit;
+      activeCompsHitRef.current = next;
+      return next;
+    });
+  }, []);
   const [isLoaderTransitioning, setIsLoaderTransitioning] = useState<boolean>(false);
   const [isValuationCardMounted, setIsValuationCardMounted] = useState<boolean>(false);
 
@@ -1063,9 +1071,11 @@ function SpadasLensCameraCore({
         rawComps: verifiedComps,
       };
 
-      // 1. Immediately activate valuation result state so the valuation card slides into view and in-stream comps ledger mounts
+      // 1. Immediately activate valuation result state so comps modal opens in its dedicated dialog
       activeValuationHitRef.current = verifiedHit;
       setActiveValuationHit(verifiedHit);
+      activeCompsHitRef.current = verifiedHit;
+      setActiveCompsHit(verifiedHit);
       isScanPausedRef.current = true;
       setIsScanPaused(true);
       setScanStage("complete");
@@ -1133,6 +1143,8 @@ function SpadasLensCameraCore({
     setTimeout(() => {
       setActiveValuationHit(null);
       activeValuationHitRef.current = null;
+      setActiveCompsHit(null);
+      activeCompsHitRef.current = null;
       setFrozenFrameUrl(null);
       setIsScanPaused(false);
       isScanPausedRef.current = false;
@@ -1140,7 +1152,7 @@ function SpadasLensCameraCore({
       setScanStage("idle");
       if (onComplete) onComplete();
     }, 200);
-  }, [setActiveValuationHit]);
+  }, [setActiveValuationHit, setActiveCompsHit]);
 
   // 1-Tap Onboarding Demo Scan: Instantly loads verified high-profit Nike Dunk Low sample with real sold comps
   const handleRunDemoScan = useCallback(() => {
@@ -1465,7 +1477,7 @@ function SpadasLensCameraCore({
     if (!analyzingRealFrame && scanStage !== "vision" && scanStage !== "comps" && scanStage !== "profit") {
       return;
     }
-    if (activeValuationHit) return;
+    if (activeValuationHit || activeCompsHit || scanStage === "complete") return;
 
     const timeout = setTimeout(() => {
       console.warn("[Spadas Lens Watchdog] Stage timeout reached for stage:", scanStage);
@@ -1510,7 +1522,7 @@ function SpadasLensCameraCore({
     }, 5000);
 
     return () => clearTimeout(timeout);
-  }, [analyzingRealFrame, scanStage, activeValuationHit, pendingIdentifiedItem, frozenFrameUrl, triggerActiveValuationHit]);
+  }, [analyzingRealFrame, scanStage, activeValuationHit, activeCompsHit, pendingIdentifiedItem, frozenFrameUrl, triggerActiveValuationHit]);
 
   const handleQuickAdd = async (e: React.MouseEvent, item: ActiveScanItem) => {
     e.stopPropagation();
@@ -2513,7 +2525,7 @@ function SpadasLensCameraCore({
       flushScanState();
     } else {
       // In automatic mode, prevent concurrent overlapping fetches AND never overwrite or clear an active valuation hit
-      if (activeValuationHitRef.current || isScanPausedRef.current) {
+      if (activeValuationHitRef.current || activeCompsHitRef.current || isScanPausedRef.current) {
         return;
       }
       const currentVideo = videoRef.current;
@@ -3914,8 +3926,14 @@ function SpadasLensCameraCore({
             }
           }
 
-          // Automatically trigger active result state so the valuation card slides into view instantly
-          triggerActiveValuationHit(verifiedHit, snapshotImage || frozenFrameUrl);
+          // Automatically trigger active result state if not already mounted from valuation_ready
+          if (!activeValuationHitRef.current) {
+            triggerActiveValuationHit(verifiedHit, snapshotImage || frozenFrameUrl);
+          } else {
+            // Silently merge any enriched properties without remounting or re-triggering haptics/audio/toast
+            setActiveValuationHit((prev) => prev ? { ...prev, ...verifiedHit, id: prev.id } : verifiedHit);
+            setActiveCompsHit((prev) => prev ? { ...prev, ...verifiedHit, id: prev.id } : verifiedHit);
+          }
 
           if (!isAuthed && isGuestUser && !isPro && !isUserAdmin) {
             const nextGuestState = recordGuestScan();
@@ -3942,7 +3960,9 @@ function SpadasLensCameraCore({
             ? Number(finalNetProfit).toFixed(2)
             : Number(data.takeHomeNet || data.true_net_profit || 0).toFixed(2);
 
-          toast.success(`🎯 Item Identified: ${obj.productName} (+$${toastNet} AUD Net Profit)`, { id: `hit-toast-${obj.productName}` });
+          if (!activeValuationHitRef.current) {
+            toast.success(`🎯 Item Identified: ${obj.productName} (+$${toastNet} ${selectedCurrency} Net Profit)`, { id: `hit-toast-${obj.productName}` });
+          }
 
           // In-App Review Prompt Milestone Trigger (after 3 successful scans)
           try {
@@ -4214,6 +4234,7 @@ function SpadasLensCameraCore({
         isCoolingDownRef.current ||
         isScanPausedRef.current ||
         activeValuationHitRef.current ||
+        activeCompsHitRef.current ||
         !autoScanActive
       ) {
         return;
@@ -5929,6 +5950,7 @@ function SpadasLensCameraCore({
         key={activeCompsHit ? (activeCompsHit.id || (activeCompsHit as any).timestamp || "comps-modal") : "comps-modal"}
         isOpen={!!activeCompsHit}
         item={activeCompsHit}
+        currency={selectedCurrency}
         frozenFrameUrl={frozenFrameUrl}
         onClose={() => {
           setActiveCompsHit(null);
