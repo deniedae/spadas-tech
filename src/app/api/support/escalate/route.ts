@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
     try {
       await saveSupportTicket({
         ticketId,
-        userEmail: userEmail || "support@spadas.tech",
+        userEmail: userEmail || "deniedae@gmail.com",
         userName: userName || "Spadas Reseller",
         userPhone: userPhone || undefined,
         issueDescription: issueDescription || "Customer Support Request via Settings Desk",

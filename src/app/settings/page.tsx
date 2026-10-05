@@ -29,10 +29,13 @@ import {
   Camera,
   Layers,
   ShoppingBag,
+  RefreshCw,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { openPlayStoreReview } from "@/components/in-app-review-modal";
 import { CURRENCY_CONFIGS, SupportedCurrency, detectGeoCurrency } from "@/app/lib/currency-routing";
+import { isOwnerEmail } from "@/app/lib/auth-admin";
+import type { SupportTicketRecord } from "@/app/lib/support-tickets";
 import {
   purchaseGooglePlaySubscription,
   openGooglePlaySubscriptionManager,
@@ -104,6 +107,69 @@ export default function SettingsPage() {
     email: string;
   } | null>(null);
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
+
+  // Owner Ticket Management State (deniedae@gmail.com)
+  const [ownerTickets, setOwnerTickets] = useState<SupportTicketRecord[]>([]);
+  const [loadingOwnerTickets, setLoadingOwnerTickets] = useState(false);
+  const [resolvingTicketId, setResolvingTicketId] = useState<string | null>(null);
+
+  const fetchOwnerTickets = async () => {
+    setLoadingOwnerTickets(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = {};
+      if (session?.access_token) {
+        headers["Authorization"] = `Bearer ${session.access_token}`;
+      }
+      const res = await fetch("/api/support/tickets", { headers });
+      if (res.ok) {
+        const data = await res.json();
+        setOwnerTickets(data.tickets || []);
+      }
+    } catch (err) {
+      console.warn("Error fetching owner tickets:", err);
+    } finally {
+      setLoadingOwnerTickets(false);
+    }
+  };
+
+  useEffect(() => {
+    if (user?.email && isOwnerEmail(user.email)) {
+      void fetchOwnerTickets();
+    }
+  }, [user?.email]);
+
+  const handleResolveTicket = async (ticketId: string) => {
+    setResolvingTicketId(ticketId);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (session?.access_token) {
+        headers["Authorization"] = `Bearer ${session.access_token}`;
+      }
+      const res = await fetch("/api/support/reply", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          ticketId,
+          replyMessage: "Ticket resolved by administrator.",
+          status: "resolved",
+        }),
+      });
+      if (res.ok) {
+        toast.success(`Ticket #${ticketId} marked as resolved!`);
+        setOwnerTickets((prev) =>
+          prev.map((t) => (t.ticketId === ticketId ? { ...t, status: "resolved" } : t))
+        );
+      } else {
+        toast.error("Failed to update ticket status.");
+      }
+    } catch {
+      toast.error("Error updating ticket.");
+    } finally {
+      setResolvingTicketId(null);
+    }
+  };
 
   // Detect Android device
   useEffect(() => {
@@ -407,7 +473,7 @@ export default function SettingsPage() {
       toast.success("Your account and associated data have been permanently deleted.");
       router.push("/");
     } catch (err: any) {
-      toast.error(err?.message || "Could not delete account. Contact support@spadas.tech");
+      toast.error(err?.message || "Could not delete account. Contact deniedae@gmail.com");
       setDeletingAccount(false);
     }
   }
@@ -458,7 +524,7 @@ export default function SettingsPage() {
       setSupportMessage("");
       toast.success(`Support ticket #${data.ticketId} received!`);
     } catch (err: any) {
-      toast.error(err?.message || "Failed to submit support ticket. Please email support@spadas.tech");
+      toast.error(err?.message || "Failed to submit support ticket. Please email deniedae@gmail.com");
     } finally {
       setSubmittingSupport(false);
     }
@@ -923,6 +989,120 @@ export default function SettingsPage() {
           </p>
         </div>
 
+        {/* Owner Ticket Inbox (Visible strictly to deniedae@gmail.com) */}
+        {isOwnerEmail(user?.email) && (
+          <div className="bg-gradient-to-br from-amber-950/20 via-zinc-900 to-zinc-950 border border-amber-500/30 rounded-2xl p-5 sm:p-6 space-y-4 shadow-lg">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-800 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+                  <ShieldCheck className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-bold text-white">Owner Support Inbox</h3>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 font-semibold">
+                      deniedae@gmail.com
+                    </span>
+                  </div>
+                  <p className="text-xs text-zinc-400 mt-0.5">
+                    Incoming customer tickets submitted by users in the app.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-mono text-zinc-400">
+                  {ownerTickets.filter((t) => t.status !== "resolved").length} active
+                </span>
+                <button
+                  type="button"
+                  onClick={fetchOwnerTickets}
+                  disabled={loadingOwnerTickets}
+                  className="p-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white transition cursor-pointer"
+                  title="Refresh Support Tickets"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${loadingOwnerTickets ? "animate-spin" : ""}`} />
+                </button>
+              </div>
+            </div>
+
+            {loadingOwnerTickets && ownerTickets.length === 0 ? (
+              <div className="py-8 text-center text-zinc-500 text-xs flex items-center justify-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
+                <span>Loading incoming tickets...</span>
+              </div>
+            ) : ownerTickets.length === 0 ? (
+              <div className="py-8 text-center text-zinc-500 text-xs">
+                <p className="font-semibold text-zinc-400">No support tickets submitted yet.</p>
+                <p className="text-[11px] text-zinc-600 mt-0.5">When users submit an inquiry, it will appear here in real time.</p>
+              </div>
+            ) : (
+              <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
+                {ownerTickets.map((t) => (
+                  <div
+                    key={t.ticketId}
+                    className="p-4 rounded-xl bg-black/40 border border-zinc-800 space-y-2.5 hover:border-zinc-700 transition"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-xs text-white">{t.userName}</span>
+                        <span className="text-[10px] font-mono text-cyan-400 font-semibold">#{t.ticketId}</span>
+                        <span className="text-[10px] font-mono text-zinc-500">
+                          {new Date(t.createdAt).toLocaleDateString()} {new Date(t.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded uppercase ${
+                            t.status === "resolved"
+                              ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
+                              : "bg-amber-500/15 text-amber-300 border border-amber-500/30"
+                          }`}
+                        >
+                          {t.status === "resolved" ? "Resolved" : "Needs Reply"}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="text-xs text-zinc-300 bg-white/[0.02] p-2.5 rounded-lg border border-white/[0.04] leading-relaxed break-words">
+                      {t.issueDescription}
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-zinc-800/60">
+                      <div className="text-[11px] font-mono text-zinc-400 flex items-center gap-1.5">
+                        <Mail className="w-3 h-3 text-zinc-500" />
+                        <span>{t.userEmail}</span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <a
+                          href={`mailto:${t.userEmail}?subject=Re: Spadas Support [${t.ticketId}]&body=Hi ${t.userName},%0D%0A%0D%0AThank you for reaching out to Spadas Support regarding ticket #${t.ticketId}.%0D%0A%0D%0A`}
+                          className="px-3 py-1.5 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
+                        >
+                          <Mail className="w-3 h-3" />
+                          <span>Reply via Gmail</span>
+                          <ExternalLink className="w-3 h-3 text-cyan-400/70" />
+                        </a>
+
+                        {t.status !== "resolved" && (
+                          <button
+                            type="button"
+                            onClick={() => handleResolveTicket(t.ticketId)}
+                            disabled={resolvingTicketId === t.ticketId}
+                            className="px-2.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white text-xs font-medium transition cursor-pointer"
+                          >
+                            {resolvingTicketId === t.ticketId ? "Updating..." : "Mark Resolved"}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {/* Card A: Submit Support Ticket Form */}
           <div className="bg-zinc-900/90 border border-zinc-800 rounded-2xl p-5 space-y-4 shadow-sm flex flex-col justify-between">
@@ -1055,10 +1235,10 @@ export default function SettingsPage() {
                 <div className="p-3.5 rounded-xl bg-black/30 border border-zinc-800 space-y-1">
                   <p className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Official Support Email</p>
                   <a
-                    href="mailto:support@spadas.tech"
+                    href="mailto:deniedae@gmail.com"
                     className="text-sm font-mono text-cyan-400 hover:text-cyan-300 font-bold underline transition block"
                   >
-                    support@spadas.tech
+                    deniedae@gmail.com
                   </a>
                   <p className="text-[11px] text-zinc-500 pt-0.5">Click to launch your email client directly.</p>
                 </div>
@@ -1091,7 +1271,7 @@ export default function SettingsPage() {
             </div>
 
             <a
-              href="mailto:support@spadas.tech?subject=Spadas%20Support%20Inquiry"
+              href="mailto:deniedae@gmail.com?subject=Spadas%20Support%20Inquiry"
               className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold transition cursor-pointer"
             >
               <Mail className="w-3.5 h-3.5 text-zinc-400" />

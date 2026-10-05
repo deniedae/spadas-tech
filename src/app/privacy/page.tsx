@@ -60,7 +60,7 @@ export default function PrivacyPolicyPage() {
           <p>
             If you have any questions regarding this Privacy Policy, please contact us at:
             <br />
-            <span className="text-blue-400 font-mono">support@spadas.tech</span> or <span className="text-blue-400 font-mono">deniedae@gmail.com</span>
+            <span className="text-blue-400 font-mono">deniedae@gmail.com</span>
           </p>
         </section>
 

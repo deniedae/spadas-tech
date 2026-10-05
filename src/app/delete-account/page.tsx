@@ -98,11 +98,11 @@ export default function DeleteAccountPage() {
             and we will process the deletion within 48 hours.
           </p>
           <a
-            href="mailto:support@spadas.tech?subject=Account%20Deletion%20Request&body=Please%20permanently%20delete%20my%20Spadas%20AI%20account%20and%20all%20associated%20data.%0A%0AAccount%20email%3A%20"
+            href="mailto:deniedae@gmail.com?subject=Account%20Deletion%20Request&body=Please%20permanently%20delete%20my%20Spadas%20AI%20account%20and%20all%20associated%20data.%0A%0AAccount%20email%3A%20"
             className="inline-flex items-center gap-2 text-sm font-semibold text-blue-400 hover:text-blue-300 transition underline"
           >
             <Mail className="h-4 w-4" />
-            support@spadas.tech
+            deniedae@gmail.com
           </a>
           <p className="text-xs text-slate-600 pt-1">
             Subject line: <em>Account Deletion Request</em> — include your account email in the body.
