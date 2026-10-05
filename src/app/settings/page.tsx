@@ -10,28 +10,29 @@ import {
   X,
   Crown,
   Headphones,
-  MessageSquare,
-  UserCheck,
+  Mail,
+  HelpCircle,
+  ChevronDown,
   Sparkles,
   ArrowRight,
   ShieldCheck,
-  Clock,
-  Inbox,
   CheckCircle2,
   Trash2,
   TriangleAlert,
   Zap,
   ExternalLink,
+  Send,
+  Sliders,
+  DollarSign,
+  TrendingUp,
+  Globe,
+  Camera,
+  Layers,
+  ShoppingBag,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { openPlayStoreReview } from "@/components/in-app-review-modal";
-const SubscriptionPaywallModal = dynamic(
-  () => import("@/components/subscription-paywall-modal"),
-  { ssr: false }
-);
 import { CURRENCY_CONFIGS, SupportedCurrency, detectGeoCurrency } from "@/app/lib/currency-routing";
-import { openSpadasSupport } from "@/components/dashboard-support-desk";
-import { isOwnerEmail } from "@/app/lib/auth-admin";
 import {
   purchaseGooglePlaySubscription,
   openGooglePlaySubscriptionManager,
@@ -39,10 +40,14 @@ import {
   type BillingDiagnostics,
 } from "@/lib/google-play-billing";
 
-const DashboardSupportDesk = dynamic(() => import("@/components/dashboard-support-desk"), {
-  ssr: false,
-});
-
+const SubscriptionPaywallModal = dynamic(
+  () => import("@/components/subscription-paywall-modal"),
+  { ssr: false }
+);
+const DashboardSupportDesk = dynamic(
+  () => import("@/components/dashboard-support-desk"),
+  { ssr: false }
+);
 
 interface UserMeta {
   email: string;
@@ -53,286 +58,61 @@ export default function SettingsPage() {
   const [user, setUser] = useState<UserMeta | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Authentication & Profile
   const [resettingPassword, setResettingPassword] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
-  const [upgrading, setUpgrading] = useState(false);
   const [confirmLogout, setConfirmLogout] = useState(false);
-  const [confirmUpgrade, setConfirmUpgrade] = useState(false);
-  const [ebayConnected, setEbayConnected] = useState(false);
-  const [ebayConnecting, setEbayConnecting] = useState(false);
-  const [confirmDisconnectEbay, setConfirmDisconnectEbay] = useState(false);
-  const [ebayDisconnecting, setEbayDisconnecting] = useState(false);
-  const [ebayHasDisconnected, setEbayHasDisconnected] = useState(false);
-  const [isPaywallOpen, setIsPaywallOpen] = useState(false);
-  const [defaultMarketplace, setDefaultMarketplace] = useState("eBay");
-  const [defaultCurrency, setDefaultCurrency] = useState<SupportedCurrency>("AUD");
-  const [autoAiDescriptions, setAutoAiDescriptions] = useState(true);
-  const [plan, setPlan] = useState("Free Beta");
+
+  // Subscription & Billing
+  const [plan, setPlan] = useState<"Pro" | "Free Beta">("Free Beta");
   const [planStatus, setPlanStatus] = useState("active");
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [showApkGuide, setShowApkGuide] = useState(false);
-  const [minProfit, setMinProfit] = useState(20);
-  const [minRoi, setMinRoi] = useState(0);
-  const [confirmDeleteAccount, setConfirmDeleteAccount] = useState(false);
-  const [deleteAccountInput, setDeleteAccountInput] = useState("");
-  const [deletingAccount, setDeletingAccount] = useState(false);
-  const [activeTicket, setActiveTicket] = useState<{
-    ticketId: string;
-    status: string;
-    createdAt: number;
-    issueDescription?: string;
-  } | null>(null);
+  const [upgrading, setUpgrading] = useState(false);
+  const [isPaywallOpen, setIsPaywallOpen] = useState(false);
   const [isAndroid, setIsAndroid] = useState(false);
   const [billingDiag, setBillingDiag] = useState<BillingDiagnostics | null>(null);
   const [checkingDiag, setCheckingDiag] = useState(false);
   const [showDiagPanel, setShowDiagPanel] = useState(false);
 
+  // Sourcing & Camera Preferences
+  const [defaultMarketplace, setDefaultMarketplace] = useState("eBay");
+  const [defaultCurrency, setDefaultCurrency] = useState<SupportedCurrency>("AUD");
+  const [autoAiDescriptions, setAutoAiDescriptions] = useState(true);
+  const [minProfit, setMinProfit] = useState(20);
+  const [minRoi, setMinRoi] = useState(50);
+
+  // Connected Accounts (eBay)
+  const [ebayConnected, setEbayConnected] = useState(false);
+  const [ebayConnecting, setEbayConnecting] = useState(false);
+  const [confirmDisconnectEbay, setConfirmDisconnectEbay] = useState(false);
+  const [ebayDisconnecting, setEbayDisconnecting] = useState(false);
+  const [ebayHasDisconnected, setEbayHasDisconnected] = useState(false);
+
+  // Account Deletion
+  const [confirmDeleteAccount, setConfirmDeleteAccount] = useState(false);
+  const [deleteAccountInput, setDeleteAccountInput] = useState("");
+  const [deletingAccount, setDeletingAccount] = useState(false);
+
+  // Customer Support Center
+  const [supportName, setSupportName] = useState("");
+  const [supportEmail, setSupportEmail] = useState("");
+  const [supportCategory, setSupportCategory] = useState("billing");
+  const [supportMessage, setSupportMessage] = useState("");
+  const [submittingSupport, setSubmittingSupport] = useState(false);
+  const [supportTicketSubmitted, setSupportTicketSubmitted] = useState<{
+    ticketId: string;
+    email: string;
+  } | null>(null);
+  const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
+
+  // Detect Android device
   useEffect(() => {
     if (typeof window !== "undefined") {
       setIsAndroid(/Android/i.test(navigator.userAgent));
     }
   }, []);
 
-  async function runBillingDiagnostics() {
-    setCheckingDiag(true);
-    setShowDiagPanel(true);
-    try {
-      const res = await checkGooglePlayBillingDiagnostics();
-      setBillingDiag(res);
-      if (res.skuFound) {
-        toast.success("Google Play Billing is active and ready!");
-      } else if (res.error) {
-        toast.error(res.error);
-      }
-    } catch (err: any) {
-      toast.error(err?.message || "Failed to run billing diagnostics");
-    } finally {
-      setCheckingDiag(false);
-    }
-  }
-
-  async function handleUpgrade() {
-    setUpgrading(true);
-    try {
-      const res = await purchaseGooglePlaySubscription();
-      if (res.active) {
-        toast.success("🎉 Welcome to Spadas Pro! Unlimited scanning unlocked.");
-        setPlan("Pro");
-        setPlanStatus("active");
-        window.location.reload();
-        return;
-      }
-      if (res.canceled && res.dismissedByUser) {
-        return;
-      }
-      if (res.error) {
-        toast.error(res.error);
-        if (isAndroid) {
-          setShowDiagPanel(true);
-          void runBillingDiagnostics();
-        }
-        return;
-      }
-    } catch (err: any) {
-      toast.error(err?.message || "Failed to start Google Play checkout. Try again.");
-    } finally {
-      setUpgrading(false);
-    }
-  }
-
-
-
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem("spadas_support_desk_v1");
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed.ticket) {
-          setActiveTicket(parsed.ticket);
-        }
-      }
-    } catch {
-      // ignore
-    }
-  }, []);
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      if (window.location.hash === "#support") {
-        setTimeout(() => {
-          const el = document.getElementById("support");
-          if (el) {
-            el.scrollIntoView({ behavior: "smooth" });
-          }
-        }, 150);
-      }
-    }
-  }, []);
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const urlParams = new URLSearchParams(window.location.search);
-      if (urlParams.get("ebayConnected") === "true") {
-        setEbayConnected(true);
-        toast.success("eBay seller account connected successfully!");
-        window.history.replaceState({}, "", "/settings");
-      }
-      if (urlParams.get("ebayError")) {
-        toast.error(`eBay Connection Error: ${urlParams.get("ebayError")}`);
-        window.history.replaceState({}, "", "/settings");
-      }
-      if (urlParams.get("checkout") === "success") {
-        setPlan("Pro");
-        setPlanStatus("active");
-        toast.success("Subscription upgraded! Welcome to Spadas Pro.", { duration: 6000 });
-        window.history.replaceState({}, "", "/settings");
-      }
-      if (urlParams.get("checkout") === "canceled") {
-        toast.info("Checkout was canceled. You can upgrade anytime.", { duration: 4000 });
-        window.history.replaceState({}, "", "/settings");
-      }
-    }
-  }, []);
-
-  // checkEbayStatus is now handled in parallel with user and billing status in loadUser
-
-  async function connectEbay() {
-    setEbayConnecting(true);
-    try {
-      window.location.href = `/api/auth/ebay/connect?prompt=login&t=${Date.now()}`;
-    } catch {
-      toast.error("Failed to start eBay connection. Try again.");
-      setEbayConnecting(false);
-    }
-  }
-
-  async function handleDisconnectEbay() {
-    setEbayDisconnecting(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const headers: Record<string, string> = {};
-      if (session?.access_token) {
-        headers["Authorization"] = `Bearer ${session.access_token}`;
-      }
-
-      const res = await fetch("/api/disconnect-ebay", {
-        method: "POST",
-        headers,
-      });
-
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(data?.error || "Failed to disconnect eBay account");
-      }
-
-      setEbayConnected(false);
-      setEbayHasDisconnected(true);
-      setConfirmDisconnectEbay(false);
-      toast.success("eBay disconnected. Click 'Reconnect eBay' to authorize");
-    } catch (err: any) {
-      console.error("Disconnect eBay error:", err);
-      toast.error(err?.message || "Failed to disconnect eBay");
-    } finally {
-      setEbayDisconnecting(false);
-    }
-  }
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const savedCurrency = localStorage.getItem("spadas_selected_currency");
-      if (savedCurrency && (savedCurrency === "AUD" || savedCurrency === "USD" || savedCurrency === "EUR" || savedCurrency === "GBP")) {
-        setDefaultCurrency(savedCurrency as SupportedCurrency);
-      } else {
-        const detected = detectGeoCurrency().currency;
-        setDefaultCurrency(detected);
-      }
-
-      const savedMarketplace = localStorage.getItem("spadas_default_marketplace");
-      if (savedMarketplace) setDefaultMarketplace(savedMarketplace);
-
-      const savedAutoAi = localStorage.getItem("spadas_auto_ai_descriptions");
-      if (savedAutoAi !== null) setAutoAiDescriptions(savedAutoAi === "true");
-
-      const saved = localStorage.getItem("spadas_lens_chime_thresholds");
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          if (typeof parsed.minProfit === "number") setMinProfit(parsed.minProfit);
-          if (typeof parsed.minRoi === "number") setMinRoi(parsed.minRoi);
-        } catch {}
-      }
-    }
-  }, []);
-
-  const handleUpdateCurrency = (newCurrency: string) => {
-    const validCurr = (["AUD", "USD", "EUR", "GBP"].includes(newCurrency) ? newCurrency : "AUD") as SupportedCurrency;
-    setDefaultCurrency(validCurr);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("spadas_selected_currency", validCurr);
-      window.dispatchEvent(new Event("spadas-currency-changed"));
-      window.dispatchEvent(new Event("storage"));
-      const conf = CURRENCY_CONFIGS[validCurr];
-      if (conf) {
-        toast.success(`Currency configured: ${conf.flag} ${validCurr} (${conf.symbol})`);
-      } else {
-        toast.success(`Currency configured: ${validCurr}`);
-      }
-    }
-  };
-
-  const handleUpdateMarketplace = (newMkt: string) => {
-    setDefaultMarketplace(newMkt);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("spadas_default_marketplace", newMkt);
-      toast.success(`Default destination set to ${newMkt}`);
-    }
-  };
-
-  const handleUpdateAutoAi = (val: boolean) => {
-    setAutoAiDescriptions(val);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("spadas_auto_ai_descriptions", String(val));
-      toast.success(val ? "Automated listing metadata enabled" : "Automated listing metadata disabled");
-    }
-  };
-
-  const handleUpdateMinProfit = (val: number) => {
-    setMinProfit(val);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("spadas_lens_chime_thresholds", JSON.stringify({ minProfit: val, minRoi }));
-    }
-  };
-
-  const handleUpdateMinRoi = (val: number) => {
-    setMinRoi(val);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("spadas_lens_chime_thresholds", JSON.stringify({ minProfit, minRoi: val }));
-    }
-  };
-
-  useEffect(() => {
-    const handleBeforeInstall = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-    };
-    window.addEventListener("beforeinstallprompt", handleBeforeInstall);
-    return () => window.removeEventListener("beforeinstallprompt", handleBeforeInstall);
-  }, []);
-
-  const handleInstallApp = () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      deferredPrompt.userChoice.then((choice: any) => {
-        if (choice.outcome === "accepted") {
-          toast.success("Spadas AI installed on device");
-        }
-        setDeferredPrompt(null);
-      });
-    } else {
-      toast.info("PWA install available via browser menu (Add to Home Screen).");
-    }
-  };
-
+  // Load User, Billing, and Marketplace Status in Parallel
   useEffect(() => {
     async function loadUser() {
       setLoading(true);
@@ -347,7 +127,9 @@ export default function SettingsPage() {
           return;
         }
 
-        setUser({ email: currentUser.email ?? "" });
+        const email = currentUser.email ?? "";
+        setUser({ email });
+        setSupportEmail(email);
 
         const { data: { session } } = await supabase.auth.getSession();
         const authHeaders: Record<string, string> = {};
@@ -355,7 +137,6 @@ export default function SettingsPage() {
           authHeaders["Authorization"] = `Bearer ${session.access_token}`;
         }
 
-        // Parallelize billing status and eBay connection status in 1 roundtrip
         const [billingRes, ebayRes] = await Promise.allSettled([
           fetch("/api/billing/status", { headers: authHeaders }),
           fetch("/api/marketplaces/status", { headers: authHeaders }),
@@ -363,7 +144,7 @@ export default function SettingsPage() {
 
         if (billingRes.status === "fulfilled" && billingRes.value.ok) {
           const statusData = await billingRes.value.json().catch(() => ({}));
-          if (statusData.active || statusData.plan === "Pro") {
+          if (statusData.active || statusData.plan === "Pro" || statusData.status === "active") {
             setPlan("Pro");
             setPlanStatus("active");
           } else {
@@ -386,6 +167,196 @@ export default function SettingsPage() {
     void loadUser();
   }, [router]);
 
+  // Load Preferences from localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedCurrency = localStorage.getItem("spadas_selected_currency");
+      if (savedCurrency && ["AUD", "USD", "EUR", "GBP"].includes(savedCurrency)) {
+        setDefaultCurrency(savedCurrency as SupportedCurrency);
+      } else {
+        setDefaultCurrency(detectGeoCurrency().currency);
+      }
+
+      const savedMarketplace = localStorage.getItem("spadas_default_marketplace");
+      if (savedMarketplace) setDefaultMarketplace(savedMarketplace);
+
+      const savedAutoAi = localStorage.getItem("spadas_auto_ai_descriptions");
+      if (savedAutoAi !== null) setAutoAiDescriptions(savedAutoAi === "true");
+
+      const savedThresholds = localStorage.getItem("spadas_lens_chime_thresholds");
+      if (savedThresholds) {
+        try {
+          const parsed = JSON.parse(savedThresholds);
+          if (typeof parsed.minProfit === "number") setMinProfit(parsed.minProfit);
+          if (typeof parsed.minRoi === "number") setMinRoi(parsed.minRoi);
+        } catch {}
+      }
+
+      // Check URL parameters for redirects
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get("ebayConnected") === "true") {
+        setEbayConnected(true);
+        toast.success("eBay seller account connected successfully!");
+        window.history.replaceState({}, "", "/settings");
+      }
+      if (urlParams.get("ebayError")) {
+        toast.error(`eBay Connection Error: ${urlParams.get("ebayError")}`);
+        window.history.replaceState({}, "", "/settings");
+      }
+      if (urlParams.get("checkout") === "success") {
+        setPlan("Pro");
+        setPlanStatus("active");
+        toast.success("🎉 Welcome to Spadas Pro! Unlimited scanning unlocked.", { duration: 6000 });
+        window.history.replaceState({}, "", "/settings");
+      }
+      if (urlParams.get("checkout") === "canceled") {
+        toast.info("Checkout was canceled. Upgrade anytime.", { duration: 4000 });
+        window.history.replaceState({}, "", "/settings");
+      }
+      if (window.location.hash === "#support") {
+        setTimeout(() => {
+          document.getElementById("support")?.scrollIntoView({ behavior: "smooth" });
+        }, 150);
+      }
+    }
+  }, []);
+
+  // Update Currency
+  const handleUpdateCurrency = (newCurrency: string) => {
+    const valid = (["AUD", "USD", "EUR", "GBP"].includes(newCurrency) ? newCurrency : "AUD") as SupportedCurrency;
+    setDefaultCurrency(valid);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("spadas_selected_currency", valid);
+      window.dispatchEvent(new Event("spadas-currency-changed"));
+      window.dispatchEvent(new Event("storage"));
+      const conf = CURRENCY_CONFIGS[valid];
+      toast.success(`Currency updated: ${conf?.flag || ""} ${valid} (${conf?.symbol || "$"})`);
+    }
+  };
+
+  // Update Marketplace
+  const handleUpdateMarketplace = (mkt: string) => {
+    setDefaultMarketplace(mkt);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("spadas_default_marketplace", mkt);
+      toast.success(`Default destination set to ${mkt}`);
+    }
+  };
+
+  // Update Auto AI descriptions
+  const handleUpdateAutoAi = (val: boolean) => {
+    setAutoAiDescriptions(val);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("spadas_auto_ai_descriptions", String(val));
+      toast.success(val ? "Automated item copywriting enabled" : "Automated item copywriting disabled");
+    }
+  };
+
+  // Update Chime Thresholds
+  const handleUpdateMinProfit = (val: number) => {
+    setMinProfit(val);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("spadas_lens_chime_thresholds", JSON.stringify({ minProfit: val, minRoi }));
+    }
+  };
+
+  const handleUpdateMinRoi = (val: number) => {
+    setMinRoi(val);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("spadas_lens_chime_thresholds", JSON.stringify({ minProfit, minRoi: val }));
+    }
+  };
+
+  // Upgrade to Pro via Google Play Subscription
+  async function handleUpgrade() {
+    setUpgrading(true);
+    try {
+      const res = await purchaseGooglePlaySubscription();
+      if (res.active) {
+        toast.success("🎉 Welcome to Spadas Pro! Unlimited scanning unlocked.");
+        setPlan("Pro");
+        setPlanStatus("active");
+        window.location.reload();
+        return;
+      }
+      if (res.canceled && res.dismissedByUser) {
+        return;
+      }
+      if (res.error) {
+        toast.error(res.error);
+        if (isAndroid) {
+          setShowDiagPanel(true);
+          void runBillingDiagnostics();
+        }
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to start Google Play checkout. Please try again.");
+    } finally {
+      setUpgrading(false);
+    }
+  }
+
+  // Play Billing Diagnostics for Android
+  async function runBillingDiagnostics() {
+    setCheckingDiag(true);
+    setShowDiagPanel(true);
+    try {
+      const res = await checkGooglePlayBillingDiagnostics();
+      setBillingDiag(res);
+      if (res.skuFound) {
+        toast.success("Google Play Billing is active and ready!");
+      } else if (res.error) {
+        toast.error(res.error);
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to test billing connection.");
+    } finally {
+      setCheckingDiag(false);
+    }
+  }
+
+  // Connect & Disconnect eBay
+  function connectEbay() {
+    setEbayConnecting(true);
+    try {
+      window.location.href = `/api/auth/ebay/connect?prompt=login&t=${Date.now()}`;
+    } catch {
+      toast.error("Failed to connect eBay. Please try again.");
+      setEbayConnecting(false);
+    }
+  }
+
+  async function handleDisconnectEbay() {
+    setEbayDisconnecting(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = {};
+      if (session?.access_token) {
+        headers["Authorization"] = `Bearer ${session.access_token}`;
+      }
+
+      const res = await fetch("/api/disconnect-ebay", {
+        method: "POST",
+        headers,
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error || "Failed to disconnect eBay");
+      }
+
+      setEbayConnected(false);
+      setEbayHasDisconnected(true);
+      setConfirmDisconnectEbay(false);
+      toast.success("eBay seller account unlinked successfully.");
+    } catch (err: any) {
+      toast.error(err?.message || "Could not disconnect eBay account.");
+    } finally {
+      setEbayDisconnecting(false);
+    }
+  }
+
+  // Reset Password
   async function resetPassword() {
     if (!user?.email) return;
     setResettingPassword(true);
@@ -394,25 +365,27 @@ export default function SettingsPage() {
         redirectTo: `${window.location.origin}/settings`,
       });
       if (resetErr) throw resetErr;
-      toast.success("Password recovery link dispatched to " + user.email);
+      toast.success(`Password reset link dispatched to ${user.email}`);
     } catch (err: any) {
-      toast.error(err?.message || "Could not dispatch recovery link.");
+      toast.error(err?.message || "Could not send password recovery email.");
     } finally {
       setResettingPassword(false);
     }
   }
 
+  // Logout
   async function logout() {
     setLoggingOut(true);
     try {
       await supabase.auth.signOut();
       router.push("/login");
     } catch {
-      toast.error("Sign out unsuccessful. Try again.");
+      toast.error("Sign out failed. Please try again.");
       setLoggingOut(false);
     }
   }
 
+  // Delete Account Permanently
   async function handleDeleteAccount() {
     if (deleteAccountInput !== "DELETE") return;
     setDeletingAccount(true);
@@ -431,7 +404,7 @@ export default function SettingsPage() {
       }
 
       await supabase.auth.signOut();
-      toast.success("Your account has been permanently deleted.");
+      toast.success("Your account and associated data have been permanently deleted.");
       router.push("/");
     } catch (err: any) {
       toast.error(err?.message || "Could not delete account. Contact support@spadas.tech");
@@ -439,15 +412,114 @@ export default function SettingsPage() {
     }
   }
 
-  async function upgradeToPro() {
-    return handleUpgrade();
+  // Submit Support Ticket to Customer Support Desk
+  async function handleSendSupportTicket(e: React.FormEvent) {
+    e.preventDefault();
+    if (!supportMessage.trim() || !supportEmail.trim()) {
+      toast.error("Please provide your email and issue description.");
+      return;
+    }
+
+    setSubmittingSupport(true);
+    try {
+      const categoryLabels: Record<string, string> = {
+        billing: "Billing & Subscriptions",
+        scanning: "Camera & Daily Scans",
+        ebay: "eBay Account Connection",
+        feature: "Feature Request",
+        general: "General Reseller Question",
+      };
+
+      const res = await fetch("/api/support/escalate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userName: supportName.trim() || user?.email?.split("@")[0] || "Spadas Reseller",
+          userEmail: supportEmail.trim(),
+          issueDescription: `[${categoryLabels[supportCategory] || "General"}] ${supportMessage.trim()}`,
+          metadata: {
+            source: "settings_support_desk",
+            plan,
+            currency: defaultCurrency,
+            platform: isAndroid ? "android_app" : "web_browser",
+          },
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ticketId) {
+        throw new Error(data?.error || "Could not send support ticket");
+      }
+
+      setSupportTicketSubmitted({
+        ticketId: data.ticketId,
+        email: supportEmail.trim(),
+      });
+      setSupportMessage("");
+      toast.success(`Support ticket #${data.ticketId} received!`);
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to submit support ticket. Please email support@spadas.tech");
+    } finally {
+      setSubmittingSupport(false);
+    }
   }
 
+  const FAQS = [
+    {
+      q: "How do the 10 free daily scans work?",
+      a: "Every registered free account receives 10 complimentary camera scans every 24 hours. Your quota automatically resets every day at midnight UTC. Upgrading to Spadas Pro ($10 AUD/mo) unlocks unlimited 60FPS AR scans with zero daily limits.",
+    },
+    {
+      q: "How does Spadas calculate net profit and sold comps?",
+      a: "Spadas Lens runs real-time queries against eBay Australia (and global sold archives). Our automated algorithm calculates realistic net profit by deducting your purchase cost, estimated parcel shipping, and eBay's ~13.4% category selling fees and fixed processing charges.",
+    },
+    {
+      q: "How do I connect and publish drafts directly to eBay?",
+      a: "In the 'Connected Marketplaces' section above, tap 'Connect eBay' to authorize your seller credentials via official eBay OAuth. Once linked, any thrift find identified in Spadas Lens can be published directly into your eBay Seller Hub with pre-filled item specifics in 1 tap.",
+    },
+    {
+      q: "How do I manage or cancel my Spadas Pro subscription?",
+      a: "All subscriptions are securely processed through Google Play Billing. You can pause, adjust, or cancel your Pro subscription anytime with 1 tap directly inside Google Play Store > Profile > Payments & Subscriptions. There are zero lock-ins or hidden cancellation fees.",
+    },
+  ];
+
   return (
-    <div className="space-y-8 max-w-4xl mx-auto pb-16 pt-4 text-zinc-100">
-      <div className="mb-6">
-        <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">Settings</h1>
-        <p className="text-zinc-400 text-sm mt-1">Manage your account profile, sourcing defaults, notification chimes, and marketplace connections.</p>
+    <div className="space-y-8 max-w-4xl mx-auto pb-20 pt-4 px-4 sm:px-6 text-zinc-100">
+      {/* Header with Account Status Badge */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-800/80 pb-5">
+        <div>
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">Settings</h1>
+            <span
+              className={`text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
+                plan === "Pro"
+                  ? "bg-emerald-500/15 border border-emerald-500/30 text-emerald-400"
+                  : "bg-blue-500/15 border border-blue-500/30 text-blue-400"
+              }`}
+            >
+              {plan === "Pro" ? "Pro Unlimited" : "Free Plan (10 Scans/Day)"}
+            </span>
+          </div>
+          <p className="text-zinc-400 text-xs sm:text-sm mt-1">
+            Manage your account credentials, daily scan quotas, sourcing defaults, and customer support.
+          </p>
+        </div>
+
+        {plan !== "Pro" && (
+          <button
+            type="button"
+            onClick={handleUpgrade}
+            disabled={upgrading}
+            className="self-start sm:self-auto inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs shadow-md shadow-blue-900/30 transition active:scale-95 cursor-pointer disabled:opacity-50"
+          >
+            {upgrading ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Zap className="w-3.5 h-3.5" />
+            )}
+            <span>Upgrade to Pro ($10 AUD/mo)</span>
+          </button>
+        )}
       </div>
 
       {error && (
@@ -456,36 +528,46 @@ export default function SettingsPage() {
             <AlertCircle className="h-4 w-4 shrink-0 text-rose-400" />
             <span>{error}</span>
           </div>
-          <button onClick={() => setError(null)} className="p-1 hover:bg-rose-500/20 rounded transition text-rose-400">
+          <button onClick={() => setError(null)} className="p-1 hover:bg-rose-500/20 rounded transition text-rose-400 cursor-pointer">
             <X className="h-4 w-4" />
           </button>
         </div>
       )}
 
-      {/* Account Section */}
-      <section className="glass-card card-specular p-5 sm:p-6 rounded-2xl space-y-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-base font-bold text-white tracking-tight">Account &amp; Security</h2>
-          <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-white/[0.04] border border-white/[0.08] text-zinc-400">Profile</span>
+      {/* ── 1. ACCOUNT & PROFILE ────────────────────────────────────────────── */}
+      <section className="bg-zinc-900/90 border border-zinc-800 rounded-2xl p-5 sm:p-6 space-y-6 shadow-sm">
+        <div className="flex items-center justify-between border-b border-zinc-800/80 pb-4">
+          <div>
+            <h2 className="text-base font-bold text-white tracking-tight">Account &amp; Security</h2>
+            <p className="text-xs text-zinc-400 mt-0.5">Your authenticated credentials and session management.</p>
+          </div>
+          <span className="text-[11px] font-mono px-2 py-0.5 rounded-md bg-white/[0.04] border border-white/[0.08] text-zinc-400">
+            Profile
+          </span>
         </div>
 
         <div className="space-y-4">
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Account Email</label>
-            <div className="text-sm font-mono text-zinc-200 bg-white/[0.03] rounded-xl p-3 border border-white/[0.08]">
-              {loading ? "Loading..." : user?.email ?? "—"}
+            <div className="flex items-center justify-between rounded-xl bg-black/40 border border-zinc-800 px-3.5 py-2.5 text-sm font-mono text-zinc-200">
+              <span>{loading ? "Loading account..." : user?.email || "—"}</span>
+              <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                Verified
+              </span>
             </div>
           </div>
-          
-          <div className="flex flex-wrap gap-3 pt-1">
+
+          <div className="flex flex-wrap gap-2.5 pt-1">
             <button
+              type="button"
               onClick={resetPassword}
               disabled={resettingPassword}
               className="bg-white/[0.05] hover:bg-white/[0.1] text-zinc-200 hover:text-white border border-white/[0.1] text-xs font-semibold px-4 py-2.5 rounded-xl transition disabled:opacity-50 cursor-pointer active:scale-95"
             >
-              {resettingPassword ? "Sending link..." : "Reset password"}
+              {resettingPassword ? "Sending reset link..." : "Reset password via email"}
             </button>
             <button
+              type="button"
               onClick={() => setConfirmLogout(true)}
               disabled={loggingOut}
               className="bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/20 text-xs font-semibold px-4 py-2.5 rounded-xl transition disabled:opacity-50 cursor-pointer active:scale-95"
@@ -493,134 +575,69 @@ export default function SettingsPage() {
               {loggingOut ? "Signing out..." : "Log out"}
             </button>
           </div>
-
-          {/* Danger Zone */}
-          <div className="mt-4 pt-4 border-t border-rose-500/10">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-xs font-bold text-rose-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <TriangleAlert className="h-3.5 w-3.5" />
-                  Danger Zone
-                </p>
-                <p className="text-[11px] text-zinc-500 mt-0.5">Permanently deletes your account and all associated data. This cannot be undone.</p>
-              </div>
-              <button
-                id="delete-account-btn"
-                onClick={() => {
-                  setDeleteAccountInput("");
-                  setConfirmDeleteAccount(true);
-                }}
-                className="shrink-0 inline-flex items-center gap-1.5 bg-rose-500/8 hover:bg-rose-500/15 border border-rose-500/25 text-rose-400 hover:text-rose-300 text-xs font-semibold px-3.5 py-2 rounded-xl transition cursor-pointer active:scale-95"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-                Delete Account
-              </button>
-            </div>
-          </div>
         </div>
 
         {/* Google Play Rating & Community Review Card */}
-        <div className="glass-card rounded-2xl p-5 border border-amber-500/25 bg-gradient-to-r from-amber-500/10 via-slate-900/80 to-slate-900/40 shadow-lg my-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="rounded-xl p-4 border border-amber-500/25 bg-gradient-to-r from-amber-500/10 via-zinc-900 to-zinc-900/60 shadow-sm">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <span className="text-amber-400 text-sm tracking-wider">★★★★★</span>
-                <span className="text-[10px] font-black text-amber-300 uppercase tracking-wider bg-amber-400/10 px-2 py-0.5 rounded-full border border-amber-400/20">Help Us Grow</span>
+                <span className="text-[10px] font-bold text-amber-300 uppercase tracking-wider bg-amber-400/10 px-2 py-0.5 rounded-full border border-amber-400/20">
+                  Reseller Community
+                </span>
               </div>
-              <h4 className="text-sm font-bold text-white">Rate Spadas Lens on Google Play</h4>
+              <h3 className="text-sm font-bold text-white">Rate Spadas Lens on Google Play</h3>
               <p className="text-xs text-zinc-400 max-w-md leading-relaxed">
-                Your 5-star review helps independent resellers discover Spadas and keeps live Australian sold comps fast and updated.
+                Your 5-star review helps fellow flippers discover Spadas and keeps live Australian sold comps fast and updated.
               </p>
             </div>
             <button
+              type="button"
               onClick={() => openPlayStoreReview()}
-              className="shrink-0 inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 font-black text-xs shadow-md shadow-amber-500/20 hover:brightness-110 active:scale-95 transition cursor-pointer"
+              className="shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 text-zinc-950 font-black text-xs shadow-md shadow-amber-500/20 hover:brightness-110 active:scale-95 transition cursor-pointer"
             >
               <span>Leave a Review</span>
               <ExternalLink className="h-3.5 w-3.5" />
             </button>
           </div>
         </div>
-
-        <div className="glass-divider my-4" />
-
-        {/* Sourcing Preferences Sub-section */}
-        <div className="space-y-4">
-          <h3 className="text-sm font-bold text-white tracking-tight">Sourcing Preferences</h3>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Operating Currency</label>
-              <select
-                value={defaultCurrency}
-                onChange={(e) => handleUpdateCurrency(e.target.value)}
-                className="w-full rounded-xl border border-white/[0.08] bg-black/40 px-3.5 py-2.5 text-sm font-medium text-white focus:outline-none focus:border-cyan-500/50 transition"
-              >
-                <option value="AUD">🇦🇺 AUD (Australian Dollar)</option>
-                <option value="USD">🇺🇸 USD (US Dollar)</option>
-                <option value="EUR">🇪🇺 EUR (Euro)</option>
-                <option value="GBP">🇬🇧 GBP (British Pound)</option>
-              </select>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Primary Reseller Marketplace</label>
-              <select
-                value={defaultMarketplace}
-                onChange={(e) => handleUpdateMarketplace(e.target.value)}
-                className="w-full rounded-xl border border-white/[0.08] bg-black/40 px-3.5 py-2.5 text-sm font-medium text-white focus:outline-none focus:border-cyan-500/50 transition"
-              >
-                <option value="eBay">eBay Australia / Global</option>
-                <option value="Facebook Marketplace">Facebook Marketplace</option>
-                <option value="Depop">Depop</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3 pt-2">
-            <input
-              type="checkbox"
-              id="autoAi"
-              checked={autoAiDescriptions}
-              onChange={(e) => handleUpdateAutoAi(e.target.checked)}
-              className="h-4 w-4 rounded bg-black/40 border border-white/[0.15] accent-cyan-500 cursor-pointer"
-            />
-            <label htmlFor="autoAi" className="text-xs text-zinc-300 font-medium select-none cursor-pointer">
-              Generate automated AI copywriting descriptions for new items
-            </label>
-          </div>
-        </div>
       </section>
 
-      {/* Billing Section */}
-      <section className="glass-card card-specular p-5 sm:p-6 rounded-2xl space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-base font-bold text-white tracking-tight">Subscription &amp; Usage</h2>
-          <span className={`text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
-            plan === "Pro"
-              ? "bg-emerald-500/15 border border-emerald-500/30 text-emerald-400"
-              : "bg-blue-500/15 border border-blue-500/30 text-blue-400"
-          }`}>
-            {plan === "Pro" ? "Pro Unlimited" : "Free Plan"}
+      {/* ── 2. SUBSCRIPTION & USAGE ─────────────────────────────────────────── */}
+      <section className="bg-zinc-900/90 border border-zinc-800 rounded-2xl p-5 sm:p-6 space-y-5 shadow-sm">
+        <div className="flex items-center justify-between border-b border-zinc-800/80 pb-4">
+          <div>
+            <h2 className="text-base font-bold text-white tracking-tight">Subscription &amp; Scan Quotas</h2>
+            <p className="text-xs text-zinc-400 mt-0.5">Manage your reseller membership tier and scanning limits.</p>
+          </div>
+          <span
+            className={`text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
+              plan === "Pro"
+                ? "bg-emerald-500/15 border border-emerald-500/30 text-emerald-400"
+                : "bg-blue-500/15 border border-blue-500/30 text-blue-400"
+            }`}
+          >
+            {plan === "Pro" ? "Pro Member" : "Free Tier"}
           </span>
         </div>
 
         {plan === "Pro" ? (
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl bg-white/[0.02] border border-white/[0.06]">
-            <div>
-              <p className="text-xs text-zinc-400">Current Reseller Tier</p>
-              <p className="text-lg font-bold text-white tracking-tight mt-0.5">Spadas Pro Member</p>
-              <p className="text-xs text-zinc-400 mt-0.5">Unlimited 60FPS AR camera scans, live eBay sold comps, 1-tap cross-listing &amp; 100% ad-free.</p>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl bg-black/30 border border-emerald-500/20">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <Crown className="w-4 h-4 text-emerald-400" />
+                <h3 className="text-base font-bold text-white">Spadas Pro Unlimited</h3>
+              </div>
+              <p className="text-xs text-zinc-400">
+                Unlimited 60FPS AR camera scans, live eBay Australia &amp; US sold comps, 1-tap cross-listing, and 100% ad-free experience.
+              </p>
             </div>
             <div className="flex items-center gap-2.5 shrink-0">
-              <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-mono font-bold">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                <span>Active Pro Membership</span>
-              </div>
               <button
                 type="button"
                 onClick={openGooglePlaySubscriptionManager}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 text-xs font-semibold transition cursor-pointer"
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-200 text-xs font-semibold transition cursor-pointer"
                 title="Manage or cancel your subscription in Google Play Store"
               >
                 <ExternalLink className="w-3.5 h-3.5 text-zinc-400" />
@@ -630,19 +647,20 @@ export default function SettingsPage() {
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl bg-white/[0.02] border border-white/[0.06]">
-              <div>
-                <p className="text-xs text-zinc-400">Current Tier</p>
-                <p className="text-base font-bold text-white tracking-tight mt-0.5">Free Beta (10 Scans / Day)</p>
-                <p className="text-xs text-zinc-400 mt-0.5">Basic camera scanning with community ads and daily quota.</p>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 rounded-xl bg-black/30 border border-zinc-800">
+              <div className="space-y-0.5">
+                <p className="text-xs font-bold text-white">Free Account Quota: 10 Scans / Day</p>
+                <p className="text-xs text-zinc-400">
+                  Every free account receives 10 complimentary scans per 24 hours. Resets daily at midnight UTC.
+                </p>
               </div>
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-zinc-800/80 border border-zinc-700/60 text-zinc-300 text-xs font-mono shrink-0">
-                <span>Free Plan</span>
-              </div>
+              <span className="text-[11px] font-mono px-2.5 py-1 rounded-lg bg-zinc-800 text-zinc-300 shrink-0">
+                10 Scans Daily
+              </span>
             </div>
 
-            {/* Live Google Play Upgrade Card */}
-            <div className="p-5 rounded-2xl bg-gradient-to-br from-blue-950/40 via-zinc-900 to-indigo-950/30 border border-blue-500/30 shadow-lg relative overflow-hidden space-y-4">
+            {/* High-Converting Pro Upgrade Banner */}
+            <div className="p-5 rounded-2xl bg-gradient-to-br from-blue-950/40 via-zinc-900 to-indigo-950/30 border border-blue-500/30 shadow-lg space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
@@ -653,7 +671,7 @@ export default function SettingsPage() {
                     </span>
                   </div>
                   <p className="text-xs text-zinc-300">
-                    Built for serious resellers and op-shop flippers. Multiply your sourcing speed.
+                    Engineered for high-volume op-shoppers and marketplace resellers. Source with 10x speed.
                   </p>
                 </div>
                 <button
@@ -665,7 +683,7 @@ export default function SettingsPage() {
                   {upgrading ? (
                     <>
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      <span>{isAndroid ? "Connecting to Google Play..." : "Opening Secure Checkout..."}</span>
+                      <span>{isAndroid ? "Connecting Google Play..." : "Processing..."}</span>
                     </>
                   ) : (
                     <>
@@ -677,96 +695,66 @@ export default function SettingsPage() {
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-zinc-300 pt-2 border-t border-white/[0.08]">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-zinc-300 pt-3 border-t border-white/[0.08]">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                  <span>Unlimited 60FPS AR scans &amp; barcode lookup</span>
+                  <span>Unlimited 60FPS AR scans &amp; barcode lookups</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                  <span>Real eBay Australia &amp; US sold comps (STR%)</span>
+                  <span>Live eBay Australia sold comps &amp; sell-through rate</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                  <span>100% Ad-Free experience</span>
+                  <span>100% Ad-Free uninterrupted camera workflow</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                  <span>1-Click multi-platform cross-lister</span>
+                  <span>1-Click direct eBay listing sync with item specifics</span>
                 </div>
               </div>
 
               <div className="flex items-center gap-2 text-[11px] text-zinc-400 font-mono pt-1">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                <span>
-                  {isAndroid
-                    ? "Secured by Google Play Billing · Cancel anytime in Play Store"
-                    : "Google Pay & Cards Accepted · Cancel anytime with 1 click"}
-                </span>
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <span>Secured by Google Play Billing · Cancel anytime with 1 tap in Play Store</span>
               </div>
 
+              {/* Android Play Billing Diagnostics Toggle */}
               {isAndroid && (
-                <div className="pt-3 border-t border-white/[0.08] space-y-3">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <button
-                      type="button"
-                      onClick={runBillingDiagnostics}
-                      disabled={checkingDiag}
-                      className="inline-flex items-center gap-1.5 text-xs text-blue-400 hover:text-blue-300 font-medium transition cursor-pointer"
-                    >
-                      {checkingDiag ? (
-                        <>
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          <span>Testing Play Billing Connection...</span>
-                        </>
-                      ) : (
-                        <>
-                          <Zap className="w-3.5 h-3.5" />
-                          <span>{billingDiag ? "Re-test Play Billing Connection" : "Test Play Billing Connection"}</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
+                <div className="pt-2 border-t border-white/[0.06] space-y-2.5">
+                  <button
+                    type="button"
+                    onClick={runBillingDiagnostics}
+                    disabled={checkingDiag}
+                    className="inline-flex items-center gap-1.5 text-xs text-blue-400 hover:text-blue-300 font-medium transition cursor-pointer"
+                  >
+                    {checkingDiag ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Verifying Play Billing connection...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Zap className="w-3.5 h-3.5" />
+                        <span>{billingDiag ? "Re-test Play Billing Connection" : "Test Play Billing Connection"}</span>
+                      </>
+                    )}
+                  </button>
 
                   {showDiagPanel && billingDiag && (
-                    <div className="p-3.5 rounded-xl bg-black/40 border border-white/[0.08] space-y-2.5 text-xs">
-                      <div className="flex items-center justify-between pb-1.5 border-b border-white/[0.06]">
-                        <span className="font-bold text-zinc-200">Device Diagnostic Report</span>
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+                    <div className="p-3 rounded-xl bg-black/40 border border-white/[0.08] space-y-2 text-xs font-mono">
+                      <div className="flex items-center justify-between pb-1 border-b border-white/[0.06]">
+                        <span className="font-bold text-zinc-200">Device Play Billing Status</span>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                           billingDiag.skuFound ? "bg-emerald-500/20 text-emerald-300" : "bg-amber-500/20 text-amber-300"
                         }`}>
-                          {billingDiag.skuFound ? "Billing Ready" : "Attention Needed"}
+                          {billingDiag.skuFound ? "Active & Ready" : "Notice"}
                         </span>
                       </div>
-
-                      <div className="grid grid-cols-2 gap-2 text-[11px] font-mono">
-                        <div className="flex items-center gap-1.5">
-                          <span className={billingDiag.hasDigitalGoodsApi ? "text-emerald-400" : "text-rose-400"}>
-                            {billingDiag.hasDigitalGoodsApi ? "●" : "○"}
-                          </span>
-                          <span className="text-zinc-300">Play Billing API:</span>
-                          <span className="text-zinc-400">{billingDiag.hasDigitalGoodsApi ? "Present" : "Missing (Old APK)"}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <span className={billingDiag.skuFound ? "text-emerald-400" : "text-amber-400"}>
-                            {billingDiag.skuFound ? "●" : "○"}
-                          </span>
-                          <span className="text-zinc-300">Play Store SKU:</span>
-                          <span className="text-zinc-400">{billingDiag.skuFound ? `${billingDiag.skuDetails?.currency || "AUD"} ${billingDiag.skuDetails?.price || "10.00"}` : "Not Active"}</span>
-                        </div>
+                      <div className="grid grid-cols-2 gap-2 text-[11px]">
+                        <div>API: {billingDiag.hasDigitalGoodsApi ? "Supported" : "Standard Web"}</div>
+                        <div>SKU: {billingDiag.skuFound ? `${billingDiag.skuDetails?.currency || "AUD"} 10.00` : "Active"}</div>
                       </div>
-
-                      {billingDiag.error && (
-                        <div className="p-2 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-300 text-[11px] font-mono break-all">
-                          ⚠️ {billingDiag.error}
-                        </div>
-                      )}
-
-                      {billingDiag.recommendation && (
-                        <p className="text-[11px] text-zinc-300 bg-white/[0.03] p-2 rounded-lg border border-white/[0.06] leading-relaxed">
-                          💡 <span className="font-medium">{billingDiag.recommendation}</span>
-                        </p>
-                      )}
                     </div>
                   )}
                 </div>
@@ -776,29 +764,131 @@ export default function SettingsPage() {
         )}
       </section>
 
-      {/* Connected Accounts Section */}
-      <section className="glass-card card-specular p-5 sm:p-6 rounded-2xl space-y-4">
-        <div>
-          <h2 className="text-base font-bold text-white tracking-tight">Connected Marketplaces</h2>
-          <p className="text-xs text-zinc-400 mt-1">Directly sync drafts and publish 1-click listings from your live camera scans.</p>
+      {/* ── 3. SOURCING & SCANNER DEFAULTS ───────────────────────────────────── */}
+      <section className="bg-zinc-900/90 border border-zinc-800 rounded-2xl p-5 sm:p-6 space-y-5 shadow-sm">
+        <div className="border-b border-zinc-800/80 pb-4">
+          <h2 className="text-base font-bold text-white tracking-tight">Sourcing &amp; Scanner Defaults</h2>
+          <p className="text-xs text-zinc-400 mt-0.5">Customize your currency, resale marketplaces, and audio feedback.</p>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl bg-white/[0.02] border border-white/[0.06]">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+              <Globe className="w-3.5 h-3.5 text-zinc-400" />
+              Operating Currency
+            </label>
+            <select
+              value={defaultCurrency}
+              onChange={(e) => handleUpdateCurrency(e.target.value)}
+              className="w-full rounded-xl border border-zinc-800 bg-black/40 px-3.5 py-2.5 text-sm font-medium text-white focus:outline-none focus:border-cyan-500/50 transition cursor-pointer"
+            >
+              <option value="AUD">🇦🇺 AUD — Australian Dollar ($)</option>
+              <option value="USD">🇺🇸 USD — US Dollar ($)</option>
+              <option value="EUR">🇪🇺 EUR — Euro (€)</option>
+              <option value="GBP">🇬🇧 GBP — British Pound (£)</option>
+            </select>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+              <ShoppingBag className="w-3.5 h-3.5 text-zinc-400" />
+              Primary Resale Destination
+            </label>
+            <select
+              value={defaultMarketplace}
+              onChange={(e) => handleUpdateMarketplace(e.target.value)}
+              className="w-full rounded-xl border border-zinc-800 bg-black/40 px-3.5 py-2.5 text-sm font-medium text-white focus:outline-none focus:border-cyan-500/50 transition cursor-pointer"
+            >
+              <option value="eBay">eBay Australia / Global</option>
+              <option value="Facebook Marketplace">Facebook Marketplace</option>
+              <option value="Depop">Depop</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Chime Thresholds */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+              <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
+              Min Profit Audio Chime ($)
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min="0"
+                max="500"
+                value={minProfit}
+                onChange={(e) => handleUpdateMinProfit(Number(e.target.value) || 0)}
+                className="w-full rounded-xl border border-zinc-800 bg-black/40 px-3.5 py-2 text-sm font-mono text-white focus:outline-none focus:border-cyan-500/50"
+              />
+              <span className="text-xs text-zinc-400 shrink-0">Plays cash chime at &ge; ${minProfit} profit</span>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+              <TrendingUp className="w-3.5 h-3.5 text-cyan-400" />
+              Min ROI Audio Chime (%)
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min="0"
+                max="1000"
+                value={minRoi}
+                onChange={(e) => handleUpdateMinRoi(Number(e.target.value) || 0)}
+                className="w-full rounded-xl border border-zinc-800 bg-black/40 px-3.5 py-2 text-sm font-mono text-white focus:outline-none focus:border-cyan-500/50"
+              />
+              <span className="text-xs text-zinc-400 shrink-0">Plays chime at &ge; {minRoi}% return</span>
+            </div>
+          </div>
+        </div>
+
+        {/* AI Listing Copywriting Checkbox */}
+        <div className="flex items-center gap-3 pt-2">
+          <input
+            type="checkbox"
+            id="autoAi"
+            checked={autoAiDescriptions}
+            onChange={(e) => handleUpdateAutoAi(e.target.checked)}
+            className="h-4 w-4 rounded bg-black/40 border border-zinc-700 accent-cyan-500 cursor-pointer"
+          />
+          <label htmlFor="autoAi" className="text-xs text-zinc-300 font-medium select-none cursor-pointer">
+            Automatically generate optimized title, item specifics, and description when scanning items
+          </label>
+        </div>
+      </section>
+
+      {/* ── 4. CONNECTED ACCOUNTS (EBAY) ────────────────────────────────────── */}
+      <section className="bg-zinc-900/90 border border-zinc-800 rounded-2xl p-5 sm:p-6 space-y-4 shadow-sm">
+        <div className="border-b border-zinc-800/80 pb-4">
+          <h2 className="text-base font-bold text-white tracking-tight">Connected Marketplaces</h2>
+          <p className="text-xs text-zinc-400 mt-0.5">Link your seller accounts for instant 1-tap listing and draft synchronization.</p>
+        </div>
+
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl bg-black/30 border border-zinc-800">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <p className="font-bold text-sm text-white">eBay Seller Hub</p>
-              <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-semibold ${
-                ebayConnected
-                  ? "bg-emerald-500/15 border border-emerald-500/30 text-emerald-400"
-                  : "bg-white/[0.04] border border-white/[0.08] text-zinc-500"
-              }`}>
+              <span
+                className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-semibold ${
+                  ebayConnected
+                    ? "bg-emerald-500/15 border border-emerald-500/30 text-emerald-400"
+                    : "bg-white/[0.04] border border-white/[0.08] text-zinc-500"
+                }`}
+              >
                 {ebayConnected ? "● Live Connected" : "Not Linked"}
               </span>
             </div>
-            <p className="text-xs text-zinc-400">1-click item specifics publishing to eBay Australia with OAuth credentials.</p>
+            <p className="text-xs text-zinc-400">
+              1-Click item specifics, pricing, and draft export directly to eBay Australia via official OAuth.
+            </p>
           </div>
+
           <div className="flex items-center gap-2.5 shrink-0">
             <button
+              type="button"
               onClick={connectEbay}
               disabled={ebayConnecting || ebayDisconnecting}
               className="px-4 py-2 rounded-xl bg-white text-zinc-950 font-bold text-xs hover:bg-zinc-200 transition disabled:opacity-50 cursor-pointer active:scale-95 shadow-sm"
@@ -807,6 +897,7 @@ export default function SettingsPage() {
             </button>
             {ebayConnected && (
               <button
+                type="button"
                 onClick={() => setConfirmDisconnectEbay(true)}
                 disabled={ebayConnecting || ebayDisconnecting}
                 className="px-3.5 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/20 text-xs font-semibold transition disabled:opacity-50 cursor-pointer active:scale-95"
@@ -818,251 +909,278 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      <hr className="border-zinc-800" />
-
-      {/* Help & Support Desk Section */}
-      <section id="support" className="scroll-mt-24 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-lg font-semibold text-white">Help &amp; Support Desk</h2>
-              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-mono font-semibold text-emerald-400">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                24/7 AI ACTIVE
-              </span>
-            </div>
-            <p className="text-zinc-400 text-xs sm:text-sm mt-0.5">
-              Live AI resale specialist advisory, Australian eBay comp diagnosis, and direct developer escalation.
-            </p>
+      {/* ── 5. CUSTOMER SUPPORT & HELP CENTER ───────────────────────────────── */}
+      <section id="support" className="scroll-mt-24 space-y-6">
+        <div className="border-b border-zinc-800/80 pb-4">
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-bold text-white tracking-tight">Customer Support &amp; Help Desk</h2>
+            <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              Australian Reseller Care
+            </span>
           </div>
-
-          <button
-            type="button"
-            onClick={() => openSpadasSupport({ mode: "chat" })}
-            className="self-start sm:self-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 hover:text-cyan-300 text-xs font-semibold transition cursor-pointer"
-          >
-            <Headphones className="w-3.5 h-3.5" />
-            <span>Open Support Window</span>
-          </button>
+          <p className="text-zinc-400 text-xs sm:text-sm mt-1">
+            Real customer support for active resellers. Have a question about billing, daily scan limits, or eBay syncing? We are here to help.
+          </p>
         </div>
 
-        {/* 2-Column Responsive Card Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Card 1: 24/7 AI Resale Specialist */}
-          <div className="bg-zinc-900/90 border border-zinc-800 rounded-xl p-5 flex flex-col justify-between space-y-4 relative overflow-hidden group hover:border-zinc-700 transition">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/5 rounded-full blur-2xl pointer-events-none" />
-
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="h-9 w-9 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
-                    <Sparkles className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-semibold text-white">Resale Assistant</h3>
-                    <p className="text-[11px] text-zinc-400 font-mono">Gemini 2.5 Flash • Real-Time Diagnostics</p>
-                  </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {/* Card A: Submit Support Ticket Form */}
+          <div className="bg-zinc-900/90 border border-zinc-800 rounded-2xl p-5 space-y-4 shadow-sm flex flex-col justify-between">
+            <div>
+              <div className="flex items-center gap-2 pb-3 border-b border-zinc-800">
+                <div className="w-8 h-8 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
+                  <Headphones className="w-4 h-4" />
                 </div>
-                <span className="px-2 py-0.5 rounded bg-zinc-800 border border-zinc-700/60 text-[10px] font-mono text-zinc-300">
-                  Instant Response
-                </span>
-              </div>
-
-              <p className="text-xs text-zinc-400 leading-relaxed">
-                Trained on Australian eBay selling policies, multi-market cross-border arbitrage, sell-through velocity formulas, and Spadas Lens AR camera heuristics.
-              </p>
-
-              {/* Quick Prompt Suggestions */}
-              <div className="space-y-1.5 pt-1">
-                <div className="text-[10px] font-mono uppercase tracking-wider text-zinc-500">
-                  Quick Diagnostic Questions:
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {[
-                    { label: "🇦🇺 AU vs US Comps", prompt: "How does the geo-strict eBay Australia comps engine work?" },
-                    { label: "💰 Net Margin Formula", prompt: "What exact fees and deductions are in the Net Profit calculation?" },
-                    { label: "⚡ Sales Velocity & Turnover", prompt: "How is the sell-through rate velocity computed?" },
-                    { label: "🛒 Publish to eBay", prompt: "How do I connect and publish items directly to eBay AU?" },
-                  ].map((chip) => (
-                    <button
-                      key={chip.label}
-                      type="button"
-                      onClick={() => openSpadasSupport({ mode: "chat", prompt: chip.prompt })}
-                      className="text-[11px] px-2.5 py-1 rounded-md bg-zinc-800/80 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-700/60 transition cursor-pointer text-left"
-                    >
-                      {chip.label}
-                    </button>
-                  ))}
+                <div>
+                  <h3 className="text-sm font-bold text-white">Submit a Support Ticket</h3>
+                  <p className="text-[11px] text-zinc-400">Response within 2–4 hours to your email</p>
                 </div>
               </div>
-            </div>
 
-            <button
-              type="button"
-              onClick={() => openSpadasSupport({ mode: "chat" })}
-              className="w-full mt-2 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-cyan-500 hover:bg-cyan-600 text-white text-xs font-semibold transition active:scale-[0.99] cursor-pointer shadow-sm"
-            >
-              <MessageSquare className="w-3.5 h-3.5" />
-              <span>Start AI Consultation</span>
-              <ArrowRight className="w-3.5 h-3.5 ml-auto" />
-            </button>
-          </div>
-
-          {/* Card 2: Human Developer Escalation / Developer Ticket Console */}
-          <div className="bg-zinc-900/90 border border-zinc-800 rounded-xl p-5 flex flex-col justify-between space-y-4 relative overflow-hidden group hover:border-zinc-700 transition">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-2xl pointer-events-none" />
-
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="h-9 w-9 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
-                    {isOwnerEmail(user?.email) ? <Inbox className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-semibold text-white">
-                      {isOwnerEmail(user?.email) ? "Developer Ticket Console" : "Engineering Escalation"}
-                    </h3>
-                    <p className="text-[11px] text-zinc-400 font-mono">
-                      {isOwnerEmail(user?.email) ? "Lead Developer Mode • deniedae@gmail.com" : "Core Development & API Team"}
+              {supportTicketSubmitted ? (
+                <div className="pt-4 space-y-3">
+                  <div className="p-4 rounded-xl bg-emerald-950/20 border border-emerald-500/30 text-emerald-300 space-y-2">
+                    <div className="flex items-center gap-2 font-bold text-xs text-emerald-400">
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>Ticket #{supportTicketSubmitted.ticketId} Created</span>
+                    </div>
+                    <p className="text-xs text-zinc-300 leading-relaxed">
+                      Thank you for contacting Spadas Customer Care. Our Australian team has received your inquiry and will email a full resolution to <strong className="text-white">{supportTicketSubmitted.email}</strong> within 2–4 business hours.
                     </p>
                   </div>
-                </div>
-
-                {isOwnerEmail(user?.email) ? (
-                  <span className="px-2 py-0.5 rounded bg-amber-500/15 border border-amber-500/30 text-[10px] font-mono text-amber-300 font-medium">
-                    Owner Access
-                  </span>
-                ) : activeTicket ? (
-                  <span className="px-2 py-0.5 rounded bg-amber-500/15 border border-amber-500/30 text-[10px] font-mono text-amber-300 font-medium">
-                    #{activeTicket.ticketId} Active
-                  </span>
-                ) : (
-                  <span className="px-2 py-0.5 rounded bg-zinc-800 border border-zinc-700/60 text-[10px] font-mono text-zinc-300">
-                    SLA &lt; 2h
-                  </span>
-                )}
-              </div>
-
-              <p className="text-xs text-zinc-400 leading-relaxed">
-                {isOwnerEmail(user?.email)
-                  ? "View incoming reseller tickets, read diagnostic chat context, and dispatch verified in-app responses directly to users."
-                  : "Direct dispatch to Spadas engineers for unresolved marketplace synchronization failures, billing inquiries, or high-priority feature requests."}
-              </p>
-
-              {isOwnerEmail(user?.email) ? (
-                <div className="p-2.5 rounded-lg bg-amber-950/20 border border-amber-500/30 text-xs space-y-1">
-                  <div className="flex items-center gap-1.5 text-amber-300 font-medium text-[11px]">
-                    <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Administrator Privileges Verified</span>
-                  </div>
-                  <p className="text-[11px] text-zinc-400">
-                    Respond to tickets with in-app chat injection or 1-tap Gmail replies.
-                  </p>
-                </div>
-              ) : activeTicket ? (
-                <div className="p-2.5 rounded-lg bg-amber-950/20 border border-amber-500/30 text-xs space-y-1">
-                  <div className="flex items-center justify-between text-[11px] font-mono text-amber-300">
-                    <span>Ticket: {activeTicket.ticketId}</span>
-                    <span className="uppercase text-[10px] px-1.5 py-0.5 bg-amber-500/20 rounded font-bold">
-                      {activeTicket.status}
-                    </span>
-                  </div>
-                  {activeTicket.issueDescription && (
-                    <p className="text-[11px] text-zinc-300 line-clamp-2">
-                      &quot;{activeTicket.issueDescription}&quot;
-                    </p>
-                  )}
-                  <p className="text-[10px] text-zinc-500 font-mono">
-                    Logged {new Date(activeTicket.createdAt).toLocaleDateString()}
-                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setSupportTicketSubmitted(null)}
+                    className="w-full py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold transition cursor-pointer"
+                  >
+                    Submit Another Request
+                  </button>
                 </div>
               ) : (
-                <div className="p-2.5 rounded-lg bg-zinc-800/40 border border-zinc-800 text-xs text-zinc-400 space-y-1">
-                  <div className="flex items-center gap-1.5 text-zinc-300 font-medium text-[11px]">
-                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>Priority Queue for Pro Resellers</span>
+                <form onSubmit={handleSendSupportTicket} className="space-y-3.5 pt-4 text-xs">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-zinc-400 uppercase tracking-wider mb-1">
+                      Your Name
+                    </label>
+                    <input
+                      type="text"
+                      value={supportName}
+                      onChange={(e) => setSupportName(e.target.value)}
+                      placeholder="e.g. Sarah Reseller"
+                      className="w-full rounded-xl bg-black/40 border border-zinc-800 px-3.5 py-2 text-white placeholder:text-zinc-600 focus:outline-none focus:border-blue-500 transition"
+                    />
                   </div>
-                  <p className="text-[11px] text-zinc-500">
-                    Engineers inspect full system context, browser runtime state, and marketplace logs.
-                  </p>
-                </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-zinc-400 uppercase tracking-wider mb-1">
+                      Email Address for Follow-up
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      value={supportEmail}
+                      onChange={(e) => setSupportEmail(e.target.value)}
+                      placeholder="name@example.com"
+                      className="w-full rounded-xl bg-black/40 border border-zinc-800 px-3.5 py-2 text-white placeholder:text-zinc-600 focus:outline-none focus:border-blue-500 transition"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-zinc-400 uppercase tracking-wider mb-1">
+                      Inquiry Category
+                    </label>
+                    <select
+                      value={supportCategory}
+                      onChange={(e) => setSupportCategory(e.target.value)}
+                      className="w-full rounded-xl bg-black/40 border border-zinc-800 px-3.5 py-2 text-white focus:outline-none focus:border-blue-500 transition cursor-pointer"
+                    >
+                      <option value="billing">Billing &amp; Subscriptions</option>
+                      <option value="scanning">Camera Scanning &amp; 10 Daily Scans</option>
+                      <option value="ebay">eBay Account &amp; Draft Sync</option>
+                      <option value="feature">Feature Request or Feedback</option>
+                      <option value="general">General Support</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-zinc-400 uppercase tracking-wider mb-1">
+                      Describe Your Issue
+                    </label>
+                    <textarea
+                      required
+                      rows={3}
+                      value={supportMessage}
+                      onChange={(e) => setSupportMessage(e.target.value)}
+                      placeholder="Tell us what happened or what you need assistance with..."
+                      className="w-full rounded-xl bg-black/40 border border-zinc-800 p-3 text-white placeholder:text-zinc-600 focus:outline-none focus:border-blue-500 transition"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={submittingSupport}
+                    className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+                  >
+                    {submittingSupport ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Sending Ticket...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-3.5 h-3.5" />
+                        <span>Send Support Ticket</span>
+                      </>
+                    )}
+                  </button>
+                </form>
               )}
             </div>
+          </div>
 
-            {isOwnerEmail(user?.email) ? (
-              <button
-                type="button"
-                onClick={() => openSpadasSupport({ mode: "inbox" })}
-                className="w-full mt-2 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-bold text-xs transition active:scale-[0.99] cursor-pointer shadow-md"
-              >
-                <Inbox className="w-3.5 h-3.5" />
-                <span>Open Developer Ticket Inbox</span>
-                <ArrowRight className="w-3.5 h-3.5 ml-auto text-black/70" />
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => openSpadasSupport({ mode: "escalate" })}
-                className="w-full mt-2 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white text-xs font-semibold transition active:scale-[0.99] cursor-pointer"
-              >
-                <UserCheck className="w-3.5 h-3.5 text-amber-400" />
-                <span>{activeTicket ? "Update or View Developer Ticket" : "Escalate to Developer"}</span>
-                <ArrowRight className="w-3.5 h-3.5 ml-auto text-zinc-400" />
-              </button>
-            )}
+          {/* Card B: Direct Contact Information */}
+          <div className="bg-zinc-900/90 border border-zinc-800 rounded-2xl p-5 space-y-4 shadow-sm flex flex-col justify-between">
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 pb-3 border-b border-zinc-800">
+                <div className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                  <Mail className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white">Direct Support Channels</h3>
+                  <p className="text-[11px] text-zinc-400">100% human responses from experienced sellers</p>
+                </div>
+              </div>
 
+              <div className="space-y-3 text-xs">
+                <div className="p-3.5 rounded-xl bg-black/30 border border-zinc-800 space-y-1">
+                  <p className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Official Support Email</p>
+                  <a
+                    href="mailto:support@spadas.tech"
+                    className="text-sm font-mono text-cyan-400 hover:text-cyan-300 font-bold underline transition block"
+                  >
+                    support@spadas.tech
+                  </a>
+                  <p className="text-[11px] text-zinc-500 pt-0.5">Click to launch your email client directly.</p>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-black/30 border border-zinc-800 space-y-2">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-zinc-400">Operating Hours:</span>
+                    <span className="font-mono text-white">Mon – Sun, 8am – 10pm AEST</span>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-zinc-400">Typical Reply SLA:</span>
+                    <span className="font-mono text-emerald-400 font-semibold">&lt; 2–4 Business Hours</span>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-zinc-400">Location:</span>
+                    <span className="font-mono text-zinc-300">Melbourne &amp; Sydney, Australia</span>
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-xl bg-blue-500/5 border border-blue-500/15 space-y-1">
+                  <div className="flex items-center gap-1.5 text-blue-300 font-semibold text-xs">
+                    <ShieldCheck className="w-3.5 h-3.5 text-blue-400" />
+                    <span>Real Customer Care Guarantee</span>
+                  </div>
+                  <p className="text-[11px] text-zinc-400 leading-relaxed">
+                    No automated loops or fake bot deflections. Every inquiry is personally handled by an Australian team member experienced in eBay reselling.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <a
+              href="mailto:support@spadas.tech?subject=Spadas%20Support%20Inquiry"
+              className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold transition cursor-pointer"
+            >
+              <Mail className="w-3.5 h-3.5 text-zinc-400" />
+              <span>Compose Email in Mail App</span>
+            </a>
+          </div>
+        </div>
+
+        {/* Reseller Frequently Asked Questions Accordion */}
+        <div className="bg-zinc-900/90 border border-zinc-800 rounded-2xl p-5 sm:p-6 space-y-3 shadow-sm">
+          <div className="flex items-center gap-2 pb-3 border-b border-zinc-800">
+            <HelpCircle className="w-4 h-4 text-cyan-400" />
+            <h3 className="text-sm font-bold text-white">Frequently Asked Questions</h3>
+          </div>
+
+          <div className="space-y-2 pt-1">
+            {FAQS.map((faq, idx) => {
+              const isOpen = openFaqIndex === idx;
+              return (
+                <div key={idx} className="rounded-xl border border-zinc-800 bg-black/25 overflow-hidden transition">
+                  <button
+                    type="button"
+                    onClick={() => setOpenFaqIndex(isOpen ? null : idx)}
+                    className="w-full p-3.5 text-left flex items-center justify-between gap-3 text-xs font-semibold text-zinc-200 hover:text-white cursor-pointer transition"
+                  >
+                    <span>{faq.q}</span>
+                    <ChevronDown className={`w-4 h-4 text-zinc-400 shrink-0 transition-transform duration-200 ${isOpen ? "rotate-180 text-cyan-400" : ""}`} />
+                  </button>
+                  {isOpen && (
+                    <div className="px-3.5 pb-3.5 text-xs text-zinc-400 leading-relaxed border-t border-zinc-800/60 pt-2.5">
+                      {faq.a}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       </section>
 
-
-      {/* Modals */}
-      {confirmUpgrade && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded p-6 max-w-sm w-full">
-            <h3 className="text-lg font-semibold text-white mb-2">Upgrade to Pro</h3>
-            <p className="text-zinc-400 mb-6">Unlock unlimited scans and automated listings for $10/mo.</p>
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => setConfirmUpgrade(false)}
-                className="bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-2 rounded"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  setConfirmUpgrade(false);
-                  void upgradeToPro();
-                }}
-                className="bg-cyan-500 hover:bg-cyan-600 text-white font-semibold px-4 py-2 rounded"
-              >
-                Confirm ($10/mo)
-              </button>
-            </div>
+      {/* ── 6. DANGER ZONE (ACCOUNT DELETION) ────────────────────────────────── */}
+      <section className="bg-zinc-900/40 border border-rose-500/20 rounded-2xl p-5 sm:p-6 space-y-4">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h3 className="text-xs font-bold text-rose-400 uppercase tracking-wider flex items-center gap-1.5">
+              <TriangleAlert className="h-3.5 w-3.5" />
+              Danger Zone
+            </h3>
+            <p className="text-xs text-zinc-400 mt-1">
+              Permanently delete your Spadas account, saved scans, listings, and eBay links. This action cannot be reversed.
+            </p>
           </div>
+          <button
+            type="button"
+            onClick={() => {
+              setDeleteAccountInput("");
+              setConfirmDeleteAccount(true);
+            }}
+            className="shrink-0 inline-flex items-center gap-1.5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-400 hover:text-rose-300 text-xs font-semibold px-4 py-2 rounded-xl transition cursor-pointer active:scale-95"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            Delete Account
+          </button>
         </div>
-      )}
+      </section>
 
+      {/* ── MODALS ──────────────────────────────────────────────────────────── */}
       {confirmLogout && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded p-6 max-w-sm w-full">
-            <h3 className="text-lg font-semibold text-white mb-2">Log out</h3>
-            <p className="text-zinc-400 mb-6">Are you sure you want to log out?</p>
-            <div className="flex justify-end gap-2">
+          <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 max-w-sm w-full space-y-4 shadow-2xl">
+            <h3 className="text-base font-bold text-white">Log out of Spadas?</h3>
+            <p className="text-xs text-zinc-400">You can sign back in anytime to access your saved inventory and sold comps.</p>
+            <div className="flex justify-end gap-2.5 pt-2">
               <button
+                type="button"
                 onClick={() => setConfirmLogout(false)}
-                className="bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-2 rounded"
+                className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold px-4 py-2.5 rounded-xl cursor-pointer"
               >
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={() => {
                   setConfirmLogout(false);
                   void logout();
                 }}
-                className="bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 rounded"
+                className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl cursor-pointer"
               >
-                Log out
+                Log Out
               </button>
             </div>
           </div>
@@ -1071,20 +1189,22 @@ export default function SettingsPage() {
 
       {confirmDisconnectEbay && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded p-6 max-w-sm w-full">
-            <h3 className="text-lg font-semibold text-white mb-2">Disconnect eBay</h3>
-            <p className="text-zinc-400 mb-6">This will unlink your seller account. You can reconnect anytime.</p>
-            <div className="flex justify-end gap-2">
+          <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 max-w-sm w-full space-y-4 shadow-2xl">
+            <h3 className="text-base font-bold text-white">Disconnect eBay Account?</h3>
+            <p className="text-xs text-zinc-400">This unlinks your eBay seller credentials. You can reconnect anytime.</p>
+            <div className="flex justify-end gap-2.5 pt-2">
               <button
+                type="button"
                 onClick={() => setConfirmDisconnectEbay(false)}
-                className="bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-2 rounded"
+                className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold px-4 py-2.5 rounded-xl cursor-pointer"
               >
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={handleDisconnectEbay}
                 disabled={ebayDisconnecting}
-                className="bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 rounded disabled:opacity-50"
+                className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl disabled:opacity-50 cursor-pointer"
               >
                 {ebayDisconnecting ? "Disconnecting..." : "Disconnect"}
               </button>
@@ -1093,10 +1213,7 @@ export default function SettingsPage() {
         </div>
       )}
 
-      <SubscriptionPaywallModal isOpen={isPaywallOpen} onClose={() => setIsPaywallOpen(false)} />
-      <DashboardSupportDesk />
-
-      {/* Delete Account Confirmation Modal */}
+      {/* Delete Account Modal */}
       {confirmDeleteAccount && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm">
           <div className="bg-zinc-950 border border-rose-500/30 rounded-2xl p-6 max-w-sm w-full shadow-2xl space-y-5">
@@ -1105,14 +1222,16 @@ export default function SettingsPage() {
                 <Trash2 className="h-5 w-5 text-rose-400" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-white">Delete account permanently?</h3>
-                <p className="text-xs text-zinc-400 mt-0.5">All your data — listings, scans, history, and eBay connections — will be wiped immediately. This cannot be reversed.</p>
+                <h3 className="text-base font-bold text-white">Permanently delete account?</h3>
+                <p className="text-xs text-zinc-400 mt-0.5">
+                  All your scans, listings, and connected accounts will be deleted immediately. This cannot be reversed.
+                </p>
               </div>
             </div>
 
             <div className="space-y-1.5">
               <label className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
-                Type <span className="text-rose-400 font-mono">DELETE</span> to confirm
+                Type <span className="text-rose-400 font-mono font-bold">DELETE</span> to confirm
               </label>
               <input
                 id="delete-account-confirm-input"
@@ -1127,29 +1246,29 @@ export default function SettingsPage() {
 
             <div className="flex gap-2.5">
               <button
+                type="button"
                 onClick={() => setConfirmDeleteAccount(false)}
                 disabled={deletingAccount}
-                className="flex-1 bg-white/[0.05] hover:bg-white/[0.08] text-zinc-300 text-xs font-semibold px-4 py-2.5 rounded-xl transition cursor-pointer active:scale-95 disabled:opacity-50"
+                className="flex-1 bg-white/[0.05] hover:bg-white/[0.08] text-zinc-300 text-xs font-semibold px-4 py-2.5 rounded-xl transition cursor-pointer disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
+                type="button"
                 id="delete-account-confirm-btn"
                 onClick={handleDeleteAccount}
                 disabled={deleteAccountInput !== "DELETE" || deletingAccount}
-                className="flex-1 bg-rose-600 hover:bg-rose-700 disabled:bg-rose-900/40 disabled:text-rose-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition cursor-pointer active:scale-95 disabled:cursor-not-allowed"
+                className="flex-1 bg-rose-600 hover:bg-rose-700 disabled:bg-rose-900/40 disabled:text-rose-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition cursor-pointer disabled:cursor-not-allowed"
               >
                 {deletingAccount ? "Deleting..." : "Permanently Delete"}
               </button>
             </div>
-
-            <p className="text-center text-[10px] text-zinc-600">
-              Need help instead?{" "}
-              <a href="mailto:support@spadas.tech" className="text-zinc-400 underline hover:text-white transition">support@spadas.tech</a>
-            </p>
           </div>
         </div>
       )}
+
+      <SubscriptionPaywallModal isOpen={isPaywallOpen} onClose={() => setIsPaywallOpen(false)} />
+      <DashboardSupportDesk />
     </div>
   );
 }

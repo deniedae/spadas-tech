@@ -10,7 +10,7 @@ export interface UsageStatus {
   maxFreeUses: number;
 }
 
-export const MAX_FREE_USES = 50;
+export const MAX_FREE_USES = 10;
 
 export async function checkUserUsage(userId: string, userEmail?: string): Promise<UsageStatus> {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;

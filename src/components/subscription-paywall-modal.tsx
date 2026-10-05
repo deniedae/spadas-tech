@@ -116,7 +116,7 @@ export default function SubscriptionPaywallModal({
         return;
       }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Network error. Please check your connection.";
+      const message = err instanceof Error ? err.message : "Unable to initiate checkout. Please try again.";
       toast.error(message);
     } finally {
       setLoadingPlan(null);
@@ -145,7 +145,7 @@ export default function SubscriptionPaywallModal({
             Unlock Unlimited Reseller Profit
           </h2>
           <p className="text-xs text-slate-300">
-            You have reached the limit of <strong className="text-cyan-400 font-black">50 Free Daily Scans</strong>. Upgrade to Spadas Pro for unlimited 60FPS AR scanning, live sold comps, and 1-click cross-listing.
+            You have reached the limit of <strong className="text-cyan-400 font-black">10 Free Daily Scans</strong>. Upgrade to Spadas Pro for unlimited 60FPS AR scanning, live sold comps, and 1-click cross-listing.
           </p>
         </div>
 

@@ -48,7 +48,7 @@ export function GuestScanHud({
         className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-white text-black text-[10px] font-bold hover:bg-zinc-200 transition cursor-pointer active:scale-95 shadow-sm"
       >
         <Zap className="h-2.5 w-2.5 fill-black" />
-        <span>Unlock 50/day</span>
+        <span>Unlock 10/day</span>
       </button>
     </div>
   );

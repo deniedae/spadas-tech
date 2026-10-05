@@ -87,6 +87,12 @@ export default function ListingsPage() {
 
   useEffect(() => {
     void loadListings();
+
+    const handleCreated = () => {
+      void loadListings();
+    };
+    window.addEventListener("spadas-listing-created", handleCreated);
+    return () => window.removeEventListener("spadas-listing-created", handleCreated);
   }, [router]);
 
   async function loadListings() {
@@ -336,7 +342,7 @@ export default function ListingsPage() {
             <span>Launch Lens AR</span>
           </Link>
 
-          <NewListingDialog />
+          <NewListingDialog onCreated={loadListings} />
         </div>
       </div>
 

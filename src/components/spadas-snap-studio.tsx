@@ -356,7 +356,7 @@ export function SpadasSnapStudio() {
     const currentGuestState = getGuestScanState();
     if (!isAuthed && !isUserAdmin && !isPro && (currentGuestState.isLimitReached || currentGuestState.remaining <= 0)) {
       setIsGuestModalOpen(true);
-      toast.info(`You've used all ${MAX_GUEST_SCANS} free instant guest scans! Create a free account to unlock 50 daily scans.`);
+      toast.info(`You've used all ${MAX_GUEST_SCANS} free instant guest scans! Create a free account to unlock 10 daily scans.`);
       return;
     }
 

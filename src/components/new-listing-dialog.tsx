@@ -29,9 +29,11 @@ type InitialListingData = {
 export default function NewListingDialog({
   initialData,
   trigger,
+  onCreated,
 }: {
   initialData?: InitialListingData;
   trigger?: React.ReactNode;
+  onCreated?: () => void;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -253,7 +255,10 @@ export default function NewListingDialog({
     setCost("");
     setDescription("");
     setImage(null);
-    setImagePreview("");
+    if (onCreated) onCreated();
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("spadas-listing-created"));
+    }
 
     router.refresh();
     setSaving(false);

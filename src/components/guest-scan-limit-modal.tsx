@@ -19,7 +19,6 @@ import { toast } from "sonner";
 import { getGuestScannedItems, MAX_GUEST_SCANS } from "@/lib/guest-scan-tracker";
 import { isOwnerEmail } from "@/app/lib/auth-admin";
 import { purchaseGooglePlaySubscription } from "@/lib/google-play-billing";
-import { promptGoogleOneTap } from "@/lib/google-auth";
 
 interface GuestScanLimitModalProps {
   isOpen: boolean;
@@ -165,29 +164,25 @@ export function GuestScanLimitModal({
     setErrorMsg("");
     setGoogleLoading(true);
     try {
-      if (promptGoogleOneTap()) {
-        setGoogleLoading(false);
-        return;
-      }
       const redirectUrl = `${window.location.origin}/auth/callback?redirect=${encodeURIComponent("/lens")}`;
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
           redirectTo: redirectUrl,
-          queryParams: { access_type: "offline", prompt: "consent" },
+          queryParams: { access_type: "offline", prompt: "select_account" },
         },
       });
 
       if (error) {
         setErrorMsg(error.message || "Google sign-in failed. Please use email.");
+        setGoogleLoading(false);
         return;
       }
       if (data?.url) {
-        window.location.href = data.url;
+        window.location.assign(data.url);
       }
     } catch (err: any) {
       setErrorMsg(err?.message || "Google sign-in failed.");
-    } finally {
       setGoogleLoading(false);
     }
   }
@@ -233,7 +228,7 @@ export function GuestScanLimitModal({
       }
 
       if (data?.user) {
-        toast.success("Account created! 50 Daily Scans Unlocked.");
+        toast.success("Account created! 10 Daily Scans Unlocked.");
         if (onClose) onClose();
         router.refresh();
       }
@@ -255,7 +250,7 @@ export function GuestScanLimitModal({
               <span>{scannedCount} of {MAX_GUEST_SCANS} Free Guest Scans Used</span>
             </div>
             <h2 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
-              Unlock 50 Free Scans Daily
+              Unlock 10 Free Scans Daily
             </h2>
           </div>
           {onClose && (
@@ -303,7 +298,7 @@ export function GuestScanLimitModal({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-zinc-300">
           <div className="flex items-center gap-2 bg-[#141721] border border-white/[0.06] rounded-lg p-2.5">
             <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-            <span><strong>50 Scans/Day</strong> (Free Forever)</span>
+            <span><strong>10 Scans/Day</strong> (Free Forever)</span>
           </div>
           <div className="flex items-center gap-2 bg-[#141721] border border-white/[0.06] rounded-lg p-2.5">
             <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />

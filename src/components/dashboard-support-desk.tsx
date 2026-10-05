@@ -256,7 +256,7 @@ export default function DashboardSupportDesk({
                 {
                   id: `dev-reply-${ticket.ticketId}`,
                   role: "assistant",
-                  content: `👨‍💻 **Direct Developer Response** (from Spadas Engineering / ${t.repliedBy || "deniedae@gmail.com"}):\n\n${t.developerReply}`,
+                  content: `👨‍💼 **Customer Support Response** (from Spadas Customer Care):\n\n${t.developerReply}`,
                   timestamp: t.repliedAt || Date.now(),
                 },
               ];
@@ -398,7 +398,7 @@ export default function DashboardSupportDesk({
         {
           id: `err-${Date.now()}`,
           role: "system",
-          content: "⚠️ I encountered an error answering that query. Tap **[Request Developer Support]** above to notify Spadas engineering directly.",
+          content: "⚠️ I encountered an error answering that query. Tap **[Contact Support]** above to reach our customer support team directly.",
           timestamp: Date.now(),
         },
       ]);
@@ -448,11 +448,11 @@ export default function DashboardSupportDesk({
           {
             id: `sys-${Date.now()}`,
             role: "system",
-            content: `📢 **Ticket #${data.ticketId} Created**: Developer notified. You will receive an in-app reply or notification shortly.`,
+            content: `📢 **Ticket #${data.ticketId} Created**: Customer support team notified. We will review your inquiry and follow up shortly.`,
             timestamp: Date.now(),
           },
         ]);
-        toast.success(`Ticket #${data.ticketId} escalated to developer!`);
+        toast.success(`Ticket #${data.ticketId} submitted to customer support!`);
       }
     } catch (err) {
       console.error("Escalation failed:", err);
@@ -596,10 +596,10 @@ export default function DashboardSupportDesk({
                         ? "bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/30"
                         : "bg-cyan-500/15 text-cyan-300 border-cyan-500/30 hover:bg-cyan-500/25"
                     }`}
-                    title="Escalate directly to a human developer"
+                    title="Contact Spadas customer support"
                   >
                     <UserCheck className="w-3.5 h-3.5" />
-                    <span>{ticket?.status === "awaiting_human" ? "Ticket Active" : "Request Dev"}</span>
+                    <span>{ticket?.status === "awaiting_human" ? "Ticket Active" : "Support"}</span>
                   </button>
                 )}
 
@@ -988,8 +988,8 @@ export default function DashboardSupportDesk({
                   <UserCheck className="w-4 h-4" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-bold text-white font-mono">Talk to a Developer</h4>
-                  <p className="text-[11px] text-zinc-400">Direct engineering escalation</p>
+                  <h4 className="text-sm font-bold text-white font-mono">Contact Customer Support</h4>
+                  <p className="text-[11px] text-zinc-400">Direct reseller assistance</p>
                 </div>
               </div>
               <button
@@ -1056,7 +1056,7 @@ export default function DashboardSupportDesk({
                   ) : (
                     <Send className="w-3.5 h-3.5" />
                   )}
-                  <span>Notify Developer</span>
+                  <span>Submit Support Request</span>
                 </button>
               </div>
             </form>

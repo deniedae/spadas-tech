@@ -181,7 +181,7 @@ export function SpadasHaulSection({
       } catch (err: any) {
         console.warn("[Haul Section] Refetch comps error:", err);
         updateItem(itemId, { status: "completed" });
-        toast.error("Failed to fetch comps. Please check your connection.", { id: toastId });
+        toast.error("Could not fetch comps right now. Please try again in a moment.", { id: toastId });
       } finally {
         setRefetchingCompsId(null);
       }

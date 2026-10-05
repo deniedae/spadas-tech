@@ -478,6 +478,7 @@ function SpadasLensCameraCore({
     }
   });
   const [guestScanState, setGuestScanState] = useState<GuestScanState>(() => getGuestScanState());
+  const [dailyFreeScansLeft, setDailyFreeScansLeft] = useState<number>(10);
   const recordedScanCycleRef = useRef<number>(-1);
 
   // Keep guest scan count synchronized across tabs and components
@@ -737,6 +738,9 @@ function SpadasLensCameraCore({
               proStatus = true;
             }
             limitStatus = Boolean(usage.limitReached && !proStatus);
+            if (typeof usage.usesLeft === "number") {
+              setDailyFreeScansLeft(Math.max(0, usage.usesLeft));
+            }
           }
 
           if (isMounted) {
@@ -917,13 +921,13 @@ function SpadasLensCameraCore({
     if (!isAuthed && !currentPro && !isUserAdmin && (currentGuestState.isLimitReached || currentGuestState.remaining <= 0)) {
       setIsScanPaused(true);
       setIsGuestLimitModalOpen(true);
-      toast.info(`You've used all ${MAX_GUEST_SCANS} free guest scans! Create a free account to unlock 50 daily scans.`);
+      toast.info(`You've used all ${MAX_GUEST_SCANS} free guest scans! Create a free account to unlock 10 daily scans.`);
       return;
     }
-    if (!currentPro && !isUserAdmin && isLimitReached) {
+    if (!currentPro && !isUserAdmin && (isLimitReached || dailyFreeScansLeft <= 0)) {
       setIsScanPaused(true);
       setIsPaywallOpen(true);
-      toast.error("You've used all 50 free daily scans! Upgrade to Pro for unlimited scans.", {
+      toast.error("You've used all 10 free daily scans! Upgrade to Pro for unlimited scans.", {
         id: "daily-limit-toast",
       });
       return;
@@ -1058,23 +1062,40 @@ function SpadasLensCameraCore({
         return;
       }
 
-      const nextGuestState = recordGuestScan();
-      setGuestScanState(nextGuestState);
-      setSessionScanCount((prev) => prev + 1);
-      saveGuestScannedItem(hit);
-      setLastGuestScannedItem(hit);
+      if (isGuestUser) {
+        const nextGuestState = recordGuestScan();
+        setGuestScanState(nextGuestState);
+        setSessionScanCount((prev) => prev + 1);
+        saveGuestScannedItem(hit);
+        setLastGuestScannedItem(hit);
 
-      console.log(`[Spadas Lens] Guest scan successfully recorded! Remaining: ${nextGuestState.remaining}/${MAX_GUEST_SCANS} scans`);
+        console.log(`[Spadas Lens] Guest scan successfully recorded! Remaining: ${nextGuestState.remaining}/${MAX_GUEST_SCANS} scans`);
 
-      if (nextGuestState.isLimitReached) {
-        setTimeout(() => {
-          if (!activeCompsHitRef.current && !activeValuationHitRef.current) {
-            setIsGuestLimitModalOpen(true);
+        if (nextGuestState.isLimitReached) {
+          setTimeout(() => {
+            if (!activeCompsHitRef.current && !activeValuationHitRef.current) {
+              setIsGuestLimitModalOpen(true);
+            }
+          }, 3500);
+        }
+      } else {
+        // Authenticated free tier scan tracking (10 free scans / day)
+        setSessionScanCount((prev) => prev + 1);
+        setDailyFreeScansLeft((prev) => {
+          const next = Math.max(0, prev - 1);
+          if (next <= 0) {
+            setIsLimitReached(true);
+            setTimeout(() => {
+              if (!activeCompsHitRef.current && !activeValuationHitRef.current) {
+                setIsPaywallOpen(true);
+              }
+            }, 3500);
           }
-        }, 3500);
+          return next;
+        });
       }
     },
-    [isPro, isOwner]
+    [isPro, isOwner, isGuestUser]
   );
 
   // Unified Instant Result Card & Haptic/Visual Confirmation Trigger
@@ -1838,9 +1859,7 @@ function SpadasLensCameraCore({
   }, []);
 
   // Native Offline Dead-Zone Signal Watcher
-  const [isOffline, setIsOffline] = useState<boolean>(
-    typeof navigator !== "undefined" ? !navigator.onLine : false
-  );
+  const [isOffline, setIsOffline] = useState<boolean>(false);
   useEffect(() => {
     if (!isOwner) return;
     if (typeof window === 'undefined') return;
@@ -1939,31 +1958,25 @@ function SpadasLensCameraCore({
     }
   }, []);
 
-  // Bind online/offline events — display persistent toast on dead-zone signal, auto-flush queue on reconnect
+  // Bind online/offline events
   useEffect(() => {
     const handleOffline = () => {
       setIsOffline(true);
-      toast("📶 Network offline — haul items queued locally", {
+      toast("📶 Offline mode: scans queued locally", {
         id: "network-offline-toast",
-        duration: Infinity,
+        duration: 3500,
         icon: "📵",
       });
     };
     const handleOnline = () => {
       setIsOffline(false);
       toast.dismiss("network-offline-toast");
-      toast.success("Network restored — syncing queued items...", { id: "network-online-toast", duration: 3000 });
-      // Flush any pending scans/listings that were queued while offline
+      toast.success("Connection active", { id: "network-online-toast", duration: 2500 });
       void flushPendingSyncQueue();
     };
 
     window.addEventListener("offline", handleOffline);
     window.addEventListener("online", handleOnline);
-
-    // Check initial state — component may mount while already in a dead zone
-    if (typeof navigator !== "undefined" && !navigator.onLine) {
-      handleOffline();
-    }
 
     return () => {
       window.removeEventListener("offline", handleOffline);
@@ -2120,20 +2133,6 @@ function SpadasLensCameraCore({
       }
     } catch { }
     void flushPendingSyncQueue();
-
-    const handleOnline = () => {
-      setIsOffline(false);
-      void flushPendingSyncQueue();
-    };
-    const handleOffline = () => setIsOffline(true);
-
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
-
-    return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
-    };
   }, [flushPendingSyncQueue]);
 
   // AR Grail Detector Engine State ($100+ Profit / 300%+ ROI Hits)
@@ -2977,12 +2976,12 @@ function SpadasLensCameraCore({
         setIsScanPaused(true);
         setIsGuestLimitModalOpen(true);
         setAnalyzingRealFrame(false);
-        toast.info(`You've used all ${MAX_GUEST_SCANS} free guest scans! Create a free account to unlock 50 daily scans.`);
+        toast.info(`You've used all ${MAX_GUEST_SCANS} free guest scans! Create a free account to unlock 10 daily scans.`);
         return;
       }
 
       // 3. Daily 10-scan free tier limit applies strictly to non-pro, non-admin users
-      if (!hasUserPro && isLimitReached) {
+      if (!hasUserPro && (isLimitReached || dailyFreeScansLeft <= 0)) {
         setIsScanPaused(true);
         setIsPaywallOpen(true);
         setAnalyzingRealFrame(false);
@@ -4616,6 +4615,26 @@ function SpadasLensCameraCore({
                   </div>
                 )}
 
+                {/* Free Tier Daily Scan Counter HUD for Logged-In Users */}
+                {!isGuestUser && !isPro && !isOwner && (
+                  <div className="pointer-events-auto">
+                    <button
+                      type="button"
+                      onClick={() => setIsPaywallOpen(true)}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-[#0F1117]/95 border border-amber-500/30 px-2.5 py-1 text-zinc-200 backdrop-blur-md shadow-lg hover:border-amber-400/50 transition cursor-pointer"
+                      title="Daily Free Scans Remaining (Resets Daily)"
+                    >
+                      <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+                      <span className="font-mono text-[11px] font-bold text-white tabular-nums">
+                        {dailyFreeScansLeft}/10 scans
+                      </span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-bold ml-0.5">
+                        Go Pro
+                      </span>
+                    </button>
+                  </div>
+                )}
+
                 {/* Top Right Consolidated Tools & Telemetry Bar */}
                 <div className="flex items-center gap-2 pointer-events-auto">
                   {/* Network Latency & Offline Status Hint */}
@@ -4924,7 +4943,7 @@ function SpadasLensCameraCore({
                         </div>
                         <div>
                           <h4 className="text-xs font-bold text-white tracking-tight flex items-center gap-1.5">
-                            <span>25 Free Daily Scans Ready</span>
+                            <span>5 Free Guest Scans Ready</span>
                             <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-1.5 py-0.2 rounded-full">Active</span>
                           </h4>
                           <p className="text-[11px] text-zinc-300">
@@ -5115,13 +5134,13 @@ function SpadasLensCameraCore({
                         if (isGuestUser && (currentGuest.isLimitReached || currentGuest.remaining <= 0)) {
                           setIsScanPaused(true);
                           setIsGuestLimitModalOpen(true);
-                          toast.info(`You've used all ${MAX_GUEST_SCANS} free guest scans! Create a free account to unlock 50 daily scans.`);
+                          toast.info(`You've used all ${MAX_GUEST_SCANS} free guest scans! Create a free account to unlock 10 daily scans.`);
                           return;
                         }
-                        if (isLimitReached) {
+                        if (isLimitReached || dailyFreeScansLeft <= 0) {
                           setIsScanPaused(true);
                           setIsPaywallOpen(true);
-                          toast.error("You've used all 50 free daily scans! Upgrade to Pro for unlimited scans.", {
+                          toast.error("You've used all 10 free daily scans! Upgrade to Pro for unlimited scans.", {
                             id: "daily-limit-toast",
                           });
                           return;
