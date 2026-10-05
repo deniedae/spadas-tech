@@ -1652,8 +1652,11 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
 
             if (request.signal?.aborted) return;
 
-            // 2. Fetch live eBay comps and calculate final metrics
-            await runCompsAndFinalizeResult();
+            // 2. Fetch live eBay comps and calculate final metrics (guaranteed <= 3.5s resolution)
+            await Promise.race([
+              runCompsAndFinalizeResult(),
+              new Promise((resolve) => setTimeout(resolve, 3500)),
+            ]);
 
             if (request.signal?.aborted) return;
 

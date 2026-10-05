@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { Sparkles, Camera, TrendingUp, Zap, Loader2, Tag, Check } from "lucide-react";
 import { triggerDialTickHaptic } from "@/lib/audio-haptic-engine";
+import type { SupportedCurrency } from "@/app/lib/currency-routing";
 
 export interface ScanStep {
   label: string;
@@ -27,7 +28,7 @@ const STANDARD_STEPS: ScanStep[] = [
     progress: 55,
   },
   {
-    label: "Querying live AU sold comps…",
+    label: "Querying live marketplace sold comps…",
     sublabel: "Live eBay cleared sold listings",
     icon: TrendingUp,
     progress: 80,
@@ -54,7 +55,7 @@ const INTEL_STEPS: ScanStep[] = [
     progress: 55,
   },
   {
-    label: "Querying live AU sold comps…",
+    label: "Querying live marketplace sold comps…",
     sublabel: "Aggregating eBay comps & marketplace intel",
     icon: TrendingUp,
     progress: 80,
@@ -77,6 +78,7 @@ interface ScanProgressiveLoaderProps {
   detectedBrand?: string;
   previewImage?: string | null;
   isIntelMode?: boolean;
+  currency?: SupportedCurrency;
 }
 
 export function ScanProgressiveLoader({
@@ -89,6 +91,7 @@ export function ScanProgressiveLoader({
   detectedBrand,
   previewImage,
   isIntelMode = false,
+  currency = "AUD",
 }: ScanProgressiveLoaderProps) {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [maxProgress, setMaxProgress] = useState(0);
@@ -145,18 +148,22 @@ export function ScanProgressiveLoader({
   // Guaranteed monotonic non-decreasing progress: Math.max(prevProgress, nextProgress)
   const displayProgress = Math.min(100, Math.max(maxProgress, currentStep.progress));
 
+  const isUS = currency === "USD";
   const isCompsStep = currentStepIndex === 2 || stage === "comps";
+  const defaultCompsLabel = isUS ? "Querying live eBay US sold comps…" : "Querying live eBay AU sold comps…";
+  const defaultCompsSublabel = isUS ? "Live US eBay cleared sold listings" : "Live AU eBay cleared sold listings";
+
   const displayLabel = isComplete
     ? (isIntelMode ? "Intel Comps Valued & Verified" : "eBay Comps Valued & Verified")
     : customLabel || (isCompsStep && detectedTitle
-      ? (isIntelMode ? "Querying marketplace & local P2P comps..." : "Querying live AU sold comps...")
-      : currentStep.label);
+      ? (isIntelMode ? "Querying marketplace & local P2P comps..." : defaultCompsLabel)
+      : (isCompsStep ? defaultCompsLabel : currentStep.label));
 
   const displaySublabel = isComplete
     ? (detectedTitle ? `Verified: ${detectedTitle}` : "Ready for pricing & profit analysis")
     : detectedTitle
-    ? (isIntelMode ? `Marketplace & eBay comps: "${detectedTitle}"` : `Live eBay comps: "${detectedTitle}"`)
-    : currentStep.sublabel;
+    ? (isIntelMode ? `Marketplace & eBay comps: "${detectedTitle}"` : (isUS ? `Live eBay US comps: "${detectedTitle}"` : `Live eBay AU comps: "${detectedTitle}"`))
+    : (isCompsStep ? defaultCompsSublabel : currentStep.sublabel);
 
   if (variant === "skeleton") {
     return (

@@ -58,6 +58,9 @@ async function getEbayAppToken(): Promise<string | null> {
     const host = env === "production" ? "api.ebay.com" : "api.sandbox.ebay.com";
     const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
 
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 3000);
+
     const res = await fetch(`https://${host}/identity/v1/oauth2/token`, {
       method: "POST",
       headers: {
@@ -65,11 +68,16 @@ async function getEbayAppToken(): Promise<string | null> {
         Authorization: `Basic ${credentials}`,
       },
       body: "grant_type=client_credentials&scope=https%3A%2F%2Fapi.ebay.com%2Foauth%2Fapi_scope",
+      signal: controller.signal,
+    }).catch((err) => {
+      clearTimeout(timer);
+      return null;
     });
+    clearTimeout(timer);
 
-    if (!res.ok) {
-      const errBody = await res.text().catch(() => "");
-      console.warn(`[eBay Comps] App token fetch failed (${res.status}): ${errBody.slice(0, 300)}`);
+    if (!res || !res.ok) {
+      const errBody = res ? await res.text().catch(() => "") : "network_timeout";
+      console.warn(`[eBay Comps] App token fetch failed: ${errBody.slice(0, 300)}`);
       return null;
     }
 
@@ -105,16 +113,24 @@ export async function fetchEbayActiveListings(
     const host = env === "production" ? "api.ebay.com" : "api.sandbox.ebay.com";
     const url = `https://${host}/buy/browse/v1/item_summary/search?q=${encodeURIComponent(query)}&limit=${limit}`;
 
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 3500);
+
     const res = await fetch(url, {
       headers: {
         Authorization: `Bearer ${token}`,
         "X-EBAY-C-MARKETPLACE-ID": marketplaceId,
       },
+      signal: controller.signal,
+    }).catch((err) => {
+      clearTimeout(timer);
+      return null;
     });
+    clearTimeout(timer);
 
-    if (!res.ok) {
-      const errBody = await res.text().catch(() => "");
-      console.warn(`[eBay Browse API] Search failed for query "${query}" (${res.status}): ${errBody.slice(0, 300)}`);
+    if (!res || !res.ok) {
+      const errBody = res ? await res.text().catch(() => "") : "browse_api_timeout";
+      console.warn(`[eBay Browse API] Search failed for query "${query}": ${errBody.slice(0, 300)}`);
       return [];
     }
 
@@ -613,7 +629,7 @@ export async function fetchEbayAustraliaSoldComps(
       // count=10: cap payload to top-10 results — 6× less data, faster parse & transfer
       const url = `https://api.sold-comps.com/v1/scrape?keyword=${encodeURIComponent(q)}&ebaySite=${ebaySite}&page=1&count=10&daysToScrape=30&sortOrder=endedRecently${conditionParam}${locParam}`;
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 25000); // 25s timeout allows real sold comps scrape to resolve
+      const timer = setTimeout(() => controller.abort(), 3200); // 3.2s strict timeout for real-time camera appraisal
 
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${process.env.SOLD_COMPS_API_KEY}` },
@@ -621,7 +637,7 @@ export async function fetchEbayAustraliaSoldComps(
       }).catch((fetchErr: any) => {
         const isTimeout = fetchErr?.name === "AbortError";
         console.warn(
-          `[Sold Comps API] ${isTimeout ? "Timed out (25s limit)" : "Network failure"} for query "${q}":`,
+          `[Sold Comps API] ${isTimeout ? "Timed out (3.2s limit)" : "Network failure"} for query "${q}":`,
           fetchErr?.message || fetchErr
         );
         return null;
@@ -770,14 +786,15 @@ export async function fetchEbayAustraliaSoldComps(
     };
 
     // Attempt 1: Primary query (exact identified item)
+    const compsStart = Date.now();
     const primaryAttempt = await querySoldCompsForTerm(primaryQuery);
     if (primaryAttempt.comps.length >= 1) {
       resolvedSoldComps = primaryAttempt.comps;
       isUsMarketFallback = primaryAttempt.isUsFallback;
     }
 
-    // Attempt 2: If primary had 0 sold comps, try broadened query (strips stop-words & specs)
-    if (resolvedSoldComps.length === 0 && searchQueries.length > 1) {
+    // Attempt 2: Only try broadened query if primary query finished quickly (< 1500ms) with 0 comps
+    if (resolvedSoldComps.length === 0 && searchQueries.length > 1 && Date.now() - compsStart < 1500) {
       const broadenedQuery = searchQueries[1];
       console.log(`[eBay Comps] Primary query "${primaryQuery}" had 0 sold comps — trying broadened query "${broadenedQuery}"`);
       const broadenedAttempt = await querySoldCompsForTerm(broadenedQuery);
