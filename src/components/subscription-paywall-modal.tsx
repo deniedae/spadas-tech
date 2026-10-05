@@ -21,28 +21,6 @@ export interface PlanTier {
   color: string;
 }
 
-const PLANS: PlanTier[] = [
-  {
-    id: "starter",
-    name: "Spadas Pro Reseller",
-    badge: "UNLIMITED PRO ACCESS",
-    price: "$10 AUD",
-    period: "per month",
-    popular: true,
-    description: "Unlimited 60FPS AR camera scanning, live eBay sold comps, and 1-click cross-listing.",
-    features: [
-      "⚡ Unlimited 60FPS AR Camera Lens Scanner",
-      "📊 Live Australia & Global eBay 30-Day Sold Comps",
-      "🛍️ 1-Click Multi-Platform Cross-Lister (eBay, FB, Depop)",
-      "🔮 Future Grail 30-Day Social Trend & Price Surge Alerts",
-      "📦 Unlimited History Feed & Thrifting Haul Calculator",
-      "🔊 Motion-Lock Audio Chimes & Voice Commands",
-    ],
-    ctaText: "Upgrade to Spadas Pro ($10 AUD/mo)",
-    color: "border-cyan-400 bg-gradient-to-b from-slate-900 via-slate-900 to-cyan-950/40 shadow-[0_0_40px_rgba(6,182,212,0.3)]",
-  },
-];
-
 export default function SubscriptionPaywallModal({
   isOpen,
   onClose,
@@ -56,6 +34,47 @@ export default function SubscriptionPaywallModal({
   const [isAppStoreClient, setIsAppStoreClient] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
   const [isAndroid, setIsAndroid] = useState(false);
+
+  const isUsMarket =
+    typeof window !== "undefined" &&
+    (localStorage.getItem("spadas_selected_currency") === "USD" ||
+      (!localStorage.getItem("spadas_selected_currency") &&
+        (navigator.language === "en-US" ||
+          Intl.DateTimeFormat().resolvedOptions().timeZone.includes("America/") ||
+          Intl.DateTimeFormat().resolvedOptions().timeZone.includes("US/"))));
+
+  const plans: PlanTier[] = [
+    {
+      id: "starter",
+      name: "Spadas Pro Reseller",
+      badge: "UNLIMITED PRO ACCESS",
+      price: isUsMarket ? "$6.99 USD" : "$10 AUD",
+      period: "per month",
+      popular: true,
+      description: isUsMarket
+        ? "Unlimited 60FPS AR camera scanning, live eBay US sold comps, and 1-click reseller cross-listing."
+        : "Unlimited 60FPS AR camera scanning, live eBay Australia sold comps, and 1-click cross-listing.",
+      features: isUsMarket
+        ? [
+            "⚡ Unlimited 60FPS AR Camera Lens Scanner",
+            "📊 Live eBay US 30-Day Sold Comps & True Net Profit",
+            "🏷️ Single-Item Valuation Medians & Active Asks Guide",
+            "🛍️ 1-Click Multi-Platform Cross-Lister (eBay, Mercari, Poshmark)",
+            "📦 Unlimited History Feed & Sourcing Haul Calculator",
+            "🔊 Motion-Lock Audio Chimes & Haptic Feedback",
+          ]
+        : [
+            "⚡ Unlimited 60FPS AR Camera Lens Scanner",
+            "📊 Live Australia & Global eBay 30-Day Sold Comps",
+            "🏷️ Strict AU Sold Comps & Live Active Listings Guide",
+            "🛍️ 1-Click Multi-Platform Cross-Lister (eBay, FB, Depop)",
+            "📦 Unlimited History Feed & Thrifting Haul Calculator",
+            "🔊 Motion-Lock Audio Chimes & Haptic Feedback",
+          ],
+      ctaText: isUsMarket ? "Upgrade to Spadas Pro ($6.99/mo)" : "Upgrade to Spadas Pro ($10 AUD/mo)",
+      color: "border-cyan-400 bg-gradient-to-b from-slate-900 via-slate-900 to-cyan-950/40 shadow-[0_0_40px_rgba(6,182,212,0.3)]",
+    },
+  ];
 
   React.useEffect(() => {
     if (typeof window !== "undefined") {
@@ -132,7 +151,7 @@ export default function SubscriptionPaywallModal({
 
         {/* Pricing Card */}
         <div className="max-w-md mx-auto">
-          {PLANS.map((plan) => (
+          {plans.map((plan) => (
             <div
               key={plan.id}
               className={`relative rounded-3xl border p-6 flex flex-col justify-between space-y-6 transition-all duration-200 ${plan.color}`}

@@ -43,30 +43,51 @@ export const CURRENCY_CONFIGS: Record<SupportedCurrency, GeoCurrencyInfo> = {
  * Detect currency from IP country code or Browser Timezone
  */
 export function detectGeoCurrency(countryHeader?: string | null): GeoCurrencyInfo {
-  if (countryHeader) {
-    const country = countryHeader.toUpperCase().trim();
-    if (country === "US") return CURRENCY_CONFIGS.USD;
-    if (country === "GB" || country === "UK") return CURRENCY_CONFIGS.GBP;
-    if (["DE", "FR", "IT", "ES", "NL", "BE", "AT", "IE", "EU"].includes(country)) return CURRENCY_CONFIGS.EUR;
-    if (country === "AU" || country === "NZ") return CURRENCY_CONFIGS.AUD;
-  }
-
-  // Fallback to client browser timezone detection
-  if (typeof Intl !== "undefined" && Intl.DateTimeFormat) {
+  // Check local storage selection if on client
+  if (typeof window !== "undefined") {
     try {
-      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
-      if (tz.includes("America/") || tz.includes("US/")) return CURRENCY_CONFIGS.USD;
-      if (tz.includes("Europe/London")) return CURRENCY_CONFIGS.GBP;
-      if (tz.includes("Europe/")) return CURRENCY_CONFIGS.EUR;
-      if (tz.includes("Australia/") || tz.includes("Pacific/Auckland")) return CURRENCY_CONFIGS.AUD;
+      const saved = localStorage.getItem("spadas_selected_currency");
+      if (saved && (saved === "USD" || saved === "AUD" || saved === "EUR" || saved === "GBP")) {
+        return CURRENCY_CONFIGS[saved as SupportedCurrency];
+      }
     } catch {}
   }
 
-  return CURRENCY_CONFIGS.AUD;
+  if (countryHeader) {
+    const country = countryHeader.toUpperCase().trim();
+    if (country === "US" || country === "CA" || country === "PR") return CURRENCY_CONFIGS.USD;
+    if (country === "AU" || country === "NZ") return CURRENCY_CONFIGS.AUD;
+    if (country === "GB" || country === "UK") return CURRENCY_CONFIGS.GBP;
+    if (["DE", "FR", "IT", "ES", "NL", "BE", "AT", "IE", "EU", "CH", "SE", "NO", "DK"].includes(country)) return CURRENCY_CONFIGS.EUR;
+    // Any other country outside AU/NZ/Europe defaults to global standard USD
+    return CURRENCY_CONFIGS.USD;
+  }
+
+  // Fallback to client browser timezone & locale detection
+  if (typeof Intl !== "undefined" && Intl.DateTimeFormat) {
+    try {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+      if (tz.includes("Australia/") || tz.includes("Pacific/Auckland") || tz.includes("Lord_Howe")) return CURRENCY_CONFIGS.AUD;
+      if (tz.includes("America/") || tz.includes("US/") || tz.includes("Pacific/Honolulu") || tz.includes("Canada/")) return CURRENCY_CONFIGS.USD;
+      if (tz.includes("Europe/London")) return CURRENCY_CONFIGS.GBP;
+      if (tz.includes("Europe/")) return CURRENCY_CONFIGS.EUR;
+    } catch {}
+  }
+
+  // Check browser navigator language
+  if (typeof navigator !== "undefined" && navigator.language) {
+    const lang = navigator.language.toLowerCase();
+    if (lang === "en-au") return CURRENCY_CONFIGS.AUD;
+    if (lang === "en-us" || lang.startsWith("es-us")) return CURRENCY_CONFIGS.USD;
+    if (lang === "en-gb") return CURRENCY_CONFIGS.GBP;
+  }
+
+  // Default to USD for global traction from Google Play Store
+  return CURRENCY_CONFIGS.USD;
 }
 
 /**
- * Detects user geographic region ("AU" | "US" | "GB" | "EUR"). Defaults strictly to "AU".
+ * Detects user geographic region ("AU" | "US" | "GB" | "EUR").
  */
 export function detectUserRegion(countryHeader?: string | null): "AU" | "US" | "GB" | "EUR" {
   const geoInfo = detectGeoCurrency(countryHeader);
@@ -74,7 +95,7 @@ export function detectUserRegion(countryHeader?: string | null): "AU" | "US" | "
   if (geoInfo.currency === "USD") return "US";
   if (geoInfo.currency === "GBP") return "GB";
   if (geoInfo.currency === "EUR") return "EUR";
-  return "AU";
+  return "US";
 }
 
 /**

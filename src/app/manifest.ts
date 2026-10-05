@@ -2,10 +2,10 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Reseller Scanner: Thrift Flip",
-    short_name: "Thrift Flip",
+    name: "eBay Reseller Scanner: Thrift Profit",
+    short_name: "Reseller Scanner",
     description:
-      "Instant optical scanner & AI reseller copilot. Scan shelves, detect flip margins, compare sold comps on eBay, Poshmark & Mercari, and check authenticity.",
+      "Instant optical AR scanner & barcode reader for eBay resellers. Scan thrift shelves in 0.5s, calculate net profit with live eBay sold comps, and cross-list in seconds.",
     start_url: "/lens",
     scope: "/",
     id: "/lens",

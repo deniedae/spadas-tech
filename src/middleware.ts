@@ -1,17 +1,27 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
-// Explicit public routes that unauthenticated users are allowed to access (includes Instant Guest Scanning)
+// Explicit public routes that unauthenticated users are allowed to access (includes Instant Guest Scanning & Camera HUD tools)
 const PUBLIC_PATHS = [
   "/",
   "/lens",
   "/snap",
+  "/studio",
+  "/haul",
+  "/history",
+  "/calculator",
+  "/generator",
+  "/radar",
+  "/velocity",
+  "/listings",
   "/login",
   "/signup",
-  "/auth/callback",
+  "/auth",
+  "/terms",
   "/privacy",
   "/press",
   "/creators",
+  "/delete-account",
   "/spadas-ai.apk",
   "/favicon.ico",
   "/app-ads.txt",
@@ -19,7 +29,8 @@ const PUBLIC_PATHS = [
 ];
 
 export async function middleware(request: NextRequest) {
-  const pathname = request.nextUrl.pathname;
+  const rawPath = request.nextUrl.pathname;
+  const pathname = rawPath.replace(/\/+$/, "") || "/";
 
   // Allow next.js internal assets, static media files, and APIs (APIs perform their own auth & return JSON 401s)
   if (
@@ -30,8 +41,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Allow explicit public marketing and auth pages
-  if (PUBLIC_PATHS.includes(pathname)) {
+  // Allow explicit public marketing, camera hub tools, and auth pages
+  if (
+    PUBLIC_PATHS.includes(pathname) ||
+    PUBLIC_PATHS.some((p) => p !== "/" && pathname.startsWith(p))
+  ) {
     return NextResponse.next();
   }
 

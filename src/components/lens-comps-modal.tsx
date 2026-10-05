@@ -385,8 +385,14 @@ export default function LensCompsModal({
     return "FLIP";
   }, [netProfit, copVerdict, hasBrandOrModel, effectiveComps.length, roi, isGrail]);
 
+  const isUsMarket = Boolean(
+    (item as any)?.currency === "USD" ||
+    isUsMarketOnly ||
+    (typeof window !== "undefined" && localStorage.getItem("spadas_selected_currency") === "USD")
+  );
+  const ebayDomain = isUsMarket ? "ebay.com" : "ebay.com.au";
   const cleanSearchQuery = encodeURIComponent(title.replace(/[^\w\s-]/g, "").trim());
-  const ebayActiveSearchUrl = `https://www.ebay.com.au/sch/i.html?_nkw=${cleanSearchQuery}`;
+  const ebayActiveSearchUrl = `https://www.${ebayDomain}/sch/i.html?_nkw=${cleanSearchQuery}`;
 
   // ── Advanced Analytics Calculations ──────────────────────────────────────
   const marketplaceArbitrage = useMemo(() => {
@@ -620,10 +626,10 @@ export default function LensCompsModal({
               </h2>
               {/* Metadata Pills: Brand / Unbranded Warning + Category + Confidence Score + Regional Comps Status */}
               <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
-                {isUsMarketOnly ? (
-                  <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1">
+                {isUsMarket ? (
+                  <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
                     <span>🇺🇸</span>
-                    <span>US Market Data Only</span>
+                    <span>eBay US Comps</span>
                   </span>
                 ) : (
                   <span className="px-1.5 py-0.2 rounded text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 flex items-center gap-1">

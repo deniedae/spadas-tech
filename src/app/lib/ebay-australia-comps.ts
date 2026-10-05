@@ -135,7 +135,7 @@ export async function fetchEbayActiveListings(
         title,
         price: Math.round(rawPrice * 100) / 100,
         condition: String(item.condition || "Used"),
-        url: item.itemWebUrl || `https://www.ebay.com.au/itm/${itemId}`,
+        url: item.itemWebUrl || (targetCurrency === "USD" ? `https://www.ebay.com/itm/${itemId}` : `https://www.ebay.com.au/itm/${itemId}`),
         thumbnail: img,
         shippingIncluded: item.shippingOptions?.[0]?.shippingCost?.value === "0.00",
         shippingPrice: parseFloat(item.shippingOptions?.[0]?.shippingCost?.value || "0") || 0,
@@ -678,6 +678,21 @@ export async function fetchEbayAustraliaSoldComps(
 
         if (isValidUnitComp(title, finalPrice, isNormalized) && finalPrice >= (isLuxury ? 35 : 1) && finalPrice <= 10000) {
           const isAU = ebaySite.includes("australia") || ebaySite.includes(".au");
+          let compUrl = item.url || item.viewItemUrl;
+          if (isAU) {
+            if (compUrl) {
+              compUrl = compUrl.replace(/https?:\/\/(?:www\.)?ebay\.com\/itm\//i, "https://www.ebay.com.au/itm/");
+            } else if (item.itemId) {
+              compUrl = `https://www.ebay.com.au/itm/${item.itemId}`;
+            }
+          } else if (ebaySite.includes("ebay.com")) {
+            if (compUrl) {
+              compUrl = compUrl.replace(/https?:\/\/(?:www\.)?ebay\.com\.au\/itm\//i, "https://www.ebay.com/itm/");
+            } else if (item.itemId) {
+              compUrl = `https://www.ebay.com/itm/${item.itemId}`;
+            }
+          }
+
           const compItem: EbaySoldCompItem = {
             id: itemId,
             title,
@@ -687,7 +702,7 @@ export async function fetchEbayAustraliaSoldComps(
             rawDate: item.endedAt ? new Date(item.endedAt).getTime() : (item.dateEnded ? new Date(item.dateEnded).getTime() : 0),
             shippingIncluded: item.shippingType === "free" || Number(item.shippingPrice) === 0 || item.shippingCost === 0 || item.freeShipping === true,
             shippingPrice: Number(item.shippingPrice) || Number(item.shippingCost) || 0,
-            url: item.url || item.viewItemUrl || (item.itemId ? (isAU ? `https://www.ebay.com.au/itm/${item.itemId}` : `https://www.ebay.com/itm/${item.itemId}`) : undefined),
+            url: compUrl,
             thumbnail: item.fullResThumbnailUrl || item.thumbnailUrl || (item.image?.imageUrl || item.image) || item.galleryURL,
             isNormalized,
             packMultiplier,
@@ -729,53 +744,26 @@ export async function fetchEbayAustraliaSoldComps(
     let resolvedSoldComps: EbaySoldCompItem[] = [];
     let isUsMarketFallback = false;
 
-    // Helper to query sold comps across regional & US sites
+    // Helper to query sold comps strictly partitioned by target marketplace
     const querySoldCompsForTerm = async (queryTerm: string): Promise<{ comps: EbaySoldCompItem[]; isUsFallback: boolean }> => {
       if (isRegionUS) {
+        // STRICT US COMPS: Query official US marketplace (ebay.com)
         const usComps = await fetchSoldCompsFromApi(queryTerm, "ebay.com", false, isTargetUsed);
         if (usComps.length >= 1) return { comps: usComps, isUsFallback: false };
       } else if (isRegionAU) {
-        const [auResult, usResult] = await Promise.allSettled([
-          fetchSoldCompsFromApi(queryTerm, "ebay.com.au", true, isTargetUsed),
-          fetchSoldCompsFromApi(queryTerm, "ebay.com", false, isTargetUsed),
-        ]);
-
-        const auComps = auResult.status === "fulfilled" ? auResult.value : [];
-        const usComps = usResult.status === "fulfilled" ? usResult.value : [];
-
+        // STRICT AU COMPS: Query official Australian marketplace (ebay.com.au) with LH_PrefLoc=1 (AU only)
+        // Under NO circumstances should US comps leak into AU results.
+        const auComps = await fetchSoldCompsFromApi(queryTerm, "ebay.com.au", true, isTargetUsed);
         if (auComps.length >= 1) {
           return { comps: auComps, isUsFallback: false };
-        } else if (usComps.length >= 1) {
-          return {
-            comps: usComps.map((c) => ({
-              ...c,
-              price: Math.round(convertCurrency(c.price, "USD", "AUD") * 100) / 100,
-              isUsComp: true,
-            })),
-            isUsFallback: true,
-          };
         }
+        // If 0 AU sold comps, return empty so Phase 2 live AU active listings can provide pricing guidance
+        return { comps: [], isUsFallback: false };
       } else {
         const regionalSite = CURRENCY_CONFIGS[targetCurrency]?.ebaySite || "ebay.com";
-        const [regResult, usResult] = await Promise.allSettled([
-          fetchSoldCompsFromApi(queryTerm, regionalSite, false, isTargetUsed),
-          fetchSoldCompsFromApi(queryTerm, "ebay.com", false, isTargetUsed),
-        ]);
-
-        const regComps = regResult.status === "fulfilled" ? regResult.value : [];
-        const usComps = usResult.status === "fulfilled" ? usResult.value : [];
-
+        const regComps = await fetchSoldCompsFromApi(queryTerm, regionalSite, false, isTargetUsed);
         if (regComps.length >= 1) {
           return { comps: regComps, isUsFallback: false };
-        } else if (usComps.length >= 1) {
-          return {
-            comps: usComps.map((c) => ({
-              ...c,
-              price: Math.round(convertCurrency(c.price, "USD", targetCurrency) * 100) / 100,
-              isUsComp: true,
-            })),
-            isUsFallback: true,
-          };
         }
       }
       return { comps: [], isUsFallback: false };

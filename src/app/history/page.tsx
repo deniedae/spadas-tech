@@ -51,7 +51,20 @@ export default async function HistoryPage({
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/login?redirect=/history");
+    return (
+      <div className="min-h-screen bg-[#07090E] text-zinc-100 p-3 sm:p-6 md:p-8 animate-fade-in">
+        <div className="max-w-6xl mx-auto">
+          <HistoryFeedView
+            initialScans={[]}
+            totalCount={0}
+            page={1}
+            totalPages={1}
+            activeStatus="all"
+            error={null}
+          />
+        </div>
+      </div>
+    );
   }
 
   let query = supabase

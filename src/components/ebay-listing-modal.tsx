@@ -143,7 +143,25 @@ export default function EbayListingModal({
   const safeInitCond = cleanConditionText(initialCondition, "Used - Good");
   const safeInitTitle = (initialTitle && isMeaningfulMeta(initialTitle) ? initialTitle : "Scanned Item").slice(0, 80);
 
-  const [selectedCurrency, setSelectedCurrency] = useState<string>("AUD");
+  const [selectedCurrency, setSelectedCurrency] = useState<string>(() => {
+    if (initialCurrency && ["AUD", "USD", "GBP"].includes(initialCurrency.toUpperCase())) {
+      return initialCurrency.toUpperCase();
+    }
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("spadas_selected_currency");
+      if (stored && ["AUD", "USD", "GBP"].includes(stored.toUpperCase())) {
+        return stored.toUpperCase();
+      }
+      if (
+        navigator.language === "en-US" ||
+        Intl.DateTimeFormat().resolvedOptions().timeZone.includes("America/") ||
+        Intl.DateTimeFormat().resolvedOptions().timeZone.includes("US/")
+      ) {
+        return "USD";
+      }
+    }
+    return "USD";
+  });
   const [inputTitle, setInputTitle] = useState(safeInitTitle);
   const [inputPrice, setInputPrice] = useState(Number(initialPrice) || 25);
   const [inputCondition, setInputCondition] = useState(safeInitCond);
@@ -186,10 +204,16 @@ export default function EbayListingModal({
             const stored = localStorage.getItem("spadas_selected_currency");
             if (stored && ["AUD", "USD", "GBP"].includes(stored.toUpperCase())) {
               initialCurr = stored.toUpperCase();
+            } else if (
+              navigator.language === "en-US" ||
+              Intl.DateTimeFormat().resolvedOptions().timeZone.includes("America/") ||
+              Intl.DateTimeFormat().resolvedOptions().timeZone.includes("US/")
+            ) {
+              initialCurr = "USD";
             }
           }
         }
-        const targetCurr = (initialCurr && ["AUD", "USD", "GBP"].includes(initialCurr) ? initialCurr : "AUD") as SupportedCurrency;
+        const targetCurr = (initialCurr && ["AUD", "USD", "GBP"].includes(initialCurr) ? initialCurr : "USD") as SupportedCurrency;
         
         // Draft Rehydration
         let draft: any = null;

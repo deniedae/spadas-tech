@@ -192,6 +192,14 @@ export function openExternalUrlSafely(
     // 1. Sanitize raw URL
     let url = (rawUrl || "").trim();
 
+    const isUsMarket =
+      typeof window !== "undefined" &&
+      (localStorage.getItem("spadas_selected_currency") === "USD" ||
+        (!localStorage.getItem("spadas_selected_currency") &&
+          (navigator.language === "en-US" ||
+            Intl.DateTimeFormat().resolvedOptions().timeZone.includes("America/"))));
+    const defaultDomain = isUsMarket ? "www.ebay.com" : "www.ebay.com.au";
+
     // If empty or literal strings 'null' / 'undefined' or relative, fall back to safe search
     if (
       !url ||
@@ -202,7 +210,7 @@ export function openExternalUrlSafely(
       const q = encodeURIComponent(
         (fallbackQuery || "").replace(/[^\w\s-]/g, "").trim() || "vintage item"
       );
-      url = `https://www.ebay.com.au/sch/i.html?_nkw=${q}&LH_Sold=1&LH_Complete=1`;
+      url = `https://${defaultDomain}/sch/i.html?_nkw=${q}&LH_Sold=1&LH_Complete=1`;
     }
 
     // Upgrade cleartext http to https (required by Android Network Security Config)
@@ -217,7 +225,7 @@ export function openExternalUrlSafely(
       const q = encodeURIComponent(
         (fallbackQuery || "").replace(/[^\w\s-]/g, "").trim() || "vintage item"
       );
-      url = `https://www.ebay.com.au/sch/i.html?_nkw=${q}&LH_Sold=1&LH_Complete=1`;
+      url = `https://${defaultDomain}/sch/i.html?_nkw=${q}&LH_Sold=1&LH_Complete=1`;
     }
 
     // 2. Check if running inside Android WebView bridge with custom external opener
