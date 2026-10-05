@@ -38,7 +38,7 @@ export function GuestScanHud({
 
       {/* Count readout */}
       <span className="font-mono text-[11px] font-bold text-white tabular-nums">
-        {remainingScans}/{MAX_GUEST_SCANS}
+        {remainingScans}/{MAX_GUEST_SCANS} scans
       </span>
 
       {/* Unlock CTA */}

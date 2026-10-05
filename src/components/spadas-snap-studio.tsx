@@ -49,11 +49,33 @@ export function SpadasSnapStudio() {
   // User Auth & Subscription State
   const [isOwner, setIsOwner] = useState<boolean>(false);
   const [isPro, setIsPro] = useState<boolean>(false);
-  const [isGuestUser, setIsGuestUser] = useState<boolean>(false); // Default false: never flash paid/logged-in users as guests
+  const [isGuestUser, setIsGuestUser] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      const hasAuthToken = Object.keys(localStorage).some(k => k.startsWith("sb-") && k.endsWith("-auth-token"));
+      if (hasAuthToken) return false;
+      return true;
+    } catch {
+      return true;
+    }
+  });
   const [sessionScanCount, setSessionScanCount] = useState<number>(0);
   const [guestScanState, setGuestScanState] = useState<GuestScanState>(() => getGuestScanState());
   const [isGuestModalOpen, setIsGuestModalOpen] = useState<boolean>(false);
   const [lastScannedItem, setLastScannedItem] = useState<any>(null);
+
+  // Keep guest scan count synchronized across tabs and components
+  useEffect(() => {
+    const handleGuestUpdate = (e: any) => {
+      if (e?.detail) {
+        setGuestScanState(e.detail);
+      } else {
+        setGuestScanState(getGuestScanState());
+      }
+    };
+    window.addEventListener("spadas_guest_scan_updated", handleGuestUpdate);
+    return () => window.removeEventListener("spadas_guest_scan_updated", handleGuestUpdate);
+  }, []);
 
   // Reliable Non-Blocking Supabase Auth & Subscription Check on Mount
   useEffect(() => {
@@ -119,6 +141,7 @@ export function SpadasSnapStudio() {
             setIsGuestUser(true);
             setIsPro(false);
             setIsOwner(false);
+            setGuestScanState(getGuestScanState());
           }
         }
       } catch (err) {
@@ -150,6 +173,7 @@ export function SpadasSnapStudio() {
         setIsGuestUser(true);
         setIsPro(false);
         setIsOwner(false);
+        setGuestScanState(getGuestScanState());
       }
     });
 
@@ -329,9 +353,10 @@ export function SpadasSnapStudio() {
       }
     }
 
-    if (!isAuthed && isGuestUser && sessionScanCount >= MAX_GUEST_SCANS) {
+    const currentGuestState = getGuestScanState();
+    if (!isAuthed && !isUserAdmin && !isPro && (currentGuestState.isLimitReached || currentGuestState.remaining <= 0)) {
       setIsGuestModalOpen(true);
-      toast.info("You've used all 3 free instant guest scans! Create a free account to unlock 10 daily scans.");
+      toast.info(`You've used all ${MAX_GUEST_SCANS} free instant guest scans! Create a free account to unlock 50 daily scans.`);
       return;
     }
 
@@ -512,12 +537,17 @@ export function SpadasSnapStudio() {
           copVerdict: cop.copVerdict,
         };
 
-        if (!isAuthed && isGuestUser && !isPro && !isUserAdmin) {
+        if (!isAuthed && !isPro && !isUserAdmin) {
           const nextState = recordGuestScan();
           setGuestScanState(nextState);
           setSessionScanCount((prev) => prev + 1);
           saveGuestScannedItem(listingPayload);
           setLastScannedItem(listingPayload);
+          if (nextState.isLimitReached) {
+            setTimeout(() => {
+              setIsGuestModalOpen(true);
+            }, 3000);
+          }
         }
 
         // Auto-commit to Spadas Haul lot store

@@ -105,6 +105,7 @@ export function recordGuestScan(): GuestScanState {
     localStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify(nextState));
     // Set lightweight cookie for SSR & middleware awareness
     document.cookie = `spadas_guest_count=${newCount}; path=/; max-age=2592000; SameSite=Lax`;
+    window.dispatchEvent(new CustomEvent("spadas_guest_scan_updated", { detail: nextState }));
   } catch (err) {
     console.warn("[GuestScanTracker] Failed to persist state:", err);
   }
@@ -140,5 +141,6 @@ export function resetGuestScanState(): void {
     localStorage.removeItem(GUEST_STORAGE_KEY);
     localStorage.removeItem(GUEST_ITEMS_KEY);
     document.cookie = "spadas_guest_count=0; path=/; max-age=0; SameSite=Lax";
+    window.dispatchEvent(new CustomEvent("spadas_guest_scan_updated", { detail: getGuestScanState() }));
   } catch {}
 }
