@@ -5252,11 +5252,16 @@ function SpadasLensCameraCore({
               setIsScanPaused(true);
               const isolatedCapture = activeValuationHit?.image || frozenFrameUrl || undefined;
               const stableSessionId = activeValuationHit?.id || (activeValuationHit?.timestamp ? `hit_${activeValuationHit.timestamp}` : "hit_active");
+              const currentHit = activeValuationHit;
+              // Cleanly dismiss valuation dialog so there is no conflicting double-modal or background glitch
+              setActiveValuationHit(null);
+              activeValuationHitRef.current = null;
               setActiveEbayItem(
-                activeValuationHit
+                currentHit
                   ? {
-                    ...activeValuationHit,
+                    ...currentHit,
                     image: isolatedCapture,
+                    imageUrls: isolatedCapture ? [isolatedCapture] : undefined,
                     sessionId: stableSessionId,
                   }
                   : null
@@ -5938,9 +5943,14 @@ function SpadasLensCameraCore({
                           const stableSessionId =
                             activeValuationHit?.id ||
                             (activeValuationHit?.timestamp ? `hit_${activeValuationHit.timestamp}` : "hit_active");
+                          const currentHit = activeValuationHit;
+
+                          // Cleanly dismiss valuation dialog to eliminate double-modal conflicts
+                          setActiveValuationHit(null);
+                          activeValuationHitRef.current = null;
 
                           setActiveEbayItem({
-                            ...activeValuationHit,
+                            ...currentHit,
                             image: isolatedCapture,
                             imageUrls: isolatedCapture ? [isolatedCapture] : undefined,
                             sessionId: stableSessionId,

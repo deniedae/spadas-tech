@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
+import { createPortal } from "react-dom";
 import {
   ShoppingBag,
   CheckCircle2,
@@ -545,18 +546,18 @@ export default function EbayListingModal({
 
   const totalPhotoCount = (primaryScanBlob ? 1 : 0) + galleryPhotos.length;
 
-  return (
+  const modalContent = (
     <div
       onClick={(e) => {
         if (e.target === e.currentTarget) {
           handleModalClose();
         }
       }}
-      className="fixed inset-0 z-[120] overflow-y-auto bg-black/80 p-2 sm:p-4 pb-[calc(env(safe-area-inset-bottom,0px)+5rem)] sm:pb-4 flex min-h-full items-center justify-center overscroll-contain animate-fade-in"
+      className="fixed inset-0 z-[200] overflow-y-auto bg-black/85 backdrop-blur-sm p-2 sm:p-4 pb-[calc(env(safe-area-inset-bottom,0px)+5rem)] sm:pb-4 flex min-h-full items-center justify-center overscroll-contain animate-fade-in select-none"
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-lg rounded bg-zinc-900 border border-zinc-800 flex flex-col max-h-[92dvh] sm:max-h-[88vh] overflow-y-auto text-zinc-100"
+        className="relative w-full max-w-lg rounded-2xl bg-zinc-900 border border-zinc-800 shadow-2xl flex flex-col max-h-[92dvh] sm:max-h-[88vh] overflow-hidden text-zinc-100 select-text"
       >
         {/* Pinned Header */}
         <div className="shrink-0 flex items-center justify-between border-b border-zinc-800 px-4 sm:px-6 py-3.5 sm:py-4 bg-zinc-900">
@@ -1004,4 +1005,6 @@ export default function EbayListingModal({
       </div>
     </div>
   );
+
+  return typeof document !== "undefined" ? createPortal(modalContent, document.body) : modalContent;
 }
