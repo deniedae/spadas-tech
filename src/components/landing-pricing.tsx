@@ -47,7 +47,7 @@ export default function LandingPricing() {
     "💰 Full accounting P&L: 13.4% fees, 2.6% processing, COGS & exact satchel shipping",
     "📈 Sell-Through Rate (STR%) & market velocity liquidity alerts",
     "📦 Unlimited Sourcing Haul Vault & inventory portfolio CSV tax export",
-    "💎 Save $20+/mo compared to generic $30 USD reseller tools (SellRaze)",
+    "💎 Save $20+/mo compared to generic $30 USD reseller tools",
     "🛡️ Official Google Play In-App Billing (Cancel anytime in Play Store)",
   ];
 

@@ -113,7 +113,7 @@ export default function LandingFeatures() {
         ))}
       </div>
 
-      {/* ── Competitor Comparison Matrix (SellRaze vs Spadas) ── */}
+      {/* ── Competitor Comparison Matrix (Generic Apps vs Spadas) ── */}
       <div className="max-w-5xl mx-auto px-4 mt-20 pt-16 border-t border-white/[0.08]">
         <div className="text-center space-y-3 mb-10">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold bg-cyan-500/10 text-cyan-300 border border-cyan-500/30">
@@ -121,7 +121,7 @@ export default function LandingFeatures() {
             <span>Honest Reseller Comparison</span>
           </div>
           <h3 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight">
-            Why Flippers Are Switching From SellRaze
+            Why Flippers Switch From Generic Apps
           </h3>
           <p className="text-xs sm:text-sm text-zinc-400 max-w-xl mx-auto leading-relaxed">
             Generic listing apps use single-prompt ChatGPT wrappers that lag 10 seconds and guess prices. Spadas is an ensemble optical engine built specifically for secondary marketplaces.
@@ -140,7 +140,7 @@ export default function LandingFeatures() {
                   </div>
                 </th>
                 <th className="py-4 px-4 sm:px-6 font-bold text-zinc-500 text-center sm:text-left">
-                  Generic Apps (SellRaze &amp; ChatGPT)
+                  Generic Apps &amp; Standard ChatGPT
                 </th>
               </tr>
             </thead>

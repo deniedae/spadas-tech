@@ -177,7 +177,7 @@ export default function SubscriptionPaywallModal({
                       <span className="text-xs font-bold text-slate-400">/ {plan.period}</span>
                     </div>
                     <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-0.5 rounded-full">
-                      SAVE $20+/MO VS SELLRAZE
+                      SAVE $20+/MO VS OTHER APPS
                     </span>
                   </div>
                   <p className="text-[11px] text-cyan-300/90 font-medium flex items-center gap-1.5">
