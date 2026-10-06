@@ -22,14 +22,14 @@ const STANDARD_STEPS: ScanStep[] = [
     progress: 25,
   },
   {
-    label: "Analyzing hallmark & text…",
+    label: "Analyzing Hallmark & text…",
     sublabel: "OCR & visual appraisal",
     icon: Tag,
     progress: 55,
   },
   {
-    label: "Querying live marketplace sold comps…",
-    sublabel: "Live eBay cleared sold listings",
+    label: "Querying live eBay AU…",
+    sublabel: "Live AU eBay cleared sold comps",
     icon: TrendingUp,
     progress: 80,
   },
@@ -49,13 +49,13 @@ const INTEL_STEPS: ScanStep[] = [
     progress: 25,
   },
   {
-    label: "Analyzing hallmark & text…",
+    label: "Analyzing Hallmark & text…",
     sublabel: "OCR & visual appraisal",
     icon: Tag,
     progress: 55,
   },
   {
-    label: "Querying live marketplace sold comps…",
+    label: "Querying live eBay AU…",
     sublabel: "Aggregating eBay comps & marketplace intel",
     icon: TrendingUp,
     progress: 80,
@@ -150,14 +150,12 @@ export function ScanProgressiveLoader({
 
   const isUS = currency === "USD";
   const isCompsStep = currentStepIndex === 2 || stage === "comps";
-  const defaultCompsLabel = isUS ? "Querying live eBay US sold comps…" : "Querying live eBay AU sold comps…";
-  const defaultCompsSublabel = isUS ? "Live US eBay cleared sold listings" : "Live AU eBay cleared sold listings";
+  const defaultCompsLabel = isUS ? "Querying live eBay US…" : "Querying live eBay AU…";
+  const defaultCompsSublabel = isUS ? "Live US eBay cleared sold comps" : "Live AU eBay cleared sold comps";
 
   const displayLabel = isComplete
     ? (isIntelMode ? "Intel Comps Valued & Verified" : "eBay Comps Valued & Verified")
-    : customLabel || (isCompsStep && detectedTitle
-      ? (isIntelMode ? "Querying marketplace & local P2P comps..." : defaultCompsLabel)
-      : (isCompsStep ? defaultCompsLabel : currentStep.label));
+    : customLabel || (isCompsStep ? defaultCompsLabel : currentStep.label);
 
   const displaySublabel = isComplete
     ? (detectedTitle ? `Verified: ${detectedTitle}` : "Ready for pricing & profit analysis")
@@ -262,9 +260,9 @@ export function ScanProgressiveLoader({
           </div>
         )}
 
-        <div key={`${currentStepIndex}-${displayLabel}`} className="flex items-center gap-1.5 min-w-0 max-w-[240px] sm:max-w-xs lens-stage-morph">
+        <div key={`${currentStepIndex}-${displayLabel}`} className="flex items-center gap-1.5 min-w-0 max-w-[260px] sm:max-w-xs lens-stage-morph">
           {detectedTitle ? (
-            <span className="font-black text-white truncate max-w-[140px] text-[11px]">
+            <span className="font-bold text-white truncate max-w-[120px] text-[11px] bg-white/[0.08] px-1.5 py-0.5 rounded border border-white/[0.12]">
               {detectedTitle}
             </span>
           ) : null}

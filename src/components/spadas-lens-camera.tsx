@@ -876,6 +876,7 @@ function SpadasLensCameraCore({
   }, []);
   const [isLoaderTransitioning, setIsLoaderTransitioning] = useState<boolean>(false);
   const [isValuationCardMounted, setIsValuationCardMounted] = useState<boolean>(false);
+  const [isValuationDetailsExpanded, setIsValuationDetailsExpanded] = useState<boolean>(false);
 
   // Immediate crossfade handoff coordinator between progressive loader and valuation card
   useEffect(() => {
@@ -1233,6 +1234,7 @@ function SpadasLensCameraCore({
       isScanPausedRef.current = false;
       setIsCardExiting(false);
       setScanStage("idle");
+      setIsValuationDetailsExpanded(false);
       if (onComplete) onComplete();
     }, 200);
   }, [setActiveValuationHit, setActiveCompsHit]);
@@ -4503,8 +4505,8 @@ function SpadasLensCameraCore({
                 <div className="absolute inset-0 z-40 bg-white/50 pointer-events-none select-none transition-opacity animate-out fade-out duration-150" />
               )}
 
-              {/* Continuous Visual Anchor: Captured item snapshot remains continuously visible beneath progressive loader, handoff, and valuation steps with ZERO black flashes */}
-              {frozenFrameUrl && (analyzingRealFrame || isLoaderTransitioning || activeValuationHit || isScanPaused) && (
+              {/* Continuous Visual Anchor: Captured item snapshot remains visible beneath progressive loader, handoff, and paused states */}
+              {frozenFrameUrl && (analyzingRealFrame || isLoaderTransitioning || (!stream && activeValuationHit) || (isScanPaused && !stream)) && (
                 <div className="absolute inset-0 z-10 pointer-events-none select-none lens-crossfade">
                   <img
                     src={frozenFrameUrl}
@@ -5604,13 +5606,21 @@ function SpadasLensCameraCore({
             role="dialog"
             aria-modal="true"
             aria-label="Scan Valuation Results"
-            className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-2.5 sm:p-4 bg-black/85 backdrop-blur-md animate-fade-in select-none"
+            className="fixed inset-0 z-[100] flex flex-col justify-end pointer-events-none select-none"
             style={{ transform: "translate3d(0,0,0)", willChange: "transform" }}
-            onClick={(e) => {
-              // Explicit Dismissal Rule: Never close the valuation results dialog on accidental backdrop clicks.
-              // The dialog must stay up solidly until the user explicitly taps "Next", "+ Add", "List on eBay", or the close 'X' button.
-            }}
           >
+            {/* Top Area Backdrop: Transparent when compact to keep live camera visible; subtle tint when expanded */}
+            <div
+              className={`flex-1 w-full pointer-events-auto cursor-pointer ${
+                isValuationDetailsExpanded ? "bg-black/60 backdrop-blur-xs transition-colors duration-300" : "bg-transparent"
+              }`}
+              onClick={() => {
+                triggerTactileHaptic("light");
+                handleDismissCard();
+              }}
+              title="Tap viewfinder to dismiss and scan next item"
+            />
+
             <div
               key={`lens-valuation-${activeValuationHit.id || activeValuationHit.name}`}
               ref={(node) => {
@@ -5619,7 +5629,7 @@ function SpadasLensCameraCore({
                   setIsValuationCardMounted(true);
                 }
               }}
-              className={`w-full max-w-lg sm:max-w-xl pointer-events-auto transition-all duration-300 ease-out animate-in fade-in zoom-in-95 ${
+              className={`w-full max-w-xl mx-auto px-2 sm:px-4 pb-[max(0.75rem,calc(env(safe-area-inset-bottom,0px)+0.5rem))] pointer-events-auto transition-all duration-300 ease-out ${
                 isCardExiting ? "lens-card-exit" : "lens-card-enter"
               } ${
                 scanCompletePulse ? "ring-2 ring-emerald-400/90 shadow-[0_0_50px_rgba(16,185,129,0.6)]" : ""
@@ -5632,12 +5642,34 @@ function SpadasLensCameraCore({
                 onRetry={() => void processCurrentFrame(true)}
                 onDismiss={() => handleDismissCard()}
               >
-                <div className="trade-ticket w-full rounded-2xl bg-[#0B0E17] border border-white/[0.12] p-4 sm:p-5 shadow-[0_30px_90px_rgba(0,0,0,0.95)] backdrop-blur-2xl select-none max-h-[92dvh] sm:max-h-[88vh] flex flex-col overflow-hidden">
-                  {/* Top Header: Thumbnail Anchor, Verified Registry Badge, Title, Brand & Verdict */}
-                  <div className="flex items-start justify-between gap-3 mb-3 shrink-0">
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                <div
+                  className={`trade-ticket w-full rounded-2xl bg-[#0B0E17]/95 border border-white/[0.12] p-3 sm:p-4 shadow-[0_20px_60px_rgba(0,0,0,0.95)] backdrop-blur-2xl select-none flex flex-col overflow-hidden transition-all duration-300 ease-out ${
+                    isValuationDetailsExpanded
+                      ? "max-h-[85dvh] sm:max-h-[80vh]"
+                      : "max-h-[38dvh] sm:max-h-[32vh]"
+                  }`}
+                >
+                  {/* Top Drag Handle & Quick Expand/Collapse Bar */}
+                  <div
+                    className="w-full flex items-center justify-center pb-2 cursor-pointer group shrink-0"
+                    onClick={() => {
+                      triggerTactileHaptic("light");
+                      setIsValuationDetailsExpanded((prev) => !prev);
+                    }}
+                    title={isValuationDetailsExpanded ? "Collapse to compact card" : "Expand full comps & breakdown"}
+                  >
+                    <div className="w-10 h-1 rounded-full bg-white/20 group-hover:bg-white/40 transition-colors" />
+                  </div>
+
+                  {/* Top Header: Thumbnail, Verified Registry Badge, Title, Brand & Verdict */}
+                  <div className="flex items-start justify-between gap-2.5 shrink-0">
+                    <div className="flex items-center gap-2.5 flex-1 min-w-0">
                       {(frozenFrameUrl || activeValuationHit.image) && (
-                        <div className="relative h-14 w-14 sm:h-16 sm:w-16 rounded-xl overflow-hidden border border-white/[0.12] shrink-0 bg-[#121622] shadow-md">
+                        <div
+                          className={`relative rounded-xl overflow-hidden border border-white/[0.12] shrink-0 bg-[#121622] shadow-md transition-all ${
+                            isValuationDetailsExpanded ? "h-14 w-14 sm:h-16 sm:w-16" : "h-11 w-11 sm:h-12 sm:w-12"
+                          }`}
+                        >
                           <img
                             src={frozenFrameUrl || activeValuationHit.image || ""}
                             alt={activeValuationHit.name}
@@ -5645,44 +5677,44 @@ function SpadasLensCameraCore({
                           />
                         </div>
                       )}
-                      <div className="flex-1 min-w-0 space-y-1">
+                      <div className="flex-1 min-w-0 space-y-0.5">
                         <div className="flex items-center gap-1.5 flex-wrap">
                           {hasRealSoldComps ? (
-                            <span className="inline-flex items-center gap-1.5 text-[10px] font-mono font-medium text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/25">
+                            <span className="inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-mono font-medium text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/25">
                               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                              <span>{marketSiteName} • {itemComps.length} Realized Sales</span>
+                              <span>{marketSiteName} • {itemComps.length} Sold</span>
                             </span>
                           ) : isZeroSoldActive ? (
-                            <span className="inline-flex items-center gap-1.5 text-[10px] font-mono font-semibold text-cyan-300 bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/25">
+                            <span className="inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-mono font-semibold text-cyan-300 bg-cyan-500/10 px-1.5 py-0.5 rounded border border-cyan-500/25">
                               <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
-                              <span>{marketSiteName} • {itemComps.length} Active Competitor Asks</span>
+                              <span>{marketSiteName} • {itemComps.length} Asks</span>
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1.5 text-[10px] font-mono font-semibold text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/25">
+                            <span className="inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-mono font-semibold text-amber-300 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/25">
                               <AlertTriangle className="w-2.5 h-2.5" />
-                              <span>Algorithmic Appraisal Model</span>
+                              <span>Appraisal Model</span>
                             </span>
                           )}
                           {isMeaningfulMeta(activeValuationHit.brand) && (
-                            <span className="text-[10px] font-medium text-zinc-300 font-mono truncate max-w-[130px] bg-white/[0.04] px-2 py-0.5 rounded border border-white/[0.06]">
+                            <span className="text-[9px] sm:text-[10px] font-medium text-zinc-300 font-mono truncate max-w-[110px] bg-white/[0.04] px-1.5 py-0.5 rounded border border-white/[0.06]">
                               {activeValuationHit.brand.trim()}
                             </span>
                           )}
                         </div>
-                        <h4 className="text-sm sm:text-base font-semibold text-white line-clamp-2 leading-snug tracking-tight">
+                        <h4 className="text-xs sm:text-sm font-semibold text-white truncate leading-snug tracking-tight">
                           {activeValuationHit.name}
                         </h4>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-1.5 shrink-0">
                       {activeValuationHit.copVerdict && (
                         <span className={verdictBadge}>{verdictLabel}</span>
                       )}
                       <button
                         type="button"
                         onClick={() => handleDismissCard()}
-                        className="text-zinc-400 hover:text-white p-1.5 rounded-lg transition cursor-pointer hover:bg-white/[0.08]"
+                        className="text-zinc-400 hover:text-white p-1 rounded-lg transition cursor-pointer hover:bg-white/[0.08]"
                         title="Dismiss"
                       >
                         <X className="h-4 w-4" />
@@ -5690,336 +5722,338 @@ function SpadasLensCameraCore({
                     </div>
                   </div>
 
-                  {/* Scrollable Core: Resale Value, Profit Analysis, P&L Math & Comps */}
-                  <div className="overflow-y-auto space-y-3 pr-0.5 custom-scrollbar flex-1 min-h-0">
-                    {/* Notice for 0 Sold Comps */}
-                    {isZeroSoldActive && (
-                      <div className="p-3 rounded-xl bg-cyan-950/30 border border-cyan-500/25 space-y-1 font-mono text-xs">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-bold text-cyan-300 uppercase tracking-wider flex items-center gap-1.5">
-                            <AlertTriangle className="w-3 h-3 text-cyan-400" />
-                            <span>0 Historical Sold Transactions on Record</span>
-                          </span>
-                          <span className="text-[9px] text-cyan-300/90 bg-cyan-500/20 px-1.5 py-0.5 rounded">
-                            Active Asks
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-zinc-300 font-sans leading-relaxed">
-                          No completed sales found on {marketSiteName}. Displaying <strong>{itemComps.length} active competitor asking prices</strong> for reference. Note that asking prices are seller expectations, not realized transaction values.
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Financial Valuation Ledger Strip (Dual Metric) */}
-                    <div className="grid grid-cols-2 gap-2.5 p-3 sm:p-3.5 rounded-xl bg-[#121622] border border-white/[0.08]">
-                      {/* Left Metric: Realized Value (Median Sold) */}
-                      <div className="space-y-1 font-mono">
-                        <span className="text-[10px] uppercase tracking-wider font-semibold text-zinc-400 block">
-                          {isZeroSoldActive ? "Competitor Ask Median" : `${marketSiteName} Median Sold`}
-                        </span>
-                        <div className="text-xl sm:text-2xl font-bold tracking-tight text-white tabular-nums">
-                          {fmtMoney(resaleMedian)} <span className="text-xs font-normal text-zinc-400">{selectedCurrency}</span>
-                        </div>
-                        <div className="text-[11px] text-zinc-400">
-                          Range: {fmtMoney(resaleMin)} – {fmtMoney(resaleMax)}
-                        </div>
-                      </div>
-
-                      {/* Right Metric: Estimated Net Proceeds */}
-                      <div className="space-y-1 font-mono text-right border-l border-white/[0.06] pl-3">
-                        <span className="text-[10px] uppercase tracking-wider font-semibold text-emerald-400/90 block">
-                          Estimated Net Realization
-                        </span>
-                        <div className={`text-xl sm:text-2xl font-bold tracking-tight tabular-nums ${netProfit >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                          {netProfit >= 0 ? `+${fmtMoney(netProfit)}` : fmtMoney(netProfit)} <span className="text-xs font-normal text-emerald-400/80">{selectedCurrency}</span>
-                        </div>
-                        <div className="text-[11px]">
-                          <span className={roiPct > 0 ? "text-emerald-400 font-semibold" : "text-zinc-400"}>
-                            {roiPct > 0 ? `+${roiPct}% ROI` : `${roiPct}% ROI`}
-                          </span>
-                          <span className="text-zinc-400 ml-1">
-                            (Cost: {fmtMoney(thriftCost)})
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Transparent Reseller P&L Equation */}
-                    <div className="px-3 py-2 rounded-xl bg-[#0E121D] border border-white/[0.06] text-[11px] font-mono text-zinc-300 flex items-center justify-between flex-wrap gap-1.5">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-zinc-400 text-[10px] uppercase font-semibold">P&L Math:</span>
-                        <span>{isZeroSoldActive ? "Ask" : "Sold"} {fmtMoney(resaleMedian)}</span>
-                        <span className="text-zinc-500">−</span>
-                        <span>COGS {fmtMoney(thriftCost)}</span>
-                        <span className="text-zinc-500">−</span>
-                        <span>Fees ~{fmtMoney(estFees)}</span>
-                        <span className="text-zinc-500">−</span>
-                        <span>Post ~{fmtMoney(estPost)}</span>
-                      </div>
-                      <span className="text-emerald-400 font-bold ml-auto tabular-nums">
-                        = +{fmtMoney(netProfit)} Net
+                  {/* Financial Valuation Ledger Strip (Dual Metric) */}
+                  <div className="grid grid-cols-2 gap-2 my-2 p-2 sm:p-2.5 rounded-xl bg-[#121622] border border-white/[0.08] shrink-0">
+                    {/* Left Metric: Realized Value (Median Sold) */}
+                    <div className="space-y-0.5 font-mono">
+                      <span className="text-[9px] sm:text-[10px] uppercase tracking-wider font-semibold text-zinc-400 block truncate">
+                        {isZeroSoldActive ? "Competitor Ask Median" : `${marketSiteName} Median Sold`}
                       </span>
+                      <div className="text-base sm:text-xl font-bold tracking-tight text-white tabular-nums">
+                        {fmtMoney(resaleMedian)} <span className="text-[10px] sm:text-xs font-normal text-zinc-400">{selectedCurrency}</span>
+                      </div>
+                      <div className="text-[10px] text-zinc-400 truncate">
+                        Range: {fmtMoney(resaleMin)} – {fmtMoney(resaleMax)}
+                      </div>
                     </div>
 
-                    {/* Completed Sales Evidence (Comps) */}
-                    {hasRealSoldComps ? (
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between px-0.5 pt-1">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[11px] font-mono font-bold text-zinc-200 uppercase tracking-wider">
-                              Verified Completed Sales
-                            </span>
-                            <span className="text-[10px] font-mono text-zinc-400">
-                              ({itemComps.length} {itemComps.length === 1 ? "record" : "records"})
-                            </span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={(e) => openExternalUrlSafely(ebayUrl, activeValuationHit?.name, e)}
-                            className="text-[11px] font-mono text-zinc-400 hover:text-white flex items-center gap-1 transition cursor-pointer bg-transparent border-0"
-                          >
-                            <span>Live Registry</span>
-                            <ExternalLink className="w-3 h-3 text-zinc-400" />
-                          </button>
-                        </div>
-
-                        <div className="max-h-60 sm:max-h-72 overflow-y-auto space-y-2 custom-scrollbar pr-0.5">
-                          {itemComps.map((comp, idx) => {
-                            const compImg = comp.thumbnail || (idx === 0 ? (frozenFrameUrl || activeValuationHit.image) : null);
-                            const conditionText = comp.condition ? cleanConditionText(comp.condition) : "Pre-Owned";
-                            const soldDateText = comp.soldDate && comp.soldDate !== "Active Ask" ? comp.soldDate : "Recent";
-
-                            return (
-                              <div
-                                key={comp.id || idx}
-                                className="group p-2.5 rounded-xl bg-[#121622] hover:bg-[#171D2D] border border-white/[0.08] hover:border-white/[0.16] transition flex items-center justify-between gap-3 shadow-xs"
-                              >
-                                {/* Listing Thumbnail */}
-                                <div className="relative h-13 w-13 sm:h-14 sm:w-14 rounded-lg overflow-hidden bg-[#0A0D14] border border-white/[0.10] shrink-0">
-                                  {compImg ? (
-                                    <img
-                                      src={compImg}
-                                      alt={comp.title}
-                                      loading="lazy"
-                                      decoding="async"
-                                      className="h-full w-full object-cover group-hover:scale-105 transition duration-200"
-                                      onError={(e) => {
-                                        if (frozenFrameUrl || activeValuationHit.image) {
-                                          (e.target as HTMLImageElement).src = (frozenFrameUrl || activeValuationHit.image) as string;
-                                        } else {
-                                          (e.target as HTMLImageElement).style.display = "none";
-                                        }
-                                      }}
-                                    />
-                                  ) : (
-                                    <div className="h-full w-full flex items-center justify-center text-zinc-600 bg-[#0E121B]">
-                                      <ShoppingBag className="w-5 h-5 text-zinc-500" />
-                                    </div>
-                                  )}
-                                  <span className="absolute bottom-1 right-1 px-1 py-0.2 rounded bg-black/85 text-[8px] font-mono text-zinc-300 tabular-nums">
-                                    Sold
-                                  </span>
-                                </div>
-
-                                {/* Center: Realized Price, Title, Condition & Date */}
-                                <div className="min-w-0 flex-1 space-y-1">
-                                  <div className="flex items-center gap-1.5 flex-wrap">
-                                    <span className="text-sm sm:text-base font-bold font-mono text-white tabular-nums tracking-tight">
-                                      {fmtMoney(comp.price)}
-                                    </span>
-                                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/[0.05] text-zinc-300 border border-white/[0.06]">
-                                      {soldDateText}
-                                    </span>
-                                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/[0.04] text-zinc-400 border border-white/[0.06] truncate max-w-[110px]">
-                                      {conditionText}
-                                    </span>
-                                    {typeof comp.matchPercentage === "number" && (
-                                      <span className="text-[10px] font-mono font-medium text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
-                                        {comp.matchPercentage}% match
-                                      </span>
-                                    )}
-                                  </div>
-                                  <div className="text-xs text-zinc-300 truncate font-normal leading-snug group-hover:text-white transition" title={comp.title}>
-                                    {comp.title}
-                                  </div>
-                                  <div className="text-[10px] font-mono text-zinc-500">
-                                    {comp.shippingIncluded ? "Free Delivery" : comp.shippingPrice ? `+${fmtMoney(comp.shippingPrice)} Delivery` : "Standard Postage"}
-                                  </div>
-                                </div>
-
-                                {/* Right: Outbound eBay Link */}
-                                <button
-                                  type="button"
-                                  onClick={(e) => openExternalUrlSafely(comp.url || ebayUrl, comp.title, e)}
-                                  className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.12] text-zinc-300 hover:text-white border border-white/[0.08] text-[11px] font-mono font-medium transition cursor-pointer active:scale-95"
-                                  title={`View listing on ${marketSiteName}`}
-                                >
-                                  <span>View</span>
-                                  <ExternalLink className="w-3 h-3 text-zinc-400 group-hover:text-zinc-200" />
-                                </button>
-                              </div>
-                            );
-                          })}
-                        </div>
+                    {/* Right Metric: Estimated Net Proceeds */}
+                    <div className="space-y-0.5 font-mono text-right border-l border-white/[0.06] pl-2 sm:pl-3">
+                      <span className="text-[9px] sm:text-[10px] uppercase tracking-wider font-semibold text-emerald-400/90 block truncate">
+                        Estimated Net Profit
+                      </span>
+                      <div className={`text-base sm:text-xl font-bold tracking-tight tabular-nums ${netProfit >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                        {netProfit >= 0 ? `+${fmtMoney(netProfit)}` : fmtMoney(netProfit)} <span className="text-[10px] sm:text-xs font-normal text-emerald-400/80">{selectedCurrency}</span>
                       </div>
-                    ) : isZeroSoldActive ? (
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between px-0.5 pt-1">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[11px] font-mono font-bold text-cyan-300 uppercase tracking-wider">
-                              Active Competitor Listings
-                            </span>
-                            <span className="text-[10px] font-mono text-zinc-400">
-                              ({itemComps.length} {itemComps.length === 1 ? "record" : "records"})
-                            </span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={(e) => openExternalUrlSafely(ebayUrl, activeValuationHit?.name, e)}
-                            className="text-[11px] font-mono text-zinc-400 hover:text-white flex items-center gap-1 transition cursor-pointer bg-transparent border-0"
-                          >
-                            <span>Live Registry</span>
-                            <ExternalLink className="w-3 h-3 text-zinc-400" />
-                          </button>
-                        </div>
-
-                        <div className="max-h-60 sm:max-h-72 overflow-y-auto space-y-2 custom-scrollbar pr-0.5">
-                          {itemComps.map((comp, idx) => {
-                            const compImg = comp.thumbnail || (idx === 0 ? (frozenFrameUrl || activeValuationHit.image) : null);
-                            const conditionText = comp.condition ? cleanConditionText(comp.condition) : "Pre-Owned";
-
-                            return (
-                              <div
-                                key={comp.id || idx}
-                                className="group p-2.5 rounded-xl bg-[#121622] hover:bg-[#171D2D] border border-cyan-500/20 hover:border-cyan-500/40 transition flex items-center justify-between gap-3 shadow-xs"
-                              >
-                                <div className="relative h-13 w-13 sm:h-14 sm:w-14 rounded-lg overflow-hidden bg-[#0A0D14] border border-cyan-500/20 shrink-0">
-                                  {compImg ? (
-                                    <img
-                                      src={compImg}
-                                      alt={comp.title}
-                                      loading="lazy"
-                                      decoding="async"
-                                      className="h-full w-full object-cover group-hover:scale-105 transition duration-200"
-                                      onError={(e) => {
-                                        if (frozenFrameUrl || activeValuationHit.image) {
-                                          (e.target as HTMLImageElement).src = (frozenFrameUrl || activeValuationHit.image) as string;
-                                        } else {
-                                          (e.target as HTMLImageElement).style.display = "none";
-                                        }
-                                      }}
-                                    />
-                                  ) : (
-                                    <div className="h-full w-full flex items-center justify-center text-cyan-400/60 bg-[#0E121B]">
-                                      <ShoppingBag className="w-5 h-5 text-cyan-400" />
-                                    </div>
-                                  )}
-                                  <span className="absolute bottom-1 right-1 px-1 py-0.2 rounded bg-cyan-950/90 text-[8px] font-mono text-cyan-300 tabular-nums border border-cyan-500/30">
-                                    Ask
-                                  </span>
-                                </div>
-
-                                <div className="min-w-0 flex-1 space-y-1">
-                                  <div className="flex items-center gap-1.5 flex-wrap">
-                                    <span className="text-sm sm:text-base font-bold font-mono text-cyan-300 tabular-nums tracking-tight">
-                                      {fmtMoney(comp.price)}
-                                    </span>
-                                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-300 border border-cyan-500/25">
-                                      Active Ask
-                                    </span>
-                                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/[0.04] text-zinc-400 border border-white/[0.06] truncate max-w-[110px]">
-                                      {conditionText}
-                                    </span>
-                                    {typeof comp.matchPercentage === "number" && (
-                                      <span className="text-[10px] font-mono text-cyan-400">
-                                        {comp.matchPercentage}% match
-                                      </span>
-                                    )}
-                                  </div>
-                                  <div className="text-xs text-zinc-300 truncate font-normal leading-snug group-hover:text-white transition" title={comp.title}>
-                                    {comp.title}
-                                  </div>
-                                  <div className="text-[10px] font-mono text-zinc-500">
-                                    {comp.shippingIncluded ? "Free Delivery" : comp.shippingPrice ? `+${fmtMoney(comp.shippingPrice)} Delivery` : "Standard Postage"}
-                                  </div>
-                                </div>
-
-                                <button
-                                  type="button"
-                                  onClick={(e) => openExternalUrlSafely(comp.url || ebayUrl, comp.title, e)}
-                                  className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.12] text-zinc-300 hover:text-white border border-white/[0.08] text-[11px] font-mono font-medium transition cursor-pointer active:scale-95"
-                                  title={`View listing on ${marketSiteName}`}
-                                >
-                                  <span>View</span>
-                                  <ExternalLink className="w-3 h-3 text-zinc-400 group-hover:text-zinc-200" />
-                                </button>
-                              </div>
-                            );
-                          })}
-                        </div>
+                      <div className="text-[10px] truncate">
+                        <span className={roiPct > 0 ? "text-emerald-400 font-semibold" : "text-zinc-400"}>
+                          {roiPct > 0 ? `+${roiPct}% ROI` : `${roiPct}% ROI`}
+                        </span>
+                        <span className="text-zinc-400 ml-1">
+                          (Cost: {fmtMoney(thriftCost)})
+                        </span>
                       </div>
-                    ) : (
-                      <div className="p-3.5 rounded-xl bg-[#141721] border border-amber-500/25 space-y-2 font-mono">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-bold text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
-                            <AlertTriangle className="w-3 h-3 text-amber-400" />
-                            <span>0 Historical Sales on Record</span>
-                          </span>
-                          <span className="text-[9px] text-amber-300/90 bg-amber-500/15 border border-amber-500/25 px-2 py-0.5 rounded">
-                            Algorithmic Valuation
-                          </span>
-                        </div>
-                        <p className="text-xs text-zinc-300 font-sans leading-relaxed">
-                          No historical transactions recorded on {marketSiteName}. Suggested anchor listing price: <strong>{fmtMoney(resaleMedian)} {selectedCurrency}</strong> with a rapid liquidation floor of <strong>{fmtMoney(resaleMin)} {selectedCurrency}</strong>.
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Secondary Verification Notice (if applicable) */}
-                    {(activeValuationHit.copVerdict === "VERIFY_FIRST" || activeValuationHit.requiresSecondaryVerification) && (
-                      <div className="px-3 py-2 rounded-xl bg-[#141721] border border-amber-500/30 flex items-center justify-between gap-2.5">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
-                          <span className="text-xs font-medium text-zinc-300 truncate">
-                            {activeValuationHit.verificationReason || "Confidence < 88% — confirm tags & serial numbers before purchasing"}
-                          </span>
-                        </div>
-                        {activeValuationHit.fallbackProtocol === "SCAN_BARCODE" ? (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              handleDismissCard(() => {
-                                setScanMode("barcode");
-                                toast.info("Switched to Barcode Mode for precision verification.");
-                              });
-                            }}
-                            className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/[0.08] hover:bg-white/[0.14] text-white border border-white/[0.12] text-[10px] font-mono font-bold uppercase tracking-wider transition active:scale-95 cursor-pointer shadow-sm"
-                          >
-                            <Barcode className="w-3 h-3" />
-                            <span>Barcode</span>
-                          </button>
-                        ) : activeValuationHit.fallbackProtocol === "ZOOM_LABEL" ? (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              handleDismissCard(() => {
-                                toast.info("Move camera closer to focus on brand/size tag.");
-                                void processCurrentFrame(true);
-                              });
-                            }}
-                            className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/[0.08] hover:bg-white/[0.14] text-white border border-white/[0.12] text-[10px] font-mono font-bold uppercase tracking-wider transition active:scale-95 cursor-pointer shadow-sm"
-                          >
-                            <Camera className="w-3 h-3" />
-                            <span>Zoom Tag</span>
-                          </button>
-                        ) : null}
-                      </div>
-                    )}
+                    </div>
                   </div>
 
-                  {/* Action Dock: List on eBay, Verify (if flagged), Next Item, + Add to Haul */}
-                  <div className="flex items-center justify-between gap-2.5 pt-3 mt-1 border-t border-white/[0.08] shrink-0">
-                    <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                  {/* Expandable Core: Comps, P&L Math & Detailed Verification (Visible when expanded) */}
+                  {isValuationDetailsExpanded && (
+                    <div className="overflow-y-auto space-y-3 pr-0.5 my-1 custom-scrollbar flex-1 min-h-0 animate-in fade-in duration-200">
+                      {/* Transparent Reseller P&L Equation */}
+                      <div className="px-3 py-2 rounded-xl bg-[#0E121D] border border-white/[0.06] text-[11px] font-mono text-zinc-300 flex items-center justify-between flex-wrap gap-1.5">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-zinc-400 text-[10px] uppercase font-semibold">P&L Math:</span>
+                          <span>{isZeroSoldActive ? "Ask" : "Sold"} {fmtMoney(resaleMedian)}</span>
+                          <span className="text-zinc-500">−</span>
+                          <span>COGS {fmtMoney(thriftCost)}</span>
+                          <span className="text-zinc-500">−</span>
+                          <span>Fees ~{fmtMoney(estFees)}</span>
+                          <span className="text-zinc-500">−</span>
+                          <span>Post ~{fmtMoney(estPost)}</span>
+                        </div>
+                        <span className="text-emerald-400 font-bold ml-auto tabular-nums">
+                          = +{fmtMoney(netProfit)} Net
+                        </span>
+                      </div>
+
+                      {/* Notice for 0 Sold Comps */}
+                      {isZeroSoldActive && (
+                        <div className="p-2.5 rounded-xl bg-cyan-950/30 border border-cyan-500/25 space-y-1 font-mono text-xs">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-bold text-cyan-300 uppercase tracking-wider flex items-center gap-1.5">
+                              <AlertTriangle className="w-3 h-3 text-cyan-400" />
+                              <span>0 Historical Sold Transactions on Record</span>
+                            </span>
+                            <span className="text-[9px] text-cyan-300/90 bg-cyan-500/20 px-1.5 py-0.5 rounded">
+                              Active Asks
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-zinc-300 font-sans leading-relaxed">
+                            No completed sales found on {marketSiteName}. Displaying <strong>{itemComps.length} active competitor asking prices</strong> for reference. Note that asking prices are seller expectations, not realized transaction values.
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Completed Sales Evidence (Comps) */}
+                      {hasRealSoldComps ? (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between px-0.5 pt-1">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[11px] font-mono font-bold text-zinc-200 uppercase tracking-wider">
+                                Verified Completed Sales
+                              </span>
+                              <span className="text-[10px] font-mono text-zinc-400">
+                                ({itemComps.length} {itemComps.length === 1 ? "record" : "records"})
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={(e) => openExternalUrlSafely(ebayUrl, activeValuationHit?.name, e)}
+                              className="text-[11px] font-mono text-zinc-400 hover:text-white flex items-center gap-1 transition cursor-pointer bg-transparent border-0"
+                            >
+                              <span>Live Registry</span>
+                              <ExternalLink className="w-3 h-3 text-zinc-400" />
+                            </button>
+                          </div>
+
+                          <div className="max-h-60 sm:max-h-72 overflow-y-auto space-y-2 custom-scrollbar pr-0.5">
+                            {itemComps.map((comp, idx) => {
+                              const compImg = comp.thumbnail || (idx === 0 ? (frozenFrameUrl || activeValuationHit.image) : null);
+                              const conditionText = comp.condition ? cleanConditionText(comp.condition) : "Pre-Owned";
+                              const soldDateText = comp.soldDate && comp.soldDate !== "Active Ask" ? comp.soldDate : "Recent";
+
+                              return (
+                                <div
+                                  key={comp.id || idx}
+                                  className="group p-2.5 rounded-xl bg-[#121622] hover:bg-[#171D2D] border border-white/[0.08] hover:border-white/[0.16] transition flex items-center justify-between gap-3 shadow-xs"
+                                >
+                                  {/* Listing Thumbnail */}
+                                  <div className="relative h-13 w-13 sm:h-14 sm:w-14 rounded-lg overflow-hidden bg-[#0A0D14] border border-white/[0.10] shrink-0">
+                                    {compImg ? (
+                                      <img
+                                        src={compImg}
+                                        alt={comp.title}
+                                        loading="lazy"
+                                        decoding="async"
+                                        className="h-full w-full object-cover group-hover:scale-105 transition duration-200"
+                                        onError={(e) => {
+                                          if (frozenFrameUrl || activeValuationHit.image) {
+                                            (e.target as HTMLImageElement).src = (frozenFrameUrl || activeValuationHit.image) as string;
+                                          } else {
+                                            (e.target as HTMLImageElement).style.display = "none";
+                                          }
+                                        }}
+                                      />
+                                    ) : (
+                                      <div className="h-full w-full flex items-center justify-center text-zinc-600 bg-[#0E121B]">
+                                        <ShoppingBag className="w-5 h-5 text-zinc-500" />
+                                      </div>
+                                    )}
+                                    <span className="absolute bottom-1 right-1 px-1 py-0.2 rounded bg-black/85 text-[8px] font-mono text-zinc-300 tabular-nums">
+                                      Sold
+                                    </span>
+                                  </div>
+
+                                  {/* Center: Realized Price, Title, Condition & Date */}
+                                  <div className="min-w-0 flex-1 space-y-1">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <span className="text-sm sm:text-base font-bold font-mono text-white tabular-nums tracking-tight">
+                                        {fmtMoney(comp.price)}
+                                      </span>
+                                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/[0.05] text-zinc-300 border border-white/[0.06]">
+                                        {soldDateText}
+                                      </span>
+                                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/[0.04] text-zinc-400 border border-white/[0.06] truncate max-w-[110px]">
+                                        {conditionText}
+                                      </span>
+                                      {typeof comp.matchPercentage === "number" && (
+                                        <span className="text-[10px] font-mono font-medium text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                                          {comp.matchPercentage}% match
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="text-xs text-zinc-300 truncate font-normal leading-snug group-hover:text-white transition" title={comp.title}>
+                                      {comp.title}
+                                    </div>
+                                    <div className="text-[10px] font-mono text-zinc-500">
+                                      {comp.shippingIncluded ? "Free Delivery" : comp.shippingPrice ? `+${fmtMoney(comp.shippingPrice)} Delivery` : "Standard Postage"}
+                                    </div>
+                                  </div>
+
+                                  {/* Right: Outbound eBay Link */}
+                                  <button
+                                    type="button"
+                                    onClick={(e) => openExternalUrlSafely(comp.url || ebayUrl, comp.title, e)}
+                                    className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.12] text-zinc-300 hover:text-white border border-white/[0.08] text-[11px] font-mono font-medium transition cursor-pointer active:scale-95"
+                                    title={`View listing on ${marketSiteName}`}
+                                  >
+                                    <span>View</span>
+                                    <ExternalLink className="w-3 h-3 text-zinc-400 group-hover:text-zinc-200" />
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ) : isZeroSoldActive ? (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between px-0.5 pt-1">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[11px] font-mono font-bold text-cyan-300 uppercase tracking-wider">
+                                Active Competitor Listings
+                              </span>
+                              <span className="text-[10px] font-mono text-zinc-400">
+                                ({itemComps.length} {itemComps.length === 1 ? "record" : "records"})
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={(e) => openExternalUrlSafely(ebayUrl, activeValuationHit?.name, e)}
+                              className="text-[11px] font-mono text-zinc-400 hover:text-white flex items-center gap-1 transition cursor-pointer bg-transparent border-0"
+                            >
+                              <span>Live Registry</span>
+                              <ExternalLink className="w-3 h-3 text-zinc-400" />
+                            </button>
+                          </div>
+
+                          <div className="max-h-60 sm:max-h-72 overflow-y-auto space-y-2 custom-scrollbar pr-0.5">
+                            {itemComps.map((comp, idx) => {
+                              const compImg = comp.thumbnail || (idx === 0 ? (frozenFrameUrl || activeValuationHit.image) : null);
+                              const conditionText = comp.condition ? cleanConditionText(comp.condition) : "Pre-Owned";
+
+                              return (
+                                <div
+                                  key={comp.id || idx}
+                                  className="group p-2.5 rounded-xl bg-[#121622] hover:bg-[#171D2D] border border-cyan-500/20 hover:border-cyan-500/40 transition flex items-center justify-between gap-3 shadow-xs"
+                                >
+                                  <div className="relative h-13 w-13 sm:h-14 sm:w-14 rounded-lg overflow-hidden bg-[#0A0D14] border border-cyan-500/20 shrink-0">
+                                    {compImg ? (
+                                      <img
+                                        src={compImg}
+                                        alt={comp.title}
+                                        loading="lazy"
+                                        decoding="async"
+                                        className="h-full w-full object-cover group-hover:scale-105 transition duration-200"
+                                        onError={(e) => {
+                                          if (frozenFrameUrl || activeValuationHit.image) {
+                                            (e.target as HTMLImageElement).src = (frozenFrameUrl || activeValuationHit.image) as string;
+                                          } else {
+                                            (e.target as HTMLImageElement).style.display = "none";
+                                          }
+                                        }}
+                                      />
+                                    ) : (
+                                      <div className="h-full w-full flex items-center justify-center text-cyan-400/60 bg-[#0E121B]">
+                                        <ShoppingBag className="w-5 h-5 text-cyan-400" />
+                                      </div>
+                                    )}
+                                    <span className="absolute bottom-1 right-1 px-1 py-0.2 rounded bg-cyan-950/90 text-[8px] font-mono text-cyan-300 tabular-nums border border-cyan-500/30">
+                                      Ask
+                                    </span>
+                                  </div>
+
+                                  <div className="min-w-0 flex-1 space-y-1">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <span className="text-sm sm:text-base font-bold font-mono text-cyan-300 tabular-nums tracking-tight">
+                                        {fmtMoney(comp.price)}
+                                      </span>
+                                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-300 border border-cyan-500/25">
+                                        Active Ask
+                                      </span>
+                                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/[0.04] text-zinc-400 border border-white/[0.06] truncate max-w-[110px]">
+                                        {conditionText}
+                                      </span>
+                                      {typeof comp.matchPercentage === "number" && (
+                                        <span className="text-[10px] font-mono text-cyan-400">
+                                          {comp.matchPercentage}% match
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="text-xs text-zinc-300 truncate font-normal leading-snug group-hover:text-white transition" title={comp.title}>
+                                      {comp.title}
+                                    </div>
+                                    <div className="text-[10px] font-mono text-zinc-500">
+                                      {comp.shippingIncluded ? "Free Delivery" : comp.shippingPrice ? `+${fmtMoney(comp.shippingPrice)} Delivery` : "Standard Postage"}
+                                    </div>
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    onClick={(e) => openExternalUrlSafely(comp.url || ebayUrl, comp.title, e)}
+                                    className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.12] text-zinc-300 hover:text-white border border-white/[0.08] text-[11px] font-mono font-medium transition cursor-pointer active:scale-95"
+                                    title={`View listing on ${marketSiteName}`}
+                                  >
+                                    <span>View</span>
+                                    <ExternalLink className="w-3 h-3 text-zinc-400 group-hover:text-zinc-200" />
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="p-3.5 rounded-xl bg-[#141721] border border-amber-500/25 space-y-2 font-mono">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-bold text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
+                              <AlertTriangle className="w-3 h-3 text-amber-400" />
+                              <span>0 Historical Sales on Record</span>
+                            </span>
+                            <span className="text-[9px] text-amber-300/90 bg-amber-500/15 border border-amber-500/25 px-2 py-0.5 rounded">
+                              Algorithmic Valuation
+                            </span>
+                          </div>
+                          <p className="text-xs text-zinc-300 font-sans leading-relaxed">
+                            No historical transactions recorded on {marketSiteName}. Suggested anchor listing price: <strong>{fmtMoney(resaleMedian)} {selectedCurrency}</strong> with a rapid liquidation floor of <strong>{fmtMoney(resaleMin)} {selectedCurrency}</strong>.
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Secondary Verification Notice (if applicable) */}
+                      {(activeValuationHit.copVerdict === "VERIFY_FIRST" || activeValuationHit.requiresSecondaryVerification) && (
+                        <div className="px-3 py-2 rounded-xl bg-[#141721] border border-amber-500/30 flex items-center justify-between gap-2.5">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+                            <span className="text-xs font-medium text-zinc-300 truncate">
+                              {activeValuationHit.verificationReason || "Confidence < 88% — confirm tags & serial numbers before purchasing"}
+                            </span>
+                          </div>
+                          {activeValuationHit.fallbackProtocol === "SCAN_BARCODE" ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleDismissCard(() => {
+                                  setScanMode("barcode");
+                                  toast.info("Switched to Barcode Mode for precision verification.");
+                                });
+                              }}
+                              className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/[0.08] hover:bg-white/[0.14] text-white border border-white/[0.12] text-[10px] font-mono font-bold uppercase tracking-wider transition active:scale-95 cursor-pointer shadow-sm"
+                            >
+                              <Barcode className="w-3 h-3" />
+                              <span>Barcode</span>
+                            </button>
+                          ) : activeValuationHit.fallbackProtocol === "ZOOM_LABEL" ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleDismissCard(() => {
+                                  toast.info("Move camera closer to focus on brand/size tag.");
+                                  void processCurrentFrame(true);
+                                });
+                              }}
+                              className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/[0.08] hover:bg-white/[0.14] text-white border border-white/[0.12] text-[10px] font-mono font-bold uppercase tracking-wider transition active:scale-95 cursor-pointer shadow-sm"
+                            >
+                              <Camera className="w-3 h-3" />
+                              <span>Zoom Tag</span>
+                            </button>
+                          ) : null}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Action Dock: List on eBay, Comps Toggle, Verify, Next Item, + Add to Haul */}
+                  <div className="flex items-center justify-between gap-1.5 sm:gap-2 pt-2 border-t border-white/[0.08] shrink-0">
+                    <div className="flex items-center gap-1.5 min-w-0">
                       <button
                         type="button"
                         onClick={(e) => {
@@ -6035,7 +6069,6 @@ function SpadasLensCameraCore({
                             (activeValuationHit?.timestamp ? `hit_${activeValuationHit.timestamp}` : "hit_active");
                           const currentHit = activeValuationHit;
 
-                          // Cleanly dismiss valuation dialog to eliminate double-modal conflicts
                           setActiveValuationHit(null);
                           activeValuationHitRef.current = null;
 
@@ -6046,11 +6079,39 @@ function SpadasLensCameraCore({
                             sessionId: stableSessionId,
                           });
                         }}
-                        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition cursor-pointer active:scale-95 bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30"
+                        className="inline-flex items-center gap-1 px-2.5 py-2 rounded-xl text-xs font-semibold transition cursor-pointer active:scale-95 bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30"
                         title={`List this item on ${marketSiteName}`}
                       >
-                        <ShoppingBag className="h-3.5 w-3.5 text-amber-400" />
-                        <span>List on eBay</span>
+                        <ShoppingBag className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                        <span className="hidden xs:inline">List on eBay</span>
+                        <span className="xs:hidden">List</span>
+                      </button>
+
+                      {/* Expand / Collapse Comps Toggle Button */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          triggerTactileHaptic("light");
+                          setIsValuationDetailsExpanded((prev) => !prev);
+                        }}
+                        className={`inline-flex items-center gap-1 px-2.5 py-2 rounded-xl text-xs font-medium font-mono transition cursor-pointer active:scale-95 border ${
+                          isValuationDetailsExpanded
+                            ? "bg-cyan-500/20 text-cyan-300 border-cyan-500/40"
+                            : "bg-white/[0.06] hover:bg-white/[0.12] text-zinc-300 border-white/[0.10]"
+                        }`}
+                        title={isValuationDetailsExpanded ? "Collapse full comps" : "Expand full comps"}
+                      >
+                        {isValuationDetailsExpanded ? (
+                          <>
+                            <ChevronDown className="h-3.5 w-3.5 text-cyan-400" />
+                            <span>Collapse</span>
+                          </>
+                        ) : (
+                          <>
+                            <ChevronUp className="h-3.5 w-3.5 text-zinc-400" />
+                            <span>Comps</span>
+                          </>
+                        )}
                       </button>
 
                       {checkNeedsVerification({
@@ -6062,15 +6123,16 @@ function SpadasLensCameraCore({
                         <button
                           type="button"
                           onClick={() => handleOpenDeepVerify(activeValuationHit)}
-                          className="inline-flex items-center gap-1.5 bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/30 px-3 py-2 rounded-xl text-xs font-medium transition cursor-pointer active:scale-95"
+                          className="inline-flex items-center gap-1 bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/30 px-2 py-2 rounded-xl text-xs font-medium transition cursor-pointer active:scale-95"
+                          title="Verify item authenticity"
                         >
-                          <ShieldCheck className="h-3.5 w-3.5 text-purple-400" />
-                          <span>Verify</span>
+                          <ShieldCheck className="h-3.5 w-3.5 text-purple-400 shrink-0" />
+                          <span className="hidden sm:inline">Verify</span>
                         </button>
                       )}
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-1.5 shrink-0">
                       <button
                         type="button"
                         onClick={() => {
@@ -6080,10 +6142,10 @@ function SpadasLensCameraCore({
                             setScanStage("idle");
                           });
                         }}
-                        className="inline-flex items-center gap-1.5 bg-white/[0.06] hover:bg-white/[0.12] text-zinc-300 hover:text-white border border-white/[0.10] font-mono px-3 py-2 rounded-xl text-xs font-medium transition cursor-pointer active:scale-95"
+                        className="inline-flex items-center gap-1 bg-white/[0.06] hover:bg-white/[0.12] text-zinc-300 hover:text-white border border-white/[0.10] font-mono px-2.5 py-2 rounded-xl text-xs font-medium transition cursor-pointer active:scale-95"
                         title="Scan Next Item"
                       >
-                        <Camera className="h-3.5 w-3.5 text-zinc-400" />
+                        <Camera className="h-3.5 w-3.5 text-zinc-400 shrink-0" />
                         <span>Next</span>
                       </button>
 
@@ -6094,10 +6156,10 @@ function SpadasLensCameraCore({
                           void handleSaveDraftHit(activeValuationHit);
                           handleDismissCard();
                         }}
-                        className="inline-flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold px-4 py-2 rounded-xl text-xs sm:text-sm transition cursor-pointer active:scale-95 shadow-md"
+                        className="inline-flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm transition cursor-pointer active:scale-95 shadow-md shrink-0"
                         title="Save item to inventory haul"
                       >
-                        <CheckCircle2 className="h-4 w-4" />
+                        <CheckCircle2 className="h-4 w-4 shrink-0" />
                         <span>+ Add to Haul</span>
                       </button>
                     </div>
