@@ -112,6 +112,115 @@ export default function LandingFeatures() {
           </div>
         ))}
       </div>
+
+      {/* ── Competitor Comparison Matrix (SellRaze vs Spadas) ── */}
+      <div className="max-w-5xl mx-auto px-4 mt-20 pt-16 border-t border-white/[0.08]">
+        <div className="text-center space-y-3 mb-10">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold bg-cyan-500/10 text-cyan-300 border border-cyan-500/30">
+            <Sparkles className="h-3.5 w-3.5 text-cyan-400" />
+            <span>Honest Reseller Comparison</span>
+          </div>
+          <h3 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight">
+            Why Flippers Are Switching From SellRaze
+          </h3>
+          <p className="text-xs sm:text-sm text-zinc-400 max-w-xl mx-auto leading-relaxed">
+            Generic listing apps use single-prompt ChatGPT wrappers that lag 10 seconds and guess prices. Spadas is an ensemble optical engine built specifically for secondary marketplaces.
+          </p>
+        </div>
+
+        <div className="overflow-x-auto rounded-2xl border border-white/[0.1] bg-[#0A0D15]/90 backdrop-blur-xl shadow-2xl">
+          <table className="w-full text-left text-xs sm:text-sm border-collapse">
+            <thead>
+              <tr className="border-b border-white/[0.1] bg-white/[0.02]">
+                <th className="py-4 px-4 sm:px-6 font-bold text-zinc-400 uppercase tracking-wider text-[11px]">Reseller Sourcing Feature</th>
+                <th className="py-4 px-4 sm:px-6 font-extrabold text-cyan-400 bg-cyan-950/20 border-x border-cyan-500/20 text-center sm:text-left">
+                  <div className="flex items-center gap-1.5 justify-center sm:justify-start">
+                    <span className="h-2 w-2 rounded-full bg-cyan-400 animate-pulse" />
+                    <span>Spadas Lens</span>
+                  </div>
+                </th>
+                <th className="py-4 px-4 sm:px-6 font-bold text-zinc-500 text-center sm:text-left">
+                  Generic Apps (SellRaze &amp; ChatGPT)
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/[0.06] text-zinc-300">
+              <tr>
+                <td className="py-4 px-4 sm:px-6 font-medium text-white">
+                  <strong>Scanning Speed &amp; Experience</strong>
+                  <div className="text-xs text-zinc-400">Time spent waiting per shelf item in the aisle</div>
+                </td>
+                <td className="py-4 px-4 sm:px-6 text-emerald-300 font-bold bg-cyan-950/10 border-x border-cyan-500/20">
+                  ⚡ <strong>0.5s Live AR HUD</strong> (Continuous scanning, zero lag)
+                </td>
+                <td className="py-4 px-4 sm:px-6 text-zinc-400">
+                  ⏳ 5–10s static photo upload with spinning wheel
+                </td>
+              </tr>
+              <tr>
+                <td className="py-4 px-4 sm:px-6 font-medium text-white">
+                  <strong>AI Visual Intelligence Stack</strong>
+                  <div className="text-xs text-zinc-400">Acuity on worn collar tags &amp; jewelry hallmarks</div>
+                </td>
+                <td className="py-4 px-4 sm:px-6 text-emerald-300 font-bold bg-cyan-950/10 border-x border-cyan-500/20">
+                  🔬 <strong>xAI Grok-2 Vision + Multi-Model Arbitration</strong> (.925, 14K, RN tags, 4K UHD vs DVD)
+                </td>
+                <td className="py-4 px-4 sm:px-6 text-zinc-400">
+                  ❌ Generic single OpenAI prompt (hallucinates faded tags)
+                </td>
+              </tr>
+              <tr>
+                <td className="py-4 px-4 sm:px-6 font-medium text-white">
+                  <strong>Market Pricing Grounding</strong>
+                  <div className="text-xs text-zinc-400">How valuations and comps are computed</div>
+                </td>
+                <td className="py-4 px-4 sm:px-6 text-emerald-300 font-bold bg-cyan-950/10 border-x border-cyan-500/20">
+                  📊 <strong>100% Real Live 30-Day Sold Comps</strong> (eBay AU &amp; US realized sales with IQR statistical trimming)
+                </td>
+                <td className="py-4 px-4 sm:px-6 text-zinc-400">
+                  ⚠️ AI guesswork or unsold active asking prices
+                </td>
+              </tr>
+              <tr>
+                <td className="py-4 px-4 sm:px-6 font-medium text-white">
+                  <strong>Anti-Thrift Trap Protection</strong>
+                  <div className="text-xs text-zinc-400">Prevents buying items that lose money on postage</div>
+                </td>
+                <td className="py-4 px-4 sm:px-6 text-emerald-300 font-bold bg-cyan-950/10 border-x border-cyan-500/20">
+                  🛡️ <strong>Built-In Trap Detection</strong> (Flags common DVDs, heavy mugs &amp; low-margin tech)
+                </td>
+                <td className="py-4 px-4 sm:px-6 text-zinc-400">
+                  ❌ Zero shipping awareness (tells you to buy $5 items)
+                </td>
+              </tr>
+              <tr>
+                <td className="py-4 px-4 sm:px-6 font-medium text-white">
+                  <strong>True Net Profit Calculator</strong>
+                  <div className="text-xs text-zinc-400">Actual in-pocket cash calculation</div>
+                </td>
+                <td className="py-4 px-4 sm:px-6 text-emerald-300 font-bold bg-cyan-950/10 border-x border-cyan-500/20">
+                  💰 <strong>Exact AusPost / USPS Satchel Math</strong> + 13.4% marketplace fees deducted
+                </td>
+                <td className="py-4 px-4 sm:px-6 text-zinc-400">
+                  ❌ Gross estimates only; ignores real parcel shipping
+                </td>
+              </tr>
+              <tr>
+                <td className="py-4 px-4 sm:px-6 font-medium text-white">
+                  <strong>Subscription Cost</strong>
+                  <div className="text-xs text-zinc-400">Monthly overhead to run your reselling business</div>
+                </td>
+                <td className="py-4 px-4 sm:px-6 text-cyan-300 font-extrabold bg-cyan-950/10 border-x border-cyan-500/20">
+                  💎 <strong>$10 AUD / $6.99 USD/mo</strong> (10 free daily scans forever)
+                </td>
+                <td className="py-4 px-4 sm:px-6 text-red-400/90 font-medium">
+                  💸 $20 – $30+ USD/mo ($35–$45 AUD/mo)
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </section>
   );
 }

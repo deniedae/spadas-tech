@@ -41,13 +41,13 @@ export default function LandingPricing() {
   ];
 
   const proPerks = [
-    "⚡ Unlimited 60FPS AR camera scans (zero daily caps)",
-    "📊 Real-time eBay sold comps with exact dates & timestamps",
-    "🛍️ 1-Tap Fast-List on eBay (auto-populates Seller Hub wizard)",
-    "💰 Full accounting P&L: 13.4% fees, 2.6% processing, COGS & shipping",
+    "⚡ Unlimited 60FPS AR camera scans powered by xAI Grok & Multi-Model AI",
+    "🛡️ Anti-Thrift Trap Guard (Auto-detects high-shipping traps & zero-margin items)",
+    "📊 Real-time eBay sold comps (AU & US) with exact timestamps & outlier filtering",
+    "💰 Full accounting P&L: 13.4% fees, 2.6% processing, COGS & exact satchel shipping",
     "📈 Sell-Through Rate (STR%) & market velocity liquidity alerts",
-    "📦 Unlimited Sourcing Haul Vault & inventory portfolio tracking",
-    "⚡ Priority Google Cloud Vision recognition with zero cooldowns",
+    "📦 Unlimited Sourcing Haul Vault & inventory portfolio CSV tax export",
+    "💎 Save $20+/mo compared to generic $30 USD reseller tools (SellRaze)",
     "🛡️ Official Google Play In-App Billing (Cancel anytime in Play Store)",
   ];
 

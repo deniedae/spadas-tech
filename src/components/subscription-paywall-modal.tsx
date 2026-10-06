@@ -56,20 +56,22 @@ export default function SubscriptionPaywallModal({
         : "Unlimited 60FPS AR camera scanning, live eBay Australia sold comps, and 1-click cross-listing.",
       features: isUsMarket
         ? [
-            "⚡ Unlimited 60FPS AR Camera Lens Scanner",
-            "📊 Live eBay US 30-Day Sold Comps & True Net Profit",
-            "🏷️ Single-Item Valuation Medians & Active Asks Guide",
+            "⚡ Unlimited 60FPS AR Lens Scanner (Powered by xAI Grok & Multi-Model AI)",
+            "🛡️ Anti-Thrift Trap Guard (Warns against high-shipping traps & zero-margin items)",
+            "📊 100% Live eBay US 30-Day Real Sold Comps (Zero Hallucinations)",
+            "💰 True Net Profit Calculator (USPS parcel postage + fees auto-deducted)",
             "🛍️ 1-Click Multi-Platform Cross-Lister (eBay, Mercari, Poshmark)",
-            "📦 Unlimited History Feed & Sourcing Haul Calculator",
-            "🔊 Motion-Lock Audio Chimes & Haptic Feedback",
+            "📦 Unlimited Sourcing Haul Vault & CSV Tax Export",
+            "🔍 Microscopic Hallmark & Care Tag Inspection (.925, 14K, RN tags)",
           ]
         : [
-            "⚡ Unlimited 60FPS AR Camera Lens Scanner",
-            "📊 Live Australia & Global eBay 30-Day Sold Comps",
-            "🏷️ Strict AU Sold Comps & Live Active Listings Guide",
-            "🛍️ 1-Click Multi-Platform Cross-Lister (eBay, FB, Depop)",
-            "📦 Unlimited History Feed & Thrifting Haul Calculator",
-            "🔊 Motion-Lock Audio Chimes & Haptic Feedback",
+            "⚡ Unlimited 60FPS AR Lens Scanner (Powered by xAI Grok & Multi-Model AI)",
+            "🛡️ Anti-Thrift Trap Guard (Warns against AusPost shipping traps & penny flips)",
+            "📊 100% Live Australia eBay 30-Day Real Sold Comps (Zero Hallucinations)",
+            "💰 True Net Profit Calculator (Exact AusPost satchels + 13.4% fees auto-deducted)",
+            "🛍️ 1-Click Multi-Platform Cross-Lister (eBay AU, FB Marketplace, Depop)",
+            "📦 Unlimited Thrifting Haul Vault & CSV Bookkeeping Ledger",
+            "🔍 Microscopic Hallmark & Care Tag Inspection (.925, 14K, RN tags)",
           ],
       ctaText: isUsMarket ? "Upgrade to Spadas Pro ($6.99/mo)" : "Upgrade to Spadas Pro ($10 AUD/mo)",
       color: "border-cyan-400 bg-gradient-to-b from-slate-900 via-slate-900 to-cyan-950/40 shadow-[0_0_40px_rgba(6,182,212,0.3)]",
@@ -168,9 +170,20 @@ export default function SubscriptionPaywallModal({
                   <p className="text-xs text-slate-400 mt-1 min-h-[36px]">{plan.description}</p>
                 </div>
 
-                <div className="flex items-baseline gap-1 border-b border-slate-800 pb-4">
-                  <span className="text-3xl font-black text-white">{plan.price}</span>
-                  <span className="text-xs font-bold text-slate-400">/ {plan.period}</span>
+                <div className="flex flex-col gap-2 border-b border-slate-800 pb-4">
+                  <div className="flex items-baseline justify-between">
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-3xl font-black text-white">{plan.price}</span>
+                      <span className="text-xs font-bold text-slate-400">/ {plan.period}</span>
+                    </div>
+                    <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-0.5 rounded-full">
+                      SAVE $20+/MO VS SELLRAZE
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-cyan-300/90 font-medium flex items-center gap-1.5">
+                    <span>💡</span>
+                    <span><strong>1-Flip Guarantee:</strong> Finding just one $25+ thrift item pays for your entire month.</span>
+                  </p>
                 </div>
 
                 <ul className="space-y-2.5 pt-2">
