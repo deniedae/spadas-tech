@@ -6,6 +6,7 @@ import {
   getPrimaryAiApiKey,
   createOpenAiClient,
 } from "@/app/lib/config/ai-models";
+import { hasGrokApiKey, createGrokClient, GROK_VISION_MODEL } from "@/app/lib/config/grok-vision";
 import {
   FORENSIC_CATEGORIES,
   detectForensicCategory,
@@ -359,8 +360,6 @@ Respond ONLY with valid JSON adhering to this exact schema:
       return NextResponse.json(generateMockVerification(productName, brand, activeCategory));
     }
 
-    const openai = createOpenAiClient();
-
     const imageContent = imageUrls.slice(0, 4).map((url: string) => ({
       type: "image_url" as const,
       image_url: {
@@ -369,29 +368,56 @@ Respond ONLY with valid JSON adhering to this exact schema:
       },
     }));
 
-    const response = await openai.chat.completions.create({
-      model: AR_SCAN_MODEL_FALLBACKS[0] || "gpt-4o",
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: systemPrompt },
-        {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: visibleHallmarksOnly
-                ? `Audit submitted item based EXCLUSIVELY on visible construction, materials, and typography. The user has verified that this item naturally lacks modern internal serial tags, RFID chips, or date codes (vintage or era/model-exempt). Expected Item: "${productName || "Unknown"}", Brand: "${brand || "Unknown"}", Category: "${categoryConfig.name}". Do NOT issue INSUFFICIENT_EVIDENCE for missing internal tags. Base your verdict strictly on the visible physical evidence.`
-                : `Audit submitted item according to Universal 5-Pillar Protocol. Expected Item: "${productName || "Unknown"}", Brand: "${brand || "Unknown"}", Category: "${categoryConfig.name}". Notice: Many authentic items are vintage or simpler models that naturally lack modern date codes or factory tags. Do not demand non-existent tags if visible construction is authentic. Provide decisive, evidence-based verdict.`,
-            },
-            ...imageContent,
-          ],
-        },
-      ],
-      temperature: 0.1,
-      max_tokens: 1200,
-    });
+    const verifyPromptMessages: any[] = [
+      { role: "system", content: systemPrompt },
+      {
+        role: "user",
+        content: [
+          {
+            type: "text",
+            text: visibleHallmarksOnly
+              ? `Audit submitted item based EXCLUSIVELY on visible construction, materials, and typography. The user has verified that this item naturally lacks modern internal serial tags, RFID chips, or date codes (vintage or era/model-exempt). Expected Item: "${productName || "Unknown"}", Brand: "${brand || "Unknown"}", Category: "${categoryConfig.name}". Do NOT issue INSUFFICIENT_EVIDENCE for missing internal tags. Base your verdict strictly on the visible physical evidence.`
+              : `Audit submitted item according to Universal 5-Pillar Protocol. Expected Item: "${productName || "Unknown"}", Brand: "${brand || "Unknown"}", Category: "${categoryConfig.name}". Notice: Many authentic items are vintage or simpler models that naturally lack modern date codes or factory tags. Do not demand non-existent tags if visible construction is authentic. Provide decisive, evidence-based verdict.`,
+          },
+          ...imageContent,
+        ],
+      },
+    ];
 
-    const rawContent = response.choices[0]?.message?.content;
+    let rawContent: string | null = null;
+
+    // 1. High-Precision Tier: xAI Grok-2 Vision (Excels at micro-typography, kerning, hardware hallmarks)
+    if (hasGrokApiKey()) {
+      const grokClient = createGrokClient();
+      if (grokClient) {
+        try {
+          const grokResp = await grokClient.chat.completions.create({
+            model: GROK_VISION_MODEL,
+            response_format: { type: "json_object" },
+            messages: verifyPromptMessages,
+            temperature: 0.1,
+            max_tokens: 1200,
+          });
+          rawContent = grokResp.choices[0]?.message?.content || null;
+        } catch (grokErr: any) {
+          console.warn("[DeepVerify] Grok-2 Vision call failed, falling back to OpenAI:", grokErr?.message || grokErr);
+        }
+      }
+    }
+
+    // 2. Core Tier: OpenAI Vision
+    if (!rawContent) {
+      const openai = createOpenAiClient();
+      const response = await openai.chat.completions.create({
+        model: AR_SCAN_MODEL_FALLBACKS[0] || "gpt-4o",
+        response_format: { type: "json_object" },
+        messages: verifyPromptMessages,
+        temperature: 0.1,
+        max_tokens: 1200,
+      });
+      rawContent = response.choices[0]?.message?.content || null;
+    }
+
     if (!rawContent) {
       return NextResponse.json(generateMockVerification(productName, brand, activeCategory));
     }

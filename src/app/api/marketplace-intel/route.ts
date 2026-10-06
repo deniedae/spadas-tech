@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { createOpenAiClient, getPrimaryAiApiKey } from "@/app/lib/config/ai-models";
+import { hasGrokApiKey, createGrokClient, GROK_VISION_MODEL, GROK_REASONING_MODEL } from "@/app/lib/config/grok-vision";
 import { computeOffMarketIntelligence, OffMarketIntelligence } from "@/lib/off-market-engine";
 
 export const runtime = "nodejs";
@@ -198,8 +199,9 @@ export async function POST(req: Request) {
       user = data?.user;
     }
 
+    const hasGrok = hasGrokApiKey();
     const apiKey = getPrimaryAiApiKey();
-    if (!apiKey || (!image && !productName)) {
+    if ((!apiKey && !hasGrok) || (!image && !productName)) {
       return NextResponse.json(
         generateLocalMarketplaceFallback(
           productName || "Scanned Resale Item",
@@ -210,8 +212,6 @@ export async function POST(req: Request) {
         )
       );
     }
-
-    const openai = createOpenAiClient();
 
     const systemPrompt = `You are a specialized localized peer-to-peer (P2P) reseller intelligence engine.
 Analyze this item exclusively for LOCAL cash sales and non-eBay liquidation channels:
@@ -287,15 +287,43 @@ Output strictly valid JSON adhering to:
       });
     }
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-2024-08-06",
-      response_format: { type: "json_object" },
-      temperature: 0.2,
-      max_tokens: 700,
-      messages,
-    });
+    let content: string | null = null;
 
-    const content = completion.choices[0]?.message?.content;
+    if (hasGrok) {
+      try {
+        const grok = createGrokClient();
+        if (grok) {
+          const grokModel = image ? GROK_VISION_MODEL : GROK_REASONING_MODEL;
+          const completion = await grok.chat.completions.create({
+            model: grokModel,
+            response_format: { type: "json_object" },
+            temperature: 0.2,
+            max_tokens: 700,
+            messages,
+          });
+          content = completion.choices[0]?.message?.content || null;
+        }
+      } catch (err: any) {
+        console.warn("[Marketplace-Intel] Grok model failed, falling back to OpenAI:", err?.message || err);
+      }
+    }
+
+    if (!content && apiKey) {
+      try {
+        const openai = createOpenAiClient();
+        const completion = await openai.chat.completions.create({
+          model: "gpt-4o-2024-08-06",
+          response_format: { type: "json_object" },
+          temperature: 0.2,
+          max_tokens: 700,
+          messages,
+        });
+        content = completion.choices[0]?.message?.content || null;
+      } catch (err: any) {
+        console.warn("[Marketplace-Intel] OpenAI fallback also failed:", err?.message || err);
+      }
+    }
+
     if (!content) {
       return NextResponse.json(
         generateLocalMarketplaceFallback(

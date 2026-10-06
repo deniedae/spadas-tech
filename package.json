@@ -25,6 +25,7 @@
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.64",
+    "@ai-sdk/xai": "^5.0.15",
     "@base-ui/react": "^1.6.0",
     "@capacitor/android": "^8.5.2",
     "@capacitor/core": "^8.5.2",

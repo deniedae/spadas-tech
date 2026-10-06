@@ -24,6 +24,12 @@ import {
 import { callClaudeVision } from "@/app/lib/config/claude-vision";
 import { callGeminiVision, hasGeminiVisionKey } from "@/app/lib/config/gemini-vision";
 import { callGlmVisionFast, hasGlmVisionKey } from "@/app/lib/config/glm-vision";
+import {
+  callGrokVisionFast,
+  callGrokVisionFull,
+  callGrokArbitration,
+  hasGrokApiKey,
+} from "@/app/lib/config/grok-vision";
 import { fetchEbayAustraliaSoldComps } from "@/app/lib/ebay-australia-comps";
 import { detectGeoCurrency, SupportedCurrency } from "@/app/lib/currency-routing";
 import { saveProductToCache, getCachedProductScan } from "@/app/lib/cache/product-cache";
@@ -911,39 +917,74 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
                 result = geminiResult;
                 activeProvider = "gemini-consensus";
               } else {
-                // 2. Query live eBay sold comps API specifically using extracted OCR keywords
-                const ocrKeywords = ocrWords.slice(0, 3).join(" ");
-                const qA = `${openAiBrand} ${ocrKeywords}`.trim();
-                const qB = `${geminiBrand} ${ocrKeywords}`.trim();
+                // 2. Grok Supreme Tie-Breaker Arbitration (if Grok key configured)
+                let grokResolved = false;
+                if (hasGrokApiKey() && imageUrls.length > 0) {
+                  try {
+                    console.log(`[Consensus] Invoking Grok-2 Vision for tie-breaker arbitration between "${openAiBrand}" and "${geminiBrand}"...`);
+                    const grokArb = await callGrokArbitration(
+                      imageUrls[0],
+                      { brand: openAiBrand, product: result.analysis?.product_name || "" },
+                      { brand: geminiBrand, product: geminiResult.analysis?.product_name || "" }
+                    );
 
-                const [compsA, compsB] = await Promise.all([
-                  fetchEbayAustraliaSoldComps(qA, (body.currency as SupportedCurrency) || "AUD"),
-                  fetchEbayAustraliaSoldComps(qB, (body.currency as SupportedCurrency) || "AUD"),
-                ]);
-
-                const countA = compsA?.count || 0;
-                const countB = compsB?.count || 0;
-
-                if (countA > countB && countA > 0) {
-                  console.log(`[Consensus] eBay sold comps verified OpenAI brand "${openAiBrand}" (${countA} comps vs ${countB}).`);
-                } else if (countB > countA && countB > 0) {
-                  console.log(`[Consensus] eBay sold comps verified Gemini brand "${geminiBrand}" (${countB} comps vs ${countA}).`);
-                  result = geminiResult;
-                  activeProvider = "gemini-consensus";
-                } else {
-                  // 3. Ambiguity persists - dynamically prompt user to snap secondary angle rather than low-confidence guessing
-                  console.log(`[Consensus] Brand disagreement unresolved (${openAiBrand} vs ${geminiBrand}) — prompting for secondary angle.`);
-                  if (result.analysis) {
-                    result.analysis.confidence = "medium";
-                    result.analysis.confidence_score = 0.65;
-                    result.analysis.retake_recommended = {
-                      required: true,
-                      angle_type: "tag",
-                      reason: `Disputed brand between ${openAiBrand} and ${geminiBrand}. Tag or hallmark close-up required for verification.`,
-                      prompt_label: "📸 Snap Brand Tag to Confirm Brand",
-                    };
+                    if (grokArb?.winner === "B") {
+                      console.log(`[Consensus] Grok-2 Vision confirmed Gemini brand "${geminiBrand}": ${grokArb.reasoning}`);
+                      result = geminiResult;
+                      activeProvider = "grok-arbitration-gemini";
+                      grokResolved = true;
+                    } else if (grokArb?.winner === "A") {
+                      console.log(`[Consensus] Grok-2 Vision confirmed OpenAI brand "${openAiBrand}": ${grokArb.reasoning}`);
+                      activeProvider = "grok-arbitration-openai";
+                      grokResolved = true;
+                    } else if (grokArb?.verifiedBrand) {
+                      console.log(`[Consensus] Grok-2 Vision identified true third brand "${grokArb.verifiedBrand}": ${grokArb.reasoning}`);
+                      if (result.analysis) {
+                        result.analysis.brand = grokArb.verifiedBrand;
+                      }
+                      activeProvider = "grok-arbitration-verified";
+                      grokResolved = true;
+                    }
+                  } catch (grokArbErr) {
+                    console.warn("[Consensus] Grok arbitration warning:", grokArbErr);
                   }
-                  result.retake_recommended = result.analysis?.retake_recommended;
+                }
+
+                if (!grokResolved) {
+                  // 3. Query live eBay sold comps API specifically using extracted OCR keywords
+                  const ocrKeywords = ocrWords.slice(0, 3).join(" ");
+                  const qA = `${openAiBrand} ${ocrKeywords}`.trim();
+                  const qB = `${geminiBrand} ${ocrKeywords}`.trim();
+
+                  const [compsA, compsB] = await Promise.all([
+                    fetchEbayAustraliaSoldComps(qA, (body.currency as SupportedCurrency) || "AUD"),
+                    fetchEbayAustraliaSoldComps(qB, (body.currency as SupportedCurrency) || "AUD"),
+                  ]);
+
+                  const countA = compsA?.count || 0;
+                  const countB = compsB?.count || 0;
+
+                  if (countA > countB && countA > 0) {
+                    console.log(`[Consensus] eBay sold comps verified OpenAI brand "${openAiBrand}" (${countA} comps vs ${countB}).`);
+                  } else if (countB > countA && countB > 0) {
+                    console.log(`[Consensus] eBay sold comps verified Gemini brand "${geminiBrand}" (${countB} comps vs ${countA}).`);
+                    result = geminiResult;
+                    activeProvider = "gemini-consensus";
+                  } else {
+                    // 4. Ambiguity persists - dynamically prompt user to snap secondary angle rather than low-confidence guessing
+                    console.log(`[Consensus] Brand disagreement unresolved (${openAiBrand} vs ${geminiBrand}) — prompting for secondary angle.`);
+                    if (result.analysis) {
+                      result.analysis.confidence = "medium";
+                      result.analysis.confidence_score = 0.65;
+                      result.analysis.retake_recommended = {
+                        required: true,
+                        angle_type: "tag",
+                        reason: `Disputed brand between ${openAiBrand} and ${geminiBrand}. Tag or hallmark close-up required for verification.`,
+                        prompt_label: "📸 Snap Brand Tag to Confirm Brand",
+                      };
+                    }
+                    result.retake_recommended = result.analysis?.retake_recommended;
+                  }
                 }
               }
             }
@@ -954,7 +995,132 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
       }
     }
 
-    // Fallback to Gemini if OpenAI yielded no result
+    // High-Acuity Fallback: xAI Grok-2 Vision (Supreme OCR & Micro-Hallmark Parsing)
+    if (!result && imageUrls.length > 0 && hasGrokApiKey()) {
+      try {
+        if (isArScan || isFastPipeline) {
+          const grokFast = await callGrokVisionFast(imageUrls[0], {
+            targetCurrency,
+            mode,
+            spatialMetadata,
+            categoryHint: categoryBias || undefined,
+          });
+          if (grokFast && grokFast.product_name) {
+            const pName = (grokFast.product_name || "").trim();
+            const brand = (grokFast.brand || "").trim() || null;
+            const cat = grokFast.category || "General";
+            const cond = grokFast.condition || "Used - Good";
+            const condGrade = grokFast.condition_grade || "Good";
+            const estVal = Number(grokFast.estimated_value) || 35;
+            const rawMin = Number(grokFast.suggested_price_min) || Math.round(estVal * 0.7);
+            const rawMax = Number(grokFast.suggested_price_max) || Math.round(estVal * 1.3);
+
+            if (pName.length >= 3 && !parallelCompsPromise) {
+              parallelCompsPromise = fetchEbayAustraliaSoldComps(pName, initialTargetCurrency).catch((err) => {
+                console.warn("[ai-listing] Instant Grok AR comps fire warning:", err);
+                return null;
+              });
+            }
+
+            const detectedFormat = grokFast.media_format || (
+              /\b(blu-ray|bluray)\b/i.test(pName) ? "Blu-ray" :
+              /\b(4k uhd|4k ultra hd)\b/i.test(pName) ? "4K UHD" :
+              /\b(steelbook)\b/i.test(pName) ? "Steelbook" :
+              /\b(dvd)\b/i.test(pName) ? "DVD" :
+              /\b(vhs)\b/i.test(pName) ? "VHS" :
+              undefined
+            );
+
+            result = {
+              status: "identified",
+              isMockFallback: false,
+              inventory_condition: cond.toLowerCase().includes("part") ? "faulty_for_parts" : "used_working",
+              condition_grade: condGrade,
+              wear_inspection: null,
+              defect_notes: grokFast.defect_notes || [],
+              as_is_disclaimer: undefined,
+              media_format: detectedFormat,
+              detected_objects: [
+                {
+                  id: `obj-grok-${Date.now()}`,
+                  product_name: pName,
+                  brand: brand,
+                  category: cat,
+                  condition: cond,
+                  confidence_score: grokFast.confidence_score ?? 0.98,
+                  bbox: { x: 20, y: 20, width: 60, height: 60 },
+                },
+              ],
+              analysis: {
+                status: "identified",
+                visual_reasoning: {
+                  visible_text_detected: grokFast.visible_text_detected || [],
+                  physical_object_description: pName,
+                  brand_identified: brand,
+                  identification_reasoning: `Grok-2 Vision identified ${pName} (${cat}, ${cond}).`,
+                },
+                product_name: pName,
+                brand: brand,
+                model: null,
+                category: cat,
+                color: null,
+                material: null,
+                condition: cond,
+                condition_grade: condGrade,
+                wear_inspection: null,
+                media_format: detectedFormat,
+                defect_notes: grokFast.defect_notes || [],
+                accessories_detected: [],
+                confidence: (grokFast.confidence_score ?? 0.98) >= 0.88 ? "high" : "medium",
+                confidence_score: grokFast.confidence_score ?? 0.98,
+                retake_recommended: grokFast.retake_recommended || null,
+              },
+              market_titles: {
+                ebay: `${brand || "Authentic"} ${pName} ${detectedFormat && !pName.toLowerCase().includes(detectedFormat.toLowerCase()) ? detectedFormat : ""} ${cond}`.replace(/\s+/g, " ").trim().slice(0, 80),
+                facebook_marketplace: `${brand || "Authentic"} ${pName} - Great Condition`.trim(),
+                vinted: `${brand || "Authentic"} ${pName}`.trim(),
+                depop: `${pName.toLowerCase()} #resale #thrift`,
+              },
+              seo_description: "",
+              detailed_description: "",
+              shipping_estimate: {
+                size: "small",
+                estimated_weight_grams: 400,
+                dimensions_cm: null,
+                notes: null,
+              },
+              item_specifics: {
+                Brand: brand || "Authentic",
+                Category: cat,
+                Condition: cond,
+              },
+              suggested_keywords: [brand || "Resale", cat, "Pre-Owned"].filter(Boolean),
+              suggested_price_min: rawMin,
+              suggested_price_max: rawMax,
+              suggested_price_median: estVal,
+              suggested_price_currency: targetCurrency,
+              retake_recommended: grokFast.retake_recommended || null,
+            };
+            activeProvider = "grok-2-vision";
+          }
+        } else {
+          const grokFull = await callGrokVisionFull(imageUrls, {
+            targetCurrency,
+            mode,
+            spatialMetadata,
+            categoryHint: categoryBias || undefined,
+          });
+          if (grokFull && (grokFull.analysis?.product_name || (grokFull as any).product_name)) {
+            result = grokFull;
+            activeProvider = "grok-2-vision";
+          }
+        }
+      } catch (grokErr) {
+        console.warn("[ai-listing] Grok vision fallback warning:", grokErr);
+      }
+    }
+
+    // Fallback to Gemini if OpenAI and Grok yielded no result
     if (!result && imageUrls.length > 0) {
       try {
         const geminiResult = await callGeminiVision(imageUrls[0]);

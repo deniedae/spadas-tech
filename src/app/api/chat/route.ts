@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { createOpenAiClient, getPrimaryAiApiKey } from "@/app/lib/config/ai-models";
+import { hasGrokApiKey, createGrokClient, GROK_REASONING_MODEL } from "@/app/lib/config/grok-vision";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -162,23 +163,68 @@ export async function POST(req: NextRequest) {
 
     const latestUserMessage = messages[messages.length - 1]?.content || "";
     const systemPrompt = buildSystemPrompt(itemContext);
+    const hasGrok = hasGrokApiKey();
     const openAiKey = getPrimaryAiApiKey();
+    const hasOpenAi = openAiKey && openAiKey.length > 10 && !openAiKey.includes("placeholder");
 
     const encoder = new TextEncoder();
 
-    // 1. If OpenAI API key is available, use real-time streaming (< 300ms TTFT)
-    if (openAiKey && openAiKey.length > 10 && !openAiKey.includes("placeholder")) {
+    const formattedMessages = [
+      { role: "system" as const, content: systemPrompt },
+      ...messages.slice(-6).map((m: any) => ({
+        role: (m.role === "assistant" ? "assistant" : "user") as "assistant" | "user",
+        content: String(m.content || ""),
+      })),
+    ];
+
+    // 1. If Grok API key is available, use ultra-sharp Grok-2 real-time streaming
+    if (hasGrok) {
+      try {
+        const grok = createGrokClient();
+        if (grok) {
+          const streamResponse = await grok.chat.completions.create({
+            model: GROK_REASONING_MODEL,
+            messages: formattedMessages,
+            stream: true,
+            max_tokens: 220,
+            temperature: 0.3,
+          });
+
+          const customStream = new ReadableStream({
+            async start(controller) {
+              try {
+                for await (const chunk of streamResponse) {
+                  const text = chunk.choices?.[0]?.delta?.content;
+                  if (text) {
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text })}\n\n`));
+                  }
+                }
+                controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+                controller.close();
+              } catch (err: any) {
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: err.message })}\n\n`));
+                controller.close();
+              }
+            },
+          });
+
+          return new Response(customStream, {
+            headers: {
+              "Content-Type": "text/event-stream",
+              "Cache-Control": "no-cache, no-transform",
+              Connection: "keep-alive",
+            },
+          });
+        }
+      } catch (grokErr: any) {
+        console.warn("[Copilot Chat] Grok streaming error, falling back to OpenAI/heuristic:", grokErr?.message);
+      }
+    }
+
+    // 2. If OpenAI API key is available, use real-time streaming (< 300ms TTFT)
+    if (hasOpenAi) {
       try {
         const openai = createOpenAiClient();
-
-        const formattedMessages = [
-          { role: "system" as const, content: systemPrompt },
-          ...messages.slice(-6).map((m: any) => ({
-            role: (m.role === "assistant" ? "assistant" : "user") as "assistant" | "user",
-            content: String(m.content || ""),
-          })),
-        ];
-
         const streamResponse = await openai.chat.completions.create({
           model: "gpt-4o-mini",
           messages: formattedMessages,
@@ -213,7 +259,7 @@ export async function POST(req: NextRequest) {
           },
         });
       } catch (aiErr: any) {
-        console.warn("[Copilot Chat] Streaming error, falling back to heuristic engine:", aiErr?.message);
+        console.warn("[Copilot Chat] OpenAI streaming error, falling back to heuristic engine:", aiErr?.message);
       }
     }
 

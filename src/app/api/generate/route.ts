@@ -7,10 +7,10 @@ import { zodResponseFormat } from "openai/helpers/zod";
 import { NextResponse } from "next/server";
 import { GenerateListingSchema } from "@/app/lib/schemas/ai-listing-schema";
 import { LISTING_MODEL_FALLBACKS, createOpenAiClient } from "@/app/lib/config/ai-models";
+import { hasGrokApiKey, callGrokListingCopy } from "@/app/lib/config/grok-vision";
 
 export async function POST(req: Request) {
   try {
-    const openai = createOpenAiClient();
     const { product } = await req.json();
 
     if (!product || typeof product !== "string" || !product.trim()) {
@@ -20,6 +20,23 @@ export async function POST(req: Request) {
       );
     }
 
+    // High-Acuity Tier: xAI Grok (Fastest, street-smart reseller copywriting)
+    if (hasGrokApiKey()) {
+      try {
+        const grokCopy = await callGrokListingCopy(product);
+        if (grokCopy?.title && grokCopy?.description) {
+          return NextResponse.json({
+            title: grokCopy.title,
+            description: grokCopy.description,
+            price: Number(grokCopy.suggested_price) || 45,
+          });
+        }
+      } catch (grokErr: any) {
+        console.warn("[generate] Grok listing generator warning, falling back to OpenAI:", grokErr?.message || grokErr);
+      }
+    }
+
+    const openai = createOpenAiClient();
     let completion: any = null;
     for (const modelName of LISTING_MODEL_FALLBACKS) {
       try {

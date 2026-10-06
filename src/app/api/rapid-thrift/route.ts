@@ -3,6 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { checkUserUsage } from "@/app/lib/usage";
 import { createOpenAiClient, getPrimaryAiApiKey } from "@/app/lib/config/ai-models";
+import { hasGrokApiKey, createGrokClient, GROK_VISION_MODEL } from "@/app/lib/config/grok-vision";
 import { checkNeedsVerification } from "@/lib/forensic-knowledge";
 import { estimateAustralianMarketValue } from "@/lib/valuation-heuristics";
 import { estimateCategoryShippingCost, detectThriftTrap, calculateThriftCopVerdict } from "@/lib/thrift-cop-engine";
@@ -93,8 +94,9 @@ export async function POST(req: Request) {
       }
     }
 
+    const hasGrok = hasGrokApiKey();
     const apiKey = getPrimaryAiApiKey();
-    if (!apiKey) {
+    if (!hasGrok && !apiKey) {
       console.warn("[Rapid Thrift API] No AI API Key configured on server.");
       return NextResponse.json(
         {
@@ -105,9 +107,6 @@ export async function POST(req: Request) {
         { status: 503 }
       );
     }
-
-
-    const openai = createOpenAiClient();
 
     const systemPrompt = `You are an expert reseller appraiser and secondary market sourcing specialist. Analyze the photo with high accuracy.
 Identify the exact item, brand, category, condition, realistic secondary market resale value (cleared eBay sold comps in ${currency}), typical thrift store tag cost ($2-$20 ${currency}), and calculate True Net Profit:
@@ -152,51 +151,73 @@ Output ONLY valid JSON adhering strictly to:
 
     const cleanImage = image.trim().replace(/[\r\n]/g, "");
 
-    let completion: any = null;
-    try {
-      completion = await openai.chat.completions.create({
-        model: "gpt-4o-2024-08-06",
-        response_format: { type: "json_object" },
-        temperature: 0.1,
-        max_tokens: 600,
-        messages: [
-          { role: "system", content: systemPrompt },
+    const promptMessages: any[] = [
+      { role: "system", content: systemPrompt },
+      {
+        role: "user",
+        content: [
+          { type: "text", text: `Appraise the item in the image for resale in ${currency}.` },
           {
-            role: "user",
-            content: [
-              { type: "text", text: `Appraise the item in the image for resale in ${currency}.` },
-              {
-                type: "image_url",
-                image_url: {
-                  url: cleanImage,
-                  detail: "auto",
-                },
-              },
-            ],
+            type: "image_url",
+            image_url: {
+              url: cleanImage,
+              detail: "auto",
+            },
           },
         ],
-      });
-    } catch (openaiErr: any) {
-      console.error(
-        `[Rapid Thrift API] Upstream OpenAI call failed (${openaiErr?.status || 500}):`,
-        openaiErr?.message || openaiErr
-      );
+      },
+    ];
+
+    let rawContent: string | null = null;
+
+    // 1. High-Performance Tier: xAI Grok-2 Vision (Super-fast visual recognition & OCR)
+    if (hasGrok) {
+      try {
+        const grok = createGrokClient();
+        if (grok) {
+          const completion = await grok.chat.completions.create({
+            model: GROK_VISION_MODEL,
+            response_format: { type: "json_object" },
+            temperature: 0.1,
+            max_tokens: 600,
+            messages: promptMessages,
+          });
+          rawContent = completion.choices?.[0]?.message?.content || null;
+        }
+      } catch (grokErr: any) {
+        console.warn("[Rapid Thrift API] Grok-2 Vision failed, falling back to OpenAI:", grokErr?.message || grokErr);
+      }
+    }
+
+    // 2. Core Tier: OpenAI Vision
+    if (!rawContent && apiKey) {
+      try {
+        const openai = createOpenAiClient();
+        const completion = await openai.chat.completions.create({
+          model: "gpt-4o-2024-08-06",
+          response_format: { type: "json_object" },
+          temperature: 0.1,
+          max_tokens: 600,
+          messages: promptMessages,
+        });
+        rawContent = completion.choices?.[0]?.message?.content || null;
+      } catch (openaiErr: any) {
+        console.error(
+          `[Rapid Thrift API] OpenAI fallback call failed (${openaiErr?.status || 500}):`,
+          openaiErr?.message || openaiErr
+        );
+      }
+    }
+
+    if (!rawContent) {
+      console.warn("[Rapid Thrift API] Vision appraisal model produced an empty response");
       return NextResponse.json(
         {
           error: "Upstream AI vision model call failed. Please check connection and retry.",
           code: "UPSTREAM_AI_ERROR",
-          status: openaiErr?.status || 500,
+          status: 500,
         },
-        { status: openaiErr?.status || 500 }
-      );
-    }
-
-    const rawContent = completion?.choices?.[0]?.message?.content;
-    if (!rawContent) {
-      console.warn("[Rapid Thrift API] Vision appraisal model produced an empty response");
-      return NextResponse.json(
-        { error: "Vision appraisal model produced an empty response", code: "EMPTY_MODEL_RESPONSE", recoverable: true },
-        { status: 502 }
+        { status: 500 }
       );
     }
 
