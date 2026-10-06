@@ -172,6 +172,8 @@ async function handleCompsSearch(
   const finalComps = isZeroMarketData ? [] : (compsResult?.rawComps || []);
   const finalCount = isZeroMarketData ? 0 : (compsResult?.count || 0);
   const activeCount = isZeroMarketData ? 0 : (compsResult?.activeListingsCount || (compsResult?.isActiveAskOnly ? finalComps.length : 0));
+  const activeComps = isZeroMarketData ? [] : (compsResult?.activeComps || []);
+  const recommendedPrice = isZeroMarketData ? 0 : (compsResult?.recommendedPrice || compsResult?.median || 0);
 
   return NextResponse.json({
     success: true,
@@ -181,7 +183,16 @@ async function handleCompsSearch(
     comps: finalComps,
     rawComps: finalComps,
     compsCount: finalCount,
+    soldCount: finalCount,
+    soldMedian: isZeroMarketData ? 0 : (compsResult?.soldMedian || compsResult?.median || 0),
+    soldMin: isZeroMarketData ? 0 : (compsResult?.soldMin || compsResult?.min || 0),
+    soldMax: isZeroMarketData ? 0 : (compsResult?.soldMax || compsResult?.max || 0),
     activeCount,
+    activeComps,
+    activeMedian: isZeroMarketData ? 0 : (compsResult?.activeMedian || 0),
+    activeMin: isZeroMarketData ? 0 : (compsResult?.activeMin || 0),
+    activeMax: isZeroMarketData ? 0 : (compsResult?.activeMax || 0),
+    recommendedPrice,
     isActiveAskOnly: Boolean(compsResult?.isActiveAskOnly),
     noMarketData: isZeroMarketData,
     minPrice: isZeroMarketData ? 0 : (compsResult?.min || 0),

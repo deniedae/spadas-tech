@@ -36,7 +36,9 @@ function setCompsCacheEntry(key: string, result: EbayCompsResult): void {
       _compsCache.delete(oldestKey);
     }
   }
-  _compsCache.set(key, { result, expiresAt: now + COMPS_CACHE_TTL_MS });
+  // Only cache positive verified sold comps for 1 hour. Failed / zero-data results expire in 15 seconds.
+  const ttl = result.count > 0 ? COMPS_CACHE_TTL_MS : 15_000;
+  _compsCache.set(key, { result, expiresAt: now + ttl });
 }
 
 function normalizeCompsCacheKey(productName: string, currency: string): string {
@@ -143,6 +145,44 @@ export async function fetchEbayActiveListings(
       if (isNaN(rawPrice) || rawPrice <= 0) continue;
 
       const title = String(item.title || "").trim();
+      const lower = title.toLowerCase();
+
+      // Junk, accessory, and repair part filter for active listings
+      if (
+        /\b(case only|box only|manual only|dust cover|wall mount|bracket|stand only|skin only|cooling fan|replacement cable|cord only|power cord|adapter only|screws?|screwdriver|repair tool|tool set|battery only|spare battery|remote only|controller only|gamepad only|repair service|hdmi port|port replacement)\b/i.test(lower)
+      ) {
+        continue;
+      }
+
+      // Audio cushions and earpads filter (exclude $8.89 replacement pads when appraising headphones)
+      if (
+        /\b(ear pads|ear cushions|replacement cushions|headphone cushions|cushion|earpads|foam pads|headband cover|silicone tips|ear tips)\b/i.test(lower) &&
+        !/\b(pads|cushion|tips)\b/i.test(query)
+      ) {
+        continue;
+      }
+
+      // Power tool bits filter (exclude $4.50 drill bits when appraising drills)
+      if (
+        /\b(drill bit|drill bits|bit set|driver bits|carbon brushes|chuck key)\b/i.test(lower) &&
+        !/\b(bit|bits|brush)\b/i.test(query)
+      ) {
+        continue;
+      }
+
+      // If query is for high-end audio (Bose QC, Sony WH-1000XM, AirPods Max), reject accessories under $60
+      const isQueryHighEndHeadphones = /\b(quietcomfort|qc45|qc35|wh-1000xm|wh1000xm|airpods max)\b/i.test(query);
+      if (isQueryHighEndHeadphones && rawPrice < 55) {
+        continue;
+      }
+
+      // If query is for a gaming console, reject non-console items under $150 AUD
+      const isTargetPeripheral = /\b(controller|dualsense|gamepad|joy-con|joycon|headset|remote|stand|game|disc|faceplate|skin|cable|cord|adapter|dock)\b/i.test(query);
+      const isQueryConsole = !isTargetPeripheral && /\b(console|playstation \d|ps\d|xbox series|nintendo switch)\b/i.test(query);
+      if (isQueryConsole && rawPrice < 150) {
+        continue;
+      }
+
       const itemId = String(item.itemId || `active-${Date.now()}`);
       const img = item.image?.imageUrl || item.thumbnailImages?.[0]?.imageUrl || undefined;
 
@@ -228,6 +268,15 @@ export interface EbayCompsResult {
   currency: SupportedCurrency;
   source: CompsSource;
   rawComps?: EbaySoldCompItem[];
+  activeComps?: EbaySoldCompItem[];
+  activeMedian?: number;
+  activeMin?: number;
+  activeMax?: number;
+  soldMedian?: number;
+  soldMin?: number;
+  soldMax?: number;
+  soldCount?: number;
+  recommendedPrice?: number;
   iqrBounds?: { lower: number; upper: number };
   isUsMarketOnly?: boolean;
   isActiveAskOnly?: boolean;
@@ -300,29 +349,183 @@ function buildSearchQueries(productName: string, brand?: string | null, category
   // 1. Attempt 1: Full identified query (Exact Title)
   queries.push(clean);
 
-  // 2. Attempt 2: Broadened query with descriptors and stop words stripped
-  const broadened = sanitizeTitleForBroadening(clean, brand);
-  if (broadened && broadened.toLowerCase() !== lower) {
-    queries.push(broadened);
+  // 2. High-Demand Gaming Consoles & Hardware (PS5, Xbox, Switch, Retro)
+  const isTargetPeripheral = /\b(controller|dualsense|gamepad|joy-con|joycon|headset|remote|stand|game|disc|edition disc|cover|faceplate|skin|cable|cord|adapter|dock)\b/i.test(clean);
+  if (!isTargetPeripheral) {
+    if (lower.includes("playstation 5") || lower.includes("ps5")) {
+      queries.push("Sony PlayStation 5 Console");
+      queries.push("PS5 Console");
+      queries.push("PlayStation 5 Console");
+    } else if (lower.includes("playstation 4") || lower.includes("ps4")) {
+      queries.push("Sony PlayStation 4 Console");
+      queries.push("PS4 Console");
+    } else if (lower.includes("playstation 3") || lower.includes("ps3")) {
+      queries.push("PlayStation 3 Console");
+      queries.push("PS3 Console");
+    } else if (lower.includes("playstation 2") || lower.includes("ps2")) {
+      queries.push("PlayStation 2 Console");
+      queries.push("PS2 Console");
+    } else if (lower.includes("psp")) {
+      queries.push("Sony PSP Console");
+    } else if (lower.includes("xbox series x")) {
+      queries.push("Xbox Series X Console");
+      queries.push("Xbox Series X");
+    } else if (lower.includes("xbox series s")) {
+      queries.push("Xbox Series S Console");
+      queries.push("Xbox Series S");
+    } else if (lower.includes("switch oled")) {
+      queries.push("Nintendo Switch OLED Console");
+      queries.push("Nintendo Switch OLED");
+    } else if (lower.includes("nintendo switch")) {
+      queries.push("Nintendo Switch Console");
+    } else if (lower.includes("game boy advance sp") || lower.includes("gba sp")) {
+      queries.push("Game Boy Advance SP Console");
+      queries.push("Game Boy Advance SP");
+    } else if (lower.includes("game boy color") || lower.includes("gbc")) {
+      queries.push("Game Boy Color Console");
+    } else if (lower.includes("game boy advance") || lower.includes("gba")) {
+      queries.push("Game Boy Advance Console");
+    } else if (lower.includes("nintendo 64") || lower.includes("n64")) {
+      queries.push("Nintendo 64 Console");
+      queries.push("N64 Console");
+    } else if (lower.includes("gamecube")) {
+      queries.push("Nintendo GameCube Console");
+      queries.push("GameCube Console");
+    } else if (lower.includes("nintendo 3ds xl")) {
+      queries.push("Nintendo 3DS XL Console");
+    } else if (lower.includes("nintendo 3ds")) {
+      queries.push("Nintendo 3DS Console");
+    } else if (lower.includes("nintendo ds lite")) {
+      queries.push("Nintendo DS Lite Console");
+    } else if (lower.includes("sega dreamcast")) {
+      queries.push("Sega Dreamcast Console");
+    }
   }
 
-  // 3. Luxury designer extraction (e.g. Prada, Gucci, Louis Vuitton, Chanel, Dior, YSL, Bottega Veneta)
+  // 3. Gaming Controllers & Peripherals
+  if (lower.includes("dualsense") || (lower.includes("controller") && (lower.includes("ps5") || lower.includes("playstation 5")))) {
+    queries.push("PS5 DualSense Wireless Controller");
+    queries.push("PS5 DualSense Controller");
+    queries.push("PS5 Controller");
+  } else if (lower.includes("controller") && lower.includes("xbox")) {
+    queries.push("Xbox Wireless Controller");
+    queries.push("Xbox Controller");
+  } else if (lower.includes("switch pro controller")) {
+    queries.push("Nintendo Switch Pro Controller");
+  } else if (lower.includes("joy-con") || lower.includes("joycon")) {
+    queries.push("Nintendo Switch Joy-Con");
+  }
+
+  // 4. High-Demand Electronics, Audio & Wearables
+  if (lower.includes("quietcomfort") || lower.includes("qc45") || lower.includes("qc35")) {
+    if (lower.includes("45")) queries.push("Bose QuietComfort 45");
+    if (lower.includes("45")) queries.push("Bose QC45");
+    if (lower.includes("35")) queries.push("Bose QuietComfort 35");
+    if (lower.includes("35")) queries.push("Bose QC35");
+  } else if (lower.includes("wh-1000xm") || lower.includes("wh1000xm")) {
+    const xmNum = lower.match(/\b(xm\d)\b/i);
+    if (xmNum) {
+      queries.push(`Sony WH-1000${xmNum[1].toUpperCase()}`);
+      queries.push(`Sony WH1000${xmNum[1].toUpperCase()}`);
+    }
+  } else if (lower.includes("airpods pro")) {
+    queries.push("Apple AirPods Pro");
+  } else if (lower.includes("airpods max")) {
+    queries.push("Apple AirPods Max");
+  }
+
+  // 5. Cameras & Camcorders
+  if (lower.includes("powershot") && lower.includes("g7 x")) {
+    queries.push("Canon PowerShot G7 X Mark II");
+    queries.push("Canon PowerShot G7 X");
+  } else if (lower.includes("powershot")) {
+    queries.push("Canon PowerShot Digital Camera");
+  } else if (lower.includes("cyber-shot") || lower.includes("cybershot")) {
+    const wMatch = lower.match(/\b(dsc-[a-z0-9]+)\b/i);
+    if (wMatch) {
+      queries.push(`Sony Cyber-shot ${wMatch[1].toUpperCase()}`);
+    } else {
+      queries.push("Sony Cyber-shot Digital Camera");
+    }
+  } else if (lower.includes("mju ii") || lower.includes("mju-ii") || lower.includes("stylus epic")) {
+    queries.push("Olympus Mju II 35mm Film Camera");
+    queries.push("Olympus Mju II");
+  } else if (lower.includes("handycam")) {
+    queries.push("Sony Handycam Camcorder");
+  }
+
+  // 6. Power Tools & Hardware
+  if (lower.includes("makita") && (lower.includes("drill") || lower.includes("driver"))) {
+    queries.push("Makita 18V Cordless Drill");
+    queries.push("Makita 18V Drill");
+  } else if (lower.includes("dewalt") && (lower.includes("drill") || lower.includes("driver"))) {
+    queries.push("DeWalt 18V Cordless Drill");
+    queries.push("DeWalt 20V Drill");
+  } else if (lower.includes("milwaukee") && (lower.includes("drill") || lower.includes("driver"))) {
+    queries.push("Milwaukee M18 Drill");
+  } else if (lower.includes("makita") && lower.includes("battery")) {
+    queries.push("Makita 18V 5.0Ah Battery");
+    queries.push("Makita 18V Battery");
+  } else if (lower.includes("milwaukee") && lower.includes("battery")) {
+    queries.push("Milwaukee M18 Battery");
+  } else if (lower.includes("dewalt") && lower.includes("battery")) {
+    queries.push("DeWalt 18V Battery");
+    queries.push("DeWalt 20V Battery");
+  }
+
+  // 7. Streetwear & Outerwear
+  if (lower.includes("nuptse")) {
+    queries.push("The North Face 1996 Nuptse Jacket");
+    queries.push("The North Face Nuptse 700");
+    queries.push("The North Face Nuptse Jacket");
+  } else if (lower.includes("detroit jacket") || (lower.includes("carhartt") && lower.includes("j97"))) {
+    queries.push("Carhartt Detroit Jacket J97");
+    queries.push("Carhartt Detroit Jacket");
+    queries.push("Carhartt J97");
+  } else if (lower.includes("active jacket") && lower.includes("carhartt")) {
+    queries.push("Carhartt Active Jacket");
+  } else if (lower.includes("beta lt") && lower.includes("arc'teryx")) {
+    queries.push("Arc'teryx Beta LT Jacket");
+  } else if (lower.includes("retro-x") && lower.includes("patagonia")) {
+    queries.push("Patagonia Classic Retro-X Fleece Jacket");
+    queries.push("Patagonia Retro-X Fleece");
+  }
+
+  // 8. Sneakers & Silhouettes
+  if (lower.includes("dunk low")) {
+    queries.push("Nike Dunk Low");
+  } else if (lower.includes("jordan 4") || lower.includes("air jordan 4")) {
+    queries.push("Air Jordan 4");
+  } else if (lower.includes("jordan 1") || lower.includes("air jordan 1")) {
+    queries.push("Air Jordan 1");
+  } else if (lower.includes("jordan 3") || lower.includes("air jordan 3")) {
+    queries.push("Air Jordan 3");
+  } else if (lower.includes("jordan 11") || lower.includes("air jordan 11")) {
+    queries.push("Air Jordan 11");
+  } else if (lower.includes("samba")) {
+    queries.push("Adidas Samba OG");
+  } else if (lower.includes("gazelle")) {
+    queries.push("Adidas Gazelle");
+  } else if (lower.includes("9060") && lower.includes("new balance")) {
+    queries.push("New Balance 9060");
+  } else if (lower.includes("550") && lower.includes("new balance")) {
+    queries.push("New Balance 550");
+  } else if (lower.includes("gel-kayano")) {
+    queries.push("Asics Gel-Kayano 14");
+  }
+
+  // 9. Luxury Designer extraction
   const luxuryBrands = [
     "prada", "louis vuitton", "gucci", "chanel", "dior", "bottega veneta", "saint laurent",
     "ysl", "fendi", "goyard", "hermes", "celine", "balenciaga", "loewe", "burberry", "mcm", "coach"
   ];
   const detectedBrand = luxuryBrands.find((b) => lower.includes(b));
-
   if (detectedBrand) {
     const brandName = clean.split(" ").find((w) => w.toLowerCase() === detectedBrand) || detectedBrand;
-
-    // Check material
     const isSaffiano = lower.includes("saffiano");
     const isNylon = lower.includes("nylon") || lower.includes("tessuto");
     const isMonogram = lower.includes("monogram") || lower.includes("damier") || lower.includes("gg");
     const isLeather = lower.includes("leather") || lower.includes("caviar");
-
-    // Check item type
     const isWallet = lower.includes("wallet") || lower.includes("purse") || lower.includes("bifold") || lower.includes("trifold") || lower.includes("cardholder") || lower.includes("card case") || lower.includes("zip around");
     const isBag = lower.includes("bag") || lower.includes("tote") || lower.includes("handbag") || lower.includes("backpack") || lower.includes("crossbody") || lower.includes("pouch");
 
@@ -340,16 +543,75 @@ function buildSearchQueries(productName: string, brand?: string | null, category
     }
   }
 
-  // 4. Direct cleaned query (up to 5-6 core words)
-  const words = clean.split(" ").filter((w) => w.length >= 2);
-  if (words.length > 0) {
-    queries.push(words.slice(0, 5).join(" "));
-    if (words.length > 3) {
-      queries.push(words.slice(0, 3).join(" "));
+  // 10. Watches
+  if (lower.includes("skx007") || lower.includes("skx009")) {
+    queries.push("Seiko SKX007 Automatic Diver");
+    queries.push("Seiko SKX007");
+  } else if (lower.includes("ga-2100") || lower.includes("ga2100")) {
+    queries.push("Casio G-Shock GA-2100");
+  }
+
+  // 11. Kitchen & Small Appliances
+  if (lower.includes("barista express") || lower.includes("bes870")) {
+    queries.push("Breville Barista Express BES870");
+    queries.push("Breville Barista Express");
+  } else if (lower.includes("artisan") && lower.includes("kitchenaid")) {
+    queries.push("KitchenAid Artisan Stand Mixer");
+  } else if (lower.includes("dyson") && (lower.includes("v11") || lower.includes("v15") || lower.includes("v10") || lower.includes("v8"))) {
+    const vMatch = lower.match(/\b(v\d{1,2})\b/i);
+    if (vMatch) {
+      queries.push(`Dyson ${vMatch[1].toUpperCase()} Cordless Vacuum`);
+      queries.push(`Dyson ${vMatch[1].toUpperCase()}`);
+    }
+  } else if (lower.includes("le creuset") && (lower.includes("dutch oven") || lower.includes("casserole"))) {
+    queries.push("Le Creuset Cast Iron Dutch Oven");
+    queries.push("Le Creuset Dutch Oven");
+  }
+
+  // 12. Lego Sets (Extract 4-5 digit model number)
+  if (lower.includes("lego")) {
+    const legoMatch = lower.match(/\b(\d{4,5})\b/);
+    if (legoMatch) {
+      queries.push(`Lego ${legoMatch[1]}`);
     }
   }
 
-  // 5. Style / Category Broadening for Unbranded Decor (vases, baskets, etc.)
+  // 13. Pokemon Games
+  if (lower.includes("pokemon") || lower.includes("pokémon")) {
+    const pokeVersions = ["heartgold", "soulsilver", "platinum", "emerald", "crystal", "ruby", "sapphire", "firered", "leafgreen", "black", "white", "yellow", "red", "blue"];
+    const foundVersion = pokeVersions.find((v) => lower.includes(v));
+    if (foundVersion) {
+      const capVersion = foundVersion.charAt(0).toUpperCase() + foundVersion.slice(1);
+      if (lower.includes("ds") || lower.includes("3ds")) {
+        queries.push(`Pokemon ${capVersion} Nintendo DS`);
+      } else if (lower.includes("gba") || lower.includes("advance")) {
+        queries.push(`Pokemon ${capVersion} Game Boy Advance`);
+      } else {
+        queries.push(`Pokemon ${capVersion}`);
+      }
+    }
+  }
+
+  // 14. Broadened query with descriptors and stop words stripped
+  const broadened = sanitizeTitleForBroadening(clean, brand);
+  if (broadened && broadened.toLowerCase() !== lower) {
+    queries.push(broadened);
+  }
+
+  // 15. Universal: Brand + Core Words (first 2-3 words)
+  const cleanWithoutBrand = brand ? clean.replace(new RegExp(`^${brand}\\s*`, "i"), "").trim() : clean;
+  const words = cleanWithoutBrand.split(/\s+/).filter((w) => w.length >= 2);
+  if (brand && words.length >= 2) {
+    queries.push(`${brand} ${words.slice(0, 3).join(" ")}`);
+    queries.push(`${brand} ${words.slice(0, 2).join(" ")}`);
+  } else if (words.length > 0) {
+    queries.push(words.slice(0, 4).join(" "));
+    if (words.length > 2) {
+      queries.push(words.slice(0, 2).join(" "));
+    }
+  }
+
+  // 16. Style / Category Broadening for Unbranded Decor (vases, baskets, etc.)
   const isDecorOrGeneric = /\b(vase|basket|pot|planter|bowl|decor|candle|tray|plate|figurine|ornament|sculpture|cushion|pillow|blanket|throw|lamp|frame|mirror)\b/i.test(lower);
   if (!detectedBrand && (isDecorOrGeneric || category)) {
     const styleKeywords = lower.match(/\b(ceramic|porcelain|wicker|woven|rattan|brass|copper|glass|crystal|wood|wooden|marble|mid century|art deco|boho|vintage|antique|rustic|minimalist)\b/gi);
@@ -600,6 +862,46 @@ export async function fetchEbayAustraliaSoldComps(
       }
     }
 
+    // Audio & Headphone Accessories Guard (Pads, Cushions, Cables, Tips)
+    if (
+      /\b(ear pads|ear cushions|replacement cushions|headphone cushions|cushion|earpads|foam pads|headband cover|aux cable|audio cable|silicone tips|ear tips)\b/i.test(lower)
+    ) {
+      const isQuerySeekingCushion = /\b(pads|cushion|tips|cable)\b/i.test(productName);
+      if (!isQuerySeekingCushion) return false;
+    }
+
+    // Power Tools Accessories Guard (Drill bits, carbon brushes, chuck keys)
+    if (
+      /\b(drill bit|drill bits|bit set|driver bits|carbon brushes|chuck key|belt clip|auxiliary handle)\b/i.test(lower)
+    ) {
+      const isQuerySeekingBits = /\b(bit|bits|set|brush|clip)\b/i.test(productName);
+      if (!isQuerySeekingBits) return false;
+    }
+
+    // Console Parity & Accessories Guard
+    const isTargetPeripheralOrGame = /\b(controller|dualsense|gamepad|joy-con|joycon|headset|remote|stand|game|disc|edition disc|cover|faceplate|skin|cable|cord|adapter|dock|wheel|pedal)\b/i.test(productName);
+    const isQueryConsole = !isTargetPeripheralOrGame && (/\bconsole\b/i.test(productName) || /\b(playstation \d|ps\d|xbox series|nintendo switch|switch oled)\b/i.test(productName));
+    if (isQueryConsole) {
+      if (
+        /\b(gift card|store card|voucher|dualsense|controller|gamepad|joy-con|remote player|portal|handheld|repair service|repair only|hdmi port|port repair|replacement port|faceplate|face plate|side plates|disc drive only|drive only|headset only|skin only|cooling fan|dust cover|vertical stand|stand only|screwdriver|repair tool)\b/i.test(lower)
+      ) {
+        return false;
+      }
+      const isQueryPs5 = /\b(ps5|playstation 5)\b/i.test(productName);
+      if (isQueryPs5 && /\b(playstation 4|ps4\b|playstation 3|ps3\b|playstation 2|ps2\b)\b/i.test(lower) && !lower.includes("ps5") && !lower.includes("playstation 5")) {
+        return false;
+      }
+      if (isQueryPs5 && price < 220) {
+        return false;
+      }
+    }
+
+    // Gaming Controllers & Gamepads (PS5 DualSense, Xbox Wireless, Joy-Cons)
+    if (isTargetPeripheralOrGame && /\b(controller|dualsense|gamepad)\b/i.test(productName)) {
+      if (price > 180 || price < 20) return false;
+      if (/\b(thumb grips?|grip caps?|silicone skin|skin sticker|cable only|stand only|analog stick)\b/i.test(lower)) return false;
+    }
+
     // Luxury threshold
     if (isLuxury && price < 20) return false;
 
@@ -629,7 +931,7 @@ export async function fetchEbayAustraliaSoldComps(
       // count=10: cap payload to top-10 results — 6× less data, faster parse & transfer
       const url = `https://api.sold-comps.com/v1/scrape?keyword=${encodeURIComponent(q)}&ebaySite=${ebaySite}&page=1&count=10&daysToScrape=30&sortOrder=endedRecently${conditionParam}${locParam}`;
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 3200); // 3.2s strict timeout for real-time camera appraisal
+      const timer = setTimeout(() => controller.abort(), 8500); // 8.5s timeout for live eBay scraping
 
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${process.env.SOLD_COMPS_API_KEY}` },
@@ -637,7 +939,7 @@ export async function fetchEbayAustraliaSoldComps(
       }).catch((fetchErr: any) => {
         const isTimeout = fetchErr?.name === "AbortError";
         console.warn(
-          `[Sold Comps API] ${isTimeout ? "Timed out (3.2s limit)" : "Network failure"} for query "${q}":`,
+          `[Sold Comps API] ${isTimeout ? "Timed out (8.5s limit)" : "Network failure"} for query "${q}":`,
           fetchErr?.message || fetchErr
         );
         return null;
@@ -767,13 +1069,27 @@ export async function fetchEbayAustraliaSoldComps(
         const usComps = await fetchSoldCompsFromApi(queryTerm, "ebay.com", false, isTargetUsed);
         if (usComps.length >= 1) return { comps: usComps, isUsFallback: false };
       } else if (isRegionAU) {
-        // STRICT AU COMPS: Query official Australian marketplace (ebay.com.au) with LH_PrefLoc=1 (AU only)
-        // Under NO circumstances should US comps leak into AU results.
-        const auComps = await fetchSoldCompsFromApi(queryTerm, "ebay.com.au", true, isTargetUsed);
+        // STRICT AU COMPS: Query official AU marketplace and US marketplace in parallel
+        // If AU has results, strictly prefer AU. If AU has 0 or times out, immediately use US with FX conversion.
+        const [auComps, usComps] = await Promise.all([
+          fetchSoldCompsFromApi(queryTerm, "ebay.com.au", true, isTargetUsed),
+          fetchSoldCompsFromApi(queryTerm, "ebay.com", false, isTargetUsed),
+        ]);
+
         if (auComps.length >= 1) {
           return { comps: auComps, isUsFallback: false };
         }
-        // If 0 AU sold comps, return empty so Phase 2 live AU active listings can provide pricing guidance
+        if (usComps.length >= 1) {
+          const fxRate = FX_RATES["USD"]?.["AUD"] || 1.54;
+          const converted = usComps.map((c) => ({
+            ...c,
+            price: Math.round(c.price * fxRate * 100) / 100,
+            originalCurrency: "USD",
+            originalPrice: c.price,
+            isUsComp: true,
+          }));
+          return { comps: converted, isUsFallback: true };
+        }
         return { comps: [], isUsFallback: false };
       } else {
         const regionalSite = CURRENCY_CONFIGS[targetCurrency]?.ebaySite || "ebay.com";
@@ -785,22 +1101,19 @@ export async function fetchEbayAustraliaSoldComps(
       return { comps: [], isUsFallback: false };
     };
 
-    // Attempt 1: Primary query (exact identified item)
+    // Multi-tier Waterfall Query Cascade: Test prioritized query variations until comps resolve
     const compsStart = Date.now();
-    const primaryAttempt = await querySoldCompsForTerm(primaryQuery);
-    if (primaryAttempt.comps.length >= 1) {
-      resolvedSoldComps = primaryAttempt.comps;
-      isUsMarketFallback = primaryAttempt.isUsFallback;
-    }
-
-    // Attempt 2: Only try broadened query if primary query finished quickly (< 1500ms) with 0 comps
-    if (resolvedSoldComps.length === 0 && searchQueries.length > 1 && Date.now() - compsStart < 1500) {
-      const broadenedQuery = searchQueries[1];
-      console.log(`[eBay Comps] Primary query "${primaryQuery}" had 0 sold comps — trying broadened query "${broadenedQuery}"`);
-      const broadenedAttempt = await querySoldCompsForTerm(broadenedQuery);
-      if (broadenedAttempt.comps.length >= 1) {
-        resolvedSoldComps = broadenedAttempt.comps;
-        isUsMarketFallback = broadenedAttempt.isUsFallback;
+    for (let qIdx = 0; qIdx < Math.min(searchQueries.length, 3); qIdx++) {
+      if (Date.now() - compsStart >= 12000) break;
+      const currentQuery = searchQueries[qIdx];
+      if (qIdx > 0) {
+        console.log(`[eBay Comps] Waterfall cascade query [${qIdx + 1}/${Math.min(searchQueries.length, 3)}]: "${currentQuery}"`);
+      }
+      const attempt = await querySoldCompsForTerm(currentQuery);
+      if (attempt.comps.length >= 1) {
+        resolvedSoldComps = attempt.comps;
+        isUsMarketFallback = attempt.isUsFallback;
+        break;
       }
     }
 
@@ -814,10 +1127,48 @@ export async function fetchEbayAustraliaSoldComps(
       const { valid, lowerBound, upperBound } = computeIqrStats(prices);
       const filteredComps = activeComps.filter((c) => c.price >= lowerBound && c.price <= upperBound);
       const medianBaseline = calcMedian(valid);
+      const soldMedianVal = Math.round(medianBaseline * 100) / 100;
+      const soldMinVal = Math.round(valid[0] * 100) / 100;
+      const soldMaxVal = Math.round(valid[valid.length - 1] * 100) / 100;
+
+      // In parallel: grab active listings to show what current sellers are asking right now
+      let activeListings: EbaySoldCompItem[] = [];
+      try {
+        activeListings = await Promise.race([
+          officialBrowsePromise,
+          new Promise<EbaySoldCompItem[]>((resolve) => setTimeout(() => resolve([]), 1500)),
+        ]);
+      } catch {}
+
+      let activeMedianVal: number | undefined = undefined;
+      let activeMinVal: number | undefined = undefined;
+      let activeMaxVal: number | undefined = undefined;
+      const activeCount = activeListings.length;
+
+      if (activeListings.length > 0) {
+        const sortedActive = [...activeListings].sort((a, b) => a.price - b.price);
+        const activePrices = sortedActive.map((c) => c.price);
+        activeMinVal = Math.round(activePrices[0] * 100) / 100;
+        activeMaxVal = Math.round(activePrices[activePrices.length - 1] * 100) / 100;
+        activeMedianVal = Math.round(calcMedian(activePrices) * 100) / 100;
+      }
+
+      // Realistic Quick-Sell Price on eBay:
+      // If sellers are asking more, listing at the proven sold median sells quickly.
+      // If active sellers are undercutting, position slightly below active median to clear immediately.
+      let recommendedListPrice = soldMedianVal;
+      if (activeMedianVal && activeMedianVal > 0) {
+        if (activeMedianVal < soldMedianVal) {
+          recommendedListPrice = Math.round(activeMedianVal * 0.97 * 100) / 100;
+        } else {
+          recommendedListPrice = soldMedianVal;
+        }
+      }
+
       const domesticResult: EbayCompsResult = {
-        min: Math.round(valid[0] * 100) / 100,
-        max: Math.round(valid[valid.length - 1] * 100) / 100,
-        median: Math.round(medianBaseline * 100) / 100,
+        min: soldMinVal,
+        max: soldMaxVal,
+        median: soldMedianVal,
         count: valid.length,
         currency: targetCurrency,
         source: "sold_comps_api",
@@ -826,6 +1177,16 @@ export async function fetchEbayAustraliaSoldComps(
         rawComps: (filteredComps.length > 0 ? filteredComps : activeComps)
           .sort((a, b) => (b.rawDate || 0) - (a.rawDate || 0))
           .slice(0, 7),
+        activeComps: activeListings.slice(0, 5),
+        activeMedian: activeMedianVal,
+        activeMin: activeMinVal,
+        activeMax: activeMaxVal,
+        activeListingsCount: activeCount,
+        soldMedian: soldMedianVal,
+        soldMin: soldMinVal,
+        soldMax: soldMaxVal,
+        soldCount: valid.length,
+        recommendedPrice: recommendedListPrice,
         iqrBounds: { lower: lowerBound, upper: upperBound },
         arbitrageSignal: isUsMarketFallback
           ? "AU sales scarce — converted from live US eBay sold comps."
@@ -836,20 +1197,38 @@ export async function fetchEbayAustraliaSoldComps(
     }
   }
 
-  // ── PHASE 2: Official eBay Browse API (Fallback ONLY when 0 sold comps exist) ────
-  // Show active listings data clearly labelled "Currently listed — not sold prices"
-  const activeListings = await officialBrowsePromise;
+  // ── PHASE 2: Official eBay Browse API (Fallback when 0 sold comps exist) ────
+  // Show active listings data clearly labelled with asking price & quick-sell price guidance
+  let activeListings = await officialBrowsePromise;
+
+  // If primaryQuery returned 0 active listings, try relaxed search query
+  if (activeListings.length === 0 && searchQueries.length > 1) {
+    const fallbackActiveQuery = searchQueries[1];
+    activeListings = await fetchEbayActiveListings(fallbackActiveQuery, targetCurrency);
+  }
 
   if (activeListings.length > 0) {
     activeListings.sort((a, b) => a.price - b.price);
     const activePrices = activeListings.map((c) => c.price);
     const isRegionUS = targetCurrency === "USD";
+    const activeMedianVal = Math.round(calcMedian(activePrices) * 100) / 100;
+    const activeMinVal = Math.round(activePrices[0] * 100) / 100;
+    const activeMaxVal = Math.round(activePrices[activePrices.length - 1] * 100) / 100;
+    // When 0 sold comps exist, recommend 7% below active median so user undercuts competitors and sells easily
+    const recPrice = Math.max(1, Math.round(activeMedianVal * 0.93 * 100) / 100);
+
     const activeResult: EbayCompsResult = {
-      min: activePrices[0],
-      max: activePrices[activePrices.length - 1],
-      median: calcMedian(activePrices),
+      min: activeMinVal,
+      max: activeMaxVal,
+      median: activeMedianVal,
       count: 0, // 0 sold comps!
       activeListingsCount: activeListings.length,
+      activeComps: activeListings.slice(0, 5),
+      activeMedian: activeMedianVal,
+      activeMin: activeMinVal,
+      activeMax: activeMaxVal,
+      soldCount: 0,
+      recommendedPrice: recPrice,
       currency: targetCurrency,
       source: "browse_api",
       isActiveAskOnly: true,
@@ -861,8 +1240,8 @@ export async function fetchEbayAustraliaSoldComps(
         soldDate: "Active Ask",
       })),
       arbitrageSignal: isRegionUS
-        ? "No recent US sold comps found — showing live active listings on eBay US as pricing guidance."
-        : "No sold comps found on eBay — showing live active listings so you know what current sellers are asking.",
+        ? "No recent US sold comps found — showing live active asking prices on eBay US with quick-sell recommendation."
+        : "No sold comps found on eBay — showing live active asking prices on eBay so you know what current sellers are listing it for.",
     };
     setCompsCacheEntry(cacheKey, activeResult);
     return activeResult;

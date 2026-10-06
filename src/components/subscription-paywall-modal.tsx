@@ -56,22 +56,22 @@ export default function SubscriptionPaywallModal({
         : "Unlimited 60FPS AR camera scanning, live eBay Australia sold comps, and 1-click cross-listing.",
       features: isUsMarket
         ? [
-            "⚡ Unlimited 60FPS AR Lens Scanner (Powered by xAI Grok & Multi-Model AI)",
-            "🛡️ Anti-Thrift Trap Guard (Warns against high-shipping traps & zero-margin items)",
-            "📊 100% Live eBay US 30-Day Real Sold Comps (Zero Hallucinations)",
-            "💰 True Net Profit Calculator (USPS parcel postage + fees auto-deducted)",
-            "🛍️ 1-Click Multi-Platform Cross-Lister (eBay, Mercari, Poshmark)",
-            "📦 Unlimited Sourcing Haul Vault & CSV Tax Export",
-            "🔍 Microscopic Hallmark & Care Tag Inspection (.925, 14K, RN tags)",
+            "Unlimited 60FPS AR Lens Scanner (Powered by xAI Grok & Multi-Model AI)",
+            "Anti-Thrift Trap Guard (Warns against high-shipping traps & zero-margin items)",
+            "100% Live eBay US 30-Day Real Sold Comps (Zero Hallucinations)",
+            "True Net Profit Calculator (USPS parcel postage + fees auto-deducted)",
+            "1-Click Multi-Platform Cross-Lister (eBay, Mercari, Poshmark)",
+            "Unlimited Sourcing Haul Vault & CSV Tax Export",
+            "Microscopic Hallmark & Care Tag Inspection (.925, 14K, RN tags)",
           ]
         : [
-            "⚡ Unlimited 60FPS AR Lens Scanner (Powered by xAI Grok & Multi-Model AI)",
-            "🛡️ Anti-Thrift Trap Guard (Warns against AusPost shipping traps & penny flips)",
-            "📊 100% Live Australia eBay 30-Day Real Sold Comps (Zero Hallucinations)",
-            "💰 True Net Profit Calculator (Exact AusPost satchels + 13.4% fees auto-deducted)",
-            "🛍️ 1-Click Multi-Platform Cross-Lister (eBay AU, FB Marketplace, Depop)",
-            "📦 Unlimited Thrifting Haul Vault & CSV Bookkeeping Ledger",
-            "🔍 Microscopic Hallmark & Care Tag Inspection (.925, 14K, RN tags)",
+            "Unlimited 60FPS AR Lens Scanner (Powered by xAI Grok & Multi-Model AI)",
+            "Anti-Thrift Trap Guard (Warns against AusPost shipping traps & penny flips)",
+            "100% Live Australia eBay 30-Day Real Sold Comps (Zero Hallucinations)",
+            "True Net Profit Calculator (Exact AusPost satchels + 13.4% fees auto-deducted)",
+            "1-Click Multi-Platform Cross-Lister (eBay AU, FB Marketplace, Depop)",
+            "Unlimited Thrifting Haul Vault & CSV Bookkeeping Ledger",
+            "Microscopic Hallmark & Care Tag Inspection (.925, 14K, RN tags)",
           ],
       ctaText: isUsMarket ? "Upgrade to Spadas Pro ($6.99/mo)" : "Upgrade to Spadas Pro ($10 AUD/mo)",
       color: "border-cyan-400 bg-gradient-to-b from-slate-900 via-slate-900 to-cyan-950/40 shadow-[0_0_40px_rgba(6,182,212,0.3)]",
@@ -104,7 +104,7 @@ export default function SubscriptionPaywallModal({
     try {
       const res = await purchaseGooglePlaySubscription();
       if (res.active) {
-        toast.success("🎉 Welcome to Spadas Pro! Unlimited scanning unlocked.");
+        toast.success("Welcome to Spadas Pro! Unlimited scanning unlocked.");
         onClose();
         window.location.reload();
         return;
@@ -182,7 +182,7 @@ export default function SubscriptionPaywallModal({
                   </div>
                   <p className="text-[11px] text-cyan-300/90 font-medium flex items-center gap-1.5">
                     <span>💡</span>
-                    <span><strong>1-Flip Guarantee:</strong> Finding just one $25+ thrift item pays for your entire month.</span>
+                    <span><strong>High ROI Potential:</strong> Sourcing just one $25+ flip can cover your entire monthly access.</span>
                   </p>
                 </div>
 

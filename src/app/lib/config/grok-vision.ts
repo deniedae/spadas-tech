@@ -1,18 +1,19 @@
 import OpenAI from "openai";
 import type { AiListingResult } from "@/types/ai-listing";
 
-export const GROK_VISION_MODEL = "grok-2-vision-1212";
+export const GROK_VISION_MODEL = "grok-4.20-0309-non-reasoning";
 export const GROK_VISION_FALLBACKS = [
-  "grok-2-vision-1212",
-  "grok-2-vision",
-  "grok-vision-beta",
+  "grok-4.20-0309-non-reasoning",
+  "grok-4.5",
+  "grok-4.7",
+  "grok-4.3",
 ];
 
-export const GROK_REASONING_MODEL = "grok-2-1212";
+export const GROK_REASONING_MODEL = "grok-4.20-0309-reasoning";
 export const GROK_REASONING_FALLBACKS = [
-  "grok-2-1212",
-  "grok-2",
-  "grok-beta",
+  "grok-4.20-0309-reasoning",
+  "grok-4.5",
+  "grok-4.20-0309-non-reasoning",
 ];
 
 /**
@@ -68,6 +69,8 @@ export interface GrokFastVisionResult {
   suggested_price_max: number;
   defect_notes: string[];
   visible_text_detected?: string[];
+  _model?: string;
+  _latency_ms?: number;
   retake_recommended?: {
     required: boolean;
     angle_type: "tag" | "hardware" | "material" | "focus" | "overall";
@@ -77,8 +80,8 @@ export interface GrokFastVisionResult {
 }
 
 /**
- * High-Speed Grok-2 Vision Visual Identification for AR Scanner HUD.
- * Renowned for microscopic OCR on tags, serials, and hallmarks with zero conversational filler.
+ * High-Speed Grok Vision Visual Identification for AR Scanner HUD.
+ * Performs optical character recognition on tags, serials, and hallmarks.
  */
 export async function callGrokVisionFast(
   imageDataUrl: string,
@@ -94,8 +97,8 @@ export async function callGrokVisionFast(
 
   const targetCurrency = options?.targetCurrency || "AUD";
 
-  const prompt = `You are Spadas AR Lens — the world's most aggressive and accurate secondary market appraiser for eBay, Depop, and local P2P arbitrage.
-Analyze this camera viewfinder image with surgical precision:
+  const prompt = `You are Spadas AR Lens — a specialized secondary market item identification and valuation engine for eBay, Depop, and local P2P marketplaces.
+Analyze this camera viewfinder image with precision:
 
 1. FORENSIC OPTICAL CHARACTER RECOGNITION (OCR):
    - Read every legible word, micro-print, care label, collar tag, RN number, style code, serial number, and hardware hallmark.
@@ -125,7 +128,7 @@ Analyze this camera viewfinder image with surgical precision:
    - suggested_price_max: Patient collector ceiling price.
 
 6. RETAKE GUIDANCE:
-   - If confidence < 0.85, out-of-focus, or tag/hallmark is too blurry to guarantee authenticity, set retake_recommended. Otherwise null.
+   - If confidence < 0.85, out-of-focus, or tag/hallmark is too blurry to reliably verify authenticity, set retake_recommended. Otherwise null.
 
 Output STRICT JSON only:
 {
@@ -147,6 +150,7 @@ Output STRICT JSON only:
   try {
     const cleanUrl = imageDataUrl.trim().replace(/[\r\n]/g, "");
 
+    const callStart = Date.now();
     for (const model of GROK_VISION_FALLBACKS) {
       try {
         const response = await client.chat.completions.create({
@@ -181,6 +185,8 @@ Output STRICT JSON only:
         const parsed = JSON.parse(cleanJson) as GrokFastVisionResult;
 
         if (parsed.product_name) {
+          parsed._model = model;
+          parsed._latency_ms = Date.now() - callStart;
           return parsed;
         }
       } catch (err: any) {
@@ -299,6 +305,7 @@ Return ONLY a valid JSON object matching this schema:
       },
     }));
 
+    const callStart = Date.now();
     for (const model of GROK_VISION_FALLBACKS) {
       try {
         const response = await client.chat.completions.create({
@@ -308,7 +315,7 @@ Return ONLY a valid JSON object matching this schema:
           messages: [
             {
               role: "system",
-              content: "You are an elite secondhand merchandise appraisal AI. Return valid JSON only.",
+              content: "You are an expert secondhand merchandise appraisal AI. Return valid JSON only.",
             },
             {
               role: "user",
@@ -324,6 +331,8 @@ Return ONLY a valid JSON object matching this schema:
         const parsed = JSON.parse(cleanJson) as AiListingResult;
 
         if (parsed.analysis?.product_name || (parsed as any).product_name) {
+          (parsed as any)._model = model;
+          (parsed as any)._latency_ms = Date.now() - callStart;
           return {
             ...parsed,
             isMockFallback: false,

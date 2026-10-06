@@ -29,6 +29,7 @@ import {
   callGrokVisionFull,
   callGrokArbitration,
   hasGrokApiKey,
+  GROK_VISION_MODEL,
 } from "@/app/lib/config/grok-vision";
 import { fetchEbayAustraliaSoldComps } from "@/app/lib/ebay-australia-comps";
 import { detectGeoCurrency, SupportedCurrency } from "@/app/lib/currency-routing";
@@ -36,7 +37,7 @@ import { saveProductToCache, getCachedProductScan } from "@/app/lib/cache/produc
 import { appraiseItemLocally } from "@/app/lib/offline/offline-engine";
 import { estimateAustralianMarketValue } from "@/lib/valuation-heuristics";
 import { estimateCategoryShippingCost, detectThriftTrap, calculateThriftCopVerdict } from "@/lib/thrift-cop-engine";
-import type { AiListingResult } from "@/types/ai-listing";
+import type { AiListingResult, SoldCompPricingBreakdown, VisionScanTelemetry } from "@/types/ai-listing";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -163,23 +164,31 @@ export async function POST(request: Request) {
   let rawImageUrls: string[] = [];
   let supabaseClient: any = null;
   try {
-    const cookieStore = await cookies();
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll();
-          },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
-          },
-        },
-      }
-    );
+    let cookieStore: any = null;
+    try {
+      cookieStore = await cookies();
+    } catch {
+      // Standalone test context or outside Next.js request scope
+    }
+
+    const supabase = cookieStore && process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+      ? createServerClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+          {
+            cookies: {
+              getAll() {
+                return cookieStore.getAll();
+              },
+              setAll(cookiesToSet) {
+                cookiesToSet.forEach(({ name, value, options }) =>
+                  cookieStore.set(name, value, options)
+                );
+              },
+            },
+          }
+        )
+      : null;
     supabaseClient = supabase;
 
     const body = await request.json().catch(() => ({}));
@@ -262,8 +271,9 @@ RULES:
       });
     }
 
+    const rawImages = (body.imageUrls || body.images || (body.image ? [body.image] : [])) as string[];
+    const imageUrls = Array.isArray(rawImages) ? rawImages : [];
     const {
-      imageUrls,
       isArScan,
       generateCopywriting,
       mode,
@@ -273,6 +283,7 @@ RULES:
       predictedQuery,
     } = body as {
       imageUrls?: string[];
+      images?: string[];
       isArScan?: boolean;
       generateCopywriting?: boolean;
       mode?: "sweep" | "deep" | "live" | "focus" | "standard" | "snap";
@@ -287,7 +298,7 @@ RULES:
       categoryBias?: string;
       predictedQuery?: string;
     };
-    rawImageUrls = imageUrls || [];
+    rawImageUrls = imageUrls;
 
     if (!imageUrls || imageUrls.length === 0) {
       return NextResponse.json(createEmptyScanResult());
@@ -311,15 +322,17 @@ RULES:
     const authHeader = request.headers.get("authorization");
     let user: any = null;
 
-    if (authHeader && authHeader.startsWith("Bearer ")) {
-      const token = authHeader.replace("Bearer ", "").trim();
-      const { data } = await supabase.auth.getUser(token);
-      user = data?.user;
-    }
+    if (supabase) {
+      if (authHeader && authHeader.startsWith("Bearer ")) {
+        const token = authHeader.replace("Bearer ", "").trim();
+        const { data } = await supabase.auth.getUser(token);
+        user = data?.user;
+      }
 
-    if (!user) {
-      const { data, error } = await supabase.auth.getUser();
-      if (!error) user = data?.user;
+      if (!user) {
+        const { data, error } = await supabase.auth.getUser();
+        if (!error) user = data?.user;
+      }
     }
 
     const isGuestScan = !user && ((body as any)?.isGuestScan === true || mode === "deep" || mode === "snap" || isArScan);
@@ -473,7 +486,10 @@ RULES:
     let completion;
     let hasCreditOrQuotaError = false;
     let result: AiListingResult | null = null;
-    let activeProvider = "openai-vision";
+    const scanStartTime = Date.now();
+    let activeProvider = "unknown";
+    let activeModel = "unknown";
+    let didFallback = false;
     const isFastPipeline = Boolean(isArScan || isStreamRequested);
     const targetModels = isFastPipeline ? AR_SCAN_MODEL_FALLBACKS : LISTING_MODEL_FALLBACKS;
 
@@ -487,10 +503,144 @@ Identify distinct physical products visible in the scene. If no distinct object 
           : `SCAN MODE: TARGETED CENTER RETICLE FOCUS & MULTI-FRAME OPTICAL COMPOSITE.
 Identify ONLY the single primary physical item positioned in the center target reticle (Image 1 is a high-resolution composite synthesized from rapid consecutive frames pooled during movement to eliminate blur, with macro detail insets). Disregard hands, table, floor, and room background.`;
 
-    // Try OpenAI Vision first if key is valid (ALWAYS FIRST)
+    // ── TIER 1: xAI Grok Vision (Sub-Second High-Precision Vision & OCR) ──
+    const hasGrok = hasGrokApiKey() && imageUrls.length > 0;
+    if (hasGrok) {
+      try {
+        if (isArScan || isFastPipeline) {
+          const grokFast = await callGrokVisionFast(imageUrls[0], {
+            targetCurrency,
+            mode,
+            spatialMetadata,
+            categoryHint: categoryBias || undefined,
+          });
+          if (grokFast && grokFast.product_name) {
+            const pName = (grokFast.product_name || "").trim();
+            const brand = (grokFast.brand || "").trim() || null;
+            const cat = grokFast.category || "General";
+            const cond = grokFast.condition || "Used - Good";
+            const condGrade = grokFast.condition_grade || "Good";
+            const estVal = Number(grokFast.estimated_value) || 35;
+            const rawMin = Number(grokFast.suggested_price_min) || Math.round(estVal * 0.7);
+            const rawMax = Number(grokFast.suggested_price_max) || Math.round(estVal * 1.3);
+
+            if (pName.length >= 3 && !parallelCompsPromise) {
+              parallelCompsPromise = fetchEbayAustraliaSoldComps(pName, initialTargetCurrency).catch((err) => {
+                console.warn("[ai-listing] Instant Grok AR comps fire warning:", err);
+                return null;
+              });
+            }
+
+            const detectedFormat = grokFast.media_format || (
+              /\b(blu-ray|bluray)\b/i.test(pName) ? "Blu-ray" :
+              /\b(4k uhd|4k ultra hd)\b/i.test(pName) ? "4K UHD" :
+              /\b(steelbook)\b/i.test(pName) ? "Steelbook" :
+              /\b(dvd)\b/i.test(pName) ? "DVD" :
+              /\b(vhs)\b/i.test(pName) ? "VHS" :
+              undefined
+            );
+
+            result = {
+              status: "identified",
+              isMockFallback: false,
+              inventory_condition: cond.toLowerCase().includes("part") ? "faulty_for_parts" : "used_working",
+              condition_grade: condGrade,
+              wear_inspection: null,
+              defect_notes: grokFast.defect_notes || [],
+              as_is_disclaimer: undefined,
+              media_format: detectedFormat,
+              detected_objects: [
+                {
+                  id: `obj-grok-${Date.now()}`,
+                  product_name: pName,
+                  brand: brand,
+                  category: cat,
+                  condition: cond,
+                  confidence_score: grokFast.confidence_score ?? 0.98,
+                  bbox: { x: 20, y: 20, width: 60, height: 60 },
+                },
+              ],
+              analysis: {
+                status: "identified",
+                visual_reasoning: {
+                  visible_text_detected: grokFast.visible_text_detected || [],
+                  physical_object_description: pName,
+                  brand_identified: brand,
+                  identification_reasoning: `Grok Vision identified ${pName} (${cat}, ${cond}).`,
+                },
+                product_name: pName,
+                brand: brand,
+                model: null,
+                category: cat,
+                color: null,
+                material: null,
+                condition: cond,
+                condition_grade: condGrade,
+                wear_inspection: null,
+                media_format: detectedFormat,
+                defect_notes: grokFast.defect_notes || [],
+                accessories_detected: [],
+                confidence: (grokFast.confidence_score ?? 0.98) >= 0.88 ? "high" : "medium",
+                confidence_score: grokFast.confidence_score ?? 0.98,
+                retake_recommended: grokFast.retake_recommended || null,
+              },
+              market_titles: {
+                ebay: `${brand || "Authentic"} ${pName} ${detectedFormat && !pName.toLowerCase().includes(detectedFormat.toLowerCase()) ? detectedFormat : ""} ${cond}`.replace(/\s+/g, " ").trim().slice(0, 80),
+                facebook_marketplace: `${brand || "Authentic"} ${pName} - Great Condition`.trim(),
+                vinted: `${brand || "Authentic"} ${pName}`.trim(),
+                depop: `${pName.toLowerCase()} #resale #thrift`,
+              },
+              seo_description: "",
+              detailed_description: "",
+              shipping_estimate: {
+                size: "small",
+                estimated_weight_grams: 400,
+                dimensions_cm: null,
+                notes: null,
+              },
+              item_specifics: {
+                Brand: brand || "Authentic",
+                Category: cat,
+                Condition: cond,
+              },
+              suggested_keywords: [brand || "Resale", cat, "Pre-Owned"].filter(Boolean),
+              suggested_price_min: rawMin,
+              suggested_price_max: rawMax,
+              suggested_price_median: estVal,
+              suggested_price_currency: targetCurrency,
+              retake_recommended: grokFast.retake_recommended || null,
+            };
+            activeProvider = "xai";
+            activeModel = grokFast._model || GROK_VISION_MODEL;
+            didFallback = false;
+          }
+        } else {
+          const grokFull = await callGrokVisionFull(imageUrls, {
+            targetCurrency,
+            mode,
+            spatialMetadata,
+            categoryHint: categoryBias || undefined,
+          });
+          if (grokFull && (grokFull.analysis?.product_name || (grokFull as any).product_name)) {
+            result = grokFull;
+            activeProvider = "xai";
+            activeModel = (grokFull as any)._model || GROK_VISION_MODEL;
+            didFallback = false;
+          }
+        }
+      } catch (grokErr: any) {
+        console.warn("[ai-listing] Grok vision primary failed, falling back to OpenAI:", grokErr?.message || grokErr);
+        didFallback = true;
+      }
+    }
+
+    // ── TIER 2: OpenAI Vision (if Grok not configured or yielded no result) ──
     const hasOpenAiKey = getPrimaryAiApiKey().length > 10 && !getPrimaryAiApiKey().includes("placeholder");
 
-    if (hasOpenAiKey) {
+    if (!result && hasOpenAiKey) {
+      if (hasGrok) {
+        didFallback = true;
+      }
       for (const modelName of targetModels) {
         try {
           const reqParams: any = isArScan
@@ -872,6 +1022,11 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
         } else {
           result = JSON.parse(content) as AiListingResult;
         }
+
+        if (result) {
+          activeProvider = "openai";
+          activeModel = isArScan ? "gpt-4o-mini" : (targetModels[0] || "gpt-4o-mini");
+        }
       } catch {
         result = null;
       }
@@ -995,138 +1150,15 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
       }
     }
 
-    // High-Acuity Fallback: xAI Grok-2 Vision (Supreme OCR & Micro-Hallmark Parsing)
-    if (!result && imageUrls.length > 0 && hasGrokApiKey()) {
-      try {
-        if (isArScan || isFastPipeline) {
-          const grokFast = await callGrokVisionFast(imageUrls[0], {
-            targetCurrency,
-            mode,
-            spatialMetadata,
-            categoryHint: categoryBias || undefined,
-          });
-          if (grokFast && grokFast.product_name) {
-            const pName = (grokFast.product_name || "").trim();
-            const brand = (grokFast.brand || "").trim() || null;
-            const cat = grokFast.category || "General";
-            const cond = grokFast.condition || "Used - Good";
-            const condGrade = grokFast.condition_grade || "Good";
-            const estVal = Number(grokFast.estimated_value) || 35;
-            const rawMin = Number(grokFast.suggested_price_min) || Math.round(estVal * 0.7);
-            const rawMax = Number(grokFast.suggested_price_max) || Math.round(estVal * 1.3);
-
-            if (pName.length >= 3 && !parallelCompsPromise) {
-              parallelCompsPromise = fetchEbayAustraliaSoldComps(pName, initialTargetCurrency).catch((err) => {
-                console.warn("[ai-listing] Instant Grok AR comps fire warning:", err);
-                return null;
-              });
-            }
-
-            const detectedFormat = grokFast.media_format || (
-              /\b(blu-ray|bluray)\b/i.test(pName) ? "Blu-ray" :
-              /\b(4k uhd|4k ultra hd)\b/i.test(pName) ? "4K UHD" :
-              /\b(steelbook)\b/i.test(pName) ? "Steelbook" :
-              /\b(dvd)\b/i.test(pName) ? "DVD" :
-              /\b(vhs)\b/i.test(pName) ? "VHS" :
-              undefined
-            );
-
-            result = {
-              status: "identified",
-              isMockFallback: false,
-              inventory_condition: cond.toLowerCase().includes("part") ? "faulty_for_parts" : "used_working",
-              condition_grade: condGrade,
-              wear_inspection: null,
-              defect_notes: grokFast.defect_notes || [],
-              as_is_disclaimer: undefined,
-              media_format: detectedFormat,
-              detected_objects: [
-                {
-                  id: `obj-grok-${Date.now()}`,
-                  product_name: pName,
-                  brand: brand,
-                  category: cat,
-                  condition: cond,
-                  confidence_score: grokFast.confidence_score ?? 0.98,
-                  bbox: { x: 20, y: 20, width: 60, height: 60 },
-                },
-              ],
-              analysis: {
-                status: "identified",
-                visual_reasoning: {
-                  visible_text_detected: grokFast.visible_text_detected || [],
-                  physical_object_description: pName,
-                  brand_identified: brand,
-                  identification_reasoning: `Grok-2 Vision identified ${pName} (${cat}, ${cond}).`,
-                },
-                product_name: pName,
-                brand: brand,
-                model: null,
-                category: cat,
-                color: null,
-                material: null,
-                condition: cond,
-                condition_grade: condGrade,
-                wear_inspection: null,
-                media_format: detectedFormat,
-                defect_notes: grokFast.defect_notes || [],
-                accessories_detected: [],
-                confidence: (grokFast.confidence_score ?? 0.98) >= 0.88 ? "high" : "medium",
-                confidence_score: grokFast.confidence_score ?? 0.98,
-                retake_recommended: grokFast.retake_recommended || null,
-              },
-              market_titles: {
-                ebay: `${brand || "Authentic"} ${pName} ${detectedFormat && !pName.toLowerCase().includes(detectedFormat.toLowerCase()) ? detectedFormat : ""} ${cond}`.replace(/\s+/g, " ").trim().slice(0, 80),
-                facebook_marketplace: `${brand || "Authentic"} ${pName} - Great Condition`.trim(),
-                vinted: `${brand || "Authentic"} ${pName}`.trim(),
-                depop: `${pName.toLowerCase()} #resale #thrift`,
-              },
-              seo_description: "",
-              detailed_description: "",
-              shipping_estimate: {
-                size: "small",
-                estimated_weight_grams: 400,
-                dimensions_cm: null,
-                notes: null,
-              },
-              item_specifics: {
-                Brand: brand || "Authentic",
-                Category: cat,
-                Condition: cond,
-              },
-              suggested_keywords: [brand || "Resale", cat, "Pre-Owned"].filter(Boolean),
-              suggested_price_min: rawMin,
-              suggested_price_max: rawMax,
-              suggested_price_median: estVal,
-              suggested_price_currency: targetCurrency,
-              retake_recommended: grokFast.retake_recommended || null,
-            };
-            activeProvider = "grok-2-vision";
-          }
-        } else {
-          const grokFull = await callGrokVisionFull(imageUrls, {
-            targetCurrency,
-            mode,
-            spatialMetadata,
-            categoryHint: categoryBias || undefined,
-          });
-          if (grokFull && (grokFull.analysis?.product_name || (grokFull as any).product_name)) {
-            result = grokFull;
-            activeProvider = "grok-2-vision";
-          }
-        }
-      } catch (grokErr) {
-        console.warn("[ai-listing] Grok vision fallback warning:", grokErr);
-      }
-    }
-
-    // Fallback to Gemini if OpenAI and Grok yielded no result
-    if (!result && imageUrls.length > 0) {
+    // ── TIER 3: Fallback to Gemini 1.5 Flash ──
+    if (!result && imageUrls.length > 0 && hasGeminiVisionKey()) {
       try {
         const geminiResult = await callGeminiVision(imageUrls[0]);
         if (geminiResult && geminiResult.analysis?.product_name) {
           result = geminiResult;
-          activeProvider = "gemini-flash";
+          activeProvider = "gemini";
+          activeModel = "gemini-1.5-flash";
+          didFallback = true;
         }
       } catch (gemErr) {
         console.warn("[ai-listing] Gemini vision fallback warning:", gemErr);
@@ -1218,7 +1250,9 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
             suggested_price_median: estVal,
             suggested_price_currency: targetCurrency,
           };
-          activeProvider = "glm-5.3-flash";
+          activeProvider = "glm";
+          activeModel = "glm-5.3-flash";
+          didFallback = true;
         }
       } catch (glmErr) {
         console.warn("[ai-listing] GLM-5.3-Flash fallback warning:", glmErr);
@@ -1234,7 +1268,19 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
       }, { status: 422 });
     }
 
+    const visionLatencyMs = Date.now() - scanStartTime;
+    console.log(`[Vision Scan] provider=${activeProvider} model=${activeModel} latency=${visionLatencyMs}ms fell_back=${didFallback}`);
+
+    result.telemetry = {
+      provider: activeProvider,
+      model: activeModel,
+      latency_ms: visionLatencyMs,
+      fell_back: didFallback,
+    };
     (result as any).provider = activeProvider;
+    (result as any).model = activeModel;
+    (result as any).latency_ms = visionLatencyMs;
+    (result as any).fell_back = didFallback;
     (result as any).suggested_price_currency = targetCurrency;
     if (!result.retake_recommended && result.analysis?.retake_recommended) {
       result.retake_recommended = result.analysis.retake_recommended;
@@ -1285,10 +1331,12 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
 
     // Fetch REAL-TIME regional eBay Comps in target currency via Browse API ONLY for verified identified products
     const runCompsAndFinalizeResult = async () => {
+      let ebayComps: any = null;
+      let hasRealSoldComps = false;
+
       if (result.analysis?.product_name && result.status === "identified") {
         try {
           const verifiedName = result.analysis.product_name;
-          let ebayComps: any = null;
 
           // 1. INTELLIGENT PREFETCH: Check if parallel background comps query finished and matches verified product
           if (parallelCompsPromise && initialPrefetchQuery) {
@@ -1297,7 +1345,7 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
               const cleanInitial = initialPrefetchQuery.toLowerCase();
               const cleanVerified = verifiedName.toLowerCase();
               const wordsMatch = cleanInitial.split(/\s+/).some((w: string) => w.length > 2 && cleanVerified.includes(w));
-              if (precomputed && precomputed.count > 0 && (wordsMatch || cleanVerified.includes(cleanInitial))) {
+              if (precomputed && (precomputed.count > 0 || (precomputed.isActiveAskOnly && precomputed.activeListingsCount > 0)) && (wordsMatch || cleanVerified.includes(cleanInitial))) {
                 ebayComps = precomputed;
                 console.log(`[ai-listing] Parallel comps prefetch hit (0ms latency): "${initialPrefetchQuery}" for "${verifiedName}"`);
               }
@@ -1314,50 +1362,49 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
               result.analysis?.condition
             );
           }
-          if (
+          const hasSold = Boolean(
             ebayComps &&
             !ebayComps.noMarketData &&
+            !ebayComps.isActiveAskOnly &&
+            typeof ebayComps.count === "number" &&
+            ebayComps.count > 0 &&
             typeof ebayComps.median === "number" &&
-            !isNaN(ebayComps.median) &&
             ebayComps.median > 0
-          ) {
-            if (ebayComps.isActiveAskOnly) {
-              // 0 sold comps, but active listings exist — "Currently listed — not sold prices."
-              result.suggested_price_min = ebayComps.min;
-              result.suggested_price_max = ebayComps.max;
-              result.suggested_price_median = ebayComps.median;
-              result.ebay_comps_count = 0;
-              (result as any).active_comps_count = ebayComps.activeListingsCount || (ebayComps.rawComps || []).length;
-              (result as any).is_active_ask = true;
-              (result as any).comps_source = "browse_api";
-              (result as any).arbitrage_signal = ebayComps.arbitrageSignal || "Currently listed on eBay — live seller asking price guide.";
-            } else {
-              // Real sold comps verified!
-              result.suggested_price_min = ebayComps.min;
-              result.suggested_price_max = ebayComps.max;
-              result.suggested_price_median = ebayComps.median;
-              result.ebay_comps_count = ebayComps.count;
-              (result as any).active_comps_count = 0;
-              (result as any).is_active_ask = false;
-              (result as any).comps_source = ebayComps.source;
-              (result as any).arbitrage_signal = ebayComps.arbitrageSignal;
-            }
+          );
+          const hasActive = Boolean(
+            ebayComps &&
+            !ebayComps.noMarketData &&
+            ebayComps.isActiveAskOnly &&
+            typeof ebayComps.median === "number" &&
+            ebayComps.median > 0
+          );
+          hasRealSoldComps = hasSold || hasActive;
 
+          if (hasRealSoldComps && ebayComps) {
+            // Real market comps verified (sold comps or active marketplace listings)
+            result.suggested_price_min = ebayComps.min;
+            result.suggested_price_max = ebayComps.max;
+            result.suggested_price_median = ebayComps.median;
+            result.ebay_comps_count = ebayComps.count || 0;
+            (result as any).active_comps_count = ebayComps.activeListingsCount || 0;
+            (result as any).is_active_ask = Boolean(ebayComps.isActiveAskOnly);
+            (result as any).comps_source = ebayComps.source;
+            (result as any).arbitrage_signal = ebayComps.arbitrageSignal;
             (result as any).is_us_market_only = Boolean(ebayComps.isUsMarketOnly);
             (result as any).market_origin = ebayComps.marketOrigin;
-            (result as any).no_market_data = Boolean(ebayComps.noMarketData);
+            (result as any).no_market_data = false;
 
             result.raw_sold_comps = (ebayComps.rawComps || []).map((c: any) => ({
               id: c.id,
               title: c.title,
               price: c.price,
               condition: c.condition,
-              sold_date: c.soldDate || (c.isActiveAsk || ebayComps.isActiveAskOnly ? "Active Ask" : "Recent"),
+              sold_date: c.soldDate || (ebayComps.isActiveAskOnly ? "Active Ask" : "Recent"),
               shipping_included: c.shippingIncluded,
               shipping_price: c.shippingPrice,
               url: c.url,
               thumbnail: c.fullResThumbnailUrl || c.thumbnailUrl || (c.image?.imageUrl || c.image) || c.thumbnail,
-              is_active_ask: Boolean(c.isActiveAsk || ebayComps.isActiveAskOnly),
+              is_active_ask: Boolean(ebayComps.isActiveAskOnly || c.isActiveAsk),
               is_us_comp: Boolean(c.isUsComp),
             }));
             result.comps_range = {
@@ -1375,28 +1422,29 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
               result.detected_objects[0].raw_sold_comps = result.raw_sold_comps;
             }
           } else {
-            // 0 sold comps AND 0 active listings — Real Zero Market Data
+            // Missing sold comps: refuse to invent prices from active asks or generic estimates
             result.ebay_comps_count = 0;
-            (result as any).active_comps_count = 0;
-            (result as any).is_active_ask = false;
+            (result as any).active_comps_count = ebayComps?.activeListingsCount || 0;
+            (result as any).is_active_ask = Boolean(ebayComps?.isActiveAskOnly);
             result.suggested_price_min = 0;
             result.suggested_price_max = 0;
             result.suggested_price_median = 0;
-            (result as any).comps_source = "browse_api";
+            (result as any).comps_source = ebayComps?.source || "browse_api";
             (result as any).no_market_data = true;
-            (result as any).arbitrage_signal = "Not enough market data to value this item";
+            (result as any).arbitrage_signal = "Refused: No verified sold comps found to support pricing";
             result.raw_sold_comps = [];
             if (result.detected_objects && result.detected_objects.length > 0) {
               result.detected_objects[0].ebay_comps_count = 0;
-              (result.detected_objects[0] as any).active_comps_count = 0;
-              (result.detected_objects[0] as any).is_active_ask = false;
-              (result.detected_objects[0] as any).comps_source = "browse_api";
+              (result.detected_objects[0] as any).active_comps_count = (result as any).active_comps_count;
+              (result.detected_objects[0] as any).is_active_ask = (result as any).is_active_ask;
+              (result.detected_objects[0] as any).comps_source = (result as any).comps_source;
               (result.detected_objects[0] as any).no_market_data = true;
               result.detected_objects[0].raw_sold_comps = [];
             }
           }
         } catch (compErr: any) {
           console.warn("[ai-listing] Live eBay comps lookup warning:", compErr?.message || compErr);
+          hasRealSoldComps = false;
           result.ebay_comps_count = 0;
           result.suggested_price_min = 0;
           result.suggested_price_max = 0;
@@ -1408,7 +1456,8 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
       }
 
       // CATEGORY PRICE SANITY GUARD: Prevent sponsored tray outliers from inflating standard peripherals
-      if (result.analysis?.product_name) {
+      // (Only trims existing sold comps; strictly refuses to invent prices when comps are missing)
+      if (hasRealSoldComps && result.analysis?.product_name) {
         const lowerTitle = result.analysis.product_name.toLowerCase();
 
         // Standard Xbox Wireless Controller (Non-Elite / Non-Limited) Sanity Guard
@@ -1536,14 +1585,14 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
             lowerTitle.includes("backpack");
 
           if (isWalletOrSLG) {
-            // Designer small leather goods should never be appraised at $35
-            if (!result.suggested_price_median || result.suggested_price_median < 120) {
+            // Designer small leather goods floor (only applies if valid comps exist)
+            if (result.suggested_price_median && result.suggested_price_median > 0 && result.suggested_price_median < 120) {
               result.suggested_price_median = 260;
               result.suggested_price_min = 180;
               result.suggested_price_max = 380;
             }
           } else if (isBag) {
-            if (!result.suggested_price_median || result.suggested_price_median < 250) {
+            if (result.suggested_price_median && result.suggested_price_median > 0 && result.suggested_price_median < 250) {
               result.suggested_price_median = 550;
               result.suggested_price_min = 350;
               result.suggested_price_max = 950;
@@ -1634,10 +1683,36 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
       // Muted Category Hint: Strictly displayed as an informational reference, NEVER feeds profit/verdict
       (result as any).category_hint = `Similar brands often sell for $${catVal.minPrice}–$${catVal.maxPrice} — verify on eBay`;
 
-      const isZeroMarketData = Boolean((result as any).no_market_data || (result.ebay_comps_count === 0 && !(result as any).is_active_ask));
+      const carrier = targetCurrency === "AUD"
+        ? "Australia Post Standard Satchel"
+        : targetCurrency === "USD"
+        ? "USPS Ground Advantage"
+        : targetCurrency === "GBP"
+        ? "Royal Mail Tracked 48"
+        : "Standard Tracked Parcel";
 
-      if (isZeroMarketData) {
-        // RULE: If 0 sold AND 0 active: "Not enough market data to value this item", NO price, NO net profit, NO verdict
+      if (!hasRealSoldComps) {
+        // STRICT PRICING INTEGRITY: REFUSE TO INVENT PRICES WHEN COMPS ARE MISSING
+        const refusalReason = "Zero verified sold comps found on marketplace. Refusing to invent algorithmic or speculative valuation without historical sales evidence.";
+
+        const soldPricing: SoldCompPricingBreakdown = {
+          status: "REFUSED_NO_COMPS",
+          currency: targetCurrency,
+          gross_sold_median: null,
+          gross_sold_min: null,
+          gross_sold_max: null,
+          sample_size: 0,
+          platform_fees: null,
+          postage: {
+            carrier,
+            estimated_cost: shippingCost,
+            package_size: pCategory,
+          },
+          estimated_net_proceeds: null,
+          refusal_reason: refusalReason,
+        };
+
+        result.sold_comp_pricing = soldPricing;
         result.suggested_price_min = 0;
         result.suggested_price_max = 0;
         result.suggested_price_median = 0;
@@ -1645,24 +1720,80 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
         (result as any).takeHomeNet = 0;
         result.roi_percentage = 0;
         result.cop_verdict = undefined;
-        (result as any).arbitrage_signal = "Not enough market data to value this item";
+        result.ebay_comps_count = 0;
+        result.raw_sold_comps = [];
+        (result as any).no_market_data = true;
+        (result as any).arbitrage_signal = refusalReason;
+
+        if (result.detected_objects && result.detected_objects.length > 0) {
+          result.detected_objects[0].sold_comp_pricing = soldPricing;
+          result.detected_objects[0].ebay_comps_count = 0;
+          result.detected_objects[0].true_net_profit = 0;
+          (result.detected_objects[0] as any).takeHomeNet = 0;
+          result.detected_objects[0].roi_percentage = 0;
+          result.detected_objects[0].cop_verdict = undefined;
+          result.detected_objects[0].raw_sold_comps = [];
+        }
       } else {
-        const baselineSellPrice = Number(result.suggested_price_median) || 0;
-        const sellPrice = Math.max(0, Math.round(baselineSellPrice * conditionModifier * 100) / 100);
-        result.suggested_price_median = sellPrice;
-        if (result.suggested_price_min) {
-          result.suggested_price_min = Math.max(0, Math.round(result.suggested_price_min * conditionModifier * 100) / 100);
-        }
-        if (result.suggested_price_max) {
-          result.suggested_price_max = Math.max(0, Math.round(result.suggested_price_max * conditionModifier * 100) / 100);
-        }
+        // SOLD-COMP PRICING PATH: Grounded in completed sales with full fee and postage deductions
+        const baseMedian = Number(ebayComps!.median) || 0;
+        const grossSoldMedian = Math.max(0, Math.round(baseMedian * conditionModifier * 100) / 100);
+        const grossSoldMin = Math.max(0, Math.round((Number(ebayComps!.min) || baseMedian * 0.7) * conditionModifier * 100) / 100);
+        const grossSoldMax = Math.max(0, Math.round((Number(ebayComps!.max) || baseMedian * 1.3) * conditionModifier * 100) / 100);
+
+        // Platform fee breakdown: standard eBay rate structure
+        const platformName = targetCurrency === "AUD" ? "eBay Australia" : targetCurrency === "USD" ? "eBay US" : targetCurrency === "GBP" ? "eBay UK" : "eBay Europe";
+        const fvfPct = 13.4;
+        const paymentPct = 2.6;
+        const fixedFee = 0.30;
+        const totalFeePct = fvfPct + paymentPct; // 16.0%
+        const variableFees = Math.round(grossSoldMedian * (totalFeePct / 100) * 100) / 100;
+        const totalPlatformFees = Math.round((variableFees + fixedFee) * 100) / 100;
+
+        // Estimated net proceeds (Gross - Fees - Postage)
+        const estimatedNetProceeds = Math.max(0, Math.round((grossSoldMedian - totalPlatformFees - shippingCost) * 100) / 100);
+
+        const pricingStatus: "VALUED_FROM_SOLD_COMPS" | "VALUED_FROM_ACTIVE_LISTINGS" =
+          ebayComps?.isActiveAskOnly ? "VALUED_FROM_ACTIVE_LISTINGS" : "VALUED_FROM_SOLD_COMPS";
+
+        const soldPricing: SoldCompPricingBreakdown = {
+          status: pricingStatus,
+          currency: targetCurrency,
+          gross_sold_median: grossSoldMedian,
+          gross_sold_min: grossSoldMin,
+          gross_sold_max: grossSoldMax,
+          sample_size: (ebayComps?.count && ebayComps.count > 0) ? ebayComps.count : (ebayComps?.activeListingsCount || 0),
+          platform_fees: {
+            platform: platformName,
+            final_value_fee_pct: fvfPct,
+            payment_processing_pct: paymentPct,
+            fixed_fee: fixedFee,
+            total_fees: totalPlatformFees,
+          },
+          postage: {
+            carrier,
+            estimated_cost: shippingCost,
+            package_size: pCategory,
+          },
+          estimated_net_proceeds: estimatedNetProceeds,
+          refusal_reason: null,
+        };
+
+        result.sold_comp_pricing = soldPricing;
+        result.suggested_price_median = grossSoldMedian;
+        result.suggested_price_min = grossSoldMin;
+        result.ebay_comps_count = ebayComps?.count || 0;
+        result.comps_range = {
+          min: grossSoldMin,
+          max: grossSoldMax,
+          median: grossSoldMedian,
+        };
 
         const tagPrice = Number(result.detected_tag_price) || (result.analysis?.product_name && result.analysis.product_name !== "NO_CENTER_ITEM" ? catVal.typicalOpShopCost : null);
 
-        // Never show a BUY verdict on active ask listings alone or without sold comps
-        if (tagPrice && sellPrice > 0 && Number(result.ebay_comps_count || 0) > 0 && !(result as any).is_active_ask) {
+        if (tagPrice && grossSoldMedian > 0) {
           const copEstimate = calculateThriftCopVerdict({
-            resalePrice: sellPrice,
+            resalePrice: grossSoldMedian,
             customCost: tagPrice,
             category: pCategory,
             productName: pName,
@@ -1681,19 +1812,21 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
           result.requires_secondary_verification = copEstimate.requiresSecondaryVerification;
           result.verification_reason = copEstimate.verificationReason;
           result.fallback_protocol = copEstimate.fallbackProtocol;
-
-          if (result.detected_objects && result.detected_objects.length > 0) {
-            result.detected_objects[0].detected_tag_price = tagPrice;
-            result.detected_objects[0].true_net_profit = copEstimate.netProfit;
-            (result.detected_objects[0] as any).takeHomeNet = copEstimate.netProfit;
-            result.detected_objects[0].roi_percentage = copEstimate.roiPercentage;
-            result.detected_objects[0].cop_verdict = copEstimate.copVerdict;
-          }
         } else {
-          // If active ask only, or tag price not set: clear verdict (never show blind BUY verdict)
           result.cop_verdict = undefined;
           result.true_net_profit = 0;
           result.roi_percentage = 0;
+        }
+
+        if (result.detected_objects && result.detected_objects.length > 0) {
+          result.detected_objects[0].sold_comp_pricing = soldPricing;
+          result.detected_objects[0].ebay_comps_count = ebayComps?.count || 0;
+          result.detected_objects[0].detected_tag_price = result.detected_tag_price;
+          result.detected_objects[0].true_net_profit = result.true_net_profit;
+          (result.detected_objects[0] as any).takeHomeNet = result.true_net_profit;
+          result.detected_objects[0].roi_percentage = result.roi_percentage;
+          result.detected_objects[0].cop_verdict = result.cop_verdict;
+          result.detected_objects[0].raw_sold_comps = result.raw_sold_comps;
         }
       }
 
@@ -1738,6 +1871,8 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
               auth: { persistSession: false, autoRefreshToken: false },
             })
             : supabase;
+
+        if (!dbClient) return;
 
         // If base64, attempt uploading to Supabase Storage 'listing-images' bucket for permanent hosting
         if (firstImg.startsWith("data:")) {
@@ -1818,10 +1953,10 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
 
             if (request.signal?.aborted) return;
 
-            // 2. Fetch live eBay comps and calculate final metrics (guaranteed <= 3.5s resolution)
+            // 2. Fetch live eBay comps and calculate final metrics (guaranteed <= 10s resolution)
             await Promise.race([
               runCompsAndFinalizeResult(),
-              new Promise((resolve) => setTimeout(resolve, 3500)),
+              new Promise((resolve) => setTimeout(resolve, 10000)),
             ]);
 
             if (request.signal?.aborted) return;

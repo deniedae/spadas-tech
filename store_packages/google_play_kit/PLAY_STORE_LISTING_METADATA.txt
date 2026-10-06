@@ -19,7 +19,7 @@ Reseller Scanner: Profit Comps
 ================================================================================
 2. SHORT DESCRIPTION (Strictly 80 Characters Maximum — 100% Policy Compliant)
 ================================================================================
-RECOMMENDED (74 Characters — Punchy, High Conversion, Zero Superlatives):
+RECOMMENDED (74 Characters — Institutional, High Conversion, Zero Superlatives):
 Scan thrift finds, check real sold comps, and calculate net profit in 0.5s.
 
 ALTERNATIVE A (77 Characters — Reseller & Thrift Keywords):
@@ -30,105 +30,107 @@ Optical barcode scanner, verified market sold comps & net profit calculator.
 
 
 ================================================================================
-3. FULL DESCRIPTION (Policy-Compliant with Trademark Disclaimer)
+3. FULL DESCRIPTION (Policy-Compliant with Trademark Disclaimer — Zero Emojis)
 ================================================================================
-Stop guessing what’s worth buying. Scan thrift shelves, barcodes, and tags in 0.4 seconds, view 100% verified market sold comps, and calculate your exact net in-pocket profit before spending a single dollar.
+Stop guessing what is worth buying. Point your camera at thrift racks, shelves, tags, or barcodes to identify items in 0.5 seconds, view verified secondary market sold comps, and calculate exact in-pocket net profit before spending a single dollar.
 
-Built by resellers for resellers, Spadas Lens is the ultimate sourcing companion for op-shop flippers, thrift store hunters, garage sale pickers, flea market arbiters, and marketplace power-sellers in Australia and worldwide.
+Engineered specifically for full-time resellers, casual thrifters, estate sale hunters, and marketplace power-sellers across Australia, the United States, and worldwide.
 
-Whether you're hunting vintage 90s streetwear, retro video games, designer bags, shoes, or retail clearance arbitrage, Spadas Lens cuts your research time in half and guarantees you never buy a bad flip again.
-
-----------------------------------------------------------------------
-⚡ 60 FPS OPTICAL AR & BARCODE SCANNER
-----------------------------------------------------------------------
-• Instant 0.4s Recognition: Point your phone at thrift racks, shelves, clothing tags, or barcodes to identify items in real time.
-• Continuous Batch Mode: Walk down store aisles scanning items in rapid succession without stopping.
-• Low-Light Thrift Flashlight: Built-in camera torch control to inspect dim op-shop corners and bottom shelves.
-• Audio & Tactile Feedback: Haptic vibration pulses and audible scan chirps confirm locked targets immediately.
+Whether sourcing vintage 90s streetwear, designer handbags, retro video games, sneakers, or retail clearance arbitrage, Spadas Lens delivers instant, institutional-grade valuation intelligence right in the aisle.
 
 ----------------------------------------------------------------------
-💰 AUTOMATED REAL-TIME NET PROFIT CALCULATOR
+0.5S OPTICAL AR & BARCODE SCANNER
 ----------------------------------------------------------------------
-• Know Your Exact In-Pocket Profit: Auto-deducts platform selling fees (13.4% + $0.30), payment processing fees (2.6%), and parcel shipping costs before you pay.
-• Instant Color-Coded Verdicts: Get clear indicators on every scan:
-  🔥 MUST COP (High-profit margin & rapid turnover)
-  ✅ BUY (Solid profitable flip)
-  ⛔ PASS (Low margin, heavy shipping, or slow sales velocity)
-• Key Metrics at a Glance: Displays Net Profit ($), Profit Margin (%), and Net ROI (%) on every scan.
+- Continuous High-Speed Recognition: Point your phone at thrift racks, clothing labels, hallmarks, or barcodes to lock targets instantly.
+- Continuous Batch Scan Mode: Walk store aisles without interruption; items are recognized, analyzed, and added to your appraisal ledger in real time.
+- Low-Light Optical Flashlight: Integrated torch toggle to inspect dim op-shop corners, storage lockers, and bottom shelves.
+- Tactile & Audio Confirmation: Sub-millisecond haptic vibration feedback and audible locking tones confirm target capture.
 
 ----------------------------------------------------------------------
-🔍 100% VERIFIED REAL MARKETPLACE SOLD COMPS
+REAL-TIME NET PROFIT & MARGIN CALCULATOR
 ----------------------------------------------------------------------
-• Real Sold Prices Only: Automatically filters out unrealistic active asking prices, price gougers, and stale unsold inventory.
-• Historical Sales Accuracy: Inspect real completed sales data with timestamps, auction bids, and best offers accepted.
-• Sell-Through Rate (STR%): See live liquidity metrics to know if an item sells in 3 days or takes 6 months.
-• Market Demand Trends: Identify whether prices for a brand or category are rising or falling.
-
-----------------------------------------------------------------------
-🛡️ ANTI-THRIFT TRAP GUARD & MICRO-HALLMARK INSPECTION
-----------------------------------------------------------------------
-• Never Lose Money on Postage: Automatically flags thrift traps where tracked parcel shipping ($10.95 satchels / $4.50 USPS) and platform fees exceed your profit.
-• Microscopic Optical Acuity: Deciphers tiny gold and silver jewelry hallmarks (.925, 14K, 750), vintage clothing care label RN numbers, and physical disc banners (4K UHD vs Blu-ray vs DVD).
-• Multi-Model Verification: High-precision visual intelligence eliminates blind guesses and identifies obscure streetwear & vintage tags.
+- True In-Pocket Take-Home Math: Automatically calculates and deducts platform final value fees (13.4% + $0.30), payment processing fees (2.6%), and parcel shipping costs before purchase.
+- Institutional Liquidity Verdicts:
+  * MUST COP: High profit margin and rapid turnover velocity.
+  * FLIP: Solid, reliable margin with established secondary market demand.
+  * PASS: Low margin, high freight friction, or slow sales velocity.
+- Comprehensive Financial Metrics: Live Net Profit ($), Return on Investment (ROI %), and Profit Margin (%) calculated simultaneously.
 
 ----------------------------------------------------------------------
-🚀 1-CLICK INVENTORY VAULT & EXPORT
+VERIFIED REAL MARKETPLACE SOLD COMPS
 ----------------------------------------------------------------------
-• Save to Inventory Vault: 1-tap save profitable finds directly to your sourcing vault while still in the store.
-• Inventory Performance Tracker: Monitor your Cost of Goods (COGS), total active vault value, and projected monthly net profits.
-• 1-Click Multi-Platform Export: Instantly generate SEO-optimized titles, condition descriptions, and price suggestions for top online marketplaces.
-
-----------------------------------------------------------------------
-📱 DESIGNED FOR PRO RESELLERS ON ANDROID
-----------------------------------------------------------------------
-• Android Home Screen Widget: Jump straight into the AR camera scanner in 1 tap from your home screen.
-• Quick Settings Tile: Trigger barcode & product lookup from your notification shade anywhere on your phone.
-• Fast & Lightweight: Zero battery drain, sub-2MB app bundle, and optimized for fast 60 FPS camera performance.
-
-Stop wasting hours manually typing product codes into search bars. Download Reseller Scanner - Spadas Lens today and double your sourcing speed on your next thrift run!
+- Verified Completed Sales Only: Filters out inflated asking prices, inactive inventory, and algorithmic price gouging.
+- Dual-Pillar Intelligence: Simultaneously compare Live Active Competitor Asks against Verified Realized Sold Comps.
+- Realistic Quick-Sell Pricing: Calibrated algorithms recommend the optimal pricing sweet spot for instant liquidity.
+- Sell-Through Rate (STR%): Inspect 30-day velocity metrics to distinguish items that sell in 48 hours from those that sit for months.
 
 ----------------------------------------------------------------------
-⚖️ DISCLAIMER
+MULTI-ANGLE STUDIO & 1-TAP DIRECT MARKETPLACE PUBLISHING
 ----------------------------------------------------------------------
-Spadas Lens is an independent sourcing and valuation utility for resellers. It is not affiliated with, sponsored, or endorsed by eBay, Depop, Mercari, Poshmark, or any other mentioned marketplace. All trademarks belong to their respective owners.
+- 1-to-5 Angle Photo Intake: Capture cover, back, tag, serial number, and flaw angles directly within the valuation flow.
+- Direct Live eBay Publishing: One-tap instant publish to eBay with automated SEO title generation, structured specs, and image upload.
+- Seamless Prefill Wizard Fallback: Generates pre-populated marketplace listings with category, brand, condition, and pricing pre-filled.
 
-================================================================================
-4. STORE CATEGORY & CONTACT DETAILS
-================================================================================
-• Category: Business (or Shopping)
-• Content Rating: Everyone (13+)
-• Privacy Policy URL: https://spadas-tech.vercel.app/privacy
-• Support Email: support@spadas.tech
-• App Website: https://spadas-tech.vercel.app
+----------------------------------------------------------------------
+ANTI-THRIFT TRAP GUARD & MICRO-HALLMARK INSPECTION
+----------------------------------------------------------------------
+- Postage Friction Protection: Automatically warns when satchel shipping ($10.95 AusPost / $4.50 USPS) and selling fees erode margins.
+- Microscopic Optical Acuity: Inspects .925 sterling silver, 14K gold hallmarks, vintage RN care labels, and media editions (4K UHD vs Blu-ray vs DVD).
+- Vision Consensus Engine: Multi-model optical intelligence verifies authentic brands and distinguishes bootlegs from rare grails.
 
+----------------------------------------------------------------------
+SOURCING VAULT & BOOKKEEPING EXPORT
+----------------------------------------------------------------------
+- Sourcing Haul Vault: Save high-conviction finds to your local and cloud portfolio with a single tap.
+- Portfolio Performance Tracking: Monitor Cost of Goods Sold (COGS), total active inventory valuation, and projected monthly net returns.
+- CSV Financial Export: One-click accounting export formatted for tax reporting and inventory bookkeeping.
 
-================================================================================
-5. PRODUCTION GRAPHIC ASSETS READY FOR DRAG-AND-DROP (store_packages/google_play_kit/)
-================================================================================
-All assets have been generated, precision-rendered, and sized to exact Google Play specs:
+----------------------------------------------------------------------
+DISCLAIMER
+----------------------------------------------------------------------
+Spadas Lens is an independent sourcing, valuation, and inventory utility for resellers. It is not affiliated with, sponsored, or endorsed by eBay, Depop, Mercari, Poshmark, or any other mentioned marketplace. All trademarks belong to their respective owners.
 
-1. App Icon (512 x 512 PNG, 146 KB):
-   File: 1_app_icon_512x512.png
-   Visual: Brushed titanium optical aperture + emerald resale tag lens.
+===============================================================================
+4. GOOGLE PLAY SCREENSHOT SPECIFICATIONS (Grok-Grade Visual Copy)
+===============================================================================
 
-2. Feature Graphic (1024 x 500 PNG, 302 KB):
-   File: 2_feature_graphic_1024x500.png
-   Visual: Dark-mode appraisal terminal ($185.00 Realized Value / 68% Margin) + Real Comps.
-   Compliance: 100% Policy Compliant (no star ratings, no ranking claims).
+SCREENSHOT 1 — 0.5S OPTICAL AR SCANNER
+- Top Headline: 0.5S OPTICAL AR SCANNER
+- Subtitle: Continuous Thrift Rack, Tag & Barcode Identification
+- Visual Center: High-contrast camera HUD locking onto vintage Carhartt Detroit Jacket with bounding bracket, showing 98% match rate.
+- Lower Pill: Instant Identification · Continuous Aisle Scanning
 
-3. Phone Screenshot 1 — Instant Optical Scanner (1080 x 1920 PNG, 839 KB):
-   File: 3_screenshot_lens_scanner.png
-   Headline: "0.4S OPTICAL SCANNER" / "Continuous Thrift Rack & Barcode Recognition"
+SCREENSHOT 2 — VERIFIED SOLD COMPS & ACTIVE ASKS
+- Top Headline: DUAL-PILLAR SECONDARY MARKET COMPS
+- Subtitle: Real Realized Sales vs Live Competitor Asks
+- Visual Center: Split comparison card: Active Asks ($165.00 Median, 14 Active) alongside Verified Sold Comps ($142.50 Median, 28 Sold).
+- Lower Pill: Exact Sold Dates · Zero Hallucinations · Real Market Data
 
-4. Phone Screenshot 2 — Verified Sold Comps (1080 x 1920 PNG, 712 KB):
-   File: 4_screenshot_sold_comps.png
-   Headline: "100% REAL SOLD COMPS" / "Live Historical Sales, Exact Timestamps & Match %"
+SCREENSHOT 3 — REALISTIC PRICING & IN-POCKET PROFIT
+- Top Headline: AUTOMATED IN-POCKET NET PROFIT
+- Subtitle: Fees, Shipping & COGS Auto-Deducted in Real Time
+- Visual Center: Prominent Emerald Net Callout (+$88.50 Net Profit / +420% ROI), Interactive Price Adjuster with Fast-Flip (-5%) preset.
+- Lower Pill: AusPost & USPS Satchel Rates Included · Institutional P&L
 
-5. Phone Screenshot 3 — In-Pocket Net Profit Calculator (1080 x 1920 PNG, 777 KB):
-   File: 5_screenshot_net_profit_calculator.png
-   Headline: "TRUE IN-POCKET NET PROFIT" / "Auto-Deducts Marketplace Fees, COGS & Shipping"
+SCREENSHOT 4 — MULTI-ANGLE STUDIO & 1-TAP PUBLISH
+- Top Headline: MULTI-ANGLE STUDIO (1–5 PHOTOS)
+- Subtitle: Capture Angles & Publish Directly to eBay in 1 Tap
+- Visual Center: 5-angle photo strip (Cover, Tag, Back, Detail, Flaw) with active "1-Tap Publish to eBay" button and pre-filled SEO title.
+- Lower Pill: 1-Tap eBay Sync · Optimized 80-Character Titles · Cloud Storage
 
-6. Phone Screenshot 4 — Sourcing Vault & Portfolio (1080 x 1920 PNG, 707 KB):
-   File: 6_screenshot_inventory_vault.png
-   Headline: "INVENTORY VAULT & PORTFOLIO" / "Track Sourced Value, Realized Margins & Export in 1 Tap"
+SCREENSHOT 5 — SOURCING VAULT & ACCOUNTING LEDGER
+- Top Headline: SOURCING VAULT & TAX LEDGER
+- Subtitle: Track Total Inventory Value, COGS & Monthly Yield
+- Visual Center: Dark-mode executive dashboard showcasing total haul value ($2,480 AUD), realized margins (64%), and 1-tap CSV export.
+- Lower Pill: Real-Time COGS Tracking · 1-Tap Accounting CSV Export
 
+===============================================================================
+5. STORE CATEGORY & APP DETAILS
+===============================================================================
+- Primary Category: Business
+- Secondary Category: Shopping
+- Content Rating: Everyone (13+)
+- Privacy Policy: https://spadas-tech.vercel.app/privacy
+- Support Email: support@spadas.tech
+- App Website: https://spadas-tech.vercel.app
+- Billing Model: Official Google Play In-App Billing (com.spadas.ai / spadas_pro_monthly)

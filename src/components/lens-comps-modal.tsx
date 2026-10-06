@@ -18,6 +18,17 @@ import {
   Globe,
   Search,
   Loader2,
+  Camera,
+  Plus,
+  Trash2,
+  Store,
+  TrendingUp,
+  CheckCircle2,
+  DollarSign,
+  Package,
+  BarChart3,
+  ArrowUpRight,
+  Layers,
 } from "lucide-react";
 import { track } from "@vercel/analytics";
 import { scannerAudio } from "@/lib/scanner-audio";
@@ -25,6 +36,8 @@ import { fmtMoney, formatAUD } from "@/app/lib/listings";
 import { createListing } from "@/app/lib/createlisting";
 import { supabase } from "@/app/lib/supabase";
 import { toast } from "sonner";
+import { compressFileToDataUrl } from "@/lib/image-preprocessor";
+import { generateEbayPrefillUrl } from "@/app/lib/marketplaces/ebay-prefill";
 import {
   cleanBrandText,
   cleanCategoryText,
@@ -143,6 +156,66 @@ export default function LensCompsModal({
   const [customTagCost, setCustomTagCost] = useState<number>(initialTagCost);
   // Manual AusPost parcel-tier override — null means "Auto" (heuristic)
   const [customPostageTier, setCustomPostageTier] = useState<AusPostParcelTier | null>(null);
+
+  // Resale Price Adjuster State (User can adjust listing price or pick quick presets)
+  const [customResalePrice, setCustomResalePrice] = useState<number | null>(null);
+
+  // 1 to 5 Multi-Photo Management directly in the dialog
+  const initialPhotos = useMemo(() => {
+    const p: string[] = [];
+    if (frozenFrameUrl) p.push(frozenFrameUrl);
+    else if ((item as any)?.image) p.push((item as any).image);
+    if (Array.isArray((item as any)?.photos)) {
+      for (const photo of (item as any).photos) {
+        if (photo && !p.includes(photo)) p.push(photo);
+      }
+    }
+    return p.slice(0, 5);
+  }, [frozenFrameUrl, item]);
+
+  const [listingPhotos, setListingPhotos] = useState<string[]>(initialPhotos);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+
+  // Comps segmented view: "sold" vs "active"
+  const [compsMarketTab, setCompsMarketTab] = useState<"sold" | "active">("sold");
+
+  // 1-Tap Live Publish to eBay state
+  const [isPublishingEbay, setIsPublishingEbay] = useState<boolean>(false);
+  const [ebayPublishSuccess, setEbayPublishSuccess] = useState<boolean>(false);
+  const [liveEbayListingUrl, setLiveEbayListingUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    setListingPhotos(initialPhotos);
+    setCustomResalePrice(null);
+    setEbayPublishSuccess(false);
+    setLiveEbayListingUrl(null);
+  }, [item, initialPhotos]);
+
+  const handleAddPhotos = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const availableSlots = 5 - listingPhotos.length;
+    if (availableSlots <= 0) {
+      toast.info("Maximum 5 photos per listing.");
+      return;
+    }
+    const toProcess = Array.from(files).slice(0, availableSlots);
+    toast.info("Processing photos...", { duration: 1000 });
+    const compressed = await Promise.all(
+      toProcess.map((f) => compressFileToDataUrl(f, { maxDimension: 850, quality: 0.75 }))
+    );
+    const valid = compressed.filter((u) => u && u.length > 2000);
+    if (valid.length > 0) {
+      setListingPhotos((prev) => [...prev, ...valid].slice(0, 5));
+      triggerTactileHaptic("success");
+      toast.success(`Added ${valid.length} photo(s)! (${listingPhotos.length + valid.length}/5)`);
+    }
+  };
+
+  const handleRemovePhoto = (idx: number) => {
+    setListingPhotos((prev) => prev.filter((_, i) => i !== idx));
+    triggerTactileHaptic("light");
+  };
 
   // Fragrance & Liquid Fill-Level Engine Detection
   const isLiquidOrFragrance = useMemo(() => {
@@ -356,8 +429,51 @@ export default function LensCompsModal({
   const parcelRates = isUsMarket ? USPS_PARCEL_RATES : AUSPOST_PARCEL_RATES;
   const targetCurrency = isUsMarket ? "USD" : "AUD";
 
-  // Dynamic calculations (utilizing deferred values for smooth 60fps main thread)
-  const activeResalePrice = compsRange.median || ((isLiquidOrFragrance && isFragranceActive) ? Math.round(initialEstValue * fragranceMultiplier * 100) / 100 : initialEstValue);
+  // ── Active Asks vs Sold Comps Splits & Realistic Resale Price Engine ───────
+  const activeCompsList: RawSoldComp[] = useMemo(() => {
+    if (Array.isArray((item as any)?.activeComps) && (item as any).activeComps.length > 0) {
+      return (item as any).activeComps;
+    }
+    return effectiveComps.filter((c) => c.soldDate === "Active Ask" || (c as any).isActiveAsk || (c as any).is_active_ask);
+  }, [item, effectiveComps]);
+
+  const soldCompsList: RawSoldComp[] = useMemo(() => {
+    const sold = effectiveComps.filter((c) => c.soldDate !== "Active Ask" && !(c as any).isActiveAsk && !(c as any).is_active_ask);
+    return sold.length > 0 ? sold : effectiveComps;
+  }, [effectiveComps]);
+
+  const rawActiveMedian = (item as any)?.activeMedian ?? (activeCompsList.length > 0 ? activeCompsList[0].price : 0);
+  const rawSoldMedian = (item as any)?.soldMedian ?? compsRange.median ?? initialEstValue;
+  const activeCompCount = (item as any)?.activeCount ?? activeCompsList.length;
+  const soldCompCount = (item as any)?.soldCount ?? soldCompsList.length;
+
+  const rawActiveMin = (item as any)?.activeMin ?? (rawActiveMedian > 0 ? Math.round(rawActiveMedian * 0.75) : 0);
+  const rawActiveMax = (item as any)?.activeMax ?? (rawActiveMedian > 0 ? Math.round(rawActiveMedian * 1.35) : 0);
+  const rawSoldMin = (item as any)?.soldMin ?? compsRange.min;
+  const rawSoldMax = (item as any)?.soldMax ?? compsRange.max;
+
+  // Realistic selling price on eBay: calibrated high-liquidity flip target
+  const recommendedQuickSellPrice = useMemo(() => {
+    if ((item as any)?.recommendedPrice && Number((item as any).recommendedPrice) > 0) {
+      return Number((item as any).recommendedPrice);
+    }
+    if (rawSoldMedian > 0) {
+      // 5% below median sold comps for instant liquidity
+      return Math.max(5, Math.round(rawSoldMedian * 0.95 * 100) / 100);
+    }
+    if (rawActiveMedian > 0) {
+      return Math.max(5, Math.round(rawActiveMedian * 0.92 * 100) / 100);
+    }
+    return Math.max(5, Math.round(compsRange.median * 0.95 * 100) / 100);
+  }, [item, rawSoldMedian, rawActiveMedian, compsRange.median]);
+
+  // Dynamic active resale price (user override or recommended quick-sell price with fragrance adjustments)
+  const activeResalePrice = customResalePrice !== null
+    ? customResalePrice
+    : (isLiquidOrFragrance && isFragranceActive)
+      ? Math.round(recommendedQuickSellPrice * fragranceMultiplier * 100) / 100
+      : recommendedQuickSellPrice;
+
   const effectiveTagCost = Math.max(0, Math.round(deferredTagCost * 100) / 100);
   const autoShipping = estimateCategoryShippingCost(category, title, targetCurrency);
   const estShipping = customPostageTier !== null
@@ -432,10 +548,10 @@ export default function LensCompsModal({
     const fbNet = Math.max(0, Math.round((fbGross - effectiveTagCost) * 100) / 100);
 
     const channels = [
-      { name: "eBay AU", gross: ebayGross, fees: ebayFees, net: ebayNet, icon: "🛒" },
-      { name: "Depop AU", gross: depopGross, fees: depopFees, net: depopNet, icon: "✨" },
-      { name: "Gumtree AU", gross: gumtreeGross, fees: 0, net: gumtreeNet, icon: "🌿" },
-      { name: "FB Marketplace", gross: fbGross, fees: 0, net: fbNet, icon: "🤝" },
+      { name: "eBay AU", gross: ebayGross, fees: ebayFees, net: ebayNet, code: "EBAY" },
+      { name: "Depop AU", gross: depopGross, fees: depopFees, net: depopNet, code: "DEPOP" },
+      { name: "Gumtree AU", gross: gumtreeGross, fees: 0, net: gumtreeNet, code: "GUMTREE" },
+      { name: "FB Marketplace", gross: fbGross, fees: 0, net: fbNet, code: "FB" },
     ];
     channels.sort((a, b) => b.net - a.net);
     return { channels, bestChannel: channels[0] };
@@ -539,14 +655,16 @@ export default function LensCompsModal({
         return;
       }
 
+      const primaryImage = listingPhotos[0] || frozenFrameUrl || (item as any)?.image || undefined;
+
       const { error } = await createListing({
         userId: user.id,
         product: title,
-        description: `Sourced via Spadas Cognitive Lens Engine. Category: ${category}. Condition: ${condition}${isLiquidOrFragrance && isFragranceActive ? ` (${fillLevel}% Fill, ${hasCap ? "With Cap" : "No Cap"}${isTester ? ", Tester" : ""})` : ""}. True Net Profit: +$${netProfit} AUD (${roi}% ROI). Verified sold comps source: eBay AU.`,
+        description: `Sourced via Spadas Cognitive Lens Engine. Category: ${category}. Condition: ${condition}${isLiquidOrFragrance && isFragranceActive ? ` (${fillLevel}% Fill, ${hasCap ? "With Cap" : "No Cap"}${isTester ? ", Tester" : ""})` : ""}. Target Value: ${formatAUD(activeResalePrice)}. Realized sold comps source: eBay AU/US.`,
         price: activeResalePrice,
         cost: effectiveTagCost,
         status: "Draft",
-        image: frozenFrameUrl || (item as any)?.image || undefined,
+        image: primaryImage,
       });
 
       if (error) throw error;
@@ -570,6 +688,83 @@ export default function LensCompsModal({
       toast.error(err.message || "Failed to save draft.");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  // 1-Tap Direct Publish to eBay with frictionless fallback to eBay prefill flow
+  const handle1TapPublishEbay = async () => {
+    setIsPublishingEbay(true);
+    try {
+      triggerTactileHaptic("medium");
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const payload = {
+        product: title,
+        description: `Sourced via Spadas Cognitive Lens Engine.\n\nBrand: ${brand}\nCategory: ${category}\nCondition: ${condition}\nTarget Sale Price: ${formatAUD(activeResalePrice)}\nComp Verification: eBay Secondary Market.`,
+        price: activeResalePrice,
+        currency: targetCurrency,
+        condition,
+        brand,
+        category,
+        imageUrls: listingPhotos.length > 0 ? listingPhotos : previewImageSrc ? [previewImageSrc] : [],
+        forceLive: true,
+      };
+
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (session?.access_token) {
+        headers["Authorization"] = `Bearer ${session.access_token}`;
+      }
+
+      const res = await fetch("/api/marketplaces/ebay/publish", {
+        method: "POST",
+        headers,
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok && data.success && data.listingUrl) {
+        setEbayPublishSuccess(true);
+        setLiveEbayListingUrl(data.listingUrl);
+        triggerTactileHaptic("success");
+        toast.success("Listing published live to eBay!");
+        openExternalUrlSafely(data.listingUrl, title);
+        return;
+      }
+
+      // If auth required or eBay credentials not connected, smooth prefill fallback
+      if (res.status === 401 || data.error?.includes("log in") || data.error?.includes("eBay token") || data.error?.includes("connect")) {
+        const prefillUrl = generateEbayPrefillUrl({
+          title,
+          price: activeResalePrice,
+          currency: targetCurrency,
+          brand,
+          category,
+        });
+        triggerTactileHaptic("success");
+        toast.info("Opening eBay listing wizard pre-populated with your comps & pricing!");
+        openExternalUrlSafely(prefillUrl, title);
+        return;
+      }
+
+      throw new Error(data.error || "Unable to publish directly to eBay.");
+    } catch (err: any) {
+      console.error("1-Tap eBay Publish notice:", err);
+      const prefillUrl = generateEbayPrefillUrl({
+        title,
+        price: activeResalePrice,
+        currency: targetCurrency,
+        brand,
+        category,
+      });
+      toast.info("Opening eBay listing flow...");
+      openExternalUrlSafely(prefillUrl, title);
+    } finally {
+      setIsPublishingEbay(false);
     }
   };
 
@@ -609,7 +804,7 @@ export default function LensCompsModal({
     }
     return (
       <div className="p-2 rounded-lg bg-zinc-950 border border-zinc-800 text-[11px] flex items-center justify-between">
-        <span className="text-zinc-400">⚡ Fast-Flip IRR:</span>
+        <span className="text-zinc-400">Fast-Flip IRR:</span>
         <span className="text-cyan-400 font-bold tabular-nums">~{irr}%/yr</span>
       </div>
     );
@@ -659,12 +854,12 @@ export default function LensCompsModal({
               <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
                 {isUsMarket ? (
                   <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
-                    <span>🇺🇸</span>
+                    <span className="font-mono text-[9px] px-1 bg-emerald-500/20 rounded">US</span>
                     <span>eBay US Comps</span>
                   </span>
                 ) : (
                   <span className="px-1.5 py-0.2 rounded text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 flex items-center gap-1">
-                    <span>🇦🇺</span>
+                    <span className="font-mono text-[9px] px-1 bg-emerald-500/20 rounded">AU</span>
                     <span>Strict AU Comps</span>
                   </span>
                 )}
@@ -945,7 +1140,7 @@ export default function LensCompsModal({
                           : "bg-zinc-950 text-zinc-400 border-zinc-800 hover:text-zinc-200"
                       }`}
                     >
-                      {!hasCap ? "⚠️ No Cap (-15%)" : "With Cap"}
+                      {!hasCap ? "No Cap (-15%)" : "With Cap"}
                     </button>
 
                     <button
@@ -962,7 +1157,7 @@ export default function LensCompsModal({
                           : "bg-zinc-950 text-zinc-400 border-zinc-800 hover:text-zinc-200"
                       }`}
                     >
-                      {isTester ? "🏷️ Tester (-20%)" : "Retail Bottle"}
+                      {isTester ? "Tester (-20%)" : "Retail Bottle"}
                     </button>
 
                     <button
@@ -979,7 +1174,7 @@ export default function LensCompsModal({
                           : "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
                       }`}
                     >
-                      {hasBox ? "📦 Boxed" : "No Box (-10%)"}
+                      {hasBox ? "Boxed" : "No Box (-10%)"}
                     </button>
                   </div>
                 </div>
@@ -1033,85 +1228,355 @@ export default function LensCompsModal({
             </div>
           </div>
 
-          {/* ── 2. MARKET VALUE SECTION ───────────────────────────────────────── */}
-          <div className="p-4 space-y-1 min-h-[92px]">
-            <div className="text-xs text-zinc-400">
-              {isZeroSoldActive ? "eBay Live Active Ask Median" : "eBay median sold"}
-            </div>
-            <div className="text-2xl font-bold text-white tabular-nums">
-              {fmtMoney(compsRange.median || initialEstValue)}
-            </div>
-            <div className="text-sm text-zinc-400 tabular-nums">
-              {isZeroSoldActive ? "Asking Range" : "Range"} {fmtMoney(compsRange.min)} – {fmtMoney(compsRange.max)}
-            </div>
-            <div className="text-xs">
-              {effectiveComps.length > 0 && effectiveComps.length < 5 ? (
-                <div className="flex items-center gap-1.5 text-amber-400 font-medium">
-                  <span>⚠️</span>
-                  <span>{trustLineText}</span>
-                  <span className="text-zinc-500">({effectiveComps.length} {isZeroSoldActive ? "active" : "sold"} found)</span>
+          {/* ── 2. 3-PILLAR RESELLER VALUATION INTELLIGENCE ───────────────────── */}
+          <div className="p-4 space-y-3 min-h-[92px]">
+            <div className="grid grid-cols-3 gap-2">
+              {/* Pillar 1: Live Active Competitor Asks */}
+              <div className="p-2.5 rounded-xl bg-zinc-900 border border-zinc-800 flex flex-col justify-between">
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
+                  Active Asks
                 </div>
-              ) : (
-                <span className="text-zinc-500">{trustLineText}</span>
-              )}
+                <div className="text-lg sm:text-xl font-bold text-white tabular-nums my-0.5">
+                  {fmtMoney(rawActiveMedian || compsRange.median)}
+                </div>
+                <div className="text-[10px] text-zinc-500 tabular-nums truncate">
+                  {activeCompCount} on market
+                </div>
+              </div>
+
+              {/* Pillar 2: Realized Sold Comps */}
+              <div className="p-2.5 rounded-xl bg-zinc-900 border border-zinc-800 flex flex-col justify-between">
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
+                  Sold Comps
+                </div>
+                <div className="text-lg sm:text-xl font-bold text-emerald-400 tabular-nums my-0.5">
+                  {fmtMoney(rawSoldMedian || compsRange.median)}
+                </div>
+                <div className="text-[10px] text-zinc-500 tabular-nums truncate">
+                  {soldCompCount} verified sold
+                </div>
+              </div>
+
+              {/* Pillar 3: Realistic Quick-Sell Price on eBay */}
+              <div className="p-2.5 rounded-xl bg-emerald-950/20 border border-emerald-500/30 flex flex-col justify-between">
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-emerald-300">
+                  Quick-Sell Target
+                </div>
+                <div className="text-lg sm:text-xl font-bold text-emerald-300 tabular-nums my-0.5">
+                  {fmtMoney(recommendedQuickSellPrice)}
+                </div>
+                <div className="text-[10px] text-emerald-400/80 truncate">
+                  High liquidity flip
+                </div>
+              </div>
+            </div>
+
+            {/* In-Depth Comp Reliability & Price Range Callout */}
+            <div className="flex items-center justify-between text-xs px-1 text-zinc-400">
+              <span className="tabular-nums">
+                Range: {fmtMoney(compsRange.min)} – {fmtMoney(compsRange.max)}
+              </span>
+              <span className="text-[11px] text-zinc-500">{trustLineText}</span>
+            </div>
+
+            {/* ── Interactive Resale Price Adjuster (Direct Control & 1-Tap Presets) ── */}
+            <div className="p-3 rounded-xl bg-zinc-900 border border-zinc-800 space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-white">
+                  <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Adjust Listing Resale Price</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-xs text-zinc-400">$</span>
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={activeResalePrice || ""}
+                    onChange={(e) => {
+                      const val = Math.max(1, parseFloat(e.target.value) || 0);
+                      setCustomResalePrice(val);
+                      triggerTactileHaptic("light");
+                    }}
+                    className="w-16 rounded-lg bg-zinc-950 border border-zinc-700 px-2 py-0.5 text-right text-xs font-bold text-emerald-400 focus:outline-none focus:border-emerald-500 tabular-nums"
+                  />
+                </div>
+              </div>
+
+              {/* 3 Quick Resale Presets */}
+              <div className="grid grid-cols-3 gap-1.5 pt-0.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const price = Math.max(1, Math.round((rawSoldMedian || recommendedQuickSellPrice) * 0.95));
+                    setCustomResalePrice(price);
+                    triggerTactileHaptic("selection");
+                  }}
+                  className={`py-1 px-1.5 rounded-lg text-[10px] font-semibold transition cursor-pointer border text-center tabular-nums ${
+                    activeResalePrice === Math.max(1, Math.round((rawSoldMedian || recommendedQuickSellPrice) * 0.95))
+                      ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+                      : "bg-zinc-950 text-zinc-400 border-zinc-800 hover:text-white"
+                  }`}
+                >
+                  Fast-Flip (-5%)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const price = Math.round(rawSoldMedian || compsRange.median);
+                    setCustomResalePrice(price);
+                    triggerTactileHaptic("selection");
+                  }}
+                  className={`py-1 px-1.5 rounded-lg text-[10px] font-semibold transition cursor-pointer border text-center tabular-nums ${
+                    activeResalePrice === Math.round(rawSoldMedian || compsRange.median)
+                      ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+                      : "bg-zinc-950 text-zinc-400 border-zinc-800 hover:text-white"
+                  }`}
+                >
+                  Sold Median
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const price = Math.round(rawActiveMedian || rawSoldMedian || compsRange.median);
+                    setCustomResalePrice(price);
+                    triggerTactileHaptic("selection");
+                  }}
+                  className={`py-1 px-1.5 rounded-lg text-[10px] font-semibold transition cursor-pointer border text-center tabular-nums ${
+                    activeResalePrice === Math.round(rawActiveMedian || rawSoldMedian || compsRange.median)
+                      ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+                      : "bg-zinc-950 text-zinc-400 border-zinc-800 hover:text-white"
+                  }`}
+                >
+                  Match Asks
+                </button>
+              </div>
+            </div>
+
+            {/* ── Multi-Photo Intake Tray (1 to 5 Photos) ────────────────────── */}
+            <div className="p-3 rounded-xl bg-zinc-900 border border-zinc-800 space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-white">
+                  <Camera className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Listing Photos ({listingPhotos.length}/5)</span>
+                </div>
+                <span className="text-[10px] text-zinc-400">
+                  Multiple angles boost search rank
+                </span>
+              </div>
+
+              {/* Photo Strip */}
+              <div className="flex items-center gap-2 overflow-x-auto py-1 custom-scrollbar">
+                {listingPhotos.map((photo, idx) => (
+                  <div
+                    key={idx}
+                    className="relative h-16 w-16 shrink-0 rounded-lg overflow-hidden border border-zinc-700 bg-zinc-950 group"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={photo}
+                      alt={`Angle ${idx + 1}`}
+                      className="h-full w-full object-cover"
+                    />
+                    <span className="absolute bottom-0 inset-x-0 bg-black/70 text-[8px] font-medium text-center text-zinc-300 py-0.5">
+                      {idx === 0 ? "Cover" : `Angle ${idx + 1}`}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemovePhoto(idx)}
+                      className="absolute top-1 right-1 p-0.5 rounded-full bg-black/80 text-zinc-300 hover:text-rose-400 hover:bg-black transition cursor-pointer"
+                      title="Remove photo"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+
+                {listingPhotos.length < 5 && (
+                  <button
+                    type="button"
+                    onClick={() => photoInputRef.current?.click()}
+                    className="h-16 w-16 shrink-0 rounded-lg border border-dashed border-zinc-700 hover:border-zinc-500 bg-zinc-950 flex flex-col items-center justify-center gap-1 text-zinc-400 hover:text-white transition cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span className="text-[9px] font-medium">+ Angle</span>
+                  </button>
+                )}
+
+                <input
+                  ref={photoInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleAddPhotos}
+                  className="hidden"
+                />
+              </div>
             </div>
           </div>
 
-          {/* ── 3. TOP 3 SOLD COMPS (Carousel & List with Images & Dates) ─────── */}
+          {/* ── 3. SEGMENTED COMPS INTELLIGENCE (Sold vs Active Asks) ──────────── */}
           <div className="p-4 space-y-2.5 min-h-[240px]">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs font-semibold text-white">
-                  {isZeroSoldActive ? "Live Active Competitor Listings" : "Top Sold Comps"}
-                </span>
-                <span className="text-[11px] text-zinc-400 tabular-nums">({effectiveComps.length})</span>
+            {/* Segmented Controller: Verified Sold Comps vs Live Active Asks */}
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center rounded-lg bg-zinc-900 border border-zinc-800 p-0.5 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setCompsMarketTab("sold")}
+                  className={`px-2.5 py-1 rounded-md font-medium transition cursor-pointer ${
+                    compsMarketTab === "sold"
+                      ? "bg-zinc-800 text-white font-bold shadow-xs"
+                      : "text-zinc-400 hover:text-zinc-200"
+                  }`}
+                >
+                  Verified Sold ({soldCompCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCompsMarketTab("active")}
+                  className={`px-2.5 py-1 rounded-md font-medium transition cursor-pointer ${
+                    compsMarketTab === "active"
+                      ? "bg-zinc-800 text-white font-bold shadow-xs"
+                      : "text-zinc-400 hover:text-zinc-200"
+                  }`}
+                >
+                  Active Asks ({activeCompCount})
+                </button>
               </div>
-              {effectiveComps.length > 0 && (
-                <div className="flex items-center rounded-lg bg-zinc-900 border border-zinc-800 p-0.5 text-[11px]">
-                  <button
-                    type="button"
-                    onClick={() => setCompsViewMode("carousel")}
-                    className={`px-2 py-0.5 rounded-md font-medium transition cursor-pointer ${
-                      compsViewMode === "carousel"
-                        ? "bg-zinc-800 text-white shadow-xs font-bold"
-                        : "text-zinc-400 hover:text-zinc-200"
-                    }`}
-                  >
-                    Carousel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCompsViewMode("list")}
-                    className={`px-2 py-0.5 rounded-md font-medium transition cursor-pointer ${
-                      compsViewMode === "list"
-                        ? "bg-zinc-800 text-white shadow-xs font-bold"
-                        : "text-zinc-400 hover:text-zinc-200"
-                    }`}
-                  >
-                    List
-                  </button>
-                </div>
-              )}
+
+              {/* View Mode Toggle: Carousel vs List */}
+              <div className="flex items-center rounded-lg bg-zinc-900 border border-zinc-800 p-0.5 text-[11px]">
+                <button
+                  type="button"
+                  onClick={() => setCompsViewMode("carousel")}
+                  className={`px-2 py-0.5 rounded-md font-medium transition cursor-pointer ${
+                    compsViewMode === "carousel"
+                      ? "bg-zinc-800 text-white shadow-xs font-bold"
+                      : "text-zinc-400 hover:text-zinc-200"
+                  }`}
+                >
+                  Carousel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCompsViewMode("list")}
+                  className={`px-2 py-0.5 rounded-md font-medium transition cursor-pointer ${
+                    compsViewMode === "list"
+                      ? "bg-zinc-800 text-white shadow-xs font-bold"
+                      : "text-zinc-400 hover:text-zinc-200"
+                  }`}
+                >
+                  List
+                </button>
+              </div>
             </div>
 
-            {effectiveComps.length > 0 ? (
-              <>
-                {/* ── Carousel View (Swipeable Cards with Images & Dates) ────── */}
-                {compsViewMode === "carousel" && (
-                  <div className="flex gap-2.5 overflow-x-auto snap-x snap-mandatory py-1 custom-scrollbar min-h-[210px]">
-                    {visibleComps.map((comp, idx) => {
-                      const isCompActiveAsk = comp.soldDate === "Active Ask" || isZeroSoldActive;
-                      const compImg = comp.thumbnail || (idx === 0 ? previewImageSrc : null);
-                      const conditionText = comp.condition ? cleanConditionText(comp.condition) : "Pre-Owned";
+            {/* Display active tab comps */}
+            {(() => {
+              const currentList = compsMarketTab === "sold" ? soldCompsList : activeCompsList;
+              const displayComps = showAllComps ? currentList : currentList.slice(0, 3);
+              const remaining = Math.max(0, currentList.length - 3);
 
-                      return (
-                        <div
-                          key={comp.id || idx}
-                          className="w-44 sm:w-48 shrink-0 snap-start bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden p-2.5 flex flex-col justify-between"
-                        >
-                          <div className="space-y-2">
-                            {/* Comp Image Thumbnail with Date Tag */}
-                            <div className="relative h-28 w-full rounded-lg overflow-hidden bg-zinc-950 border border-zinc-800/80">
+              if (currentList.length === 0) {
+                return (
+                  <div className="p-4 rounded-xl bg-zinc-900 border border-zinc-800 text-center space-y-1.5">
+                    <div className="text-sm font-semibold text-zinc-200">
+                      No direct {compsMarketTab === "sold" ? "sold" : "active"} comps found
+                    </div>
+                    <div className="text-xs text-zinc-400">
+                      Market valuation estimated using category heuristics and market depth.
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => openExternalUrlSafely(ebayActiveSearchUrl, title, e)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-500/10 border border-cyan-500/25 text-xs text-cyan-300 hover:bg-cyan-500/20 pt-1 cursor-pointer font-semibold transition mt-1"
+                    >
+                      <span>Search live {isUsMarket ? "eBay US" : "eBay AU"} listings</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </button>
+                  </div>
+                );
+              }
+
+              return (
+                <>
+                  {compsViewMode === "carousel" ? (
+                    <div className="flex gap-2.5 overflow-x-auto snap-x snap-mandatory py-1 custom-scrollbar min-h-[210px]">
+                      {displayComps.map((comp, idx) => {
+                        const isCompActiveAsk = comp.soldDate === "Active Ask" || compsMarketTab === "active";
+                        const compImg = comp.thumbnail || (idx === 0 ? previewImageSrc : null);
+                        const conditionText = comp.condition ? cleanConditionText(comp.condition) : "Pre-Owned";
+
+                        return (
+                          <div
+                            key={comp.id || idx}
+                            className="w-44 sm:w-48 shrink-0 snap-start bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden p-2.5 flex flex-col justify-between"
+                          >
+                            <div className="space-y-2">
+                              {/* Thumbnail */}
+                              <div className="relative h-28 w-full rounded-lg overflow-hidden bg-zinc-950 border border-zinc-800/80">
+                                {compImg ? (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img
+                                    src={compImg}
+                                    alt={comp.title}
+                                    loading="lazy"
+                                    decoding="async"
+                                    className="h-full w-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="h-full w-full flex items-center justify-center text-zinc-600">
+                                    <ShoppingBag className="w-8 h-8" />
+                                  </div>
+                                )}
+                                <span className="absolute bottom-1.5 right-1.5 px-1.5 py-0.5 rounded bg-black/80 text-[10px] font-medium text-zinc-300 tabular-nums backdrop-blur-xs">
+                                  {isCompActiveAsk ? "Active Ask" : comp.soldDate && comp.soldDate !== "Active Ask" ? comp.soldDate : "Recent"}
+                                </span>
+                              </div>
+
+                              {/* Price */}
+                              <div>
+                                <div className="text-base font-bold text-white tabular-nums">
+                                  {fmtMoney(comp.price)}
+                                </div>
+                                <div className="text-[11px] text-zinc-300 font-medium truncate mt-0.5">
+                                  {conditionText} · {comp.matchPercentage ?? 98}% match
+                                </div>
+                                <div className="text-[10px] text-zinc-400 truncate mt-0.5">
+                                  {comp.title}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Link Out */}
+                            <div className="pt-2 border-t border-zinc-800/80 mt-2 flex items-center justify-between text-[11px]">
+                              <span className="text-zinc-500">{isCompActiveAsk ? "Active Listing" : "Sold Comp"}</span>
+                              <button
+                                type="button"
+                                onClick={(e) => openExternalUrlSafely(comp.url || ebayActiveSearchUrl, comp.title || title, e)}
+                                className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 transition cursor-pointer"
+                                title="View on eBay"
+                              >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {displayComps.map((comp, idx) => {
+                        const isCompActiveAsk = comp.soldDate === "Active Ask" || compsMarketTab === "active";
+                        const compImg = comp.thumbnail || (idx === 0 ? previewImageSrc : null);
+                        const conditionText = comp.condition ? cleanConditionText(comp.condition) : "Pre-Owned";
+
+                        return (
+                          <div
+                            key={comp.id || idx}
+                            className="min-h-[64px] p-2.5 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-between gap-3"
+                          >
+                            <div className="h-12 w-12 rounded-lg bg-zinc-950 border border-zinc-800 shrink-0 overflow-hidden">
                               {compImg ? (
                                 // eslint-disable-next-line @next/next/no-img-element
                                 <img
@@ -1123,158 +1588,57 @@ export default function LensCompsModal({
                                 />
                               ) : (
                                 <div className="h-full w-full flex items-center justify-center text-zinc-600">
-                                  <ShoppingBag className="w-8 h-8" />
+                                  <ShoppingBag className="w-5 h-5" />
                                 </div>
                               )}
-                              <span className="absolute bottom-1.5 right-1.5 px-1.5 py-0.5 rounded bg-black/80 text-[10px] font-medium text-zinc-300 tabular-nums backdrop-blur-xs">
-                                {isCompActiveAsk ? "Active Ask" : comp.soldDate && comp.soldDate !== "Active Ask" ? comp.soldDate : "Recent"}
-                              </span>
                             </div>
 
-                            {/* Price & Status */}
-                            <div>
-                              {isCompActiveAsk ? (
-                                <div>
-                                  <div className="text-[10px] text-cyan-400 font-semibold leading-tight">Active Ask</div>
-                                  <div className="text-base font-bold text-cyan-400 tabular-nums">
-                                    {fmtMoney(comp.price)}
-                                  </div>
-                                </div>
-                              ) : (
-                                <div className="text-base font-bold text-white tabular-nums">
-                                  {fmtMoney(comp.price)}
-                                </div>
-                              )}
-                              <div className="text-[11px] text-zinc-300 font-medium truncate mt-0.5">
-                                {conditionText} · {comp.matchPercentage ?? 98}% match
-                              </div>
-                              <div className="text-[10px] text-zinc-400 truncate mt-0.5">
-                                {comp.title}
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Link Out */}
-                          <div className="pt-2 border-t border-zinc-800/80 mt-2 flex items-center justify-between text-[11px]">
-                            <span className="text-zinc-500">{isCompActiveAsk ? "eBay Active Ask" : (isUsMarket ? "eBay US Sold" : "eBay AU Sold")}</span>
-                            <button
-                              type="button"
-                              onClick={(e) => openExternalUrlSafely(comp.url || ebayActiveSearchUrl, comp.title || title, e)}
-                              className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 transition cursor-pointer"
-                              title={`View listing on ${isUsMarket ? "eBay US" : "eBay AU"}`}
-                            >
-                              <ExternalLink className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {/* ── List View (Compact Touch Rows with Images & Dates) ────── */}
-                {compsViewMode === "list" && (
-                  <div className="space-y-2">
-                    {visibleComps.map((comp, idx) => {
-                      const isCompActiveAsk = comp.soldDate === "Active Ask" || isZeroSoldActive;
-                      const compImg = comp.thumbnail || (idx === 0 ? previewImageSrc : null);
-                      const conditionText = comp.condition ? cleanConditionText(comp.condition) : "Pre-Owned";
-                      const matchPct = comp.matchPercentage ?? 98;
-
-                      return (
-                        <div
-                          key={comp.id || idx}
-                          className="min-h-[64px] p-2.5 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-between gap-3"
-                        >
-                          {/* Image Thumbnail */}
-                          <div className="h-12 w-12 rounded-lg bg-zinc-950 border border-zinc-800 shrink-0 overflow-hidden">
-                            {compImg ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img
-                                src={compImg}
-                                alt={comp.title}
-                                loading="lazy"
-                                decoding="async"
-                                className="h-full w-full object-cover"
-                              />
-                            ) : (
-                              <div className="h-full w-full flex items-center justify-center text-zinc-600">
-                                <ShoppingBag className="w-5 h-5" />
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Center: Price & Match */}
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1.5">
-                              {isCompActiveAsk ? (
-                                <span className="text-sm font-bold text-cyan-400 tabular-nums">
-                                  Active Ask {fmtMoney(comp.price)}
-                                </span>
-                              ) : (
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5">
                                 <span className="text-sm font-bold text-white tabular-nums">
                                   {fmtMoney(comp.price)}
                                 </span>
-                              )}
-                              <span className="text-[10px] text-zinc-400">
-                                · {conditionText} ({matchPct}%)
+                                <span className="text-[10px] text-zinc-400">
+                                  · {conditionText} ({comp.matchPercentage ?? 98}%)
+                                </span>
+                              </div>
+                              <div className="text-xs text-zinc-400 truncate mt-0.5">
+                                {comp.title}
+                              </div>
+                            </div>
+
+                            <div className="shrink-0 flex items-center gap-2">
+                              <span className="text-xs tabular-nums text-zinc-400">
+                                {isCompActiveAsk ? "Active" : comp.soldDate || "Sold"}
                               </span>
-                            </div>
-                            <div className="text-xs text-zinc-400 truncate mt-0.5">
-                              {comp.title}
+                              <button
+                                type="button"
+                                onClick={(e) => openExternalUrlSafely(comp.url || ebayActiveSearchUrl, comp.title || title, e)}
+                                className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition cursor-pointer"
+                                title="View on eBay"
+                              >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                              </button>
                             </div>
                           </div>
+                        );
+                      })}
+                    </div>
+                  )}
 
-                          {/* Right: Date & Outbound Link */}
-                          <div className="shrink-0 flex items-center gap-2">
-                            <span className={`text-xs tabular-nums ${isCompActiveAsk ? "text-cyan-400 font-semibold" : "text-zinc-400"}`}>
-                              {isCompActiveAsk ? "Active Ask" : comp.soldDate && comp.soldDate !== "Active Ask" ? comp.soldDate : "Recent"}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={(e) => openExternalUrlSafely(comp.url || ebayActiveSearchUrl, comp.title || title, e)}
-                              className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition cursor-pointer"
-                              title={`View listing on ${isUsMarket ? "eBay US" : "eBay AU"}`}
-                            >
-                              <ExternalLink className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {/* Show X More Comps Expand Button */}
-                {remainingCount > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => setShowAllComps(!showAllComps)}
-                    className="w-full py-2 rounded-xl border border-zinc-800 bg-zinc-900 text-xs font-medium text-zinc-300 hover:text-white hover:bg-zinc-800 transition cursor-pointer flex items-center justify-center gap-1"
-                  >
-                    <span>{showAllComps ? "Show top 3 comps only" : `Show ${remainingCount} more comps`}</span>
-                    <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showAllComps ? "rotate-180" : ""}`} />
-                  </button>
-                )}
-              </>
-            ) : (
-              <div className="p-4 rounded-xl bg-zinc-900 border border-zinc-800 text-center space-y-1.5">
-                <div className="text-sm font-semibold text-zinc-200">No direct {isUsMarket ? "eBay US" : "eBay AU"} sold comps in last 30 days</div>
-                <div className="text-xs text-zinc-400">
-                  {isUsMarket
-                    ? `Valuation benchmarked against US secondary market ${categoryEstimate.categoryTier}.`
-                    : `Valuation benchmarked against Australian secondary market ${categoryEstimate.categoryTier}.`}
-                </div>
-                <button
-                  type="button"
-                  onClick={(e) => openExternalUrlSafely(ebayActiveSearchUrl, title, e)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-500/10 border border-cyan-500/25 text-xs text-cyan-300 hover:bg-cyan-500/20 pt-1 cursor-pointer font-semibold transition mt-1"
-                >
-                  <span>Search live {isUsMarket ? "eBay US" : "eBay AU"} listings</span>
-                  <ExternalLink className="w-3 h-3" />
-                </button>
-              </div>
-            )}
+                  {remaining > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowAllComps(!showAllComps)}
+                      className="w-full py-2 rounded-xl border border-zinc-800 bg-zinc-900 text-xs font-medium text-zinc-300 hover:text-white hover:bg-zinc-800 transition cursor-pointer flex items-center justify-center gap-1"
+                    >
+                      <span>{showAllComps ? "Show top 3 comps only" : `Show ${remaining} more comps`}</span>
+                      <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showAllComps ? "rotate-180" : ""}`} />
+                    </button>
+                  )}
+                </>
+              );
+            })()}
           </div>
 
           {/* ── 4. FOLD DOWN ACCORDION: ADVANCED ANALYTICS ───────────────────── */}
@@ -1311,8 +1675,8 @@ export default function LensCompsModal({
                         key={ch.name}
                         className="p-2 rounded-lg bg-zinc-950 border border-zinc-800 text-xs flex items-center justify-between"
                       >
-                        <span className="text-zinc-400 flex items-center gap-1">
-                          <span>{ch.icon}</span>
+                        <span className="text-zinc-400 flex items-center gap-1.5">
+                          <span className="text-[9px] font-mono font-bold px-1 rounded bg-zinc-800 text-zinc-300">{ch.code}</span>
                           <span>{ch.name}</span>
                         </span>
                         <span className="font-bold text-white tabular-nums">+${ch.net}</span>
@@ -1469,16 +1833,30 @@ export default function LensCompsModal({
             </button>
             <button
               type="button"
-              onClick={() => {
-                if (onListEbay && item) {
-                  onListEbay(item);
-                } else {
-                  openExternalUrlSafely(ebayActiveSearchUrl, title);
-                }
-              }}
-              className="h-12 flex items-center justify-center rounded-xl border border-zinc-600 text-white font-medium text-sm hover:bg-zinc-800 active:scale-[0.98] transition cursor-pointer"
+              onClick={handle1TapPublishEbay}
+              disabled={isPublishingEbay}
+              className={`h-12 flex items-center justify-center gap-1.5 rounded-xl text-white font-medium text-sm active:scale-[0.98] transition cursor-pointer disabled:opacity-50 ${
+                ebayPublishSuccess
+                  ? "bg-emerald-600/30 border border-emerald-500 text-emerald-300"
+                  : "border border-zinc-600 hover:bg-zinc-800"
+              }`}
             >
-              List on eBay
+              {isPublishingEbay ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin text-emerald-400" />
+                  <span>Publishing...</span>
+                </>
+              ) : ebayPublishSuccess ? (
+                <>
+                  <CheckCircle2 className="w-4 h-4 text-emerald-300" />
+                  <span>Live on eBay</span>
+                </>
+              ) : (
+                <>
+                  <Store className="w-4 h-4 text-emerald-400" />
+                  <span>1-Tap Publish</span>
+                </>
+              )}
             </button>
           </div>
         </div>

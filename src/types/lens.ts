@@ -86,6 +86,18 @@ export interface DetectedHit {
   isCachedFallback?: boolean;
   /** Underlying real sold listings for full auditability */
   rawComps?: RawSoldComp[];
+  /** Verified active competitor listings on eBay */
+  activeComps?: RawSoldComp[];
+  activeMedian?: number;
+  activeMin?: number;
+  activeMax?: number;
+  soldMedian?: number;
+  soldMin?: number;
+  soldMax?: number;
+  soldCount?: number;
+  recommendedPrice?: number;
+  /** Multi-angle captured photos for listing */
+  photos?: string[];
   /** Min, max, and median price distribution */
   compsRange?: {
     min: number;

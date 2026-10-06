@@ -403,7 +403,7 @@ export default async function CertificatePage({ params }: PageProps) {
             Copy and paste this snippet directly into your eBay, Depop, or Facebook Marketplace listing to prove authenticity to buyers:
           </p>
           <pre className="p-3 rounded-xl bg-slate-950 border border-slate-800 font-mono text-[11px] text-emerald-300 overflow-x-auto select-all">
-{`🛡️ AUTHENTICITY GUARANTEED — VERIFIED BY SPADAS AI FORENSIC AUDIT
+{`🛡️ AI FORENSIC VERIFICATION AUDIT — POWERED BY SPADAS AI
 Legitimacy Score: ${cert.authenticity_score}% (${cert.verdict.replace(/_/g, " ")})
 View High-Res Macro Photos & Verification Certificate:
 ${certUrl}

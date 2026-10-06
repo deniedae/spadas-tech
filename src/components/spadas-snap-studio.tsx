@@ -180,7 +180,7 @@ export function SpadasSnapStudio() {
     if (typeof window !== "undefined") {
       const urlParams = new URLSearchParams(window.location.search);
       if (urlParams.get("checkout") === "success") {
-        toast.success("🚀 Welcome to Spadas Pro! Unlimited scans unlocked.", { duration: 6000 });
+        toast.success("Welcome to Spadas Pro! Unlimited scans unlocked.", { duration: 6000 });
         setIsGuestUser(false);
         setIsPro(true);
         setIsGuestModalOpen(false);
@@ -579,7 +579,7 @@ export function SpadasSnapStudio() {
 
         triggerTactileHaptic(cop.copVerdict === "MUST_COP" ? "grail" : "success");
         setListingResult(listingPayload);
-        toast.success(`🎯 ${cop.verdictLabel}: +$${cop.netProfit.toFixed(0)} Profit! Added to Haul.`);
+        toast.success(`${cop.verdictLabel}: +$${cop.netProfit.toFixed(0)} Net Profit. Added to Haul.`);
       } else {
         toast.error("Could not analyze item. Please try another shot.");
       }
@@ -638,7 +638,7 @@ export function SpadasSnapStudio() {
             <div className="flex items-center gap-2">
               <div className="h-2 w-2 rounded-full bg-cyan-400 animate-ping" />
               <span className="text-xs font-black tracking-wider uppercase text-cyan-300">
-                Spadas Snap Studio
+                Multi-Angle Studio (1–5 Photos)
               </span>
             </div>
           )}
@@ -768,17 +768,17 @@ export function SpadasSnapStudio() {
         {capturedPhotos.length > 0 && (
           <div className="flex items-center justify-between px-1">
             <span className="text-[11px] font-extrabold text-slate-400">
-              📸 {capturedPhotos.length} {capturedPhotos.length === 1 ? "Photo" : "Photos"}
+              {capturedPhotos.length} {capturedPhotos.length === 1 ? "Angle Attached" : "Angles Attached"} (eBay Top Placement)
             </span>
             <button
               type="button"
               onClick={() => {
-                toast.success("✨ AI Studio Background active! Product lighting optimized for marketplace listings.");
+                toast.success("AI Studio Lighting active. Product contrast optimized for marketplace listings.");
               }}
               className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-900 border border-cyan-500/40 text-cyan-300 text-[10px] font-black hover:bg-cyan-500 hover:text-slate-950 transition cursor-pointer shadow-sm"
             >
               <Sparkles className="h-3 w-3" />
-              <span>✨ Studio White BG</span>
+              <span>Studio Lighting</span>
             </button>
           </div>
         )}

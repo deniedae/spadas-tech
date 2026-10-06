@@ -458,11 +458,11 @@ export default function DashboardPage() {
               </Link>
 
               <Link
-                href="/ironman"
+                href="/studio"
                 className="h-9 px-3 text-xs font-bold gap-1.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 transition-all flex items-center active:scale-95 cursor-pointer"
               >
-                <Sparkles className="h-3.5 w-3.5 text-cyan-400 animate-pulse" />
-                <span>Cyber HUD</span>
+                <Camera className="h-3.5 w-3.5 text-cyan-400" />
+                <span>Multi-Angle Studio</span>
               </Link>
 
               <NewListingDialog

@@ -193,12 +193,12 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
       const draftsUrl = activeCurrency === "USD" ? "https://www.ebay.com/sh/lst/drafts" : activeCurrency === "GBP" ? "https://www.ebay.co.uk/sh/lst/drafts" : "https://www.ebay.com.au/sh/lst/drafts";
 
       if (pubData?.isDemoMode) {
-        toast.success(`🚀 ${pubData.message}`);
+        toast.success(pubData.message);
       } else if (publishRes?.ok && pubData?.success) {
         if (pubData.isLive) {
-          toast.success(`🚀 Live on ${marketLabel} (${activeCurrency})! Listing published successfully.`);
+          toast.success(`Live on ${marketLabel} (${activeCurrency})! Listing published successfully.`);
         } else {
-          toast.success(`📋 Draft saved in your ${marketLabel} Seller Hub (${activeCurrency})! Review shipping to activate.`, {
+          toast.success(`Draft saved in your ${marketLabel} Seller Hub (${activeCurrency})! Review shipping to activate.`, {
             duration: 6000,
             action: {
               label: "Open Seller Hub",
@@ -325,7 +325,7 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
                         ? "bg-amber-500/20 text-amber-300 border border-amber-500/40"
                         : "bg-slate-800 text-slate-300"
                     }`}>
-                      {data.copVerdict === "MUST_COP" ? "👑 MUST COP" : data.copVerdict === "QUICK_FLIP" ? "⚡ QUICK FLIP" : data.copVerdict === "VERIFY_FIRST" ? "🔍 VERIFY FIRST" : "FAIR MARGIN"}
+                      {data.copVerdict === "MUST_COP" ? "MUST COP" : data.copVerdict === "QUICK_FLIP" ? "QUICK FLIP" : data.copVerdict === "VERIFY_FIRST" ? "VERIFY FIRST" : "FAIR MARGIN"}
                     </span>
                   )}
                   <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full text-[10px] font-black">
@@ -346,7 +346,7 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
                   Sell: {sym}{data.priceMedian.toFixed(2)}
                 </span>
                 <span className="bg-amber-500/10 text-amber-300 px-2 py-0.5 rounded border border-amber-500/30">
-                  {data.buyCost ? "🏷️ Tag Buy: " : "Est Buy: "}{sym}{currentBuyCost.toFixed(2)}
+                  {data.buyCost ? "Tag Buy: " : "Est Buy: "}{sym}{currentBuyCost.toFixed(2)}
                 </span>
                 <span className="bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded border border-emerald-500/30">
                   Net Profit: +{sym}{currentNetProfit.toFixed(2)} ({currentRoi}% ROI)
@@ -364,7 +364,7 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
                       : "bg-slate-800/90 text-slate-300 border-slate-700 hover:text-white"
                   }`}
                 >
-                  ⚡ Fast Flip ({sym}{Math.max(5, Math.round(data.priceMin || data.priceMedian * 0.85))})
+                  Fast Flip ({sym}{Math.max(5, Math.round(data.priceMin || data.priceMedian * 0.85))})
                 </button>
                 <button
                   type="button"
@@ -380,7 +380,7 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
                       : "bg-slate-800/90 text-slate-300 border-slate-700 hover:text-white"
                   }`}
                 >
-                  🎯 Median ({sym}{convertCurrency(initialData.priceMedian, ((initialData.currency || "AUD").toUpperCase()) as SupportedCurrency, activeCurrency).toFixed(0)})
+                  Median ({sym}{convertCurrency(initialData.priceMedian, ((initialData.currency || "AUD").toUpperCase()) as SupportedCurrency, activeCurrency).toFixed(0)})
                 </button>
                 <button
                   type="button"
@@ -503,7 +503,7 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
             onClick={handleFastListEbay}
             className="py-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 font-bold text-[11px] border border-amber-500/30 transition active:scale-95 disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1"
           >
-            <span>⚡ 1-Tap eBay</span>
+            <span>1-Tap eBay</span>
           </button>
 
           <button
@@ -512,7 +512,7 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
             onClick={handlePublishEbay}
             className="py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-[11px] shadow-[0_0_20px_rgba(37,99,235,0.5)] transition active:scale-95 disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1"
           >
-            <span>🚀 Sync eBay</span>
+            <span>Sync eBay</span>
           </button>
         </div>
       </div>

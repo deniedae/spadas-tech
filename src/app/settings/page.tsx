@@ -1261,7 +1261,7 @@ export default function SettingsPage() {
                 <div className="p-3 rounded-xl bg-blue-500/5 border border-blue-500/15 space-y-1">
                   <div className="flex items-center gap-1.5 text-blue-300 font-semibold text-xs">
                     <ShieldCheck className="w-3.5 h-3.5 text-blue-400" />
-                    <span>Real Customer Care Guarantee</span>
+                    <span>Dedicated Customer Care Support</span>
                   </div>
                   <p className="text-[11px] text-zinc-400 leading-relaxed">
                     No automated loops or fake bot deflections. Every inquiry is personally handled by an Australian team member experienced in eBay reselling.

@@ -125,9 +125,41 @@ export interface VariantAuditRecord {
   reprint_warning?: string | null;
 }
 
+export interface SoldCompPricingBreakdown {
+  status: "VALUED_FROM_SOLD_COMPS" | "VALUED_FROM_ACTIVE_LISTINGS" | "REFUSED_NO_COMPS";
+  currency: string;
+  gross_sold_median: number | null;
+  gross_sold_min: number | null;
+  gross_sold_max: number | null;
+  sample_size: number;
+  platform_fees: {
+    platform: string;
+    final_value_fee_pct: number;
+    payment_processing_pct: number;
+    fixed_fee: number;
+    total_fees: number;
+  } | null;
+  postage: {
+    carrier: string;
+    estimated_cost: number;
+    package_size?: string;
+  };
+  estimated_net_proceeds: number | null;
+  refusal_reason: string | null;
+}
+
+export interface VisionScanTelemetry {
+  provider: string;
+  model: string;
+  latency_ms: number;
+  fell_back: boolean;
+}
+
 /** Full AI-generated listing payload. */
 export interface AiListingResult {
   status?: "identified" | "unidentified";
+  telemetry?: VisionScanTelemetry;
+  sold_comp_pricing?: SoldCompPricingBreakdown;
   inventory_condition?: InventoryCondition;
   condition_grade?: ConditionGrade | null;
   wear_inspection?: WearInspection | null;
@@ -178,6 +210,7 @@ export interface AiListingResult {
     cop_verdict?: CopVerdict;
     raw_sold_comps?: RawSoldCompRecord[];
     variant_audit?: VariantAuditRecord;
+    sold_comp_pricing?: SoldCompPricingBreakdown;
   }>;
 }
 

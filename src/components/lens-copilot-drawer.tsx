@@ -46,11 +46,11 @@ interface ChatMessage {
 }
 
 const BASE_QUICK_PROMPT_CHIPS = [
-  { label: "🎯 80-Char SEO Title", prompt: "Generate a high-ranking 80-character eBay SEO title front-loading brand, model, specs, and keywords." },
-  { label: "🏷️ Best Offer Brackets", prompt: "Give me an actionable pricing strategy with Buy It Now price, Best Offer auto-accept, and auto-decline thresholds." },
-  { label: "🔍 Authenticity Checklist", prompt: "Give me category-specific inspection steps (batch codes, materials, stitch counts, serials) to check right now." },
-  { label: "⚡ Local Flip vs eBay", prompt: "Should I fast-flip locally on FB Marketplace/Gumtree for cash or hold for national eBay AU buyers?" },
-  { label: "💡 Fair tag price?", prompt: "Is the tag price fair, or what is the maximum counter-offer I should make?" },
+  { label: "80-Char SEO Title", prompt: "Generate a high-ranking 80-character eBay SEO title front-loading brand, model, specs, and keywords." },
+  { label: "Best Offer Brackets", prompt: "Give me an actionable pricing strategy with Buy It Now price, Best Offer auto-accept, and auto-decline thresholds." },
+  { label: "Authenticity Checklist", prompt: "Give me category-specific inspection steps (batch codes, materials, stitch counts, serials) to check right now." },
+  { label: "Local Flip vs eBay", prompt: "Should I fast-flip locally on FB Marketplace/Gumtree for cash or hold for national eBay AU buyers?" },
+  { label: "Fair tag price?", prompt: "Is the tag price fair, or what is the maximum counter-offer I should make?" },
 ];
 
 export default function LensCopilotDrawer({

@@ -814,7 +814,7 @@ function SpadasLensCameraCore({
     if (typeof window !== "undefined") {
       const urlParams = new URLSearchParams(window.location.search);
       if (urlParams.get("checkout") === "success") {
-        toast.success("🚀 Welcome to Spadas Pro! Unlimited scans unlocked.", { duration: 6000 });
+        toast.success("Welcome to Spadas Pro! Unlimited scans unlocked.", { duration: 6000 });
         setIsPro(true);
         setIsLimitReached(false);
         setIsGuestUser(false);
@@ -1174,7 +1174,7 @@ function SpadasLensCameraCore({
         ? Number(finalNetProfit).toFixed(2)
         : Number((hit as any).takeHomeNet || (hit as any).trueNetProfit || 0).toFixed(2);
 
-      toast.success(`🎯 Item Identified: ${verifiedHit.name} (+$${toastNet} ${selectedCurrency} Net Profit)`, { id: `hit-toast-${verifiedHit.name}` });
+      toast.success(`Identified: ${verifiedHit.name} (+$${toastNet} ${selectedCurrency} Net Profit)`, { id: `hit-toast-${verifiedHit.name}` });
 
       // 2. Hardware / Tactile Haptic Confirmation (Android Bridge + Web Vibration API)
       if (verifiedHit.copVerdict === "MUST_COP" || verifiedHit.isGrail) {
@@ -1245,7 +1245,7 @@ function SpadasLensCameraCore({
     if (soundEnabled) playTactileClickSound();
     dismissWelcome();
     const demoMarketName = selectedCurrency === "USD" ? "eBay US" : "eBay AU";
-    toast.success(`🎯 Loaded demo find! Showing real ${demoMarketName} sold comps & net profit.`, {
+    toast.success(`Loaded demo find! Showing real ${demoMarketName} sold comps & net profit.`, {
       id: "demo-scan-toast",
     });
     triggerActiveValuationHit(SAMPLE_DEMO_HIT, SAMPLE_DEMO_HIT.image);
@@ -1451,7 +1451,7 @@ function SpadasLensCameraCore({
           if (isGuestUser && !isPro && !isOwner) {
             recordGuestScanIfGuest(verifiedHit);
           }
-          toast.success(`⚡ Barcode Lock: ${pName.slice(0, 24)}... (+$${estProfit} Net)`);
+          toast.success(`Barcode Lock: ${pName.slice(0, 24)}... (+$${estProfit} Net)`);
         }
       } catch (err) {
         console.warn("[Spadas Lens] Continuous barcode lookup error:", err);
@@ -1607,7 +1607,7 @@ function SpadasLensCameraCore({
           duration: 3500,
         });
       }
-    }, 5000);
+    }, 12000);
 
     return () => clearTimeout(timeout);
   }, [analyzingRealFrame, scanStage, activeValuationHit, activeCompsHit, pendingIdentifiedItem, frozenFrameUrl, triggerActiveValuationHit]);
@@ -2522,7 +2522,7 @@ function SpadasLensCameraCore({
       setTimeout(() => setQuickSnapFlash(false), 150);
 
       // 3. Optimistic user feedback in 0ms
-      toast.success("⚡ Quick Snapped to Haul!", {
+      toast.success("Quick Snapped to Haul!", {
         duration: 1500,
         id: "quick-snap-toast",
       });
@@ -4028,7 +4028,7 @@ function SpadasLensCameraCore({
             : Number(data.takeHomeNet || data.true_net_profit || 0).toFixed(2);
 
           if (!activeValuationHitRef.current) {
-            toast.success(`🎯 Item Identified: ${obj.productName} (+$${toastNet} ${selectedCurrency} Net Profit)`, { id: `hit-toast-${obj.productName}` });
+            toast.success(`Identified: ${obj.productName} (+$${toastNet} ${selectedCurrency} Net Profit)`, { id: `hit-toast-${obj.productName}` });
           }
 
           // In-App Review Prompt Milestone Trigger (after 3 successful scans)
@@ -4524,7 +4524,7 @@ function SpadasLensCameraCore({
               {/* Top HUD Bar: Dynamic Confidence Indicator, Credit Badge & Camera Controls with Safe-Area Insets */}
               {scanMode === "barcode" && (
                 <div className="absolute top-[max(3.25rem,calc(env(safe-area-inset-top,0px)+3rem))] left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 bg-amber-500/95 text-slate-950 font-bold px-3 py-1 rounded-full shadow-lg text-xs backdrop-blur-md pointer-events-auto">
-                  <span>⚡ Barcode Mode Active</span>
+                  <span>Barcode Mode Active</span>
                   <button
                     type="button"
                     onClick={(e) => {
@@ -4970,7 +4970,7 @@ function SpadasLensCameraCore({
                         className="flex-1 py-2 px-3 rounded-xl bg-gradient-to-r from-cyan-400 via-teal-300 to-emerald-400 hover:from-cyan-300 hover:to-emerald-300 text-zinc-950 font-black text-[11px] flex items-center justify-center gap-1.5 transition active:scale-95 shadow-md shadow-cyan-950/40 cursor-pointer"
                       >
                         <Zap className="h-3.5 w-3.5 fill-zinc-950" />
-                        <span>⚡ Try 1-Tap Demo: Nike Dunk Low (+$98 Profit)</span>
+                        <span>Try 1-Tap Demo: Nike Dunk Low (+$98 Profit)</span>
                       </button>
                     </div>
                   </div>
