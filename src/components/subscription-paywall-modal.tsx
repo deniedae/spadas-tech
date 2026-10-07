@@ -46,35 +46,35 @@ export default function SubscriptionPaywallModal({
   const plans: PlanTier[] = [
     {
       id: "starter",
-      name: "Spadas Pro Reseller",
-      badge: "UNLIMITED PRO ACCESS",
+      name: "Spadas Pro",
+      badge: "UNLIMITED ACCESS",
       price: isUsMarket ? "$6.99 USD" : "$10 AUD",
-      period: "per month",
+      period: "month",
       popular: true,
       description: isUsMarket
-        ? "Unlimited 60FPS AR camera scanning, live eBay US sold comps, and 1-click reseller cross-listing."
-        : "Unlimited 60FPS AR camera scanning, live eBay Australia sold comps, and 1-click cross-listing.",
+        ? "Unlimited optical camera scanning, live eBay US sold comps, and direct marketplace publishing."
+        : "Unlimited optical camera scanning, live eBay Australia sold comps, and direct marketplace publishing.",
       features: isUsMarket
         ? [
-            "Unlimited 60FPS AR Lens Scanner (Powered by xAI Grok & Multi-Model AI)",
-            "Anti-Thrift Trap Guard (Warns against high-shipping traps & zero-margin items)",
-            "100% Live eBay US 30-Day Real Sold Comps (Zero Hallucinations)",
-            "True Net Profit Calculator (USPS parcel postage + fees auto-deducted)",
-            "1-Click Multi-Platform Cross-Lister (eBay, Mercari, Poshmark)",
-            "Unlimited Sourcing Haul Vault & CSV Tax Export",
-            "Microscopic Hallmark & Care Tag Inspection (.925, 14K, RN tags)",
+            "Unlimited optical camera scanning",
+            "Real-time eBay US 30-day verified sold comps",
+            "Net profit calculator with auto-deducted USPS postage & seller fees",
+            "Low turnover & margin trap alerts",
+            "1-tap marketplace publishing",
+            "Unlimited sourcing vault & CSV tax export",
+            "Hallmark & care tag optical inspection",
           ]
         : [
-            "Unlimited 60FPS AR Lens Scanner (Powered by xAI Grok & Multi-Model AI)",
-            "Anti-Thrift Trap Guard (Warns against AusPost shipping traps & penny flips)",
-            "100% Live Australia eBay 30-Day Real Sold Comps (Zero Hallucinations)",
-            "True Net Profit Calculator (Exact AusPost satchels + 13.4% fees auto-deducted)",
-            "1-Click Multi-Platform Cross-Lister (eBay AU, FB Marketplace, Depop)",
-            "Unlimited Thrifting Haul Vault & CSV Bookkeeping Ledger",
-            "Microscopic Hallmark & Care Tag Inspection (.925, 14K, RN tags)",
+            "Unlimited optical camera scanning",
+            "Real-time eBay Australia 30-day verified sold comps",
+            "Net profit calculator with auto-deducted AusPost satchels & 13.4% fees",
+            "Low turnover & margin trap alerts",
+            "1-tap marketplace publishing",
+            "Unlimited sourcing vault & CSV tax export",
+            "Hallmark & care tag optical inspection",
           ],
-      ctaText: isUsMarket ? "Upgrade to Spadas Pro ($6.99/mo)" : "Upgrade to Spadas Pro ($10 AUD/mo)",
-      color: "border-cyan-400 bg-gradient-to-b from-slate-900 via-slate-900 to-cyan-950/40 shadow-[0_0_40px_rgba(6,182,212,0.3)]",
+      ctaText: isUsMarket ? "Upgrade to Pro ($6.99 USD/mo)" : "Upgrade to Pro ($10 AUD/mo)",
+      color: "border-zinc-800 bg-zinc-900",
     },
   ];
 
@@ -104,13 +104,12 @@ export default function SubscriptionPaywallModal({
     try {
       const res = await purchaseGooglePlaySubscription();
       if (res.active) {
-        toast.success("Welcome to Spadas Pro! Unlimited scanning unlocked.");
+        toast.success("Welcome to Spadas Pro. Unlimited scanning unlocked.");
         onClose();
         window.location.reload();
         return;
       }
       if (res.canceled && res.dismissedByUser) {
-        // User explicitly dismissed the Google Play bottom sheet
         return;
       }
       if (res.error) {
@@ -126,70 +125,58 @@ export default function SubscriptionPaywallModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xl animate-fade-in">
-      <div className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-3xl border border-slate-800 bg-slate-950 p-6 md:p-8 shadow-2xl text-white space-y-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80">
+      <div className="relative w-full max-w-md max-h-[90vh] overflow-y-auto rounded-lg border border-zinc-800 bg-zinc-950 p-6 text-zinc-100 space-y-6">
         {/* Close button */}
         <button
           type="button"
           onClick={onClose}
-          className="absolute top-6 right-6 p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-900 transition cursor-pointer"
+          className="absolute top-4 right-4 p-1.5 rounded-md text-zinc-400 hover:text-white hover:bg-zinc-850 transition cursor-pointer"
         >
-          <X className="h-6 w-6" />
+          <X className="h-5 w-5" />
         </button>
 
         {/* Header Title */}
-        <div className="text-center space-y-2.5 max-w-md mx-auto pt-2">
-          <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/40 bg-cyan-500/10 px-4 py-1 text-xs font-black text-cyan-300">
-            <Crown className="h-4 w-4 text-amber-400 animate-pulse" />
-            SPADAS PRO SUBSCRIPTION
+        <div className="space-y-2 pt-1">
+          <div className="inline-flex items-center gap-1.5 rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-0.5 text-[11px] font-mono text-zinc-300">
+            <span>PRO PLAN</span>
           </div>
-          <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-            Unlock Unlimited Reseller Profit
+          <h2 className="text-xl font-bold text-white tracking-tight">
+            Upgrade to Spadas Pro
           </h2>
-          <p className="text-xs text-slate-300">
-            You have reached the limit of <strong className="text-cyan-400 font-black">10 Free Daily Scans</strong>. Upgrade to Spadas Pro for unlimited 60FPS AR scanning, live sold comps, and 1-click cross-listing.
+          <p className="text-xs text-zinc-400">
+            You have reached the limit of 10 free daily scans. Upgrade for unlimited optical scanning, verified sold comps, and full fee calculations.
           </p>
         </div>
 
         {/* Pricing Card */}
-        <div className="max-w-md mx-auto">
+        <div>
           {plans.map((plan) => (
             <div
               key={plan.id}
-              className={`relative rounded-3xl border p-6 flex flex-col justify-between space-y-6 transition-all duration-200 ${plan.color}`}
+              className="rounded-lg border border-zinc-800 bg-zinc-900 p-5 space-y-5"
             >
-              {plan.badge && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 px-3.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-white shadow-md">
-                  {plan.badge}
-                </div>
-              )}
-
-              <div className="space-y-4">
-                <div>
-                  <h3 className="text-xl font-black text-white">{plan.name}</h3>
-                  <p className="text-xs text-slate-400 mt-1 min-h-[36px]">{plan.description}</p>
-                </div>
-
-                <div className="flex flex-col gap-2 border-b border-slate-800 pb-4">
-                  <div className="flex items-baseline justify-between">
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-3xl font-black text-white">{plan.price}</span>
-                      <span className="text-xs font-bold text-slate-400">/ {plan.period}</span>
-                    </div>
-                    <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-0.5 rounded-full">
-                      SAVE $20+/MO VS OTHER APPS
-                    </span>
+              <div>
+                <div className="flex items-baseline justify-between">
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-3xl font-bold tabular-nums text-white">{plan.price}</span>
+                    <span className="text-xs font-mono text-zinc-400">/ {plan.period}</span>
                   </div>
-                  <p className="text-[11px] text-cyan-300/90 font-medium flex items-center gap-1.5">
-                    <span>💡</span>
-                    <span><strong>High ROI Potential:</strong> Sourcing just one $25+ flip can cover your entire monthly access.</span>
-                  </p>
+                  <span className="text-[10px] font-mono font-medium text-emerald-400 bg-emerald-950/50 border border-emerald-800/60 px-2 py-0.5 rounded-md">
+                    Direct billing
+                  </span>
                 </div>
+                <p className="text-xs text-zinc-400 mt-1.5">{plan.description}</p>
+              </div>
 
-                <ul className="space-y-2.5 pt-2">
+              <div className="border-t border-zinc-800 pt-3">
+                <p className="text-[11px] font-mono text-zinc-400 uppercase tracking-wider mb-2.5">
+                  Included features
+                </p>
+                <ul className="space-y-2">
                   {plan.features.map((feat) => (
-                    <li key={feat} className="flex items-start gap-2 text-xs font-semibold text-slate-200">
-                      <Check className="h-4 w-4 text-cyan-400 shrink-0 mt-0.5" />
+                    <li key={feat} className="flex items-start gap-2 text-xs text-zinc-300">
+                      <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0 mt-0.5" />
                       <span>{feat}</span>
                     </li>
                   ))}
@@ -200,30 +187,21 @@ export default function SubscriptionPaywallModal({
                 type="button"
                 onClick={() => handleCheckout(plan)}
                 disabled={loadingPlan !== null}
-                className={`w-full inline-flex h-12 items-center justify-center gap-2 rounded-2xl text-xs font-black transition cursor-pointer active:scale-95 shadow-lg ${
-                  plan.popular
-                    ? "bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 text-white hover:opacity-90 shadow-cyan-500/25"
-                    : plan.id === "enterprise"
-                    ? "bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 text-white hover:opacity-90 shadow-violet-600/25"
-                    : "bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700"
-                }`}
+                className="w-full inline-flex h-10 items-center justify-center gap-2 rounded-md bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition cursor-pointer"
               >
                 {loadingPlan === plan.id ? (
                   <Loader2 className="h-4 w-4 animate-spin text-white" />
                 ) : (
-                  <>
-                    <span>{isAndroid ? "Subscribe with Google Play ($10 AUD/mo)" : plan.ctaText}</span>
-                    <ArrowRight className="h-4 w-4" />
-                  </>
+                  <span>{isAndroid ? `Subscribe with Google Play (${plan.price}/mo)` : plan.ctaText}</span>
                 )}
               </button>
 
-              <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-400 font-medium pt-1">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+              <div className="flex items-center justify-center gap-1.5 text-[11px] text-zinc-400 pt-0.5">
+                <ShieldCheck className="w-3.5 h-3.5 text-zinc-400" />
                 <span>
                   {isAndroid
-                    ? "Secured by Google Play Billing · Cancel anytime in Play Store"
-                    : "Google Pay & Cards Accepted · Cancel anytime with 1 click"}
+                    ? "Billed via Google Play · Cancel anytime in Play Store"
+                    : "Cancel anytime with 1 click"}
                 </span>
               </div>
             </div>

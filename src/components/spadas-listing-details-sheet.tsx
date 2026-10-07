@@ -314,42 +314,42 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
                   <span className="text-3xl font-black text-white">{sym}{data.priceMedian.toFixed(2)}</span>
                   <span className="text-xs text-slate-400 font-bold">{activeCurrency}</span>
                 </div>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1.5">
                   {data.copVerdict && (
-                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
+                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-mono font-medium border ${
                       data.copVerdict === "MUST_COP"
-                        ? "bg-emerald-500 text-slate-950 font-black shadow-md shadow-emerald-500/30"
+                        ? "bg-emerald-950/60 text-emerald-400 border-emerald-800/60"
                         : data.copVerdict === "QUICK_FLIP"
-                        ? "bg-cyan-500 text-slate-950 font-black"
+                        ? "bg-emerald-950/40 text-emerald-300 border-emerald-850"
                         : data.copVerdict === "VERIFY_FIRST"
-                        ? "bg-amber-500/20 text-amber-300 border border-amber-500/40"
-                        : "bg-slate-800 text-slate-300"
+                        ? "bg-zinc-850 text-zinc-300 border-zinc-700"
+                        : "bg-zinc-850 text-zinc-400 border-zinc-800"
                     }`}>
-                      {data.copVerdict === "MUST_COP" ? "MUST COP" : data.copVerdict === "QUICK_FLIP" ? "QUICK FLIP" : data.copVerdict === "VERIFY_FIRST" ? "VERIFY FIRST" : "FAIR MARGIN"}
+                      {data.copVerdict === "MUST_COP" ? "STRONG MARGIN" : data.copVerdict === "QUICK_FLIP" ? "FAST TURN" : data.copVerdict === "VERIFY_FIRST" ? "VERIFY COMP" : "STANDARD MARGIN"}
                     </span>
                   )}
-                  <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full text-[10px] font-black">
-                    +{sym}{currentNetProfit.toFixed(2)} {activeCurrency} Profit
+                  <span className="bg-emerald-950/60 text-emerald-400 border border-emerald-800/60 px-2 py-0.5 rounded-md text-[10px] font-mono tabular-nums font-semibold">
+                    +{sym}{currentNetProfit.toFixed(2)} {activeCurrency} Net
                   </span>
                 </div>
               </div>
 
               <div className="text-right">
-                <span className="text-[11px] text-slate-400 block font-semibold">
+                <span className="text-[11px] text-zinc-400 block font-mono">
                   Range: {sym}{data.priceMin.toFixed(0)} - {sym}{data.priceMax.toFixed(0)} {activeCurrency}
                 </span>
               </div>
 
               {/* Transparent Profit Math */}
-              <div className="flex items-center gap-2 pt-1 border-t border-slate-800/80 text-xs font-bold text-slate-300 flex-wrap">
-                <span className="bg-cyan-500/10 text-cyan-300 px-2 py-0.5 rounded border border-cyan-500/20">
-                  Sell: {sym}{data.priceMedian.toFixed(2)}
+              <div className="flex items-center gap-2 pt-1 border-t border-zinc-800 text-xs font-mono text-zinc-300 flex-wrap">
+                <span className="bg-zinc-850 text-zinc-300 px-2 py-0.5 rounded-md border border-zinc-700">
+                  Target: {sym}{data.priceMedian.toFixed(2)}
                 </span>
-                <span className="bg-amber-500/10 text-amber-300 px-2 py-0.5 rounded border border-amber-500/30">
-                  {data.buyCost ? "Tag Buy: " : "Est Buy: "}{sym}{currentBuyCost.toFixed(2)}
+                <span className="bg-zinc-850 text-zinc-300 px-2 py-0.5 rounded-md border border-zinc-700">
+                  {data.buyCost ? "Cost: " : "Est Cost: "}{sym}{currentBuyCost.toFixed(2)}
                 </span>
-                <span className="bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded border border-emerald-500/30">
-                  Net Profit: +{sym}{currentNetProfit.toFixed(2)} ({currentRoi}% ROI)
+                <span className="bg-emerald-950/50 text-emerald-400 px-2 py-0.5 rounded-md border border-emerald-800/50">
+                  Net: +{sym}{currentNetProfit.toFixed(2)} ({currentRoi}% ROI)
                 </span>
               </div>
 

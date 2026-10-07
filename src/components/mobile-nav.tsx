@@ -86,13 +86,13 @@ export default function MobileNav() {
   return (
     <nav
       aria-label="Main navigation"
-      className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/[0.08] glass-nav md:hidden px-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-1.5 select-none"
+      className="fixed bottom-0 left-0 right-0 z-50 border-t border-zinc-800 bg-zinc-950 md:hidden px-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-1.5 select-none"
     >
       <div className="flex items-center justify-around max-w-md mx-auto relative">
-        {/* Sliding active indicator (150ms smooth transition) */}
+        {/* Sliding active indicator */}
         {activeIndex >= 0 && (
           <div
-            className="absolute bottom-[max(0.25rem,env(safe-area-inset-bottom))] h-0.5 w-5 rounded-full bg-white/90 transition-all duration-150 ease-out pointer-events-none"
+            className="absolute bottom-[max(0.25rem,env(safe-area-inset-bottom))] h-0.5 w-5 rounded-full bg-zinc-400 transition-all duration-150 ease-out pointer-events-none"
             style={{
               left: `calc(${(activeIndex + 0.5) * 20}% - 10px)`,
               opacity: activeIndex === 2 ? 0 : 1,
@@ -110,18 +110,17 @@ export default function MobileNav() {
                 href={href}
                 prefetch={true}
                 onClick={handleNavClick}
-                className="relative -top-3.5 flex flex-1 flex-col items-center justify-center cursor-pointer group active:scale-95 transition-transform duration-75 min-h-[48px]"
+                className="relative -top-2 flex flex-1 flex-col items-center justify-center cursor-pointer group active:scale-95 transition-transform duration-75 min-h-[48px]"
                 aria-label="Open Spadas Lens camera"
               >
                 <div
-                  className={`flex h-14 w-14 items-center justify-center rounded-full transition-all duration-200 relative ${
+                  className={`flex h-11 w-11 items-center justify-center rounded-full transition duration-150 border ${
                     active
-                      ? "bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 text-slate-950 shadow-[0_0_30px_rgba(16,185,129,0.55),0_0_50px_rgba(6,182,212,0.35)] ring-4 ring-emerald-400/40 scale-110"
-                      : "bg-gradient-to-r from-emerald-500/80 via-teal-500/80 to-cyan-500/80 text-white shadow-[0_4px_20px_rgba(16,185,129,0.35)] border-2 border-white/30 group-hover:scale-105 group-hover:shadow-[0_0_25px_rgba(16,185,129,0.5)]"
+                      ? "bg-emerald-600 text-white border-emerald-500 ring-2 ring-emerald-500/30"
+                      : "bg-zinc-800 text-zinc-200 border-zinc-700 hover:bg-zinc-750"
                   }`}
                 >
-                  <Camera className={`h-6 w-6 transition-transform group-hover:scale-110 ${active ? "text-slate-950" : "text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]"}`} />
-                  <div className="absolute inset-0 rounded-full bg-gradient-to-b from-white/25 to-transparent pointer-events-none" />
+                  <Camera className="h-5 w-5" />
                 </div>
               </Link>
             );

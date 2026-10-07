@@ -88,27 +88,27 @@ function StatCard({
   loading: boolean;
 }) {
   return (
-    <div className="p-3 sm:p-4 glass-card relative overflow-hidden rounded-xl transition-all shadow-sm">
+    <div className="p-3 sm:p-4 rounded-lg bg-zinc-900 border border-zinc-800">
       <div className="flex items-center justify-between gap-2">
-        <p className="hud-label truncate">{label}</p>
+        <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider truncate">{label}</p>
         {Icon && (
-          <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-white/[0.04] border border-white/[0.08] text-zinc-400 shrink-0">
-            <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+          <div className="flex h-5 w-5 items-center justify-center rounded bg-zinc-800 text-zinc-400 shrink-0">
+            <Icon className="h-3 w-3" aria-hidden="true" />
           </div>
         )}
       </div>
       {loading ? (
-        <div className="mt-3 h-7 w-20 animate-pulse rounded bg-white/[0.05]" />
+        <div className="mt-2 h-7 w-20 rounded bg-zinc-800 animate-pulse" />
       ) : (
-        <div className="mt-2 flex items-baseline justify-between gap-1">
-          <h2 className={`text-xl sm:text-2xl font-mono font-bold tabular-nums tracking-tight truncate ${valueClassName}`}>
+        <div className="mt-1 flex items-baseline justify-between gap-1">
+          <h2 className={`text-xl sm:text-2xl font-bold tabular-nums tracking-tight truncate ${valueClassName}`}>
             {value}
           </h2>
           <span
-            className={`font-mono text-[10px] font-semibold px-1.5 py-0.5 rounded border tabular-nums shrink-0 ${
+            className={`text-[10px] font-medium px-1.5 py-0.5 rounded border tabular-nums shrink-0 ${
               trendPositive
-                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                : "bg-rose-500/10 text-rose-400 border-rose-500/20"
+                ? "bg-zinc-800 text-emerald-400 border-zinc-700"
+                : "bg-zinc-800 text-red-400 border-zinc-700"
             }`}
           >
             {trend}
@@ -394,24 +394,24 @@ export default function DashboardPage() {
     <PullToRefresh onRefresh={handleRefresh}>
       <div className="space-y-3 sm:space-y-4 max-w-7xl mx-auto pb-32 sm:pb-36 pb-[calc(env(safe-area-inset-bottom,0px)+8rem)] text-zinc-100">
         {/* Portfolio & Sourcing Header */}
-        <div className="p-4 sm:p-5 glass-card relative rounded-xl shadow-sm">
+        <div className="p-4 sm:p-5 bg-zinc-900 border border-zinc-800 rounded-lg">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <div className="inline-flex items-center gap-2 rounded-md bg-white/[0.04] border border-white/[0.08] px-2.5 py-1 text-[11px] font-medium text-zinc-400">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                <div className="inline-flex items-center gap-1.5 rounded-md bg-zinc-800 border border-zinc-700 px-2 py-0.5 text-[11px] font-medium text-zinc-300">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                   <span>Sourcing Hub</span>
                 </div>
 
                 {isEbayConnected ? (
-                  <span className="inline-flex items-center gap-1.5 rounded-md bg-emerald-500/10 border border-emerald-500/25 px-2 py-0.5 text-[10px] font-medium text-emerald-400">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                  <span className="inline-flex items-center gap-1.5 rounded-md bg-emerald-950/50 border border-emerald-800/60 px-2 py-0.5 text-[10px] font-medium text-emerald-400">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                     <span>eBay AU Linked</span>
                   </span>
                 ) : (
                   <Link
                     href="/api/auth/ebay/connect?prompt=login"
-                    className="inline-flex items-center gap-1.5 rounded-md bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.1] px-2 py-0.5 text-[10px] font-medium text-zinc-400 transition"
+                    className="inline-flex items-center gap-1.5 rounded-md bg-zinc-800 hover:bg-zinc-750 border border-zinc-700 px-2 py-0.5 text-[10px] font-medium text-zinc-400 hover:text-zinc-200 transition"
                   >
                     <ShoppingCart className="h-2.5 w-2.5" />
                     <span>Connect eBay</span>
@@ -419,16 +419,16 @@ export default function DashboardPage() {
                 )}
 
                 {proLoading ? (
-                  <span className="h-5 w-16 rounded bg-white/[0.05] animate-pulse" />
+                  <span className="h-5 w-16 rounded bg-zinc-800 animate-pulse" />
                 ) : isPro ? (
-                  <span className="inline-flex items-center gap-1 rounded-md bg-cyan-500/10 border border-cyan-500/25 px-2 py-0.5 text-[10px] font-medium text-cyan-400">
+                  <span className="inline-flex items-center gap-1 rounded-md bg-zinc-800 border border-zinc-700 px-2 py-0.5 text-[10px] font-medium text-zinc-300">
                     Enterprise Tier
                   </span>
                 ) : (
                   <button
                     type="button"
                     onClick={() => setIsPaywallOpen(true)}
-                    className="inline-flex items-center gap-1 rounded-md bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.12] px-2 py-0.5 text-[10px] font-medium text-zinc-300 transition cursor-pointer"
+                    className="inline-flex items-center gap-1 rounded-md bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 px-2 py-0.5 text-[10px] font-medium text-zinc-300 transition cursor-pointer"
                   >
                     Upgrade Plan
                   </button>
@@ -439,35 +439,35 @@ export default function DashboardPage() {
                 <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
                   Portfolio &amp; Sourcing
                 </h1>
-                <span className="text-xs font-medium text-zinc-500">
+                <span className="text-xs font-mono font-medium text-zinc-500">
                   {allListings.length} positions
                 </span>
               </div>
-              <p className="text-xs text-zinc-500 mt-1 max-w-xl">
-                Real-time yield analytics, liquidity velocity, and direct marketplace dispatch.
+              <p className="text-xs text-zinc-400 mt-1 max-w-xl">
+                Net profit ledger, inventory turnover velocity, and direct marketplace dispatch.
               </p>
             </div>
 
             <div className="flex items-center gap-2 shrink-0 flex-wrap">
               <Link
                 href="/lens"
-                className="h-9 px-3.5 text-xs font-bold gap-1.5 rounded-xl bg-gradient-to-r from-cyan-400 to-emerald-400 text-zinc-950 hover:from-cyan-300 hover:to-emerald-300 transition-all flex items-center shadow-md shadow-cyan-950/40 active:scale-95 cursor-pointer"
+                className="h-8 px-3 text-xs font-semibold gap-1.5 rounded-md bg-zinc-100 hover:bg-white text-zinc-950 transition flex items-center cursor-pointer"
               >
                 <Camera className="h-3.5 w-3.5" />
-                <span>Lens AR</span>
+                <span>Lens Scanner</span>
               </Link>
 
               <Link
                 href="/studio"
-                className="h-9 px-3 text-xs font-bold gap-1.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 transition-all flex items-center active:scale-95 cursor-pointer"
+                className="h-8 px-3 text-xs font-medium gap-1.5 rounded-md bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-200 transition flex items-center cursor-pointer"
               >
-                <Camera className="h-3.5 w-3.5 text-cyan-400" />
+                <Camera className="h-3.5 w-3.5 text-zinc-400" />
                 <span>Multi-Angle Studio</span>
               </Link>
 
               <NewListingDialog
                 trigger={
-                  <button className="h-9 px-3 text-xs font-medium rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.1] text-zinc-300 transition cursor-pointer flex items-center gap-1.5">
+                  <button className="h-8 px-3 text-xs font-medium rounded-md bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-200 transition cursor-pointer flex items-center gap-1.5">
                     <span>+ Intake</span>
                   </button>
                 }
@@ -497,24 +497,24 @@ export default function DashboardPage() {
         )}
 
         {/* ── Hero Number: Total Net Profit */}
-        <div className="p-3.5 sm:p-5 glass-card backdrop-blur-sm rounded-xl shadow-sm">
-          <p className="text-xs font-medium text-zinc-500 mb-1">
-            Total Net Profit
+        <div className="p-4 sm:p-5 bg-zinc-900 border border-zinc-800 rounded-lg">
+          <p className="text-xs font-mono uppercase tracking-wider text-zinc-500 mb-1">
+            Total Net Profit (Realized)
           </p>
           {loading ? (
-            <div className="h-12 w-40 rounded-lg bg-white/[0.05] animate-pulse" />
+            <div className="h-12 w-40 rounded bg-zinc-800 animate-pulse" />
           ) : (
-            <p className={`text-4xl sm:text-5xl font-bold tabular-nums tracking-tight ${stats.profit >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+            <p className={`text-4xl sm:text-5xl font-bold tabular-nums tracking-tight ${stats.profit >= 0 ? "text-emerald-500" : "text-red-400"}`}>
               {stats.profit >= 0 ? "+" : ""}{fmtMoney(stats.profit)}
             </p>
           )}
-          <div className="flex items-center gap-4 mt-2 text-xs font-medium text-zinc-500 tabular-nums">
+          <div className="flex items-center gap-4 mt-2 text-xs font-mono text-zinc-400 tabular-nums">
             <span>{stats.sold} sold</span>
-            <span className="text-zinc-700">&middot;</span>
+            <span className="text-zinc-600">&middot;</span>
             <span>{stats.listings - stats.sold} in inventory</span>
             {stats.revenue > 0 && (
               <>
-                <span className="text-zinc-700">&middot;</span>
+                <span className="text-zinc-600">&middot;</span>
                 <span>{fmtMoney(stats.revenue)} revenue</span>
               </>
             )}
@@ -579,81 +579,81 @@ export default function DashboardPage() {
           })()}
         </div>
 
-        {/* Core Operational Modules — 3-Col Luxury Grid */}
+        {/* Core Operational Modules — 3-Col Clean Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
           <Link
             href="/lens"
-            className="p-3 sm:p-4 glass-card card-specular rounded-xl transition-all flex items-center justify-between group cursor-pointer active:scale-[0.98]"
+            className="p-3.5 sm:p-4 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-lg transition flex items-center justify-between group cursor-pointer"
           >
             <div className="flex items-center gap-3 min-w-0">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 shrink-0 group-hover:scale-105 transition">
-                <Camera className="h-4.5 w-4.5" />
+              <div className="flex h-8 w-8 items-center justify-center rounded-md bg-zinc-800 border border-zinc-700 text-zinc-300 shrink-0">
+                <Camera className="h-4 w-4" />
               </div>
               <div className="min-w-0">
-                <p className="text-xs font-bold text-white group-hover:text-cyan-300 transition truncate">Lens Camera</p>
+                <p className="text-xs font-semibold text-zinc-100 group-hover:text-white transition truncate">Lens Scanner</p>
                 <p className="text-[11px] text-zinc-400 truncate mt-0.5">Live optical comps &amp; margin audit</p>
               </div>
             </div>
-            <ArrowRight className="h-3.5 w-3.5 text-zinc-500 group-hover:text-cyan-400 group-hover:translate-x-0.5 transition shrink-0" />
+            <ArrowRight className="h-3.5 w-3.5 text-zinc-500 group-hover:text-zinc-300 group-hover:translate-x-0.5 transition shrink-0" />
           </Link>
 
           <Link
             href="/haul"
-            className="p-3 sm:p-4 glass-card card-specular rounded-xl transition-all flex items-center justify-between group cursor-pointer active:scale-[0.98]"
+            className="p-3.5 sm:p-4 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-lg transition flex items-center justify-between group cursor-pointer"
           >
             <div className="flex items-center gap-3 min-w-0">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 shrink-0 group-hover:scale-105 transition">
-                <ShoppingBag className="h-4.5 w-4.5" />
+              <div className="flex h-8 w-8 items-center justify-center rounded-md bg-zinc-800 border border-zinc-700 text-zinc-300 shrink-0">
+                <ShoppingBag className="h-4 w-4" />
               </div>
               <div className="min-w-0">
-                <p className="text-xs font-bold text-white group-hover:text-emerald-300 transition truncate">Haul Manager</p>
+                <p className="text-xs font-semibold text-zinc-100 group-hover:text-white transition truncate">Haul Manager</p>
                 <p className="text-[11px] text-zinc-400 truncate mt-0.5">Batch valuation &amp; CSV export</p>
               </div>
             </div>
-            <ArrowRight className="h-3.5 w-3.5 text-zinc-500 group-hover:text-emerald-400 group-hover:translate-x-0.5 transition shrink-0" />
+            <ArrowRight className="h-3.5 w-3.5 text-zinc-500 group-hover:text-zinc-300 group-hover:translate-x-0.5 transition shrink-0" />
           </Link>
 
           <Link
             href="/history"
-            className="p-3 sm:p-4 glass-card card-specular rounded-xl transition-all flex items-center justify-between group cursor-pointer active:scale-[0.98]"
+            className="p-3.5 sm:p-4 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-lg transition flex items-center justify-between group cursor-pointer"
           >
             <div className="flex items-center gap-3 min-w-0">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 shrink-0 group-hover:scale-105 transition">
-                <ListPlus className="h-4.5 w-4.5" />
+              <div className="flex h-8 w-8 items-center justify-center rounded-md bg-zinc-800 border border-zinc-700 text-zinc-300 shrink-0">
+                <ListPlus className="h-4 w-4" />
               </div>
               <div className="min-w-0">
-                <p className="text-xs font-bold text-white group-hover:text-purple-300 transition truncate">Scan Ledger</p>
+                <p className="text-xs font-semibold text-zinc-100 group-hover:text-white transition truncate">Scan Ledger</p>
                 <p className="text-[11px] text-zinc-400 truncate mt-0.5">Historical scans &amp; comps log</p>
               </div>
             </div>
-            <ArrowRight className="h-3.5 w-3.5 text-zinc-500 group-hover:text-purple-400 group-hover:translate-x-0.5 transition shrink-0" />
+            <ArrowRight className="h-3.5 w-3.5 text-zinc-500 group-hover:text-zinc-300 group-hover:translate-x-0.5 transition shrink-0" />
           </Link>
         </div>
 
         {/* Inventory Grid Section */}
-        <div className="p-3.5 sm:p-5 glass-card rounded-xl space-y-4 shadow-sm">
+        <div className="p-4 sm:p-5 bg-zinc-900 border border-zinc-800 rounded-lg space-y-4">
           {/* Header & Controls */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-4 border-b border-white/[0.08]">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-4 border-b border-zinc-800">
             <div>
               <div className="flex items-center gap-2 text-xs font-medium text-zinc-300">
-                <span className="h-2 w-2 rounded-sm bg-cyan-400" />
+                <span className="h-1.5 w-1.5 rounded-full bg-zinc-400" />
                 <span>Inventory</span>
                 <span className="text-zinc-600">&middot;</span>
-                <span className="text-zinc-500 font-medium">{allListings.length} units</span>
+                <span className="text-zinc-400 font-mono">{allListings.length} units</span>
               </div>
-              <p className="text-xs text-zinc-500 mt-1">
-                Liquidity turnover velocity, real-time margin realization, and marketplace dispatch.
+              <p className="text-xs text-zinc-400 mt-1">
+                Turnover velocity, margin realization, and marketplace dispatch.
               </p>
             </div>
 
             {/* Segmented Filter Buttons */}
-            <div className="flex items-center gap-1 p-1 rounded-lg bg-black/40 border border-white/[0.08] overflow-x-auto select-none no-scrollbar">
+            <div className="flex items-center gap-1 p-1 rounded-md bg-zinc-950 border border-zinc-800 overflow-x-auto select-none no-scrollbar">
               <button
                 type="button"
                 onClick={() => setGridFilter("ALL")}
-                className={`px-3 py-1 rounded-md font-mono text-xs transition-transform duration-75 flex items-center gap-1.5 cursor-pointer shrink-0 active:scale-95 ${
+                className={`px-2.5 py-1 rounded text-xs transition flex items-center gap-1.5 cursor-pointer shrink-0 ${
                   gridFilter === "ALL"
-                    ? "bg-white/[0.1] text-white font-bold border border-white/[0.12] shadow-sm"
+                    ? "bg-zinc-800 text-white font-semibold border border-zinc-700"
                     : "text-zinc-400 hover:text-zinc-200 border border-transparent font-medium"
                 }`}
               >
@@ -663,9 +663,9 @@ export default function DashboardPage() {
               <button
                 type="button"
                 onClick={() => setGridFilter("FAST_FLIPS")}
-                className={`px-3 py-1 rounded-md font-mono text-xs transition-transform duration-75 flex items-center gap-1.5 cursor-pointer shrink-0 active:scale-95 ${
+                className={`px-2.5 py-1 rounded text-xs transition flex items-center gap-1.5 cursor-pointer shrink-0 ${
                   gridFilter === "FAST_FLIPS"
-                    ? "bg-emerald-500/15 text-emerald-300 font-bold border border-emerald-500/30 shadow-sm"
+                    ? "bg-emerald-950/60 text-emerald-300 font-semibold border border-emerald-800/60"
                     : "text-zinc-400 hover:text-emerald-300 border border-transparent font-medium"
                 }`}
               >
@@ -676,27 +676,27 @@ export default function DashboardPage() {
               <button
                 type="button"
                 onClick={() => setGridFilter("TRAPS")}
-                className={`px-3 py-1 rounded-md font-mono text-xs transition-transform duration-75 flex items-center gap-1.5 cursor-pointer shrink-0 active:scale-95 ${
+                className={`px-2.5 py-1 rounded text-xs transition flex items-center gap-1.5 cursor-pointer shrink-0 ${
                   gridFilter === "TRAPS"
-                    ? "bg-rose-500/15 text-rose-300 font-bold border border-rose-500/30 shadow-sm"
-                    : "text-zinc-400 hover:text-rose-300 border border-transparent font-medium"
+                    ? "bg-red-950/60 text-red-300 font-semibold border border-red-800/60"
+                    : "text-zinc-400 hover:text-red-300 border border-transparent font-medium"
                 }`}
               >
-                <ShieldAlert className="h-3 w-3 text-rose-400" />
+                <ShieldAlert className="h-3 w-3 text-red-400" />
                 <span>Low Turnover [{trapsCount}]</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setGridFilter("SOLD")}
-                className={`px-3 py-1 rounded-md font-mono text-xs transition-transform duration-75 flex items-center gap-1.5 cursor-pointer shrink-0 active:scale-95 ${
+                className={`px-2.5 py-1 rounded text-xs transition flex items-center gap-1.5 cursor-pointer shrink-0 ${
                   gridFilter === "SOLD"
-                    ? "bg-white/[0.1] text-zinc-100 font-bold border border-white/[0.12] shadow-sm"
+                    ? "bg-zinc-800 text-zinc-100 font-semibold border border-zinc-700"
                     : "text-zinc-400 hover:text-zinc-200 border border-transparent font-medium"
                 }`}
               >
                 <CheckCircle2 className="h-3 w-3 text-emerald-400" />
-                <span>Realized [{soldCount}]</span>
+                <span>Sold [{soldCount}]</span>
               </button>
             </div>
           </div>
@@ -709,8 +709,8 @@ export default function DashboardPage() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Filter by part, tag, title..."
-                className="w-full h-8 pl-8 pr-3 rounded bg-[#090A0F] border border-zinc-800 text-xs font-mono text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-white/30"
+                placeholder="Filter by title, tag, brand..."
+                className="w-full h-8 pl-8 pr-3 rounded-md bg-zinc-950 border border-zinc-800 text-xs font-mono text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-zinc-700"
               />
               {searchQuery && (
                 <button
@@ -724,12 +724,12 @@ export default function DashboardPage() {
             </div>
 
             <div className="text-[11px] font-mono text-zinc-500 ml-auto">
-              SHOWING: <strong className="text-zinc-200">{displayedItems.length}</strong> / {allListings.length}
+              SHOWING: <strong className="text-zinc-300">{displayedItems.length}</strong> / {allListings.length}
             </div>
           </div>
 
-          {/* Mobile View: High-Density Card List (No heavy horizontal scrolling struggle on low-end phones) */}
-          <div className="block sm:hidden divide-y divide-zinc-800/70 border border-zinc-800 rounded-lg bg-[#090A0F] overflow-hidden">
+          {/* Mobile View: High-Density Card List */}
+          <div className="block sm:hidden divide-y divide-zinc-800/80 border border-zinc-800 rounded-lg bg-zinc-950 overflow-hidden">
             {loading &&
               Array.from({ length: 4 }).map((_, i) => (
                 <div key={i} className="p-3 animate-pulse flex items-center gap-3">
@@ -744,8 +744,8 @@ export default function DashboardPage() {
             {!loading && displayedItems.length === 0 && (
               <div className="p-6 text-center text-zinc-500 font-mono text-xs">
                 {allListings.length === 0
-                  ? "NO INVENTORY UNITS LOGGED. USE LENS AR TO INTAKE YOUR FIRST ASSET."
-                  : "NO ASSETS MATCH CURRENT PORTFOLIO FILTER."}
+                  ? "No inventory items logged. Use Lens Scanner to intake an item."
+                  : "No items match current filter."}
               </div>
             )}
 
@@ -756,7 +756,7 @@ export default function DashboardPage() {
                   item.velocity.sellThroughRate < 25 || item.velocity.isHoarderRisk;
 
                 return (
-                  <div key={item.id} className="p-2.5 hover:bg-[#12151E] transition-colors">
+                  <div key={item.id} className="p-2.5 hover:bg-zinc-900/50 transition-colors">
                     <div className="flex items-start gap-2.5">
                       {item.image_url ? (
                         <Image
@@ -764,17 +764,17 @@ export default function DashboardPage() {
                           alt={item.product}
                           width={40}
                           height={40}
-                          className="h-10 w-10 rounded object-cover border border-zinc-800 shrink-0 mt-0.5"
+                          className="h-10 w-10 rounded-md object-cover border border-zinc-800 shrink-0 mt-0.5"
                         />
                       ) : (
-                        <div className="flex h-10 w-10 items-center justify-center rounded bg-zinc-900 border border-zinc-800 text-zinc-500 shrink-0 mt-0.5">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-md bg-zinc-900 border border-zinc-800 text-zinc-500 shrink-0 mt-0.5">
                           <Package className="h-4 w-4" />
                         </div>
                       )}
 
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-1">
-                          <p className="truncate text-xs font-bold text-zinc-100 font-sans">
+                          <p className="truncate text-xs font-semibold text-zinc-100 font-sans">
                             {item.product}
                           </p>
                           <a
@@ -783,9 +783,9 @@ export default function DashboardPage() {
                             )}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[#12151E] hover:bg-[#181C28] text-zinc-300 border border-zinc-700 text-[10px] font-mono font-bold transition shrink-0"
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-zinc-850 hover:bg-zinc-800 text-zinc-300 border border-zinc-700 text-[10px] font-mono font-medium transition shrink-0"
                           >
-                            <span>DRAFT</span>
+                            <span>Draft</span>
                             <ExternalLink className="h-2.5 w-2.5" />
                           </a>
                         </div>
@@ -795,18 +795,16 @@ export default function DashboardPage() {
                           <div className="text-zinc-400">
                             <span className="text-zinc-500">Cost:</span> {fmtMoney(item.calculatedCost)}
                             <span className="text-zinc-600 mx-1">→</span>
-                            <span className="text-zinc-200 font-bold">{fmtMoney(item.calculatedPrice)}</span>
+                            <span className="text-zinc-200 font-semibold">{fmtMoney(item.calculatedPrice)}</span>
                           </div>
                           <div
-                            className={`font-black tabular-nums ${
-                              item.calculatedProfit > 0
-                                ? "text-[#22C55E]"
-                                : item.calculatedProfit < 0
-                                ? "text-[#DC2626]"
-                                : "text-zinc-400"
+                            className={`font-semibold tabular-nums ${
+                              item.calculatedProfit >= 0
+                                ? "text-emerald-500"
+                                : "text-red-400"
                             }`}
                           >
-                            {item.calculatedProfit > 0
+                            {item.calculatedProfit >= 0
                               ? `+${fmtMoney(item.calculatedProfit)}`
                               : fmtMoney(item.calculatedProfit)}
                           </div>
@@ -816,16 +814,14 @@ export default function DashboardPage() {
                         <div className="flex items-center justify-between mt-1.5 gap-1 font-mono text-[10px]">
                           <div className="flex items-center gap-1.5">
                             <span
-                              className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded font-black border tabular-nums ${
+                              className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md font-medium border tabular-nums ${
                                 isFastFlip
-                                  ? "bg-[#22C55E]/15 text-[#22C55E] border-[#22C55E]/30"
+                                  ? "bg-emerald-950/50 text-emerald-400 border-emerald-800/60"
                                   : isTrap
-                                  ? "bg-[#DC2626]/15 text-[#DC2626] border-[#DC2626]/30"
+                                  ? "bg-red-950/50 text-red-400 border-red-800/60"
                                   : "bg-zinc-900 text-zinc-400 border-zinc-800"
                               }`}
                             >
-                              {isFastFlip && "⚡"}
-                              {isTrap && "🛑"}
                               {item.velocity.velocityLabel}
                             </span>
 
@@ -836,26 +832,26 @@ export default function DashboardPage() {
 
                           <div className="flex items-center gap-1.5">
                             <span
-                              className={`px-1.5 py-0.5 rounded font-bold border ${
+                              className={`px-1.5 py-0.5 rounded-md font-medium border ${
                                 item.status === "Sold"
-                                  ? "bg-[#22C55E]/10 text-[#22C55E] border-[#22C55E]/20"
+                                  ? "bg-emerald-950/50 text-emerald-400 border-emerald-800/60"
                                   : item.status === "Active"
-                                  ? "bg-sky-500/10 text-sky-400 border-sky-500/20"
-                                  : "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                                  ? "bg-zinc-850 text-zinc-300 border-zinc-700"
+                                  : "bg-zinc-900 text-zinc-400 border-zinc-800"
                               }`}
                             >
                               {item.status}
                             </span>
 
-                            {/* Direct eBay Publish Action Button right alongside status badge */}
+                            {/* Direct eBay Publish Action Button */}
                             <button
                               type="button"
                               onClick={() => setEbayPublishItem(item)}
-                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-gradient-to-r from-[#F97316]/15 to-amber-500/15 hover:from-[#F97316]/30 hover:to-amber-500/30 text-[#F97316] hover:text-amber-200 border border-[#F97316]/40 text-[10px] font-mono font-bold transition shadow-xs cursor-pointer shrink-0"
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 text-[10px] font-mono font-medium transition cursor-pointer shrink-0"
                               title="Publish directly to eBay"
                             >
-                              <ShoppingBag className="w-2.5 h-2.5 text-[#F97316]" />
-                              <span>EBAY</span>
+                              <ShoppingBag className="w-2.5 h-2.5 text-zinc-400" />
+                              <span>eBay</span>
                             </button>
                           </div>
                         </div>
@@ -867,10 +863,10 @@ export default function DashboardPage() {
           </div>
 
           {/* Desktop/Tablet View: High-Density Monospace Data Grid Table */}
-          <div className="hidden sm:block overflow-x-auto rounded border border-zinc-800/90 bg-[#090A0F]">
+          <div className="hidden sm:block overflow-x-auto rounded-lg border border-zinc-800 bg-zinc-950">
             <table className="w-full text-left border-collapse text-xs">
               <thead>
-                <tr className="border-b border-zinc-800 bg-[#0D1017] font-mono text-[10px] text-zinc-400 uppercase tracking-wider">
+                <tr className="border-b border-zinc-800 bg-zinc-900/60 font-mono text-[10px] text-zinc-400 uppercase tracking-wider">
                   <th className="py-2 px-3">Asset / Item</th>
                   <th className="py-2 px-3 text-right">Cost</th>
                   <th className="py-2 px-3 text-right">Price</th>
@@ -905,8 +901,8 @@ export default function DashboardPage() {
                   <tr>
                     <td colSpan={8} className="py-8 text-center text-zinc-500 font-mono text-xs">
                       {allListings.length === 0
-                        ? "NO INVENTORY UNITS LOGGED. USE LENS AR TO INTAKE YOUR FIRST ASSET."
-                        : "NO ASSETS MATCH CURRENT PORTFOLIO FILTER."}
+                        ? "No inventory items logged. Use Lens Scanner to intake an item."
+                        : "No items match current filter."}
                     </td>
                   </tr>
                 )}
@@ -920,7 +916,7 @@ export default function DashboardPage() {
                     return (
                       <tr
                         key={item.id}
-                        className="hover:bg-[#12151E] transition-colors group"
+                        className="hover:bg-zinc-900/50 transition-colors group"
                       >
                         {/* Asset Item Column */}
                         <td className="py-2 px-3 font-sans font-medium text-zinc-100">
@@ -931,15 +927,15 @@ export default function DashboardPage() {
                                 alt={item.product}
                                 width={32}
                                 height={32}
-                                className="h-8 w-8 rounded object-cover border border-zinc-800 shrink-0"
+                                className="h-8 w-8 rounded-md object-cover border border-zinc-800 shrink-0"
                               />
                             ) : (
-                              <div className="flex h-8 w-8 items-center justify-center rounded bg-zinc-900 border border-zinc-800 text-zinc-500 shrink-0">
+                              <div className="flex h-8 w-8 items-center justify-center rounded-md bg-zinc-900 border border-zinc-800 text-zinc-500 shrink-0">
                                 <Package className="h-3.5 w-3.5" />
                               </div>
                             )}
                             <div className="min-w-0 flex-1">
-                              <p className="truncate max-w-[200px] sm:max-w-xs md:max-w-sm text-xs font-bold text-zinc-100">
+                              <p className="truncate max-w-[200px] sm:max-w-xs md:max-w-sm text-xs font-semibold text-zinc-100">
                                 {item.product}
                               </p>
                               <p className="font-mono text-[10px] text-zinc-500">
@@ -950,26 +946,24 @@ export default function DashboardPage() {
                         </td>
 
                         {/* Cost (Tabular Monospace) */}
-                        <td className="py-2 px-3 text-right tabular-nums text-zinc-400 font-semibold data-readout">
+                        <td className="py-2 px-3 text-right tabular-nums text-zinc-400 font-medium data-readout">
                           {fmtMoney(item.calculatedCost)}
                         </td>
 
                         {/* Target Price (Tabular Monospace) */}
-                        <td className="py-2 px-3 text-right tabular-nums text-zinc-200 font-bold data-readout">
+                        <td className="py-2 px-3 text-right tabular-nums text-zinc-200 font-semibold data-readout">
                           {fmtMoney(item.calculatedPrice)}
                         </td>
 
                         {/* Net Profit (Tabular Monospace) */}
                         <td
-                          className={`py-2 px-3 text-right tabular-nums font-black data-readout ${
-                            item.calculatedProfit > 0
-                              ? "text-[#22C55E]"
-                              : item.calculatedProfit < 0
-                              ? "text-[#DC2626]"
-                              : "text-zinc-400"
+                          className={`py-2 px-3 text-right tabular-nums font-semibold data-readout ${
+                            item.calculatedProfit >= 0
+                              ? "text-emerald-500"
+                              : "text-red-400"
                           }`}
                         >
-                          {item.calculatedProfit > 0
+                          {item.calculatedProfit >= 0
                             ? `+${fmtMoney(item.calculatedProfit)}`
                             : fmtMoney(item.calculatedProfit)}
                         </td>
@@ -977,22 +971,20 @@ export default function DashboardPage() {
                         {/* Sales Speed Velocity */}
                         <td className="py-2 px-3 text-center">
                           <span
-                            className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-black border tabular-nums data-readout ${
+                            className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium border tabular-nums data-readout ${
                               isFastFlip
-                                ? "bg-[#22C55E]/15 text-[#22C55E] border-[#22C55E]/30"
+                                ? "bg-emerald-950/50 text-emerald-400 border-emerald-800/60"
                                 : isTrap
-                                ? "bg-[#DC2626]/15 text-[#DC2626] border-[#DC2626]/30"
-                                : "bg-zinc-900/80 text-zinc-400 border-zinc-800"
+                                ? "bg-red-950/50 text-red-400 border-red-800/60"
+                                : "bg-zinc-900 text-zinc-400 border-zinc-800"
                             }`}
                           >
-                            {isFastFlip && "⚡ "}
-                            {isTrap && "🛑 "}
                             {item.velocity.velocityLabel}
                           </span>
                         </td>
 
                         {/* Days to Turn */}
-                        <td className="py-2 px-3 text-center text-[11px] tabular-nums font-semibold text-zinc-400 data-readout">
+                        <td className="py-2 px-3 text-center text-[11px] tabular-nums font-medium text-zinc-400 data-readout">
                           {item.velocity.estDaysToSell}
                         </td>
 
@@ -1000,12 +992,12 @@ export default function DashboardPage() {
                         <td className="py-2 px-3 text-center">
                           <div className="inline-flex items-center gap-1.5 justify-center">
                             <span
-                              className={`inline-flex px-1.5 py-0.5 rounded text-[10px] font-bold border ${
+                              className={`inline-flex px-1.5 py-0.5 rounded-md text-[10px] font-medium border ${
                                 item.status === "Sold"
-                                  ? "bg-[#22C55E]/10 text-[#22C55E] border-[#22C55E]/20"
+                                  ? "bg-emerald-950/50 text-emerald-400 border-emerald-800/60"
                                   : item.status === "Active"
-                                  ? "bg-sky-500/10 text-sky-400 border-sky-500/20"
-                                  : "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                                  ? "bg-zinc-850 text-zinc-300 border-zinc-700"
+                                  : "bg-zinc-900 text-zinc-400 border-zinc-800"
                               }`}
                             >
                               {item.status}
@@ -1015,11 +1007,11 @@ export default function DashboardPage() {
                             <button
                               type="button"
                               onClick={() => setEbayPublishItem(item)}
-                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-gradient-to-r from-[#F97316]/15 to-amber-500/15 hover:from-[#F97316]/30 hover:to-amber-500/30 text-[#F97316] hover:text-amber-200 border border-[#F97316]/40 text-[10px] font-mono font-bold transition shadow-xs cursor-pointer shrink-0"
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-zinc-850 hover:bg-zinc-800 text-zinc-200 border border-zinc-700 text-[10px] font-mono font-medium transition cursor-pointer shrink-0"
                               title="Publish directly to eBay"
                             >
-                              <ShoppingBag className="w-2.5 h-2.5 text-[#F97316]" />
-                              <span>EBAY</span>
+                              <ShoppingBag className="w-2.5 h-2.5 text-zinc-400" />
+                              <span>eBay</span>
                             </button>
                           </div>
                         </td>
@@ -1030,11 +1022,11 @@ export default function DashboardPage() {
                             <button
                               type="button"
                               onClick={() => setEbayPublishItem(item)}
-                              className="inline-flex items-center gap-1 px-2 py-1 rounded bg-[#12151E] hover:bg-[#181C28] text-zinc-300 border border-zinc-700 text-[10px] font-mono font-bold transition cursor-pointer"
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-zinc-850 hover:bg-zinc-800 text-zinc-300 border border-zinc-700 text-[10px] font-mono font-medium transition cursor-pointer"
                               title="Publish to eBay"
                             >
-                              <span>PUBLISH</span>
-                              <ExternalLink className="h-2.5 w-2.5 text-[#F97316]" />
+                              <span>Publish</span>
+                              <ExternalLink className="h-2.5 w-2.5 text-zinc-400" />
                             </button>
                           </div>
                         </td>
@@ -1045,16 +1037,16 @@ export default function DashboardPage() {
             </table>
           </div>
 
-          <div className="flex items-center justify-between text-[11px] font-mono text-zinc-500 pt-2 border-t border-zinc-800/80">
+          <div className="flex items-center justify-between text-[11px] font-mono text-zinc-500 pt-2 border-t border-zinc-800">
             <div>
               SHOWING <strong className="text-zinc-300">{displayedItems.length}</strong> ACTIVE ASSETS
             </div>
             <div className="flex items-center gap-4">
               <Link
                 href="/listings"
-                className="hover:text-zinc-200 transition flex items-center gap-1 text-[#F97316] font-bold"
+                className="hover:text-zinc-200 transition flex items-center gap-1 text-zinc-400 font-medium"
               >
-                <span>FULL INVENTORY MANAGER</span>
+                <span>Full Inventory Manager</span>
                 <ArrowRight className="h-3 w-3" />
               </Link>
             </div>

@@ -618,14 +618,14 @@ export function SpadasSnapStudio() {
         className="hidden"
       />
 
-      {/* Top Header Navigation with Safe-Area Inset */}
-      <header className="absolute top-0 inset-x-0 z-30 flex items-center justify-between px-4 pt-[max(0.75rem,calc(env(safe-area-inset-top,0px)+0.5rem))] pb-3 bg-gradient-to-b from-black/80 to-transparent backdrop-blur-[2px]">
+      {/* Top Header Navigation */}
+      <header className="absolute top-0 inset-x-0 z-30 flex items-center justify-between px-4 pt-[max(0.75rem,calc(env(safe-area-inset-top,0px)+0.5rem))] pb-3 bg-zinc-950/80 border-b border-zinc-900">
         <button
           type="button"
           onClick={() => window.history.back()}
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-950/60 border border-slate-800 text-white backdrop-blur-md cursor-pointer"
+          className="flex h-9 w-9 items-center justify-center rounded-md bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white cursor-pointer"
         >
-          <X className="h-5 w-5" />
+          <X className="h-4 w-4" />
         </button>
 
         <div className="flex items-center gap-2">
@@ -635,10 +635,12 @@ export function SpadasSnapStudio() {
               onOpenAuthModal={() => setIsGuestModalOpen(true)}
             />
           ) : (
-            <div className="flex items-center gap-2">
-              <div className="h-2 w-2 rounded-full bg-cyan-400 animate-ping" />
-              <span className="text-xs font-black tracking-wider uppercase text-cyan-300">
-                Multi-Angle Studio (1–5 Photos)
+            <div className="text-center">
+              <span className="text-xs font-semibold text-zinc-200 block">
+                Multi-angle studio
+              </span>
+              <span className="text-[10px] text-zinc-500 block">
+                {capturedPhotos.length} of 5 photos
               </span>
             </div>
           )}
@@ -647,14 +649,15 @@ export function SpadasSnapStudio() {
         <button
           type="button"
           onClick={toggleCameraFacing}
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-950/60 border border-slate-800 text-white backdrop-blur-md cursor-pointer"
+          className="flex h-9 w-9 items-center justify-center rounded-md bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white cursor-pointer"
+          title="Switch camera"
         >
-          <RefreshCw className="h-5 w-5" />
+          <RefreshCw className="h-4 w-4" />
         </button>
       </header>
 
       {/* Viewport Frame Container */}
-      <div className="relative flex-1 w-full flex items-center justify-center overflow-hidden">
+      <div className="relative flex-1 w-full flex items-center justify-center overflow-hidden bg-black">
         {stream ? (
           <video
             ref={setVideoRef}
@@ -665,15 +668,15 @@ export function SpadasSnapStudio() {
           />
         ) : (
           <div className="p-8 text-center space-y-3 max-w-xs">
-            <Camera className="h-12 w-12 text-cyan-400 mx-auto" />
-            <p className="text-xs text-slate-300">{cameraError || "Initializing camera stream..."}</p>
+            <Camera className="h-10 w-10 text-zinc-500 mx-auto" />
+            <p className="text-xs text-zinc-400">{cameraError || "Initializing camera stream..."}</p>
             <button
               type="button"
               onClick={() => void startCamera()}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-cyan-500 text-slate-950 font-bold text-xs hover:bg-cyan-400 transition cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-zinc-800 text-zinc-200 border border-zinc-700 font-medium text-xs hover:bg-zinc-700 transition cursor-pointer"
             >
               <RefreshCw className="h-3.5 w-3.5" />
-              <span>Retry Camera</span>
+              <span>Retry camera</span>
             </button>
           </div>
         )}
@@ -681,48 +684,33 @@ export function SpadasSnapStudio() {
         {/* Framing Corner Brackets */}
         <div className="absolute inset-0 z-10 pointer-events-none flex items-center justify-center p-8">
           <div className="relative w-full h-full max-w-[340px] max-h-[460px] pointer-events-none">
-            <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-white/80 rounded-tl-xl" />
-            <div className="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-white/80 rounded-tr-xl" />
-            <div className="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2 border-white/80 rounded-bl-xl" />
-            <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-white/80 rounded-br-xl" />
+            <div className="absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2 border-zinc-500 rounded-tl-md" />
+            <div className="absolute top-0 right-0 w-6 h-6 border-t-2 border-r-2 border-zinc-500 rounded-tr-md" />
+            <div className="absolute bottom-0 left-0 w-6 h-6 border-b-2 border-l-2 border-zinc-500 rounded-bl-md" />
+            <div className="absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 border-zinc-500 rounded-br-md" />
           </div>
         </div>
 
-        {/* Compact Dismissible Secondary Angle / Retake HUD Floating Badge */}
+        {/* Retake Prompt Badge */}
         {retakePrompt?.required && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 w-[calc(100%-2rem)] max-w-md animate-in fade-in slide-in-from-top-2 duration-200 pointer-events-auto">
-            <div className="flex items-center justify-between gap-2.5 px-3 py-1.5 rounded-full bg-slate-950/90 border border-amber-500/60 shadow-[0_4px_24px_rgba(0,0,0,0.6)] backdrop-blur-xl text-amber-200">
-              <button
-                type="button"
-                onClick={handleSnapPhoto}
-                className="flex items-center gap-2 min-w-0 flex-1 text-left cursor-pointer group"
-                title="Tap to snap recommended angle"
-              >
-                <div className="w-6 h-6 rounded-full bg-amber-500/20 border border-amber-500/40 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                  <Camera className="w-3 h-3 text-amber-400" />
-                </div>
-                <div className="flex items-center gap-1.5 min-w-0 truncate">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 shrink-0">
-                    Optional:
-                  </span>
-                  <span className="text-[11px] font-semibold text-amber-100 truncate">
-                    {retakePrompt.promptLabel || "Snap detail/tag angle"}
-                  </span>
-                </div>
-              </button>
+          <div className="absolute top-16 left-1/2 -translate-x-1/2 z-30 w-[calc(100%-2rem)] max-w-md pointer-events-auto">
+            <div className="flex items-center justify-between gap-2.5 px-3 py-2 rounded-md bg-zinc-900 border border-zinc-700 text-zinc-200 text-xs">
+              <span className="truncate text-zinc-300">
+                {retakePrompt.promptLabel || "Snap detail or tag angle"}
+              </span>
               <div className="flex items-center gap-1.5 shrink-0">
                 <button
                   type="button"
                   onClick={handleSnapPhoto}
-                  className="px-2.5 py-1 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-[10px] uppercase tracking-wider transition active:scale-95 cursor-pointer shadow-sm"
+                  className="px-2.5 py-1 rounded-md bg-zinc-800 hover:bg-zinc-700 text-zinc-100 font-semibold text-[11px] transition cursor-pointer border border-zinc-700"
                 >
                   Snap
                 </button>
                 <button
                   type="button"
                   onClick={() => setRetakePrompt(null)}
-                  className="p-1 rounded-full text-amber-400/70 hover:text-amber-200 hover:bg-amber-500/10 transition cursor-pointer"
-                  title="Dismiss (continue without secondary angle)"
+                  className="p-1 rounded-md text-zinc-400 hover:text-zinc-200 transition cursor-pointer"
+                  title="Dismiss"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -731,25 +719,20 @@ export function SpadasSnapStudio() {
           </div>
         )}
 
-        {/* Dynamic Instructional Tooltip Card */}
-        <div className="absolute bottom-6 inset-x-4 z-20 pointer-events-none text-center">
-          <div className="inline-block rounded-2xl bg-slate-950/85 border border-slate-800/80 px-4 py-2.5 shadow-2xl backdrop-blur-md max-w-sm">
-            <p className="text-xs font-black text-white">
+        {/* Instruction Badge */}
+        <div className="absolute bottom-4 inset-x-4 z-20 pointer-events-none text-center">
+          <div className="inline-block rounded-md bg-zinc-950/90 border border-zinc-800 px-3 py-1.5 max-w-sm">
+            <p className="text-xs font-medium text-zinc-300">
               {capturedPhotos.length === 0
-                ? "Capture item"
+                ? "Snap cover photo"
                 : capturedPhotos.length === 1
-                ? "Nice start! Snap tag or back angle"
-                : `${capturedPhotos.length} photos ready for valuation`}
-            </p>
-            <p className="text-[11px] text-slate-400 mt-0.5">
-              {capturedPhotos.length === 0
-                ? "You can add more photos anytime"
-                : "Tap shutter for more photos or tap Identify"}
+                ? "Cover captured · Snap tag, back, or flaws"
+                : `${capturedPhotos.length} photos ready`}
             </p>
           </div>
         </div>
 
-        {/* Non-Obstructing Progressive Loading Telemetry */}
+        {/* Progressive Loading Telemetry */}
         {isAnalyzing && (
           <div className="absolute top-16 left-1/2 -translate-x-1/2 z-35 pointer-events-auto transition-all duration-300 ease-out">
             <ScanProgressiveLoader
@@ -763,57 +746,57 @@ export function SpadasSnapStudio() {
       </div>
 
       {/* Bottom Controls Stage */}
-      <div className="w-full bg-slate-950 border-t border-slate-900 p-4 pb-[max(1.25rem,calc(env(safe-area-inset-bottom,0px)+1rem))] space-y-3 z-30">
-        {/* AI Studio Background Enhancer Banner */}
-        {capturedPhotos.length > 0 && (
-          <div className="flex items-center justify-between px-1">
-            <span className="text-[11px] font-extrabold text-slate-400">
-              {capturedPhotos.length} {capturedPhotos.length === 1 ? "Angle Attached" : "Angles Attached"} (eBay Top Placement)
-            </span>
-            <button
-              type="button"
-              onClick={() => {
-                toast.success("AI Studio Lighting active. Product contrast optimized for marketplace listings.");
-              }}
-              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-900 border border-cyan-500/40 text-cyan-300 text-[10px] font-black hover:bg-cyan-500 hover:text-slate-950 transition cursor-pointer shadow-sm"
-            >
-              <Sparkles className="h-3 w-3" />
-              <span>Studio Lighting</span>
-            </button>
-          </div>
-        )}
+      <div className="w-full bg-zinc-950 border-t border-zinc-800 p-3 pb-[max(1rem,calc(env(safe-area-inset-bottom,0px)+0.75rem))] space-y-2.5 z-30">
+        {/* Photo Tray Label */}
+        <div className="flex items-center justify-between px-1 text-xs text-zinc-400">
+          <span>
+            {capturedPhotos.length === 0 ? "No photos yet" : `${capturedPhotos.length} photo${capturedPhotos.length > 1 ? "s" : ""} in tray`}
+          </span>
+          {capturedPhotos.length > 0 && (
+            <span className="text-[11px] text-zinc-500">First photo is cover</span>
+          )}
+        </div>
 
-        {/* Photo Stack Tray */}
-        <div className="flex items-center gap-3 overflow-x-auto pb-1 no-scrollbar min-h-[64px]">
+        {/* Photo Stack Tray with Cover Badge */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 custom-scrollbar min-h-[68px]">
           {capturedPhotos.map((img, idx) => (
             <div
               key={idx}
-              className="relative h-16 w-16 shrink-0 rounded-2xl overflow-hidden border-2 border-cyan-400/80 bg-slate-900 shadow-lg animate-fade-in"
+              className="relative h-16 w-16 shrink-0 rounded-md overflow-hidden border border-zinc-800 bg-zinc-900"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={img} alt={`Thumbnail ${idx + 1}`} className="h-full w-full object-cover" />
+              <img src={img} alt={`Angle ${idx + 1}`} className="h-full w-full object-cover" />
+              <span className="absolute bottom-0 inset-x-0 bg-black/80 text-[8px] font-semibold text-center text-zinc-300 py-0.5">
+                {idx === 0 ? "Cover" : `Angle ${idx + 1}`}
+              </span>
               <button
                 type="button"
                 onClick={() => {
                   triggerTactileHaptic("light");
                   removePhoto(idx);
                 }}
-                className="absolute top-1 right-1 h-5 w-5 rounded-full bg-slate-950/90 text-white flex items-center justify-center text-[10px] font-black border border-slate-700 hover:bg-rose-600 transition cursor-pointer"
+                className="absolute top-1 right-1 h-4 w-4 rounded bg-black/80 text-zinc-400 hover:text-white flex items-center justify-center text-[9px] cursor-pointer"
+                title="Remove photo"
               >
-                ✕
+                <X className="w-3 h-3" />
               </button>
             </div>
           ))}
 
-          {capturedPhotos.length < 6 && (
-            <div className="h-16 w-16 shrink-0 rounded-2xl border-2 border-dashed border-slate-800 flex items-center justify-center text-slate-600">
-              <span className="text-xs font-black">+{6 - capturedPhotos.length}</span>
-            </div>
+          {capturedPhotos.length < 5 && (
+            <button
+              type="button"
+              onClick={handleSnapPhoto}
+              className="h-16 w-16 shrink-0 rounded-md border border-dashed border-zinc-800 flex flex-col items-center justify-center gap-0.5 text-zinc-500 hover:text-zinc-300 hover:border-zinc-700 transition cursor-pointer"
+            >
+              <Camera className="w-4 h-4" />
+              <span className="text-[10px] font-medium">+ Angle</span>
+            </button>
           )}
         </div>
 
         {/* Shutter & Actions Bar */}
-        <div className="flex items-center justify-between gap-4 px-2">
+        <div className="flex items-center justify-between gap-3 px-1 pt-1">
           {/* Upload Button */}
           <button
             type="button"
@@ -821,24 +804,25 @@ export function SpadasSnapStudio() {
               triggerTactileHaptic("tap");
               fileInputRef.current?.click();
             }}
-            className="flex flex-col items-center gap-1 text-slate-400 hover:text-white transition cursor-pointer active:scale-95"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-md bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white transition cursor-pointer text-xs font-medium"
           >
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-900 border border-slate-800">
-              <ImageIcon className="h-5 w-5" />
-            </div>
-            <span className="text-[10px] font-bold uppercase tracking-wider">Upload</span>
+            <ImageIcon className="h-4 w-4 text-zinc-400" />
+            <span>Upload</span>
           </button>
 
-          {/* Big Circular Shutter Button */}
+          {/* Shutter Button */}
           <button
             type="button"
             onClick={handleSnapPhoto}
-            className="relative flex h-20 w-20 items-center justify-center rounded-full bg-white text-slate-950 p-1 shadow-[0_0_30px_rgba(255,255,255,0.4)] hover:scale-105 active:scale-95 transition cursor-pointer"
+            className="flex h-16 w-16 items-center justify-center rounded-full border-2 border-zinc-300 bg-zinc-950 p-1 active:scale-95 transition cursor-pointer"
+            title="Snap photo"
           >
-            <div className="h-full w-full rounded-full border-4 border-slate-950 bg-white" />
+            <div className="h-full w-full rounded-full bg-white flex items-center justify-center">
+              <Camera className="h-5 w-5 text-zinc-950" />
+            </div>
           </button>
 
-          {/* Identify & Value Action Button */}
+          {/* Value / Process Action Button */}
           {capturedPhotos.length > 0 ? (
             <button
               type="button"
@@ -847,12 +831,16 @@ export function SpadasSnapStudio() {
                 triggerTactileHaptic("medium");
                 void handleAnalyzeItem();
               }}
-              className="flex flex-col items-center gap-1 text-cyan-400 hover:text-cyan-300 transition cursor-pointer active:scale-95"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-md bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition cursor-pointer disabled:opacity-50"
             >
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 text-slate-950 font-black shadow-[0_0_20px_rgba(34,211,238,0.5)] animate-pulse">
-                {isAnalyzing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
-              </div>
-              <span className="text-[10px] font-black uppercase tracking-wider text-cyan-300">Value</span>
+              {isAnalyzing ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Valuing...</span>
+                </>
+              ) : (
+                <span>View comps</span>
+              )}
             </button>
           ) : (
             <button
@@ -861,12 +849,10 @@ export function SpadasSnapStudio() {
                 triggerTactileHaptic("tap");
                 toggleCameraFacing();
               }}
-              className="flex flex-col items-center gap-1 text-slate-400 hover:text-white transition cursor-pointer active:scale-95"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-md bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white transition cursor-pointer text-xs font-medium"
             >
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-900 border border-slate-800">
-                <RefreshCw className="h-5 w-5" />
-              </div>
-              <span className="text-[10px] font-bold uppercase tracking-wider">Rotate</span>
+              <RefreshCw className="h-4 w-4 text-zinc-400" />
+              <span>Rotate</span>
             </button>
           )}
         </div>
