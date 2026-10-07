@@ -134,3 +134,72 @@ SCREENSHOT 5 — SOURCING VAULT & ACCOUNTING LEDGER
 - Support Email: support@spadas.tech
 - App Website: https://spadas-tech.vercel.app
 - Billing Model: Official Google Play In-App Billing (com.spadas.ai / spadas_pro_monthly)
+
+===============================================================================
+6. WHAT REAL USERS ACTUALLY TYPE INTO GOOGLE PLAY (Real-World Search Intent)
+===============================================================================
+
+TIER 1: HIGH-INTENT CORE SEARCH QUERIES (What Resellers Type When Sourcing)
+These represent users with an immediate problem: standing in a store needing to know an item's value.
+1. "reseller scanner"               -> Primary intent for sourcing tools
+2. "thrift scanner"                 -> Specifically for op-shop / thrift store flippers
+3. "ebay sold comps"                -> Looking for actual sold price history, not active asks
+4. "ebay scanner"                   -> High volume, looking to scan items for eBay listings
+5. "resell price check"             -> Quick valuation in aisles
+6. "thrift flip"                    -> Broad community term for buying low / selling high
+7. "how much is this worth app"     -> Casual thrifters & garage sale shoppers
+8. "ebay profit calculator"         -> Looking to calculate fees, shipping, and net margin
+9. "reseller inventory tracker"     -> Looking to manage stock, COGS, and sales ledger
+10. "vintage clothing scanner"      -> Niche vintage hunters scanning tags & RN numbers
+
+TIER 2: LONG-TAIL & LOW-COMPETITION SEARCH QUERIES (Easiest to Rank For First)
+These have lower search volume but 10x higher conversion rate because competition is lower.
+11. "barcode scanner for ebay"
+12. "check sold prices on ebay"
+13. "op shop scanner" (Huge in Australia / New Zealand)
+14. "garage sale scanner app"
+15. "estate sale price checker"
+16. "retail arbitrage scanner"
+17. "clothing tag identifier"
+18. "scoutify alternative"
+19. "depop price checker"
+20. "mercari comps app"
+
+TAGS TO SELECT IN GOOGLE PLAY CONSOLE (Store Settings > Tags):
+- Shopping
+- E-commerce
+- Productivity
+- Business
+- Tools
+
+===============================================================================
+7. DAY 3 TO DAY 30 GROWTH PLAYBOOK (How To Trigger The Google Play Algorithm)
+===============================================================================
+
+WHY NEW APPS HAVE ZERO VIEWERS IN THE FIRST 3-7 DAYS:
+1. Cold-Start Sandbox: Google Play does not index unrated apps for broad search terms immediately.
+   It requires an initial baseline of 15-30 installs and 5-10 keyword-rich reviews to establish trust.
+2. Title Keyword Leak: If the app title in Google Play Console is currently just "Spadas AI" or "Spadas Lens",
+   organic search visibility is near zero because nobody knows the brand name yet.
+   -> FIX: Change Title to: "Reseller Scanner: Thrift Comps" (Exactly 30 chars).
+3. "Similar Apps" Carousel: 60% of downloads in this niche come from being suggested underneath
+   competitors (Keepa, Scoutify, eBay). This only triggers once the store tags and category match.
+
+THE ZERO-DOLLAR ORGANIC SEEDING STRATEGY (First 50-100 Downloads):
+Step 1: Reddit Communities (Value-First Showcases, NOT Direct Spam):
+- r/Flipping (310k members): Post title: "Built a 0.5s camera scanner that auto-deducts eBay fees & satchel shipping in the aisle — looking for beta feedback."
+- r/ThriftStoreHauls (2.6M members): Share a real haul valuation breakdown.
+- r/eBaySellerAdvice (55k members): Share how the net profit calculator avoids shipping traps.
+
+Step 2: Facebook Reseller Groups:
+- Search and join: "Aussie Resellers - eBay, Poshmark & Depop", "Full-Time Flippers", "Thrifting & Reselling Community".
+- Post a 10-second screen recording showing:
+  1. Pointing camera at a rack / shoe / item.
+  2. Instant 0.5s lock showing $145 Median Sold Comps & +$88 Net Profit.
+  3. Caption: "Got tired of typing every item into eBay while thrifting so built this Android scanner tool. Free to test on Google Play."
+
+Step 3: TikTok & YouTube Shorts (Highest Virality in Reselling Niche):
+- 15-second POV video format: "Testing if this thrift scanner actually finds profitable flips at Vinnies / Goodwill."
+- Show camera scanning 3 items (1 Pass, 1 Mediocre, 1 High Profit Grail).
+- Pin Google Play link in bio / comments.
+
