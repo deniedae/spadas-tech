@@ -178,7 +178,7 @@ export function openExternalUrlSafely(
   rawUrl?: string | null,
   fallbackQuery?: string,
   event?: React.MouseEvent | React.TouchEvent | Event
-): void {
+): boolean {
   if (event) {
     try {
       event.preventDefault();
@@ -186,7 +186,7 @@ export function openExternalUrlSafely(
     } catch {}
   }
 
-  if (typeof window === "undefined") return;
+  if (typeof window === "undefined") return false;
 
   try {
     // 1. Sanitize raw URL
@@ -235,26 +235,37 @@ export function openExternalUrlSafely(
     ) {
       try {
         window.AndroidBridge.openExternalUrl(url);
-        return;
+        return true;
       } catch (e) {
         console.warn("[AndroidBridge] Native openExternalUrl failed, falling back to window.open:", e);
       }
     }
 
-    // 3. Robust browser window opener with noopener, noreferrer
-    const win = window.open(url, "_blank", "noopener,noreferrer");
-    if (!win || win.closed || typeof win.closed === "undefined") {
-      // Pop-up blocker or restrictive WebView container fallback
-      const link = document.createElement("a");
-      link.href = url;
-      link.target = "_blank";
-      link.rel = "noopener noreferrer";
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+    // 3. Browser window opener.
+    // NOTE: passing "noopener" in the features string makes window.open() always
+    // return null (per spec), which made popup-block detection impossible.
+    // Open without features, then sever the opener manually.
+    const win = window.open(url, "_blank");
+    if (win) {
+      try {
+        win.opener = null;
+      } catch {}
+      return true;
     }
+
+    // Pop-up blocked (common after an async await on mobile) or restrictive WebView.
+    // Anchor click works in some WebViews; callers should still render a tappable link.
+    const link = document.createElement("a");
+    link.href = url;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    return false;
   } catch (err) {
     console.error("[openExternalUrlSafely] Failed to open URL:", err);
+    return false;
   }
 }
 

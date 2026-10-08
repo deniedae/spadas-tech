@@ -152,18 +152,30 @@ function calcWeeklyTrend(
   };
 }
 
+// Only the columns the vault renders. Avoids pulling unused JSON/blob columns on mobile.
+const DASHBOARD_LISTING_COLUMNS =
+  "id,product,description,price,cost,purchase_price,sold_price,shipping_cost,fees,status,image_url,created_at";
+
 async function fetchDashboardListings(userId: string): Promise<Listing[]> {
-  const { data, error } = await supabase
-    .from("listings")
-    .select("*")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false });
+  const query = (columns: string) =>
+    supabase
+      .from("listings")
+      .select(columns)
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+
+  let { data, error } = await query(DASHBOARD_LISTING_COLUMNS);
+  if (error) {
+    // Schema drift safety net: never show an empty vault because a column was renamed.
+    console.warn("Dashboard narrow select failed, retrying with *:", error.message);
+    ({ data, error } = await query("*"));
+  }
 
   if (error) {
     console.error("Dashboard Supabase listings fetch error:", error);
     return [];
   }
-  return data || [];
+  return (data as unknown as Listing[]) || [];
 }
 
 export default function DashboardPage() {
@@ -179,56 +191,58 @@ export default function DashboardPage() {
   const [isEbayConnected, setIsEbayConnected] = useState(false);
   const [ebayPublishItem, setEbayPublishItem] = useState<Listing | null>(null);
 
-  // High-Density Grid Filters with SessionStorage Persistence
-  const [gridFilter, setGridFilter] = useState<"ALL" | "FAST_FLIPS" | "TRAPS" | "SOLD">(() => {
-    if (typeof window !== "undefined") {
+  // High-Density Grid Filters with SessionStorage Persistence.
+  // Start from SSR-safe defaults and hydrate from sessionStorage after mount
+  // (reading storage in the initializer caused a server/client markup mismatch).
+  const [gridFilter, setGridFilter] = useState<"ALL" | "FAST_FLIPS" | "TRAPS" | "SOLD">("ALL");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [prefsHydrated, setPrefsHydrated] = useState(false);
+
+  useEffect(() => {
+    try {
       const saved = sessionStorage.getItem("spadas_dashboard_filter");
       if (saved && ["ALL", "FAST_FLIPS", "TRAPS", "SOLD"].includes(saved)) {
-        return saved as "ALL" | "FAST_FLIPS" | "TRAPS" | "SOLD";
+        setGridFilter(saved as "ALL" | "FAST_FLIPS" | "TRAPS" | "SOLD");
       }
-    }
-    return "ALL";
-  });
-  const [searchQuery, setSearchQuery] = useState(() => {
-    if (typeof window !== "undefined") {
-      return sessionStorage.getItem("spadas_dashboard_search") || "";
-    }
-    return "";
-  });
+      const savedSearch = sessionStorage.getItem("spadas_dashboard_search");
+      if (savedSearch) setSearchQuery(savedSearch);
+    } catch {}
+    setPrefsHydrated(true);
+  }, []);
 
   // Preserve filter and search query
   useEffect(() => {
-    if (typeof window !== "undefined") {
+    if (!prefsHydrated) return;
+    try {
       sessionStorage.setItem("spadas_dashboard_filter", gridFilter);
-    }
-  }, [gridFilter]);
+    } catch {}
+  }, [gridFilter, prefsHydrated]);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
+    if (!prefsHydrated) return;
+    try {
       sessionStorage.setItem("spadas_dashboard_search", searchQuery);
-    }
-  }, [searchQuery]);
+    } catch {}
+  }, [searchQuery, prefsHydrated]);
 
-  // Preserve scroll position across tab switches
+  // Persist scroll position, throttled to one write per animation frame
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const savedY = sessionStorage.getItem("spadas_dashboard_scroll");
-    if (savedY) {
-      const y = parseInt(savedY, 10);
-      if (!isNaN(y) && y > 0) {
-        requestAnimationFrame(() => {
-          window.scrollTo({ top: y, behavior: "instant" });
-        });
-      }
-    }
-
+    let frame = 0;
     const handleScroll = () => {
-      sessionStorage.setItem("spadas_dashboard_scroll", String(window.scrollY));
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        try {
+          sessionStorage.setItem("spadas_dashboard_scroll", String(window.scrollY));
+        } catch {}
+      });
     };
 
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => {
       window.removeEventListener("scroll", handleScroll);
+      if (frame) cancelAnimationFrame(frame);
     };
   }, []);
 
@@ -389,6 +403,19 @@ export default function DashboardPage() {
       return true;
     });
   }, [itemsWithVelocity, gridFilter, searchQuery]);
+
+  // Restore scroll once rows have rendered (restoring during the skeleton couldn't reach the saved offset)
+  const [scrollRestored, setScrollRestored] = useState(false);
+  useEffect(() => {
+    if (loading || scrollRestored) return;
+    setScrollRestored(true);
+    try {
+      const y = parseInt(sessionStorage.getItem("spadas_dashboard_scroll") || "", 10);
+      if (!isNaN(y) && y > 0) {
+        requestAnimationFrame(() => window.scrollTo({ top: y, behavior: "instant" }));
+      }
+    } catch {}
+  }, [loading, scrollRestored]);
 
   return (
     <PullToRefresh onRefresh={handleRefresh}>
@@ -756,7 +783,7 @@ export default function DashboardPage() {
                   item.velocity.sellThroughRate < 25 || item.velocity.isHoarderRisk;
 
                 return (
-                  <div key={item.id} className="p-2.5 hover:bg-zinc-900/50 transition-colors">
+                  <div key={item.id} className="p-2.5 hover:bg-zinc-900/50 transition-colors [content-visibility:auto] [contain-intrinsic-size:auto_76px]">
                     <div className="flex items-start gap-2.5">
                       {item.image_url ? (
                         <Image

@@ -147,8 +147,11 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
     });
 
     const marketLabel = activeCurrency === "USD" ? "eBay US" : activeCurrency === "GBP" ? "eBay UK" : "eBay AU";
-    toast.success(`📋 Listing details copied! Opening ${marketLabel}...`, { duration: 4000 });
-    window.open(prefillUrl, "_blank");
+    const opened = window.open(prefillUrl, "_blank");
+    toast.success(opened ? `Listing details copied. Opened ${marketLabel}.` : `Listing details copied.`, {
+      duration: 8000,
+      action: opened ? undefined : { label: `Open ${marketLabel}`, onClick: () => window.open(prefillUrl, "_blank") },
+    });
   };
 
   const handlePublishEbay = async () => {
@@ -174,9 +177,12 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
       });
 
       // 1-Tap Direct Live Publish to eBay
+      const { data: { session } } = await supabase.auth.getSession();
+      const publishHeaders: Record<string, string> = { "Content-Type": "application/json" };
+      if (session?.access_token) publishHeaders["Authorization"] = `Bearer ${session.access_token}`;
       const publishRes = await fetch("/api/marketplaces/ebay/publish", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: publishHeaders,
         body: JSON.stringify({
           product: data.productName,
           description: `${data.description}\n\nSize: ${data.size || "N/A"}\nCondition: ${data.condition || "Pre-owned"}\nWeight: ${data.weight || "N/A"}\nDimensions: ${data.dimensions || "N/A"}`,

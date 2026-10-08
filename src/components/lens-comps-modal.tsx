@@ -706,8 +706,52 @@ export default function LensCompsModal({
     }
   };
 
-  // 1-Tap Direct Publish to eBay with frictionless fallback to eBay prefill flow
+  // 1-Tap Direct Publish to eBay with fallback to eBay prefill flow.
+  // Mobile browsers block window.open() after an await, so a tab is opened
+  // synchronously inside the tap and navigated once the API responds.
   const handle1TapPublishEbay = async () => {
+    if (isPublishingEbay) return;
+
+    const hasNativeOpener =
+      typeof window !== "undefined" && typeof window.AndroidBridge?.openExternalUrl === "function";
+    let pendingTab: Window | null = null;
+    if (!hasNativeOpener) {
+      try {
+        pendingTab = window.open("about:blank", "_blank");
+        if (pendingTab) {
+          pendingTab.opener = null;
+          try {
+            pendingTab.document.title = "Opening eBay…";
+            pendingTab.document.body.style.cssText =
+              "background:#09090b;color:#a1a1aa;font:14px system-ui;display:flex;align-items:center;justify-content:center;height:100vh;margin:0";
+            pendingTab.document.body.textContent = "Opening eBay…";
+          } catch {}
+        }
+      } catch {
+        pendingTab = null;
+      }
+    }
+
+    const openEbayUrl = (url: string): boolean => {
+      setLiveEbayListingUrl(url);
+      if (pendingTab && !pendingTab.closed) {
+        try {
+          pendingTab.location.href = url;
+          return true;
+        } catch {}
+      }
+      return openExternalUrlSafely(url, title);
+    };
+
+    const buildPrefillUrl = () =>
+      generateEbayPrefillUrl({
+        title,
+        price: activeResalePrice,
+        currency: targetCurrency,
+        brand,
+        category,
+      });
+
     setIsPublishingEbay(true);
     try {
       triggerTactileHaptic("medium");
@@ -744,40 +788,37 @@ export default function LensCompsModal({
 
       if (res.ok && data.success && data.listingUrl) {
         setEbayPublishSuccess(true);
-        setLiveEbayListingUrl(data.listingUrl);
         triggerTactileHaptic("success");
-        toast.success("Listing published live to eBay!");
-        openExternalUrlSafely(data.listingUrl, title);
+        const opened = openEbayUrl(data.listingUrl);
+        toast.success(opened ? "Published to eBay." : "Published to eBay. Tap View on eBay to open it.");
         return;
       }
 
-      // If auth required or eBay credentials not connected, smooth prefill fallback
-      if (res.status === 401 || data.error?.includes("log in") || data.error?.includes("eBay token") || data.error?.includes("connect")) {
-        const prefillUrl = generateEbayPrefillUrl({
-          title,
-          price: activeResalePrice,
-          currency: targetCurrency,
-          brand,
-          category,
-        });
-        triggerTactileHaptic("success");
-        toast.info("Opening eBay listing wizard pre-populated with your comps & pricing!");
-        openExternalUrlSafely(prefillUrl, title);
+      // Not signed in or eBay account not linked: open the eBay listing form instead
+      const errText = String(data.error || "");
+      const needsAccount =
+        res.status === 401 || /log in|ebay token|connect|reconnect/i.test(errText);
+      if (needsAccount) {
+        const opened = openEbayUrl(buildPrefillUrl());
+        const reason = !session
+          ? "Sign in and link eBay to publish directly."
+          : errText || "Link your eBay account in Settings to publish directly.";
+        toast.info(
+          opened ? `${reason} Opened the eBay listing form.` : `${reason} Tap Open eBay to continue.`,
+          { duration: 6000 }
+        );
         return;
       }
 
-      throw new Error(data.error || "Unable to publish directly to eBay.");
+      throw new Error(errText || `eBay publish failed (${res.status}).`);
     } catch (err: any) {
-      console.error("1-Tap eBay Publish notice:", err);
-      const prefillUrl = generateEbayPrefillUrl({
-        title,
-        price: activeResalePrice,
-        currency: targetCurrency,
-        brand,
-        category,
-      });
-      toast.info("Opening eBay listing flow...");
-      openExternalUrlSafely(prefillUrl, title);
+      console.error("1-Tap eBay Publish error:", err);
+      const opened = openEbayUrl(buildPrefillUrl());
+      const message = err?.message || "eBay publish failed.";
+      toast.error(
+        opened ? `${message} Opened the eBay listing form instead.` : `${message} Tap Open eBay to list manually.`,
+        { duration: 7000 }
+      );
     } finally {
       setIsPublishingEbay(false);
     }
@@ -1596,33 +1637,41 @@ export default function LensCompsModal({
             >
               {isSaved ? "Saved" : isSaving ? "Saving..." : "Save draft"}
             </button>
-            <button
-              type="button"
-              onClick={handle1TapPublishEbay}
-              disabled={isPublishingEbay}
-              className={`h-11 flex items-center justify-center gap-1.5 rounded-md text-xs font-semibold active:scale-[0.98] transition cursor-pointer disabled:opacity-50 ${
-                ebayPublishSuccess
-                  ? "bg-emerald-700 text-white border border-emerald-600"
-                  : "bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500"
-              }`}
-            >
-              {isPublishingEbay ? (
-                <>
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  <span>Publishing...</span>
-                </>
-              ) : ebayPublishSuccess ? (
-                <>
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  <span>Live on eBay</span>
-                </>
-              ) : (
-                <>
-                  <Store className="w-3.5 h-3.5" />
-                  <span>Publish eBay</span>
-                </>
-              )}
-            </button>
+            {liveEbayListingUrl && !isPublishingEbay ? (
+              <a
+                href={liveEbayListingUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => openExternalUrlSafely(liveEbayListingUrl, title, e)}
+                className={`h-11 flex items-center justify-center gap-1.5 rounded-md text-xs font-semibold active:scale-[0.98] transition cursor-pointer text-white border ${
+                  ebayPublishSuccess
+                    ? "bg-emerald-700 border-emerald-600"
+                    : "bg-emerald-600 hover:bg-emerald-500 border-emerald-500"
+                }`}
+              >
+                {ebayPublishSuccess ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Store className="w-3.5 h-3.5" />}
+                <span>{ebayPublishSuccess ? "View on eBay" : "Open eBay"}</span>
+              </a>
+            ) : (
+              <button
+                type="button"
+                onClick={handle1TapPublishEbay}
+                disabled={isPublishingEbay}
+                className="h-11 flex items-center justify-center gap-1.5 rounded-md text-xs font-semibold active:scale-[0.98] transition cursor-pointer disabled:opacity-50 bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500"
+              >
+                {isPublishingEbay ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Publishing...</span>
+                  </>
+                ) : (
+                  <>
+                    <Store className="w-3.5 h-3.5" />
+                    <span>Publish eBay</span>
+                  </>
+                )}
+              </button>
+            )}
           </div>
         </div>
       </div>
