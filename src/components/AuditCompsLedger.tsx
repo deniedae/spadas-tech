@@ -85,6 +85,7 @@ export interface AuditCompsLedgerProps {
   onSelectComp?: (comp: AuditCompItem) => void;
   onAddToHaul?: () => void;
   onListEbay?: () => void;
+  isPublishingEbay?: boolean;
   onScanNext?: () => void;
 }
 
@@ -368,6 +369,7 @@ export default function AuditCompsLedger({
   onSelectComp,
   onAddToHaul,
   onListEbay,
+  isPublishingEbay = false,
   onScanNext,
 }: AuditCompsLedgerProps) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
@@ -1005,15 +1007,15 @@ export default function AuditCompsLedger({
               {onListEbay && (
                 <button
                   type="button"
+                  disabled={isPublishingEbay}
                   onClick={(e) => {
                     e.stopPropagation();
-                    triggerTactileHaptic("medium");
                     onListEbay();
                   }}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 font-semibold text-xs transition cursor-pointer active:scale-95"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 font-semibold text-xs transition cursor-pointer active:scale-95 disabled:opacity-60 disabled:cursor-wait"
                 >
                   <ShoppingBag className="h-4 w-4 text-amber-400" />
-                  <span>List on eBay</span>
+                  <span>{isPublishingEbay ? "Publishing..." : "1-Tap Publish on eBay"}</span>
                 </button>
               )}
 

@@ -463,6 +463,8 @@ function SpadasLensCameraCore({
   const [isPaywallOpen, setIsPaywallOpen] = useState<boolean>(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(false);
   const [activeEbayItem, setActiveEbayItem] = useState<any | null>(null);
+  const [isPublishingScannedEbay, setIsPublishingScannedEbay] = useState<boolean>(false);
+  const isPublishingScannedEbayRef = useRef(false);
   const [deepVerifyItem, setDeepVerifyItem] = useState<DetectedHit | ActiveScanItem | null>(null);
   const [isOwner, setIsOwner] = useState<boolean>(false);
   const [isPro, setIsPro] = useState<boolean>(false);
@@ -1652,6 +1654,103 @@ function SpadasLensCameraCore({
     }
   };
 
+  const handleDirectPublishScannedHit = async (hit: DetectedHit, image?: string) => {
+    if (isPublishingScannedEbayRef.current) return;
+
+    const product = hit.name || "Scanned Item";
+    const brand = cleanBrandText(hit.brand, "Unbranded") || "Unbranded";
+    const category = hit.category || "General Resale";
+    const condition = cleanConditionText(hit.condition, "Used - Good");
+    const price = Number(hit.estimatedValue || hit.suggestedPriceMax || hit.suggestedPriceMin) || 25;
+    const primaryImage = image || hit.image || undefined;
+    const sessionId = hit.id || (hit.timestamp ? `hit_${hit.timestamp}` : `hit_${Date.now()}`);
+    const hasNativeOpener =
+      typeof window !== "undefined" && typeof window.AndroidBridge?.openExternalUrl === "function";
+    let pendingTab: Window | null = null;
+
+    if (!hasNativeOpener) {
+      try {
+        pendingTab = window.open("about:blank", "_blank");
+        if (pendingTab) {
+          pendingTab.opener = null;
+          pendingTab.document.title = "Publishing to eBay...";
+          pendingTab.document.body.textContent = "Publishing your scanned item to eBay...";
+        }
+      } catch {
+        pendingTab = null;
+      }
+    }
+
+    const openEbay = (url: string) => {
+      if (pendingTab && !pendingTab.closed) {
+        try {
+          pendingTab.location.href = url;
+          return true;
+        } catch {}
+      }
+      return openExternalUrlSafely(url, product);
+    };
+
+    const openRecoveryModal = () => {
+      if (pendingTab && !pendingTab.closed) pendingTab.close();
+      setActiveEbayItem({
+        ...hit,
+        productName: product,
+        image: primaryImage,
+        imageUrls: primaryImage ? [primaryImage] : undefined,
+        sessionId,
+      });
+    };
+
+    isPublishingScannedEbayRef.current = true;
+    setIsPublishingScannedEbay(true);
+    setIsScanPaused(true);
+
+    try {
+      triggerTactileHaptic("medium");
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+
+      const response = await fetch("/api/marketplaces/ebay/publish", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          product,
+          brand,
+          category,
+          condition,
+          price,
+          currency: selectedCurrency,
+          description: `Sourced via Spadas Lens.\n\nBrand: ${brand}\nCategory: ${category}\nCondition: ${condition}\nPrice based on recent eBay sold comps.`,
+          imageUrls: primaryImage ? [primaryImage] : [],
+          sessionId,
+          publishMode: "live",
+          forceLive: true,
+        }),
+      });
+
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.success || !result.isLive || !result.listingUrl) {
+        throw new Error(result.error || result.message || "eBay did not confirm a live listing.");
+      }
+
+      triggerTactileHaptic("success");
+      const opened = openEbay(result.listingUrl);
+      toast.success(opened ? "Scanned item published live on eBay." : "Published live. Tap the eBay link to view it.", {
+        action: opened ? undefined : { label: "View listing", onClick: () => openExternalUrlSafely(result.listingUrl, product) },
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Direct eBay publishing failed.";
+      console.error("Direct scan-to-eBay publish failed:", err);
+      openRecoveryModal();
+      toast.error(`${message} Review the listing details to retry.`, { duration: 7000 });
+    } finally {
+      isPublishingScannedEbayRef.current = false;
+      setIsPublishingScannedEbay(false);
+    }
+  };
+
   const handleSaveDraftHit = async (hit: DetectedHit) => {
     try {
       // 1. OPTIMISTIC IMMEDIATE UPDATE (0ms latency, zero flash):
@@ -1662,6 +1761,7 @@ function SpadasLensCameraCore({
         if (hit.name) {
           next.add(hit.name.trim().toLowerCase());
         }
+
         if (typeof window !== "undefined") {
           try {
             localStorage.setItem("spadas_saved_hit_ids", JSON.stringify(Array.from(next)));
@@ -5320,24 +5420,14 @@ function SpadasLensCameraCore({
               handleDismissCard();
             }}
             onListEbay={() => {
-              setIsScanPaused(true);
-              const isolatedCapture = activeValuationHit?.image || frozenFrameUrl || undefined;
-              const stableSessionId = activeValuationHit?.id || (activeValuationHit?.timestamp ? `hit_${activeValuationHit.timestamp}` : "hit_active");
-              const currentHit = activeValuationHit;
-              // Cleanly dismiss valuation dialog so there is no conflicting double-modal or background glitch
-              setActiveValuationHit(null);
-              activeValuationHitRef.current = null;
-              setActiveEbayItem(
-                currentHit
-                  ? {
-                    ...currentHit,
-                    image: isolatedCapture,
-                    imageUrls: isolatedCapture ? [isolatedCapture] : undefined,
-                    sessionId: stableSessionId,
-                  }
-                  : null
-              );
+              if (activeValuationHit) {
+                void handleDirectPublishScannedHit(
+                  activeValuationHit,
+                  activeValuationHit.image || frozenFrameUrl || undefined
+                );
+              }
             }}
+            isPublishingEbay={isPublishingScannedEbay}
             onScanNext={() => {
               flushScanState();
               handleDismissCard(() => {
