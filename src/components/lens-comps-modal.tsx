@@ -144,6 +144,14 @@ export default function LensCompsModal({
   const [conditionTier, setConditionTier] = useState<PhysicalConditionTier>("used_excellent");
   const [isRestorationApplied, setIsRestorationApplied] = useState<boolean>(false);
 
+  const currentItemId = (item as any)?.id ? String((item as any).id) : null;
+  const prevItemIdRef = useRef<string | null>(null);
+  const prevFragranceItemIdRef = useRef<string | null>(null);
+  const prevActiveItemIdRef = useRef<string | null>(null);
+  const activeCompsCacheRef = useRef<Map<string, RawSoldComp[]>>(new Map());
+  const soldCompsCacheRef = useRef<Map<string, RawSoldComp[]>>(new Map());
+  const resolvedItemIdsRef = useRef<Set<string>>(new Set());
+
   const title = (item as any)?.name || (item as any)?.productName || (item as any)?.title || "Scanned Item";
   const brand = cleanBrandText(item?.brand, "Unbranded") || "Unbranded";
   const category = cleanCategoryText(item?.category, "General Resale") || "General Resale";
@@ -200,6 +208,15 @@ export default function LensCompsModal({
   const [activeCompsError, setActiveCompsError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!currentItemId) return;
+    if (prevItemIdRef.current === currentItemId) {
+      // Intentionally preserve user-modified inputs and publish status on the active item
+      const isExplicitlySaved = explicitlySavedIds.has(currentItemId);
+      setIsSaved(Boolean(isUserBookmarked || isExplicitlySaved));
+      return;
+    }
+    prevItemIdRef.current = currentItemId;
+
     setListingPhotos(initialPhotos);
     setCustomResalePrice(null);
     setEbayPublishSuccess(false);
@@ -209,10 +226,9 @@ export default function LensCompsModal({
     setIsSaving(false);
     setAccountBlockedNotice(null);
 
-    const currentItemId = (item as any)?.id ? String((item as any).id) : null;
-    const isExplicitlySaved = currentItemId ? explicitlySavedIds.has(currentItemId) : false;
+    const isExplicitlySaved = explicitlySavedIds.has(currentItemId);
     setIsSaved(Boolean(isUserBookmarked || isExplicitlySaved));
-  }, [item, initialPhotos, isUserBookmarked, explicitlySavedIds]);
+  }, [currentItemId, initialPhotos, isUserBookmarked, explicitlySavedIds]);
 
   const handleAddPhotos = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -325,19 +341,24 @@ export default function LensCompsModal({
 
   // Sync state whenever scanned item changes
   useEffect(() => {
-    if (item) {
-      setIsFragranceActive(isLiquidOrFragrance);
-      const attrs = detectFragranceAttributes(title, condition, (item as any)?.defectNotes || []);
-      setFillLevel(attrs.fillLevelPercent);
-      setHasCap(attrs.hasCap);
-      setIsTester(attrs.isTester);
-      setHasBox(attrs.hasBox);
-      // Reset postage override for each new scan
-      setCustomPostageTier(null);
-      const newCost = Number(item.tagPrice || item.estCost) || categoryEstimate.typicalOpShopCost;
-      setCustomTagCost(newCost);
+    if (!item || !currentItemId) return;
+    if (prevFragranceItemIdRef.current === currentItemId) {
+      // Intentionally preserve user adjustments to tag cost and postage overrides on intra-item re-renders
+      return;
     }
-  }, [item, title, category, condition, isLiquidOrFragrance, categoryEstimate.typicalOpShopCost]);
+    prevFragranceItemIdRef.current = currentItemId;
+
+    setIsFragranceActive(isLiquidOrFragrance);
+    const attrs = detectFragranceAttributes(title, condition, (item as any)?.defectNotes || []);
+    setFillLevel(attrs.fillLevelPercent);
+    setHasCap(attrs.hasCap);
+    setIsTester(attrs.isTester);
+    setHasBox(attrs.hasBox);
+    // Reset postage override for each new scan
+    setCustomPostageTier(null);
+    const newCost = Number(item.tagPrice || (item as any).estCost) || categoryEstimate.typicalOpShopCost;
+    setCustomTagCost(newCost);
+  }, [currentItemId, item, title, category, condition, isLiquidOrFragrance, categoryEstimate.typicalOpShopCost]);
 
   const fragranceMultiplier = useMemo(() => {
     if (!isLiquidOrFragrance || !isFragranceActive) return 1.0;
@@ -362,14 +383,23 @@ export default function LensCompsModal({
   // Extract raw comps and ensure 3 to 5 verified recent sold listings
   const rawComps: RawSoldComp[] = useMemo(() => {
     if (!item) return [];
-    return ensureVerifiedSoldComps(
-      (item as any).rawComps,
+    const directComps = (item as any).rawComps || (item as any).comps;
+    const verified = ensureVerifiedSoldComps(
+      directComps,
       title,
       initialEstValue,
       condition,
       brand
     );
-  }, [item, title, initialEstValue, condition, brand]);
+    if (verified.length > 0 && currentItemId) {
+      soldCompsCacheRef.current.set(currentItemId, verified);
+      return verified;
+    }
+    if (currentItemId && soldCompsCacheRef.current.has(currentItemId)) {
+      return soldCompsCacheRef.current.get(currentItemId)!;
+    }
+    return verified;
+  }, [currentItemId, (item as any)?.rawComps, (item as any)?.comps, title, initialEstValue, condition, brand]);
 
   // Condition-aware & fragrance fill-level sanitized comps
   // When condition is detected or toggled to Used: Exclude listings containing keywords: BNIB, NIB, Sealed, Brand New
@@ -390,14 +420,21 @@ export default function LensCompsModal({
   // Hold initial valuation rendering with skeleton while comps and profit waterfall are resolving
   const isResolvingValuation = useMemo(() => {
     if (!item) return false;
+    if (currentItemId && resolvedItemIdsRef.current.has(currentItemId)) {
+      return false;
+    }
+    if (effectiveComps.length > 0) {
+      if (currentItemId) resolvedItemIdsRef.current.add(currentItemId);
+      return false;
+    }
+
     const itemStatus = (item as any)?.status;
     const isPendingStatus = itemStatus === "fetching_comps" || itemStatus === "analyzing" || itemStatus === "pending";
     const isCompsPending = Boolean((item as any)?.is_comps_pending);
-    const hasNoCompsYet = effectiveComps.length === 0;
     const isBaselineFallback = !item.estimatedValue || Number(item.estimatedValue) <= 8;
 
-    return isPendingStatus || isCompsPending || (hasNoCompsYet && isBaselineFallback);
-  }, [item, effectiveComps.length]);
+    return isPendingStatus || isCompsPending || isBaselineFallback;
+  }, [currentItemId, effectiveComps.length, (item as any)?.status, (item as any)?.is_comps_pending, item?.estimatedValue]);
 
   const compsRange = useMemo(() => {
     const baseDefault = (isLiquidOrFragrance && isFragranceActive)
@@ -452,7 +489,7 @@ export default function LensCompsModal({
       max: Math.max(cappedMin, cappedMax),
       median: Math.min(cappedMax, Math.max(cappedMin, rawMedian)),
     };
-  }, [item, initialEstValue, effectiveComps, title, isLiquidOrFragrance, isFragranceActive, fragranceMultiplier]);
+  }, [currentItemId, initialEstValue, effectiveComps, title, isLiquidOrFragrance, isFragranceActive, fragranceMultiplier]);
 
   const isUsMarket = Boolean(
     currency === "USD" ||
@@ -464,18 +501,38 @@ export default function LensCompsModal({
   const parcelRates = isUsMarket ? USPS_PARCEL_RATES : AUSPOST_PARCEL_RATES;
   const targetCurrency = isUsMarket ? "USD" : "AUD";
 
+  const stableSearchQuery = useMemo(() => {
+    return [brand, title].filter(Boolean).join(" ").trim().toLowerCase();
+  }, [brand, title]);
+
+  const activeCacheKey = `${currentItemId || ""}_${targetCurrency}_${stableSearchQuery}`;
+
   useEffect(() => {
-    if (!isOpen || !item || !title.trim()) {
-      setLiveActiveComps([]);
+    if (!isOpen || !currentItemId || !title.trim()) {
+      return;
+    }
+
+    const isNewItem = prevActiveItemIdRef.current !== currentItemId;
+    prevActiveItemIdRef.current = currentItemId;
+
+    // SWR Cache retention: check cache first (keepPreviousData)
+    const cachedListings = activeCompsCacheRef.current.get(activeCacheKey);
+    if (cachedListings && cachedListings.length > 0) {
+      setLiveActiveComps(cachedListings);
       setIsLoadingActiveComps(false);
-      setActiveCompsError(null);
       return;
     }
 
     const controller = new AbortController();
     const params = new URLSearchParams({ q: [brand, title].filter(Boolean).join(" "), currency: targetCurrency });
-    setLiveActiveComps([]);
-    setIsLoadingActiveComps(true);
+
+    // Only display loading skeletons if we don't already have live comps (keepPreviousData)
+    if (isNewItem) {
+      setLiveActiveComps([]);
+      setIsLoadingActiveComps(true);
+    } else if (liveActiveComps.length === 0) {
+      setIsLoadingActiveComps(true);
+    }
     setActiveCompsError(null);
 
     void fetch(`/api/ebay-active-listings?${params.toString()}`, { signal: controller.signal })
@@ -483,17 +540,19 @@ export default function LensCompsModal({
         const data = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(data.error || "Live listings lookup failed.");
         const listings = Array.isArray(data.listings) ? data.listings : [];
-        setLiveActiveComps(
-          listings.filter((listing: RawSoldComp) => listing && Number(listing.price) > 0).map((listing: RawSoldComp) => ({
+        const verified = listings
+          .filter((listing: RawSoldComp) => listing && Number(listing.price) > 0)
+          .map((listing: RawSoldComp) => ({
             ...listing,
             isActiveAsk: true,
             soldDate: "Active Ask",
-          }))
-        );
+          }));
+        activeCompsCacheRef.current.set(activeCacheKey, verified);
+        setLiveActiveComps(verified);
       })
       .catch((error: unknown) => {
         if (error instanceof Error && error.name === "AbortError") return;
-        setLiveActiveComps([]);
+        // Keep existing active comps on transient error
         setActiveCompsError(error instanceof Error ? error.message : "Live listings lookup failed.");
       })
       .finally(() => {
@@ -501,7 +560,7 @@ export default function LensCompsModal({
       });
 
     return () => controller.abort();
-  }, [isOpen, item, title, brand, targetCurrency]);
+  }, [isOpen, currentItemId, activeCacheKey, targetCurrency]);
 
   // ── Active Asks vs Sold Comps Splits & Realistic Resale Price Engine ───────
   const activeCompsList = liveActiveComps;
@@ -1125,7 +1184,7 @@ export default function LensCompsModal({
             {/* Top Financial Verdict Strip */}
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                {isResolvingValuation ? (
+                {isResolvingValuation && effectiveComps.length === 0 ? (
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold tracking-wide border bg-zinc-900 border-zinc-800 text-zinc-400 animate-pulse">
                     <Loader2 className="w-3.5 h-3.5 text-cyan-400 animate-spin" />
                     <span>CALIBRATING COMPS...</span>
@@ -1159,7 +1218,7 @@ export default function LensCompsModal({
                   </span>
                 )}
                 <span className="text-[11px] text-zinc-400 tabular-nums">
-                  {isResolvingValuation
+                  {isResolvingValuation && effectiveComps.length === 0
                     ? "Calculating turnover..."
                     : salesVelocity.turnoverTier === "RAPID_FIRE"
                     ? "~1–3 days turn"
@@ -1168,12 +1227,12 @@ export default function LensCompsModal({
               </div>
 
               <div className="text-[11px] text-zinc-400 shrink-0 tabular-nums">
-                {isResolvingValuation ? "Auditing marketplace..." : trustLineText}
+                {isResolvingValuation && effectiveComps.length === 0 ? "Auditing marketplace..." : trustLineText}
               </div>
             </div>
 
             {/* The 3 Core Market Pillars */}
-            {isResolvingValuation ? (
+            {isResolvingValuation && effectiveComps.length === 0 ? (
               <div className="grid grid-cols-3 gap-2">
                 {[0, 1, 2].map((idx) => (
                   <div
@@ -1217,11 +1276,11 @@ export default function LensCompsModal({
                     <span className="truncate">ACTIVE ASKS</span>
                   </div>
                   <div className="text-xl sm:text-2xl font-bold text-zinc-100 tabular-nums my-1 tracking-tight">
-                    {isLoadingActiveComps ? "…" : displayActiveCount > 0 ? fmtMoney(displayActiveMedian) : "0 live"}
+                    {displayActiveCount > 0 ? fmtMoney(displayActiveMedian) : isLoadingActiveComps ? "…" : "0 live"}
                   </div>
                   <div className="space-y-0.5 pt-1 border-t border-zinc-800/80">
                     <div className="text-[10px] text-zinc-300 font-medium tabular-nums truncate">
-                      {displayActiveCount > 0 ? `${displayActiveCount} on market` : "No competitors"}
+                      {displayActiveCount > 0 ? `${displayActiveCount} on market` : isLoadingActiveComps ? "Scanning…" : "No competitors"}
                     </div>
                     <div className="text-[9px] text-zinc-500 tabular-nums truncate">
                       Ceiling: {fmtMoney(compsRange.max)}
@@ -1332,7 +1391,7 @@ export default function LensCompsModal({
             <div className="p-3 rounded-lg bg-zinc-900/50 border border-zinc-800 text-xs space-y-2">
               <div className="flex items-center justify-between text-zinc-300 pb-1.5 border-b border-zinc-800 font-mono text-[11px]">
                 <span className="text-zinc-400 uppercase tracking-wider font-semibold">Financial Ledger</span>
-                {isResolvingValuation ? (
+                {isResolvingValuation && effectiveComps.length === 0 ? (
                   <span className="text-zinc-400 font-bold tabular-nums animate-pulse">Resolving P&L...</span>
                 ) : (
                   <span className="text-emerald-400 font-bold tabular-nums">+{formatAUD(netProfit)} net</span>
@@ -1342,7 +1401,7 @@ export default function LensCompsModal({
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 pt-0.5 text-center font-mono text-[11px]">
                 <div className="p-1.5 rounded bg-zinc-950 border border-zinc-800">
                   <span className="text-[10px] text-zinc-400 block">Gross Sale</span>
-                  {isResolvingValuation ? (
+                  {isResolvingValuation && effectiveComps.length === 0 ? (
                     <div className="h-4 w-12 bg-zinc-800 rounded animate-pulse mx-auto my-0.5" />
                   ) : (
                     <span className="text-zinc-100 font-bold tabular-nums">{fmtMoney(activeResalePrice)}</span>
@@ -1350,7 +1409,7 @@ export default function LensCompsModal({
                 </div>
                 <div className="p-1.5 rounded bg-zinc-950 border border-zinc-800">
                   <span className="text-[10px] text-zinc-400 block">Cost of Goods</span>
-                  {isResolvingValuation ? (
+                  {isResolvingValuation && effectiveComps.length === 0 ? (
                     <div className="h-4 w-12 bg-zinc-800 rounded animate-pulse mx-auto my-0.5" />
                   ) : (
                     <span className="text-rose-400 font-bold tabular-nums">−{fmtMoney(effectiveTagCost)}</span>
@@ -1358,7 +1417,7 @@ export default function LensCompsModal({
                 </div>
                 <div className="p-1.5 rounded bg-zinc-950 border border-zinc-800">
                   <span className="text-[10px] text-zinc-400 block">eBay Fees (~13.4%)</span>
-                  {isResolvingValuation ? (
+                  {isResolvingValuation && effectiveComps.length === 0 ? (
                     <div className="h-4 w-12 bg-zinc-800 rounded animate-pulse mx-auto my-0.5" />
                   ) : (
                     <span className="text-rose-400 font-bold tabular-nums">−{fmtMoney(platformFee)}</span>
@@ -1366,7 +1425,7 @@ export default function LensCompsModal({
                 </div>
                 <div className="p-1.5 rounded bg-zinc-950 border border-zinc-800">
                   <span className="text-[10px] text-zinc-400 block">Postage ({isUsMarket ? "USPS" : "AusPost"})</span>
-                  {isResolvingValuation ? (
+                  {isResolvingValuation && effectiveComps.length === 0 ? (
                     <div className="h-4 w-12 bg-zinc-800 rounded animate-pulse mx-auto my-0.5" />
                   ) : (
                     <span className="text-rose-400 font-bold tabular-nums">−{fmtMoney(estShipping)}</span>
@@ -1534,7 +1593,7 @@ export default function LensCompsModal({
                       : "text-zinc-400 hover:text-zinc-200"
                   }`}
                 >
-                  Active Asks ({isLoadingActiveComps ? "…" : activeCompCount})
+                  Active Asks ({activeCompCount > 0 ? activeCompCount : isLoadingActiveComps ? "…" : 0})
                 </button>
               </div>
 
@@ -1572,36 +1631,73 @@ export default function LensCompsModal({
               const remaining = Math.max(0, currentList.length - 3);
 
               if (currentList.length === 0) {
+                const isTabResolving =
+                  compsMarketTab === "sold"
+                    ? isResolvingValuation && soldCompsList.length === 0
+                    : isLoadingActiveComps && activeCompsList.length === 0;
+
+                if (isTabResolving) {
+                  return compsViewMode === "carousel" ? (
+                    <div className="flex gap-2.5 overflow-x-auto snap-x snap-mandatory py-1 custom-scrollbar min-h-[210px]">
+                      {[0, 1, 2].map((idx) => (
+                        <div
+                          key={idx}
+                          className="w-44 sm:w-48 shrink-0 snap-start bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden p-2.5 flex flex-col justify-between animate-pulse"
+                        >
+                          <div className="h-28 w-full rounded-md bg-zinc-800/80 mb-2" />
+                          <div className="space-y-1.5">
+                            <div className="h-4 w-16 bg-zinc-800 rounded" />
+                            <div className="h-3 w-24 bg-zinc-800/60 rounded" />
+                            <div className="h-2.5 w-full bg-zinc-800/40 rounded" />
+                          </div>
+                          <div className="pt-2 border-t border-zinc-800/80 mt-2 flex items-center justify-between">
+                            <div className="h-2.5 w-12 bg-zinc-800/40 rounded" />
+                            <div className="h-3.5 w-3.5 bg-zinc-800/60 rounded" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {[0, 1, 2].map((idx) => (
+                        <div
+                          key={idx}
+                          className="min-h-[64px] p-2.5 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-between gap-3 animate-pulse"
+                        >
+                          <div className="h-12 w-12 rounded-md bg-zinc-800 shrink-0" />
+                          <div className="flex-1 space-y-1.5 min-w-0">
+                            <div className="h-4 w-20 bg-zinc-800 rounded" />
+                            <div className="h-3 w-36 bg-zinc-800/60 rounded" />
+                          </div>
+                          <div className="h-3 w-12 bg-zinc-800/40 rounded shrink-0" />
+                        </div>
+                      ))}
+                    </div>
+                  );
+                }
+
                 return (
                   <div className="p-4 rounded-lg bg-zinc-900 border border-zinc-800 text-center space-y-1.5">
                     <div className="text-sm font-semibold text-zinc-200">
-                      {compsMarketTab === "active" && isLoadingActiveComps
-                        ? "Checking live eBay listings…"
-                        : compsMarketTab === "active" && activeCompsError
-                          ? "Live eBay listings unavailable"
-                          : `No ${compsMarketTab === "sold" ? "verified sold" : "live active"} listings found`}
+                      {compsMarketTab === "active" && activeCompsError
+                        ? "Live eBay listings unavailable"
+                        : `No ${compsMarketTab === "sold" ? "verified sold" : "live active"} listings found`}
                     </div>
                     <div className="text-xs text-zinc-400">
-                      {compsMarketTab === "active" && isLoadingActiveComps
-                        ? "Fetching current asking prices from eBay Browse API."
-                        : compsMarketTab === "active" && activeCompsError
-                          ? activeCompsError
-                          : compsMarketTab === "active"
-                            ? "No current eBay listings matched this item. Sold comps remain separate."
-                            : "No verified completed sales were returned for this item."}
+                      {compsMarketTab === "active" && activeCompsError
+                        ? activeCompsError
+                        : compsMarketTab === "active"
+                          ? "No current eBay listings matched this item. Sold comps remain separate."
+                          : "No verified completed sales were returned for this item."}
                     </div>
-                    {compsMarketTab === "active" && isLoadingActiveComps ? (
-                      <Loader2 className="w-4 h-4 animate-spin text-zinc-400 mx-auto mt-2" />
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={(e) => openExternalUrlSafely(ebayActiveSearchUrl, title, e)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-zinc-800 border border-zinc-700 text-xs text-zinc-200 hover:bg-zinc-700 cursor-pointer font-medium transition mt-1"
-                      >
-                        <span>Search live {isUsMarket ? "eBay US" : "eBay AU"} listings</span>
-                        <ExternalLink className="w-3 h-3" />
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      onClick={(e) => openExternalUrlSafely(ebayActiveSearchUrl, title, e)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-zinc-800 border border-zinc-700 text-xs text-zinc-200 hover:bg-zinc-700 cursor-pointer font-medium transition mt-1"
+                    >
+                      <span>Search live {isUsMarket ? "eBay US" : "eBay AU"} listings</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </button>
                   </div>
                 );
               }
