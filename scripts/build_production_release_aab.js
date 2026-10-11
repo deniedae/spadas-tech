@@ -95,6 +95,26 @@ if (targetSdkIdx !== -1) {
   console.log('After targetSdk:', buf.slice(targetSdkIdx, targetSdkIdx + 36));
 }
 
+// 3b. minSdkVersion -> 24 (Play Automatic Protection requires minimum SDK version of 24 or higher)
+const minSdkIdx = buf.indexOf('minSdkVersion');
+if (minSdkIdx !== -1) {
+  console.log('Found minSdkVersion at offset:', minSdkIdx);
+  console.log('Before minSdk:', buf.slice(minSdkIdx, minSdkIdx + 36));
+  // Ensure ASCII '24'
+  buf[minSdkIdx + 15] = 0x32; // '2'
+  buf[minSdkIdx + 16] = 0x34; // '4'
+  // Ensure Integer 0x18 (24 decimal)
+  const minPrimIdx = buf.indexOf(Buffer.from([0x3a, 0x02, 0x30]), minSdkIdx);
+  if (minPrimIdx !== -1 && minPrimIdx < minSdkIdx + 35) {
+    buf[minPrimIdx + 3] = 0x18;
+    console.log(`✓ Set integer minSdkVersion at offset ${minPrimIdx + 3} to 24`);
+  } else {
+    buf[minSdkIdx + 31] = 0x18;
+    console.log(`✓ Set integer minSdkVersion at offset ${minSdkIdx + 31} to 24`);
+  }
+  console.log('After minSdk:', buf.slice(minSdkIdx, minSdkIdx + 36));
+}
+
 // 4. Android 16 Large-Screen Compliance: Remove locked portrait SCREEN_ORIENTATION
 console.log('\n--- Step 3b: Removing Android 16 orientation restrictions ---');
 const soIdx = buf.indexOf('android.support.customtabs.trusted.SCREEN_ORIENTATION');

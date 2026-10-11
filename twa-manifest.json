@@ -14,6 +14,7 @@
   "startUrl": "/dashboard",
   "iconUrl": "https://spadas-tech.vercel.app/icon-512.png",
   "orientation": "any",
+  "minSdkVersion": 24,
   "appVersionName": "1.2.9",
   "appVersionCode": 13,
   "signingKey": {

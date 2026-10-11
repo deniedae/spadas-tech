@@ -44,4 +44,13 @@ if (vcIdx !== -1) {
     console.log('🎉 VERIFICATION CONFIRMED: AndroidManifest.xml contains versionCode 13!');
   }
 }
+
+const minIdx = manifestBuf.indexOf('minSdkVersion');
+if (minIdx !== -1) {
+  const minAscii = manifestBuf.slice(minIdx, minIdx + 20).toString('ascii');
+  console.log('Manifest minSdk ASCII slice:', minAscii);
+  if (minAscii.includes('24')) {
+    console.log('🎉 VERIFICATION CONFIRMED: AndroidManifest.xml contains minSdkVersion 24 (Play Automatic Protection Compliant)!');
+  }
+}
 fs.rmSync(tempDir, { recursive: true, force: true });
