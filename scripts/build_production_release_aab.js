@@ -38,9 +38,9 @@ execSync(`${jarExe} xf "${aabPath}" base/manifest/AndroidManifest.xml`, { cwd: r
 const manifestPath = path.join(rootDir, 'base', 'manifest', 'AndroidManifest.xml');
 let buf = fs.readFileSync(manifestPath);
 
-// Target versionCode and versionName (Default: 12 / 1.2.8)
-const targetVerCode = parseInt(process.argv[2] || process.env.VERSION_CODE || '12', 10);
-const targetVerName = process.argv[3] || process.env.VERSION_NAME || '1.2.8';
+// Target versionCode and versionName (Default: 13 / 1.2.9)
+const targetVerCode = parseInt(process.argv[2] || process.env.VERSION_CODE || '13', 10);
+const targetVerName = process.argv[3] || process.env.VERSION_NAME || '1.2.9';
 
 // STEP 3: Patch versionCode, versionName, and targetSdkVersion (confirm 36)
 console.log(`\n--- Step 3: Patching versionCode (to ${targetVerCode}), versionName (to ${targetVerName}) & targetSdkVersion (36) ---`);
