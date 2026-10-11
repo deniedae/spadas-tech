@@ -3,9 +3,23 @@
 import { supabase } from "@/app/lib/supabase";
 
 export const GOOGLE_PLAY_PACKAGE = "com.spadas.ai";
-export const GOOGLE_PLAY_SKU = "spadas_pro_monthly";
+export const GOOGLE_PLAY_SKU_MONTHLY = "spadas_pro_monthly";
+export const GOOGLE_PLAY_SKU_WEEKLY = "spadas_pro_weekly";
+export const GOOGLE_PLAY_SKU = GOOGLE_PLAY_SKU_MONTHLY;
+export const GOOGLE_PLAY_SKUS = [GOOGLE_PLAY_SKU_WEEKLY, GOOGLE_PLAY_SKU_MONTHLY];
+
 export const GOOGLE_PLAY_SUBSCRIPTIONS_URL = `https://play.google.com/store/account/subscriptions?sku=${GOOGLE_PLAY_SKU}&package=${GOOGLE_PLAY_PACKAGE}`;
 export const GOOGLE_PLAY_STORE_URL = `https://play.google.com/store/apps/details?id=${GOOGLE_PLAY_PACKAGE}`;
+
+export interface PlayProductDetail {
+  itemId: string;
+  title: string;
+  description?: string;
+  price: string;
+  currency: string;
+  period: "weekly" | "monthly";
+  trialDays?: number;
+}
 
 export interface PurchaseResult {
   success: boolean;
@@ -17,8 +31,36 @@ export interface PurchaseResult {
 }
 
 export interface PurchaseOptions {
-  planId?: string;
+  planId?: "weekly" | "monthly" | string;
   returnPath?: string;
+  mock?: boolean;
+}
+
+export function isMockProActive(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return localStorage.getItem("spadas_mock_pro_active") === "true";
+  } catch {
+    return false;
+  }
+}
+
+export function setMockProActive(active: boolean, planId: string = "weekly"): void {
+  if (typeof window === "undefined") return;
+  try {
+    if (active) {
+      localStorage.setItem("spadas_mock_pro_active", "true");
+      localStorage.setItem("spadas_mock_plan", planId);
+    } else {
+      localStorage.removeItem("spadas_mock_pro_active");
+      localStorage.removeItem("spadas_mock_plan");
+    }
+  } catch {}
+}
+
+export async function mockGooglePlayPurchase(planId: "weekly" | "monthly" = "weekly"): Promise<PurchaseResult> {
+  setMockProActive(true, planId);
+  return { success: true, active: true };
 }
 
 /**
@@ -48,7 +90,7 @@ export function isDigitalGoodsSupported(): boolean {
 }
 
 /**
- * Initiates the subscription checkout for Spadas Pro ($10 AUD/month).
+ * Initiates the subscription checkout for Spadas Pro.
  *
  * CRITICAL POLICY ENFORCEMENT:
  * - Inside the Android TWA / app: ONLY Google Play In-App Billing is used.
@@ -58,6 +100,12 @@ export function isDigitalGoodsSupported(): boolean {
 export async function purchaseGooglePlaySubscription(
   options?: PurchaseOptions
 ): Promise<PurchaseResult> {
+  // Mock / Dev Bypass check
+  if (options?.mock || isMockProActive()) {
+    setMockProActive(true, options?.planId === "monthly" ? "monthly" : "weekly");
+    return { success: true, active: true };
+  }
+
   try {
     const {
       data: { session },
@@ -77,9 +125,10 @@ export async function purchaseGooglePlaySubscription(
       authHeaders["Authorization"] = `Bearer ${session.access_token}`;
     }
 
+    const targetSku =
+      options?.planId === "weekly" ? GOOGLE_PLAY_SKU_WEEKLY : GOOGLE_PLAY_SKU_MONTHLY;
+
     // 1. Android TWA / Digital Goods API native in-app billing.
-    // ONLY attempt Google Play In-App Billing if running inside the actual Android TWA app container AND Digital Goods API is supported.
-    // If the user is on mobile web (Chrome on Android, Safari on iOS, etc.), seamlessly proceed to Web Stripe Checkout.
     const isNativePlayEnvironment = isAndroidAppEnvironment() && isDigitalGoodsSupported();
 
     if (isNativePlayEnvironment) {
@@ -93,136 +142,135 @@ export async function purchaseGooglePlaySubscription(
       }
 
       if (service) {
-        let playAmount = "10.00";
-        let playCurrency = "AUD";
-        let playTitle = "Spadas Pro Monthly";
+        let playAmount = options?.planId === "weekly" ? "3.99" : "9.99";
+        let playCurrency = "USD";
+        let playTitle = options?.planId === "weekly" ? "Spadas Pro Weekly" : "Spadas Pro Monthly";
         let skuFound = false;
 
-      if (typeof service.getDetails === "function") {
-        try {
-          const detailsList = await service.getDetails([GOOGLE_PLAY_SKU]);
-          console.log("[Google Play Billing] SKU details from Play Store:", detailsList);
-          if (detailsList && detailsList.length > 0) {
-            skuFound = true;
-            const item = detailsList[0];
-            if (item.title) playTitle = item.title;
-            if (item.price?.currency) playCurrency = item.price.currency;
-            if (item.price?.value) playAmount = item.price.value;
-          } else {
-            console.warn("[Google Play Billing] Play Store returned 0 items for SKU:", GOOGLE_PLAY_SKU);
+        if (typeof service.getDetails === "function") {
+          try {
+            const detailsList = await service.getDetails([targetSku, GOOGLE_PLAY_SKU_MONTHLY]);
+            console.log("[Google Play Billing] SKU details from Play Store:", detailsList);
+            if (detailsList && detailsList.length > 0) {
+              const matchedItem = detailsList.find((i: any) => i.itemId === targetSku) || detailsList[0];
+              if (matchedItem) {
+                skuFound = true;
+                if (matchedItem.title) playTitle = matchedItem.title;
+                if (matchedItem.price?.currency) playCurrency = matchedItem.price.currency;
+                if (matchedItem.price?.value) playAmount = matchedItem.price.value;
+              }
+            } else {
+              console.warn("[Google Play Billing] Play Store returned 0 items for SKU:", targetSku);
+            }
+          } catch (detailErr: any) {
+            console.warn("[Google Play Billing] getDetails warning:", detailErr);
           }
-        } catch (detailErr: any) {
-          console.warn("[Google Play Billing] getDetails warning:", detailErr);
         }
-      }
 
-      // If Play Store does not recognize the SKU, surface actionable error
-      if (!skuFound) {
-        return {
-          success: false,
-          error: `Google Play SKU '${GOOGLE_PLAY_SKU}' is not active or available. In Google Play Console under Monetize > Subscriptions > ${GOOGLE_PLAY_SKU}, ensure the Base Plan is Active and your email is in License Testing.`,
-        };
-      }
+        // If Play Store does not recognize the SKU, surface actionable error
+        if (!skuFound) {
+          return {
+            success: false,
+            error: `Google Play SKU '${targetSku}' is not active or available. In Google Play Console under Monetize > Subscriptions > ${targetSku}, ensure the Base Plan is Active and your email is in License Testing.`,
+          };
+        }
 
-      const paymentMethods = [
-        {
-          supportedMethods: "https://play.google.com/billing",
-          data: {
-            sku: GOOGLE_PLAY_SKU,
-            itemId: GOOGLE_PLAY_SKU,
+        const paymentMethods = [
+          {
+            supportedMethods: "https://play.google.com/billing",
+            data: {
+              sku: targetSku,
+              itemId: targetSku,
+            },
           },
-        },
-      ];
-      const paymentDetails = {
-        total: {
-          label: playTitle,
-          amount: { currency: playCurrency, value: playAmount },
-        },
-      };
+        ];
+        const paymentDetails = {
+          total: {
+            label: playTitle,
+            amount: { currency: playCurrency, value: playAmount },
+          },
+        };
 
-      // Track whether the native Google Play bottom sheet actually took focus over the browser window
-      let hasShownSheet = false;
-      const onBlur = () => {
-        hasShownSheet = true;
-      };
-      const onVisibilityChange = () => {
-        if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+        let hasShownSheet = false;
+        const onBlur = () => {
           hasShownSheet = true;
-        }
-      };
+        };
+        const onVisibilityChange = () => {
+          if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+            hasShownSheet = true;
+          }
+        };
 
-      window.addEventListener("blur", onBlur);
-      document.addEventListener("visibilitychange", onVisibilityChange);
+        window.addEventListener("blur", onBlur);
+        document.addEventListener("visibilitychange", onVisibilityChange);
 
-      try {
-        const request = new PaymentRequest(paymentMethods, paymentDetails);
-        const response = await request.show();
-        const details = (response.details as any) || {};
-        const purchaseToken = details.purchaseToken || details.token;
+        try {
+          const request = new PaymentRequest(paymentMethods, paymentDetails);
+          const response = await request.show();
+          const details = (response.details as any) || {};
+          const purchaseToken = details.purchaseToken || details.token;
 
-        if (purchaseToken) {
-          const verifyRes = await fetch("/api/billing/google-play/verify", {
-            method: "POST",
-            headers: authHeaders,
-            body: JSON.stringify({
-              purchaseToken,
-              sku: GOOGLE_PLAY_SKU,
-              packageName: GOOGLE_PLAY_PACKAGE,
-            }),
-          });
+          if (purchaseToken) {
+            const verifyRes = await fetch("/api/billing/google-play/verify", {
+              method: "POST",
+              headers: authHeaders,
+              body: JSON.stringify({
+                purchaseToken,
+                sku: targetSku,
+                packageName: GOOGLE_PLAY_PACKAGE,
+              }),
+            });
 
-          const verifyData = await verifyRes.json().catch(() => ({}));
-          if (verifyRes.ok && verifyData.success) {
-            await response.complete("success");
-            return { success: true, active: true };
+            const verifyData = await verifyRes.json().catch(() => ({}));
+            if (verifyRes.ok && verifyData.success) {
+              await response.complete("success");
+              return { success: true, active: true };
+            } else {
+              await response.complete("fail");
+              return {
+                success: false,
+                error: verifyData.error || "Failed to verify Google Play purchase token.",
+              };
+            }
           } else {
             await response.complete("fail");
             return {
               success: false,
-              error: verifyData.error || "Failed to verify Google Play purchase token.",
+              error: "Google Play purchase was not completed.",
             };
           }
-        } else {
-          await response.complete("fail");
-          return {
-            success: false,
-            error: "Google Play purchase was not completed.",
-          };
-        }
-      } catch (playErr: any) {
-        console.warn("[Google Play Billing] PaymentRequest error:", playErr);
+        } catch (playErr: any) {
+          console.warn("[Google Play Billing] PaymentRequest error:", playErr);
 
-        // AbortError can mean either the user dismissed the bottom sheet,
-        // OR the native dialog was aborted before ever showing (e.g. signature mismatch, license issue)
-        if (playErr?.name === "AbortError") {
-          if (hasShownSheet) {
+          if (playErr?.name === "AbortError") {
+            if (hasShownSheet) {
+              return {
+                success: false,
+                canceled: true,
+                dismissedByUser: true,
+              };
+            }
             return {
               success: false,
-              canceled: true,
-              dismissedByUser: true,
+              canceled: false,
+              dismissedByUser: false,
+              error:
+                "Google Play payment sheet failed to launch. Verify your Google Play tester account is active and registered under License Testing in Google Play Console.",
             };
           }
+
           return {
             success: false,
-            canceled: false,
-            dismissedByUser: false,
             error:
-              "Google Play payment sheet failed to launch. Verify your Google Play tester account is active and registered under License Testing in Google Play Console.",
+              playErr?.message ||
+              "Google Play Billing encountered an error. Please ensure Google Play Services is updated.",
           };
+        } finally {
+          window.removeEventListener("blur", onBlur);
+          document.removeEventListener("visibilitychange", onVisibilityChange);
         }
-
-        return {
-          success: false,
-          error:
-            playErr?.message ||
-            "Google Play Billing encountered an error. Please ensure Google Play Services is updated.",
-        };
-      } finally {
-        window.removeEventListener("blur", onBlur);
-        document.removeEventListener("visibilitychange", onVisibilityChange);
       }
     }
-  }
 
     // 2. Web / Desktop & Mobile Browser Checkout (Stripe)
     const checkoutRes = await fetch("/api/billing/checkout", {
@@ -369,3 +417,114 @@ export async function checkGooglePlayBillingDiagnostics(): Promise<BillingDiagno
 
   return diag;
 }
+
+/**
+ * Queries Google Play Billing (via Digital Goods Service) for active subscription plans
+ * and pricing details, returning standardized Weekly and Monthly plan structures.
+ */
+export async function queryGooglePlaySubscriptionPlans(): Promise<{
+  weekly: PlayProductDetail;
+  monthly: PlayProductDetail;
+}> {
+  const defaultWeekly: PlayProductDetail = {
+    itemId: GOOGLE_PLAY_SKU_WEEKLY,
+    title: "Weekly Plan",
+    price: "$3.99",
+    currency: "USD",
+    period: "weekly",
+    trialDays: 3,
+  };
+
+  const defaultMonthly: PlayProductDetail = {
+    itemId: GOOGLE_PLAY_SKU_MONTHLY,
+    title: "Monthly Plan",
+    price: "$9.99",
+    currency: "USD",
+    period: "monthly",
+  };
+
+  if (!isAndroidAppEnvironment() || !isDigitalGoodsSupported()) {
+    return { weekly: defaultWeekly, monthly: defaultMonthly };
+  }
+
+  try {
+    const service = await (window as any).getDigitalGoodsService("https://play.google.com/billing");
+    if (service && typeof service.getDetails === "function") {
+      const detailsList = await service.getDetails([GOOGLE_PLAY_SKU_WEEKLY, GOOGLE_PLAY_SKU_MONTHLY]);
+      if (Array.isArray(detailsList)) {
+        for (const item of detailsList) {
+          if (item.itemId === GOOGLE_PLAY_SKU_WEEKLY) {
+            defaultWeekly.title = item.title || defaultWeekly.title;
+            if (item.price?.value) defaultWeekly.price = `${item.price.currency === "AUD" ? "A$" : "$"}${item.price.value}`;
+            if (item.price?.currency) defaultWeekly.currency = item.price.currency;
+          } else if (item.itemId === GOOGLE_PLAY_SKU_MONTHLY) {
+            defaultMonthly.title = item.title || defaultMonthly.title;
+            if (item.price?.value) defaultMonthly.price = `${item.price.currency === "AUD" ? "A$" : "$"}${item.price.value}`;
+            if (item.price?.currency) defaultMonthly.currency = item.price.currency;
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("[Google Play Billing] Query plans warning:", err);
+  }
+
+  return { weekly: defaultWeekly, monthly: defaultMonthly };
+}
+
+/**
+ * Restores previous purchases by querying Google Play Digital Goods Service or local backend.
+ */
+export async function restoreGooglePlayPurchases(): Promise<{
+  success: boolean;
+  active: boolean;
+  message: string;
+}> {
+  if (isMockProActive()) {
+    return { success: true, active: true, message: "Restored active subscription (Debug Mode)." };
+  }
+
+  if (!isAndroidAppEnvironment() || !isDigitalGoodsSupported()) {
+    try {
+      const res = await fetch("/api/billing/status");
+      const data = await res.json().catch(() => ({}));
+      if (data.active || data.plan === "Pro") {
+        return { success: true, active: true, message: "Subscription active and restored!" };
+      }
+      return { success: false, active: false, message: "No active subscription found to restore." };
+    } catch {
+      return { success: false, active: false, message: "Unable to verify subscriptions. Please try again." };
+    }
+  }
+
+  try {
+    const service = await (window as any).getDigitalGoodsService("https://play.google.com/billing");
+    if (service && typeof service.listPurchases === "function") {
+      const purchases = await service.listPurchases();
+      if (Array.isArray(purchases) && purchases.length > 0) {
+        for (const p of purchases) {
+          const purchaseToken = p.purchaseToken || p.token;
+          if (purchaseToken) {
+            const verifyRes = await fetch("/api/billing/google-play/verify", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                purchaseToken,
+                sku: p.itemId || GOOGLE_PLAY_SKU_MONTHLY,
+                packageName: GOOGLE_PLAY_PACKAGE,
+              }),
+            });
+            const verifyData = await verifyRes.json().catch(() => ({}));
+            if (verifyRes.ok && verifyData.success) {
+              return { success: true, active: true, message: "Purchase restored successfully!" };
+            }
+          }
+        }
+      }
+    }
+    return { success: false, active: false, message: "No active Google Play purchases found." };
+  } catch (err: any) {
+    return { success: false, active: false, message: err?.message || "Failed to query Google Play purchases." };
+  }
+}
+

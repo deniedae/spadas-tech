@@ -21,7 +21,14 @@ import { supabase } from "@/app/lib/supabase";
 import { createListing } from "@/app/lib/createlisting";
 import { generateEbayPrefillUrl } from "@/app/lib/marketplaces/ebay-prefill";
 import { convertCurrency, SupportedCurrency } from "@/app/lib/currency-routing";
-import { isMeaningfulMeta, cleanBrandText, cleanConditionText } from "@/lib/lens-utils";
+import { EBAY_RESTRICTION_NOTICE } from "@/app/lib/marketplaces/ebay";
+import {
+  isMeaningfulMeta,
+  cleanBrandText,
+  cleanConditionText,
+  buildCleanListingSubject,
+  buildCleanListingDescription,
+} from "@/lib/lens-utils";
 
 export const REGION_OPTIONS = [
   { id: "AUD", label: "eBay AU", country: "Australia", flag: "🇦🇺", code: "AUD", symbol: "$", site: "ebay.com.au" },
@@ -136,13 +143,14 @@ export default function EbayListingModal({
   const prevSessionIdRef = useRef<string | null>(null);
 
   const [error, setError] = useState<string | null>(null);
+  const [isAccountRestricted, setIsAccountRestricted] = useState<boolean>(false);
   const [publishedUrl, setPublishedUrl] = useState<string | null>(null);
   const [publishedSku, setPublishedSku] = useState<string | null>(null);
   const [isLiveListing, setIsLiveListing] = useState<boolean>(false);
 
   const safeInitBrand = cleanBrandText(initialBrand, "Unbranded") || "Unbranded";
   const safeInitCond = cleanConditionText(initialCondition, "Used - Good");
-  const safeInitTitle = (initialTitle && isMeaningfulMeta(initialTitle) ? initialTitle : "Scanned Item").slice(0, 80);
+  const safeInitTitle = buildCleanListingSubject(initialBrand, initialTitle || "Scanned Item");
 
   const [selectedCurrency, setSelectedCurrency] = useState<string>(() => {
     if (initialCurrency && ["AUD", "USD", "GBP"].includes(initialCurrency.toUpperCase())) {
@@ -168,7 +176,12 @@ export default function EbayListingModal({
   const [inputCondition, setInputCondition] = useState(safeInitCond);
   const [inputDescription, setInputDescription] = useState(
     initialDescription ||
-      `Authentic ${safeInitBrand !== "Unbranded" ? safeInitBrand : ""} ${safeInitTitle}.\n\n• Brand: ${safeInitBrand}\n• Model: ${safeInitTitle}\n• Material/Color: Standard finish\n• Condition: ${safeInitCond}. Tested and operating as intended.\n\nPlease review all photos for exact details.`
+      buildCleanListingDescription({
+        brand: safeInitBrand,
+        title: safeInitTitle,
+        condition: safeInitCond,
+        materialColor: "Standard finish",
+      })
   );
 
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -188,6 +201,7 @@ export default function EbayListingModal({
         setPublishedSku(null);
         setIsLiveListing(false);
         setError(null);
+        setIsAccountRestricted(false);
 
         // Bind scan capture blob for the active item
         setPrimaryScanBlob(resolvedScanImage);
@@ -237,7 +251,7 @@ export default function EbayListingModal({
         } else {
           // Normal Initialization
           setSelectedCurrency(targetCurr);
-          const safeTitle = (initialTitle && isMeaningfulMeta(initialTitle) ? initialTitle : "Scanned Item").slice(0, 80);
+          const safeTitle = buildCleanListingSubject(initialBrand, initialTitle || "Scanned Item");
           const safeBrand = cleanBrandText(initialBrand, "Unbranded") || "Unbranded";
           const safeCond = cleanConditionText(initialCondition, "Used - Good");
           setInputTitle(safeTitle);
@@ -253,7 +267,12 @@ export default function EbayListingModal({
           setInputCondition(safeCond);
           setInputDescription(
             initialDescription ||
-              `Authentic ${safeBrand !== "Unbranded" ? safeBrand : ""} ${safeTitle}.\n\n• Brand: ${safeBrand}\n• Model: ${safeTitle}\n• Material/Color: Standard finish\n• Condition: ${safeCond}. Tested and operating as intended.\n\nPlease review all photos for exact details.`
+              buildCleanListingDescription({
+                brand: safeBrand,
+                title: safeTitle,
+                condition: safeCond,
+                materialColor: "Standard finish",
+              })
           );
         }
       }
@@ -503,6 +522,11 @@ export default function EbayListingModal({
         );
       }
 
+      if (data.accountRestricted || data.error === EBAY_RESTRICTION_NOTICE || data.message === EBAY_RESTRICTION_NOTICE) {
+        setIsAccountRestricted(true);
+        throw new Error(EBAY_RESTRICTION_NOTICE);
+      }
+
       // Force Live Sync: Ensure submission targets active publish action
       if (!res.ok || !data.success || !data.isLive) {
         throw new Error(data.error || data.message || "Failed to publish live listing to eBay.");
@@ -681,19 +705,49 @@ export default function EbayListingModal({
 
               {/* Error Notice */}
               {error && (
-                <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl flex items-start gap-2 text-rose-300 text-xs">
-                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-400" />
-                  <div className="space-y-1">
-                    <p className="font-semibold">Publish Note</p>
-                    <p className="text-[11px] text-rose-200/90 leading-relaxed">{error}</p>
-                    <button
-                      type="button"
-                      onClick={handleFastList}
-                      className="text-[11px] text-cyan-400 underline hover:text-cyan-300 inline-flex items-center gap-1 mt-1 cursor-pointer font-bold"
+                <div
+                  className={`p-3 rounded-xl flex items-start gap-2 text-xs ${
+                    isAccountRestricted
+                      ? "bg-amber-500/10 border border-amber-500/30 text-amber-300"
+                      : "bg-rose-500/10 border border-rose-500/30 text-rose-300"
+                  }`}
+                >
+                  <AlertCircle
+                    className={`w-4 h-4 shrink-0 mt-0.5 ${
+                      isAccountRestricted ? "text-amber-400" : "text-rose-400"
+                    }`}
+                  />
+                  <div className="space-y-1.5 w-full">
+                    <p className="font-semibold">
+                      {isAccountRestricted ? "eBay Account Restriction Detected" : "Publish Note"}
+                    </p>
+                    <p
+                      className={`text-[11px] leading-relaxed ${
+                        isAccountRestricted ? "text-amber-200/90 font-medium" : "text-rose-200/90"
+                      }`}
                     >
-                      <span>Click to 1-Tap Fast-List directly on eBay</span>
-                      <ExternalLink className="w-3 h-3" />
-                    </button>
+                      {error}
+                    </p>
+                    {isAccountRestricted ? (
+                      <a
+                        href={activeRegion.id === "AUD" ? "https://www.ebay.com.au/sh/ovw" : "https://www.ebay.com/sh/ovw"}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 mt-1 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-[11px] font-bold border border-amber-500/40 transition"
+                      >
+                        <span>Check eBay Seller Hub Verification</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleFastList}
+                        className="text-[11px] text-cyan-400 underline hover:text-cyan-300 inline-flex items-center gap-1 mt-1 cursor-pointer font-bold"
+                      >
+                        <span>Click to 1-Tap Fast-List directly on eBay</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </button>
+                    )}
                   </div>
                 </div>
               )}

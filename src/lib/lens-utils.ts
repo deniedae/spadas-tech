@@ -108,6 +108,84 @@ export function cleanCategoryText(rawCategory?: unknown, fallback?: string): str
   return fallback;
 }
 
+/**
+ * Builds a clean, deduplicated listing subject/title.
+ * - Strips keyword-spam triggers like "Authentic" or "100% Authentic"
+ * - Deduplicates brand when the title already includes or starts with it (e.g. "Tom and Jerry Tom and Jerry...")
+ */
+export function buildCleanListingSubject(rawBrand?: unknown, rawTitle?: unknown): string {
+  const safeBrand = cleanBrandText(rawBrand, "") || "";
+  let title = (typeof rawTitle === "string" ? rawTitle : "Scanned Item").trim();
+
+  // Strip trigger words like "Authentic" or "100% Authentic" at the beginning of the title
+  title = title.replace(/^(100%\s*)?authentic\s+/i, "").trim();
+  if (!title) title = "Scanned Item";
+
+  if (!safeBrand || safeBrand.toLowerCase() === "unbranded" || safeBrand.toLowerCase() === "generic") {
+    return title;
+  }
+
+  const brandLower = safeBrand.toLowerCase();
+  const titleLower = title.toLowerCase();
+
+  // If title already starts with or contains the brand, do not duplicate
+  if (titleLower.startsWith(brandLower) || titleLower.includes(brandLower)) {
+    return title;
+  }
+
+  return `${safeBrand} ${title}`;
+}
+
+/**
+ * Builds a clean, professional, policy-compliant eBay listing description.
+ * - Deduplicates repeated brand strings
+ * - Eliminates trigger words ("Authentic") to avoid keyword spam and VERO policy triggers
+ */
+export function buildCleanListingDescription(options: {
+  title?: string;
+  brand?: string;
+  category?: string;
+  condition?: string;
+  price?: number;
+  currency?: string;
+  materialColor?: string;
+  extraNotes?: string;
+}): string {
+  const safeBrand = cleanBrandText(options.brand, "Unbranded") || "Unbranded";
+  const safeTitle = (options.title || "Scanned Item").trim();
+  const subject = buildCleanListingSubject(safeBrand, safeTitle);
+  const safeCond = cleanConditionText(options.condition, "Used - Good");
+
+  const lines: string[] = [
+    `${subject}.`,
+    "",
+    `• Brand: ${safeBrand !== "Unbranded" ? safeBrand : "Unbranded"}`,
+    `• Item: ${safeTitle}`,
+  ];
+
+  if (options.materialColor) {
+    lines.push(`• Material/Color: ${options.materialColor}`);
+  }
+
+  if (options.category && options.category !== "General Resale" && isMeaningfulMeta(options.category)) {
+    lines.push(`• Category: ${options.category}`);
+  }
+
+  lines.push(`• Condition: ${safeCond}. Inspected and operating as intended.`);
+
+  if (typeof options.price === "number" && options.price > 0) {
+    const symbol = options.currency === "USD" ? "$" : options.currency === "GBP" ? "£" : "A$";
+    lines.push(`• Target Price: ${symbol}${options.price.toFixed(2)}`);
+  }
+
+  if (options.extraNotes && options.extraNotes.trim()) {
+    lines.push(`• Details: ${options.extraNotes.trim()}`);
+  }
+
+  lines.push("", "Please review all photos for exact item condition and cosmetic details.");
+  return lines.join("\n");
+}
+
 // Capture an optimized WebP (or JPEG fallback) frame from a live HTMLVideoElement, returns a data URL or null
 export function captureVideoFrame(video: HTMLVideoElement | null, quality = 0.70): string | null {
   if (!video || video.videoWidth === 0) return null;

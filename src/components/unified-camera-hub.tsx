@@ -20,6 +20,16 @@ const ScannerGuideModal = dynamic(
   { ssr: false }
 );
 
+const OnboardingCarousel = dynamic(
+  () => import("@/components/onboarding-carousel").then((m) => m.OnboardingCarousel),
+  { ssr: false }
+);
+
+const SubscriptionPaywallModal = dynamic(
+  () => import("@/components/subscription-paywall-modal"),
+  { ssr: false }
+);
+
 interface UnifiedCameraHubProps {
   initialTab?: "lens" | "studio" | "haul";
 }
@@ -30,7 +40,29 @@ export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraH
     initialTab === "studio" ? "studio" : "lens"
   );
   const [isGuideOpen, setIsGuideOpen] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        return localStorage.getItem("hasCompletedOnboarding") !== "true";
+      } catch {
+        return false;
+      }
+    }
+    return false;
+  });
+  const [isPaywallOpen, setIsPaywallOpen] = useState(false);
+  const [isPaywallFromOnboarding, setIsPaywallFromOnboarding] = useState(false);
   const { haulCount } = useHaulStore();
+
+  const handleOnboardingComplete = useCallback(() => {
+    setShowOnboarding(false);
+    setIsPaywallFromOnboarding(true);
+    setIsPaywallOpen(true);
+  }, []);
+
+  const handleOnboardingSkip = useCallback(() => {
+    setShowOnboarding(false);
+  }, []);
 
   // Clean exit handler: navigates to dashboard for authenticated users or home for guests
   const handleExitCamera = useCallback(async () => {
@@ -157,6 +189,22 @@ export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraH
 
           {/* Header Right Utility Buttons */}
           <div className="flex items-center gap-1.5 shrink-0">
+            {/* Pro / Subscription Upgrade Modal Trigger */}
+            <button
+              type="button"
+              onClick={() => {
+                triggerTactileHaptic("tap");
+                setIsPaywallFromOnboarding(false);
+                setIsPaywallOpen(true);
+              }}
+              className="flex items-center gap-1 h-10 px-2.5 rounded-2xl bg-gradient-to-r from-amber-500/20 via-yellow-500/15 to-emerald-500/20 hover:from-amber-500/30 hover:to-emerald-500/30 border border-amber-400/40 text-amber-300 hover:text-white active:scale-95 transition-all shadow-[0_0_12px_rgba(245,158,11,0.2)] cursor-pointer"
+              title="Unlock Spadas Pro"
+              aria-label="Unlock Spadas Pro"
+            >
+              <Sparkles className="h-4 w-4 text-amber-300 animate-pulse" />
+              <span className="text-xs font-black tracking-wider uppercase">Pro</span>
+            </button>
+
             {/* How to Scan Guide Button */}
             <button
               type="button"
@@ -205,6 +253,21 @@ export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraH
           </div>
         )}
       </div>
+
+      {/* 3-Slide Onboarding Carousel for First-Time Users */}
+      {showOnboarding && (
+        <OnboardingCarousel
+          onComplete={handleOnboardingComplete}
+          onSkip={handleOnboardingSkip}
+        />
+      )}
+
+      {/* Subscription Paywall Modal */}
+      <SubscriptionPaywallModal
+        isOpen={isPaywallOpen}
+        onClose={() => setIsPaywallOpen(false)}
+        fromOnboarding={isPaywallFromOnboarding}
+      />
 
       {/* In-Camera Quick Guide Modal */}
       <ScannerGuideModal

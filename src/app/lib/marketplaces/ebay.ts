@@ -497,6 +497,52 @@ export function resolveEbayCategoryId(category?: string, title?: string): string
 
 /**
  * Publish Spadas AI Listing to eBay Inventory & Offer REST API
+ */
+export const EBAY_RESTRICTION_NOTICE =
+  "Listing Blocked: Your eBay account currently has selling restrictions or pending verification. Please check eBay Seller Hub.";
+
+export function isEbayAccountRestrictedError(errorData: any, rawText?: string): boolean {
+  const combinedText = [
+    typeof rawText === "string" ? rawText : "",
+    errorData?.message || "",
+    ...(errorData?.errors || []).map((e: any) => `${e?.errorId || ""} ${e?.message || ""} ${e?.longMessage || ""}`),
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  const restrictionErrorIds = [
+    "25019", "25008", "25010", "25007", "25001", "25006",
+    "21919188", "21916328", "21919158", "21919182", "21919301",
+    "21919067", "121", "17", "21916293"
+  ];
+
+  const hasRestrictionId = (errorData?.errors || []).some((e: any) =>
+    restrictionErrorIds.includes(String(e?.errorId))
+  );
+
+  const restrictionPhrases = [
+    "violation of ebay policy",
+    "seller may be in violation",
+    "selling restrictions",
+    "restricted from selling",
+    "account is restricted",
+    "account has restrictions",
+    "your account has not met",
+    "trading limit",
+    "seller account status",
+    "pending verification",
+    "verify your account",
+    "unable to list items at this time",
+    "selling limit",
+    "suspended",
+  ];
+
+  const hasRestrictionPhrase = restrictionPhrases.some((phrase) => combinedText.includes(phrase));
+  return hasRestrictionId || hasRestrictionPhrase;
+}
+
+/**
+ * Publishes an inventory item and either creates a live offer or a draft offer on eBay.
  * Supports eBay Australia (EBAY_AU / AUD), United States (EBAY_US / USD), and United Kingdom (EBAY_GB / GBP).
  */
 export async function publishToEbayInventory(
@@ -515,6 +561,7 @@ export async function publishToEbayInventory(
   }
 ) {
   const apiHost = getApiHost();
+  const isProduction = apiHost === "api.ebay.com";
   const rawCurrency = (listing.currency || "").toUpperCase().trim();
   const isUsd = rawCurrency === "USD";
   const isGbp = rawCurrency === "GBP";
@@ -598,12 +645,28 @@ export async function publishToEbayInventory(
   if (!res.ok && res.status !== 204) {
     const errText = await res.text();
     let parsedMsg = errText;
+    let parsedJson: any = null;
     try {
-      const parsed = JSON.parse(errText);
-      if (parsed.errors?.[0]?.message) {
-        parsedMsg = parsed.errors[0].message;
+      parsedJson = JSON.parse(errText);
+      if (parsedJson.errors?.[0]?.message) {
+        parsedMsg = parsedJson.errors[0].message;
       }
     } catch {}
+
+    if (isEbayAccountRestrictedError(parsedJson, errText)) {
+      return {
+        success: false,
+        sku,
+        offerId: null,
+        isLive: false,
+        listingId: null,
+        accountRestricted: true,
+        error: EBAY_RESTRICTION_NOTICE,
+        message: EBAY_RESTRICTION_NOTICE,
+        listingUrl: `https://${isProduction ? "www" : "sandbox"}.${ebayDomain}/sh/ovw`,
+      };
+    }
+
     throw new Error(`eBay Inventory API error (${res.status}): ${parsedMsg}`);
   }
 
@@ -613,7 +676,6 @@ export async function publishToEbayInventory(
 
   // 5. Create an Offer for this inventory item
   let offerId: string | null = null;
-  const isProduction = apiHost === "api.ebay.com";
 
   try {
     const offerPayload: Record<string, unknown> = {
@@ -656,15 +718,19 @@ export async function publishToEbayInventory(
       const errJson = await offerRes.json().catch(() => null);
       const errMsg = errJson?.errors?.[0]?.message || `eBay Offer API returned ${offerRes.status}`;
       console.warn("eBay Offer creation warning:", errMsg, errJson);
+      const isRestricted = isEbayAccountRestrictedError(errJson, errMsg);
       return {
         success: false,
         sku,
         offerId: null,
         isLive: false,
         listingId: null,
-        error: errMsg,
-        message: `Could not create offer: ${errMsg}. Use 1-Tap Fast-List to publish directly on eBay!`,
-        listingUrl: `https://${isProduction ? "www" : "sandbox"}.${ebayDomain}/sl/prelist/suggest?keyword=${encodeURIComponent(listing.product)}`,
+        accountRestricted: isRestricted,
+        error: isRestricted ? EBAY_RESTRICTION_NOTICE : errMsg,
+        message: isRestricted ? EBAY_RESTRICTION_NOTICE : `Could not create offer: ${errMsg}. Use 1-Tap Fast-List to publish directly on eBay!`,
+        listingUrl: isRestricted
+          ? `https://${isProduction ? "www" : "sandbox"}.${ebayDomain}/sh/ovw`
+          : `https://${isProduction ? "www" : "sandbox"}.${ebayDomain}/sl/prelist/suggest?keyword=${encodeURIComponent(listing.product)}`,
       };
     }
 
@@ -708,6 +774,7 @@ export async function publishToEbayInventory(
         const pubErrJson = await pubRes.json().catch(() => null);
         const errMsg = pubErrJson?.errors?.[0]?.message || `eBay publish returned status ${pubRes.status}`;
         console.warn("eBay live publish failed:", errMsg, pubErrJson);
+        const isRestricted = isEbayAccountRestrictedError(pubErrJson, errMsg);
 
         return {
           success: false,
@@ -715,9 +782,12 @@ export async function publishToEbayInventory(
           offerId,
           isLive: false,
           listingId: null,
-          error: errMsg,
-          message: `Could not publish live to eBay: ${errMsg}. Use 1-Tap Fast-List to publish directly!`,
-          listingUrl: `https://${isProduction ? "www" : "sandbox"}.${ebayDomain}/sh/lst/drafts`,
+          accountRestricted: isRestricted,
+          error: isRestricted ? EBAY_RESTRICTION_NOTICE : errMsg,
+          message: isRestricted ? EBAY_RESTRICTION_NOTICE : `Could not publish live to eBay: ${errMsg}. Use 1-Tap Fast-List to publish directly!`,
+          listingUrl: isRestricted
+            ? `https://${isProduction ? "www" : "sandbox"}.${ebayDomain}/sh/ovw`
+            : `https://${isProduction ? "www" : "sandbox"}.${ebayDomain}/sh/lst/drafts`,
         };
       }
     } else if (offerId && isExplicitDraft) {

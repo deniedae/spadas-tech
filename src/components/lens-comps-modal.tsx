@@ -29,6 +29,7 @@ import {
   BarChart3,
   ArrowUpRight,
   Layers,
+  AlertTriangle,
 } from "lucide-react";
 import { track } from "@vercel/analytics";
 import { scannerAudio } from "@/lib/scanner-audio";
@@ -44,7 +45,10 @@ import {
   cleanConditionText,
   isBulkOrLotTitle,
   isMeaningfulMeta,
+  buildCleanListingSubject,
+  buildCleanListingDescription,
 } from "@/lib/lens-utils";
+import { EBAY_RESTRICTION_NOTICE, isEbayAccountRestrictedError } from "@/app/lib/marketplaces/ebay";
 import { triggerTactileHaptic, syncProfitToAndroidWidget, openExternalUrlSafely } from "@/lib/android-bridge";
 import {
   estimateCategoryShippingCost,
@@ -88,11 +92,13 @@ interface LensCompsModalProps {
   item: DetectedHit | ActiveScanItem | null;
   frozenFrameUrl?: string | null;
   currency?: string;
+  isUserBookmarked?: boolean;
   onClose: () => void;
   onResumeScan: () => void;
   onListEbay?: (item: DetectedHit | ActiveScanItem) => void;
   onDeepVerify?: (item: DetectedHit | ActiveScanItem) => void;
   onTriggerBarcodeScan?: () => void;
+  onSaveDraftSuccess?: (item: DetectedHit | ActiveScanItem) => void;
 }
 
 export default function LensCompsModal({
@@ -100,15 +106,19 @@ export default function LensCompsModal({
   item,
   frozenFrameUrl,
   currency,
+  isUserBookmarked = false,
   onClose,
   onResumeScan,
   onListEbay,
   onDeepVerify,
   onTriggerBarcodeScan,
+  onSaveDraftSuccess,
 }: LensCompsModalProps) {
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  const [explicitlySavedIds, setExplicitlySavedIds] = useState<Set<string>>(() => new Set());
+  const [accountBlockedNotice, setAccountBlockedNotice] = useState<string | null>(null);
   const [isCopilotOpen, setIsCopilotOpen] = useState(false);
   const mountTimeRef = useRef<number>(0);
 
@@ -196,7 +206,13 @@ export default function LensCompsModal({
     setLiveEbayListingUrl(null);
     setPublishedSku(null);
     setIsLiveListing(false);
-  }, [item, initialPhotos]);
+    setIsSaving(false);
+    setAccountBlockedNotice(null);
+
+    const currentItemId = (item as any)?.id ? String((item as any).id) : null;
+    const isExplicitlySaved = currentItemId ? explicitlySavedIds.has(currentItemId) : false;
+    setIsSaved(Boolean(isUserBookmarked || isExplicitlySaved));
+  }, [item, initialPhotos, isUserBookmarked, explicitlySavedIds]);
 
   const handleAddPhotos = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -370,6 +386,18 @@ export default function LensCompsModal({
     }
     return sanitized;
   }, [rawComps, condition, fragranceMultiplier, isTargetUsed]);
+
+  // Hold initial valuation rendering with skeleton while comps and profit waterfall are resolving
+  const isResolvingValuation = useMemo(() => {
+    if (!item) return false;
+    const itemStatus = (item as any)?.status;
+    const isPendingStatus = itemStatus === "fetching_comps" || itemStatus === "analyzing" || itemStatus === "pending";
+    const isCompsPending = Boolean((item as any)?.is_comps_pending);
+    const hasNoCompsYet = effectiveComps.length === 0;
+    const isBaselineFallback = !item.estimatedValue || Number(item.estimatedValue) <= 8;
+
+    return isPendingStatus || isCompsPending || (hasNoCompsYet && isBaselineFallback);
+  }, [item, effectiveComps.length]);
 
   const compsRange = useMemo(() => {
     const baseDefault = (isLiquidOrFragrance && isFragranceActive)
@@ -709,11 +737,24 @@ export default function LensCompsModal({
       }
 
       const primaryImage = listingPhotos[0] || frozenFrameUrl || (item as any)?.image || undefined;
+      const safeBrandForSave = cleanBrandText(brand, "Unbranded") || "Unbranded";
+      const cleanSubject = buildCleanListingSubject(safeBrandForSave, title);
+      const cleanSaveDesc = buildCleanListingDescription({
+        title,
+        brand: safeBrandForSave,
+        category,
+        condition,
+        price: activeResalePrice,
+        currency: targetCurrency,
+        extraNotes: isLiquidOrFragrance && isFragranceActive
+          ? `${fillLevel}% Fill, ${hasCap ? "With Cap" : "No Cap"}${isTester ? ", Tester" : ""}`
+          : undefined,
+      });
 
       const { error } = await createListing({
         userId: user.id,
-        product: title,
-        description: `Sourced via Spadas Cognitive Lens Engine. Category: ${category}. Condition: ${condition}${isLiquidOrFragrance && isFragranceActive ? ` (${fillLevel}% Fill, ${hasCap ? "With Cap" : "No Cap"}${isTester ? ", Tester" : ""})` : ""}. Target Value: ${formatAUD(activeResalePrice)}. Realized sold comps source: eBay AU/US.`,
+        product: cleanSubject,
+        description: cleanSaveDesc,
         price: activeResalePrice,
         cost: effectiveTagCost,
         status: "Draft",
@@ -722,10 +763,18 @@ export default function LensCompsModal({
 
       if (error) throw error;
 
+      const currentItemId = (item as any)?.id ? String((item as any).id) : null;
+      if (currentItemId) {
+        setExplicitlySavedIds((prev) => new Set(prev).add(currentItemId));
+      }
       setIsSaved(true);
       triggerTactileHaptic("success");
       syncProfitToAndroidWidget(netProfit, 1);
-      toast.success(`Saved "${title.slice(0, 24)}..." (+$${netProfit} Net Profit)!`);
+      toast.success(`Saved "${cleanSubject.slice(0, 24)}..." (+$${netProfit} Net Profit)!`);
+
+      if (onSaveDraftSuccess && item) {
+        onSaveDraftSuccess(item);
+      }
 
       try {
         track("lens_comp_draft_saved", {
@@ -800,10 +849,18 @@ export default function LensCompsModal({
     const targetRegionLabel = isUsMarket ? "eBay US" : "eBay AU";
     const targetDomain = isUsMarket ? "ebay.com" : "ebay.com.au";
 
-    const itemDescription = `Authentic ${safeBrand !== "Unbranded" ? safeBrand : ""} ${title}.\n\n• Brand: ${safeBrand}\n• Model: ${title}\n• Category: ${category}\n• Condition: ${safeCond}. Tested and operating as intended.\n• Target Sale Price: ${targetCurrency === "USD" ? "$" : "A$"}${Number(activeResalePrice).toFixed(2)}\n\nPlease review all photos for exact details.`;
+    const cleanSubject = buildCleanListingSubject(safeBrand, title);
+    const itemDescription = buildCleanListingDescription({
+      title,
+      brand: safeBrand,
+      category,
+      condition: safeCond,
+      price: Number(activeResalePrice),
+      currency: targetCurrency,
+    });
 
     const payload = {
-      product: title.slice(0, 80),
+      product: cleanSubject.slice(0, 80),
       brand: safeBrand,
       price: Number(activeResalePrice),
       currency: targetCurrency,
@@ -817,6 +874,7 @@ export default function LensCompsModal({
     };
 
     setIsPublishingEbay(true);
+    setAccountBlockedNotice(null);
     try {
       triggerTactileHaptic("medium");
       const {
@@ -844,8 +902,18 @@ export default function LensCompsModal({
         );
       }
 
-      // If user is not authenticated or needs to connect eBay account:
       const errText = String(data.error || data.message || "");
+
+      // Catch eBay selling restrictions or account blocks
+      if (data.accountRestricted || isEbayAccountRestrictedError(data, errText)) {
+        setAccountBlockedNotice(EBAY_RESTRICTION_NOTICE);
+        toast.error("Listing Blocked: Your eBay account currently has selling restrictions. Please check eBay Seller Hub.", {
+          duration: 7000,
+        });
+        return;
+      }
+
+      // If user is not authenticated or needs to connect eBay account:
       const needsConnection =
         res.status === 401 || (res.status === 400 && /connect|ebay seller account|token|reconnect/i.test(errText));
 
@@ -1031,108 +1099,160 @@ export default function LensCompsModal({
         <div className="flex-1 overflow-y-auto overscroll-contain touch-pan-y divide-y divide-zinc-800 custom-scrollbar">
           {/* Institutional Valuation Command Header */}
           <div className="p-4 space-y-3.5 bg-zinc-950">
+            {/* eBay Account Restriction Warning Banner */}
+            {accountBlockedNotice && (
+              <div className="p-3.5 rounded-lg border border-rose-500/50 bg-rose-950/40 text-xs text-rose-200 flex flex-col gap-2">
+                <div className="flex items-start gap-2 font-bold text-rose-300">
+                  <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                  <span>{accountBlockedNotice}</span>
+                </div>
+                <div className="flex items-center justify-between pt-1">
+                  <span className="text-[11px] text-zinc-400">Review selling restrictions &amp; verify account</span>
+                  <a
+                    href={`https://www.${isUsMarket ? "ebay.com" : "ebay.com.au"}/sh/ovw`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => openExternalUrlSafely(`https://www.${isUsMarket ? "ebay.com" : "ebay.com.au"}/sh/ovw`, "eBay Seller Hub", e)}
+                    className="px-2.5 py-1 rounded bg-rose-600 hover:bg-rose-500 text-white font-semibold text-[11px] flex items-center gap-1 shrink-0"
+                  >
+                    <span>Open Seller Hub</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+              </div>
+            )}
+
             {/* Top Financial Verdict Strip */}
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <span
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold tracking-wide border ${
-                    copVerdict === "MUST_COP" || recommendation === "HIGH PROFIT"
-                      ? "bg-emerald-950/60 text-emerald-300 border-emerald-800/80"
-                      : copVerdict === "PASS_RISKY" || recommendation === "PASS"
-                      ? "bg-rose-950/60 text-rose-300 border-rose-800/80"
-                      : "bg-zinc-900 text-zinc-200 border-zinc-800"
-                  }`}
-                >
-                  <span
-                    className={`w-1.5 h-1.5 rounded-full ${
-                      copVerdict === "MUST_COP" || recommendation === "HIGH PROFIT"
-                        ? "bg-emerald-400"
-                        : copVerdict === "PASS_RISKY" || recommendation === "PASS"
-                        ? "bg-rose-400"
-                        : "bg-emerald-400"
-                    }`}
-                  />
-                  <span>
-                    {copVerdict === "MUST_COP" || recommendation === "HIGH PROFIT"
-                      ? "BUY · HIGH MARGIN"
-                      : copVerdict === "PASS_RISKY" || recommendation === "PASS"
-                      ? "PASS · LOW MARGIN"
-                      : "BUY · SOLID MARGIN"}
+                {isResolvingValuation ? (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold tracking-wide border bg-zinc-900 border-zinc-800 text-zinc-400 animate-pulse">
+                    <Loader2 className="w-3.5 h-3.5 text-cyan-400 animate-spin" />
+                    <span>CALIBRATING COMPS...</span>
                   </span>
-                </span>
+                ) : (
+                  <span
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold tracking-wide border ${
+                      copVerdict === "MUST_COP" || recommendation === "HIGH PROFIT"
+                        ? "bg-emerald-950/60 text-emerald-300 border-emerald-800/80"
+                        : copVerdict === "PASS_RISKY" || recommendation === "PASS"
+                        ? "bg-rose-950/60 text-rose-300 border-rose-800/80"
+                        : "bg-zinc-900 text-zinc-200 border-zinc-800"
+                    }`}
+                  >
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full ${
+                        copVerdict === "MUST_COP" || recommendation === "HIGH PROFIT"
+                          ? "bg-emerald-400"
+                          : copVerdict === "PASS_RISKY" || recommendation === "PASS"
+                          ? "bg-rose-400"
+                          : "bg-emerald-400"
+                      }`}
+                    />
+                    <span>
+                      {copVerdict === "MUST_COP" || recommendation === "HIGH PROFIT"
+                        ? "BUY · HIGH MARGIN"
+                        : copVerdict === "PASS_RISKY" || recommendation === "PASS"
+                        ? "PASS · LOW MARGIN"
+                        : "BUY · SOLID MARGIN"}
+                    </span>
+                  </span>
+                )}
                 <span className="text-[11px] text-zinc-400 tabular-nums">
-                  {salesVelocity.turnoverTier === "RAPID_FIRE" ? "~1–3 days turn" : `${salesVelocity.estDaysToSell} days turn`}
+                  {isResolvingValuation
+                    ? "Calculating turnover..."
+                    : salesVelocity.turnoverTier === "RAPID_FIRE"
+                    ? "~1–3 days turn"
+                    : `${salesVelocity.estDaysToSell} days turn`}
                 </span>
               </div>
 
               <div className="text-[11px] text-zinc-400 shrink-0 tabular-nums">
-                {trustLineText}
+                {isResolvingValuation ? "Auditing marketplace..." : trustLineText}
               </div>
             </div>
 
             {/* The 3 Core Market Pillars */}
-            <div className="grid grid-cols-3 gap-2">
-              {/* Pillar 1: Verified Realized Sales */}
-              <div className="p-3 rounded-lg bg-zinc-900/70 border border-zinc-800 flex flex-col justify-between">
-                <div className="flex items-center gap-1 text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">
-                  <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />
-                  <span className="truncate">REALIZED SALES</span>
-                </div>
-                <div className="text-xl sm:text-2xl font-bold text-white tabular-nums my-1 tracking-tight">
-                  {displaySoldCount > 0 ? fmtMoney(displaySoldMedian) : "No sales"}
-                </div>
-                <div className="space-y-0.5 pt-1 border-t border-zinc-800/80">
-                  <div className="text-[10px] text-zinc-300 font-medium tabular-nums truncate">
-                    {displaySoldCount > 0 ? `${displaySoldCount} sold comps` : "Appraisal model"}
+            {isResolvingValuation ? (
+              <div className="grid grid-cols-3 gap-2">
+                {[0, 1, 2].map((idx) => (
+                  <div
+                    key={idx}
+                    className="p-3 rounded-lg bg-zinc-900/70 border border-zinc-800 flex flex-col justify-between h-[102px] animate-pulse"
+                  >
+                    <div className="h-2.5 w-16 bg-zinc-800 rounded" />
+                    <div className="h-6 w-20 bg-zinc-800/80 rounded my-1" />
+                    <div className="space-y-1 pt-1 border-t border-zinc-800/80">
+                      <div className="h-2 w-16 bg-zinc-800/60 rounded" />
+                      <div className="h-2 w-10 bg-zinc-800/40 rounded" />
+                    </div>
                   </div>
-                  <div className="text-[9px] text-zinc-500 tabular-nums truncate">
-                    Floor: {fmtMoney(compsRange.min)}
-                  </div>
-                </div>
+                ))}
               </div>
+            ) : (
+              <div className="grid grid-cols-3 gap-2">
+                {/* Pillar 1: Verified Realized Sales */}
+                <div className="p-3 rounded-lg bg-zinc-900/70 border border-zinc-800 flex flex-col justify-between">
+                  <div className="flex items-center gap-1 text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />
+                    <span className="truncate">REALIZED SALES</span>
+                  </div>
+                  <div className="text-xl sm:text-2xl font-bold text-white tabular-nums my-1 tracking-tight">
+                    {displaySoldCount > 0 ? fmtMoney(displaySoldMedian) : "No sales"}
+                  </div>
+                  <div className="space-y-0.5 pt-1 border-t border-zinc-800/80">
+                    <div className="text-[10px] text-zinc-300 font-medium tabular-nums truncate">
+                      {displaySoldCount > 0 ? `${displaySoldCount} sold comps` : "Appraisal model"}
+                    </div>
+                    <div className="text-[9px] text-zinc-500 tabular-nums truncate">
+                      Floor: {fmtMoney(compsRange.min)}
+                    </div>
+                  </div>
+                </div>
 
-              {/* Pillar 2: Active Market Asks */}
-              <div className="p-3 rounded-lg bg-zinc-900/70 border border-zinc-800 flex flex-col justify-between">
-                <div className="flex items-center gap-1 text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">
-                  <Globe className="w-3 h-3 text-zinc-400 shrink-0" />
-                  <span className="truncate">ACTIVE ASKS</span>
-                </div>
-                <div className="text-xl sm:text-2xl font-bold text-zinc-100 tabular-nums my-1 tracking-tight">
-                  {isLoadingActiveComps ? "…" : displayActiveCount > 0 ? fmtMoney(displayActiveMedian) : "0 live"}
-                </div>
-                <div className="space-y-0.5 pt-1 border-t border-zinc-800/80">
-                  <div className="text-[10px] text-zinc-300 font-medium tabular-nums truncate">
-                    {displayActiveCount > 0 ? `${displayActiveCount} on market` : "No competitors"}
+                {/* Pillar 2: Active Market Asks */}
+                <div className="p-3 rounded-lg bg-zinc-900/70 border border-zinc-800 flex flex-col justify-between">
+                  <div className="flex items-center gap-1 text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">
+                    <Globe className="w-3 h-3 text-zinc-400 shrink-0" />
+                    <span className="truncate">ACTIVE ASKS</span>
                   </div>
-                  <div className="text-[9px] text-zinc-500 tabular-nums truncate">
-                    Ceiling: {fmtMoney(compsRange.max)}
+                  <div className="text-xl sm:text-2xl font-bold text-zinc-100 tabular-nums my-1 tracking-tight">
+                    {isLoadingActiveComps ? "…" : displayActiveCount > 0 ? fmtMoney(displayActiveMedian) : "0 live"}
+                  </div>
+                  <div className="space-y-0.5 pt-1 border-t border-zinc-800/80">
+                    <div className="text-[10px] text-zinc-300 font-medium tabular-nums truncate">
+                      {displayActiveCount > 0 ? `${displayActiveCount} on market` : "No competitors"}
+                    </div>
+                    <div className="text-[9px] text-zinc-500 tabular-nums truncate">
+                      Ceiling: {fmtMoney(compsRange.max)}
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Pillar 3: Net Take-Home */}
-              <div className="p-3 rounded-lg bg-zinc-900/70 border border-zinc-800 flex flex-col justify-between">
-                <div className="flex items-center gap-1 text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">
-                  <DollarSign className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                  <span className="truncate">EST. NET PROFIT</span>
-                </div>
-                <div
-                  className={`text-xl sm:text-2xl font-bold tabular-nums my-1 tracking-tight ${
-                    netProfit >= 0 ? "text-emerald-400" : "text-rose-400"
-                  }`}
-                >
-                  {netProfit >= 0 ? `+${formatAUD(netProfit)}` : formatAUD(netProfit)}
-                </div>
-                <div className="space-y-0.5 pt-1 border-t border-zinc-800/80">
-                  <div className="text-[10px] text-emerald-400 font-semibold tabular-nums truncate">
-                    {roi > 0 ? `+${Math.round(roi)}% ROI` : `${Math.round(roi)}% ROI`}
+                {/* Pillar 3: Net Take-Home */}
+                <div className="p-3 rounded-lg bg-zinc-900/70 border border-zinc-800 flex flex-col justify-between">
+                  <div className="flex items-center gap-1 text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">
+                    <DollarSign className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                    <span className="truncate">EST. NET PROFIT</span>
                   </div>
-                  <div className="text-[9px] text-zinc-500 tabular-nums truncate">
-                    Cost: {fmtMoney(effectiveTagCost)}
+                  <div
+                    className={`text-xl sm:text-2xl font-bold tabular-nums my-1 tracking-tight ${
+                      netProfit >= 0 ? "text-emerald-400" : "text-rose-400"
+                    }`}
+                  >
+                    {netProfit >= 0 ? `+${formatAUD(netProfit)}` : formatAUD(netProfit)}
+                  </div>
+                  <div className="space-y-0.5 pt-1 border-t border-zinc-800/80">
+                    <div className="text-[10px] text-emerald-400 font-semibold tabular-nums truncate">
+                      {roi > 0 ? `+${Math.round(roi)}% ROI` : `${Math.round(roi)}% ROI`}
+                    </div>
+                    <div className="text-[9px] text-zinc-500 tabular-nums truncate">
+                      Cost: {fmtMoney(effectiveTagCost)}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Listing Target & Liquidity Presets */}
             <div className="p-3 rounded-lg bg-zinc-900/50 border border-zinc-800 space-y-2.5">
@@ -1212,25 +1332,45 @@ export default function LensCompsModal({
             <div className="p-3 rounded-lg bg-zinc-900/50 border border-zinc-800 text-xs space-y-2">
               <div className="flex items-center justify-between text-zinc-300 pb-1.5 border-b border-zinc-800 font-mono text-[11px]">
                 <span className="text-zinc-400 uppercase tracking-wider font-semibold">Financial Ledger</span>
-                <span className="text-emerald-400 font-bold tabular-nums">+{formatAUD(netProfit)} net</span>
+                {isResolvingValuation ? (
+                  <span className="text-zinc-400 font-bold tabular-nums animate-pulse">Resolving P&L...</span>
+                ) : (
+                  <span className="text-emerald-400 font-bold tabular-nums">+{formatAUD(netProfit)} net</span>
+                )}
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 pt-0.5 text-center font-mono text-[11px]">
                 <div className="p-1.5 rounded bg-zinc-950 border border-zinc-800">
                   <span className="text-[10px] text-zinc-400 block">Gross Sale</span>
-                  <span className="text-zinc-100 font-bold tabular-nums">{fmtMoney(activeResalePrice)}</span>
+                  {isResolvingValuation ? (
+                    <div className="h-4 w-12 bg-zinc-800 rounded animate-pulse mx-auto my-0.5" />
+                  ) : (
+                    <span className="text-zinc-100 font-bold tabular-nums">{fmtMoney(activeResalePrice)}</span>
+                  )}
                 </div>
                 <div className="p-1.5 rounded bg-zinc-950 border border-zinc-800">
                   <span className="text-[10px] text-zinc-400 block">Cost of Goods</span>
-                  <span className="text-rose-400 font-bold tabular-nums">−{fmtMoney(effectiveTagCost)}</span>
+                  {isResolvingValuation ? (
+                    <div className="h-4 w-12 bg-zinc-800 rounded animate-pulse mx-auto my-0.5" />
+                  ) : (
+                    <span className="text-rose-400 font-bold tabular-nums">−{fmtMoney(effectiveTagCost)}</span>
+                  )}
                 </div>
                 <div className="p-1.5 rounded bg-zinc-950 border border-zinc-800">
                   <span className="text-[10px] text-zinc-400 block">eBay Fees (~13.4%)</span>
-                  <span className="text-rose-400 font-bold tabular-nums">−{fmtMoney(platformFee)}</span>
+                  {isResolvingValuation ? (
+                    <div className="h-4 w-12 bg-zinc-800 rounded animate-pulse mx-auto my-0.5" />
+                  ) : (
+                    <span className="text-rose-400 font-bold tabular-nums">−{fmtMoney(platformFee)}</span>
+                  )}
                 </div>
                 <div className="p-1.5 rounded bg-zinc-950 border border-zinc-800">
                   <span className="text-[10px] text-zinc-400 block">Postage ({isUsMarket ? "USPS" : "AusPost"})</span>
-                  <span className="text-rose-400 font-bold tabular-nums">−{fmtMoney(estShipping)}</span>
+                  {isResolvingValuation ? (
+                    <div className="h-4 w-12 bg-zinc-800 rounded animate-pulse mx-auto my-0.5" />
+                  ) : (
+                    <span className="text-rose-400 font-bold tabular-nums">−{fmtMoney(estShipping)}</span>
+                  )}
                 </div>
               </div>
 

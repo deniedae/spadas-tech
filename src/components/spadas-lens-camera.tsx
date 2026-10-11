@@ -4098,9 +4098,9 @@ function SpadasLensCameraCore({
             image: typeof snapImg === "string" ? snapImg : undefined,
             imageUrl: typeof snapImg === "string" ? snapImg : undefined,
           };
-          setRapidItems((prev) => [rapidMirrorItem, ...prev.filter((i) => i.id !== rapidMirrorItem.id)]);
+          // Note: Items remain in auto-scan log (capturedLog) and are only added to rapidItems (Haul) upon explicit user-save action
 
-          // Cache captured image blob to IndexedDB for instant Spadas Haul thumbnail rendering
+          // Cache captured image blob to IndexedDB for instant thumbnail rendering when needed
           if (snapImg && typeof snapImg === "string") {
             try {
               const blob = dataUriToBlob(snapImg);
@@ -6265,6 +6265,10 @@ function SpadasLensCameraCore({
         item={activeCompsHit}
         currency={selectedCurrency}
         frozenFrameUrl={frozenFrameUrl}
+        isUserBookmarked={activeCompsHit ? isHitSavedInHaul(activeCompsHit as any) : false}
+        onSaveDraftSuccess={(hit: any) => {
+          if (hit) void handleSaveDraftHit(hit);
+        }}
         onClose={() => {
           setActiveCompsHit(null);
           activeCompsHitRef.current = null;

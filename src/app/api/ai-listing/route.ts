@@ -1961,6 +1961,8 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
             };
             (provisionalResult as any).comps_source = "ai_estimate";
             (provisionalResult as any).no_market_data = true;
+            (provisionalResult as any).is_comps_pending = true;
+            (provisionalResult as any).status = "fetching_comps";
             const valuationReadyEvent = {
               event: "valuation_ready",
               data: provisionalResult,
