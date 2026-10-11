@@ -480,7 +480,7 @@ function SpadasLensCameraCore({
     }
   });
   const [guestScanState, setGuestScanState] = useState<GuestScanState>(() => getGuestScanState());
-  const [dailyFreeScansLeft, setDailyFreeScansLeft] = useState<number>(10);
+  const [dailyFreeScansLeft, setDailyFreeScansLeft] = useState<number>(3);
   const recordedScanCycleRef = useRef<number>(-1);
 
   // Keep guest scan count synchronized across tabs and components
@@ -924,13 +924,13 @@ function SpadasLensCameraCore({
     if (!isAuthed && !currentPro && !isUserAdmin && (currentGuestState.isLimitReached || currentGuestState.remaining <= 0)) {
       setIsScanPaused(true);
       setIsGuestLimitModalOpen(true);
-      toast.info(`You've used all ${MAX_GUEST_SCANS} free guest scans! Create a free account to unlock 10 daily scans.`);
+      toast.info(`You've used all ${MAX_GUEST_SCANS} free guest scans! Upgrade to Pro for unlimited scanning.`);
       return;
     }
     if (!currentPro && !isUserAdmin && (isLimitReached || dailyFreeScansLeft <= 0)) {
       setIsScanPaused(true);
       setIsPaywallOpen(true);
-      toast.error("You've used all 10 free daily scans! Upgrade to Pro for unlimited scans.", {
+      toast.error("Free scan limit reached! Upgrade to Pro for unlimited scans.", {
         id: "daily-limit-toast",
       });
       return;
@@ -3078,16 +3078,16 @@ function SpadasLensCameraCore({
         setIsScanPaused(true);
         setIsGuestLimitModalOpen(true);
         setAnalyzingRealFrame(false);
-        toast.info(`You've used all ${MAX_GUEST_SCANS} free guest scans! Create a free account to unlock 10 daily scans.`);
+        toast.info(`You've used all ${MAX_GUEST_SCANS} free guest scans! Upgrade to Pro for unlimited scanning.`);
         return;
       }
 
-      // 3. Daily 10-scan free tier limit applies strictly to non-pro, non-admin users
+      // 3. Scan limit applies strictly to non-pro, non-admin users
       if (!hasUserPro && (isLimitReached || dailyFreeScansLeft <= 0)) {
         setIsScanPaused(true);
         setIsPaywallOpen(true);
         setAnalyzingRealFrame(false);
-        toast.error("You've used all 10 free daily scans! Upgrade to Pro for unlimited scans.", {
+        toast.error("Free scan limit reached! Upgrade to Pro for unlimited scans.", {
           id: "daily-limit-toast",
           duration: 5000,
         });
@@ -3594,8 +3594,8 @@ function SpadasLensCameraCore({
           setIsScanPaused(true);
           setIsLimitReached(true);
           setIsPaywallOpen(true);
-          setLatestApiError("Daily free scan limit reached (10/10).");
-          toast.error("You've used all 10 free daily scans! Upgrade to Pro for unlimited scans.", {
+          setLatestApiError("Free scan limit reached.");
+          toast.error("Free scan limit reached! Upgrade to Pro for unlimited scans.", {
             id: "daily-limit-toast",
             duration: 6000,
           });
@@ -4203,7 +4203,7 @@ function SpadasLensCameraCore({
     if (!isPro && !isOwner && isLimitReached) {
       setIsScanPaused(true);
       setIsPaywallOpen(true);
-      toast.error("You've used all 10 free daily scans! Upgrade to Pro for unlimited scans.", {
+      toast.error("Free scan limit reached! Upgrade to Pro for unlimited scans.", {
         id: "daily-limit-toast",
       });
       return;
@@ -4248,7 +4248,7 @@ function SpadasLensCameraCore({
               setIsLimitReached(true);
               setIsScanPaused(true);
               setIsPaywallOpen(true);
-              toast.error("You've used all 10 free daily scans! Upgrade to Pro for unlimited scans.", {
+              toast.error("Free scan limit reached! Upgrade to Pro for unlimited scans.", {
                 id: "daily-limit-toast",
               });
             }
@@ -5230,13 +5230,13 @@ function SpadasLensCameraCore({
                         if (isGuestUser && (currentGuest.isLimitReached || currentGuest.remaining <= 0)) {
                           setIsScanPaused(true);
                           setIsGuestLimitModalOpen(true);
-                          toast.info(`You've used all ${MAX_GUEST_SCANS} free guest scans! Create a free account to unlock 10 daily scans.`);
+                          toast.info(`You've used all ${MAX_GUEST_SCANS} free guest scans! Upgrade to Pro for unlimited scanning.`);
                           return;
                         }
                         if (isLimitReached || dailyFreeScansLeft <= 0) {
                           setIsScanPaused(true);
                           setIsPaywallOpen(true);
-                          toast.error("You've used all 10 free daily scans! Upgrade to Pro for unlimited scans.", {
+                          toast.error("Free scan limit reached! Upgrade to Pro for unlimited scans.", {
                             id: "daily-limit-toast",
                           });
                           return;

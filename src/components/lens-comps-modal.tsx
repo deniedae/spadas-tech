@@ -183,6 +183,9 @@ export default function LensCompsModal({
   const [isPublishingEbay, setIsPublishingEbay] = useState<boolean>(false);
   const [ebayPublishSuccess, setEbayPublishSuccess] = useState<boolean>(false);
   const [liveEbayListingUrl, setLiveEbayListingUrl] = useState<string | null>(null);
+  const [liveActiveComps, setLiveActiveComps] = useState<RawSoldComp[]>([]);
+  const [isLoadingActiveComps, setIsLoadingActiveComps] = useState(false);
+  const [activeCompsError, setActiveCompsError] = useState<string | null>(null);
 
   useEffect(() => {
     setListingPhotos(initialPhotos);
@@ -429,41 +432,72 @@ export default function LensCompsModal({
   const parcelRates = isUsMarket ? USPS_PARCEL_RATES : AUSPOST_PARCEL_RATES;
   const targetCurrency = isUsMarket ? "USD" : "AUD";
 
-  // ── Active Asks vs Sold Comps Splits & Realistic Resale Price Engine ───────
-  const activeCompsList: RawSoldComp[] = useMemo(() => {
-    if (Array.isArray((item as any)?.activeComps) && (item as any).activeComps.length > 0) {
-      return (item as any).activeComps;
+  useEffect(() => {
+    if (!isOpen || !item || !title.trim()) {
+      setLiveActiveComps([]);
+      setIsLoadingActiveComps(false);
+      setActiveCompsError(null);
+      return;
     }
-    const filtered = effectiveComps.filter((c) => c.soldDate === "Active Ask" || (c as any).isActiveAsk || (c as any).is_active_ask);
-    if (filtered.length > 0) return filtered;
-    return effectiveComps.map((c, i) => ({
-      ...c,
-      id: `active-${c.id || i}`,
-      price: Math.round(c.price * 1.15 * 100) / 100,
-      soldDate: "Active Ask",
-      isActiveAsk: true,
-    }));
-  }, [item, effectiveComps]);
+
+    const controller = new AbortController();
+    const params = new URLSearchParams({ q: [brand, title].filter(Boolean).join(" "), currency: targetCurrency });
+    setLiveActiveComps([]);
+    setIsLoadingActiveComps(true);
+    setActiveCompsError(null);
+
+    void fetch(`/api/ebay-active-listings?${params.toString()}`, { signal: controller.signal })
+      .then(async (response) => {
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || "Live listings lookup failed.");
+        const listings = Array.isArray(data.listings) ? data.listings : [];
+        setLiveActiveComps(
+          listings.filter((listing: RawSoldComp) => listing && Number(listing.price) > 0).map((listing: RawSoldComp) => ({
+            ...listing,
+            isActiveAsk: true,
+            soldDate: "Active Ask",
+          }))
+        );
+      })
+      .catch((error: unknown) => {
+        if (error instanceof Error && error.name === "AbortError") return;
+        setLiveActiveComps([]);
+        setActiveCompsError(error instanceof Error ? error.message : "Live listings lookup failed.");
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setIsLoadingActiveComps(false);
+      });
+
+    return () => controller.abort();
+  }, [isOpen, item, title, brand, targetCurrency]);
+
+  // ── Active Asks vs Sold Comps Splits & Realistic Resale Price Engine ───────
+  const activeCompsList = liveActiveComps;
 
   const soldCompsList: RawSoldComp[] = useMemo(() => {
     const sold = effectiveComps.filter((c) => c.soldDate !== "Active Ask" && !(c as any).isActiveAsk && !(c as any).is_active_ask);
-    return sold.length > 0 ? sold : effectiveComps;
+    return sold;
   }, [effectiveComps]);
 
-  const rawActiveMedian = (item as any)?.activeMedian ?? (activeCompsList.length > 0 ? activeCompsList[0].price : 0);
-  const rawSoldMedian = (item as any)?.soldMedian ?? compsRange.median ?? initialEstValue;
-  const activeCompCount = (item as any)?.activeCount ?? activeCompsList.length;
-  const soldCompCount = (item as any)?.soldCount ?? soldCompsList.length;
+  const activePrices = activeCompsList.map((comp) => comp.price).filter((price) => price > 0).sort((a, b) => a - b);
+  const rawActiveMedian = activePrices.length
+    ? activePrices.length % 2
+      ? activePrices[Math.floor(activePrices.length / 2)]
+      : (activePrices[activePrices.length / 2 - 1] + activePrices[activePrices.length / 2]) / 2
+    : 0;
+  const soldPrices = soldCompsList.map((comp) => comp.price).filter((price) => price > 0).sort((a, b) => a - b);
+  const rawSoldMedian = soldPrices.length
+    ? soldPrices.length % 2
+      ? soldPrices[Math.floor(soldPrices.length / 2)]
+      : (soldPrices[soldPrices.length / 2 - 1] + soldPrices[soldPrices.length / 2]) / 2
+    : 0;
+  const activeCompCount = activeCompsList.length;
+  const soldCompCount = soldCompsList.length;
 
-  const displaySoldMedian = rawSoldMedian > 0 ? rawSoldMedian : compsRange.median || 142.50;
-  const displayActiveMedian = rawActiveMedian > 0 ? rawActiveMedian : Math.round(displaySoldMedian * 1.15);
-  const displayActiveCount = activeCompCount > 0 ? activeCompCount : Math.max(12, Math.round(soldCompCount * 0.7) || 14);
-  const displaySoldCount = soldCompCount > 0 ? soldCompCount : Math.max(28, effectiveComps.length);
-
-  const rawActiveMin = (item as any)?.activeMin ?? (rawActiveMedian > 0 ? Math.round(rawActiveMedian * 0.75) : 0);
-  const rawActiveMax = (item as any)?.activeMax ?? (rawActiveMedian > 0 ? Math.round(rawActiveMedian * 1.35) : 0);
-  const rawSoldMin = (item as any)?.soldMin ?? compsRange.min;
-  const rawSoldMax = (item as any)?.soldMax ?? compsRange.max;
+  const displaySoldMedian = rawSoldMedian;
+  const displayActiveMedian = rawActiveMedian;
+  const displayActiveCount = activeCompCount;
+  const displaySoldCount = soldCompCount;
 
   // Realistic selling price on eBay: calibrated high-liquidity flip target
   const recommendedQuickSellPrice = useMemo(() => {
@@ -477,10 +511,10 @@ export default function LensCompsModal({
     if (rawActiveMedian > 0) {
       return Math.max(5, Math.round(rawActiveMedian * 0.92 * 100) / 100);
     }
-    return Math.max(5, Math.round(compsRange.median * 0.95 * 100) / 100);
-  }, [item, rawSoldMedian, rawActiveMedian, compsRange.median]);
+    return Math.max(5, Math.round(initialEstValue * 0.95 * 100) / 100);
+  }, [item, rawSoldMedian, rawActiveMedian, initialEstValue]);
 
-  const displayQuickSell = recommendedQuickSellPrice > 0 ? recommendedQuickSellPrice : Math.round(displaySoldMedian * 0.95);
+  const displayQuickSell = recommendedQuickSellPrice > 0 ? recommendedQuickSellPrice : Math.round(initialEstValue * 0.95);
 
   // Dynamic active resale price (user override or recommended quick-sell price with fragrance adjustments)
   const activeResalePrice = customResalePrice !== null
@@ -830,9 +864,10 @@ export default function LensCompsModal({
     Boolean((item as any)?.isActiveAskOnly) ||
     (item as any)?.compsSource === "browse_api" ||
     (item as any)?.compsSource === "active_listings" ||
+    (liveActiveComps.length > 0 && soldCompsList.length === 0) ||
     (effectiveComps.length > 0 && effectiveComps.every((c) => c.soldDate === "Active Ask" || (c as any).isActiveAsk || (c as any).is_active_ask));
 
-  const activeCount = (item as any)?.activeCompsCount || (item as any)?.activeMarketSupply?.activeCount || effectiveComps.length;
+  const activeCount = liveActiveComps.length;
 
   // Trust line calculation with unbranded & low-comp data guardrails
   const trustLineText = useMemo(() => {
@@ -930,193 +965,114 @@ export default function LensCompsModal({
           <button
             type="button"
             onClick={onClose || onResumeScan}
-            className="p-1.5 text-zinc-400 hover:text-zinc-100 rounded-md hover:bg-zinc-800 transition cursor-pointer"
+            className="h-11 w-11 flex items-center justify-center text-zinc-400 hover:text-zinc-100 rounded-md hover:bg-zinc-800 transition cursor-pointer shrink-0"
             title="Close"
           >
-            <X className="w-4 h-4" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* ── Scrollable Body Content (Aisle-Ready Mode) ────────────────────── */}
         <div className="flex-1 overflow-y-auto overscroll-contain touch-pan-y divide-y divide-zinc-800 custom-scrollbar">
-          {/* ── 1. NET PROFIT & FEE BREAKDOWN ─────────────────────────────────── */}
-          <div className="p-4 space-y-3">
-            <div>
-              <div className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider">
-                Est. net after fees
+          {/* ── 6000 IQ 3-PILLAR VALUATION COMMAND CENTER ─────────────────────── */}
+          <div className="p-4 space-y-3.5 bg-gradient-to-b from-zinc-900/60 to-zinc-950">
+            {/* Top Verdict Strip */}
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold font-mono border tracking-wider ${
+                  copVerdict === "MUST_COP" || recommendation === "HIGH PROFIT"
+                    ? "bg-emerald-950/80 text-emerald-300 border-emerald-500/50 shadow-sm shadow-emerald-950/50"
+                    : copVerdict === "PASS_RISKY" || recommendation === "PASS"
+                    ? "bg-red-950/80 text-red-300 border-red-500/50 shadow-sm shadow-red-950/50"
+                    : "bg-cyan-950/80 text-cyan-300 border-cyan-500/50 shadow-sm shadow-cyan-950/50"
+                }`}>
+                  <Zap className="w-3.5 h-3.5" />
+                  <span>
+                    {copVerdict === "MUST_COP" || recommendation === "HIGH PROFIT"
+                      ? "🔥 MUST COP (HIGH PROFIT)"
+                      : copVerdict === "PASS_RISKY" || recommendation === "PASS"
+                      ? "⚠️ MARGIN TRAP (PASS)"
+                      : "⚡ SOLID FLIP (BUY)"}
+                  </span>
+                </span>
+                <span className="text-[11px] font-mono text-zinc-400">
+                  {salesVelocity.turnoverTier === "RAPID_FIRE" ? "~1–3 days turn" : `${salesVelocity.estDaysToSell} turn`}
+                </span>
               </div>
-              <div className="flex items-baseline gap-2 mt-0.5">
-                <span className={`text-3xl font-bold tabular-nums tracking-tight ${
-                  netProfit >= 0 ? "text-emerald-500" : "text-red-400"
+
+              <div className="text-[11px] font-mono text-zinc-400 shrink-0">
+                {trustLineText}
+              </div>
+            </div>
+
+            {/* THE 3 GLORIOUS VALUATION PILLARS */}
+            <div className="grid grid-cols-3 gap-2 sm:gap-2.5">
+              {/* Pillar 1: Verified Sold (Ground Truth) */}
+              <div className="p-3 rounded-xl bg-gradient-to-b from-emerald-950/40 via-zinc-900/80 to-zinc-950 border border-emerald-500/30 flex flex-col justify-between shadow-md shadow-emerald-950/20">
+                <div className="flex items-center gap-1 text-[10px] sm:text-[11px] font-mono font-bold text-emerald-400 uppercase tracking-wider">
+                  <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />
+                  <span className="truncate">VERIFIED SOLD</span>
+                </div>
+                <div className="text-xl sm:text-2xl font-black font-mono text-white tabular-nums my-1 tracking-tight">
+                  {displaySoldCount > 0 ? fmtMoney(displaySoldMedian) : "No sales"}
+                </div>
+                <div className="space-y-0.5 pt-0.5 border-t border-emerald-900/40">
+                  <div className="text-[10px] text-emerald-400 font-medium tabular-nums truncate">
+                    {displaySoldCount > 0 ? `${displaySoldCount} sold comps` : "Appraisal model"}
+                  </div>
+                  <div className="text-[9px] text-zinc-400 font-mono tabular-nums truncate">
+                    Low {fmtMoney(compsRange.min)}
+                  </div>
+                </div>
+              </div>
+
+              {/* Pillar 2: Active Asks (Live Competition) */}
+              <div className="p-3 rounded-xl bg-gradient-to-b from-cyan-950/40 via-zinc-900/80 to-zinc-950 border border-cyan-500/30 flex flex-col justify-between shadow-md shadow-cyan-950/20">
+                <div className="flex items-center gap-1 text-[10px] sm:text-[11px] font-mono font-bold text-cyan-300 uppercase tracking-wider">
+                  <Globe className="w-3 h-3 text-cyan-400 shrink-0" />
+                  <span className="truncate">ACTIVE ASKS</span>
+                </div>
+                <div className="text-xl sm:text-2xl font-black font-mono text-cyan-200 tabular-nums my-1 tracking-tight">
+                  {isLoadingActiveComps ? "…" : displayActiveCount > 0 ? fmtMoney(displayActiveMedian) : "0 live"}
+                </div>
+                <div className="space-y-0.5 pt-0.5 border-t border-cyan-900/40">
+                  <div className="text-[10px] text-cyan-300 font-medium tabular-nums truncate">
+                    {displayActiveCount > 0 ? `${displayActiveCount} on market` : "No competitors"}
+                  </div>
+                  <div className="text-[9px] text-zinc-400 font-mono tabular-nums truncate">
+                    High {fmtMoney(compsRange.max)}
+                  </div>
+                </div>
+              </div>
+
+              {/* Pillar 3: Net Take-Home Cash (In-Pocket Profit) */}
+              <div className="p-3 rounded-xl bg-gradient-to-b from-emerald-950/60 via-zinc-900/90 to-zinc-950 border-2 border-emerald-500/60 flex flex-col justify-between shadow-lg shadow-emerald-950/40">
+                <div className="flex items-center gap-1 text-[10px] sm:text-[11px] font-mono font-black text-emerald-400 uppercase tracking-wider">
+                  <DollarSign className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                  <span className="truncate">NET IN-POCKET</span>
+                </div>
+                <div className={`text-xl sm:text-2xl font-black font-mono tabular-nums my-1 tracking-tight ${
+                  netProfit >= 0 ? "text-emerald-400" : "text-red-400"
                 }`}>
                   {netProfit >= 0 ? `+${formatAUD(netProfit)}` : formatAUD(netProfit)}
-                </span>
-                <span className="text-xs font-medium text-zinc-400 tabular-nums">
-                  {roi > 0 ? `+${Math.round(roi)}% ROI` : `${Math.round(roi)}% ROI`}
-                </span>
-              </div>
-            </div>
-
-            {/* Immediate Fee Breakdown Card (Transparent Accounting) */}
-            <div className="p-3 rounded-lg bg-zinc-900 border border-zinc-800 text-xs space-y-1.5">
-              <div className="flex justify-between text-zinc-400">
-                <span>Resale target</span>
-                <span className="text-zinc-100 font-semibold tabular-nums">{fmtMoney(activeResalePrice)}</span>
-              </div>
-              <div className="flex justify-between text-zinc-400">
-                <span>Tag purchase cost</span>
-                <span className="text-zinc-300 tabular-nums">−{fmtMoney(effectiveTagCost)}</span>
-              </div>
-              <div className="flex justify-between text-zinc-400">
-                <span>Marketplace fees (13.4% + $0.30)</span>
-                <span className="text-zinc-300 tabular-nums">−{fmtMoney(platformFee)}</span>
-              </div>
-              <div className="flex justify-between text-zinc-400">
-                <span>Postage ({isUsMarket ? "USPS Ground" : "AusPost Satchel"})</span>
-                <span className="text-zinc-300 tabular-nums">−{fmtMoney(estShipping)}</span>
-              </div>
-              <div className="flex justify-between pt-1.5 border-t border-zinc-800 text-xs font-semibold">
-                <span className="text-zinc-200">Est. net profit</span>
-                <span className={`tabular-nums ${netProfit >= 0 ? "text-emerald-500" : "text-red-400"}`}>
-                  {netProfit >= 0 ? `+${formatAUD(netProfit)}` : formatAUD(netProfit)}
-                </span>
-              </div>
-            </div>
-
-            {/* In-Store Tag Price Selector */}
-            <div className="flex items-center justify-between gap-2 p-2 rounded-lg bg-zinc-900 border border-zinc-800">
-              <div className="flex items-center gap-1.5 shrink-0">
-                <Tag className="w-3.5 h-3.5 text-zinc-400" />
-                <span className="text-xs font-medium text-zinc-300">Tag cost:</span>
-                <div className="flex items-center gap-0.5 text-xs text-zinc-100 font-bold">
-                  <span>$</span>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.5"
-                    value={customTagCost || ""}
-                    onChange={(e) => handleTagCostChange(Math.max(0, parseFloat(e.target.value) || 0))}
-                    className="w-14 rounded bg-zinc-950 border border-zinc-700 px-1.5 py-0.5 text-right text-xs text-zinc-100 font-bold focus:outline-none focus:border-zinc-500 tabular-nums"
-                  />
                 </div>
-              </div>
-              <div className="flex items-center gap-1 overflow-x-auto py-0.5 custom-scrollbar">
-                {[2, 5, 8, 10, 15, 20].map((preset) => (
-                  <button
-                    key={preset}
-                    type="button"
-                    onClick={() => handlePresetTagCost(preset)}
-                    className={`px-2 py-0.5 rounded text-[11px] font-semibold transition cursor-pointer tabular-nums ${
-                      customTagCost === preset
-                        ? "bg-zinc-800 text-zinc-100 border border-zinc-700"
-                        : "bg-zinc-950 text-zinc-400 hover:text-zinc-200 border border-zinc-800"
-                    }`}
-                  >
-                    ${preset}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Regional Parcel Tier Override Picker */}
-            <div className="flex items-center justify-between gap-2 p-2 rounded-lg bg-zinc-900 border border-zinc-800">
-              <div className="flex items-center gap-1.5 shrink-0">
-                <Sliders className="w-3.5 h-3.5 text-zinc-400" />
-                <span className="text-xs font-medium text-zinc-300">Postage:</span>
-                <span className="text-xs text-zinc-400 tabular-nums">${estShipping.toFixed(2)}</span>
-              </div>
-              <div className="flex items-center gap-1 overflow-x-auto py-0.5 custom-scrollbar">
-                <button
-                  type="button"
-                  onClick={() => { startTransition(() => { setCustomPostageTier(null); }); triggerTactileHaptic("light"); }}
-                  className={`px-2 py-0.5 rounded text-[11px] font-semibold transition cursor-pointer tabular-nums ${
-                    customPostageTier === null
-                      ? "bg-zinc-800 text-zinc-100 border border-zinc-700"
-                      : "bg-zinc-950 text-zinc-400 hover:text-zinc-200 border border-zinc-800"
-                  }`}
-                >
-                  Auto
-                </button>
-                {([
-                  { tier: "small" as AusPostParcelTier, label: `S $${parcelRates.small.toFixed(2)}` },
-                  { tier: "medium" as AusPostParcelTier, label: `M $${parcelRates.medium.toFixed(2)}` },
-                  { tier: "large" as AusPostParcelTier, label: `L $${parcelRates.large.toFixed(2)}` },
-                  { tier: "extraLarge" as AusPostParcelTier, label: `XL $${parcelRates.extraLarge.toFixed(2)}` },
-                ] as const).map(({ tier, label }) => (
-                  <button
-                    key={tier}
-                    type="button"
-                    onClick={() => { startTransition(() => { setCustomPostageTier(tier); }); triggerTactileHaptic("light"); }}
-                    className={`px-2 py-0.5 rounded text-[11px] font-semibold transition cursor-pointer tabular-nums ${
-                      customPostageTier === tier
-                        ? "bg-zinc-800 text-zinc-100 border border-zinc-700"
-                        : "bg-zinc-950 text-zinc-400 hover:text-zinc-200 border border-zinc-800"
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* ── 2. 3-PILLAR VALUATION INTELLIGENCE ────────────────────────────── */}
-          <div className="p-4 space-y-3">
-            <div className="grid grid-cols-3 gap-2">
-              {/* Pillar 1: Active Asks */}
-              <div className="p-3 rounded-lg bg-zinc-900 border border-zinc-800 flex flex-col justify-between">
-                <div className="text-[11px] font-medium text-zinc-400">
-                  Active asks
-                </div>
-                <div className="text-lg font-bold text-zinc-100 tabular-nums my-0.5">
-                  {fmtMoney(displayActiveMedian)}
-                </div>
-                <div className="text-[11px] text-zinc-500 tabular-nums truncate">
-                  {displayActiveCount} on market
-                </div>
-              </div>
-
-              {/* Pillar 2: Median Sold */}
-              <div className="p-3 rounded-lg bg-zinc-900 border border-zinc-800 flex flex-col justify-between">
-                <div className="text-[11px] font-medium text-zinc-400">
-                  Median sold
-                </div>
-                <div className="text-lg font-bold text-emerald-500 tabular-nums my-0.5">
-                  {fmtMoney(displaySoldMedian)}
-                </div>
-                <div className="text-[11px] text-zinc-500 tabular-nums truncate">
-                  {displaySoldCount} sold
-                </div>
-              </div>
-
-              {/* Pillar 3: Quick-Sell Target */}
-              <div className="p-3 rounded-lg bg-zinc-900 border border-zinc-800 flex flex-col justify-between">
-                <div className="text-[11px] font-medium text-zinc-400">
-                  Quick-sell target
-                </div>
-                <div className="text-lg font-bold text-zinc-100 tabular-nums my-0.5">
-                  {fmtMoney(displayQuickSell)}
-                </div>
-                <div className="text-[11px] text-zinc-500 truncate">
-                  −5% liquidity
+                <div className="space-y-0.5 pt-0.5 border-t border-emerald-800/40">
+                  <div className="text-[10px] text-emerald-300 font-bold tabular-nums truncate">
+                    {roi > 0 ? `+${Math.round(roi)}% ROI` : `${Math.round(roi)}% ROI`}
+                  </div>
+                  <div className="text-[9px] text-zinc-400 font-mono tabular-nums truncate">
+                    Tag: {fmtMoney(effectiveTagCost)}
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Comp Reliability Range */}
-            <div className="flex items-center justify-between text-xs px-1 text-zinc-400">
-              <span className="tabular-nums">
-                Range: {fmtMoney(compsRange.min)} – {fmtMoney(compsRange.max)}
-              </span>
-              <span className="text-[11px] text-zinc-500">{trustLineText}</span>
-            </div>
-
-            {/* ── Interactive Resale Price Adjuster ── */}
-            <div className="p-3 rounded-lg bg-zinc-900 border border-zinc-800 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-zinc-300">Listing price target</span>
+            {/* ── 6000 IQ VISUAL LIQUIDITY & PRICING SPECTRUM BAR ── */}
+            <div className="p-3 rounded-xl bg-zinc-950 border border-zinc-800 space-y-2.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-semibold text-zinc-200">Listing Price Target</span>
                 <div className="flex items-center gap-1">
-                  <span className="text-xs text-zinc-500">$</span>
+                  <span className="text-zinc-500 font-mono">$</span>
                   <input
                     type="number"
                     min="1"
@@ -1127,63 +1083,172 @@ export default function LensCompsModal({
                       setCustomResalePrice(val);
                       triggerTactileHaptic("light");
                     }}
-                    className="w-16 rounded bg-zinc-950 border border-zinc-700 px-2 py-0.5 text-right text-xs font-semibold text-zinc-100 focus:outline-none focus:border-zinc-500 tabular-nums"
+                    className="w-20 rounded-md bg-zinc-900 border border-zinc-700 px-2 py-1 text-right text-xs font-bold text-white focus:outline-none focus:border-emerald-500 tabular-nums"
                   />
+                  <span className="text-[10px] font-mono text-zinc-400">{targetCurrency}</span>
                 </div>
               </div>
 
-              {/* 3 Presets */}
-              <div className="grid grid-cols-3 gap-1.5 pt-0.5">
+              {/* 3 Liquidity Presets (44px Touch Targets) */}
+              <div className="grid grid-cols-3 gap-1.5">
                 <button
                   type="button"
                   onClick={() => {
                     setCustomResalePrice(displayQuickSell);
                     triggerTactileHaptic("selection");
                   }}
-                  className={`py-1.5 px-2 rounded text-[11px] font-medium transition cursor-pointer border text-center tabular-nums ${
+                  className={`h-11 flex flex-col items-center justify-center px-1.5 rounded-lg text-center transition cursor-pointer border tabular-nums ${
                     activeResalePrice === displayQuickSell
-                      ? "bg-zinc-800 text-zinc-100 border-zinc-700 font-semibold"
-                      : "bg-zinc-950 text-zinc-400 border-zinc-800 hover:text-zinc-200"
+                      ? "bg-zinc-800 text-emerald-300 border-emerald-500/60 font-bold shadow-sm"
+                      : "bg-zinc-900/90 text-zinc-400 border-zinc-800 hover:text-zinc-200 hover:border-zinc-700"
                   }`}
                 >
-                  Fast-flip (−5%)
+                  <span className="text-[11px] font-bold">⚡ Fast-flip</span>
+                  <span className="text-[9px] opacity-75 font-mono">{fmtMoney(displayQuickSell)} (−5%)</span>
                 </button>
                 <button
                   type="button"
+                  disabled={displaySoldCount === 0}
                   onClick={() => {
                     setCustomResalePrice(displaySoldMedian);
                     triggerTactileHaptic("selection");
                   }}
-                  className={`py-1.5 px-2 rounded text-[11px] font-medium transition cursor-pointer border text-center tabular-nums ${
+                  className={`h-11 flex flex-col items-center justify-center px-1.5 rounded-lg text-center transition cursor-pointer border tabular-nums disabled:opacity-40 disabled:cursor-not-allowed ${
                     activeResalePrice === displaySoldMedian
-                      ? "bg-zinc-800 text-zinc-100 border-zinc-700 font-semibold"
-                      : "bg-zinc-950 text-zinc-400 border-zinc-800 hover:text-zinc-200"
+                      ? "bg-zinc-800 text-emerald-300 border-emerald-500/60 font-bold shadow-sm"
+                      : "bg-zinc-900/90 text-zinc-400 border-zinc-800 hover:text-zinc-200 hover:border-zinc-700"
                   }`}
                 >
-                  Median sold
+                  <span className="text-[11px] font-bold">💎 Median sold</span>
+                  <span className="text-[9px] opacity-75 font-mono">{displaySoldCount > 0 ? fmtMoney(displaySoldMedian) : "—"}</span>
                 </button>
                 <button
                   type="button"
+                  disabled={displayActiveCount === 0}
                   onClick={() => {
                     setCustomResalePrice(displayActiveMedian);
                     triggerTactileHaptic("selection");
                   }}
-                  className={`py-1.5 px-2 rounded text-[11px] font-medium transition cursor-pointer border text-center tabular-nums ${
+                  className={`h-11 flex flex-col items-center justify-center px-1.5 rounded-lg text-center transition cursor-pointer border tabular-nums disabled:opacity-40 disabled:cursor-not-allowed ${
                     activeResalePrice === displayActiveMedian
-                      ? "bg-zinc-800 text-zinc-100 border-zinc-700 font-semibold"
-                      : "bg-zinc-950 text-zinc-400 border-zinc-800 hover:text-zinc-200"
+                      ? "bg-zinc-800 text-cyan-300 border-cyan-500/60 font-bold shadow-sm"
+                      : "bg-zinc-900/90 text-zinc-400 border-zinc-800 hover:text-zinc-200 hover:border-zinc-700"
                   }`}
                 >
-                  Match asks
+                  <span className="text-[11px] font-bold">🚀 Match asks</span>
+                  <span className="text-[9px] opacity-75 font-mono">{displayActiveCount > 0 ? fmtMoney(displayActiveMedian) : "—"}</span>
                 </button>
               </div>
             </div>
 
-            {/* ── Multi-Photo Intake Tray (1 to 5 Photos) ────────────────────── */}
-            <div className="p-3 rounded-lg bg-zinc-900 border border-zinc-800 space-y-2">
+            {/* ── TRANSPARENT ACCOUNTING LEDGER (No Hidden Math) ── */}
+            <div className="p-3 rounded-xl bg-zinc-950 border border-zinc-800 text-xs space-y-2">
+              <div className="flex items-center justify-between text-zinc-300 pb-1 border-b border-zinc-800/80 font-mono text-[11px]">
+                <span className="text-zinc-400 uppercase tracking-wider font-semibold">Reseller P&L Equation</span>
+                <span className="text-emerald-400 font-bold">+{formatAUD(netProfit)} net profit</span>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-0.5 text-center font-mono text-[11px]">
+                <div className="p-1.5 rounded-lg bg-zinc-900 border border-zinc-800/80">
+                  <span className="text-[10px] text-zinc-400 block">Target Sale</span>
+                  <span className="text-zinc-100 font-bold tabular-nums">{fmtMoney(activeResalePrice)}</span>
+                </div>
+                <div className="p-1.5 rounded-lg bg-zinc-900 border border-zinc-800/80">
+                  <span className="text-[10px] text-zinc-400 block">Tag Purchase</span>
+                  <span className="text-red-400 font-bold tabular-nums">−{fmtMoney(effectiveTagCost)}</span>
+                </div>
+                <div className="p-1.5 rounded-lg bg-zinc-900 border border-zinc-800/80">
+                  <span className="text-[10px] text-zinc-400 block">eBay 13.4% Fees</span>
+                  <span className="text-red-400 font-bold tabular-nums">−{fmtMoney(platformFee)}</span>
+                </div>
+                <div className="p-1.5 rounded-lg bg-zinc-900 border border-zinc-800/80">
+                  <span className="text-[10px] text-zinc-400 block">Satchel Post</span>
+                  <span className="text-red-400 font-bold tabular-nums">−{fmtMoney(estShipping)}</span>
+                </div>
+              </div>
+
+              {/* In-Store Tag Price Adjuster */}
+              <div className="flex items-center justify-between gap-2 pt-1 border-t border-zinc-800/80">
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <Tag className="w-3.5 h-3.5 text-zinc-400" />
+                  <span className="text-xs font-medium text-zinc-300">Thrift tag cost:</span>
+                  <div className="flex items-center gap-0.5 text-xs text-zinc-100 font-bold">
+                    <span>$</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.5"
+                      value={customTagCost || ""}
+                      onChange={(e) => handleTagCostChange(Math.max(0, parseFloat(e.target.value) || 0))}
+                      className="w-14 rounded bg-zinc-900 border border-zinc-700 px-1.5 py-0.5 text-right text-xs text-zinc-100 font-bold focus:outline-none focus:border-zinc-500 tabular-nums"
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 overflow-x-auto py-0.5 custom-scrollbar">
+                  {[2, 5, 8, 10, 15, 20].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => handlePresetTagCost(preset)}
+                      className={`px-2 py-1 min-h-[32px] rounded text-[11px] font-semibold transition cursor-pointer tabular-nums ${
+                        customTagCost === preset
+                          ? "bg-zinc-800 text-zinc-100 border border-zinc-600 font-bold"
+                          : "bg-zinc-900 text-zinc-400 hover:text-zinc-200 border border-zinc-800"
+                      }`}
+                    >
+                      ${preset}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Regional Parcel Tier Override Picker */}
+              <div className="flex items-center justify-between gap-2 pt-1 border-t border-zinc-800/80">
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <Sliders className="w-3.5 h-3.5 text-zinc-400" />
+                  <span className="text-xs font-medium text-zinc-300">Postage rate:</span>
+                  <span className="text-xs text-zinc-400 font-mono tabular-nums">${estShipping.toFixed(2)}</span>
+                </div>
+                <div className="flex items-center gap-1 overflow-x-auto py-0.5 custom-scrollbar">
+                  <button
+                    type="button"
+                    onClick={() => { startTransition(() => { setCustomPostageTier(null); }); triggerTactileHaptic("light"); }}
+                    className={`px-2 py-1 min-h-[32px] rounded text-[11px] font-semibold transition cursor-pointer tabular-nums ${
+                      customPostageTier === null
+                        ? "bg-zinc-800 text-zinc-100 border border-zinc-600 font-bold"
+                        : "bg-zinc-900 text-zinc-400 hover:text-zinc-200 border border-zinc-800"
+                    }`}
+                  >
+                    Auto
+                  </button>
+                  {([
+                    { tier: "small" as AusPostParcelTier, label: `S $${parcelRates.small.toFixed(2)}` },
+                    { tier: "medium" as AusPostParcelTier, label: `M $${parcelRates.medium.toFixed(2)}` },
+                    { tier: "large" as AusPostParcelTier, label: `L $${parcelRates.large.toFixed(2)}` },
+                    { tier: "extraLarge" as AusPostParcelTier, label: `XL $${parcelRates.extraLarge.toFixed(2)}` },
+                  ] as const).map(({ tier, label }) => (
+                    <button
+                      key={tier}
+                      type="button"
+                      onClick={() => { startTransition(() => { setCustomPostageTier(tier); }); triggerTactileHaptic("light"); }}
+                      className={`px-2 py-1 min-h-[32px] rounded text-[11px] font-semibold transition cursor-pointer tabular-nums ${
+                        customPostageTier === tier
+                          ? "bg-zinc-800 text-zinc-100 border border-zinc-600 font-bold"
+                          : "bg-zinc-900 text-zinc-400 hover:text-zinc-200 border border-zinc-800"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* ── Multi-Photo Intake Tray (1 to 5 Photos) ── */}
+            <div className="p-3 rounded-xl bg-zinc-950 border border-zinc-800 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-medium text-zinc-300">Listing photos ({listingPhotos.length}/5)</span>
-                <span className="text-[11px] text-zinc-500">1–5 angles</span>
+                <span className="text-[11px] text-zinc-500 font-mono">1–5 angles for eBay sync</span>
               </div>
 
               {/* Photo Strip */}
@@ -1199,16 +1264,16 @@ export default function LensCompsModal({
                       alt={`Angle ${idx + 1}`}
                       className="h-full w-full object-cover"
                     />
-                    <span className="absolute bottom-0 inset-x-0 bg-black/80 text-[8px] font-medium text-center text-zinc-300 py-0.5">
+                    <span className="absolute bottom-0 inset-x-0 bg-black/80 text-[8px] font-medium text-center text-zinc-300 py-0.5 font-mono">
                       {idx === 0 ? "Cover" : `Angle ${idx + 1}`}
                     </span>
                     <button
                       type="button"
                       onClick={() => handleRemovePhoto(idx)}
-                      className="absolute top-1 right-1 p-0.5 rounded bg-black/80 text-zinc-400 hover:text-zinc-100 cursor-pointer"
+                      className="absolute top-0 right-0 h-7 w-7 rounded-bl-md bg-black/80 text-zinc-300 hover:text-white flex items-center justify-center cursor-pointer touch-manipulation"
                       title="Remove photo"
                     >
-                      <X className="w-3 h-3" />
+                      <X className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 ))}
@@ -1217,10 +1282,10 @@ export default function LensCompsModal({
                   <button
                     type="button"
                     onClick={() => photoInputRef.current?.click()}
-                    className="h-16 w-16 shrink-0 rounded-md border border-dashed border-zinc-800 hover:border-zinc-700 bg-zinc-950 flex flex-col items-center justify-center gap-1 text-zinc-400 hover:text-zinc-200 transition cursor-pointer"
+                    className="h-16 w-16 shrink-0 rounded-md border border-dashed border-zinc-800 hover:border-zinc-700 bg-zinc-900 flex flex-col items-center justify-center gap-1 text-zinc-400 hover:text-zinc-200 transition cursor-pointer"
                   >
                     <Plus className="w-4 h-4" />
-                    <span className="text-[10px]">+ Photo</span>
+                    <span className="text-[10px] font-medium">+ Photo</span>
                   </button>
                 )}
 
@@ -1235,6 +1300,7 @@ export default function LensCompsModal({
               </div>
             </div>
           </div>
+
 
           {/* ── 3. SEGMENTED COMPS INTELLIGENCE (Sold vs Active Asks) ──────────── */}
           <div className="p-4 space-y-2.5 min-h-[240px]">
@@ -1261,7 +1327,7 @@ export default function LensCompsModal({
                       : "text-zinc-400 hover:text-zinc-200"
                   }`}
                 >
-                  Active Asks ({activeCompCount})
+                  Active Asks ({isLoadingActiveComps ? "…" : activeCompCount})
                 </button>
               </div>
 
@@ -1302,19 +1368,33 @@ export default function LensCompsModal({
                 return (
                   <div className="p-4 rounded-lg bg-zinc-900 border border-zinc-800 text-center space-y-1.5">
                     <div className="text-sm font-semibold text-zinc-200">
-                      No direct {compsMarketTab === "sold" ? "sold" : "active"} comps found
+                      {compsMarketTab === "active" && isLoadingActiveComps
+                        ? "Checking live eBay listings…"
+                        : compsMarketTab === "active" && activeCompsError
+                          ? "Live eBay listings unavailable"
+                          : `No ${compsMarketTab === "sold" ? "verified sold" : "live active"} listings found`}
                     </div>
                     <div className="text-xs text-zinc-400">
-                      Market valuation estimated using category heuristics and market depth.
+                      {compsMarketTab === "active" && isLoadingActiveComps
+                        ? "Fetching current asking prices from eBay Browse API."
+                        : compsMarketTab === "active" && activeCompsError
+                          ? activeCompsError
+                          : compsMarketTab === "active"
+                            ? "No current eBay listings matched this item. Sold comps remain separate."
+                            : "No verified completed sales were returned for this item."}
                     </div>
-                    <button
-                      type="button"
-                      onClick={(e) => openExternalUrlSafely(ebayActiveSearchUrl, title, e)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-zinc-800 border border-zinc-700 text-xs text-zinc-200 hover:bg-zinc-700 cursor-pointer font-medium transition mt-1"
-                    >
-                      <span>Search live {isUsMarket ? "eBay US" : "eBay AU"} listings</span>
-                      <ExternalLink className="w-3 h-3" />
-                    </button>
+                    {compsMarketTab === "active" && isLoadingActiveComps ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-zinc-400 mx-auto mt-2" />
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={(e) => openExternalUrlSafely(ebayActiveSearchUrl, title, e)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-zinc-800 border border-zinc-700 text-xs text-zinc-200 hover:bg-zinc-700 cursor-pointer font-medium transition mt-1"
+                      >
+                        <span>Search live {isUsMarket ? "eBay US" : "eBay AU"} listings</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </button>
+                    )}
                   </div>
                 );
               }

@@ -131,7 +131,8 @@ export default function SubscriptionPaywallModal({
         <button
           type="button"
           onClick={onClose}
-          className="absolute top-4 right-4 p-1.5 rounded-md text-zinc-400 hover:text-white hover:bg-zinc-850 transition cursor-pointer"
+          aria-label="Close"
+          className="absolute top-3 right-3 h-11 w-11 flex items-center justify-center rounded-md text-zinc-400 hover:text-white hover:bg-zinc-800 transition cursor-pointer"
         >
           <X className="h-5 w-5" />
         </button>
@@ -145,67 +146,70 @@ export default function SubscriptionPaywallModal({
             Upgrade to Spadas Pro
           </h2>
           <p className="text-xs text-zinc-400">
-            You have reached the limit of 10 free daily scans. Upgrade for unlimited optical scanning, verified sold comps, and full fee calculations.
+            You have reached your free scan limit. Upgrade for unlimited optical scanning, verified sold comps, and full fee calculations.
           </p>
         </div>
 
         {/* Pricing Card */}
         <div>
-          {plans.map((plan) => (
-            <div
-              key={plan.id}
-              className="rounded-lg border border-zinc-800 bg-zinc-900 p-5 space-y-5"
-            >
-              <div>
-                <div className="flex items-baseline justify-between">
-                  <div className="flex items-baseline gap-1.5">
-                    <span className="text-3xl font-bold tabular-nums text-white">{plan.price}</span>
-                    <span className="text-xs font-mono text-zinc-400">/ {plan.period}</span>
+          {plans.map((plan) => {
+            const isPlayBilling = isAppStoreClient && isAndroid;
+            return (
+              <div
+                key={plan.id}
+                className="rounded-lg border border-zinc-800 bg-zinc-900 p-5 space-y-5"
+              >
+                <div>
+                  <div className="flex items-baseline justify-between">
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="text-3xl font-bold tabular-nums text-white">{plan.price}</span>
+                      <span className="text-xs font-mono text-zinc-400">/ {plan.period}</span>
+                    </div>
+                    <span className="text-[10px] font-mono font-medium text-emerald-400 bg-emerald-950/50 border border-emerald-800/60 px-2 py-0.5 rounded-md">
+                      Direct billing
+                    </span>
                   </div>
-                  <span className="text-[10px] font-mono font-medium text-emerald-400 bg-emerald-950/50 border border-emerald-800/60 px-2 py-0.5 rounded-md">
-                    Direct billing
+                  <p className="text-xs text-zinc-400 mt-1.5">{plan.description}</p>
+                </div>
+
+                <div className="border-t border-zinc-800 pt-3">
+                  <p className="text-[11px] font-mono text-zinc-400 uppercase tracking-wider mb-2.5">
+                    Included features
+                  </p>
+                  <ul className="space-y-2">
+                    {plan.features.map((feat) => (
+                      <li key={feat} className="flex items-start gap-2 text-xs text-zinc-300">
+                        <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                        <span>{feat}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => handleCheckout(plan)}
+                  disabled={loadingPlan !== null}
+                  className="w-full inline-flex h-11 items-center justify-center gap-2 rounded-md bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition cursor-pointer"
+                >
+                  {loadingPlan === plan.id ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-white" />
+                  ) : (
+                    <span>{isPlayBilling ? `Subscribe with Google Play (${plan.price}/mo)` : plan.ctaText}</span>
+                  )}
+                </button>
+
+                <div className="flex items-center justify-center gap-1.5 text-[11px] text-zinc-400 pt-0.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-zinc-400" />
+                  <span>
+                    {isPlayBilling
+                      ? "Billed via Google Play · Cancel anytime in Play Store"
+                      : "Secure Stripe checkout · Cancel anytime with 1 click"}
                   </span>
                 </div>
-                <p className="text-xs text-zinc-400 mt-1.5">{plan.description}</p>
               </div>
-
-              <div className="border-t border-zinc-800 pt-3">
-                <p className="text-[11px] font-mono text-zinc-400 uppercase tracking-wider mb-2.5">
-                  Included features
-                </p>
-                <ul className="space-y-2">
-                  {plan.features.map((feat) => (
-                    <li key={feat} className="flex items-start gap-2 text-xs text-zinc-300">
-                      <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                      <span>{feat}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => handleCheckout(plan)}
-                disabled={loadingPlan !== null}
-                className="w-full inline-flex h-10 items-center justify-center gap-2 rounded-md bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition cursor-pointer"
-              >
-                {loadingPlan === plan.id ? (
-                  <Loader2 className="h-4 w-4 animate-spin text-white" />
-                ) : (
-                  <span>{isAndroid ? `Subscribe with Google Play (${plan.price}/mo)` : plan.ctaText}</span>
-                )}
-              </button>
-
-              <div className="flex items-center justify-center gap-1.5 text-[11px] text-zinc-400 pt-0.5">
-                <ShieldCheck className="w-3.5 h-3.5 text-zinc-400" />
-                <span>
-                  {isAndroid
-                    ? "Billed via Google Play · Cancel anytime in Play Store"
-                    : "Cancel anytime with 1 click"}
-                </span>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

@@ -261,7 +261,7 @@ export default function LensHitCard({
                 triggerTactileHaptic("light");
                 onViewComps(item);
               }}
-              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition cursor-pointer"
+              className="inline-flex h-11 items-center gap-1.5 px-4 rounded-md bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition cursor-pointer"
               title="View comps and fee breakdown"
             >
               <TrendingUp className="w-3.5 h-3.5" />
@@ -276,7 +276,7 @@ export default function LensHitCard({
               triggerTactileHaptic("success");
               onSaveDraft(item);
             }}
-            className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium transition ${
+            className={`inline-flex h-11 items-center gap-1 px-3 rounded-md text-xs font-medium transition ${
               isSaved
                 ? "bg-zinc-800 text-emerald-400 border border-zinc-700 cursor-not-allowed"
                 : "bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 cursor-pointer"
@@ -290,7 +290,7 @@ export default function LensHitCard({
               triggerTactileHaptic("medium");
               setShowCompareModal(true);
             }}
-            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 text-xs font-medium transition cursor-pointer"
+            className="inline-flex h-11 items-center gap-1 px-3 rounded-md bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 text-xs font-medium transition cursor-pointer"
             title="Compare net payouts across marketplaces"
           >
             <Scale className="w-3.5 h-3.5 text-zinc-400" />
@@ -303,7 +303,7 @@ export default function LensHitCard({
                 triggerTactileHaptic("heavy");
                 onDeepVerify(item);
               }}
-              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-medium transition cursor-pointer border border-zinc-700"
+              className="inline-flex h-11 items-center gap-1 px-3 rounded-md bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-medium transition cursor-pointer border border-zinc-700"
             >
               <ShieldCheck className="w-3.5 h-3.5 text-zinc-400" />
               <span>{verificationReq.badgeLabel || "Verify"}</span>

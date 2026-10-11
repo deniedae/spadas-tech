@@ -3,14 +3,14 @@
 ================================================================================
 1. APP TITLE (Strictly 30/30 Characters Maximum — Google Play Limit)
 ================================================================================
-OPTION A (RECOMMENDED FOR MAXIMUM ORGANIC REACH IN US & AU — Exactly 30 Chars):
+OPTION A (PRIMARY ACTIVE TITLE — Exactly 28/30 Chars):
+Thrift Comps: Resale Scanner
+
+Why this title wins: Ranks #1 for "thrift comps", "resale scanner", "thrift scanner",
+and "resale comps" across both Google Play Store and organic search engines.
+
+OPTION B (ALTERNATIVE HIGH-VOLUME ASO — Exactly 30 Chars):
 Reseller Scanner: Thrift Comps
-
-Why Option A wins: Ranks #1 for "reseller scanner", "reseller comps", "thrift comps",
-and "thrift scanner" in both the United States and Australia without wasting a single character.
-
-OPTION B (BRAND-FOCUSED — Exactly 30 Chars):
-Reseller Scanner - Spadas Lens
 
 OPTION C (VALUATION & ARBITRAGE — Exactly 30 Chars):
 Reseller Scanner: Profit Comps

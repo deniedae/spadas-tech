@@ -21,43 +21,43 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "eBay Reseller Scanner: Thrift Profit & Sold Comps App",
-    template: "%s · eBay Reseller Scanner: Thrift Profit & Sold Comps",
+    default: "Thrift Comps: Resale Scanner & Profit App",
+    template: "%s · Thrift Comps: Resale Scanner",
   },
   description:
-    "The #1 instant optical AR scanner & barcode reader for eBay resellers. Scan thrift stores, yard sales & retail clearance in 0.5s. Get verified eBay sold comps, calculate true net profit after fees & shipping, and cross-list to eBay US & Australia in seconds.",
+    "The #1 optical scanner & sold comps app for thrift resellers. Scan thrift stores, yard sales & op shops in 0.5s. Get verified eBay sold comps, calculate true net profit after fees & shipping, and cross-list in seconds.",
   metadataBase: new URL("https://spadas.ai"),
   alternates: {
     canonical: "https://spadas.ai",
   },
-  applicationName: "eBay Reseller Scanner: Spadas Lens",
+  applicationName: "Thrift Comps: Resale Scanner",
   authors: [{ name: "Spadas Tech" }],
   keywords: [
-    "ebay reseller scanner",
+    "thrift comps",
+    "resale scanner",
+    "thrift scanner",
+    "resale comps",
+    "thrift profit calculator",
     "ebay sold comps scanner",
-    "ebay barcode scanner app",
-    "thrift store profit calculator",
+    "ebay reseller scanner",
     "reseller price checker",
     "reselling scanner app",
     "thrift flip profit scanner",
     "ebay sold listings scanner",
     "garage sale barcode scanner",
     "ebay profit calculator",
-    "ebay us sold comps",
-    "ebay australia comps scanner",
     "vintage clothing scanner",
     "poshmark mercari depop crosslister",
     "spadas lens",
     "retail arbitrage barcode scanner",
-    "scoutify scoutiq alternative",
   ],
   openGraph: {
     type: "website",
     url: "https://spadas.ai",
-    title: "eBay Reseller Scanner: Thrift Profit & Sold Comps App",
+    title: "Thrift Comps: Resale Scanner & Profit App",
     description:
-      "Instant optical AR scanner & barcode reader for eBay resellers. Scan thrift finds in 0.5s, calculate true net profit with live eBay US & Australia sold comps, and cross-list in seconds.",
-    siteName: "Spadas Lens",
+      "Instant optical scanner & sold comps app for thrift resellers. Scan thrift finds in 0.5s, calculate true net profit with live eBay sold comps, and cross-list in seconds.",
+    siteName: "Thrift Comps: Resale Scanner",
     images: [
       {
         url: "https://spadas.ai/og-preview.jpg",

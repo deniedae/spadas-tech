@@ -77,19 +77,12 @@ export async function purchaseGooglePlaySubscription(
       authHeaders["Authorization"] = `Bearer ${session.access_token}`;
     }
 
-    const isAndroid =
-      isAndroidAppEnvironment() ||
-      (typeof window !== "undefined" && /Android/i.test(navigator.userAgent));
+    // 1. Android TWA / Digital Goods API native in-app billing.
+    // ONLY attempt Google Play In-App Billing if running inside the actual Android TWA app container AND Digital Goods API is supported.
+    // If the user is on mobile web (Chrome on Android, Safari on iOS, etc.), seamlessly proceed to Web Stripe Checkout.
+    const isNativePlayEnvironment = isAndroidAppEnvironment() && isDigitalGoodsSupported();
 
-    // 1. Android TWA / Digital Goods API native in-app billing
-    if (isAndroid) {
-      if (!isDigitalGoodsSupported()) {
-        return {
-          success: false,
-          error: "Subscriptions aren't available here — open Spadas from the Play Store app",
-        };
-      }
-
+    if (isNativePlayEnvironment) {
       let service: any = null;
       try {
         service = await (window as any).getDigitalGoodsService(
@@ -97,23 +90,13 @@ export async function purchaseGooglePlaySubscription(
         );
       } catch (serviceErr: any) {
         console.warn("[Google Play Billing] Failed to connect to billing service:", serviceErr);
-        return {
-          success: false,
-          error: "Subscriptions aren't available here — open Spadas from the Play Store app",
-        };
       }
 
-      if (!service) {
-        return {
-          success: false,
-          error: "Subscriptions aren't available here — open Spadas from the Play Store app",
-        };
-      }
-
-      let playAmount = "10.00";
-      let playCurrency = "AUD";
-      let playTitle = "Spadas Pro Monthly";
-      let skuFound = false;
+      if (service) {
+        let playAmount = "10.00";
+        let playCurrency = "AUD";
+        let playTitle = "Spadas Pro Monthly";
+        let skuFound = false;
 
       if (typeof service.getDetails === "function") {
         try {
@@ -239,9 +222,9 @@ export async function purchaseGooglePlaySubscription(
         document.removeEventListener("visibilitychange", onVisibilityChange);
       }
     }
+  }
 
-    // 2. Web / Desktop Only (Mac, Windows, iOS)
-    // Never reach this on Android or inside TWA
+    // 2. Web / Desktop & Mobile Browser Checkout (Stripe)
     const checkoutRes = await fetch("/api/billing/checkout", {
       method: "POST",
       headers: authHeaders,

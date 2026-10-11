@@ -356,7 +356,7 @@ export function SpadasSnapStudio() {
     const currentGuestState = getGuestScanState();
     if (!isAuthed && !isUserAdmin && !isPro && (currentGuestState.isLimitReached || currentGuestState.remaining <= 0)) {
       setIsGuestModalOpen(true);
-      toast.info(`You've used all ${MAX_GUEST_SCANS} free instant guest scans! Create a free account to unlock 10 daily scans.`);
+      toast.info(`You've used all ${MAX_GUEST_SCANS} free instant guest scans! Upgrade to Pro for unlimited scanning.`);
       return;
     }
 
@@ -623,7 +623,7 @@ export function SpadasSnapStudio() {
         <button
           type="button"
           onClick={() => window.history.back()}
-          className="flex h-9 w-9 items-center justify-center rounded-md bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white cursor-pointer"
+          className="flex h-11 w-11 items-center justify-center rounded-md bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white cursor-pointer"
         >
           <X className="h-4 w-4" />
         </button>
@@ -649,7 +649,7 @@ export function SpadasSnapStudio() {
         <button
           type="button"
           onClick={toggleCameraFacing}
-          className="flex h-9 w-9 items-center justify-center rounded-md bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white cursor-pointer"
+          className="flex h-11 w-11 items-center justify-center rounded-md bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white cursor-pointer"
           title="Switch camera"
         >
           <RefreshCw className="h-4 w-4" />
@@ -775,10 +775,10 @@ export function SpadasSnapStudio() {
                   triggerTactileHaptic("light");
                   removePhoto(idx);
                 }}
-                className="absolute top-1 right-1 h-4 w-4 rounded bg-black/80 text-zinc-400 hover:text-white flex items-center justify-center text-[9px] cursor-pointer"
+                className="absolute top-0 right-0 h-7 w-7 rounded-bl-md bg-black/80 text-zinc-300 hover:text-white flex items-center justify-center cursor-pointer touch-manipulation"
                 title="Remove photo"
               >
-                <X className="w-3 h-3" />
+                <X className="w-3.5 h-3.5" />
               </button>
             </div>
           ))}
@@ -804,7 +804,7 @@ export function SpadasSnapStudio() {
               triggerTactileHaptic("tap");
               fileInputRef.current?.click();
             }}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-md bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white transition cursor-pointer text-xs font-medium"
+            className="flex h-11 items-center gap-1.5 px-3.5 rounded-md bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white transition cursor-pointer text-xs font-medium"
           >
             <ImageIcon className="h-4 w-4 text-zinc-400" />
             <span>Upload</span>
@@ -831,7 +831,7 @@ export function SpadasSnapStudio() {
                 triggerTactileHaptic("medium");
                 void handleAnalyzeItem();
               }}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-md bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition cursor-pointer disabled:opacity-50"
+              className="inline-flex h-11 items-center gap-1.5 px-4 rounded-md bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition cursor-pointer disabled:opacity-50"
             >
               {isAnalyzing ? (
                 <>

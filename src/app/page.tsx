@@ -21,22 +21,22 @@ import { HeroScannerSimulator } from "@/components/hero-scanner-simulator";
 import { MobileFirstLaunchRedirect } from "@/components/mobile-first-launch-redirect";
 
 export const metadata: Metadata = {
-  title: "Reseller Scanner - Spadas Lens | Instant Barcode & Profit Calculator",
+  title: "Thrift Comps: Resale Scanner | Instant Barcode & Profit Calculator",
   description:
-    "Scan barcodes and thrift finds in 0.5s. Auto-calculate eBay sold comps, platform fees, and net profit before you buy. 10 free scans daily.",
+    "Scan barcodes and thrift finds in 0.5s. Auto-calculate eBay sold comps, platform fees, and net profit before you buy. 3 free scans daily.",
   openGraph: {
-    title: "Reseller Scanner - Spadas Lens | Instant Barcode & Profit Calculator",
+    title: "Thrift Comps: Resale Scanner | Instant Barcode & Profit Calculator",
     description:
-      "Scan barcodes and thrift finds in 0.5s. Auto-calculate eBay sold comps, platform fees, and net profit before you buy. 10 free scans daily.",
+      "Scan barcodes and thrift finds in 0.5s. Auto-calculate eBay sold comps, platform fees, and net profit before you buy. 3 free scans daily.",
     url: "https://spadas.ai",
-    siteName: "Spadas Lens",
+    siteName: "Thrift Comps: Resale Scanner",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Reseller Scanner - Spadas Lens | Instant Barcode & Profit Calculator",
+    title: "Thrift Comps: Resale Scanner | Instant Barcode & Profit Calculator",
     description:
-      "Scan barcodes and thrift finds in 0.5s. Auto-calculate eBay sold comps, platform fees, and net profit before you buy. 10 free scans daily.",
+      "Scan barcodes and thrift finds in 0.5s. Auto-calculate eBay sold comps, platform fees, and net profit before you buy. 3 free scans daily.",
   },
 };
 
@@ -61,10 +61,10 @@ export default function Home() {
             </div>
             <div className="flex flex-col">
               <span className="text-sm sm:text-base font-black text-white tracking-tight leading-none">
-                Spadas Lens
+                Thrift Comps
               </span>
               <span className="text-[10px] font-mono text-cyan-400 font-bold uppercase tracking-wider mt-0.5">
-                Reseller Scanner
+                Resale Scanner
               </span>
             </div>
           </Link>
@@ -157,7 +157,7 @@ export default function Home() {
         <div className="flex flex-wrap items-center justify-center gap-5 text-xs text-zinc-400 mt-6 font-medium">
           <span className="flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-            10 free scans daily
+            3 free scans daily
           </span>
           <span className="flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />

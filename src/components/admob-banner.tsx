@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { Sparkles, Zap, Info } from "lucide-react";
-import { ADMOB_CONFIG, getActiveBannerAdUnitId } from "@/lib/admob";
+import { ADMOB_CONFIG, getActiveBannerAdUnitId, getAdClientId, getBannerSlotId } from "@/lib/admob";
 
 interface AdMobBannerProps {
   isPro?: boolean;
@@ -27,9 +27,13 @@ export default function AdMobBanner({
     if (!isPro) {
       try {
         if (typeof window !== "undefined") {
-          ((window as unknown as { adsbygoogle?: unknown[] }).adsbygoogle =
-            (window as unknown as { adsbygoogle?: unknown[] }).adsbygoogle || []).push({});
-          setAdLoaded(true);
+          const adUnit = getActiveBannerAdUnitId();
+          const shouldLoad = Boolean(adUnit) && adUnit !== ADMOB_CONFIG.testBannerAdUnitId;
+          if (shouldLoad) {
+            ((window as unknown as { adsbygoogle?: unknown[] }).adsbygoogle =
+              (window as unknown as { adsbygoogle?: unknown[] }).adsbygoogle || []).push({});
+            setAdLoaded(true);
+          }
         }
       } catch {
         // Fallback gracefully to sponsor card
@@ -37,12 +41,15 @@ export default function AdMobBanner({
     }
   }, [isPro]);
 
-  // Pro subscribers never see ads
-  if (isPro || !mounted) {
+  // Pro subscribers never see ads. We also keep ads off until a live banner unit exists.
+  const activeAdUnitId = getActiveBannerAdUnitId();
+  const adClientId = getAdClientId();
+  const adSlotId = getBannerSlotId();
+
+  if (isPro || !mounted || !activeAdUnitId) {
     return null;
   }
 
-  const activeAdUnitId = getActiveBannerAdUnitId();
   const isTestAd = activeAdUnitId === ADMOB_CONFIG.testBannerAdUnitId;
 
   return (
@@ -80,8 +87,8 @@ export default function AdMobBanner({
           ref={adRef}
           className="adsbygoogle"
           style={{ display: "block", minWidth: "300px", height: "50px", textAlign: "center" }}
-          data-ad-client="ca-pub-7262955524032732"
-          data-ad-slot="1361556776"
+          data-ad-client={adClientId}
+          data-ad-slot={adSlotId || ""}
           data-ad-format="horizontal"
           data-full-width-responsive="true"
         />

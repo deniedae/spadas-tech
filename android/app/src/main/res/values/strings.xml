@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Spadas Lens</string>
-    <string name="title_activity_main">Spadas Lens</string>
+    <string name="app_name">Thrift Comps</string>
+    <string name="title_activity_main">Thrift Comps: Resale Scanner</string>
     <string name="package_name">com.spadas.lens</string>
     <string name="custom_url_scheme">com.spadas.lens</string>
 </resources>
