@@ -722,8 +722,22 @@ export default function SettingsPage() {
                 <p className="text-xs text-zinc-400">
                   Every new account receives 3 complimentary scans to test. Upgrade to Spadas Pro for unlimited scanning.
                 </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    try {
+                      localStorage.removeItem("spadas_first_launch_welcome_v1");
+                      localStorage.removeItem("hasCompletedOnboarding");
+                    } catch {}
+                    window.location.href = "/lens?welcome=1";
+                  }}
+                  className="pt-1 text-[11px] font-mono font-medium text-cyan-400 hover:text-cyan-300 underline underline-offset-2 transition cursor-pointer flex items-center gap-1"
+                >
+                  <span>Preview 3-Scans Welcome Screen</span>
+                  <span>→</span>
+                </button>
               </div>
-              <span className="text-[11px] font-mono px-2.5 py-1 rounded-lg bg-zinc-800 text-zinc-300 shrink-0">
+              <span className="text-[11px] font-mono px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 shrink-0 font-bold">
                 3 Free Scans
               </span>
             </div>

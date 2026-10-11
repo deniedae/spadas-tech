@@ -32,14 +32,6 @@ export default function CameraOnboardingOverlay({
   useEffect(() => {
     if (forceOpen) {
       setIsOpen(true);
-      return;
-    }
-
-    if (typeof window !== "undefined") {
-      const seen = localStorage.getItem("spadas_lens_onboarding_seen");
-      if (!seen) {
-        setIsOpen(true);
-      }
     }
   }, [forceOpen]);
 

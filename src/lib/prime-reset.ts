@@ -21,7 +21,11 @@ export interface UserScanState {
  * Prime Reset: Strict purge of all residual scan, comp, haul, and find data.
  * Guarantees that new accounts and guest sessions always start with a clean slate.
  */
-export function performPrimeReset(options?: { newUserId?: string | null; preserveAuth?: boolean }): void {
+export function performPrimeReset(options?: {
+  newUserId?: string | null;
+  preserveAuth?: boolean;
+  resetWelcomeModal?: boolean;
+}): void {
   if (typeof window === "undefined") return;
 
   const newUserId = options?.newUserId || null;
@@ -43,6 +47,10 @@ export function performPrimeReset(options?: { newUserId?: string | null; preserv
       "spadas_widget_items",
       "spadas_spatial_memory",
     ];
+
+    if (options?.resetWelcomeModal || newUserId) {
+      unscopedKeysToRemove.push("spadas_first_launch_welcome_v1", "hasCompletedOnboarding");
+    }
 
     unscopedKeysToRemove.forEach((key) => {
       try {
