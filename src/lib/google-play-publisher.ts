@@ -82,7 +82,10 @@ export async function verifySubscriptionTokenWithGoogle(
   const expiryDate = expiryTime ? new Date(expiryTime) : null;
   const isNotExpired = expiryDate ? expiryDate.getTime() > Date.now() : false;
 
-  const isSkuMatch = productId === expectedSku;
+  const isSkuMatch =
+    !expectedSku ||
+    productId === expectedSku ||
+    (expectedSku.startsWith("spadas_pro_weekly") && productId.startsWith("spadas_pro_weekly"));
 
   const isValid = isActiveState && isNotExpired && isSkuMatch;
 

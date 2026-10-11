@@ -4,9 +4,14 @@ import { supabase } from "@/app/lib/supabase";
 
 export const GOOGLE_PLAY_PACKAGE = "com.spadas.ai";
 export const GOOGLE_PLAY_SKU_MONTHLY = "spadas_pro_monthly";
-export const GOOGLE_PLAY_SKU_WEEKLY = "spadas_pro_weekly";
+export const GOOGLE_PLAY_SKU_WEEKLY = "spadas_pro_weekly_trial";
+export const GOOGLE_PLAY_SKU_WEEKLY_FALLBACK = "spadas_pro_weekly";
 export const GOOGLE_PLAY_SKU = GOOGLE_PLAY_SKU_MONTHLY;
-export const GOOGLE_PLAY_SKUS = [GOOGLE_PLAY_SKU_WEEKLY, GOOGLE_PLAY_SKU_MONTHLY];
+export const GOOGLE_PLAY_SKUS = [
+  GOOGLE_PLAY_SKU_WEEKLY,
+  GOOGLE_PLAY_SKU_WEEKLY_FALLBACK,
+  GOOGLE_PLAY_SKU_MONTHLY,
+];
 
 export const GOOGLE_PLAY_SUBSCRIPTIONS_URL = `https://play.google.com/store/account/subscriptions?sku=${GOOGLE_PLAY_SKU}&package=${GOOGLE_PLAY_PACKAGE}`;
 export const GOOGLE_PLAY_STORE_URL = `https://play.google.com/store/apps/details?id=${GOOGLE_PLAY_PACKAGE}`;
@@ -146,21 +151,40 @@ export async function purchaseGooglePlaySubscription(
         let playCurrency = "USD";
         let playTitle = options?.planId === "weekly" ? "Spadas Pro Weekly" : "Spadas Pro Monthly";
         let skuFound = false;
+        let actualSku = targetSku;
 
         if (typeof service.getDetails === "function") {
           try {
-            const detailsList = await service.getDetails([targetSku, GOOGLE_PLAY_SKU_MONTHLY]);
+            const querySkus = Array.from(
+              new Set([
+                targetSku,
+                GOOGLE_PLAY_SKU_WEEKLY,
+                GOOGLE_PLAY_SKU_WEEKLY_FALLBACK,
+                GOOGLE_PLAY_SKU_MONTHLY,
+              ])
+            );
+            const detailsList = await service.getDetails(querySkus);
             console.log("[Google Play Billing] SKU details from Play Store:", detailsList);
             if (detailsList && detailsList.length > 0) {
-              const matchedItem = detailsList.find((i: any) => i.itemId === targetSku) || detailsList[0];
+              const matchedItem =
+                detailsList.find((i: any) => i.itemId === targetSku) ||
+                (options?.planId === "weekly"
+                  ? detailsList.find(
+                      (i: any) =>
+                        i.itemId === GOOGLE_PLAY_SKU_WEEKLY ||
+                        i.itemId === GOOGLE_PLAY_SKU_WEEKLY_FALLBACK
+                    )
+                  : detailsList.find((i: any) => i.itemId === GOOGLE_PLAY_SKU_MONTHLY)) ||
+                detailsList[0];
               if (matchedItem) {
                 skuFound = true;
+                actualSku = matchedItem.itemId || targetSku;
                 if (matchedItem.title) playTitle = matchedItem.title;
                 if (matchedItem.price?.currency) playCurrency = matchedItem.price.currency;
                 if (matchedItem.price?.value) playAmount = matchedItem.price.value;
               }
             } else {
-              console.warn("[Google Play Billing] Play Store returned 0 items for SKU:", targetSku);
+              console.warn("[Google Play Billing] Play Store returned 0 items for SKUs:", querySkus);
             }
           } catch (detailErr: any) {
             console.warn("[Google Play Billing] getDetails warning:", detailErr);
@@ -179,8 +203,8 @@ export async function purchaseGooglePlaySubscription(
           {
             supportedMethods: "https://play.google.com/billing",
             data: {
-              sku: targetSku,
-              itemId: targetSku,
+              sku: actualSku,
+              itemId: actualSku,
             },
           },
         ];
@@ -216,7 +240,7 @@ export async function purchaseGooglePlaySubscription(
               headers: authHeaders,
               body: JSON.stringify({
                 purchaseToken,
-                sku: targetSku,
+                sku: actualSku,
                 packageName: GOOGLE_PLAY_PACKAGE,
               }),
             });
@@ -450,10 +474,18 @@ export async function queryGooglePlaySubscriptionPlans(): Promise<{
   try {
     const service = await (window as any).getDigitalGoodsService("https://play.google.com/billing");
     if (service && typeof service.getDetails === "function") {
-      const detailsList = await service.getDetails([GOOGLE_PLAY_SKU_WEEKLY, GOOGLE_PLAY_SKU_MONTHLY]);
+      const detailsList = await service.getDetails([
+        GOOGLE_PLAY_SKU_WEEKLY,
+        GOOGLE_PLAY_SKU_WEEKLY_FALLBACK,
+        GOOGLE_PLAY_SKU_MONTHLY,
+      ]);
       if (Array.isArray(detailsList)) {
         for (const item of detailsList) {
-          if (item.itemId === GOOGLE_PLAY_SKU_WEEKLY) {
+          if (
+            item.itemId === GOOGLE_PLAY_SKU_WEEKLY ||
+            item.itemId === GOOGLE_PLAY_SKU_WEEKLY_FALLBACK
+          ) {
+            defaultWeekly.itemId = item.itemId;
             defaultWeekly.title = item.title || defaultWeekly.title;
             if (item.price?.value) defaultWeekly.price = `${item.price.currency === "AUD" ? "A$" : "$"}${item.price.value}`;
             if (item.price?.currency) defaultWeekly.currency = item.price.currency;
