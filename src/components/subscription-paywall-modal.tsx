@@ -25,10 +25,12 @@ export default function SubscriptionPaywallModal({
   isOpen,
   onClose,
   currentScans = 15,
+  onTryDemo,
 }: {
   isOpen: boolean;
   onClose: () => void;
   currentScans?: number;
+  onTryDemo?: () => void;
 }) {
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [isAppStoreClient, setIsAppStoreClient] = useState(false);
@@ -185,6 +187,20 @@ export default function SubscriptionPaywallModal({
                     ))}
                   </ul>
                 </div>
+
+                {onTryDemo && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onTryDemo();
+                    }}
+                    className="w-full inline-flex h-10 items-center justify-center gap-2 rounded-md border border-cyan-500/60 bg-cyan-500/10 text-cyan-200 hover:bg-cyan-500/20 text-xs font-semibold transition cursor-pointer"
+                  >
+                    <Sparkles className="h-3.5 w-3.5" />
+                    <span>Try Demo Scan</span>
+                  </button>
+                )}
 
                 <button
                   type="button"

@@ -27,6 +27,7 @@ interface GuestScanLimitModalProps {
   lastScannedItem?: any;
   isAuthenticated?: boolean;
   isPro?: boolean;
+  onTryDemo?: () => void;
 }
 
 export function GuestScanLimitModal({
@@ -36,6 +37,7 @@ export function GuestScanLimitModal({
   lastScannedItem,
   isAuthenticated = false,
   isPro = false,
+  onTryDemo,
 }: GuestScanLimitModalProps) {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -340,6 +342,20 @@ export function GuestScanLimitModal({
             <span>{upgradingToPro ? "Redirecting..." : "Go Pro"}</span>
           </button>
         </div>
+
+        {onTryDemo && (
+          <button
+            type="button"
+            onClick={() => {
+              if (onClose) onClose();
+              onTryDemo();
+            }}
+            className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-cyan-500/60 bg-cyan-500/10 px-4 py-2.5 text-sm font-semibold text-cyan-200 hover:bg-cyan-500/20 transition cursor-pointer"
+          >
+            <Sparkles className="h-4 w-4" />
+            <span>Try Demo Scan First</span>
+          </button>
+        )}
 
         {/* Quick Sign Up Options */}
         <div className="space-y-3 pt-1">

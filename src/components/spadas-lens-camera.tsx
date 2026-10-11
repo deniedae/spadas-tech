@@ -1157,11 +1157,11 @@ function SpadasLensCameraCore({
         rawComps: verifiedComps,
       };
 
-      // 1. Immediately activate valuation result state so Trade-Ticket valuation & comps dialog mounts directly
+      // 1. Immediately activate the scan result and open its full sold-comps dialog.
       activeValuationHitRef.current = verifiedHit;
       setActiveValuationHit(verifiedHit);
-      activeCompsHitRef.current = null;
-      setActiveCompsHit(null);
+      activeCompsHitRef.current = verifiedHit;
+      setActiveCompsHit(verifiedHit);
       isScanPausedRef.current = true;
       setIsScanPaused(true);
       setScanStage("complete");
@@ -5528,6 +5528,7 @@ function SpadasLensCameraCore({
         isOpen={isPaywallOpen && !isPro && !isOwner}
         onClose={() => setIsPaywallOpen(false)}
         currentScans={capturedLog.length}
+        onTryDemo={handleRunDemoScan}
       />
 
       {/* 5-Star Google Play In-App Review & Rating Modal */}
@@ -5550,6 +5551,7 @@ function SpadasLensCameraCore({
         lastScannedItem={lastGuestScannedItem}
         isAuthenticated={!isGuestUser || isOwner}
         isPro={isPro || isOwner}
+        onTryDemo={handleRunDemoScan}
       />
 
       {/* Ebay Listing Automation Modal */}
