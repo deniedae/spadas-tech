@@ -183,6 +183,8 @@ export default function LensCompsModal({
   const [isPublishingEbay, setIsPublishingEbay] = useState<boolean>(false);
   const [ebayPublishSuccess, setEbayPublishSuccess] = useState<boolean>(false);
   const [liveEbayListingUrl, setLiveEbayListingUrl] = useState<string | null>(null);
+  const [publishedSku, setPublishedSku] = useState<string | null>(null);
+  const [isLiveListing, setIsLiveListing] = useState<boolean>(false);
   const [liveActiveComps, setLiveActiveComps] = useState<RawSoldComp[]>([]);
   const [isLoadingActiveComps, setIsLoadingActiveComps] = useState(false);
   const [activeCompsError, setActiveCompsError] = useState<string | null>(null);
@@ -192,6 +194,8 @@ export default function LensCompsModal({
     setCustomResalePrice(null);
     setEbayPublishSuccess(false);
     setLiveEbayListingUrl(null);
+    setPublishedSku(null);
+    setIsLiveListing(false);
   }, [item, initialPhotos]);
 
   const handleAddPhotos = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -740,51 +744,77 @@ export default function LensCompsModal({
     }
   };
 
-  // 1-Tap Direct Publish to eBay with fallback to eBay prefill flow.
-  // Mobile browsers block window.open() after an await, so a tab is opened
-  // synchronously inside the tap and navigated once the API responds.
+  const handleOpenEbayEditor = () => {
+    if (!onListEbay || !item) return;
+    const primaryBlob =
+      listingPhotos[0]?.trim() || previewImageSrc?.trim() || (item as any)?.image?.trim() || undefined;
+    const safeBrand = cleanBrandText(brand, "Unbranded") || "Unbranded";
+    const safeCond = cleanConditionText(condition, "Used - Good");
+    const stableSessionId =
+      (item as any)?.sessionId || (item as any)?.id || `session_${(item as any)?.timestamp || Date.now()}`;
+    const enrichedItem = {
+      ...item,
+      productName: title,
+      name: title,
+      brand: safeBrand,
+      category,
+      condition: safeCond,
+      estimatedValue: activeResalePrice,
+      price: activeResalePrice,
+      currency: targetCurrency,
+      image: primaryBlob,
+      imageUrls: listingPhotos.length > 0 ? listingPhotos : primaryBlob ? [primaryBlob] : undefined,
+      sessionId: stableSessionId,
+    };
+    onListEbay(enrichedItem as any);
+  };
+
+  // Strict 1-Tap Live Publish to eBay AU:
+  // Mirrors exact payload verification and live syncing from EbayListingModal
   const handle1TapPublishEbay = async () => {
     if (isPublishingEbay) return;
 
-    const hasNativeOpener =
-      typeof window !== "undefined" && typeof window.AndroidBridge?.openExternalUrl === "function";
-    let pendingTab: Window | null = null;
-    if (!hasNativeOpener) {
-      try {
-        pendingTab = window.open("about:blank", "_blank");
-        if (pendingTab) {
-          pendingTab.opener = null;
-          try {
-            pendingTab.document.title = "Opening eBay…";
-            pendingTab.document.body.style.cssText =
-              "background:#09090b;color:#a1a1aa;font:14px system-ui;display:flex;align-items:center;justify-content:center;height:100vh;margin:0";
-            pendingTab.document.body.textContent = "Opening eBay…";
-          } catch {}
-        }
-      } catch {
-        pendingTab = null;
-      }
+    // 1. Strict Primary Photo Verification:
+    const primaryBlob =
+      listingPhotos[0]?.trim() || previewImageSrc?.trim() || (item as any)?.image?.trim() || null;
+
+    if (!primaryBlob || primaryBlob.includes("unsplash.com") || primaryBlob.includes("placeholder")) {
+      toast.warning("No active scan capture photo found. Please capture or attach a photo before syncing to eBay AU.", {
+        id: "empty-primary-photo-warning",
+      });
+      return;
     }
 
-    const openEbayUrl = (url: string): boolean => {
-      setLiveEbayListingUrl(url);
-      if (pendingTab && !pendingTab.closed) {
-        try {
-          pendingTab.location.href = url;
-          return true;
-        } catch {}
-      }
-      return openExternalUrlSafely(url, title);
-    };
+    // Filter secondary gallery photos (guaranteeing no duplicates of primaryBlob)
+    const validGallery = listingPhotos.filter(
+      (img) => typeof img === "string" && img.trim().length > 0 && img.trim() !== primaryBlob
+    );
 
-    const buildPrefillUrl = () =>
-      generateEbayPrefillUrl({
-        title,
-        price: activeResalePrice,
-        currency: targetCurrency,
-        brand,
-        category,
-      });
+    // Final payload array: Index [0] is GUARANTEED to be the active scan capture photo
+    const submissionImageUrls = [primaryBlob, ...validGallery];
+
+    const safeBrand = cleanBrandText(brand, "Unbranded") || "Unbranded";
+    const safeCond = cleanConditionText(condition, "Used - Good");
+    const stableSessionId =
+      (item as any)?.sessionId || (item as any)?.id || `session_${(item as any)?.timestamp || Date.now()}`;
+    const targetRegionLabel = isUsMarket ? "eBay US" : "eBay AU";
+    const targetDomain = isUsMarket ? "ebay.com" : "ebay.com.au";
+
+    const itemDescription = `Authentic ${safeBrand !== "Unbranded" ? safeBrand : ""} ${title}.\n\n• Brand: ${safeBrand}\n• Model: ${title}\n• Category: ${category}\n• Condition: ${safeCond}. Tested and operating as intended.\n• Target Sale Price: ${targetCurrency === "USD" ? "$" : "A$"}${Number(activeResalePrice).toFixed(2)}\n\nPlease review all photos for exact details.`;
+
+    const payload = {
+      product: title.slice(0, 80),
+      brand: safeBrand,
+      price: Number(activeResalePrice),
+      currency: targetCurrency,
+      condition: safeCond,
+      category,
+      description: itemDescription,
+      imageUrls: submissionImageUrls,
+      sessionId: stableSessionId,
+      publishMode: "live", // Force active publish action rather than draft-save
+      forceLive: true,
+    };
 
     setIsPublishingEbay(true);
     try {
@@ -793,21 +823,7 @@ export default function LensCompsModal({
         data: { session },
       } = await supabase.auth.getSession();
 
-      const payload = {
-        product: title,
-        description: `Sourced via Spadas Cognitive Lens Engine.\n\nBrand: ${brand}\nCategory: ${category}\nCondition: ${condition}\nTarget Sale Price: ${formatAUD(activeResalePrice)}\nComp Verification: eBay Secondary Market.`,
-        price: activeResalePrice,
-        currency: targetCurrency,
-        condition,
-        brand,
-        category,
-        imageUrls: listingPhotos.length > 0 ? listingPhotos : previewImageSrc ? [previewImageSrc] : [],
-        forceLive: true,
-      };
-
-      const headers: Record<string, string> = {
-        "Content-Type": "application/json",
-      };
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
       if (session?.access_token) {
         headers["Authorization"] = `Bearer ${session.access_token}`;
       }
@@ -820,39 +836,78 @@ export default function LensCompsModal({
 
       const data = await res.json().catch(() => ({}));
 
-      if (res.ok && data.success && data.listingUrl) {
+      // Photo upload to Supabase Storage failed before eBay was even called
+      if (data.image_upload_failed) {
+        throw new Error(
+          data.error ||
+            "Photo upload to Supabase Storage failed. Make sure the 'listing-images' bucket exists and is public in your Supabase project."
+        );
+      }
+
+      // If user is not authenticated or needs to connect eBay account:
+      const errText = String(data.error || data.message || "");
+      const needsConnection =
+        res.status === 401 || (res.status === 400 && /connect|ebay seller account|token|reconnect/i.test(errText));
+
+      if (needsConnection) {
+        if (onListEbay) {
+          toast.info(`Please link your ${targetRegionLabel} account to publish live. Opening listing manager...`, {
+            duration: 4000,
+          });
+          handleOpenEbayEditor();
+          return;
+        } else {
+          const prefillUrl = generateEbayPrefillUrl({
+            title,
+            priceAud: Number(activeResalePrice),
+            brand: safeBrand,
+            currency: targetCurrency,
+          });
+          openExternalUrlSafely(prefillUrl, title);
+          toast.info(`Opened ${targetRegionLabel} Sell wizard with prefilled details.`, { duration: 5000 });
+          return;
+        }
+      }
+
+      // Force Live Sync: Ensure submission targets active publish action
+      if (!res.ok || !data.success || !data.isLive) {
+        throw new Error(errText || `Failed to publish live listing to ${targetRegionLabel}.`);
+      }
+
+      if (data.success && data.isLive) {
+        const liveUrl = data.listingUrl || `https://www.${targetDomain}/sh/lst/active`;
+        setLiveEbayListingUrl(liveUrl);
+        setPublishedSku(data.sku || null);
+        setIsLiveListing(true);
         setEbayPublishSuccess(true);
         triggerTactileHaptic("success");
-        const opened = openEbayUrl(data.listingUrl);
-        toast.success(opened ? "Published to eBay." : "Published to eBay. Tap View on eBay to open it.");
-        return;
-      }
 
-      // Not signed in or eBay account not linked: open the eBay listing form instead
-      const errText = String(data.error || "");
-      const needsAccount =
-        res.status === 401 || /log in|ebay token|connect|reconnect/i.test(errText);
-      if (needsAccount) {
-        const opened = openEbayUrl(buildPrefillUrl());
-        const reason = !session
-          ? "Sign in and link eBay to publish directly."
-          : errText || "Link your eBay account in Settings to publish directly.";
-        toast.info(
-          opened ? `${reason} Opened the eBay listing form.` : `${reason} Tap Open eBay to continue.`,
-          { duration: 6000 }
-        );
-        return;
-      }
+        // Also save to Spadas AI local listings with status "Active"
+        try {
+          const {
+            data: { user },
+          } = await supabase.auth.getUser();
+          if (user) {
+            await createListing({
+              userId: user.id,
+              product: title,
+              price: Number(activeResalePrice),
+              cost: effectiveTagCost,
+              description: itemDescription,
+              status: "Active",
+              image: primaryBlob,
+            });
+          }
+        } catch (syncErr) {
+          console.warn("Local inventory sync error after live eBay publish:", syncErr);
+        }
 
-      throw new Error(errText || `eBay publish failed (${res.status}).`);
-    } catch (err: any) {
+        toast.success(`🚀 Live on ${targetRegionLabel}! Listing published successfully with verified scan photo.`);
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Publish request failed";
       console.error("1-Tap eBay Publish error:", err);
-      const opened = openEbayUrl(buildPrefillUrl());
-      const message = err?.message || "eBay publish failed.";
-      toast.error(
-        opened ? `${message} Opened the eBay listing form instead.` : `${message} Tap Open eBay to list manually.`,
-        { duration: 7000 }
-      );
+      toast.error(message);
     } finally {
       setIsPublishingEbay(false);
     }
@@ -974,103 +1029,115 @@ export default function LensCompsModal({
 
         {/* ── Scrollable Body Content (Aisle-Ready Mode) ────────────────────── */}
         <div className="flex-1 overflow-y-auto overscroll-contain touch-pan-y divide-y divide-zinc-800 custom-scrollbar">
-          {/* ── 6000 IQ 3-PILLAR VALUATION COMMAND CENTER ─────────────────────── */}
-          <div className="p-4 space-y-3.5 bg-gradient-to-b from-zinc-900/60 to-zinc-950">
-            {/* Top Verdict Strip */}
+          {/* Institutional Valuation Command Header */}
+          <div className="p-4 space-y-3.5 bg-zinc-950">
+            {/* Top Financial Verdict Strip */}
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold font-mono border tracking-wider ${
-                  copVerdict === "MUST_COP" || recommendation === "HIGH PROFIT"
-                    ? "bg-emerald-950/80 text-emerald-300 border-emerald-500/50 shadow-sm shadow-emerald-950/50"
-                    : copVerdict === "PASS_RISKY" || recommendation === "PASS"
-                    ? "bg-red-950/80 text-red-300 border-red-500/50 shadow-sm shadow-red-950/50"
-                    : "bg-cyan-950/80 text-cyan-300 border-cyan-500/50 shadow-sm shadow-cyan-950/50"
-                }`}>
-                  <Zap className="w-3.5 h-3.5" />
+                <span
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold tracking-wide border ${
+                    copVerdict === "MUST_COP" || recommendation === "HIGH PROFIT"
+                      ? "bg-emerald-950/60 text-emerald-300 border-emerald-800/80"
+                      : copVerdict === "PASS_RISKY" || recommendation === "PASS"
+                      ? "bg-rose-950/60 text-rose-300 border-rose-800/80"
+                      : "bg-zinc-900 text-zinc-200 border-zinc-800"
+                  }`}
+                >
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ${
+                      copVerdict === "MUST_COP" || recommendation === "HIGH PROFIT"
+                        ? "bg-emerald-400"
+                        : copVerdict === "PASS_RISKY" || recommendation === "PASS"
+                        ? "bg-rose-400"
+                        : "bg-emerald-400"
+                    }`}
+                  />
                   <span>
                     {copVerdict === "MUST_COP" || recommendation === "HIGH PROFIT"
-                      ? "🔥 MUST COP (HIGH PROFIT)"
+                      ? "BUY · HIGH MARGIN"
                       : copVerdict === "PASS_RISKY" || recommendation === "PASS"
-                      ? "⚠️ MARGIN TRAP (PASS)"
-                      : "⚡ SOLID FLIP (BUY)"}
+                      ? "PASS · LOW MARGIN"
+                      : "BUY · SOLID MARGIN"}
                   </span>
                 </span>
-                <span className="text-[11px] font-mono text-zinc-400">
-                  {salesVelocity.turnoverTier === "RAPID_FIRE" ? "~1–3 days turn" : `${salesVelocity.estDaysToSell} turn`}
+                <span className="text-[11px] text-zinc-400 tabular-nums">
+                  {salesVelocity.turnoverTier === "RAPID_FIRE" ? "~1–3 days turn" : `${salesVelocity.estDaysToSell} days turn`}
                 </span>
               </div>
 
-              <div className="text-[11px] font-mono text-zinc-400 shrink-0">
+              <div className="text-[11px] text-zinc-400 shrink-0 tabular-nums">
                 {trustLineText}
               </div>
             </div>
 
-            {/* THE 3 GLORIOUS VALUATION PILLARS */}
-            <div className="grid grid-cols-3 gap-2 sm:gap-2.5">
-              {/* Pillar 1: Verified Sold (Ground Truth) */}
-              <div className="p-3 rounded-xl bg-gradient-to-b from-emerald-950/40 via-zinc-900/80 to-zinc-950 border border-emerald-500/30 flex flex-col justify-between shadow-md shadow-emerald-950/20">
-                <div className="flex items-center gap-1 text-[10px] sm:text-[11px] font-mono font-bold text-emerald-400 uppercase tracking-wider">
+            {/* The 3 Core Market Pillars */}
+            <div className="grid grid-cols-3 gap-2">
+              {/* Pillar 1: Verified Realized Sales */}
+              <div className="p-3 rounded-lg bg-zinc-900/70 border border-zinc-800 flex flex-col justify-between">
+                <div className="flex items-center gap-1 text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">
                   <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />
-                  <span className="truncate">VERIFIED SOLD</span>
+                  <span className="truncate">REALIZED SALES</span>
                 </div>
-                <div className="text-xl sm:text-2xl font-black font-mono text-white tabular-nums my-1 tracking-tight">
+                <div className="text-xl sm:text-2xl font-bold text-white tabular-nums my-1 tracking-tight">
                   {displaySoldCount > 0 ? fmtMoney(displaySoldMedian) : "No sales"}
                 </div>
-                <div className="space-y-0.5 pt-0.5 border-t border-emerald-900/40">
-                  <div className="text-[10px] text-emerald-400 font-medium tabular-nums truncate">
+                <div className="space-y-0.5 pt-1 border-t border-zinc-800/80">
+                  <div className="text-[10px] text-zinc-300 font-medium tabular-nums truncate">
                     {displaySoldCount > 0 ? `${displaySoldCount} sold comps` : "Appraisal model"}
                   </div>
-                  <div className="text-[9px] text-zinc-400 font-mono tabular-nums truncate">
-                    Low {fmtMoney(compsRange.min)}
+                  <div className="text-[9px] text-zinc-500 tabular-nums truncate">
+                    Floor: {fmtMoney(compsRange.min)}
                   </div>
                 </div>
               </div>
 
-              {/* Pillar 2: Active Asks (Live Competition) */}
-              <div className="p-3 rounded-xl bg-gradient-to-b from-cyan-950/40 via-zinc-900/80 to-zinc-950 border border-cyan-500/30 flex flex-col justify-between shadow-md shadow-cyan-950/20">
-                <div className="flex items-center gap-1 text-[10px] sm:text-[11px] font-mono font-bold text-cyan-300 uppercase tracking-wider">
-                  <Globe className="w-3 h-3 text-cyan-400 shrink-0" />
+              {/* Pillar 2: Active Market Asks */}
+              <div className="p-3 rounded-lg bg-zinc-900/70 border border-zinc-800 flex flex-col justify-between">
+                <div className="flex items-center gap-1 text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">
+                  <Globe className="w-3 h-3 text-zinc-400 shrink-0" />
                   <span className="truncate">ACTIVE ASKS</span>
                 </div>
-                <div className="text-xl sm:text-2xl font-black font-mono text-cyan-200 tabular-nums my-1 tracking-tight">
+                <div className="text-xl sm:text-2xl font-bold text-zinc-100 tabular-nums my-1 tracking-tight">
                   {isLoadingActiveComps ? "…" : displayActiveCount > 0 ? fmtMoney(displayActiveMedian) : "0 live"}
                 </div>
-                <div className="space-y-0.5 pt-0.5 border-t border-cyan-900/40">
-                  <div className="text-[10px] text-cyan-300 font-medium tabular-nums truncate">
+                <div className="space-y-0.5 pt-1 border-t border-zinc-800/80">
+                  <div className="text-[10px] text-zinc-300 font-medium tabular-nums truncate">
                     {displayActiveCount > 0 ? `${displayActiveCount} on market` : "No competitors"}
                   </div>
-                  <div className="text-[9px] text-zinc-400 font-mono tabular-nums truncate">
-                    High {fmtMoney(compsRange.max)}
+                  <div className="text-[9px] text-zinc-500 tabular-nums truncate">
+                    Ceiling: {fmtMoney(compsRange.max)}
                   </div>
                 </div>
               </div>
 
-              {/* Pillar 3: Net Take-Home Cash (In-Pocket Profit) */}
-              <div className="p-3 rounded-xl bg-gradient-to-b from-emerald-950/60 via-zinc-900/90 to-zinc-950 border-2 border-emerald-500/60 flex flex-col justify-between shadow-lg shadow-emerald-950/40">
-                <div className="flex items-center gap-1 text-[10px] sm:text-[11px] font-mono font-black text-emerald-400 uppercase tracking-wider">
+              {/* Pillar 3: Net Take-Home */}
+              <div className="p-3 rounded-lg bg-zinc-900/70 border border-zinc-800 flex flex-col justify-between">
+                <div className="flex items-center gap-1 text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">
                   <DollarSign className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                  <span className="truncate">NET IN-POCKET</span>
+                  <span className="truncate">EST. NET PROFIT</span>
                 </div>
-                <div className={`text-xl sm:text-2xl font-black font-mono tabular-nums my-1 tracking-tight ${
-                  netProfit >= 0 ? "text-emerald-400" : "text-red-400"
-                }`}>
+                <div
+                  className={`text-xl sm:text-2xl font-bold tabular-nums my-1 tracking-tight ${
+                    netProfit >= 0 ? "text-emerald-400" : "text-rose-400"
+                  }`}
+                >
                   {netProfit >= 0 ? `+${formatAUD(netProfit)}` : formatAUD(netProfit)}
                 </div>
-                <div className="space-y-0.5 pt-0.5 border-t border-emerald-800/40">
-                  <div className="text-[10px] text-emerald-300 font-bold tabular-nums truncate">
+                <div className="space-y-0.5 pt-1 border-t border-zinc-800/80">
+                  <div className="text-[10px] text-emerald-400 font-semibold tabular-nums truncate">
                     {roi > 0 ? `+${Math.round(roi)}% ROI` : `${Math.round(roi)}% ROI`}
                   </div>
-                  <div className="text-[9px] text-zinc-400 font-mono tabular-nums truncate">
-                    Tag: {fmtMoney(effectiveTagCost)}
+                  <div className="text-[9px] text-zinc-500 tabular-nums truncate">
+                    Cost: {fmtMoney(effectiveTagCost)}
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* ── 6000 IQ VISUAL LIQUIDITY & PRICING SPECTRUM BAR ── */}
-            <div className="p-3 rounded-xl bg-zinc-950 border border-zinc-800 space-y-2.5">
+            {/* Listing Target & Liquidity Presets */}
+            <div className="p-3 rounded-lg bg-zinc-900/50 border border-zinc-800 space-y-2.5">
               <div className="flex items-center justify-between text-xs">
-                <span className="font-semibold text-zinc-200">Listing Price Target</span>
+                <span className="font-medium text-zinc-300">Listing Price Target</span>
                 <div className="flex items-center gap-1">
                   <span className="text-zinc-500 font-mono">$</span>
                   <input
@@ -1083,13 +1150,13 @@ export default function LensCompsModal({
                       setCustomResalePrice(val);
                       triggerTactileHaptic("light");
                     }}
-                    className="w-20 rounded-md bg-zinc-900 border border-zinc-700 px-2 py-1 text-right text-xs font-bold text-white focus:outline-none focus:border-emerald-500 tabular-nums"
+                    className="w-20 rounded-md bg-zinc-950 border border-zinc-700 px-2 py-1 text-right text-xs font-semibold text-white focus:outline-none focus:border-emerald-500 tabular-nums"
                   />
-                  <span className="text-[10px] font-mono text-zinc-400">{targetCurrency}</span>
+                  <span className="text-[10px] text-zinc-400 font-mono">{targetCurrency}</span>
                 </div>
               </div>
 
-              {/* 3 Liquidity Presets (44px Touch Targets) */}
+              {/* 3 Liquidity Presets */}
               <div className="grid grid-cols-3 gap-1.5">
                 <button
                   type="button"
@@ -1097,14 +1164,14 @@ export default function LensCompsModal({
                     setCustomResalePrice(displayQuickSell);
                     triggerTactileHaptic("selection");
                   }}
-                  className={`h-11 flex flex-col items-center justify-center px-1.5 rounded-lg text-center transition cursor-pointer border tabular-nums ${
+                  className={`h-10 flex flex-col items-center justify-center px-1.5 rounded-md text-center transition cursor-pointer border tabular-nums ${
                     activeResalePrice === displayQuickSell
-                      ? "bg-zinc-800 text-emerald-300 border-emerald-500/60 font-bold shadow-sm"
-                      : "bg-zinc-900/90 text-zinc-400 border-zinc-800 hover:text-zinc-200 hover:border-zinc-700"
+                      ? "bg-zinc-800 text-emerald-300 border-zinc-600 font-semibold"
+                      : "bg-zinc-950 text-zinc-400 border-zinc-800 hover:text-zinc-200 hover:border-zinc-700"
                   }`}
                 >
-                  <span className="text-[11px] font-bold">⚡ Fast-flip</span>
-                  <span className="text-[9px] opacity-75 font-mono">{fmtMoney(displayQuickSell)} (−5%)</span>
+                  <span className="text-[11px] font-medium">Fast-Flip (−5%)</span>
+                  <span className="text-[9px] opacity-75 font-mono">{fmtMoney(displayQuickSell)}</span>
                 </button>
                 <button
                   type="button"
@@ -1113,13 +1180,13 @@ export default function LensCompsModal({
                     setCustomResalePrice(displaySoldMedian);
                     triggerTactileHaptic("selection");
                   }}
-                  className={`h-11 flex flex-col items-center justify-center px-1.5 rounded-lg text-center transition cursor-pointer border tabular-nums disabled:opacity-40 disabled:cursor-not-allowed ${
+                  className={`h-10 flex flex-col items-center justify-center px-1.5 rounded-md text-center transition cursor-pointer border tabular-nums disabled:opacity-40 disabled:cursor-not-allowed ${
                     activeResalePrice === displaySoldMedian
-                      ? "bg-zinc-800 text-emerald-300 border-emerald-500/60 font-bold shadow-sm"
-                      : "bg-zinc-900/90 text-zinc-400 border-zinc-800 hover:text-zinc-200 hover:border-zinc-700"
+                      ? "bg-zinc-800 text-emerald-300 border-zinc-600 font-semibold"
+                      : "bg-zinc-950 text-zinc-400 border-zinc-800 hover:text-zinc-200 hover:border-zinc-700"
                   }`}
                 >
-                  <span className="text-[11px] font-bold">💎 Median sold</span>
+                  <span className="text-[11px] font-medium">Median Sold</span>
                   <span className="text-[9px] opacity-75 font-mono">{displaySoldCount > 0 ? fmtMoney(displaySoldMedian) : "—"}</span>
                 </button>
                 <button
@@ -1129,46 +1196,46 @@ export default function LensCompsModal({
                     setCustomResalePrice(displayActiveMedian);
                     triggerTactileHaptic("selection");
                   }}
-                  className={`h-11 flex flex-col items-center justify-center px-1.5 rounded-lg text-center transition cursor-pointer border tabular-nums disabled:opacity-40 disabled:cursor-not-allowed ${
+                  className={`h-10 flex flex-col items-center justify-center px-1.5 rounded-md text-center transition cursor-pointer border tabular-nums disabled:opacity-40 disabled:cursor-not-allowed ${
                     activeResalePrice === displayActiveMedian
-                      ? "bg-zinc-800 text-cyan-300 border-cyan-500/60 font-bold shadow-sm"
-                      : "bg-zinc-900/90 text-zinc-400 border-zinc-800 hover:text-zinc-200 hover:border-zinc-700"
+                      ? "bg-zinc-800 text-zinc-100 border-zinc-600 font-semibold"
+                      : "bg-zinc-950 text-zinc-400 border-zinc-800 hover:text-zinc-200 hover:border-zinc-700"
                   }`}
                 >
-                  <span className="text-[11px] font-bold">🚀 Match asks</span>
+                  <span className="text-[11px] font-medium">Active Asks</span>
                   <span className="text-[9px] opacity-75 font-mono">{displayActiveCount > 0 ? fmtMoney(displayActiveMedian) : "—"}</span>
                 </button>
               </div>
             </div>
 
-            {/* ── TRANSPARENT ACCOUNTING LEDGER (No Hidden Math) ── */}
-            <div className="p-3 rounded-xl bg-zinc-950 border border-zinc-800 text-xs space-y-2">
-              <div className="flex items-center justify-between text-zinc-300 pb-1 border-b border-zinc-800/80 font-mono text-[11px]">
-                <span className="text-zinc-400 uppercase tracking-wider font-semibold">Reseller P&L Equation</span>
-                <span className="text-emerald-400 font-bold">+{formatAUD(netProfit)} net profit</span>
+            {/* Financial Ledger (Waterfall) */}
+            <div className="p-3 rounded-lg bg-zinc-900/50 border border-zinc-800 text-xs space-y-2">
+              <div className="flex items-center justify-between text-zinc-300 pb-1.5 border-b border-zinc-800 font-mono text-[11px]">
+                <span className="text-zinc-400 uppercase tracking-wider font-semibold">Financial Ledger</span>
+                <span className="text-emerald-400 font-bold tabular-nums">+{formatAUD(netProfit)} net</span>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-0.5 text-center font-mono text-[11px]">
-                <div className="p-1.5 rounded-lg bg-zinc-900 border border-zinc-800/80">
-                  <span className="text-[10px] text-zinc-400 block">Target Sale</span>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 pt-0.5 text-center font-mono text-[11px]">
+                <div className="p-1.5 rounded bg-zinc-950 border border-zinc-800">
+                  <span className="text-[10px] text-zinc-400 block">Gross Sale</span>
                   <span className="text-zinc-100 font-bold tabular-nums">{fmtMoney(activeResalePrice)}</span>
                 </div>
-                <div className="p-1.5 rounded-lg bg-zinc-900 border border-zinc-800/80">
-                  <span className="text-[10px] text-zinc-400 block">Tag Purchase</span>
-                  <span className="text-red-400 font-bold tabular-nums">−{fmtMoney(effectiveTagCost)}</span>
+                <div className="p-1.5 rounded bg-zinc-950 border border-zinc-800">
+                  <span className="text-[10px] text-zinc-400 block">Cost of Goods</span>
+                  <span className="text-rose-400 font-bold tabular-nums">−{fmtMoney(effectiveTagCost)}</span>
                 </div>
-                <div className="p-1.5 rounded-lg bg-zinc-900 border border-zinc-800/80">
-                  <span className="text-[10px] text-zinc-400 block">eBay 13.4% Fees</span>
-                  <span className="text-red-400 font-bold tabular-nums">−{fmtMoney(platformFee)}</span>
+                <div className="p-1.5 rounded bg-zinc-950 border border-zinc-800">
+                  <span className="text-[10px] text-zinc-400 block">eBay Fees (~13.4%)</span>
+                  <span className="text-rose-400 font-bold tabular-nums">−{fmtMoney(platformFee)}</span>
                 </div>
-                <div className="p-1.5 rounded-lg bg-zinc-900 border border-zinc-800/80">
-                  <span className="text-[10px] text-zinc-400 block">Satchel Post</span>
-                  <span className="text-red-400 font-bold tabular-nums">−{fmtMoney(estShipping)}</span>
+                <div className="p-1.5 rounded bg-zinc-950 border border-zinc-800">
+                  <span className="text-[10px] text-zinc-400 block">Postage ({isUsMarket ? "USPS" : "AusPost"})</span>
+                  <span className="text-rose-400 font-bold tabular-nums">−{fmtMoney(estShipping)}</span>
                 </div>
               </div>
 
               {/* In-Store Tag Price Adjuster */}
-              <div className="flex items-center justify-between gap-2 pt-1 border-t border-zinc-800/80">
+              <div className="flex items-center justify-between gap-2 pt-2 border-t border-zinc-800">
                 <div className="flex items-center gap-1.5 shrink-0">
                   <Tag className="w-3.5 h-3.5 text-zinc-400" />
                   <span className="text-xs font-medium text-zinc-300">Thrift tag cost:</span>
@@ -1180,7 +1247,7 @@ export default function LensCompsModal({
                       step="0.5"
                       value={customTagCost || ""}
                       onChange={(e) => handleTagCostChange(Math.max(0, parseFloat(e.target.value) || 0))}
-                      className="w-14 rounded bg-zinc-900 border border-zinc-700 px-1.5 py-0.5 text-right text-xs text-zinc-100 font-bold focus:outline-none focus:border-zinc-500 tabular-nums"
+                      className="w-14 rounded bg-zinc-950 border border-zinc-700 px-1.5 py-0.5 text-right text-xs text-zinc-100 font-bold focus:outline-none focus:border-zinc-500 tabular-nums"
                     />
                   </div>
                 </div>
@@ -1190,10 +1257,10 @@ export default function LensCompsModal({
                       key={preset}
                       type="button"
                       onClick={() => handlePresetTagCost(preset)}
-                      className={`px-2 py-1 min-h-[32px] rounded text-[11px] font-semibold transition cursor-pointer tabular-nums ${
+                      className={`px-2 py-1 min-h-[30px] rounded text-[11px] font-semibold transition cursor-pointer tabular-nums ${
                         customTagCost === preset
                           ? "bg-zinc-800 text-zinc-100 border border-zinc-600 font-bold"
-                          : "bg-zinc-900 text-zinc-400 hover:text-zinc-200 border border-zinc-800"
+                          : "bg-zinc-950 text-zinc-400 hover:text-zinc-200 border border-zinc-800"
                       }`}
                     >
                       ${preset}
@@ -1700,7 +1767,37 @@ export default function LensCompsModal({
         </div>
 
         {/* ── 5. STICKY ACTIONS (Bottom, Equal Height 44px, Solid Fills, 8px Radius) ── */}
-        <div className="shrink-0 p-3 border-t border-zinc-800 bg-zinc-950 z-20 pb-[max(0.75rem,calc(env(safe-area-inset-bottom,0px)+0.5rem))]">
+        <div className="shrink-0 p-3 border-t border-zinc-800 bg-zinc-950 z-20 pb-[max(0.75rem,calc(env(safe-area-inset-bottom,0px)+0.5rem))] space-y-2">
+          {ebayPublishSuccess && (
+            <div className="p-2.5 rounded-lg bg-emerald-950/60 border border-emerald-700/60 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <div className="min-w-0">
+                  <div className="text-xs font-bold text-white truncate">
+                    Live on {isUsMarket ? "eBay US" : "eBay AU"}!
+                  </div>
+                  {publishedSku && (
+                    <div className="text-[10px] font-mono text-emerald-300/80 truncate">
+                      SKU: {publishedSku}
+                    </div>
+                  )}
+                </div>
+              </div>
+              {liveEbayListingUrl && (
+                <a
+                  href={liveEbayListingUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => openExternalUrlSafely(liveEbayListingUrl, title, e)}
+                  className="px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-semibold flex items-center gap-1 shrink-0"
+                >
+                  <span>View Live</span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              )}
+            </div>
+          )}
+
           <div className="grid grid-cols-3 gap-2">
             <button
               type="button"
@@ -1717,42 +1814,52 @@ export default function LensCompsModal({
             >
               {isSaved ? "Saved" : isSaving ? "Saving..." : "Save draft"}
             </button>
-            {liveEbayListingUrl && !isPublishingEbay ? (
+            {liveEbayListingUrl && !isPublishingEbay && ebayPublishSuccess ? (
               <a
                 href={liveEbayListingUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={(e) => openExternalUrlSafely(liveEbayListingUrl, title, e)}
-                className={`h-11 flex items-center justify-center gap-1.5 rounded-md text-xs font-semibold active:scale-[0.98] transition cursor-pointer text-white border ${
-                  ebayPublishSuccess
-                    ? "bg-emerald-700 border-emerald-600"
-                    : "bg-emerald-600 hover:bg-emerald-500 border-emerald-500"
-                }`}
+                className="h-11 flex items-center justify-center gap-1.5 rounded-md text-xs font-semibold active:scale-[0.98] transition cursor-pointer text-white border bg-emerald-700 hover:bg-emerald-600 border-emerald-600"
               >
-                {ebayPublishSuccess ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Store className="w-3.5 h-3.5" />}
-                <span>{ebayPublishSuccess ? "View on eBay" : "Open eBay"}</span>
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>View on eBay</span>
               </a>
             ) : (
               <button
                 type="button"
                 onClick={handle1TapPublishEbay}
                 disabled={isPublishingEbay}
-                className="h-11 flex items-center justify-center gap-1.5 rounded-md text-xs font-semibold active:scale-[0.98] transition cursor-pointer disabled:opacity-50 bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500"
+                className="h-11 flex items-center justify-center gap-1.5 rounded-md text-xs font-semibold active:scale-[0.98] transition cursor-pointer disabled:opacity-50 bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 truncate px-1"
+                title={`Publish Live to ${isUsMarket ? "eBay US" : "eBay AU"}`}
               >
                 {isPublishingEbay ? (
                   <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    <span>Publishing...</span>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+                    <span className="truncate">Publishing...</span>
                   </>
                 ) : (
                   <>
-                    <Store className="w-3.5 h-3.5" />
-                    <span>Publish eBay</span>
+                    <ShoppingBag className="w-3.5 h-3.5 shrink-0" />
+                    <span className="truncate">Publish to eBay</span>
                   </>
                 )}
               </button>
             )}
           </div>
+
+          {onListEbay && !ebayPublishSuccess && (
+            <div className="text-center pt-0.5">
+              <button
+                type="button"
+                onClick={handleOpenEbayEditor}
+                className="text-[11px] text-zinc-400 hover:text-zinc-200 transition cursor-pointer inline-flex items-center gap-1"
+              >
+                <span>Open full listing wizard for {isUsMarket ? "eBay US" : "eBay AU"}</span>
+                <ArrowUpRight className="w-3 h-3 text-zinc-500" />
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

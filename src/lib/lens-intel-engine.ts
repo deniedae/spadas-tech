@@ -426,7 +426,7 @@ export function generateTacticalIntel(
     productName: pName,
     category,
     brand,
-    activeCount: hit.ebayCompsCount ? Math.round(hit.ebayCompsCount * 1.2) : undefined,
+    activeCount: hit.activeCompsCount !== undefined ? hit.activeCompsCount : undefined,
     soldsCount: hit.ebayCompsCount,
   });
 

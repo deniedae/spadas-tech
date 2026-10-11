@@ -8,6 +8,7 @@ export const GROK_VISION_FALLBACKS = [
   "grok-4.7",
   "grok-4.3",
 ];
+const GROK_FAST_VISION_MODELS = [GROK_VISION_MODEL];
 
 export const GROK_REASONING_MODEL = "grok-4.20-0309-reasoning";
 export const GROK_REASONING_FALLBACKS = [
@@ -151,12 +152,12 @@ Output STRICT JSON only:
     const cleanUrl = imageDataUrl.trim().replace(/[\r\n]/g, "");
 
     const callStart = Date.now();
-    for (const model of GROK_VISION_FALLBACKS) {
+    for (const model of GROK_FAST_VISION_MODELS) {
       try {
         const response = await client.chat.completions.create({
           model,
           temperature: 0.0,
-          max_tokens: 600,
+          max_tokens: 400,
           messages: [
             {
               role: "system",

@@ -1065,6 +1065,16 @@ function SpadasLensCameraCore({
         return;
       }
 
+      // Do not consume guest quota for unidentified items or scans without market data
+      if (
+        !hit ||
+        hit.name === "Unidentified Object" ||
+        (hit as any)?.noMarketData ||
+        ((hit as any)?.ebayCompsCount === 0 && (hit as any)?.activeCompsCount === 0 && !(hit as any)?.estimatedValue)
+      ) {
+        return;
+      }
+
       if (isGuestUser) {
         const nextGuestState = recordGuestScan();
         setGuestScanState(nextGuestState);

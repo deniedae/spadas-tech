@@ -1953,21 +1953,29 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
 
             if (request.signal?.aborted) return;
 
-            // 2. Fetch live eBay comps and calculate final metrics (guaranteed <= 10s resolution)
+            // Render the Grok result immediately; verified marketplace comps enrich this same scan below.
+            const provisionalResult: AiListingResult = {
+              ...result,
+              raw_sold_comps: [],
+              ebay_comps_count: 0,
+            };
+            (provisionalResult as any).comps_source = "ai_estimate";
+            (provisionalResult as any).no_market_data = true;
+            const valuationReadyEvent = {
+              event: "valuation_ready",
+              data: provisionalResult,
+            };
+            controller.enqueue(encoder.encode(JSON.stringify(valuationReadyEvent) + "\n"));
+
+            if (request.signal?.aborted) return;
+
+            // Fetch verified eBay comps in parallel after the scan result is already visible.
             await Promise.race([
               runCompsAndFinalizeResult(),
               new Promise((resolve) => setTimeout(resolve, 10000)),
             ]);
 
             if (request.signal?.aborted) return;
-
-            // 3. PHASE 1 (Instant Valuation - Target < 1.5s):
-            // Emit valuation_ready immediately so client renders pricing modal (Take-Home Net, STR, Turnover Velocity, Fair Market)
-            const valuationReadyEvent = {
-              event: "valuation_ready",
-              data: result,
-            };
-            controller.enqueue(encoder.encode(JSON.stringify(valuationReadyEvent) + "\n"));
 
             // 4. Background History Upload (Non-blocking):
             // Upload to Supabase Storage & insert to scans table in background AFTER valuation_ready is sent
