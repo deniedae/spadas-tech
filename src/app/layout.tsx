@@ -152,7 +152,7 @@ export default function RootLayout({
                 "@type": "Offer",
                 price: "0",
                 priceCurrency: "USD",
-                description: "10 free scans daily. Unlimited tier available.",
+                description: "3 free scans to test. Unlimited tier available.",
               },
               description:
                 "Instant optical scanner & AI reseller copilot. Scan barcodes & thrift shelves in 0.5s, calculate net profit with live eBay Australia, Depop & Gumtree sold comps, and generate ready-to-post listings.",

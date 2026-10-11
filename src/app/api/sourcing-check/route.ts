@@ -188,7 +188,7 @@ export async function POST(req: Request) {
         return NextResponse.json(
           {
             error:
-              "Daily free scan limit reached (10/10 scans used today). Upgrade to Pro for unlimited sourcing checks.",
+              "Free scan limit reached (3/3 scans used). Upgrade to Pro for unlimited sourcing checks.",
             limitReached: true,
             isPro: false,
             maxFreeUses: usage.maxFreeUses,

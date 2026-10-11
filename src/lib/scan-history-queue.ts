@@ -7,6 +7,7 @@
 import { toast } from "sonner";
 import { saveScanOffline, getOfflineScans, removeOfflineScan } from "@/app/lib/offline-storage";
 import { supabase } from "@/app/lib/supabase";
+import { getScopedHitsKey } from "@/lib/prime-reset";
 
 export interface QueuedScanRecord {
   id: string;
@@ -121,7 +122,8 @@ export async function processSingleScanUpload(record: QueuedScanRecord): Promise
     // If permanent storage URL was returned, update the local hits cache
     if (data.imageUrl && !data.imageUrl.startsWith("data:")) {
       try {
-        const hitsRaw = localStorage.getItem(HITS_CACHE_KEY);
+        const key = getScopedHitsKey(record.resultJson?.user_id || null);
+        const hitsRaw = localStorage.getItem(key);
         if (hitsRaw) {
           const hits = JSON.parse(hitsRaw);
           if (Array.isArray(hits)) {
@@ -130,7 +132,7 @@ export async function processSingleScanUpload(record: QueuedScanRecord): Promise
             );
             if (hitIdx >= 0) {
               hits[hitIdx].image = data.imageUrl;
-              localStorage.setItem(HITS_CACHE_KEY, JSON.stringify(hits));
+              localStorage.setItem(key, JSON.stringify(hits));
             }
           }
         }

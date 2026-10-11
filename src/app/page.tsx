@@ -257,7 +257,7 @@ export default function Home() {
             </Link>
           </div>
           <p className="text-xs text-zinc-500 pt-1">
-            10 free scans daily — no card required
+            3 free scans to try — then upgrade to Pro
           </p>
         </div>
       </section>

@@ -73,6 +73,16 @@ import {
   type GuestScanState,
 } from "@/lib/guest-scan-tracker";
 import {
+  performPrimeReset,
+  getScopedHitsKey,
+  getUserScanState,
+  recordUserScan,
+  enforceUserIsolation,
+  PRIME_RESET_EVENT,
+  USER_SCANS_UPDATED_EVENT,
+  MAX_FREE_SCANS,
+} from "@/lib/prime-reset";
+import {
   RapidThriftItem,
   savePhotoBlob,
   dataUriToBlob,
@@ -482,14 +492,18 @@ function SpadasLensCameraCore({
   const [guestScanState, setGuestScanState] = useState<GuestScanState>(() => getGuestScanState());
   const [dailyFreeScansLeft, setDailyFreeScansLeft] = useState<number>(3);
   const recordedScanCycleRef = useRef<number>(-1);
+  const currentUserIdRef = useRef<string | null>(null);
 
   // Keep guest scan count synchronized across tabs and components
   useEffect(() => {
     const handleGuestUpdate = (e: any) => {
       if (e?.detail) {
         setGuestScanState(e.detail);
+        setDailyFreeScansLeft(e.detail.remaining);
       } else {
-        setGuestScanState(getGuestScanState());
+        const s = getGuestScanState();
+        setGuestScanState(s);
+        setDailyFreeScansLeft(s.remaining);
       }
     };
     window.addEventListener("spadas_guest_scan_updated", handleGuestUpdate);
@@ -605,6 +619,41 @@ function SpadasLensCameraCore({
     analyzingRef.current = false;
   }, []);
 
+  // Listen for Prime Reset & User Scans updates
+  useEffect(() => {
+    const handlePrimeReset = (e: any) => {
+      setCapturedLog([]);
+      setSelectedHitIds([]);
+      setSessionScanCount(0);
+      flushScanState();
+      const newUid = e?.detail?.userId;
+      if (newUid) {
+        const uState = getUserScanState(newUid);
+        setDailyFreeScansLeft(uState.remaining);
+        setIsLimitReached(uState.limitReached || uState.remaining <= 0);
+      } else {
+        setDailyFreeScansLeft(MAX_FREE_SCANS);
+        setIsLimitReached(false);
+      }
+    };
+
+    const handleUserScansUpdate = (e: any) => {
+      if (e?.detail && typeof e.detail.remaining === "number") {
+        setDailyFreeScansLeft(e.detail.remaining);
+        if (e.detail.limitReached) {
+          setIsLimitReached(true);
+        }
+      }
+    };
+
+    window.addEventListener(PRIME_RESET_EVENT, handlePrimeReset);
+    window.addEventListener(USER_SCANS_UPDATED_EVENT, handleUserScansUpdate);
+    return () => {
+      window.removeEventListener(PRIME_RESET_EVENT, handlePrimeReset);
+      window.removeEventListener(USER_SCANS_UPDATED_EVENT, handleUserScansUpdate);
+    };
+  }, [flushScanState]);
+
   // Cleanup abort controller on component unmount
   useEffect(() => {
     return () => {
@@ -696,12 +745,29 @@ function SpadasLensCameraCore({
             currentUser.user_metadata?.is_pro ||
             currentUser.app_metadata?.plan === "pro"
           );
+          currentUserIdRef.current = currentUser.id;
+          enforceUserIsolation(currentUser.id);
+
+          // Retrieve scoped hits for this specific user
+          const scopedKey = getScopedHitsKey(currentUser.id);
+          const savedHits = localStorage.getItem(scopedKey);
+          if (savedHits) {
+            try {
+              const parsed = JSON.parse(savedHits);
+              if (Array.isArray(parsed)) setCapturedLog(parsed);
+            } catch {}
+          } else {
+            setCapturedLog([]);
+          }
+
           resetGuestScanState();
+          const uState = getUserScanState(currentUser.id);
+
           if (isMounted) {
             setIsGuestUser(false);
             setGuestScanState({
               count: 0,
-              remaining: 9999,
+              remaining: 3,
               isLimitReached: false,
               firstScanAt: null,
               lastScanAt: null,
@@ -712,6 +778,9 @@ function SpadasLensCameraCore({
               setIsPro(true);
               setIsLimitReached(false);
               setIsPaywallOpen(false);
+            } else {
+              setDailyFreeScansLeft(uState.remaining);
+              setIsLimitReached(uState.limitReached || uState.remaining <= 0);
             }
           }
 
@@ -739,9 +808,10 @@ function SpadasLensCameraCore({
             if (usage.isPro) {
               proStatus = true;
             }
-            limitStatus = Boolean(usage.limitReached && !proStatus);
-            if (typeof usage.usesLeft === "number") {
-              setDailyFreeScansLeft(Math.max(0, usage.usesLeft));
+            if (!proStatus) {
+              const dbUsesLeft = typeof usage.usesLeft === "number" ? Math.min(usage.usesLeft, uState.remaining) : uState.remaining;
+              limitStatus = Boolean((usage.limitReached || dbUsesLeft <= 0) && !proStatus);
+              setDailyFreeScansLeft(dbUsesLeft);
             }
           }
 
@@ -757,11 +827,27 @@ function SpadasLensCameraCore({
           }
         } else {
           // Genuinely unauthenticated guest
+          currentUserIdRef.current = null;
+          enforceUserIsolation(null);
+          const scopedKey = getScopedHitsKey(null);
+          const savedHits = localStorage.getItem(scopedKey);
+          if (savedHits) {
+            try {
+              const parsed = JSON.parse(savedHits);
+              if (Array.isArray(parsed)) setCapturedLog(parsed);
+            } catch {}
+          } else {
+            setCapturedLog([]);
+          }
+
           if (isMounted) {
             setIsGuestUser(true);
             setIsPro(false);
             setIsOwner(false);
-            setGuestScanState(getGuestScanState());
+            const gState = getGuestScanState();
+            setGuestScanState(gState);
+            setDailyFreeScansLeft(gState.remaining);
+            setIsLimitReached(gState.isLimitReached || gState.remaining <= 0);
           }
         }
       } catch (err) {
@@ -775,33 +861,55 @@ function SpadasLensCameraCore({
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!isMounted) return;
       if (session?.user) {
+        const nextUserId = session.user.id;
         const isUserAdmin = isOwnerEmail(session.user.email);
         const hasMetadataPro = Boolean(
           session.user.app_metadata?.is_pro ||
           session.user.user_metadata?.is_pro ||
           session.user.app_metadata?.plan === "pro"
         );
+
+        if (nextUserId !== currentUserIdRef.current) {
+          currentUserIdRef.current = nextUserId;
+          performPrimeReset({ newUserId: nextUserId, preserveAuth: true });
+          setCapturedLog([]);
+          setSelectedHitIds([]);
+          setSessionScanCount(0);
+          flushScanState();
+        }
+
         resetGuestScanState();
         setIsGuestUser(false);
-        setGuestScanState({
-          count: 0,
-          remaining: 9999,
-          isLimitReached: false,
-          firstScanAt: null,
-          lastScanAt: null,
-        });
         setIsGuestLimitModalOpen(false);
+
         if (isUserAdmin || hasMetadataPro) {
           setIsOwner(isUserAdmin);
           setIsPro(true);
           setIsLimitReached(false);
           setIsPaywallOpen(false);
+        } else {
+          setIsOwner(false);
+          setIsPro(false);
+          const uState = getUserScanState(nextUserId);
+          setDailyFreeScansLeft(uState.remaining);
+          setIsLimitReached(uState.limitReached || uState.remaining <= 0);
         }
       } else {
+        if (currentUserIdRef.current !== null) {
+          currentUserIdRef.current = null;
+          performPrimeReset();
+          setCapturedLog([]);
+          setSelectedHitIds([]);
+          setSessionScanCount(0);
+          flushScanState();
+        }
         setIsGuestUser(true);
         setIsPro(false);
         setIsOwner(false);
-        setGuestScanState(getGuestScanState());
+        const gState = getGuestScanState();
+        setDailyFreeScansLeft(gState.remaining);
+        setGuestScanState(gState);
+        setIsLimitReached(gState.isLimitReached || gState.remaining <= 0);
       }
     });
 
@@ -930,7 +1038,7 @@ function SpadasLensCameraCore({
     if (!currentPro && !isUserAdmin && (isLimitReached || dailyFreeScansLeft <= 0)) {
       setIsScanPaused(true);
       setIsPaywallOpen(true);
-      toast.error("Free scan limit reached! Upgrade to Pro for unlimited scans.", {
+      toast.error("Free scan limit reached (3/3 used)! Upgrade to Pro for unlimited scans.", {
         id: "daily-limit-toast",
       });
       return;
@@ -1079,12 +1187,14 @@ function SpadasLensCameraCore({
         const nextGuestState = recordGuestScan();
         setGuestScanState(nextGuestState);
         setSessionScanCount((prev) => prev + 1);
+        setDailyFreeScansLeft(nextGuestState.remaining);
         saveGuestScannedItem(hit);
         setLastGuestScannedItem(hit);
 
         console.log(`[Spadas Lens] Guest scan successfully recorded! Remaining: ${nextGuestState.remaining}/${MAX_GUEST_SCANS} scans`);
 
-        if (nextGuestState.isLimitReached) {
+        if (nextGuestState.isLimitReached || nextGuestState.remaining <= 0) {
+          setIsLimitReached(true);
           setTimeout(() => {
             if (!activeCompsHitRef.current && !activeValuationHitRef.current) {
               setIsGuestLimitModalOpen(true);
@@ -1092,11 +1202,15 @@ function SpadasLensCameraCore({
           }, 3500);
         }
       } else {
-        // Authenticated free tier scan tracking (10 free scans / day)
+        // Authenticated free tier scan tracking (3 free scans)
         setSessionScanCount((prev) => prev + 1);
-        setDailyFreeScansLeft((prev) => {
-          const next = Math.max(0, prev - 1);
-          if (next <= 0) {
+        const userId = currentUserIdRef.current;
+        let nextRemaining = 0;
+        if (userId) {
+          const userScanState = recordUserScan(userId);
+          nextRemaining = userScanState.remaining;
+          setDailyFreeScansLeft(nextRemaining);
+          if (userScanState.limitReached || nextRemaining <= 0) {
             setIsLimitReached(true);
             setTimeout(() => {
               if (!activeCompsHitRef.current && !activeValuationHitRef.current) {
@@ -1104,8 +1218,20 @@ function SpadasLensCameraCore({
               }
             }, 3500);
           }
-          return next;
-        });
+        } else {
+          setDailyFreeScansLeft((prev) => {
+            const next = Math.max(0, prev - 1);
+            if (next <= 0) {
+              setIsLimitReached(true);
+              setTimeout(() => {
+                if (!activeCompsHitRef.current && !activeValuationHitRef.current) {
+                  setIsPaywallOpen(true);
+                }
+              }, 3500);
+            }
+            return next;
+          });
+        }
       }
     },
     [isPro, isOwner, isGuestUser]
@@ -1982,10 +2108,11 @@ function SpadasLensCameraCore({
     document.body.appendChild(s);
   }, [isOwner]);
 
-  // Persistent Local Storage Caching for Offline Thrift Store Sourcing
+  // Persistent Local Storage Caching for Offline Thrift Store Sourcing (scoped to active user)
   useEffect(() => {
     try {
-      const saved = localStorage.getItem("spadas_cached_lens_hits");
+      const scopedKey = getScopedHitsKey(currentUserIdRef.current);
+      const saved = localStorage.getItem(scopedKey);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
@@ -2013,11 +2140,12 @@ function SpadasLensCameraCore({
     };
   }, []);
 
-  // Reactive synchronization: keep localStorage up to date with capturedLog at all times (additions, deletions, clear)
+  // Reactive synchronization: keep localStorage up to date with capturedLog at all times
   useEffect(() => {
     if (typeof window !== "undefined") {
       try {
-        localStorage.setItem("spadas_cached_lens_hits", JSON.stringify(capturedLog));
+        const scopedKey = getScopedHitsKey(currentUserIdRef.current);
+        localStorage.setItem(scopedKey, JSON.stringify(capturedLog));
       } catch { }
     }
   }, [capturedLog]);
@@ -2137,16 +2265,17 @@ function SpadasLensCameraCore({
         }
       }
 
-      // 1. Immediately persist to localStorage (using compressed thumbnail)
+      // 1. Immediately persist to localStorage (using compressed thumbnail, scoped to active user)
       try {
-        const cached = localStorage.getItem("spadas_cached_lens_hits");
+        const scopedKey = getScopedHitsKey(currentUserIdRef.current);
+        const cached = localStorage.getItem(scopedKey);
         let hitsList: DetectedHit[] = [];
         if (cached) {
           hitsList = JSON.parse(cached);
         }
         const compressedHit = { ...hit, image: microThumbnail || hit.image };
         const deduped = [compressedHit, ...hitsList.filter((h) => h.id !== hit.id && h.name !== hit.name)].slice(0, 100);
-        localStorage.setItem("spadas_cached_lens_hits", JSON.stringify(deduped));
+        localStorage.setItem(scopedKey, JSON.stringify(deduped));
       } catch (err) {
         console.warn("[Spadas Lens] LocalStorage persistence warning:", err);
       }
@@ -3097,7 +3226,7 @@ function SpadasLensCameraCore({
         setIsScanPaused(true);
         setIsPaywallOpen(true);
         setAnalyzingRealFrame(false);
-        toast.error("Free scan limit reached! Upgrade to Pro for unlimited scans.", {
+        toast.error("Free scan limit reached (3/3 used)! Upgrade to Pro for unlimited scans.", {
           id: "daily-limit-toast",
           duration: 5000,
         });
@@ -4727,21 +4856,21 @@ function SpadasLensCameraCore({
                   </div>
                 )}
 
-                {/* Free Tier Daily Scan Counter HUD for Logged-In Users */}
+                {/* Free Tier Scan Counter HUD for Logged-In Users */}
                 {!isGuestUser && !isPro && !isOwner && (
                   <div className="pointer-events-auto">
                     <button
                       type="button"
                       onClick={() => setIsPaywallOpen(true)}
                       className="inline-flex items-center gap-1.5 rounded-lg bg-[#0F1117]/95 border border-amber-500/30 px-2.5 py-1 text-zinc-200 backdrop-blur-md shadow-lg hover:border-amber-400/50 transition cursor-pointer"
-                      title="Daily Free Scans Remaining (Resets Daily)"
+                      title="Free Scans Remaining"
                     >
-                      <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+                      <span className={`h-1.5 w-1.5 rounded-full ${dailyFreeScansLeft > 0 ? "bg-amber-400 animate-pulse" : "bg-red-500"}`} />
                       <span className="font-mono text-[11px] font-bold text-white tabular-nums">
-                        {dailyFreeScansLeft}/10 scans
+                        {dailyFreeScansLeft}/3 free scans
                       </span>
                       <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-bold ml-0.5">
-                        Go Pro
+                        {dailyFreeScansLeft <= 0 ? "Upgrade" : "Go Pro"}
                       </span>
                     </button>
                   </div>
@@ -5055,7 +5184,7 @@ function SpadasLensCameraCore({
                         </div>
                         <div>
                           <h4 className="text-xs font-bold text-white tracking-tight flex items-center gap-1.5">
-                            <span>5 Free Guest Scans Ready</span>
+                            <span>3 Free Scans Ready</span>
                             <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-1.5 py-0.2 rounded-full">Active</span>
                           </h4>
                           <p className="text-[11px] text-zinc-300">
@@ -5202,7 +5331,7 @@ function SpadasLensCameraCore({
                       e.stopPropagation();
                       triggerTactileHaptic("warning");
                       setIsPaywallOpen(true);
-                      toast.error("Daily free scan limit reached (10/10). Upgrade to Pro to continue scanning.", {
+                      toast.error("Free scan limit reached (3/3). Upgrade to Pro to continue scanning.", {
                         id: "daily-limit-toast",
                       });
                     }}
@@ -5210,7 +5339,7 @@ function SpadasLensCameraCore({
                     title="Daily limit reached — Upgrade to Spadas Pro"
                   >
                     <Crown className="h-4 w-4 shrink-0 text-zinc-300" />
-                    <span>Daily Limit Reached (10/10) • Upgrade</span>
+                    <span>Free Limit Reached (3/3) • Upgrade</span>
                   </button>
                 ) : isScanPaused ? (
                   <button
@@ -5246,7 +5375,7 @@ function SpadasLensCameraCore({
                         if (isLimitReached || dailyFreeScansLeft <= 0) {
                           setIsScanPaused(true);
                           setIsPaywallOpen(true);
-                          toast.error("Free scan limit reached! Upgrade to Pro for unlimited scans.", {
+                          toast.error("Free scan limit reached (3/3 used)! Upgrade to Pro for unlimited scans.", {
                             id: "daily-limit-toast",
                           });
                           return;
@@ -6412,7 +6541,11 @@ function SpadasLensCameraCore({
         hits={capturedLog}
         onClearHistory={() => {
           setCapturedLog([]);
-          localStorage.removeItem("spadas_cached_lens_hits");
+          try {
+            const scopedKey = getScopedHitsKey(currentUserIdRef.current);
+            localStorage.removeItem(scopedKey);
+            localStorage.removeItem("spadas_cached_lens_hits");
+          } catch {}
           toast.success("Scanned history cleared");
         }}
         onDeleteHit={(id) => {

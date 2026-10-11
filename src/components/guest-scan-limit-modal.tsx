@@ -17,6 +17,7 @@ import {
 import { supabase } from "@/app/lib/supabase";
 import { toast } from "sonner";
 import { getGuestScannedItems, MAX_GUEST_SCANS } from "@/lib/guest-scan-tracker";
+import { performPrimeReset } from "@/lib/prime-reset";
 import { isOwnerEmail } from "@/app/lib/auth-admin";
 import { purchaseGooglePlaySubscription } from "@/lib/google-play-billing";
 
@@ -230,7 +231,8 @@ export function GuestScanLimitModal({
       }
 
       if (data?.user) {
-        toast.success("Account created! 10 Daily Scans Unlocked.");
+        performPrimeReset({ newUserId: data.user.id, preserveAuth: true });
+        toast.success("Account created! 3 Free Scans Ready.");
         if (onClose) onClose();
         router.refresh();
       }
@@ -252,7 +254,7 @@ export function GuestScanLimitModal({
               <span>{scannedCount} of {MAX_GUEST_SCANS} Free Guest Scans Used</span>
             </div>
             <h2 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
-              Unlock 10 Free Scans Daily
+              Upgrade to Pro for Unlimited Scans
             </h2>
           </div>
           {onClose && (
@@ -300,7 +302,7 @@ export function GuestScanLimitModal({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-zinc-300">
           <div className="flex items-center gap-2 bg-[#141721] border border-white/[0.06] rounded-lg p-2.5">
             <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-            <span><strong>10 Scans/Day</strong> (Free Forever)</span>
+            <span><strong>Unlimited Scans</strong> with Spadas Pro</span>
           </div>
           <div className="flex items-center gap-2 bg-[#141721] border border-white/[0.06] rounded-lg p-2.5">
             <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />

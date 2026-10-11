@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import Link from "next/link";
 import { Loader2, Eye, EyeOff, ArrowRight, Zap } from "lucide-react";
 import SocialAuthProviders from "@/components/social-auth-providers";
+import { performPrimeReset } from "@/lib/prime-reset";
 
 export function SpadasOrbitHero() {
   const router = useRouter();
@@ -42,12 +43,14 @@ export function SpadasOrbitHero() {
       }
 
       if (data.user && !data.session) {
+        performPrimeReset({ newUserId: data.user.id, preserveAuth: true });
         toast.success("Account created! Please check your email to verify.");
         setAuthMode("login");
         return;
       }
 
-      toast.success("Welcome to Spadas AI!");
+      performPrimeReset({ newUserId: data.user?.id, preserveAuth: true });
+      toast.success("Welcome to Spadas! 3 Free Scans Ready.");
       window.location.href = "/dashboard";
     } else {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -67,6 +70,7 @@ export function SpadasOrbitHero() {
         return;
       }
 
+      performPrimeReset({ newUserId: data.user.id, preserveAuth: true });
       toast.success("Welcome back!");
       const redirectUrl =
         typeof window !== "undefined"

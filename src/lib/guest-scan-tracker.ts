@@ -4,7 +4,7 @@
  * Allows up to MAX_GUEST_SCANS (3) scans before prompting account creation / Pro upgrade.
  */
 
-export const MAX_GUEST_SCANS = 5;
+export const MAX_GUEST_SCANS = 3;
 const GUEST_STORAGE_KEY = "spadas_guest_scan_v1";
 const GUEST_ITEMS_KEY = "spadas_guest_saved_items";
 

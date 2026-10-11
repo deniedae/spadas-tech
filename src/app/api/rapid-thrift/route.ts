@@ -83,7 +83,7 @@ export async function POST(req: Request) {
       if (!usage.isPro && usage.limitReached) {
         return NextResponse.json(
           {
-            error: `Daily free scan limit reached (${usage.usesCount}/${usage.maxFreeUses} scans used today). Upgrade to Spadas Pro for unlimited scans.`,
+            error: `Free scan limit reached (${usage.usesCount}/${usage.maxFreeUses} scans used). Upgrade to Spadas Pro for unlimited scans.`,
             limitReached: true,
             isPro: false,
             maxFreeUses: usage.maxFreeUses,

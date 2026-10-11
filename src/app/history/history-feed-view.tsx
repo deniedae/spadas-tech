@@ -32,6 +32,7 @@ import { cleanBrandText, cleanConditionText, cleanCategoryText } from "@/lib/len
 import { haulStore } from "@/lib/haul-store";
 import { createListing } from "@/app/lib/createlisting";
 import type { RapidThriftItem } from "@/lib/rapid-thrift-engine";
+import { getScopedHitsKey, PRIME_RESET_EVENT } from "@/lib/prime-reset";
 
 interface ScanRecord {
   id: string;
@@ -123,13 +124,19 @@ export function HistoryFeedView({
     void checkPro();
   }, []);
 
-  // Reconcile and ensure 100% of scans taken with Lens appear in History (including offline/guest/pending queue)
+  // Reconcile and ensure 100% of scans taken with Lens appear in History (scoped to current user)
   useEffect(() => {
-    try {
-      const cachedStr = localStorage.getItem("spadas_cached_lens_hits");
-      const pendingStr = localStorage.getItem("spadas_pending_scans_queue");
-      const cachedHits: any[] = cachedStr ? JSON.parse(cachedStr) : [];
-      const pendingScans: any[] = pendingStr ? JSON.parse(pendingStr) : [];
+    let isMounted = true;
+    async function reconcileScans() {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const currentUserId = session?.user?.id;
+        const scopedKey = getScopedHitsKey(currentUserId);
+        const cachedStr = localStorage.getItem(scopedKey);
+        const pendingStr = currentUserId ? localStorage.getItem("spadas_pending_scans_queue") : null;
+        const cachedHits: any[] = cachedStr ? JSON.parse(cachedStr) : [];
+        const pendingScans: any[] = pendingStr ? JSON.parse(pendingStr) : [];
+        if (!isMounted) return;
 
       setItems((prevItems) => {
         const existingIds = new Set(prevItems.map((s) => s.id));
@@ -240,7 +247,20 @@ export function HistoryFeedView({
     } catch (err) {
       console.warn("[History Feed] Local storage merge warning:", err);
     }
-  }, []);
+  }
+
+  void reconcileScans();
+
+  const handlePrimeReset = () => {
+    setItems([]);
+  };
+  window.addEventListener(PRIME_RESET_EVENT, handlePrimeReset);
+
+  return () => {
+    isMounted = false;
+    window.removeEventListener(PRIME_RESET_EVENT, handlePrimeReset);
+  };
+}, []);
 
   const handleBatchAddToListings = async () => {
     if (selectedIds.length === 0) return;

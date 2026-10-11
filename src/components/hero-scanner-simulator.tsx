@@ -295,7 +295,7 @@ export function HeroScannerSimulator() {
               </Link>
 
               <p className="text-center text-[11px] text-zinc-500">
-                5 free guest scans · Works right in your mobile browser or install as app
+                3 free scans · Works right in your mobile browser or install as app
               </p>
             </div>
           </div>

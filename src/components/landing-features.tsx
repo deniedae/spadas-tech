@@ -211,7 +211,7 @@ export default function LandingFeatures() {
                   <div className="text-xs text-zinc-400">Monthly overhead to run your reselling business</div>
                 </td>
                 <td className="py-4 px-4 sm:px-6 text-cyan-300 font-extrabold bg-cyan-950/10 border-x border-cyan-500/20">
-                  💎 <strong>$10 AUD / $6.99 USD/mo</strong> (10 free daily scans forever)
+                  💎 <strong>$10 AUD / $6.99 USD/mo</strong> (3 free starter scans to test)
                 </td>
                 <td className="py-4 px-4 sm:px-6 text-red-400/90 font-medium">
                   💸 $20 – $30+ USD/mo ($35–$45 AUD/mo)

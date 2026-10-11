@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabase";
+import { performPrimeReset } from "@/lib/prime-reset";
 import { toast } from "sonner";
 import {
   AlertCircle,
@@ -443,6 +444,7 @@ export default function SettingsPage() {
   async function logout() {
     setLoggingOut(true);
     try {
+      performPrimeReset();
       await supabase.auth.signOut();
       router.push("/login");
     } catch {
@@ -469,6 +471,7 @@ export default function SettingsPage() {
         throw new Error(body?.error || "Account deletion failed");
       }
 
+      performPrimeReset();
       await supabase.auth.signOut();
       toast.success("Your account and associated data have been permanently deleted.");
       router.push("/");
@@ -532,8 +535,8 @@ export default function SettingsPage() {
 
   const FAQS = [
     {
-      q: "How do the 10 free daily scans work?",
-      a: "Every registered free account receives 10 complimentary camera scans every 24 hours. Your quota automatically resets every day at midnight UTC. Upgrading to Spadas Pro ($10 AUD/mo) unlocks unlimited 60FPS AR scans with zero daily limits.",
+      q: "How do the 3 free scans work?",
+      a: "Every new account receives 3 complimentary camera scans to test real-time eBay sold comps and profit estimates. Once your 3 free scans are used, upgrade to Spadas Pro ($10 AUD/mo) to unlock unlimited 60FPS scans with zero limits.",
     },
     {
       q: "How does Spadas calculate net profit and sold comps?",
@@ -563,7 +566,7 @@ export default function SettingsPage() {
                   : "bg-blue-500/15 border border-blue-500/30 text-blue-400"
               }`}
             >
-              {plan === "Pro" ? "Pro Unlimited" : "Free Plan (10 Scans/Day)"}
+              {plan === "Pro" ? "Pro Unlimited" : "Free Plan (3 Free Scans)"}
             </span>
           </div>
           <p className="text-zinc-400 text-xs sm:text-sm mt-1">
@@ -715,13 +718,13 @@ export default function SettingsPage() {
           <div className="space-y-4">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 rounded-xl bg-black/30 border border-zinc-800">
               <div className="space-y-0.5">
-                <p className="text-xs font-bold text-white">Free Account Quota: 10 Scans / Day</p>
+                <p className="text-xs font-bold text-white">Free Account Quota: 3 Free Scans</p>
                 <p className="text-xs text-zinc-400">
-                  Every free account receives 10 complimentary scans per 24 hours. Resets daily at midnight UTC.
+                  Every new account receives 3 complimentary scans to test. Upgrade to Spadas Pro for unlimited scanning.
                 </p>
               </div>
               <span className="text-[11px] font-mono px-2.5 py-1 rounded-lg bg-zinc-800 text-zinc-300 shrink-0">
-                10 Scans Daily
+                3 Free Scans
               </span>
             </div>
 

@@ -419,7 +419,7 @@ RULES:
     userLimiter.dayWindow.push(now);
     userRateLimitMap.set(activeIdentifier, userLimiter);
 
-    // Usage Limit Check (10 Free Daily Scans for Non-Pro accounts across AR Lens and Studio)
+    // Usage Limit Check (3 Free Scans for Non-Pro accounts across AR Lens and Studio)
     if (user) {
       const isOwner = isOwnerEmail(user.email);
       const hasMetadataPro = Boolean(
@@ -433,7 +433,7 @@ RULES:
         if (!usage.isPro && usage.limitReached) {
           return NextResponse.json(
             {
-              error: `Daily free scan limit reached (${usage.usesCount}/${usage.maxFreeUses} scans used today). Upgrade to Spadas Pro for unlimited scans.`,
+              error: `Free scan limit reached (${usage.usesCount}/${usage.maxFreeUses} scans used). Upgrade to Spadas Pro for unlimited scans.`,
               limitReached: true,
               isPro: false,
               maxFreeUses: usage.maxFreeUses,
@@ -444,15 +444,15 @@ RULES:
         }
       }
     } else {
-      // For anonymous/guest scans: cap at 10 scans per day per IP
-      if (userLimiter.dayWindow.length > 10) {
+      // For anonymous/guest scans: cap at 3 scans per day per IP
+      if (userLimiter.dayWindow.length > 3) {
         return NextResponse.json(
           {
-            error: "Daily free scan limit reached (10/10 scans used today). Please sign in and upgrade to Spadas Pro for unlimited scans.",
+            error: "Free scan limit reached (3/3 scans used). Please sign in and upgrade to Spadas Pro for unlimited scans.",
             limitReached: true,
             isPro: false,
-            maxFreeUses: 10,
-            usesCount: 10,
+            maxFreeUses: 3,
+            usesCount: 3,
           },
           { status: 403 }
         );

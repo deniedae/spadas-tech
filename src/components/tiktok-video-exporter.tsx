@@ -31,7 +31,7 @@ export default function TiktokVideoExporter({
   const captionText = `Stop checking eBay sold comps manually at thrift stores 🛑 
 Spadas Lens AR scanned this ${productTitle} and found +${fmtMoney(profit)} net profit in real time! 🔔💰
 
-Try 10 free scans: Link in bio 🚀
+Try 3 free scans: Link in bio 🚀
 #reseller #thrifttok #flipping #ebayseller #sidehustle #spadasai #retailarbitrage`;
 
   const handleCopyCaption = () => {
@@ -173,7 +173,7 @@ Try 10 free scans: Link in bio 🚀
     // Watermark Footer Branding
     ctx.fillStyle = "#38bdf8";
     ctx.font = "900 42px sans-serif";
-    ctx.fillText("🚀 Try 10 Free Scans: spadas-tech.vercel.app/lens", 540, 1720);
+    ctx.fillText("🚀 Try 3 Free Scans: spadas-tech.vercel.app/lens", 540, 1720);
 
     ctx.fillStyle = "#64748b";
     ctx.font = "600 32px sans-serif";

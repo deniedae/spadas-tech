@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/app/lib/supabase";
 import { initGoogleIdentityServices, promptGoogleOneTap } from "@/lib/google-auth";
+import { performPrimeReset } from "@/lib/prime-reset";
 import { toast } from "sonner";
 import {
   Scan,
@@ -152,12 +153,14 @@ export function SpadasAuthCard({ initialMode = "signup" }: Props) {
         }
 
         if (data.user && !data.session) {
+          performPrimeReset({ newUserId: data.user.id, preserveAuth: true });
           toast.success("Account created! Check your email for the verification link.");
           setMode("login");
           return;
         }
 
-        toast.success("Welcome to Spadas Lens! Account created.");
+        performPrimeReset({ newUserId: data.user?.id, preserveAuth: true });
+        toast.success("Welcome to Spadas Lens! 3 Free Scans Ready.");
         await new Promise((r) => setTimeout(r, 250));
         router.refresh();
         window.location.href = redirectTarget;
@@ -178,6 +181,7 @@ export function SpadasAuthCard({ initialMode = "signup" }: Props) {
           return;
         }
 
+        performPrimeReset({ newUserId: data.user.id, preserveAuth: true });
         toast.success("Authenticated successfully!");
         await new Promise((r) => setTimeout(r, 250));
         router.refresh();
