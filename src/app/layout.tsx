@@ -3,6 +3,7 @@ import "./globals.css";
 import { Geist, Geist_Mono } from "next/font/google";
 import { cn } from "@/lib/utils";
 import LayoutClient from "@/components/layout-client";
+import { GlobalFirstLaunchFlow } from "@/components/global-first-launch-flow";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Toaster } from "@/components/ui/sonner";
@@ -180,6 +181,7 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-screen bg-[#090A0F] text-zinc-100 antialiased selection:bg-cyan-500/30 selection:text-cyan-200">
+        <GlobalFirstLaunchFlow />
         <LayoutClient>{children}</LayoutClient>
         <Analytics />
         <SpeedInsights sampleRate={1} />

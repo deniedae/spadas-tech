@@ -11,7 +11,7 @@
   "navigationDividerColorDark": "#000000",
   "backgroundColor": "#090d16",
   "enableNotifications": true,
-  "startUrl": "/dashboard",
+  "startUrl": "/lens",
   "iconUrl": "https://spadas-tech.vercel.app/icon-512.png",
   "orientation": "any",
   "minSdkVersion": 24,
