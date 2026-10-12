@@ -165,6 +165,7 @@ export function OnboardingCarousel({ onComplete, onSkip }: OnboardingCarouselPro
       // Completed last slide
       if (typeof window !== "undefined") {
         try {
+          localStorage.setItem("hasSeenOnboarding", "true");
           localStorage.setItem("hasCompletedOnboarding", "true");
         } catch {}
       }
@@ -176,6 +177,7 @@ export function OnboardingCarousel({ onComplete, onSkip }: OnboardingCarouselPro
     triggerTactileHaptic("light");
     if (typeof window !== "undefined") {
       try {
+        localStorage.setItem("hasSeenOnboarding", "true");
         localStorage.setItem("hasCompletedOnboarding", "true");
       } catch {}
     }

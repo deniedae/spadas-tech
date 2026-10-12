@@ -48,8 +48,8 @@ export function performPrimeReset(options?: {
       "spadas_spatial_memory",
     ];
 
-    if (options?.resetWelcomeModal || newUserId) {
-      unscopedKeysToRemove.push("spadas_first_launch_welcome_v1", "hasCompletedOnboarding");
+    if (options?.resetWelcomeModal) {
+      unscopedKeysToRemove.push("spadas_first_launch_welcome_v1", "hasCompletedOnboarding", "hasSeenOnboarding");
     }
 
     unscopedKeysToRemove.forEach((key) => {

@@ -2,15 +2,15 @@
 
 import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { supabase } from "@/app/lib/supabase";
+import { isAndroidAppEnvironment } from "@/lib/google-play-billing";
 
 /**
  * MobileFirstLaunchRedirect:
- * First-time visitors should see the homepage pitch.
- * Only redirect signed-in returning mobile users back into /lens.
- * 
+ * Inside the mobile container (TWA, Standalone PWA, APK) or mobile devices,
+ * route directly to the scanner view (/lens) instead of showing the web marketing landing page.
+ *
  * If the user explicitly clicked "Back" from /lens or navigated with ?ref=exit,
- * the redirect is suppressed so the user can freely explore the landing page or dashboard.
+ * the redirect is suppressed so the user can explore the landing page if desired.
  */
 export function MobileFirstLaunchRedirect() {
   const router = useRouter();
@@ -19,42 +19,37 @@ export function MobileFirstLaunchRedirect() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    let cancelled = false;
-
     // Respect explicit exit or back button navigation from /lens
     const isExitRef = searchParams.get("ref") === "exit" || searchParams.get("stay") === "true";
+    if (isExitRef) return;
+
     let hasExitedLens = false;
-    let hasSeenHomepage = false;
     try {
       hasExitedLens = sessionStorage.getItem("spadas_exited_lens") === "1";
-      hasSeenHomepage = localStorage.getItem("spadas_seen_home") === "1";
     } catch {}
+    if (hasExitedLens) return;
 
-    if (isExitRef || hasExitedLens) {
+    // 1. Android APK / TWA / Standalone App Container: ALWAYS route directly to scanner view
+    const isAppContainer =
+      isAndroidAppEnvironment() ||
+      window.matchMedia("(display-mode: standalone)").matches ||
+      document.referrer.includes("android-app://") ||
+      Boolean((window as any).AndroidBridge);
+
+    if (isAppContainer) {
+      router.replace("/lens");
       return;
     }
 
-    // Detect mobile touch viewport (<768px width) or mobile user agent
+    // 2. Mobile web viewport/UA: route directly into scanner as a guest or authenticated user
     const isMobileWidth = window.innerWidth < 768;
     const isMobileUA =
       typeof navigator !== "undefined" &&
       /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent || "");
 
-    if (!(isMobileWidth || isMobileUA)) return;
-
-    void (async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (!cancelled && hasSeenHomepage && session?.user) {
-        router.replace("/lens");
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
+    if (isMobileWidth || isMobileUA) {
+      router.replace("/lens");
+    }
   }, [router, searchParams]);
 
   return null;

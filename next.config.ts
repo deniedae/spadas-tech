@@ -134,6 +134,11 @@ const nextConfig: NextConfig = {
         permanent: true,
       },
       {
+        source: "/app",
+        destination: "/lens",
+        permanent: true,
+      },
+      {
         source: "/ironman",
         destination: "/lens",
         permanent: true,

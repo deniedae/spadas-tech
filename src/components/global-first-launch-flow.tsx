@@ -46,6 +46,7 @@ export function GlobalFirstLaunchFlow() {
       if (searchParams.get("reset") === "1") {
         performPrimeReset({ resetWelcomeModal: true });
         localStorage.removeItem("hasCompletedOnboarding");
+        localStorage.removeItem("hasSeenOnboarding");
         setShowOnboarding(true);
         return;
       }
@@ -54,19 +55,25 @@ export function GlobalFirstLaunchFlow() {
         return;
       }
 
-      const hasCompleted = localStorage.getItem("hasCompletedOnboarding") === "true";
+      const hasCompleted =
+        localStorage.getItem("hasSeenOnboarding") === "true" ||
+        localStorage.getItem("hasCompletedOnboarding") === "true";
+
       if (!hasCompleted) {
         setShowOnboarding(true);
+      } else {
+        setShowOnboarding(false);
       }
     } catch {
-      // Fallback: If localStorage is restricted, show onboarding once
-      setShowOnboarding(true);
+      // In restricted or error conditions, never loop onboarding
+      setShowOnboarding(false);
     }
   }, [pathname]);
 
   const handleCompleteOnboarding = useCallback(() => {
     setShowOnboarding(false);
     try {
+      localStorage.setItem("hasSeenOnboarding", "true");
       localStorage.setItem("hasCompletedOnboarding", "true");
     } catch {}
     // Completing the 3 cards leads directly into the 3-day free trial paywall
@@ -76,6 +83,7 @@ export function GlobalFirstLaunchFlow() {
   const handleSkipOnboarding = useCallback(() => {
     setShowOnboarding(false);
     try {
+      localStorage.setItem("hasSeenOnboarding", "true");
       localStorage.setItem("hasCompletedOnboarding", "true");
     } catch {}
     // Skip / test 3 free scans takes user straight into the optical camera
@@ -86,6 +94,10 @@ export function GlobalFirstLaunchFlow() {
 
   const handleClosePaywall = useCallback(() => {
     setShowPaywall(false);
+    try {
+      localStorage.setItem("hasSeenOnboarding", "true");
+      localStorage.setItem("hasCompletedOnboarding", "true");
+    } catch {}
     if (pathname !== "/lens") {
       router.push("/lens");
     }
