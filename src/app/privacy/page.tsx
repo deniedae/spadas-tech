@@ -2,8 +2,11 @@ import Link from "next/link";
 import { ShieldCheck, ArrowLeft } from "lucide-react";
 
 export const metadata = {
-  title: "Privacy Policy · Spadas AI",
-  description: "Privacy Policy for Spadas AI reseller inventory and analytics application.",
+  title: "Privacy Policy | Spadas Lens",
+  description: "Privacy Policy for the Spadas Lens resale scanner and workflow application.",
+  alternates: {
+    canonical: "https://spadas.ai/privacy",
+  },
 };
 
 export default function PrivacyPolicyPage() {
@@ -14,7 +17,7 @@ export default function PrivacyPolicyPage() {
           href="/"
           className="inline-flex items-center gap-2 text-sm font-medium text-blue-400 hover:text-blue-300 transition-colors"
         >
-          <ArrowLeft className="h-4 w-4" /> Back to Spadas AI
+          <ArrowLeft className="h-4 w-4" /> Back to Spadas Lens
         </Link>
 
         <div className="flex items-center gap-3 border-b border-slate-800 pb-6">

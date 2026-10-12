@@ -3,6 +3,8 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { Suspense } from "react";
 import { Scan, Download, ArrowRight, Zap } from "lucide-react";
+import { BILLING_CONFIG } from "@/lib/billing-config";
+import { OpenScannerLink } from "@/components/open-scanner-link";
 
 const MuxScannerShowcase = dynamic(() => import("@/components/mux-scanner-showcase"), {
   ssr: true,
@@ -23,11 +25,14 @@ import { MobileFirstLaunchRedirect } from "@/components/mobile-first-launch-redi
 export const metadata: Metadata = {
   title: "Thrift Comps: Resale Scanner | Instant Barcode & Profit Calculator",
   description:
-    "Scan barcodes and thrift finds in 0.5s. Auto-calculate eBay sold comps, platform fees, and net profit before you buy. 3 free scans daily.",
+    "Scan barcodes and thrift finds instantly. Auto-calculate eBay sold comps, platform fees, and net profit before you buy. 3 free starter scans to test.",
+  alternates: {
+    canonical: "https://spadas.ai",
+  },
   openGraph: {
     title: "Thrift Comps: Resale Scanner | Instant Barcode & Profit Calculator",
     description:
-      "Scan barcodes and thrift finds in 0.5s. Auto-calculate eBay sold comps, platform fees, and net profit before you buy. 3 free scans daily.",
+      "Scan barcodes and thrift finds instantly. Auto-calculate eBay sold comps, platform fees, and net profit before you buy. 3 free starter scans to test.",
     url: "https://spadas.ai",
     siteName: "Thrift Comps: Resale Scanner",
     type: "website",
@@ -36,9 +41,11 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Thrift Comps: Resale Scanner | Instant Barcode & Profit Calculator",
     description:
-      "Scan barcodes and thrift finds in 0.5s. Auto-calculate eBay sold comps, platform fees, and net profit before you buy. 3 free scans daily.",
+      "Scan barcodes and thrift finds instantly. Auto-calculate eBay sold comps, platform fees, and net profit before you buy. 3 free starter scans to test.",
   },
 };
+
+const PLAY_STORE_URL = `https://play.google.com/store/apps/details?id=${BILLING_CONFIG.packageId}`;
 
 export default function Home() {
   return (
@@ -96,13 +103,13 @@ export default function Home() {
             >
               Sign in
             </Link>
-            <Link
+            <OpenScannerLink
               href="/lens"
               className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-cyan-400 to-emerald-400 hover:from-cyan-300 hover:to-emerald-300 text-zinc-950 font-black px-4 py-2 text-[13px] transition-all active:scale-95 shadow-md shadow-cyan-950/40 min-h-[38px] cursor-pointer"
             >
               <Zap className="h-3.5 w-3.5" />
               Open Scanner
-            </Link>
+            </OpenScannerLink>
           </div>
         </div>
       </nav>
@@ -116,7 +123,7 @@ export default function Home() {
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75" />
             <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-400" />
           </span>
-          LIVE AR OPTICAL SCANNER V4.2 · 41.9K ITEMS AUDITED
+          LIVE AR OPTICAL SCANNER V4.2
         </div>
 
         {/* High-Impact Headline */}
@@ -135,21 +142,22 @@ export default function Home() {
 
         {/* Primary CTA Action Row */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5 max-w-md mx-auto">
-          <Link
+          <OpenScannerLink
             href="/lens"
             className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-400 to-emerald-400 hover:from-cyan-300 hover:to-emerald-300 text-zinc-950 font-black px-8 py-4 text-sm transition-all duration-150 active:scale-95 shadow-xl shadow-cyan-950/60 min-h-[52px] cursor-pointer"
           >
             <Scan className="h-4 w-4" />
             Launch Scanner Free
             <ArrowRight className="h-4 w-4" />
-          </Link>
+          </OpenScannerLink>
           <a
-            href="/spadas-ai.apk"
-            download="Spadas-AI.apk"
+            href={PLAY_STORE_URL}
+            target="_blank"
+            rel="noreferrer"
             className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 hover:border-white/20 bg-zinc-900/80 hover:bg-zinc-800 text-zinc-200 hover:text-white font-bold px-6 py-4 text-sm transition-all active:scale-95 min-h-[52px] shadow-lg backdrop-blur-md"
           >
             <Download className="h-4 w-4 text-cyan-400" />
-            Android APK
+            Google Play
           </a>
         </div>
 
@@ -248,13 +256,13 @@ export default function Home() {
             Scan your first item in under 2 seconds. No account or credit card required.
           </p>
           <div className="pt-2">
-            <Link
+            <OpenScannerLink
               href="/lens"
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-white hover:bg-zinc-100 text-zinc-950 font-bold px-7 py-3.5 text-sm transition active:scale-95 shadow-lg min-h-[48px]"
             >
               Start free
               <ArrowRight className="h-4 w-4" />
-            </Link>
+            </OpenScannerLink>
           </div>
           <p className="text-xs text-zinc-500 pt-1">
             3 free scans to try — then upgrade to Pro
@@ -276,12 +284,8 @@ export default function Home() {
           <a href="#pricing" className="hover:text-zinc-300 transition">Pricing</a>
           <Link href="/privacy" className="hover:text-zinc-300 transition">Privacy</Link>
           <Link href="/terms" className="hover:text-zinc-300 transition">Terms</Link>
-          <a
-            href="/spadas-ai.apk"
-            download="Spadas-AI.apk"
-            className="hover:text-zinc-300 transition"
-          >
-            APK v1.2.1
+          <a href={PLAY_STORE_URL} target="_blank" rel="noreferrer" className="hover:text-zinc-300 transition">
+            Google Play
           </a>
         </div>
       </footer>

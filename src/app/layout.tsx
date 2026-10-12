@@ -26,11 +26,8 @@ export const metadata: Metadata = {
     template: "%s · Thrift Comps: Resale Scanner",
   },
   description:
-    "The #1 optical scanner & sold comps app for thrift resellers. Scan thrift stores, yard sales & op shops in 0.5s. Get verified eBay sold comps, calculate true net profit after fees & shipping, and cross-list in seconds.",
+    "The #1 optical scanner & sold comps app for thrift resellers. Scan thrift stores, yard sales & op shops instantly. Get verified eBay sold comps, calculate true net profit after fees & shipping, and cross-list in seconds.",
   metadataBase: new URL("https://spadas.ai"),
-  alternates: {
-    canonical: "https://spadas.ai",
-  },
   applicationName: "Thrift Comps: Resale Scanner",
   authors: [{ name: "Spadas Tech" }],
   keywords: [
@@ -57,7 +54,7 @@ export const metadata: Metadata = {
     url: "https://spadas.ai",
     title: "Thrift Comps: Resale Scanner & Profit App",
     description:
-      "Instant optical scanner & sold comps app for thrift resellers. Scan thrift finds in 0.5s, calculate true net profit with live eBay sold comps, and cross-list in seconds.",
+      "Instant optical scanner & sold comps app for thrift resellers. Scan thrift finds instantly, calculate true net profit with live eBay sold comps, and cross-list in seconds.",
     siteName: "Thrift Comps: Resale Scanner",
     images: [
       {
@@ -72,7 +69,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "eBay Reseller Scanner: Thrift Profit & Sold Comps App",
     description:
-      "Instant optical AR scanner & barcode reader for eBay resellers. Scan thrift finds in 0.5s, calculate true net profit with live eBay US & Australia sold comps, and cross-list in seconds.",
+      "Instant optical AR scanner & barcode reader for eBay resellers. Scan thrift finds instantly, calculate true net profit with live eBay US & Australia sold comps, and cross-list in seconds.",
     images: ["https://spadas.ai/og-preview.jpg"],
   },
   icons: {
@@ -86,6 +83,10 @@ export const metadata: Metadata = {
     ],
   },
   manifest: "/manifest.webmanifest",
+  robots: {
+    index: true,
+    follow: true,
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
@@ -121,7 +122,6 @@ export default function RootLayout({
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7262955524032732"
           crossOrigin="anonymous"
         />
-        <link rel="canonical" href="https://spadas.ai" />
         <link rel="preload" href="/icon-192.png" as="image" type="image/png" />
         <link rel="dns-prefetch" href="https://i.ebayimg.com" />
         <link rel="preconnect" href="https://i.ebayimg.com" crossOrigin="anonymous" />
@@ -143,11 +143,6 @@ export default function RootLayout({
               applicationSubCategory: "ShoppingApplication",
               url: "https://spadas.ai",
               image: "https://spadas.ai/icon-512.png",
-              aggregateRating: {
-                "@type": "AggregateRating",
-                ratingValue: "4.9",
-                reviewCount: "128",
-              },
               offers: {
                 "@type": "Offer",
                 price: "0",
@@ -155,7 +150,7 @@ export default function RootLayout({
                 description: "3 free scans to test. Unlimited tier available.",
               },
               description:
-                "Instant optical scanner & AI reseller copilot. Scan barcodes & thrift shelves in 0.5s, calculate net profit with live eBay Australia, Depop & Gumtree sold comps, and generate ready-to-post listings.",
+                "Instant optical scanner & AI reseller copilot. Scan barcodes & thrift shelves instantly, calculate net profit with live eBay Australia, Depop & Gumtree sold comps, and generate ready-to-post listings.",
               featureList: [
                 "Instant 60fps barcode & shelf camera scanner",
                 "Real eBay Australia, Depop AU & Gumtree sold comps",

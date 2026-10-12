@@ -2,11 +2,12 @@
 
 import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { supabase } from "@/app/lib/supabase";
 
 /**
  * MobileFirstLaunchRedirect:
- * When a mobile user opens the app (e.g. fresh install from Google Play Store or mobile browser),
- * this automatically opens /lens immediately so users get zero-friction instant scanning.
+ * First-time visitors should see the homepage pitch.
+ * Only redirect signed-in returning mobile users back into /lens.
  * 
  * If the user explicitly clicked "Back" from /lens or navigated with ?ref=exit,
  * the redirect is suppressed so the user can freely explore the landing page or dashboard.
@@ -18,11 +19,15 @@ export function MobileFirstLaunchRedirect() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
+    let cancelled = false;
+
     // Respect explicit exit or back button navigation from /lens
     const isExitRef = searchParams.get("ref") === "exit" || searchParams.get("stay") === "true";
     let hasExitedLens = false;
+    let hasSeenHomepage = false;
     try {
       hasExitedLens = sessionStorage.getItem("spadas_exited_lens") === "1";
+      hasSeenHomepage = localStorage.getItem("spadas_seen_home") === "1";
     } catch {}
 
     if (isExitRef || hasExitedLens) {
@@ -35,10 +40,21 @@ export function MobileFirstLaunchRedirect() {
       typeof navigator !== "undefined" &&
       /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent || "");
 
-    if (isMobileWidth || isMobileUA) {
-      // First-time mobile visitor -> route straight into the optical scanner (/lens)
-      router.replace("/lens");
-    }
+    if (!(isMobileWidth || isMobileUA)) return;
+
+    void (async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!cancelled && hasSeenHomepage && session?.user) {
+        router.replace("/lens");
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [router, searchParams]);
 
   return null;

@@ -18,9 +18,12 @@ import {
 } from "lucide-react";
 
 export const metadata = {
-  title: "Creators & Influencers Program · Spadas Technology",
+  title: "Creators Program | Spadas Lens",
   description:
-    "Partner with Spadas Technology. Get paid for sponsored AR scanner videos, earn 25% recurring commissions, and access high-converting ad assets.",
+    "Partner with Spadas Lens for creator campaigns, product demos, and sponsored reseller content.",
+  alternates: {
+    canonical: "https://spadas.ai/creators",
+  },
 };
 
 const creatorPerks = [
@@ -83,7 +86,7 @@ export default function CreatorsPage() {
             href="/"
             className="inline-flex items-center gap-2 text-sm font-medium text-blue-400 hover:text-blue-300 transition-colors"
           >
-            <ArrowLeft className="h-4 w-4" /> Back to Spadas AI
+            <ArrowLeft className="h-4 w-4" /> Back to Spadas Lens
           </Link>
 
           <div className="flex items-center gap-4">

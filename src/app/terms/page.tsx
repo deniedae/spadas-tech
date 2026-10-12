@@ -2,8 +2,11 @@ import Link from "next/link";
 import { FileText, ArrowLeft } from "lucide-react";
 
 export const metadata = {
-  title: "Terms of Service · Spadas AI",
-  description: "Terms of Service for Spadas AI reseller inventory and analytics application.",
+  title: "Terms of Service | Spadas Lens",
+  description: "Terms of Service for the Spadas Lens resale scanner and workflow application.",
+  alternates: {
+    canonical: "https://spadas.ai/terms",
+  },
 };
 
 export default function TermsOfServicePage() {
@@ -14,7 +17,7 @@ export default function TermsOfServicePage() {
           href="/"
           className="inline-flex items-center gap-2 text-sm font-medium text-blue-400 hover:text-blue-300 transition-colors"
         >
-          <ArrowLeft className="h-4 w-4" /> Back to Spadas AI
+          <ArrowLeft className="h-4 w-4" /> Back to Spadas Lens
         </Link>
 
         <div className="flex items-center gap-3 border-b border-slate-800 pb-6">

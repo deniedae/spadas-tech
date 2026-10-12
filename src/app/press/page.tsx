@@ -3,8 +3,11 @@ import Image from "next/image";
 import { ArrowLeft, Download, ShieldCheck, Image as ImageIcon, Smartphone, Package } from "lucide-react";
 
 export const metadata = {
-  title: "Media Press Kit & Brand Assets · Spadas AI",
-  description: "Download official high-resolution logos, banners, screenshots, and release assets for Spadas AI.",
+  title: "Press Kit & Brand Assets | Spadas Lens",
+  description: "Download official logos, screenshots, and brand assets for Spadas Lens.",
+  alternates: {
+    canonical: "https://spadas.ai/press",
+  },
 };
 
 const mediaAssets = [
@@ -60,7 +63,7 @@ export default function PressKitPage() {
           href="/"
           className="inline-flex items-center gap-2 text-sm font-medium text-blue-400 hover:text-blue-300 transition-colors"
         >
-          <ArrowLeft className="h-4 w-4" /> Back to Spadas AI
+          <ArrowLeft className="h-4 w-4" /> Back to Spadas Lens
         </Link>
 
         <div className="flex items-center justify-between border-b border-slate-800 pb-8">
@@ -72,7 +75,7 @@ export default function PressKitPage() {
               Brand Assets & Press Kit
             </h1>
             <p className="text-slate-400 mt-2 text-sm md:text-base">
-              Download high-resolution icons, store graphics, mobile screenshots, and release binaries.
+              Download high-resolution icons, store graphics, and mobile screenshots for editorial coverage.
             </p>
           </div>
 
@@ -117,7 +120,7 @@ export default function PressKitPage() {
         </div>
 
         <div className="border-t border-slate-800 pt-8 text-center text-xs text-slate-500">
-          © {new Date().getFullYear()} Spadas AI. Official Media & Press Assets.
+          © {new Date().getFullYear()} Spadas Lens. Official Media & Press Assets.
         </div>
       </div>
     </main>

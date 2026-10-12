@@ -5,6 +5,9 @@ export const metadata = {
   title: "Delete My Account · Spadas AI",
   description:
     "Request permanent deletion of your Spadas AI account and all associated data. No login required.",
+  alternates: {
+    canonical: "https://spadas.ai/delete-account",
+  },
 };
 
 export default function DeleteAccountPage() {
