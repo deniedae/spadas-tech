@@ -43,6 +43,7 @@ import {
   checkGooglePlayBillingDiagnostics,
   type BillingDiagnostics,
 } from "@/lib/google-play-billing";
+import { BILLING_CONFIG } from "@/lib/billing-config";
 
 const SubscriptionPaywallModal = dynamic(
   () => import("@/components/subscription-paywall-modal"),
@@ -536,7 +537,7 @@ export default function SettingsPage() {
   const FAQS = [
     {
       q: "How do the 3 free scans work?",
-      a: "Every new account receives 3 complimentary camera scans to test real-time eBay sold comps and profit estimates. Once your 3 free scans are used, upgrade to Spadas Pro ($10 AUD/mo) to unlock unlimited 60FPS scans with zero limits.",
+      a: `Every new account receives 3 complimentary camera scans to test real-time eBay sold comps and profit estimates. Once your 3 free scans are used, upgrade to Spadas Pro (${BILLING_CONFIG.plans.monthly.priceFormatted}/mo) to unlock unlimited scans with zero limits.`,
     },
     {
       q: "How does Spadas calculate net profit and sold comps?",
@@ -586,7 +587,7 @@ export default function SettingsPage() {
             ) : (
               <Zap className="w-3.5 h-3.5" />
             )}
-            <span>Upgrade to Pro ($10 AUD/mo)</span>
+            <span>Upgrade to Pro ({BILLING_CONFIG.plans.monthly.priceFormatted}/mo)</span>
           </button>
         )}
       </div>

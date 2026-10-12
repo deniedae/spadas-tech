@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "Thrift Comps: Resale Scanner",
     short_name: "Thrift Comps",
     description:
-      "Instant optical scanner & sold comps app for thrift resellers. Scan thrift finds in 0.5s, calculate true net profit with live eBay sold comps, and cross-list in seconds.",
+      "Instant optical scanner & sold comps app for thrift resellers. Scan thrift finds instantly, calculate true net profit with live eBay sold comps, and cross-list in seconds.",
     start_url: "/lens",
     scope: "/",
     id: "/lens",

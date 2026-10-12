@@ -182,7 +182,7 @@ export default function CameraOnboardingOverlay({
                 <div className="space-y-1.5">
                   <h3 className="text-lg font-bold text-slate-100">2. Good Lighting & Steady Frame</h3>
                   <p className="text-xs text-slate-400 max-w-xs mx-auto leading-relaxed">
-                    Hold device steady for 0.5s in adequate lighting. Frames are automatically downscaled to 512px max edge for ultra-fast single-pass processing.
+                    Hold device steady in adequate lighting. Frames are automatically processed for fast single-pass identification.
                   </p>
                 </div>
               </div>

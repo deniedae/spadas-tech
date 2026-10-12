@@ -26,9 +26,10 @@ PLATFORM KNOWLEDGE BASE:
    - Full inventory management with CSV/JSON exports and sales velocity tracking.
 
 5. SUBSCRIPTIONS & CREDITS:
-   - Starter ($29 AUD/mo): 100 scans per month.
-   - Pro ($49 AUD/mo or $10 AUD/mo promotional): Unlimited scans, Real-Time AI Copilot, Deep Comps Audit, and Priority Sourcing Radar.
-   - Manage plan anytime in Settings > Billing.
+   - Free Starter: 3 complimentary test scans per account to verify comps and profit math.
+   - Pro Weekly: $3.99/week with a 3-Day Free Trial ($0 Today).
+   - Pro Monthly: $9.99/month for unlimited scans, AI Copilot, and eBay draft sync.
+   - Manage or cancel anytime via Google Play Subscriptions. Zero lock-in.
 
 COMMUNICATION STYLE:
 - Friendly, professional, concise, and technically authoritative.

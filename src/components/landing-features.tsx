@@ -6,6 +6,7 @@ import {
   Layers,
   CheckCircle2,
 } from "lucide-react";
+import { BILLING_CONFIG } from "@/lib/billing-config";
 
 interface FeatureCard {
   id: string;
@@ -151,7 +152,7 @@ export default function LandingFeatures() {
                   <div className="text-xs text-zinc-400">Time spent waiting per shelf item in the aisle</div>
                 </td>
                 <td className="py-4 px-4 sm:px-6 text-emerald-300 font-bold bg-cyan-950/10 border-x border-cyan-500/20">
-                  ⚡ <strong>0.5s Live AR HUD</strong> (Continuous scanning, zero lag)
+                  ⚡ <strong>Live Optical AR HUD</strong> (Continuous aisle scanning)
                 </td>
                 <td className="py-4 px-4 sm:px-6 text-zinc-400">
                   ⏳ 5–10s static photo upload with spinning wheel
@@ -211,7 +212,7 @@ export default function LandingFeatures() {
                   <div className="text-xs text-zinc-400">Monthly overhead to run your reselling business</div>
                 </td>
                 <td className="py-4 px-4 sm:px-6 text-cyan-300 font-extrabold bg-cyan-950/10 border-x border-cyan-500/20">
-                  💎 <strong>$10 AUD / $6.99 USD/mo</strong> (3 free starter scans to test)
+                  💎 <strong>{BILLING_CONFIG.plans.monthly.priceFormatted}/mo</strong> ({BILLING_CONFIG.plans.weekly.trialDays}-day free trial option)
                 </td>
                 <td className="py-4 px-4 sm:px-6 text-red-400/90 font-medium">
                   💸 $20 – $30+ USD/mo ($35–$45 AUD/mo)

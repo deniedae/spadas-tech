@@ -92,7 +92,7 @@ export default function LensPage() {
                 Turn Thrift Shelves Into Instant Cash <span className="text-emerald-400">✨</span>
               </h2>
               <p className="text-sm text-zinc-300 leading-relaxed">
-                Scan barcodes or snap thrift rack finds in 0.5s. Spadas Lens auto-calculates eBay sold comps, platform fees, and net profit before you buy.
+                Scan barcodes or snap thrift rack finds instantly. Spadas Lens auto-calculates eBay sold comps, platform fees, and net profit before you buy.
               </p>
             </div>
 
@@ -103,8 +103,8 @@ export default function LensPage() {
                 <div className="text-lg font-black text-emerald-400 font-mono mt-0.5">+$52.80</div>
               </div>
               <div className="rounded-2xl bg-white/[0.06] border border-white/10 p-3.5 text-center min-w-[110px] shadow-sm backdrop-blur-md">
-                <div className="text-[10px] uppercase font-mono font-bold text-zinc-400">Scan Speed</div>
-                <div className="text-lg font-black text-cyan-300 font-mono mt-0.5">0.5s</div>
+                <div className="text-[10px] uppercase font-mono font-bold text-zinc-400">Scan Mode</div>
+                <div className="text-lg font-black text-cyan-300 font-mono mt-0.5">Live AR</div>
               </div>
               <div className="rounded-2xl bg-white/[0.06] border border-white/10 p-3.5 text-center min-w-[110px] shadow-sm backdrop-blur-md">
                 <div className="text-[10px] uppercase font-mono font-bold text-zinc-400">Sold Comps</div>

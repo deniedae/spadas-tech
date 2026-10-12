@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { Check, ShieldCheck, ShoppingBag } from "lucide-react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
+import { BILLING_CONFIG } from "@/lib/billing-config";
 
 const SubscriptionPaywallModal = dynamic(
   () => import("@/components/subscription-paywall-modal"),
@@ -12,25 +13,16 @@ const SubscriptionPaywallModal = dynamic(
 
 export default function LandingPricing() {
   const [isPaywallOpen, setIsPaywallOpen] = useState(false);
-  const [isUsMarket, setIsUsMarket] = useState(false);
   const [isAndroid, setIsAndroid] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const storedCurr = localStorage.getItem("spadas_selected_currency");
-      const isUs =
-        storedCurr === "USD" ||
-        (!storedCurr &&
-          (navigator.language === "en-US" ||
-            Intl.DateTimeFormat().resolvedOptions().timeZone.includes("America/") ||
-            Intl.DateTimeFormat().resolvedOptions().timeZone.includes("US/")));
-      setIsUsMarket(Boolean(isUs));
       setIsAndroid(/Android/i.test(navigator.userAgent));
     }
   }, []);
 
   const freePerks = [
-    "10 camera scans per day",
+    `${BILLING_CONFIG.freeScanAllowance} free test scans included`,
     "eBay 30-day sold comps (AU & US)",
     "Fee & satchel postage calculator",
     "Barcode and optical image recognition",
@@ -123,14 +115,14 @@ export default function LandingPricing() {
               </div>
               <div className="flex items-baseline gap-1.5">
                 <span className="text-3xl font-bold text-white tabular-nums tracking-tight">
-                  {isUsMarket ? "$6.99 USD" : "$10 AUD"}
+                  {BILLING_CONFIG.plans.monthly.priceFormatted}
                 </span>
                 <span className="text-xs text-zinc-400 font-mono">
                   / month
                 </span>
               </div>
               <p className="text-xs text-zinc-400 mt-1.5 leading-relaxed">
-                Unlimited camera scanning, direct eBay publishing, and net profit ledger.
+                Unlimited optical scanning, eBay sold comps, and profit ledger. Includes {BILLING_CONFIG.plans.weekly.trialDays}-day free trial option.
               </p>
             </div>
 
@@ -139,7 +131,7 @@ export default function LandingPricing() {
               onClick={() => setIsPaywallOpen(true)}
               className="w-full inline-flex h-9 items-center justify-center gap-2 rounded-md bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition cursor-pointer"
             >
-              <span>Upgrade to Pro ({isUsMarket ? "$6.99/mo" : "$10 AUD/mo"})</span>
+              <span>Start Free Trial · Upgrade to Pro ({BILLING_CONFIG.plans.monthly.priceFormatted}/mo)</span>
             </button>
 
             <div className="pt-3 border-t border-zinc-800 space-y-2">

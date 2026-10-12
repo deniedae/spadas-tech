@@ -69,7 +69,7 @@ export function FirstLaunchWelcomeModal({
             </div>
             <div className="space-y-0.5">
               <div className="text-xs sm:text-sm font-semibold text-white">
-                0.5s Optical Recognition
+                Instant Optical Recognition
               </div>
               <div className="text-xs text-zinc-400 leading-relaxed">
                 Scan barcodes or products directly on store shelves.
