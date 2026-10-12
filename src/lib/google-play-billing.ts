@@ -1,10 +1,11 @@
 "use client";
 
 import { supabase } from "@/app/lib/supabase";
+import { BILLING_CONFIG } from "@/lib/billing-config";
 
-export const GOOGLE_PLAY_PACKAGE = "com.spadas.ai";
-export const GOOGLE_PLAY_SKU_MONTHLY = "spadas_pro_monthly";
-export const GOOGLE_PLAY_SKU_WEEKLY = "spadas_pro_weekly_trial";
+export const GOOGLE_PLAY_PACKAGE = BILLING_CONFIG.packageId;
+export const GOOGLE_PLAY_SKU_MONTHLY = BILLING_CONFIG.skus.monthly;
+export const GOOGLE_PLAY_SKU_WEEKLY = BILLING_CONFIG.skus.weeklyTrial;
 export const GOOGLE_PLAY_SKU_WEEKLY_FALLBACK = "spadas_pro_weekly";
 export const GOOGLE_PLAY_SKU = GOOGLE_PLAY_SKU_MONTHLY;
 export const GOOGLE_PLAY_SKUS = [

@@ -76,6 +76,7 @@ import {
   performPrimeReset,
   getScopedHitsKey,
   getUserScanState,
+  setUserScanState,
   recordUserScan,
   enforceUserIsolation,
   PRIME_RESET_EVENT,
@@ -809,9 +810,17 @@ function SpadasLensCameraCore({
               proStatus = true;
             }
             if (!proStatus) {
-              const dbUsesLeft = typeof usage.usesLeft === "number" ? Math.min(usage.usesLeft, uState.remaining) : uState.remaining;
+              const dbUsesLeft = typeof usage.usesLeft === "number" ? usage.usesLeft : uState.remaining;
               limitStatus = Boolean((usage.limitReached || dbUsesLeft <= 0) && !proStatus);
               setDailyFreeScansLeft(dbUsesLeft);
+              if (typeof usage.usesLeft === "number") {
+                setUserScanState(currentUser.id, {
+                  count: usage.usesCount ?? (MAX_FREE_SCANS - dbUsesLeft),
+                  remaining: dbUsesLeft,
+                  limitReached: limitStatus,
+                  userId: currentUser.id,
+                });
+              }
             }
           }
 
@@ -2084,8 +2093,13 @@ function SpadasLensCameraCore({
             if (u?.isPro) {
               setIsPro(true);
               setIsLimitReached(false);
-            } else if (u?.limitReached) {
-              setIsLimitReached(true);
+            } else {
+              if (typeof u?.usesLeft === "number") {
+                setDailyFreeScansLeft(u.usesLeft);
+              }
+              if (u?.limitReached) {
+                setIsLimitReached(true);
+              }
             }
           }
         } else {
@@ -3728,7 +3742,7 @@ function SpadasLensCameraCore({
       setLastRawApiResponse(data);
 
       // ── Phase 4: Non-Alarming HTTP Error State Handling ──────────────────────
-      if (res?.status === 403 || data?.limitReached) {
+      if (res?.status === 402 || res?.status === 403 || data?.limitReached) {
         if (!hasUserPro) {
           setIsScanPaused(true);
           setIsLimitReached(true);
@@ -4382,7 +4396,7 @@ function SpadasLensCameraCore({
             { maxRetries: 1, initialDelayMs: 200 }
           ).catch(() => null);
 
-          if (res?.status === 403) {
+          if (res?.status === 402 || res?.status === 403) {
             if (!isPro && !isOwner) {
               setIsLimitReached(true);
               setIsScanPaused(true);

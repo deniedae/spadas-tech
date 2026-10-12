@@ -18,6 +18,7 @@ import {
 import { toast } from "sonner";
 import { supabase } from "@/app/lib/supabase";
 import { isOwnerEmail } from "@/app/lib/auth-admin";
+import { BILLING_CONFIG } from "@/lib/billing-config";
 import {
   purchaseGooglePlaySubscription,
   queryGooglePlaySubscriptionPlans,
@@ -57,18 +58,18 @@ export function SubscriptionPaywallModal({
   const [isMockMode, setIsMockMode] = useState(false);
 
   const [weeklyPlan, setWeeklyPlan] = useState<PlayProductDetail>({
-    itemId: "spadas_pro_weekly",
-    title: "Weekly Plan",
-    price: "$3.99",
+    itemId: BILLING_CONFIG.skus.weeklyTrial,
+    title: BILLING_CONFIG.plans.weekly.title,
+    price: BILLING_CONFIG.plans.weekly.priceFormatted,
     currency: "USD",
     period: "weekly",
-    trialDays: 3,
+    trialDays: BILLING_CONFIG.plans.weekly.trialDays,
   });
 
   const [monthlyPlan, setMonthlyPlan] = useState<PlayProductDetail>({
-    itemId: "spadas_pro_monthly",
-    title: "Monthly Plan",
-    price: "$9.99",
+    itemId: BILLING_CONFIG.skus.monthly,
+    title: BILLING_CONFIG.plans.monthly.title,
+    price: BILLING_CONFIG.plans.monthly.priceFormatted,
     currency: "USD",
     period: "monthly",
   });

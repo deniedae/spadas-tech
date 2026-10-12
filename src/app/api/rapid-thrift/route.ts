@@ -89,7 +89,7 @@ export async function POST(req: Request) {
             maxFreeUses: usage.maxFreeUses,
             usesCount: usage.usesCount,
           },
-          { status: 403 }
+          { status: 402 }
         );
       }
     }

@@ -439,7 +439,7 @@ RULES:
               maxFreeUses: usage.maxFreeUses,
               usesCount: usage.usesCount,
             },
-            { status: 403 }
+            { status: 402 }
           );
         }
       }
@@ -454,7 +454,7 @@ RULES:
             maxFreeUses: 3,
             usesCount: 3,
           },
-          { status: 403 }
+          { status: 402 }
         );
       }
     }
