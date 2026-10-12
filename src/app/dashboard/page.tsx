@@ -280,7 +280,7 @@ export default function DashboardPage() {
         }
 
         if (!user) {
-          router.push("/login");
+          router.replace("/lens");
           return;
         }
 

@@ -369,6 +369,14 @@ export function SpadasAuthCard({ initialMode = "signup" }: Props) {
                 </>
               )}
             </button>
+            <div className="pt-1 text-center">
+              <Link
+                href="/lens"
+                className="inline-block py-1 text-xs font-semibold text-zinc-400 hover:text-white transition"
+              >
+                Or test with 3 free scans (no card or account) →
+              </Link>
+            </div>
           </form>
 
           {/* Quick Features List */}

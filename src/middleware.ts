@@ -80,8 +80,20 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // If user is not authenticated, redirect to /login with redirect target:
+  // If user is not authenticated:
   if (!user) {
+    // If entering via APK default routes or shortcuts, route straight to /lens for onboarding & guest scans
+    if (
+      pathname === "/dashboard" ||
+      pathname === "/app" ||
+      pathname === "/scanner"
+    ) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/lens";
+      url.searchParams.delete("redirect");
+      return NextResponse.redirect(url);
+    }
+
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("redirect", pathname);
