@@ -747,32 +747,32 @@ export default function SettingsPage() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-blue-400" />
-                    <h3 className="text-base font-bold text-white">Upgrade to Spadas Pro</h3>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 uppercase tracking-wide">
-                      $10 AUD / month
+                    <Sparkles className="w-4 h-4 text-emerald-400" />
+                    <h3 className="text-base font-bold text-white">Start 3-Day Free Trial</h3>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 uppercase tracking-wide">
+                      3 Days Free ($0 Today)
                     </span>
                   </div>
                   <p className="text-xs text-zinc-300">
-                    Engineered for high-volume op-shoppers and marketplace resellers. Source with 10x speed.
+                    Unlimited 60FPS camera scans, live eBay sold comps, and 1-tap drafting. Cancel anytime.
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={handleUpgrade}
                   disabled={upgrading}
-                  className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition shadow-md active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 shrink-0 cursor-pointer"
+                  className="px-5 py-2.5 rounded-xl bg-white hover:bg-zinc-100 text-zinc-950 font-bold text-xs transition shadow-md active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 shrink-0 cursor-pointer"
                 >
                   {upgrading ? (
                     <>
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-zinc-950" />
                       <span>{isAndroid ? "Connecting Google Play..." : "Processing..."}</span>
                     </>
                   ) : (
                     <>
-                      <Zap className="w-3.5 h-3.5" />
-                      <span>{isAndroid ? "Upgrade with Google Play ($10 AUD/mo)" : "Upgrade to Pro ($10 AUD/mo)"}</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
+                      <Zap className="w-3.5 h-3.5 fill-zinc-950 text-zinc-950" />
+                      <span>Start 3-Day Free Trial ($0 Today)</span>
+                      <ArrowRight className="w-3.5 h-3.5 text-zinc-950" />
                     </>
                   )}
                 </button>

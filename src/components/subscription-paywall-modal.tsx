@@ -193,17 +193,17 @@ export function SubscriptionPaywallModal({
 
         {/* Header Section */}
         <div className="space-y-2 pt-1 text-center">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-cyan-500/15 to-emerald-500/15 border border-cyan-500/30 text-[11px] font-mono font-bold text-cyan-300">
-            <Sparkles className="h-3.5 w-3.5 text-cyan-400" />
-            <span>UNLIMITED RESELLER INTELLIGENCE</span>
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-cyan-500/15 to-emerald-500/15 border border-cyan-500/30 text-[11px] font-mono font-bold text-emerald-300">
+            <Sparkles className="h-3.5 w-3.5 text-emerald-400" />
+            <span>3-DAY FREE TRIAL · $0 TODAY</span>
           </div>
 
           <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight leading-tight">
-            Unlock Unlimited Scans
+            Try 3 Days Free ($0 Today)
           </h2>
 
           <p className="text-xs text-zinc-400 max-w-xs mx-auto">
-            Scale your thrifting margins with unrestricted camera comp lookups and live fee calculations.
+            Experience unlimited 60FPS AR scans, live eBay sold comps, and profit calculations with zero risk. Cancel anytime.
           </p>
         </div>
 

@@ -4869,8 +4869,8 @@ function SpadasLensCameraCore({
                       <span className="font-mono text-[11px] font-bold text-white tabular-nums">
                         {dailyFreeScansLeft}/3 free scans
                       </span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-bold ml-0.5">
-                        {dailyFreeScansLeft <= 0 ? "Upgrade" : "Go Pro"}
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold ml-0.5">
+                        {dailyFreeScansLeft <= 0 ? "Free Trial" : "3-Day Trial"}
                       </span>
                     </button>
                   </div>

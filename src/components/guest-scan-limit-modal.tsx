@@ -254,7 +254,7 @@ export function GuestScanLimitModal({
               <span>{scannedCount} of {MAX_GUEST_SCANS} Free Guest Scans Used</span>
             </div>
             <h2 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
-              Upgrade to Pro for Unlimited Scans
+              Start 3-Day Free Trial for Unlimited Scans
             </h2>
           </div>
           {onClose && (
@@ -328,7 +328,7 @@ export function GuestScanLimitModal({
             <p className="text-xs font-semibold text-white truncate mt-0.5">
               Unlimited Scans &bull; 1-Tap eBay Direct List
             </p>
-            <p className="text-[10px] text-zinc-400 font-mono mt-0.5">$10 AUD / mo &bull; Cancel anytime</p>
+            <p className="text-[10px] text-zinc-400 font-mono mt-0.5">3-Day Free Trial ($0 Today) &bull; Cancel anytime</p>
           </div>
           <button
             type="button"
@@ -341,7 +341,7 @@ export function GuestScanLimitModal({
             ) : (
               <Zap className="h-3.5 w-3.5 fill-black" />
             )}
-            <span>{upgradingToPro ? "Redirecting..." : "Go Pro"}</span>
+            <span>{upgradingToPro ? "Redirecting..." : "Start 3-Day Free Trial"}</span>
           </button>
         </div>
 

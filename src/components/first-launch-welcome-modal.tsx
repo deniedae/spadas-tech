@@ -9,6 +9,7 @@ import {
   Layers,
   ArrowRight,
   X,
+  Sparkles,
 } from "lucide-react";
 import { triggerTactileHaptic } from "@/lib/android-bridge";
 
@@ -29,7 +30,7 @@ export function FirstLaunchWelcomeModal({
 
   return (
     <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200 select-none">
-      <div className="relative w-full max-w-sm sm:max-w-md max-h-[92dvh] overflow-y-auto overscroll-contain rounded-3xl bg-[#0D1017] border border-white/[0.10] shadow-[0_25px_60px_rgba(0,0,0,0.85)] text-zinc-100 p-6 sm:p-7 space-y-6">
+      <div className="relative w-full max-w-sm sm:max-w-md max-h-[92dvh] overflow-y-auto overscroll-contain rounded-3xl bg-[#0D1017] border border-white/[0.10] shadow-[0_25px_60px_rgba(0,0,0,0.85)] text-zinc-100 p-6 sm:p-7 space-y-5">
         {/* Subtle Top Dismiss */}
         <button
           type="button"
@@ -60,8 +61,8 @@ export function FirstLaunchWelcomeModal({
           </div>
         </div>
 
-        {/* Core Capabilities (Clean Linear / Apple Rows) */}
-        <div className="space-y-3.5 py-3 border-y border-white/[0.08]">
+        {/* Core Capabilities */}
+        <div className="space-y-3 py-3 border-y border-white/[0.08]">
           <div className="flex items-start gap-3">
             <div className="w-8 h-8 rounded-lg bg-white/[0.05] border border-white/[0.08] flex items-center justify-center shrink-0 mt-0.5 text-zinc-300">
               <Zap className="w-4 h-4 text-emerald-400" />
@@ -105,7 +106,7 @@ export function FirstLaunchWelcomeModal({
           </div>
         </div>
 
-        {/* Transparent Trial Bar */}
+        {/* Transparent Quota & Free Trial Bar */}
         <div className="rounded-xl bg-white/[0.03] border border-white/[0.08] px-3.5 py-2.5 flex items-center justify-between text-xs">
           <div className="flex items-center gap-2">
             <div className="flex gap-1.5 items-center">
@@ -113,38 +114,44 @@ export function FirstLaunchWelcomeModal({
               <span className="w-2 h-2 rounded-full bg-emerald-400" />
               <span className="w-2 h-2 rounded-full bg-emerald-400" />
             </div>
-            <span className="font-medium text-zinc-200">3 free scans included</span>
+            <span className="font-medium text-zinc-200">3 free scans ready</span>
           </div>
-          <span className="text-zinc-500 font-mono text-[11px]">$10 AUD/mo after</span>
+          <span className="text-emerald-400 font-mono text-[11px] font-semibold">
+            3-Day Free Trial Available
+          </span>
         </div>
 
-        {/* Primary & Secondary Actions */}
-        <div className="space-y-3 pt-1">
+        {/* Primary Free Trial & Fallback Scan Actions */}
+        <div className="space-y-2.5 pt-1">
+          {/* Primary CTA: 3-Day Free Trial */}
           <button
             type="button"
             onClick={() => {
               triggerTactileHaptic("selection");
-              onStartScanning();
+              onUpgradePro();
             }}
-            className="w-full h-11 rounded-xl bg-white hover:bg-zinc-100 active:scale-[0.99] text-zinc-950 font-semibold text-xs sm:text-sm shadow-sm transition flex items-center justify-center gap-2 cursor-pointer"
+            className="w-full h-11 rounded-xl bg-white hover:bg-zinc-100 active:scale-[0.99] text-zinc-950 font-bold text-xs sm:text-sm shadow-sm transition flex items-center justify-center gap-2 cursor-pointer"
           >
-            <Camera className="w-4 h-4 text-zinc-950" />
-            <span>Start Scanning (3 Free Scans)</span>
+            <span>Start 3-Day Free Trial ($0 Today)</span>
             <ArrowRight className="w-4 h-4 text-zinc-950" />
           </button>
 
-          <div className="flex items-center justify-between px-1 text-xs text-zinc-400">
-            <button
-              type="button"
-              onClick={() => {
-                triggerTactileHaptic("light");
-                onUpgradePro();
-              }}
-              className="hover:text-white transition font-medium cursor-pointer"
-            >
-              Upgrade to Pro ($10 AUD/mo)
-            </button>
+          {/* Secondary CTA: Try 3 Free Scans First */}
+          <button
+            type="button"
+            onClick={() => {
+              triggerTactileHaptic("light");
+              onStartScanning();
+            }}
+            className="w-full h-10 rounded-xl bg-white/[0.05] hover:bg-white/[0.08] active:scale-[0.99] text-zinc-300 font-medium text-xs border border-white/[0.08] transition flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <Camera className="w-3.5 h-3.5 text-zinc-400" />
+            <span>Or test 3 free scans first (No card needed)</span>
+          </button>
 
+          {/* Micro Footer Notice */}
+          <div className="flex items-center justify-between px-1 pt-0.5 text-[11px] text-zinc-500">
+            <span>$0 due today · Cancel anytime</span>
             {onViewGuide && (
               <button
                 type="button"
@@ -152,7 +159,7 @@ export function FirstLaunchWelcomeModal({
                   triggerTactileHaptic("light");
                   onViewGuide();
                 }}
-                className="hover:text-white transition font-medium text-zinc-500 hover:text-zinc-300 cursor-pointer"
+                className="hover:text-zinc-300 transition cursor-pointer"
               >
                 How it works
               </button>
