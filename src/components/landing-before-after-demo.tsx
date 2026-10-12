@@ -82,9 +82,8 @@ const DEMO_ITEMS: DemoItem[] = [
     priceRange: "$85 – $125",
     netProfit: 72.95,
     roi: 608,
-    // PLACEHOLDER: Swap image URL below for a real screenshot
-    photoUrl: "https://images.unsplash.com/photo-1548883354-7622d03aca27?auto=format&fit=crop&w=800&q=80",
-    photoCaption: "Op-Shop Rack Find • Melbourne, AU",
+    photoUrl: "/grok_vintage_jacket_ar_scan.jpg",
+    photoCaption: "Illustrative sample • Vintage jacket collar tag match",
     listings: {
       ebay: {
         platformName: "eBay",
@@ -132,9 +131,8 @@ const DEMO_ITEMS: DemoItem[] = [
     priceRange: "$420 – $560",
     netProfit: 375.0,
     roi: 833,
-    // PLACEHOLDER: Swap image URL below for a real screenshot
-    photoUrl: "https://images.unsplash.com/photo-1552346154-21d32810aba3?auto=format&fit=crop&w=800&q=80",
-    photoCaption: "Garage Sale Cash Buy • Sydney, AU",
+    photoUrl: "/grok_retro_sneaker_ar_scan.jpg",
+    photoCaption: "Illustrative sample • Retro sneaker barcode & silhouette match",
     listings: {
       ebay: {
         platformName: "eBay",
@@ -171,50 +169,49 @@ const DEMO_ITEMS: DemoItem[] = [
     },
   },
   {
-    id: "canon-film",
-    tabLabel: "Film Camera (Canon AE-1)",
-    category: "Vintage Electronics",
-    brand: "Canon",
-    condition: "Tested & Working",
+    id: "workwear-jacket",
+    tabLabel: "Workwear (Carhartt)",
+    category: "Vintage Workwear",
+    brand: "Carhartt",
+    condition: "Pre-owned - Faded",
     thriftCost: 25.0,
-    medianPrice: 185.0,
-    priceRange: "$150 – $220",
-    netProfit: 135.25,
-    roi: 541,
-    // PLACEHOLDER: Swap image URL below for a real screenshot
-    photoUrl: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=800&q=80",
-    photoCaption: "Estate Clearance Lot • Brisbane, AU",
+    medianPrice: 175.0,
+    priceRange: "$145 – $210",
+    netProfit: 124.25,
+    roi: 497,
+    photoUrl: "/grok_authentic_thrift_carhartt.jpg",
+    photoCaption: "Illustrative sample • Heavy canvas workwear jacket with label inspection",
     listings: {
       ebay: {
         platformName: "eBay",
-        title: "Canon AE-1 35mm SLR Film Camera w/ FD 50mm 1:1.8 Lens Tested Working Clean",
+        title: "Vintage Carhartt Detroit Duck Canvas Blanket Lined Workwear Jacket Faded Tan",
         charCount: 75,
-        price: "$185.00 AUD",
-        description: `Vintage Canon AE-1 35mm SLR Film Camera paired with the razor-sharp Canon FD 50mm f/1.8 prime lens.\n\n• Film format: 35mm SLR\n• Shutter: Tested at all speeds (1s to 1/1000s + Bulb), crisp action with NO Canon squeak\n• Light meter: Accurate and reactive to lighting changes\n• Lens optics: Free of fungus, haze, or heavy scratches. Aperture blades snappy\n• Viewfinder: Bright and clear\n\nPacked with bubble wrap in a sturdy box. Ships within 24 hours.`,
+        price: "$175.00 AUD",
+        description: `Authentic vintage Carhartt Detroit workwear jacket in heavyweight duck canvas with blanket lining.\n\n• Brand: Carhartt Work in Progress / Vintage USA\n• Condition: Pre-owned with natural workwear patina and authentic fading. No structural tears; heavy-duty brass zipper intact.\n• Fit: Boxy relaxed fit\n\nCarefully packed and dispatched promptly via AusPost tracked satchel.`,
         badgeColor: "bg-blue-500/15 text-blue-300 border-blue-500/30",
       },
       depop: {
         platformName: "Depop",
-        title: "canon ae-1 35mm slr vintage film camera + 50mm f1.8 lens",
+        title: "vintage carhartt detroit jacket blanket lined faded tan",
         charCount: 56,
-        price: "$195.00 AUD",
-        description: `classic canon ae1 35mm film camera with 50mm f/1.8 lens 📸 fully film tested and working smoothly! shutter fires at all speeds with zero squeak. glass is super clean.\n\nperfect beginner or pro 35mm setup.\n\n#film #camera #canon #analog #35mm`,
+        price: "$185.00 AUD",
+        description: `grail vintage carhartt detroit jacket in washed duck tan 🛠️ blanket lined with corduroy collar. beautiful authentic sun fade and distressing.\n\n#carhartt #detroit #workwear #vintage #streetwear`,
         badgeColor: "bg-red-500/15 text-red-300 border-red-500/30",
       },
       poshmark: {
         platformName: "Poshmark",
-        title: "Canon AE-1 35mm SLR Film Camera with 50mm f/1.8 Prime Lens",
-        charCount: 57,
-        price: "$180.00 AUD",
-        description: `Canon AE-1 35mm SLR Film Camera with Canon FD 50mm f/1.8 lens.\nTested and fully functional. Battery compartment clean, light meter works, lens glass clear.\n\nCarefully packaged and promptly shipped.`,
+        title: "Vintage Carhartt Detroit Blanket Lined Work Jacket Tan",
+        charCount: 54,
+        price: "$170.00 AUD",
+        description: `Vintage Carhartt Detroit canvas jacket with blanket lining and corduroy collar. Authentic workwear wear throughout. Heavy duty zipper works smoothly.\n\nFast dispatch!`,
         badgeColor: "bg-pink-500/15 text-pink-300 border-pink-500/30",
       },
       facebook: {
         platformName: "Facebook Marketplace",
-        title: "Canon AE-1 35mm Film Camera + 50mm f/1.8 Lens (Tested & Working)",
-        charCount: 65,
-        price: "$180.00 AUD",
-        description: `Canon AE-1 vintage 35mm film camera with 50mm f/1.8 prime lens. Fully tested, shutter fires accurately, light meter working, clean optics. Pick up or post Australia-wide.`,
+        title: "Vintage Carhartt Detroit Jacket (Blanket Lined) - Great Patina",
+        charCount: 63,
+        price: "$165.00 AUD",
+        description: `Selling a vintage Carhartt Detroit workwear jacket. Blanket lined, corduroy collar, heavyweight canvas with natural fading. Pick up or tracked post available.`,
         badgeColor: "bg-cyan-500/15 text-cyan-300 border-cyan-500/30",
       },
     },
@@ -230,9 +227,8 @@ const DEMO_ITEMS: DemoItem[] = [
     priceRange: "$95 – $130",
     netProfit: 80.4,
     roi: 536,
-    // PLACEHOLDER: Swap image URL below for a real screenshot
-    photoUrl: "https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=800&q=80",
-    photoCaption: "Sunday Flea Market Find • Adelaide, AU",
+    photoUrl: "/screenshot-lens.png",
+    photoCaption: "Illustrative sample • Handheld gaming console camera lookup",
     listings: {
       ebay: {
         platformName: "eBay",
@@ -353,11 +349,11 @@ export default function LandingBeforeAfterDemo() {
                   <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-emerald-400" />
                 </div>
 
-                {/* Shutter Telemetry Pill Overlay */}
-                <div className="absolute top-3 left-3 bg-black/70 backdrop-blur-md px-2.5 py-1 rounded-lg border border-white/10 flex items-center gap-1.5 z-20">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                {/* Illustrative Sample Pill Overlay */}
+                <div className="absolute top-3 left-3 bg-black/80 backdrop-blur-md px-2.5 py-1 rounded-lg border border-white/10 flex items-center gap-1.5 z-20">
+                  <span className="h-1.5 w-1.5 rounded-full bg-cyan-400" />
                   <span className="text-[10px] font-medium text-zinc-200">
-                    Identified in 1.1s
+                    Illustrative sample scan
                   </span>
                 </div>
 

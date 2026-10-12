@@ -43,30 +43,15 @@ export interface PurchaseOptions {
 }
 
 export function isMockProActive(): boolean {
-  if (typeof window === "undefined") return false;
-  try {
-    return localStorage.getItem("spadas_mock_pro_active") === "true";
-  } catch {
-    return false;
-  }
+  return false;
 }
 
-export function setMockProActive(active: boolean, planId: string = "weekly"): void {
-  if (typeof window === "undefined") return;
-  try {
-    if (active) {
-      localStorage.setItem("spadas_mock_pro_active", "true");
-      localStorage.setItem("spadas_mock_plan", planId);
-    } else {
-      localStorage.removeItem("spadas_mock_pro_active");
-      localStorage.removeItem("spadas_mock_plan");
-    }
-  } catch {}
+export function setMockProActive(_active: boolean, _planId: string = "weekly"): void {
+  // Entitlements are strictly server-side authoritative; mock bypass disabled.
 }
 
-export async function mockGooglePlayPurchase(planId: "weekly" | "monthly" = "weekly"): Promise<PurchaseResult> {
-  setMockProActive(true, planId);
-  return { success: true, active: true };
+export async function mockGooglePlayPurchase(_planId: "weekly" | "monthly" = "weekly"): Promise<PurchaseResult> {
+  return { success: false, error: "Mock purchases are disabled. Live Google Play checkout required." };
 }
 
 /**
@@ -106,12 +91,6 @@ export function isDigitalGoodsSupported(): boolean {
 export async function purchaseGooglePlaySubscription(
   options?: PurchaseOptions
 ): Promise<PurchaseResult> {
-  // Mock / Dev Bypass check
-  if (options?.mock || isMockProActive()) {
-    setMockProActive(true, options?.planId === "monthly" ? "monthly" : "weekly");
-    return { success: true, active: true };
-  }
-
   try {
     const {
       data: { session },
@@ -513,10 +492,6 @@ export async function restoreGooglePlayPurchases(): Promise<{
   active: boolean;
   message: string;
 }> {
-  if (isMockProActive()) {
-    return { success: true, active: true, message: "Restored active subscription (Debug Mode)." };
-  }
-
   if (!isAndroidAppEnvironment() || !isDigitalGoodsSupported()) {
     try {
       const res = await fetch("/api/billing/status");

@@ -18,6 +18,7 @@ import {
   saveCertificate,
   ForensicCertificateData,
 } from "@/lib/forensic-certificates";
+import { SITE_URL } from "@/lib/site-url";
 
 export const preferredRegion = "syd1";
 
@@ -83,123 +84,6 @@ export interface DeepVerifyResult {
     angle_id?: string;
     angle_title?: string;
     reason: string;
-  };
-  isMockFallback?: boolean;
-}
-
-function generateMockVerification(
-  productName?: string,
-  brand?: string,
-  category?: ForensicCategory
-): DeepVerifyResult {
-  const cat = category || detectForensicCategory(`${brand || ""} ${productName || ""}`);
-  const name =
-    productName ||
-    (cat === "crystals_gems"
-      ? "Natural Amethyst Geode Cluster"
-      : cat === "precious_metals"
-      ? "18K Solid Gold Curb Chain (750)"
-      : cat === "small_leather_goods"
-      ? "Prada Saffiano Leather Bifold Wallet"
-      : "Luxury Designer Item");
-  const b =
-    brand ||
-    (cat === "luxury_handbags"
-      ? "Louis Vuitton"
-      : cat === "small_leather_goods"
-      ? "Prada"
-      : cat === "watches"
-      ? "Rolex"
-      : "Authentic Maker");
-
-  const isSlg = cat === "small_leather_goods";
-  const certId = generateCertificateId(name, b);
-
-  const decisiveTells = isSlg
-    ? [
-        "Interior heat stamp confirmed with authentic Prada notched 'R' and crisp serif kerning.",
-        "Factory inspection tag verified deep inside the billfold seam.",
-        "Authentic wax-finished Saffiano crosshatch calfskin verified without rubbery PVC synthetic texture.",
-        "Card slot dividers display thin, matte, uniform edge glazing without rubber peel.",
-      ]
-    : [
-        cat === "crystals_gems"
-          ? "Angular natural mineral inclusions and horizontal prism striations confirmed without spherical gas bubbles."
-          : cat === "precious_metals"
-          ? "Clean stamped assay hallmark 750 without mold casting lines or base metal copper exposure on high-friction joints."
-          : "Brand stamp typography, stitch density, and material finishing match manufacturer factory standards.",
-        "Symmetry and proportions align with genuine manufacturer reference benchmarks.",
-        "Material surface texture and light refraction indicate authentic composition.",
-      ];
-
-  const maintenanceNotes = isSlg
-    ? "White micro-flecks detected across face (likely paint dust or drywall residue). A gentle wipe with a damp microfiber cloth and neutral leather conditioner (e.g. Bick 4, Saphir) will lift surface debris and restore the Saffiano finish."
-    : "Store in breathable dust bag in temperature-controlled setting; apply neutral material conditioner as appropriate.";
-
-  return {
-    certificate_id: certId,
-    certificate_url: `https://spadas.ai/cert/${certId}`,
-    product_name: name,
-    brand: b,
-    category: cat,
-    verdict: "AUTHENTIC",
-    authenticity_score: isSlg ? 98 : 95,
-    confidence: "HIGH",
-    confidence_tier: "HIGH_CONFIDENCE",
-    high_value_advisory:
-      (isSlg ? 220 : 450) >= 400
-        ? "High-Value Acquisition Notice: For items exceeding $400 AUD, we advise obtaining an in-person physical inspection before high-dollar resale listing or major capital commitment."
-        : undefined,
-    item_identification: {
-      detected_brand: b,
-      item_category: isSlg ? "Small Leather Goods & Wallets" : "Luxury Goods",
-      identified_material: isSlg ? "Saffiano Crosshatch Calfskin" : "Fine Material",
-      model_estimate: name,
-    },
-    forensic_breakdown: {
-      material: 98,
-      typography: 99,
-      craftsmanship: 97,
-      hardware: 96,
-      security_tags_and_codes: 98,
-      material_integrity: 98,
-      typography_and_hallmarks: 99,
-      hardware_and_fasteners: 96,
-      craftsmanship_and_seams: 97,
-    },
-    decisive_tells: decisiveTells,
-    brand_dna_checklist: getBrandDnaRules(b, cat).map((rule) => ({
-      tell_name: rule.tell_name,
-      status: "PASSED" as const,
-      observed_evidence: `Verified in provided photos: ${rule.macro_focus} adheres to factory authentic specifications.`,
-      authenticity_rule: rule.authenticity_rule,
-    })),
-    required_macro_inputs: [],
-    market_valuation_aud: {
-      fair_condition: isSlg ? 140 : 250,
-      excellent_condition: isSlg ? 220 : 450,
-    },
-    condition_and_maintenance_notes: maintenanceNotes,
-    positive_indicators: decisiveTells,
-    red_flags: [],
-    inconclusive_areas: [],
-    forensic_summary: isSlg
-      ? `Forensic pre-screen of "${name}" confirms authentic Prada notched 'R' typography, genuine Saffiano calfskin, and period-correct hardware.`
-      : `Multi-angle forensic pre-screen of "${name}" reveals genuine manufacturing hallmarks, authentic physical characteristics, and zero structural counterfeit anomalies.`,
-    recommendation: "SAFE_TO_BUY",
-    hallmark_analysis:
-      cat === "precious_metals"
-        ? "Assay Mark 750: Verified 18K Solid Gold standard."
-        : isSlg
-        ? "Prada Heat Stamp: Verified iconic notched 'R' contour and factory code tag."
-        : undefined,
-    cleanup_advisory: maintenanceNotes,
-    market_spread: isSlg
-      ? "Fair Condition: $140 AUD • Excellent Condition: $220 AUD"
-      : undefined,
-    wear_and_tear_notes:
-      "Wear Decoupled from Authenticity: Honest cosmetic surface flecks and mild edge softening do not penalize the authenticity score; core manufacturing construction and hallmarks are 100% genuine.",
-    isMockFallback: true,
   };
 }
 
@@ -356,8 +240,11 @@ Respond ONLY with valid JSON adhering to this exact schema:
     const apiKey = getPrimaryAiApiKey();
 
     if (!apiKey) {
-      console.warn("[Deep Verify] No AI API Key found — using mock fallback.");
-      return NextResponse.json(generateMockVerification(productName, brand, activeCategory));
+      console.warn("[Deep Verify] No AI API Key found.");
+      return NextResponse.json(
+        { error: "AI forensic verification engine is unavailable. Please check system credentials." },
+        { status: 503 }
+      );
     }
 
     const imageContent = imageUrls.slice(0, 4).map((url: string) => ({
@@ -419,7 +306,10 @@ Respond ONLY with valid JSON adhering to this exact schema:
     }
 
     if (!rawContent) {
-      return NextResponse.json(generateMockVerification(productName, brand, activeCategory));
+      return NextResponse.json(
+        { error: "AI verification engine produced no output. Please try again." },
+        { status: 503 }
+      );
     }
 
     const raw: any = JSON.parse(rawContent);
@@ -568,7 +458,7 @@ Respond ONLY with valid JSON adhering to this exact schema:
 
     const parsed: DeepVerifyResult = {
       certificate_id: certId,
-      certificate_url: certId ? `https://spadas.ai/cert/${certId}` : undefined,
+      certificate_url: certId ? `${SITE_URL}/cert/${certId}` : undefined,
       product_name: detectedItemName,
       brand: detectedItemBrand,
       category: activeCategory,
@@ -659,6 +549,9 @@ Respond ONLY with valid JSON adhering to this exact schema:
     return NextResponse.json(parsed);
   } catch (err: any) {
     console.error("[Deep Verify API] Error:", err);
-    return NextResponse.json(generateMockVerification(), { status: 200 });
+    return NextResponse.json(
+      { error: err?.message || "Forensic verification encountered an unexpected error." },
+      { status: 500 }
+    );
   }
 }

@@ -22,7 +22,7 @@ export async function GET() {
   }
 
   return NextResponse.json({
-    status: isConfigured ? "CONFIGURED" : "DEMO_MODE_ACTIVE",
+    status: isConfigured ? "CONFIGURED" : "NOT_CONFIGURED",
     isConfigured,
     detectedKeyType: keyType,
     explicitEnvironment: explicitEnv || "auto-detect",

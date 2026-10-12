@@ -22,34 +22,36 @@ interface PageProps {
   params: Promise<{ id: string }>;
 }
 
+import { SITE_URL } from "@/lib/site-url";
+
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params;
   const cert = await getCertificate(id);
 
   if (!cert) {
     return {
-      title: "Certificate Not Found · Spadas AI",
+      title: "Certificate Not Found · Spadas",
     };
   }
 
-  const title = `Authenticity Certificate: ${cert.product_name} (${cert.brand}) · Spadas AI`;
-  const description = `Verified by Spadas AI Forensic Engine with a ${cert.authenticity_score}% Authenticity Score. Verdict: ${cert.verdict.replace(/_/g, " ")}.`;
+  const title = `Authenticity Certificate: ${cert.product_name} (${cert.brand}) · Spadas`;
+  const description = `Verified by Spadas Forensic Engine with a ${cert.authenticity_score}% Authenticity Score. Verdict: ${cert.verdict.replace(/_/g, " ")}.`;
 
   return {
     title,
     description,
-    metadataBase: new URL("https://spadas.ai"),
+    metadataBase: new URL(SITE_URL),
     alternates: {
-      canonical: `https://spadas.ai/cert/${id}`,
+      canonical: `${SITE_URL}/cert/${id}`,
     },
     openGraph: {
       title,
       description,
-      url: `https://spadas.ai/cert/${id}`,
-      siteName: "Spadas AI Universal Forensic Engine",
+      url: `${SITE_URL}/cert/${id}`,
+      siteName: "Spadas Forensic Verification Engine",
       images: [
         {
-          url: cert.image_urls[0] || "https://spadas.ai/og-preview.jpg",
+          url: cert.image_urls[0] || `${SITE_URL}/og-preview.jpg`,
           width: 1200,
           height: 630,
           alt: `Spadas Authenticity Certificate - ${cert.product_name}`,
@@ -58,6 +60,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     },
   };
 }
+
 
 export default async function CertificatePage({ params }: PageProps) {
   const { id } = await params;
@@ -78,7 +81,7 @@ export default async function CertificatePage({ params }: PageProps) {
     year: "numeric",
   });
 
-  const certUrl = `https://spadas.ai/cert/${cert.id}`;
+  const certUrl = `${SITE_URL}/cert/${cert.id}`;
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100 py-6 sm:py-12 px-3 sm:px-6 antialiased selection:bg-cyan-500 selection:text-slate-950">
@@ -89,10 +92,10 @@ export default async function CertificatePage({ params }: PageProps) {
             href="/"
             className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-white transition"
           >
-            <ChevronLeft className="h-4 w-4" /> Back to Spadas AI
+            <ChevronLeft className="h-4 w-4" /> Back to Spadas
           </Link>
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-900 border border-slate-800 text-[11px] font-mono text-cyan-400">
-            <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="h-2 w-2 rounded-full bg-emerald-400" />
             <span>Digital Certificate • Public Web Record</span>
           </div>
         </div>

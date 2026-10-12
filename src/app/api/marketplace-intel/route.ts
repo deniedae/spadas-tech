@@ -201,15 +201,17 @@ export async function POST(req: Request) {
 
     const hasGrok = hasGrokApiKey();
     const apiKey = getPrimaryAiApiKey();
-    if ((!apiKey && !hasGrok) || (!image && !productName)) {
+    if (!image && !productName) {
       return NextResponse.json(
-        generateLocalMarketplaceFallback(
-          productName || "Scanned Resale Item",
-          brand || "",
-          category || "General",
-          Number(estimatedValue) || 40,
-          currency
-        )
+        { error: "Missing required product name or image for marketplace intelligence." },
+        { status: 400 }
+      );
+    }
+
+    if (!apiKey && !hasGrok) {
+      return NextResponse.json(
+        { error: "Marketplace intelligence engine is unavailable (missing API credentials)." },
+        { status: 503 }
       );
     }
 
@@ -326,13 +328,8 @@ Output strictly valid JSON adhering to:
 
     if (!content) {
       return NextResponse.json(
-        generateLocalMarketplaceFallback(
-          productName || "Scanned Resale Item",
-          brand || "",
-          category || "General",
-          Number(estimatedValue) || 40,
-          currency
-        )
+        { error: "Marketplace intelligence engine produced no analysis. Please try again." },
+        { status: 503 }
       );
     }
 
@@ -356,8 +353,8 @@ Output strictly valid JSON adhering to:
   } catch (error: any) {
     console.error("[Marketplace Intel API Error]:", error);
     return NextResponse.json(
-      generateLocalMarketplaceFallback("Identified Item", "", "General", 40, "AUD"),
-      { status: 200 }
+      { error: error?.message || "Marketplace intelligence evaluation failed." },
+      { status: 500 }
     );
   }
 }

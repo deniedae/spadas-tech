@@ -13,7 +13,6 @@ import {
   RotateCcw,
   ExternalLink,
   Layers,
-  Bug,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/app/lib/supabase";
@@ -23,9 +22,6 @@ import {
   purchaseGooglePlaySubscription,
   queryGooglePlaySubscriptionPlans,
   restoreGooglePlayPurchases,
-  isMockProActive,
-  setMockProActive,
-  mockGooglePlayPurchase,
   isAndroidAppEnvironment,
   isDigitalGoodsSupported,
   PlayProductDetail,
@@ -55,7 +51,6 @@ export function SubscriptionPaywallModal({
   const [isOwner, setIsOwner] = useState(false);
   const [isAppStoreClient, setIsAppStoreClient] = useState(false);
   const [isAndroid, setIsAndroid] = useState(false);
-  const [isMockMode, setIsMockMode] = useState(false);
 
   const [weeklyPlan, setWeeklyPlan] = useState<PlayProductDetail>({
     itemId: BILLING_CONFIG.skus.weeklyTrial,
@@ -81,7 +76,6 @@ export function SubscriptionPaywallModal({
       const isWebView = /wv|Android.*Version\/[0-9.]+|Silk-Accelerated/i.test(navigator.userAgent);
       setIsAppStoreClient(isStandalone || isWebView);
       setIsAndroid(/Android/i.test(navigator.userAgent));
-      setIsMockMode(isMockProActive());
 
       // Query Play Store products
       void queryGooglePlaySubscriptionPlans().then((plans) => {
@@ -109,19 +103,8 @@ export function SubscriptionPaywallModal({
     setIsLoading(true);
 
     try {
-      if (isMockMode) {
-        const res = await mockGooglePlayPurchase(selectedPlan);
-        if (res.active) {
-          toast.success("✅ Free Trial Unlocked (Mock Mode)!");
-          if (onSuccess) onSuccess();
-          onClose();
-          return;
-        }
-      }
-
       const res = await purchaseGooglePlaySubscription({
         planId: selectedPlan,
-        mock: isMockMode,
       });
 
       if (res.active) {
@@ -169,13 +152,7 @@ export function SubscriptionPaywallModal({
     }
   };
 
-  const toggleMockBypass = () => {
-    const next = !isMockMode;
-    setIsMockMode(next);
-    setMockProActive(next, selectedPlan);
-    triggerTactileHaptic("tap");
-    toast.info(next ? "Mock Mode Enabled: purchases bypass live Google Play API" : "Mock Mode Disabled");
-  };
+
 
   const isPlayBilling = isAppStoreClient && isAndroid;
 
@@ -376,23 +353,6 @@ export function SubscriptionPaywallModal({
             <a href="/privacy" target="_blank" rel="noopener noreferrer" className="hover:text-white transition">
               Privacy Policy
             </a>
-          </div>
-
-          {/* Mock / Dev Bypass Toggle */}
-          <div className="pt-1">
-            <button
-              type="button"
-              onClick={toggleMockBypass}
-              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono transition cursor-pointer ${
-                isMockMode
-                  ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold"
-                  : "text-zinc-600 hover:text-zinc-400"
-              }`}
-              title="Toggle Mock Billing Bypass for development testing without live Google Play API"
-            >
-              <Bug className="w-3 h-3" />
-              <span>{isMockMode ? "Mock Mode ACTIVE (Tap to disable)" : "Dev: Test Mock Billing"}</span>
-            </button>
           </div>
         </div>
       </div>

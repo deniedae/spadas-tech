@@ -136,8 +136,8 @@ export default function LandingFeatures() {
                 <th className="py-4 px-4 sm:px-6 font-bold text-zinc-400 uppercase tracking-wider text-[11px]">Reseller Sourcing Feature</th>
                 <th className="py-4 px-4 sm:px-6 font-extrabold text-cyan-400 bg-cyan-950/20 border-x border-cyan-500/20 text-center sm:text-left">
                   <div className="flex items-center gap-1.5 justify-center sm:justify-start">
-                    <span className="h-2 w-2 rounded-full bg-cyan-400 animate-pulse" />
-                    <span>Spadas Lens</span>
+                    <span className="h-2 w-2 rounded-full bg-cyan-400" />
+                    <span>Spadas</span>
                   </div>
                 </th>
                 <th className="py-4 px-4 sm:px-6 font-bold text-zinc-500 text-center sm:text-left">

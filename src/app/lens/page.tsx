@@ -61,7 +61,7 @@ export default function LensPage() {
     {
       category: "Base Set Pokemon & TCG Cards",
       emoji: "🃏",
-      tag: "Grail Collectibles",
+      tag: "TCG Collectibles",
       demand: "+410% YoY",
       avgProfit: "$190 AUD",
       velocity: "Immediate",

@@ -81,6 +81,7 @@ import {
   sanitizeCompsForUsedCondition,
 } from "@/lib/fragrance-liquid-engine";
 import type { DetectedHit, ActiveScanItem, RawSoldComp } from "@/types/lens";
+import { evaluateCompsEvidence, type CompsEvidence } from "@/lib/comps-evidence-engine";
 
 // Dynamic lazy import for non-critical modal drawer to reduce initial bundle and improve INP
 const LensCopilotDrawer = dynamic(() => import("@/components/lens-copilot-drawer"), {
@@ -139,6 +140,7 @@ export default function LensCompsModal({
   const [compsViewMode, setCompsViewMode] = useState<"carousel" | "list">("carousel");
   const [showAllComps, setShowAllComps] = useState<boolean>(false);
   const [isAdvancedAnalyticsOpen, setIsAdvancedAnalyticsOpen] = useState<boolean>(false);
+  const [showMethodologyModal, setShowMethodologyModal] = useState<boolean>(false);
 
   // Condition & restoration states for advanced analytics
   const [conditionTier, setConditionTier] = useState<PhysicalConditionTier>("used_excellent");
@@ -500,6 +502,20 @@ export default function LensCompsModal({
   );
   const parcelRates = isUsMarket ? USPS_PARCEL_RATES : AUSPOST_PARCEL_RATES;
   const targetCurrency = isUsMarket ? "USD" : "AUD";
+
+  const compsEvidence: CompsEvidence = useMemo(() => {
+    return evaluateCompsEvidence({
+      rawComps: effectiveComps,
+      compsSource: (item as any)?.compsSource,
+      isCachedFallback: Boolean((item as any)?.isCachedFallback),
+      targetTitle: title,
+      brand,
+      condition,
+      category,
+      isUsMarket,
+      fallbackPrice: initialEstValue,
+    });
+  }, [effectiveComps, item, title, brand, condition, category, isUsMarket, initialEstValue]);
 
   const stableSearchQuery = useMemo(() => {
     return [brand, title].filter(Boolean).join(" ").trim().toLowerCase();
@@ -1229,6 +1245,103 @@ export default function LensCompsModal({
               <div className="text-[11px] text-zinc-400 shrink-0 tabular-nums">
                 {isResolvingValuation && effectiveComps.length === 0 ? "Auditing marketplace..." : trustLineText}
               </div>
+            </div>
+
+            {/* ── Valuation Evidence & Provenance Card ── */}
+            <div className="p-3.5 rounded-xl bg-zinc-900/80 border border-zinc-800 space-y-2.5">
+              <div className="flex items-baseline justify-between">
+                <div>
+                  <span className="text-xs text-zinc-400 font-medium block">
+                    {compsEvidence.valuationTitle}
+                  </span>
+                  <div className="text-2xl sm:text-3xl font-black text-white font-mono tracking-tight mt-0.5">
+                    {compsEvidence.formattedValue}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-zinc-800 border border-zinc-700 text-zinc-300">
+                    {compsEvidence.sourceLabel}
+                  </span>
+                  <span className="block text-[10px] text-zinc-500 font-mono mt-0.5">
+                    {compsEvidence.currency}
+                  </span>
+                </div>
+              </div>
+
+              <p className="text-xs text-zinc-400 leading-snug">
+                {compsEvidence.evidenceSubtitle}
+              </p>
+
+              {/* Evidence Provenance Table */}
+              <div className="pt-2 border-t border-zinc-800/80 space-y-1 text-xs font-mono">
+                <div className="flex justify-between text-zinc-400">
+                  <span>Typical range</span>
+                  <span className="text-zinc-200 font-medium">{compsEvidence.typicalRangeFormatted}</span>
+                </div>
+                <div className="flex justify-between text-zinc-400">
+                  <span>Sold median</span>
+                  <span className="text-zinc-200 font-medium">{compsEvidence.soldMedianFormatted}</span>
+                </div>
+                <div className="flex justify-between text-zinc-400">
+                  <span>Market</span>
+                  <span className="text-zinc-200 font-medium">{compsEvidence.marketName}</span>
+                </div>
+                <div className="flex justify-between text-zinc-400">
+                  <span>Condition match</span>
+                  <span className="text-zinc-200 font-medium">{compsEvidence.conditionMatch}</span>
+                </div>
+                <div className="flex justify-between text-zinc-400">
+                  <span>Evidence window</span>
+                  <span className="text-zinc-200 font-medium">{compsEvidence.evidenceWindowText}</span>
+                </div>
+              </div>
+
+              {/* Evidence Action Buttons */}
+              <div className="flex items-center gap-2 pt-2 border-t border-zinc-800/80">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAllComps(true);
+                    const el = document.getElementById("comps-ledger-scroll");
+                    if (el) el.scrollIntoView({ behavior: "smooth" });
+                  }}
+                  className="flex-1 py-1.5 px-2.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-xs font-medium text-zinc-200 text-center transition cursor-pointer"
+                >
+                  View sold listings ({compsEvidence.cleanListings.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowMethodologyModal(!showMethodologyModal)}
+                  className="py-1.5 px-2.5 rounded-lg bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 text-xs font-medium text-zinc-400 hover:text-zinc-200 text-center transition cursor-pointer"
+                >
+                  How estimate is calculated
+                </button>
+              </div>
+
+              {/* Methodology Explanation Drawer */}
+              {showMethodologyModal && (
+                <div className="p-3 rounded-lg bg-zinc-950 border border-cyan-500/30 text-xs space-y-2 mt-2">
+                  <div className="flex items-center justify-between font-bold text-cyan-400">
+                    <span>Calculation Methodology</span>
+                    <button
+                      type="button"
+                      onClick={() => setShowMethodologyModal(false)}
+                      className="p-1 hover:text-white"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  <p className="text-zinc-300 leading-relaxed font-sans text-[11px]">
+                    {compsEvidence.methodologySummary}
+                  </p>
+                  <div className="pt-1.5 border-t border-zinc-800 text-[10px] font-mono text-zinc-400 grid grid-cols-2 gap-1">
+                    <div>Raw Comps: {compsEvidence.methodologyDetails.rawCount}</div>
+                    <div>Usable: {compsEvidence.methodologyDetails.cleanedCount}</div>
+                    <div>Outliers Trimmed: {compsEvidence.methodologyDetails.outliersTrimmed}</div>
+                    <div>Lots Excluded: {compsEvidence.methodologyDetails.lotsExcluded}</div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* The 3 Core Market Pillars */}

@@ -48,7 +48,7 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
   const touchStartXRef = useRef<number | null>(null);
 
   // Pages that don't show sidebar layout (public pages)
-  const publicPages = ["/", "/login", "/signup", "/privacy", "/terms", "/delete-account"];
+  const publicPages = ["/", "/login", "/signup", "/privacy", "/terms", "/press", "/creators", "/delete-account"];
 
   // Track mobile viewport to prevent aria-hidden and focus-trap on desktop sidebar
   const [isMobile, setIsMobile] = useState(false);
@@ -186,7 +186,7 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
   }, []);
 
   // If on a public page, render children plainly
-  if (publicPages.includes(pathname)) {
+  if (publicPages.includes(pathname) || pathname.startsWith("/cert/")) {
     return <>{children}</>;
   }
 

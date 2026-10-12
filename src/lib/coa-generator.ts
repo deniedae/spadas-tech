@@ -5,6 +5,8 @@
  * galleries and one-click formatted listing descriptions with cryptographic digests.
  */
 
+import { SITE_URL } from "@/lib/site-url";
+
 export interface CoaData {
   certId: string;
   productName: string;
@@ -155,7 +157,7 @@ export function generateMarketplaceListingMarkdown(data: CoaData): string {
     ``,
     `CRYPTOGRAPHIC VERIFICATION SIGNATURE:`,
     `SHA-256: ${digest}`,
-    `Digital Verification: https://spadas.ai/cert/${data.certId}`,
+    `Digital Verification: ${SITE_URL}/cert/${data.certId}`,
     `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
     `Pre-screened via Spadas Universal Forensic Authenticity Engine. Buy with confidence!`,
   ];
@@ -341,7 +343,7 @@ export async function renderCoaCanvas(data: CoaData): Promise<HTMLCanvasElement>
   ctx.font = "12px monospace";
   ctx.textAlign = "center";
   ctx.fillText(`CRYPTOGRAPHIC SIGNATURE (SHA-256): ${digest}`, 600, 1090);
-  ctx.fillText(`VERIFY ONLINE: https://spadas.ai/cert/${data.certId} • COPYRIGHT © SPADAS AI`, 600, 1115);
+  ctx.fillText(`VERIFY ONLINE: ${SITE_URL}/cert/${data.certId} • COPYRIGHT © SPADAS TECHNOLOGY`, 600, 1115);
 
   return canvas;
 }

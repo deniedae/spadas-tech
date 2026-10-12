@@ -33,7 +33,7 @@ const SAMPLE_ARBITRAGE_DEALS: CopilotItem[] = [
     roi: 359,
     sellThroughRate: 94,
     verdict: "FAST FLIP",
-    imageUrl: "https://images.unsplash.com/photo-1544441893-675973e31985?auto=format&fit=crop&w=400&q=80",
+    imageUrl: "/grok_vintage_jacket_ar_scan.jpg",
     ebayFormat: {
       title: "Vintage 90s Nike ACG Fleece Jacket Mens Medium Teal Retro Gorpcore",
       desc: "Authentic vintage 1990s Nike ACG fleece jacket in rare teal colorway. Excellent condition with no rips or stains. Soft fleece material, original zippers intact.",
@@ -69,7 +69,7 @@ const SAMPLE_ARBITRAGE_DEALS: CopilotItem[] = [
     roi: 404,
     sellThroughRate: 88,
     verdict: "HIGH MARGIN",
-    imageUrl: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=400&q=80",
+    imageUrl: "/grok_authentic_thrift_carhartt.jpg",
     ebayFormat: {
       title: "Sony Handycam DCR-TRV280 Digital8 NTSC Camcorder VCR Tape Transfer Tested",
       desc: "Fully tested and working Sony Handycam Digital8 DCR-TRV280. Perfect for digitizing old 8mm / Hi8 tapes. Includes battery and charger.",

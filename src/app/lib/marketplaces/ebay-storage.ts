@@ -1,13 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
 
-/**
- * High-resolution fallback placeholder so eBay API never rejects with
- * error 25002 ("Add at least 1 photo"). Only used when upload truly fails
- * AND we have no other valid https:// URL.
- */
-const DEFAULT_FALLBACK_IMAGE =
-  "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=1200&auto=format&fit=crop&q=80";
-
 const PRIMARY_BUCKET = "listing-images";
 
 /**
@@ -90,8 +82,7 @@ export async function convertBase64ToPublicUrls(
 
   // Nothing to convert — return as-is
   if (base64Images.length === 0) {
-    const result = alreadyPublic.length > 0 ? alreadyPublic : [DEFAULT_FALLBACK_IMAGE];
-    return { urls: result, allUploaded: true };
+    return { urls: alreadyPublic, allUploaded: true };
   }
 
   // Supabase not configured
@@ -99,8 +90,7 @@ export async function convertBase64ToPublicUrls(
     console.error(
       "[ebay-storage] Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY — cannot upload base64 images."
     );
-    const result = alreadyPublic.length > 0 ? alreadyPublic : [DEFAULT_FALLBACK_IMAGE];
-    return { urls: result, allUploaded: false };
+    return { urls: alreadyPublic, allUploaded: false };
   }
 
   let supabase: ReturnType<typeof createClient>;
@@ -110,8 +100,7 @@ export async function convertBase64ToPublicUrls(
     });
   } catch (clientErr) {
     console.error("[ebay-storage] Supabase client init failed:", clientErr);
-    const result = alreadyPublic.length > 0 ? alreadyPublic : [DEFAULT_FALLBACK_IMAGE];
-    return { urls: result, allUploaded: false };
+    return { urls: alreadyPublic, allUploaded: false };
   }
 
   // Auto-create the bucket if it doesn't exist
@@ -180,8 +169,8 @@ export async function convertBase64ToPublicUrls(
   }
 
   if (publicUrls.length === 0) {
-    console.warn("[ebay-storage] All uploads failed — using fallback placeholder.");
-    return { urls: [DEFAULT_FALLBACK_IMAGE], allUploaded: false };
+    console.warn("[ebay-storage] All uploads failed — no valid public image URLs available.");
+    return { urls: [], allUploaded: false };
   }
 
   return { urls: publicUrls, allUploaded: failCount === 0 };

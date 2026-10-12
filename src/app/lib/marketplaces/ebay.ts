@@ -600,9 +600,9 @@ export async function publishToEbayInventory(
   );
 
   if (validHttpImageUrls.length === 0) {
-    validHttpImageUrls = [
-      "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=1200&auto=format&fit=crop&q=80",
-    ];
+    throw new Error(
+      "Cannot publish listing to eBay without at least one valid public image URL. Please attach or capture a photo before publishing."
+    );
   }
 
   const condition = mapToEbayCondition(listing.condition || "Used");

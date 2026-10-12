@@ -52,19 +52,10 @@ export async function POST(req: NextRequest) {
     } = body;
 
     if (body.isMock || (typeof purchaseToken === "string" && purchaseToken.startsWith("mock_"))) {
-      if (process.env.NODE_ENV === "production") {
-        return NextResponse.json(
-          { error: "Mock mode is disabled in production." },
-          { status: 403 }
-        );
-      }
-      return NextResponse.json({
-        success: true,
-        active: true,
-        isMock: true,
-        productId: sku,
-        message: "Mock Google Play subscription verified successfully.",
-      });
+      return NextResponse.json(
+        { error: "Simulated or mock purchase tokens are not permitted." },
+        { status: 400 }
+      );
     }
 
     if (!purchaseToken) {

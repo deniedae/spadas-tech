@@ -9,6 +9,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Toaster } from "@/components/ui/sonner";
 import Script from "next/script";
 import { WebVitals } from "@/components/web-vitals";
+import { SITE_URL, IS_PREVIEW_DEPLOYMENT } from "@/lib/site-url";
 
 const geistSans = Geist({
   subsets: ["latin"],
@@ -26,8 +27,8 @@ export const metadata: Metadata = {
     template: "%s · Thrift Comps: Resale Scanner",
   },
   description:
-    "The #1 optical scanner & sold comps app for thrift resellers. Scan thrift stores, yard sales & op shops instantly. Get verified eBay sold comps, calculate true net profit after fees & shipping, and cross-list in seconds.",
-  metadataBase: new URL("https://spadas.ai"),
+    "Optical scanner & sold comps app for thrift resellers. Scan items in thrift stores, yard sales & op shops with verified eBay sold comps, net profit calculation after fees & shipping, and fast listing.",
+  metadataBase: new URL(SITE_URL),
   applicationName: "Thrift Comps: Resale Scanner",
   authors: [{ name: "Spadas Tech" }],
   keywords: [
@@ -51,14 +52,14 @@ export const metadata: Metadata = {
   ],
   openGraph: {
     type: "website",
-    url: "https://spadas.ai",
+    url: SITE_URL,
     title: "Thrift Comps: Resale Scanner & Profit App",
     description:
       "Instant optical scanner & sold comps app for thrift resellers. Scan thrift finds instantly, calculate true net profit with live eBay sold comps, and cross-list in seconds.",
     siteName: "Thrift Comps: Resale Scanner",
     images: [
       {
-        url: "https://spadas.ai/og-preview.jpg",
+        url: `${SITE_URL}/og-preview.jpg`,
         width: 1200,
         height: 630,
         alt: "eBay Reseller Scanner: Thrift Profit & Sold Comps App",
@@ -70,8 +71,9 @@ export const metadata: Metadata = {
     title: "eBay Reseller Scanner: Thrift Profit & Sold Comps App",
     description:
       "Instant optical AR scanner & barcode reader for eBay resellers. Scan thrift finds instantly, calculate true net profit with live eBay US & Australia sold comps, and cross-list in seconds.",
-    images: ["https://spadas.ai/og-preview.jpg"],
+    images: [`${SITE_URL}/og-preview.jpg`],
   },
+
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "any" },
@@ -84,8 +86,15 @@ export const metadata: Metadata = {
   },
   manifest: "/manifest.webmanifest",
   robots: {
-    index: true,
-    follow: true,
+    index: !IS_PREVIEW_DEPLOYMENT,
+    follow: !IS_PREVIEW_DEPLOYMENT,
+    googleBot: {
+      index: !IS_PREVIEW_DEPLOYMENT,
+      follow: !IS_PREVIEW_DEPLOYMENT,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
   },
   appleWebApp: {
     capable: true,
@@ -125,7 +134,7 @@ export default function RootLayout({
         <link rel="preload" href="/icon-192.png" as="image" type="image/png" />
         <link rel="dns-prefetch" href="https://i.ebayimg.com" />
         <link rel="preconnect" href="https://i.ebayimg.com" crossOrigin="anonymous" />
-        <meta property="og:image" content="https://spadas.ai/og-preview.jpg" />
+        <meta property="og:image" content={`${SITE_URL}/og-preview.jpg`} />
         <meta name="theme-color" content="#0a0a0a" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-touch-fullscreen" content="yes" />
@@ -137,12 +146,12 @@ export default function RootLayout({
             __html: JSON.stringify({
               "@context": "https://schema.org",
               "@type": "SoftwareApplication",
-              name: "Reseller Scanner - Spadas Lens",
+              name: "Spadas Resale Scanner",
               operatingSystem: "Android, iOS, Web",
               applicationCategory: "BusinessApplication",
               applicationSubCategory: "ShoppingApplication",
-              url: "https://spadas.ai",
-              image: "https://spadas.ai/icon-512.png",
+              url: SITE_URL,
+              image: `${SITE_URL}/icon-512.png`,
               offers: {
                 "@type": "Offer",
                 price: "0",
@@ -150,17 +159,18 @@ export default function RootLayout({
                 description: "3 free scans to test. Unlimited tier available.",
               },
               description:
-                "Instant optical scanner & AI reseller copilot. Scan barcodes & thrift shelves instantly, calculate net profit with live eBay Australia, Depop & Gumtree sold comps, and generate ready-to-post listings.",
+                "Optical scanner & sold comps app for thrift resellers. Scan barcodes & thrift finds, calculate net profit with live eBay sold comps, and generate ready-to-post listings.",
               featureList: [
-                "Instant 60fps barcode & shelf camera scanner",
-                "Real eBay Australia, Depop AU & Gumtree sold comps",
-                "Net profit calculator factoring Australian platform fees & AusPost shipping",
-                "1-click AI listing generator from photos",
-                "Cross-listing inventory management",
+                "Camera & barcode scanner with instant optical recognition",
+                "Real completed eBay sold comps with outlier IQR trimming",
+                "Net profit calculator factoring selling fees & parcel postage",
+                "Ready-to-post listing generator",
+                "Inventory haul tracking and CSV export",
               ],
             }),
           }}
         />
+
         <script
           dangerouslySetInnerHTML={{
             __html: `

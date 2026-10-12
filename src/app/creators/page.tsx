@@ -17,14 +17,24 @@ import {
   Award,
 } from "lucide-react";
 
+import { SITE_URL } from "@/lib/site-url";
+
 export const metadata = {
-  title: "Creators Program | Spadas Lens",
+  title: "Creator Partner Program · Spadas",
   description:
-    "Partner with Spadas Lens for creator campaigns, product demos, and sponsored reseller content.",
+    "Partner with Spadas for creator sponsorships, affiliate commissions, and reseller sourcing content.",
   alternates: {
-    canonical: "https://spadas.ai/creators",
+    canonical: `${SITE_URL}/creators`,
+  },
+  openGraph: {
+    title: "Creator Partner Program · Spadas",
+    description:
+      "Partner with Spadas for creator sponsorships, affiliate commissions, and reseller sourcing content.",
+    url: `${SITE_URL}/creators`,
+    siteName: "Spadas Resale Scanner",
   },
 };
+
 
 const creatorPerks = [
   {
@@ -86,7 +96,7 @@ export default function CreatorsPage() {
             href="/"
             className="inline-flex items-center gap-2 text-sm font-medium text-blue-400 hover:text-blue-300 transition-colors"
           >
-            <ArrowLeft className="h-4 w-4" /> Back to Spadas Lens
+            <ArrowLeft className="h-4 w-4" /> Back to Spadas
           </Link>
 
           <div className="flex items-center gap-4">

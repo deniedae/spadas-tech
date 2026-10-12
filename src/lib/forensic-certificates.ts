@@ -60,10 +60,12 @@ export function generateCertificateId(productName = "", brand = ""): string {
   return `cert_${brandPrefix ? `${brandPrefix}_` : ""}${randomChars}`;
 }
 
+import { SITE_URL } from "@/lib/site-url";
+
 export async function saveCertificate(
   cert: ForensicCertificateData
 ): Promise<{ success: boolean; id: string; url: string }> {
-  const url = `https://spadas.ai/cert/${cert.id}`;
+  const url = `${SITE_URL}/cert/${cert.id}`;
   // Always cache locally in-memory
   globalCertificateCache.set(cert.id, cert);
 

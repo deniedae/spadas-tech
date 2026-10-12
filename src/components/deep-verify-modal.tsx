@@ -539,35 +539,7 @@ export function DeepVerifyModal({
         toast.success("Audited on visible hallmarks & construction!");
       }
     } catch (err: any) {
-      toast.error("Forensic check encountered network latency. Generated local heuristic audit.");
-      setResult({
-        product_name: productName,
-        brand: brand,
-        category: selectedCategory,
-        verdict: "AUTHENTIC",
-        authenticity_score: 95,
-        confidence: "HIGH",
-        forensic_breakdown: {
-          material: 96,
-          typography: 95,
-          craftsmanship: 95,
-          hardware: 94,
-          security_tags_and_codes: 95,
-        },
-        positive_indicators: [
-          "Primary visual hallmarks align with authentic manufacturer specifications.",
-          "Surface texture and reflection consistent with genuine composition.",
-          "Uniform construction and zero visible counterfeit anomalies.",
-        ],
-        red_flags: [],
-        inconclusive_areas: [],
-        decisive_tells: [
-          "Authentic material construction and seam stitching verified on submitted angles.",
-        ],
-        forensic_summary: `Audit of "${productName}" matches authentic benchmarks across visible materials and hallmarks.`,
-        recommendation: "SAFE_TO_BUY",
-        isMockFallback: true,
-      });
+      toast.error(err?.message || "Forensic check failed. Please check connection and try again.");
       stopCamera();
     } finally {
       clearInterval(stageInterval);
@@ -575,7 +547,7 @@ export function DeepVerifyModal({
     }
   };
 
-  const publicCertUrl = result?.certificate_url || (result?.certificate_id ? `https://spadas.ai/cert/${result.certificate_id}` : "https://spadas.ai/cert/demo");
+  const publicCertUrl = result?.certificate_url || (result?.certificate_id ? `/cert/${result.certificate_id}` : "/cert/demo");
 
   const handleCopyCertificate = () => {
     if (!result) return;
