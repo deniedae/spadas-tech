@@ -238,7 +238,7 @@ export function OnboardingCarousel({ onComplete, onSkip }: OnboardingCarouselPro
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
-      className="fixed inset-0 z-50 flex flex-col justify-between bg-[#06080F] text-zinc-100 p-4 sm:p-6 select-none overflow-hidden"
+      className="fixed inset-0 z-[99999] flex flex-col justify-between bg-[#06080F] text-zinc-100 p-4 sm:p-6 select-none overflow-hidden"
     >
       {/* Ambient Radial Glow Backdrop */}
       <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-xl h-72 bg-gradient-to-b from-cyan-500/10 via-emerald-500/5 to-transparent blur-3xl" />
@@ -258,7 +258,7 @@ export function OnboardingCarousel({ onComplete, onSkip }: OnboardingCarouselPro
               aria-label={`Go to slide ${idx + 1}`}
               className={`h-2 rounded-full transition-all duration-300 cursor-pointer ${
                 currentSlide === idx
-                  ? "w-7 bg-gradient-to-r from-cyan-400 to-emerald-400 shadow-[0_0_12px_rgba(6,182,212,0.6)]"
+                  ? "w-7 bg-white shadow-sm"
                   : "w-2 bg-zinc-800 hover:bg-zinc-700"
               }`}
             />
@@ -303,17 +303,31 @@ export function OnboardingCarousel({ onComplete, onSkip }: OnboardingCarouselPro
         <button
           type="button"
           onClick={handleNext}
-          className="w-full h-12 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 via-teal-500 to-emerald-500 text-slate-950 font-bold text-sm shadow-[0_0_24px_rgba(6,182,212,0.4)] hover:shadow-[0_0_30px_rgba(16,185,129,0.5)] active:scale-[0.98] transition cursor-pointer"
+          className="w-full h-12 flex items-center justify-center gap-2 rounded-xl bg-white hover:bg-zinc-100 text-zinc-950 font-bold text-sm shadow-md active:scale-[0.98] transition cursor-pointer"
         >
-          <span>{currentSlide === slides.length - 1 ? "Start Free Trial" : "Continue"}</span>
-          <ArrowRight className="w-4 h-4" />
+          <span>
+            {currentSlide === slides.length - 1
+              ? "Start 3-Day Free Trial ($0 Today)"
+              : "Continue"}
+          </span>
+          <ArrowRight className="w-4 h-4 text-zinc-950" />
         </button>
 
-        <div className="flex items-center justify-center gap-1.5 text-[11px] text-zinc-500 font-mono">
-          <span>Slide {currentSlide + 1} of {slides.length}</span>
-          <span>·</span>
-          <span>Swipe or tap to navigate</span>
-        </div>
+        {currentSlide === slides.length - 1 ? (
+          <button
+            type="button"
+            onClick={handleSkip}
+            className="w-full py-1.5 text-xs font-semibold text-zinc-400 hover:text-white transition text-center cursor-pointer"
+          >
+            Or test with 3 free scans first →
+          </button>
+        ) : (
+          <div className="flex items-center justify-center gap-1.5 text-[11px] text-zinc-500 font-mono">
+            <span>Card {currentSlide + 1} of {slides.length}</span>
+            <span>·</span>
+            <span>Swipe or tap to navigate</span>
+          </div>
+        )}
       </div>
     </div>
   );

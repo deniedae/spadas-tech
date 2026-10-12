@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import dynamic from "next/dynamic";
-import { FirstLaunchWelcomeModal } from "@/components/first-launch-welcome-modal";
 import { performPrimeReset } from "@/lib/prime-reset";
 
 const OnboardingCarousel = dynamic(
@@ -16,22 +15,15 @@ const SubscriptionPaywallModal = dynamic(
   { ssr: false }
 );
 
-export const FIRST_LAUNCH_WELCOME_KEY = "spadas_first_launch_welcome_v1";
-
 /**
  * GlobalFirstLaunchFlow:
- * Ensures that ANY fresh phone, new install, or new session immediately sees the
- * 3 Free Scans Welcome Screen the second the app is loaded on ANY route.
- *
- * It transparently highlights:
- * - 3 Free Scans Ready & Countdown (3 -> 2 -> 1 -> 0)
- * - Clear explanation that once 3 scans are used, upgrade to Spadas Pro ($10 AUD / $6.99 USD/mo)
- * - 1-tap entry straight into the camera scanner or instant Pro upgrade.
+ * Ensures that ANY fresh phone or new user opening the app immediately sees
+ * the 3 display cards showing how the app works (OnboardingCarousel), followed by
+ * the 3-day free trial offer and direct entry into the scanner.
  */
 export function GlobalFirstLaunchFlow() {
   const router = useRouter();
   const pathname = usePathname();
-  const [showWelcome, setShowWelcome] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
 
@@ -49,61 +41,35 @@ export function GlobalFirstLaunchFlow() {
     }
 
     try {
-      // Diagnostic & QA query parameter support: ?welcome=1 or ?reset=1
+      // Diagnostic & QA query parameter support: ?onboarding=1 or ?welcome=1 or ?reset=1
       const searchParams = new URLSearchParams(window.location.search);
       if (searchParams.get("reset") === "1") {
         performPrimeReset({ resetWelcomeModal: true });
-        setShowWelcome(true);
+        localStorage.removeItem("hasCompletedOnboarding");
+        setShowOnboarding(true);
         return;
       }
-      if (searchParams.get("welcome") === "1") {
-        setShowWelcome(true);
+      if (searchParams.get("onboarding") === "1" || searchParams.get("welcome") === "1") {
+        setShowOnboarding(true);
         return;
       }
 
-      const hasSeenWelcome = localStorage.getItem(FIRST_LAUNCH_WELCOME_KEY) === "true";
-      if (!hasSeenWelcome) {
-        setShowWelcome(true);
+      const hasCompleted = localStorage.getItem("hasCompletedOnboarding") === "true";
+      if (!hasCompleted) {
+        setShowOnboarding(true);
       }
     } catch {
-      // Fallback: If localStorage is restricted, show welcome once
-      setShowWelcome(true);
+      // Fallback: If localStorage is restricted, show onboarding once
+      setShowOnboarding(true);
     }
   }, [pathname]);
-
-  const handleStartScanning = useCallback(() => {
-    setShowWelcome(false);
-    try {
-      localStorage.setItem(FIRST_LAUNCH_WELCOME_KEY, "true");
-      localStorage.setItem("hasCompletedOnboarding", "true");
-    } catch {}
-
-    if (pathname !== "/lens") {
-      router.push("/lens");
-    }
-  }, [pathname, router]);
-
-  const handleUpgradePro = useCallback(() => {
-    setShowWelcome(false);
-    try {
-      localStorage.setItem(FIRST_LAUNCH_WELCOME_KEY, "true");
-      localStorage.setItem("hasCompletedOnboarding", "true");
-    } catch {}
-
-    setShowPaywall(true);
-  }, []);
-
-  const handleViewGuide = useCallback(() => {
-    setShowWelcome(false);
-    setShowOnboarding(true);
-  }, []);
 
   const handleCompleteOnboarding = useCallback(() => {
     setShowOnboarding(false);
     try {
       localStorage.setItem("hasCompletedOnboarding", "true");
-      localStorage.setItem(FIRST_LAUNCH_WELCOME_KEY, "true");
     } catch {}
+    // Completing the 3 cards leads directly into the 3-day free trial paywall
     setShowPaywall(true);
   }, []);
 
@@ -111,8 +77,8 @@ export function GlobalFirstLaunchFlow() {
     setShowOnboarding(false);
     try {
       localStorage.setItem("hasCompletedOnboarding", "true");
-      localStorage.setItem(FIRST_LAUNCH_WELCOME_KEY, "true");
     } catch {}
+    // Skip / test 3 free scans takes user straight into the optical camera
     if (pathname !== "/lens") {
       router.push("/lens");
     }
@@ -125,20 +91,12 @@ export function GlobalFirstLaunchFlow() {
     }
   }, [pathname, router]);
 
-  if (!showWelcome && !showOnboarding && !showPaywall) {
+  if (!showOnboarding && !showPaywall) {
     return null;
   }
 
   return (
     <>
-      {showWelcome && (
-        <FirstLaunchWelcomeModal
-          isOpen={showWelcome}
-          onStartScanning={handleStartScanning}
-          onUpgradePro={handleUpgradePro}
-          onViewGuide={handleViewGuide}
-        />
-      )}
       {showOnboarding && (
         <OnboardingCarousel
           onComplete={handleCompleteOnboarding}
