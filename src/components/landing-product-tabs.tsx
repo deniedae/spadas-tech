@@ -63,10 +63,10 @@ const MODES: ProductMode[] = [
     badge: "REAL-TIME FEE SIMULATOR",
     title: "Reseller Profit Calculator",
     icon: "💰",
-    description: "Simulate exact net profit, margin %, and ROI % across eBay Australia (13.4% + $0.33), Depop, and Facebook Marketplace before spending a single dollar.",
+    description: "Simulate exact net profit, margin %, and ROI % across eBay (US & AU), Poshmark, Depop, and Facebook Marketplace before spending a single dollar.",
     metrics: [
-      { label: "Marketplace Fees", value: "Exact 13.4%" },
-      { label: "Postage Satchels", value: "AusPost Pre-set" },
+      { label: "Marketplace Fees", value: "Exact 13.25%-13.4%" },
+      { label: "Postage Satchels", value: "USPS & AusPost" },
       { label: "Margin Insights", value: "Instant ROI %" },
     ],
     actionText: "Calculate Profits",

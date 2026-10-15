@@ -147,9 +147,10 @@ async function fetchLoggedInFacebookMarketplaceDeals(
 /**
  * Fetches REAL LIVE Sold Items directly from Live Market Data APIs (sold-comps API)
  */
-async function fetchRealMarketData(searchQuery: string): Promise<RealEbayItem[]> {
+async function fetchRealMarketData(searchQuery: string, currency = "AUD"): Promise<RealEbayItem[]> {
   const keywordEnc = encodeURIComponent(searchQuery);
-  const endpoint = `https://api.sold-comps.com/v1/scrape?keyword=${keywordEnc}&ebaySite=ebay.com.au&page=1&count=8&daysToScrape=30&sortOrder=endedRecently`;
+  const ebaySite = currency === "USD" ? "ebay.com" : "ebay.com.au";
+  const endpoint = `https://api.sold-comps.com/v1/scrape?keyword=${keywordEnc}&ebaySite=${ebaySite}&page=1&count=8&daysToScrape=90&sortOrder=endedRecently`;
 
   try {
     const res = await fetch(endpoint, {
@@ -175,9 +176,10 @@ async function fetchRealMarketData(searchQuery: string): Promise<RealEbayItem[]>
     console.warn("Live sold-comps API notice:", err);
   }
 
-  // Backup eBay Australia Sold Comps Scraper Feed
+  // Backup eBay Sold Comps Scraper Feed
   try {
-    const ebayUrl = `https://www.ebay.com.au/sch/i.html?_nkw=${keywordEnc}&_sacat=0&LH_Sold=1&LH_Complete=1&_sop=12`;
+    const ebayDomain = currency === "USD" ? "www.ebay.com" : "www.ebay.com.au";
+    const ebayUrl = `https://${ebayDomain}/sch/i.html?_nkw=${keywordEnc}&_sacat=0&LH_Sold=1&LH_Complete=1&_sop=12`;
     const res = await fetch(ebayUrl, {
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",

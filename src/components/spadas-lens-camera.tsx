@@ -2247,7 +2247,7 @@ function SpadasLensCameraCore({
           suggested_price_median: hit.estimatedValue,
           suggested_price_min: Math.round(hit.estimatedValue * 0.8),
           suggested_price_max: Math.round(hit.estimatedValue * 1.2),
-          suggested_price_currency: "AUD",
+          suggested_price_currency: selectedCurrency,
           detected_tag_price: hit.tagPrice,
           true_net_profit: hit.trueNetProfit,
           roi_percentage: hit.roiPercentage,

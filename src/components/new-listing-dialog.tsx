@@ -9,6 +9,7 @@ import {
   DialogContent,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { detectGeoCurrency } from "@/app/lib/currency-routing";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -139,7 +140,10 @@ export default function NewListingDialog({
       const response = await fetch("/api/rapid-thrift", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image: payloadUrl, currency: "AUD" }),
+        body: JSON.stringify({
+          image: payloadUrl,
+          currency: detectGeoCurrency().currency,
+        }),
       });
 
       const result = await response.json();

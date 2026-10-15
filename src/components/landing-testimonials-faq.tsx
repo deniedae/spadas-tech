@@ -10,15 +10,15 @@ const faqs = [
   },
   {
     q: "Which marketplaces are supported?",
-    a: "Thrift Flip benchmarks pricing and sold comps across eBay (Australia & global) and supports 1-click cross-listing for eBay Australia, Depop, Gumtree, and Facebook Marketplace.",
+    a: "Spadas benchmarks pricing and sold comps across eBay (US & Australia) and supports 1-click cross-listing for eBay, Poshmark, Depop, and Facebook Marketplace.",
   },
   {
     q: "How does turnover velocity prevent buying bad stock?",
     a: "The algorithm calculates 90-day sold volume divided by total active supply. Items with low turnover (<15% STR) are flagged as high-risk hoarder traps, while fast movers (>100% STR) trigger high-velocity alerts.",
   },
   {
-    q: "How do I install the native Android APK?",
-    a: "You can download the official signed Android APK (~982 KB) directly from our website. Open the APK on your Android device and tap Install for 60 FPS hardware acceleration and Home Screen profit widgets.",
+    q: "How do I install the Android App?",
+    a: "Spadas is available on the Google Play Store with 60 FPS hardware-accelerated optical scanning, real-time sold comps, and instant profit calculations.",
   },
 ];
 

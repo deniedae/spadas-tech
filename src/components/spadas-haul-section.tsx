@@ -1250,7 +1250,7 @@ export function SpadasHaulSection({
                       type="button"
                       onClick={() => setEbayItem(item)}
                       className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-zinc-200 border border-white/10 text-xs font-semibold transition cursor-pointer active:scale-95"
-                      title="Draft directly to eBay Australia"
+                      title={`Draft directly to ${item.currency === "USD" ? "eBay US" : "eBay Australia"}`}
                     >
                       <span>EBAY</span>
                       <ExternalLink className="h-2.5 w-2.5" />

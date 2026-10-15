@@ -26,6 +26,7 @@ import { toast } from "sonner";
 import { supabase } from "@/app/lib/supabase";
 import { isOwnerEmail } from "@/app/lib/auth-admin";
 import type { SupportTicketRecord } from "@/app/lib/support-tickets";
+import { detectGeoCurrency } from "@/app/lib/currency-routing";
 
 interface ChatMessage {
   id: string;
@@ -43,9 +44,17 @@ interface SupportTicket {
 
 const STORAGE_KEY = "spadas_support_desk_v1";
 
-const DEFAULT_SUPPORT_PROMPT_CHIPS = [
+const US_SUPPORT_PROMPT_CHIPS = [
+  { label: "🇺🇸 How does US comping work?", prompt: "How does the geo-strict eBay US comps engine work?" },
+  { label: "📦 USPS postage & rates?", prompt: "How are domestic USPS shipping costs calculated for valuations?" },
+  { label: "💰 P&L formula details?", prompt: "What exact fees and deductions are in the Net Profit calculation?" },
+  { label: "🛒 How to publish to eBay?", prompt: "How do I connect and publish items directly to eBay US?" },
+  { label: "⚡ Starter vs Pro features?", prompt: "What are the key differences between the Starter and Pro plans?" },
+];
+
+const AU_SUPPORT_PROMPT_CHIPS = [
   { label: "🇦🇺 How does AU comping work?", prompt: "How does the geo-strict eBay Australia comps engine work?" },
-  { label: "🌐 What if an item is US-only?", prompt: "How does US-only comps fallback and scarcity pricing work?" },
+  { label: "📦 AusPost postage & rates?", prompt: "How are domestic Australia Post shipping costs calculated?" },
   { label: "💰 P&L formula details?", prompt: "What exact fees and deductions are in the Net Profit calculation?" },
   { label: "🛒 How to publish to eBay?", prompt: "How do I connect and publish items directly to eBay AU?" },
   { label: "⚡ Starter vs Pro features?", prompt: "What are the key differences between the Starter and Pro plans?" },
@@ -924,7 +933,7 @@ export default function DashboardSupportDesk({
 
                 {/* Quick Diagnostics Chips */}
                 <div className="px-3 py-2 border-t border-zinc-850 bg-zinc-950/90 overflow-x-auto no-scrollbar flex items-center gap-1.5 shrink-0">
-                  {DEFAULT_SUPPORT_PROMPT_CHIPS.map((chip, idx) => (
+                  {((typeof window !== "undefined" && detectGeoCurrency().currency === "USD") ? US_SUPPORT_PROMPT_CHIPS : AU_SUPPORT_PROMPT_CHIPS).map((chip, idx) => (
                     <button
                       key={idx}
                       type="button"

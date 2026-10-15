@@ -6,6 +6,7 @@
 
 import { calculateThriftCopVerdict } from "./thrift-cop-engine";
 import { fetchEbayAustraliaSoldComps } from "@/app/lib/ebay-australia-comps";
+import { SupportedCurrency, detectGeoCurrency } from "@/app/lib/currency-routing";
 import { estimatePrice } from "@/app/lib/barcode/pricing";
 import { normalizeProduct } from "@/app/lib/barcode/ai";
 import type { DetectedHit, ActiveScanItem } from "@/types/lens";
@@ -18,6 +19,7 @@ export interface ParallelAppraisalInput {
   barcode?: string;
   imageDataUrl?: string;
   tagPrice?: number;
+  currency?: SupportedCurrency;
 }
 
 export interface ParallelAppraisalOutput {
@@ -38,6 +40,7 @@ export async function executeParallelAppraisal(
   const rawBrand = (input.brand || "Authentic").trim();
   const rawCategory = input.category || "General Resale";
   const rawCondition = input.condition || "Used - Good";
+  const targetCurrency = input.currency || (typeof window !== "undefined" ? detectGeoCurrency().currency : "USD");
 
   // 1. Parallel Task 1: AI Brand & Title Normalization
   const normalizeTask = normalizeProduct({
@@ -46,10 +49,10 @@ export async function executeParallelAppraisal(
     brand: rawBrand !== "Authentic" ? rawBrand : undefined,
   });
 
-  // 2. Parallel Task 2: Live Sold Comps Query (eBay AU)
+  // 2. Parallel Task 2: Live Sold Comps Query (strict regional market)
   const compsTask = fetchEbayAustraliaSoldComps(
     `${rawBrand !== "Authentic" ? rawBrand : ""} ${rawName}`.trim(),
-    "AUD"
+    targetCurrency
   );
 
   // 3. Parallel Task 3: Category & Baseline Estimation
@@ -57,6 +60,7 @@ export async function executeParallelAppraisal(
     name: rawName,
     category: rawCategory,
     brand: rawBrand,
+    currency: targetCurrency,
   });
 
   // Execute all 3 tasks concurrently in parallel
@@ -90,7 +94,10 @@ export async function executeParallelAppraisal(
 
   // Cost & Profit calculations
   const tagCost = input.tagPrice || Math.max(2, Math.round(estValue * 0.15));
-  const ebayFee = Math.round((estValue * 0.134 + 0.33) * 100) / 100;
+  const isUs = targetCurrency === "USD";
+  const feeRate = isUs ? 0.1325 : 0.134;
+  const fixedFee = isUs ? 0.30 : 0.33;
+  const ebayFee = Math.round((estValue * feeRate + fixedFee) * 100) / 100;
   const netProfit = Math.max(0, Math.round((estValue - tagCost - ebayFee) * 100) / 100);
   const roi = tagCost > 0 ? Math.round((netProfit / tagCost) * 100) : 0;
 

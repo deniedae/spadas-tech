@@ -575,7 +575,7 @@ export default function AuditCompsLedger({
               ) : (
                 <>
                   <AlertCircle className="h-3.5 w-3.5 text-amber-400 shrink-0" />
-                  <span>No historical sold transactions • Algorithmic appraisal active</span>
+                  <span>No domestic comps found • Algorithmic appraisal active</span>
                 </>
               )}
             </p>
@@ -747,7 +747,7 @@ export default function AuditCompsLedger({
               <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.06] flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
                 <div className="space-y-0.5">
                   <span className="text-xs font-semibold text-zinc-200 block">Want to inspect active competitor listings?</span>
-                  <span className="text-[11px] text-zinc-400 block">Search eBay Australia directly to see current asking prices for similar items.</span>
+                  <span className="text-[11px] text-zinc-400 block">Search {currency === "USD" ? "eBay US" : "eBay Australia"} directly to see current asking prices for similar items.</span>
                 </div>
                 <a
                   href={globalEbayRegistryUrl}

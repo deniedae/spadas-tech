@@ -3,6 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { checkUserUsage } from "@/app/lib/usage";
 import type { AiListingResult } from "@/types/ai-listing";
+import { detectGeoCurrency } from "@/app/lib/currency-routing";
 
 export const preferredRegion = "syd1";
 
@@ -68,13 +69,13 @@ function estimateFees(salePrice: number, shipping: number) {
 }
 
 // 1. Primary Scraper with 2500ms Circuit Breaker Timeout
-async function fetchPrimaryComps(keyword: string): Promise<Array<{ title?: string; condition?: string; soldPrice: number; soldCurrency: string }>> {
+async function fetchPrimaryComps(keyword: string, ebaySite: string, defaultCurrency: string): Promise<Array<{ title?: string; condition?: string; soldPrice: number; soldCurrency: string }>> {
   const host = "api" + "." + "sold-comps" + "." + "com";
   const path = "/v1/scrape";
   const scEndpoint =
     "https://" + host + path +
     "?keyword=" + encodeURIComponent(keyword) +
-    "&ebaySite=ebay.com.au" +
+    `&ebaySite=${ebaySite}` +
     "&page=1" +
     "&count=240" +
     "&daysToScrape=30" +
@@ -104,7 +105,7 @@ async function fetchPrimaryComps(keyword: string): Promise<Array<{ title?: strin
       title: i.title || "",
       condition: i.condition || "",
       soldPrice: Number(i.soldPrice) || 0,
-      soldCurrency: i.soldCurrency || "AUD",
+      soldCurrency: i.soldCurrency || defaultCurrency,
     }));
   } catch (err) {
     clearTimeout(timeoutId);
@@ -113,9 +114,9 @@ async function fetchPrimaryComps(keyword: string): Promise<Array<{ title?: strin
 }
 
 // 2. SerpApi Backup Scraper Fallback (Currency Lock: AUD)
-async function fetchBackupComps(productName: string): Promise<Array<{ title?: string; condition?: string; soldPrice: number; soldCurrency: string }>> {
+async function fetchBackupComps(productName: string, ebayDomain: string, defaultCurrency: string): Promise<Array<{ title?: string; condition?: string; soldPrice: number; soldCurrency: string }>> {
   if (!SERPAPI_KEY) return [];
-  const serpUrl = `https://serpapi.com/search.json?engine=ebay&ebay_domain=ebay.com.au&_nkw=${encodeURIComponent(productName)}&LH_Sold=1&LH_Complete=1&api_key=${SERPAPI_KEY}`;
+  const serpUrl = `https://serpapi.com/search.json?engine=ebay&ebay_domain=${ebayDomain}&_nkw=${encodeURIComponent(productName)}&LH_Sold=1&LH_Complete=1&api_key=${SERPAPI_KEY}`;
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 3500);
@@ -147,7 +148,7 @@ async function fetchBackupComps(productName: string): Promise<Array<{ title?: st
         title: item.title || "",
         condition: item.condition || "Used",
         soldPrice: priceNum,
-        soldCurrency: "AUD",
+        soldCurrency: defaultCurrency,
       };
     });
   } catch (err) {
@@ -203,6 +204,10 @@ export async function POST(req: Request) {
       imageUrls: string[];
       cost: number;
     };
+    const countryHeader = req.headers.get("x-vercel-ip-country") || req.headers.get("cf-ipcountry");
+    const detectedCurrency = detectGeoCurrency(countryHeader).currency;
+    const ebaySite = detectedCurrency === "USD" ? "ebay.com" : "ebay.com.au";
+    const ebayDomain = detectedCurrency === "USD" ? "ebay.com" : "ebay.com.au";
 
     if (!imageUrls || imageUrls.length === 0) {
       return NextResponse.json(
@@ -242,13 +247,13 @@ export async function POST(req: Request) {
 
     const pName = ai.analysis?.product_name || "";
     try {
-      rawComps = pName ? await fetchPrimaryComps(pName) : [];
+      rawComps = pName ? await fetchPrimaryComps(pName, ebaySite, detectedCurrency) : [];
       if (rawComps.length === 0 && pName) {
         throw new Error("Primary scraper returned 0 items");
       }
     } catch (err) {
       console.warn("[sourcing-check] Primary scraper failed/timed out (2.5s Circuit Breaker), calling SerpApi backup...", err);
-      rawComps = pName ? await fetchBackupComps(pName) : [];
+      rawComps = pName ? await fetchBackupComps(pName, ebayDomain, detectedCurrency) : []; 
     }
 
     let marketPrices = {
@@ -256,7 +261,7 @@ export async function POST(req: Request) {
       suggested_min: 0,
       suggested_max: 0,
       sample_size: 0,
-      currency: "AUD",
+      currency: detectedCurrency,
     };
 
     // Single-Item Parity, Deduplication & Condition Lock filters
@@ -298,7 +303,7 @@ export async function POST(req: Request) {
         suggested_min: Math.round(med * 0.8 * 100) / 100,
         suggested_max: Math.round(med * 1.2 * 100) / 100,
         sample_size: valid.length,
-        currency: "AUD",
+        currency: detectedCurrency,
       };
     }
 

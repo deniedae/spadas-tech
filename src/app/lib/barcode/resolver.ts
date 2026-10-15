@@ -220,6 +220,7 @@ export async function resolveBarcode(barcode: string): Promise<BarcodeProduct | 
     name: normalizedProduct.name,
     category: normalizedProduct.category,
     brand: normalizedProduct.brand,
+    currency: (typeof window !== "undefined" ? ((localStorage.getItem("spadas_selected_currency") as any) || "AUD") : "AUD"),
   });
 
   const finalPrice =

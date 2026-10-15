@@ -541,7 +541,7 @@ export default function SettingsPage() {
     },
     {
       q: "How does Spadas calculate net profit and sold comps?",
-      a: "Spadas Lens runs real-time queries against eBay Australia (and global sold archives). Our automated algorithm calculates realistic net profit by deducting your purchase cost, estimated parcel shipping, and eBay's ~13.4% category selling fees and fixed processing charges.",
+      a: `Spadas Lens runs real-time queries against ${defaultCurrency === "USD" ? "eBay US (ebay.com)" : "eBay Australia (ebay.com.au)"}. Our automated algorithm calculates realistic net profit by deducting your purchase cost, estimated ${defaultCurrency === "USD" ? "USPS" : "AusPost"} parcel shipping, and eBay's ~${defaultCurrency === "USD" ? "13.25%" : "13.4%"} category selling fees and fixed processing charges.`,
     },
     {
       q: "How do I connect and publish drafts directly to eBay?",
@@ -786,7 +786,7 @@ export default function SettingsPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                  <span>Live eBay Australia sold comps &amp; sell-through rate</span>
+                  <span>Live {defaultCurrency === "USD" ? "eBay US" : "eBay Australia"} sold comps &amp; sell-through rate</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-3.5 h-3.5 text-blue-400 shrink-0" />
@@ -883,7 +883,7 @@ export default function SettingsPage() {
               onChange={(e) => handleUpdateMarketplace(e.target.value)}
               className="w-full rounded-xl border border-zinc-800 bg-black/40 px-3.5 py-2.5 text-sm font-medium text-white focus:outline-none focus:border-cyan-500/50 transition cursor-pointer"
             >
-              <option value="eBay">eBay Australia / Global</option>
+              <option value="eBay">{defaultCurrency === "USD" ? "eBay US (ebay.com)" : "eBay Australia (ebay.com.au)"}</option>
               <option value="Facebook Marketplace">Facebook Marketplace</option>
               <option value="Depop">Depop</option>
             </select>
@@ -966,7 +966,7 @@ export default function SettingsPage() {
               </span>
             </div>
             <p className="text-xs text-zinc-400">
-              1-Click item specifics, pricing, and draft export directly to eBay Australia via official OAuth.
+              1-Click item specifics, pricing, and draft export directly to {defaultCurrency === "USD" ? "eBay US" : "eBay Australia"} via official OAuth.
             </p>
           </div>
 

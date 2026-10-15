@@ -66,7 +66,7 @@ async function handleCompsSearch(
     return NextResponse.json({ error: "Search query or title is required" }, { status: 400 });
   }
 
-  let attemptTier: "exact" | "broadened" | "us_fallback" | "synthetic" = "exact";
+  let attemptTier: "exact" | "broadened" | "synthetic" = "exact";
   let queryUsed = trimmed;
 
   // ── ATTEMPT 1: Full identified query (Exact Title) ──
@@ -94,11 +94,8 @@ async function handleCompsSearch(
     }
   }
 
-  // ── ATTEMPT 3: Cross-border US fallback (LH_PrefLoc=2 with $25 AUD penalty) ──
-  // Note: fetchEbayAustraliaSoldComps natively queries US with crossBorderShippingCost: 25 if AU has 0 comps.
-  if (compsResult && compsResult.isUsMarketOnly) {
-    attemptTier = "us_fallback";
-  } else if (compsResult && compsResult.isActiveAskOnly) {
+  // ── ATTEMPT 3: Same-market active asks only (no cross-border fallback) ──
+  if (compsResult && compsResult.isActiveAskOnly) {
     attemptTier = "broadened";
   }
 
@@ -202,7 +199,7 @@ async function handleCompsSearch(
     isUsMarketOnly: Boolean(compsResult?.isUsMarketOnly),
     crossBorderShippingCost: compsResult?.crossBorderShippingCost || 0,
     arbitrageSignal: isZeroMarketData
-      ? "Not enough market data to value this item"
+      ? "No domestic comps found"
       : (compsResult?.arbitrageSignal || (compsResult?.isActiveAskOnly ? "Currently listed — not sold prices." : undefined)),
     categoryHint,
   });

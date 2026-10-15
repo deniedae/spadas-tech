@@ -5,7 +5,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const SYSTEM_SUPPORT_PROMPT = `You are the Spadas Platform Support Specialist & Reseller Guide.
-You assist resellers using Spadas Tech with inventory management, camera scanning, eBay Australian comps, subscription plans, and secondary market workflows.
+You assist resellers using Spadas Tech with inventory management, camera scanning, region-specific eBay comps, subscription plans, and secondary market workflows.
 
 PLATFORM KNOWLEDGE BASE:
 1. SPADAS LENS & SCANNING:
@@ -13,16 +13,17 @@ PLATFORM KNOWLEDGE BASE:
    - Barcode mode checks GS1, UPC, and ISBN databases for fast media (books, video games, sealed items).
    - Liquid & Fragrance detection calculates fill levels and adjusts fair market value accordingly.
 
-2. GEO-STRICT COMPS ENGINE & US FALLBACK:
+2. GEO-STRICT COMPS ENGINE:
    - Domestic AU Comps: When in Australia, Spadas strictly queries eBay Australia sold items (LH_PrefLoc=1) in AUD, excluding international sellers.
-   - US Market Fallback: If fewer than 3 verified AU sales exist, Spadas automatically pulls high-liquidity US sold data, converts USD to AUD, factors in ~$25 AUD international air shipping friction, and highlights domestic scarcity pricing opportunities.
+   - Domestic US Comps: When in the United States, Spadas strictly queries eBay US sold items in USD.
+   - No cross-border fallback: If domestic sold comps do not exist, Spadas reports no domestic comps and may show same-market active asks only.
 
 3. P&L & FEE CALCULATIONS:
    - Fair Market Value: Filtered via Interquartile Range (IQR) to exclude multi-packs and fake sales.
-   - Net Profit Formula: Resale Price minus In-Store Tag Price minus eBay fees (13.4% + $0.33) minus postage.
+   - Net Profit Formula: Resale Price minus In-Store Tag Price minus platform fees (US: 13.25% + $0.30, AU: 13.4% + $0.33) minus regional postage (USPS / AusPost).
 
 4. 1-CLICK EBAY PUBLISHING & INVENTORY:
-   - Direct OAuth connection to eBay AU allows 1-click drafts and live listing publishing.
+   - Direct OAuth connection to eBay allows 1-click drafts and live listing publishing for the active region (eBay US / eBay AU).
    - Full inventory management with CSV/JSON exports and sales velocity tracking.
 
 5. SUBSCRIPTIONS & CREDITS:
@@ -39,16 +40,16 @@ COMMUNICATION STYLE:
 function generateHeuristicSupportReply(query: string): string {
   const q = query.toLowerCase();
 
-  if (q.includes("us") || q.includes("scarcity") || q.includes("american") || q.includes("fallback")) {
-    return `🌐 **US-Only Comps & Scarcity Pricing:**\n\nWhen an item has fewer than 3 recorded sales on eBay Australia, Spadas automatically queries high-liquidity US sold data. We convert USD to AUD, deduct international shipping friction (~$25 AUD), and highlight it as a **Domestic Scarcity Play**—meaning you can often price higher in Australia because local domestic supply is near zero!`;
+  if (q.includes("us") || q.includes("american") || q.includes("fallback")) {
+    return `🇺🇸 **US Domestic Comps:**\n\nFor United States users, Spadas queries domestic eBay US sold items in USD. If no completed domestic sold listings exist, the app can show live eBay US asking prices, but it does not blend AU sold data into US valuations.`;
   }
 
   if (q.includes("comp") || q.includes("ebay") || q.includes("australia") || q.includes("price") || q.includes("au")) {
-    return `🇦🇺 **Geo-Strict eBay Australia Comps:**\n\nFor Australian users, Spadas strictly filters for verified domestic eBay Australia sold items (\`LH_PrefLoc=1\`), excluding international sellers. We apply Interquartile Range (IQR) statistical filtering to eliminate bulk lots, multi-packs, and fake outliers so your valuations reflect true realized cash market value.`;
+    return `🌍 **Geo-Strict Domestic Comps:**\n\nSpadas keeps sold comps domestic to the active region. Australian users see eBay Australia sold data in AUD. United States users see eBay US sold data in USD. We apply Interquartile Range (IQR) filtering to remove bulk lots, multi-packs, and fake outliers.`;
   }
 
   if (q.includes("profit") || q.includes("fee") || q.includes("calculate") || q.includes("formula") || q.includes("p&l") || q.includes("margin")) {
-    return `💰 **Net Profit & P&L Formula:**\n\nYour **Net Profit** is calculated in real time as:\n\n\`Net Profit = Fair Market Value − Tag Cost − eBay AU Fees (~13.4% + $0.33) − Estimated Domestic Postage\`\n\nWhat is displayed on your screen is your actual take-home realized profit.`;
+    return `💰 **Net Profit & P&L Formula:**\n\nYour **Net Profit** is calculated in real time as:\n\n\`Net Profit = Fair Market Value − Tag Cost − Regional eBay Fees − Estimated Domestic Postage\`\n\nWhat is displayed on your screen is your actual take-home realized profit for your active region.`;
   }
 
   if (q.includes("str") || q.includes("velocity") || q.includes("fast flip") || q.includes("turn")) {
@@ -56,7 +57,7 @@ function generateHeuristicSupportReply(query: string): string {
   }
 
   if (q.includes("list") || q.includes("publish") || q.includes("draft") || q.includes("connect")) {
-    return `🛒 **1-Click eBay AU Publishing:**\n\nConnect your eBay Seller Hub account in **Settings > Connected Accounts**. Once linked, tap **[Publish to eBay]** on any item in your Haul, Dashboard, or Listings to instantly create an active listing with pre-filled title, category, price, and photos.`;
+    return `🛒 **1-Click eBay Publishing:**\n\nConnect your eBay Seller Hub account in **Settings > Connected Accounts**. Once linked, tap **[Publish to eBay]** on any item in your Haul, Dashboard, or Listings to instantly create an active listing with pre-filled title, category, price, and photos for your active region.`;
   }
 
   if (q.includes("plan") || q.includes("subscri") || q.includes("pro") || q.includes("credit") || q.includes("starter") || q.includes("cost") || q.includes("price")) {
@@ -67,7 +68,7 @@ function generateHeuristicSupportReply(query: string): string {
     return `👨‍💻 **Developer Support Desk:**\n\nNeed engineering assistance or encountering a sync issue? Tap **[Request Dev]** in the header above to submit a ticket directly to Spadas engineering (lead developer: \`deniedae@gmail.com\`). You will receive an in-app reply with full developer verification!`;
   }
 
-  return `👋 **Hello from Spadas AI Copilot!**\n\nI can help you with:\n• **🇦🇺 Geo-Strict Comps**: How eBay AU sold data and US fallbacks work.\n• **💰 P&L Formulas**: Exact deductions for eBay fees and shipping.\n• **⚡ STR & Velocity**: Identifying fast flips vs inventory traps.\n• **🛒 eBay Publishing**: 1-click catalog intake and live drafts.\n\nWhat would you like to know?`;
+  return `👋 **Hello from Spadas AI Copilot!**\n\nI can help you with:\n• **🌍 Geo-Strict Comps**: How domestic sold data works in AU vs US.\n• **💰 P&L Formulas**: Exact deductions for eBay fees and shipping.\n• **⚡ STR & Velocity**: Identifying fast flips vs inventory traps.\n• **🛒 eBay Publishing**: 1-click catalog intake and live drafts.\n\nWhat would you like to know?`;
 }
 
 export async function POST(req: NextRequest) {

@@ -11,6 +11,7 @@ import {
 import { resilientFetch } from "@/app/lib/resilient-fetch";
 import { supabase } from "@/app/lib/supabase";
 import { toast } from "sonner";
+import { detectGeoCurrency } from "@/app/lib/currency-routing";
 
 interface QueueTask {
   id: string;
@@ -77,6 +78,7 @@ class QuickSnapQueueService {
       photoId,
       timestamp,
       status: "queued",
+      currency,
       productName: metadata?.productName || "Sourced Thrift Item",
       brand: metadata?.brand || "Analyzing...",
       category: metadata?.category || "General",
@@ -251,11 +253,14 @@ class QuickSnapQueueService {
                 if (compsData && (compsData.compsCount > 0 || compsData.median)) {
                   const medianPrice = Number(compsData.median) || Number(data.estimated_value) || 35;
                   const cost = Number(data.thrift_cost) || compsData.typicalOpShopCost || 6;
-                  const fee = medianPrice * 0.134 + 0.33;
-                  const shipping = compsData.crossBorderShippingCost ? 25 : 10.90;
+                  const isUs = task.currency === "USD";
+                  const feeRate = isUs ? 0.1325 : 0.134;
+                  const fixedFee = isUs ? 0.30 : 0.33;
+                  const fee = medianPrice * feeRate + fixedFee;
+                  const shipping = isUs ? 5.80 : 10.90;
                   const recalculatedNet = Math.max(0, Math.round((medianPrice - cost - fee - shipping) * 100) / 100);
                   const recalculatedRoi = cost > 0 ? Math.round((recalculatedNet / cost) * 100) : 0;
-                  const recalculatedVerdict = recalculatedNet >= 40 ? "MUST_COP" : recalculatedNet >= 15 ? "QUICK_FLIP" : "PASS_RISKY";
+                  const recalculatedVerdict = recalculatedNet >= (isUs ? 30 : 40) ? "MUST_COP" : recalculatedNet >= (isUs ? 10 : 15) ? "QUICK_FLIP" : "PASS_RISKY";
 
                   haulStore.updateItem(task.id, {
                     status: "completed",
@@ -321,7 +326,7 @@ class QuickSnapQueueService {
         id: item.id,
         photoId: item.photoId,
         blob,
-        currency: "AUD"
+        currency: item.currency || (typeof window !== "undefined" ? detectGeoCurrency().currency : "USD")
       });
       this.notify();
       void this.processQueue();
@@ -351,7 +356,7 @@ class QuickSnapQueueService {
           id: item.id,
           photoId: item.photoId,
           blob,
-          currency: "AUD"
+          currency: item.currency || (typeof window !== "undefined" ? detectGeoCurrency().currency : "USD")
         });
       }
     }

@@ -788,7 +788,8 @@ export function applyTightClusterSanityGuard(
 }
 
 /**
- * Fetches real eBay price data for a product name with multi-tier query relaxation and global marketplace fallback.
+ * Fetches real eBay price data for a product name with multi-tier query relaxation
+ * while remaining strict to the requested marketplace region.
  */
 export async function fetchEbayAustraliaSoldComps(
   productName: string,
@@ -929,7 +930,7 @@ export async function fetchEbayAustraliaSoldComps(
       const conditionParam = isTargetUsed ? "&LH_ItemCondition=3000" : "";
       const locParam = prefLocAU ? "&LH_PrefLoc=1" : "";
       // count=10: cap payload to top-10 results — 6× less data, faster parse & transfer
-      const url = `https://api.sold-comps.com/v1/scrape?keyword=${encodeURIComponent(q)}&ebaySite=${ebaySite}&page=1&count=10&daysToScrape=30&sortOrder=endedRecently${conditionParam}${locParam}`;
+      const url = `https://api.sold-comps.com/v1/scrape?keyword=${encodeURIComponent(q)}&ebaySite=${ebaySite}&page=1&count=25&daysToScrape=90&sortOrder=endedRecently${conditionParam}${locParam}`;
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 8500); // 8.5s timeout for live eBay scraping
 
@@ -1069,26 +1070,11 @@ export async function fetchEbayAustraliaSoldComps(
         const usComps = await fetchSoldCompsFromApi(queryTerm, "ebay.com", false, isTargetUsed);
         if (usComps.length >= 1) return { comps: usComps, isUsFallback: false };
       } else if (isRegionAU) {
-        // STRICT AU COMPS: Query official AU marketplace and US marketplace in parallel
-        // If AU has results, strictly prefer AU. If AU has 0 or times out, immediately use US with FX conversion.
-        const [auComps, usComps] = await Promise.all([
-          fetchSoldCompsFromApi(queryTerm, "ebay.com.au", true, isTargetUsed),
-          fetchSoldCompsFromApi(queryTerm, "ebay.com", false, isTargetUsed),
-        ]);
+        // STRICT AU COMPS: Query only the AU marketplace. No US fallback.
+        const auComps = await fetchSoldCompsFromApi(queryTerm, "ebay.com.au", true, isTargetUsed);
 
         if (auComps.length >= 1) {
           return { comps: auComps, isUsFallback: false };
-        }
-        if (usComps.length >= 1) {
-          const fxRate = FX_RATES["USD"]?.["AUD"] || 1.54;
-          const converted = usComps.map((c) => ({
-            ...c,
-            price: Math.round(c.price * fxRate * 100) / 100,
-            originalCurrency: "USD",
-            originalPrice: c.price,
-            isUsComp: true,
-          }));
-          return { comps: converted, isUsFallback: true };
         }
         return { comps: [], isUsFallback: false };
       } else {
@@ -1172,8 +1158,8 @@ export async function fetchEbayAustraliaSoldComps(
         count: valid.length,
         currency: targetCurrency,
         source: "sold_comps_api",
-        isUsMarketOnly: isUsMarketFallback || isRegionUS,
-        marketOrigin: isRegionUS ? "US" : isRegionAU ? "AU" : (targetCurrency as "AU" | "US"),
+        isUsMarketOnly: false,
+        marketOrigin: isRegionUS ? "US" : "AU",
         rawComps: (filteredComps.length > 0 ? filteredComps : activeComps)
           .sort((a, b) => (b.rawDate || 0) - (a.rawDate || 0))
           .slice(0, 7),
@@ -1188,9 +1174,7 @@ export async function fetchEbayAustraliaSoldComps(
         soldCount: valid.length,
         recommendedPrice: recommendedListPrice,
         iqrBounds: { lower: lowerBound, upper: upperBound },
-        arbitrageSignal: isUsMarketFallback
-          ? "AU sales scarce — converted from live US eBay sold comps."
-          : undefined,
+        arbitrageSignal: undefined,
       };
       setCompsCacheEntry(cacheKey, domesticResult);
       return domesticResult;
@@ -1260,7 +1244,7 @@ export async function fetchEbayAustraliaSoldComps(
     isActiveAskOnly: false,
     noMarketData: true,
     rawComps: [],
-    arbitrageSignal: "Not enough market data to value this item.",
+    arbitrageSignal: "No domestic comps found.",
   };
   setCompsCacheEntry(cacheKey, zeroResult);
   return zeroResult;

@@ -415,7 +415,7 @@ export default function LensControlsBar({
                     <div className="bg-[#0E1017] border border-white/[0.06] rounded-lg p-2 space-y-0.5">
                       <span className="text-[10px] uppercase font-mono text-zinc-400 block">Comp Range</span>
                       <span className="font-bold text-white block text-[11px] font-mono">
-                        ${debug.lastRawApiResponse.suggested_price_min || 0} - ${debug.lastRawApiResponse.suggested_price_max || 0} {debug.lastRawApiResponse.suggested_price_currency || "AUD"}
+                        ${debug.lastRawApiResponse.suggested_price_min || 0} - ${debug.lastRawApiResponse.suggested_price_max || 0} {debug.lastRawApiResponse.suggested_price_currency || prefs.currency || "USD"}
                       </span>
                     </div>
 

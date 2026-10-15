@@ -137,7 +137,7 @@ export default function LensCompsModal({
 
   // UI state: Collapsible P&L, Comps view mode (carousel vs list), expanded comps, and advanced analytics
   const [isPlExpanded, setIsPlExpanded] = useState<boolean>(false);
-  const [compsViewMode, setCompsViewMode] = useState<"carousel" | "list">("carousel");
+  const [compsViewMode, setCompsViewMode] = useState<"carousel" | "list">("list");
   const [showAllComps, setShowAllComps] = useState<boolean>(false);
   const [isAdvancedAnalyticsOpen, setIsAdvancedAnalyticsOpen] = useState<boolean>(false);
   const [showMethodologyModal, setShowMethodologyModal] = useState<boolean>(false);
@@ -782,10 +782,10 @@ export default function LensCompsModal({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose, onResumeScan, onListEbay, item]);
 
-  // Telemetry event + procedural audio feedback on modal reveal
+  // Telemetry event + subtle tactile feedback on modal reveal
   useEffect(() => {
     if (isOpen && item) {
-      scannerAudio.play(isGrail ? "grail" : "lock");
+      triggerTactileHaptic("light");
       try {
         track("lens_comp_modal_opened", {
           name: title,
@@ -1170,10 +1170,10 @@ export default function LensCompsModal({
           </button>
         </div>
 
-        {/* ── Scrollable Body Content (Aisle-Ready Mode) ────────────────────── */}
+        {/* ── Scrollable Body Content (Valuation First Mode) ────────────────── */}
         <div className="flex-1 overflow-y-auto overscroll-contain touch-pan-y divide-y divide-zinc-800 custom-scrollbar">
-          {/* Institutional Valuation Command Header */}
-          <div className="p-4 space-y-3.5 bg-zinc-950">
+          {/* ── 1. Valuation Evidence & Provenance Card ────────────────── */}
+          <div className="p-4 space-y-3 bg-zinc-950">
             {/* eBay Account Restriction Warning Banner */}
             {accountBlockedNotice && (
               <div className="p-3.5 rounded-lg border border-rose-500/50 bg-rose-950/40 text-xs text-rose-200 flex flex-col gap-2">
@@ -1197,70 +1197,19 @@ export default function LensCompsModal({
               </div>
             )}
 
-            {/* Top Financial Verdict Strip */}
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                {isResolvingValuation && effectiveComps.length === 0 ? (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold tracking-wide border bg-zinc-900 border-zinc-800 text-zinc-400 animate-pulse">
-                    <Loader2 className="w-3.5 h-3.5 text-cyan-400 animate-spin" />
-                    <span>CALIBRATING COMPS...</span>
-                  </span>
-                ) : (
-                  <span
-                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold tracking-wide border ${
-                      copVerdict === "MUST_COP" || recommendation === "HIGH PROFIT"
-                        ? "bg-emerald-950/60 text-emerald-300 border-emerald-800/80"
-                        : copVerdict === "PASS_RISKY" || recommendation === "PASS"
-                        ? "bg-rose-950/60 text-rose-300 border-rose-800/80"
-                        : "bg-zinc-900 text-zinc-200 border-zinc-800"
-                    }`}
-                  >
-                    <span
-                      className={`w-1.5 h-1.5 rounded-full ${
-                        copVerdict === "MUST_COP" || recommendation === "HIGH PROFIT"
-                          ? "bg-emerald-400"
-                          : copVerdict === "PASS_RISKY" || recommendation === "PASS"
-                          ? "bg-rose-400"
-                          : "bg-emerald-400"
-                      }`}
-                    />
-                    <span>
-                      {copVerdict === "MUST_COP" || recommendation === "HIGH PROFIT"
-                        ? "BUY · HIGH MARGIN"
-                        : copVerdict === "PASS_RISKY" || recommendation === "PASS"
-                        ? "PASS · LOW MARGIN"
-                        : "BUY · SOLID MARGIN"}
-                    </span>
-                  </span>
-                )}
-                <span className="text-[11px] text-zinc-400 tabular-nums">
-                  {isResolvingValuation && effectiveComps.length === 0
-                    ? "Calculating turnover..."
-                    : salesVelocity.turnoverTier === "RAPID_FIRE"
-                    ? "~1–3 days turn"
-                    : `${salesVelocity.estDaysToSell} days turn`}
-                </span>
-              </div>
-
-              <div className="text-[11px] text-zinc-400 shrink-0 tabular-nums">
-                {isResolvingValuation && effectiveComps.length === 0 ? "Auditing marketplace..." : trustLineText}
-              </div>
-            </div>
-
-            {/* ── Valuation Evidence & Provenance Card ── */}
-            <div className="p-3.5 rounded-xl bg-zinc-900/80 border border-zinc-800 space-y-2.5">
-              <div className="flex items-baseline justify-between">
-                <div>
+            <div className="p-3.5 rounded-xl bg-zinc-900/90 border border-zinc-800 space-y-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
                   <span className="text-xs text-zinc-400 font-medium block">
                     {compsEvidence.valuationTitle}
                   </span>
-                  <div className="text-2xl sm:text-3xl font-black text-white font-mono tracking-tight mt-0.5">
+                  <div className="text-3xl font-black text-white font-mono tracking-tight mt-0.5 tabular-nums">
                     {compsEvidence.formattedValue}
                   </div>
                 </div>
-                <div className="text-right">
-                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-zinc-800 border border-zinc-700 text-zinc-300">
-                    {compsEvidence.sourceLabel}
+                <div className="text-right shrink-0">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-zinc-800 border border-zinc-700 text-zinc-200">
+                    {compsEvidence.sourceBadge}
                   </span>
                   <span className="block text-[10px] text-zinc-500 font-mono mt-0.5">
                     {compsEvidence.currency}
@@ -1273,60 +1222,61 @@ export default function LensCompsModal({
               </p>
 
               {/* Evidence Provenance Table */}
-              <div className="pt-2 border-t border-zinc-800/80 space-y-1 text-xs font-mono">
+              <div className="pt-2.5 border-t border-zinc-800/80 space-y-1.5 text-xs font-mono">
                 <div className="flex justify-between text-zinc-400">
                   <span>Typical range</span>
-                  <span className="text-zinc-200 font-medium">{compsEvidence.typicalRangeFormatted}</span>
+                  <span className="text-zinc-100 font-medium">{compsEvidence.typicalRangeFormatted}</span>
                 </div>
                 <div className="flex justify-between text-zinc-400">
                   <span>Sold median</span>
-                  <span className="text-zinc-200 font-medium">{compsEvidence.soldMedianFormatted}</span>
+                  <span className="text-zinc-100 font-medium">{compsEvidence.soldMedianFormatted}</span>
                 </div>
                 <div className="flex justify-between text-zinc-400">
                   <span>Market</span>
-                  <span className="text-zinc-200 font-medium">{compsEvidence.marketName}</span>
+                  <span className="text-zinc-100 font-medium">{compsEvidence.marketName}</span>
                 </div>
                 <div className="flex justify-between text-zinc-400">
                   <span>Condition match</span>
-                  <span className="text-zinc-200 font-medium">{compsEvidence.conditionMatch}</span>
+                  <span className="text-zinc-100 font-medium">{compsEvidence.conditionMatch}</span>
                 </div>
                 <div className="flex justify-between text-zinc-400">
                   <span>Evidence window</span>
-                  <span className="text-zinc-200 font-medium">{compsEvidence.evidenceWindowText}</span>
+                  <span className="text-zinc-100 font-medium">{compsEvidence.evidenceWindowText}</span>
                 </div>
               </div>
 
               {/* Evidence Action Buttons */}
-              <div className="flex items-center gap-2 pt-2 border-t border-zinc-800/80">
+              <div className="flex items-center gap-2 pt-2.5 border-t border-zinc-800/80">
                 <button
                   type="button"
                   onClick={() => {
+                    setCompsMarketTab("sold");
                     setShowAllComps(true);
-                    const el = document.getElementById("comps-ledger-scroll");
+                    const el = document.getElementById("market-evidence-section");
                     if (el) el.scrollIntoView({ behavior: "smooth" });
                   }}
-                  className="flex-1 py-1.5 px-2.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-xs font-medium text-zinc-200 text-center transition cursor-pointer"
+                  className="flex-1 py-2 px-3 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-xs font-medium text-zinc-100 text-center transition cursor-pointer"
                 >
                   View sold listings ({compsEvidence.cleanListings.length})
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowMethodologyModal(!showMethodologyModal)}
-                  className="py-1.5 px-2.5 rounded-lg bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 text-xs font-medium text-zinc-400 hover:text-zinc-200 text-center transition cursor-pointer"
+                  className="py-2 px-3 rounded-lg bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 text-xs font-medium text-zinc-400 hover:text-zinc-200 text-center transition cursor-pointer"
                 >
-                  How estimate is calculated
+                  How this estimate is calculated
                 </button>
               </div>
 
               {/* Methodology Explanation Drawer */}
               {showMethodologyModal && (
-                <div className="p-3 rounded-lg bg-zinc-950 border border-cyan-500/30 text-xs space-y-2 mt-2">
-                  <div className="flex items-center justify-between font-bold text-cyan-400">
-                    <span>Calculation Methodology</span>
+                <div className="p-3 rounded-lg bg-zinc-950 border border-zinc-800 text-xs space-y-2 mt-2">
+                  <div className="flex items-center justify-between font-bold text-zinc-200">
+                    <span>Valuation Methodology</span>
                     <button
                       type="button"
                       onClick={() => setShowMethodologyModal(false)}
-                      className="p-1 hover:text-white"
+                      className="p-1 text-zinc-400 hover:text-white cursor-pointer"
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
@@ -1334,100 +1284,283 @@ export default function LensCompsModal({
                   <p className="text-zinc-300 leading-relaxed font-sans text-[11px]">
                     {compsEvidence.methodologySummary}
                   </p>
-                  <div className="pt-1.5 border-t border-zinc-800 text-[10px] font-mono text-zinc-400 grid grid-cols-2 gap-1">
-                    <div>Raw Comps: {compsEvidence.methodologyDetails.rawCount}</div>
-                    <div>Usable: {compsEvidence.methodologyDetails.cleanedCount}</div>
-                    <div>Outliers Trimmed: {compsEvidence.methodologyDetails.outliersTrimmed}</div>
-                    <div>Lots Excluded: {compsEvidence.methodologyDetails.lotsExcluded}</div>
+                  <div className="pt-2 border-t border-zinc-800 text-[10px] font-mono text-zinc-400 grid grid-cols-2 gap-1.5">
+                    <div>Raw comps: {compsEvidence.methodologyDetails.rawCount}</div>
+                    <div>Usable comps: {compsEvidence.methodologyDetails.cleanedCount}</div>
+                    <div>Outliers trimmed: {compsEvidence.methodologyDetails.outliersTrimmed}</div>
+                    <div>Bulk lots excluded: {compsEvidence.methodologyDetails.lotsExcluded}</div>
                   </div>
                 </div>
               )}
             </div>
+          </div>
 
-            {/* The 3 Core Market Pillars */}
-            {isResolvingValuation && effectiveComps.length === 0 ? (
-              <div className="grid grid-cols-3 gap-2">
-                {[0, 1, 2].map((idx) => (
-                  <div
-                    key={idx}
-                    className="p-3 rounded-lg bg-zinc-900/70 border border-zinc-800 flex flex-col justify-between h-[102px] animate-pulse"
-                  >
-                    <div className="h-2.5 w-16 bg-zinc-800 rounded" />
-                    <div className="h-6 w-20 bg-zinc-800/80 rounded my-1" />
-                    <div className="space-y-1 pt-1 border-t border-zinc-800/80">
-                      <div className="h-2 w-16 bg-zinc-800/60 rounded" />
-                      <div className="h-2 w-10 bg-zinc-800/40 rounded" />
-                    </div>
-                  </div>
-                ))}
+          {/* ── 2. Market Evidence Listings ─────────────────────────────────── */}
+          <div id="market-evidence-section" className="p-4 space-y-3 bg-zinc-950">
+            <div className="flex items-center justify-between gap-2">
+              {/* Segmented Controller: Verified Sold Comps vs Live Active Asks */}
+              <div className="flex items-center rounded-lg bg-zinc-900 border border-zinc-800 p-0.5 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setCompsMarketTab("sold")}
+                  className={`px-3 py-1 rounded-md font-medium transition cursor-pointer ${
+                    compsMarketTab === "sold"
+                      ? "bg-zinc-800 text-white font-bold"
+                      : "text-zinc-400 hover:text-zinc-200"
+                  }`}
+                >
+                  Sold listings ({soldCompCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCompsMarketTab("active")}
+                  className={`px-3 py-1 rounded-md font-medium transition cursor-pointer ${
+                    compsMarketTab === "active"
+                      ? "bg-zinc-800 text-white font-bold"
+                      : "text-zinc-400 hover:text-zinc-200"
+                  }`}
+                >
+                  Active asking prices ({activeCompCount > 0 ? activeCompCount : isLoadingActiveComps ? "…" : 0})
+                </button>
               </div>
-            ) : (
-              <div className="grid grid-cols-3 gap-2">
-                {/* Pillar 1: Verified Realized Sales */}
-                <div className="p-3 rounded-lg bg-zinc-900/70 border border-zinc-800 flex flex-col justify-between">
-                  <div className="flex items-center gap-1 text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">
-                    <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />
-                    <span className="truncate">REALIZED SALES</span>
-                  </div>
-                  <div className="text-xl sm:text-2xl font-bold text-white tabular-nums my-1 tracking-tight">
-                    {displaySoldCount > 0 ? fmtMoney(displaySoldMedian) : "No sales"}
-                  </div>
-                  <div className="space-y-0.5 pt-1 border-t border-zinc-800/80">
-                    <div className="text-[10px] text-zinc-300 font-medium tabular-nums truncate">
-                      {displaySoldCount > 0 ? `${displaySoldCount} sold comps` : "Appraisal model"}
-                    </div>
-                    <div className="text-[9px] text-zinc-500 tabular-nums truncate">
-                      Floor: {fmtMoney(compsRange.min)}
-                    </div>
-                  </div>
-                </div>
 
-                {/* Pillar 2: Active Market Asks */}
-                <div className="p-3 rounded-lg bg-zinc-900/70 border border-zinc-800 flex flex-col justify-between">
-                  <div className="flex items-center gap-1 text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">
-                    <Globe className="w-3 h-3 text-zinc-400 shrink-0" />
-                    <span className="truncate">ACTIVE ASKS</span>
-                  </div>
-                  <div className="text-xl sm:text-2xl font-bold text-zinc-100 tabular-nums my-1 tracking-tight">
-                    {displayActiveCount > 0 ? fmtMoney(displayActiveMedian) : isLoadingActiveComps ? "…" : "0 live"}
-                  </div>
-                  <div className="space-y-0.5 pt-1 border-t border-zinc-800/80">
-                    <div className="text-[10px] text-zinc-300 font-medium tabular-nums truncate">
-                      {displayActiveCount > 0 ? `${displayActiveCount} on market` : isLoadingActiveComps ? "Scanning…" : "No competitors"}
-                    </div>
-                    <div className="text-[9px] text-zinc-500 tabular-nums truncate">
-                      Ceiling: {fmtMoney(compsRange.max)}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Pillar 3: Net Take-Home */}
-                <div className="p-3 rounded-lg bg-zinc-900/70 border border-zinc-800 flex flex-col justify-between">
-                  <div className="flex items-center gap-1 text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">
-                    <DollarSign className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                    <span className="truncate">EST. NET PROFIT</span>
-                  </div>
-                  <div
-                    className={`text-xl sm:text-2xl font-bold tabular-nums my-1 tracking-tight ${
-                      netProfit >= 0 ? "text-emerald-400" : "text-rose-400"
-                    }`}
-                  >
-                    {netProfit >= 0 ? `+${formatAUD(netProfit)}` : formatAUD(netProfit)}
-                  </div>
-                  <div className="space-y-0.5 pt-1 border-t border-zinc-800/80">
-                    <div className="text-[10px] text-emerald-400 font-semibold tabular-nums truncate">
-                      {roi > 0 ? `+${Math.round(roi)}% ROI` : `${Math.round(roi)}% ROI`}
-                    </div>
-                    <div className="text-[9px] text-zinc-500 tabular-nums truncate">
-                      Cost: {fmtMoney(effectiveTagCost)}
-                    </div>
-                  </div>
-                </div>
+              {/* View Mode Toggle: List vs Carousel */}
+              <div className="flex items-center rounded-lg bg-zinc-900 border border-zinc-800 p-0.5 text-[11px]">
+                <button
+                  type="button"
+                  onClick={() => setCompsViewMode("list")}
+                  className={`px-2 py-0.5 rounded-md font-medium transition cursor-pointer ${
+                    compsViewMode === "list"
+                      ? "bg-zinc-800 text-white font-bold"
+                      : "text-zinc-400 hover:text-zinc-200"
+                  }`}
+                >
+                  List
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCompsViewMode("carousel")}
+                  className={`px-2 py-0.5 rounded-md font-medium transition cursor-pointer ${
+                    compsViewMode === "carousel"
+                      ? "bg-zinc-800 text-white font-bold"
+                      : "text-zinc-400 hover:text-zinc-200"
+                  }`}
+                >
+                  Carousel
+                </button>
               </div>
-            )}
+            </div>
 
-            {/* Listing Target & Liquidity Presets */}
-            <div className="p-3 rounded-lg bg-zinc-900/50 border border-zinc-800 space-y-2.5">
+            {/* Display comps list or empty state */}
+            {(() => {
+              const currentList = compsMarketTab === "sold" ? soldCompsList : activeCompsList;
+              const displayComps = showAllComps ? currentList : currentList.slice(0, 3);
+              const remaining = Math.max(0, currentList.length - 3);
+
+              if (currentList.length === 0) {
+                const isTabResolving =
+                  compsMarketTab === "sold"
+                    ? isResolvingValuation && soldCompsList.length === 0
+                    : isLoadingActiveComps && activeCompsList.length === 0;
+
+                if (isTabResolving) {
+                  return (
+                    <div className="space-y-2">
+                      {[0, 1, 2].map((idx) => (
+                        <div
+                          key={idx}
+                          className="min-h-[64px] p-2.5 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-between gap-3 animate-pulse"
+                        >
+                          <div className="h-12 w-12 rounded-md bg-zinc-800 shrink-0" />
+                          <div className="flex-1 space-y-1.5 min-w-0">
+                            <div className="h-4 w-20 bg-zinc-800 rounded" />
+                            <div className="h-3 w-36 bg-zinc-800/60 rounded" />
+                          </div>
+                          <div className="h-3 w-12 bg-zinc-800/40 rounded shrink-0" />
+                        </div>
+                      ))}
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="p-4 rounded-lg bg-zinc-900 border border-zinc-800 text-center space-y-1.5">
+                    <div className="text-sm font-semibold text-zinc-200">
+                      {compsMarketTab === "active" && activeCompsError
+                        ? "Live eBay listings unavailable"
+                        : `No ${compsMarketTab === "sold" ? "verified sold" : "live active"} listings found`}
+                    </div>
+                    <div className="text-xs text-zinc-400">
+                      {compsMarketTab === "active" && activeCompsError
+                        ? activeCompsError
+                        : compsMarketTab === "active"
+                          ? "No current eBay listings matched this item. Sold comps remain separate."
+                          : "No verified completed sales were returned for this item on eBay."}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => openExternalUrlSafely(ebayActiveSearchUrl, title, e)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-zinc-800 border border-zinc-700 text-xs text-zinc-200 hover:bg-zinc-700 cursor-pointer font-medium transition mt-1"
+                    >
+                      <span>Search {isUsMarket ? "eBay US" : "eBay Australia"} listings</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </button>
+                  </div>
+                );
+              }
+
+              return (
+                <>
+                  {compsViewMode === "list" ? (
+                    <div className="space-y-2">
+                      {displayComps.map((comp, idx) => {
+                        const isCompActiveAsk = comp.soldDate === "Active Ask" || compsMarketTab === "active";
+                        const compImg = comp.thumbnail || (idx === 0 ? previewImageSrc : null);
+                        const conditionText = comp.condition ? cleanConditionText(comp.condition) : "Pre-Owned";
+
+                        return (
+                          <div
+                            key={comp.id || idx}
+                            className="min-h-[64px] p-2.5 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-between gap-3"
+                          >
+                            <div className="h-12 w-12 rounded-md bg-zinc-950 border border-zinc-800 shrink-0 overflow-hidden">
+                              {compImg ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  src={compImg}
+                                  alt={comp.title}
+                                  loading="lazy"
+                                  decoding="async"
+                                  className="h-full w-full object-cover"
+                                />
+                              ) : (
+                                <div className="h-full w-full flex items-center justify-center text-zinc-600">
+                                  <ShoppingBag className="w-5 h-5" />
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-sm font-bold text-white tabular-nums font-mono">
+                                  {fmtMoney(comp.price)}
+                                </span>
+                                <span className="text-[10px] text-zinc-400">
+                                  · {conditionText}
+                                </span>
+                              </div>
+                              <div className="text-xs text-zinc-400 truncate mt-0.5">
+                                {comp.title}
+                              </div>
+                            </div>
+
+                            <div className="shrink-0 flex items-center gap-2">
+                              <span className="text-xs tabular-nums text-zinc-400">
+                                {isCompActiveAsk ? "Active ask" : comp.soldDate || "Sold"}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={(e) => openExternalUrlSafely(comp.url || ebayActiveSearchUrl, comp.title || title, e)}
+                                className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition cursor-pointer"
+                                title="View on eBay"
+                              >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="flex gap-2.5 overflow-x-auto snap-x snap-mandatory py-1 custom-scrollbar min-h-[210px]">
+                      {displayComps.map((comp, idx) => {
+                        const isCompActiveAsk = comp.soldDate === "Active Ask" || compsMarketTab === "active";
+                        const compImg = comp.thumbnail || (idx === 0 ? previewImageSrc : null);
+                        const conditionText = comp.condition ? cleanConditionText(comp.condition) : "Pre-Owned";
+
+                        return (
+                          <div
+                            key={comp.id || idx}
+                            className="w-44 sm:w-48 shrink-0 snap-start bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden p-2.5 flex flex-col justify-between"
+                          >
+                            <div className="space-y-2">
+                              <div className="relative h-28 w-full rounded-md overflow-hidden bg-zinc-950 border border-zinc-800/80">
+                                {compImg ? (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img
+                                    src={compImg}
+                                    alt={comp.title}
+                                    loading="lazy"
+                                    decoding="async"
+                                    className="h-full w-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="h-full w-full flex items-center justify-center text-zinc-600">
+                                    <ShoppingBag className="w-8 h-8" />
+                                  </div>
+                                )}
+                                <span className="absolute bottom-1.5 right-1.5 px-1.5 py-0.5 rounded bg-black/80 text-[10px] font-medium text-zinc-300 tabular-nums">
+                                  {isCompActiveAsk ? "Active Ask" : comp.soldDate && comp.soldDate !== "Active Ask" ? comp.soldDate : "Recent"}
+                                </span>
+                              </div>
+
+                              <div>
+                                <div className="text-base font-bold text-white tabular-nums font-mono">
+                                  {fmtMoney(comp.price)}
+                                </div>
+                                <div className="text-[11px] text-zinc-300 font-medium truncate mt-0.5">
+                                  {conditionText}
+                                </div>
+                                <div className="text-[10px] text-zinc-400 truncate mt-0.5">
+                                  {comp.title}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="pt-2 border-t border-zinc-800/80 mt-2 flex items-center justify-between text-[11px]">
+                              <span className="text-zinc-500">{isCompActiveAsk ? "Active Listing" : "Sold Comp"}</span>
+                              <button
+                                type="button"
+                                onClick={(e) => openExternalUrlSafely(comp.url || ebayActiveSearchUrl, comp.title || title, e)}
+                                className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 transition cursor-pointer"
+                                title="View on eBay"
+                              >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {remaining > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowAllComps(!showAllComps)}
+                      className="w-full py-2 rounded-lg border border-zinc-800 bg-zinc-900 text-xs font-medium text-zinc-300 hover:text-white hover:bg-zinc-800 transition cursor-pointer flex items-center justify-center gap-1"
+                    >
+                      <span>{showAllComps ? "Show top 3 comps only" : `Show all ${currentList.length} comps`}</span>
+                      <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showAllComps ? "rotate-180" : ""}`} />
+                    </button>
+                  )}
+                </>
+              );
+            })()}
+          </div>
+
+          {/* ── 3. Net Profit & Pricing ────────────────────────────────────── */}
+          <div className="p-4 space-y-3 bg-zinc-950">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-zinc-200">Net Profit & Fees</span>
+              <span className={`text-xs font-mono font-bold tabular-nums ${netProfit >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                {netProfit >= 0 ? `+${formatAUD(netProfit)} net` : `${formatAUD(netProfit)} net`}
+                {effectiveTagCost > 0 && ` (${Math.round(roi)}% ROI)`}
+              </span>
+            </div>
+
+            {/* Target Price & 3 Liquidity Presets */}
+            <div className="p-3 rounded-lg bg-zinc-900/60 border border-zinc-800 space-y-2.5">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-medium text-zinc-300">Listing Price Target</span>
                 <div className="flex items-center gap-1">
@@ -1448,7 +1581,6 @@ export default function LensCompsModal({
                 </div>
               </div>
 
-              {/* 3 Liquidity Presets */}
               <div className="grid grid-cols-3 gap-1.5">
                 <button
                   type="button"
@@ -1500,465 +1632,159 @@ export default function LensCompsModal({
               </div>
             </div>
 
-            {/* Financial Ledger (Waterfall) */}
-            <div className="p-3 rounded-lg bg-zinc-900/50 border border-zinc-800 text-xs space-y-2">
-              <div className="flex items-center justify-between text-zinc-300 pb-1.5 border-b border-zinc-800 font-mono text-[11px]">
-                <span className="text-zinc-400 uppercase tracking-wider font-semibold">Financial Ledger</span>
-                {isResolvingValuation && effectiveComps.length === 0 ? (
-                  <span className="text-zinc-400 font-bold tabular-nums animate-pulse">Resolving P&L...</span>
-                ) : (
-                  <span className="text-emerald-400 font-bold tabular-nums">+{formatAUD(netProfit)} net</span>
-                )}
+            {/* Waterfall Ledger Breakdown */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-center font-mono text-[11px]">
+              <div className="p-2 rounded bg-zinc-900 border border-zinc-800">
+                <span className="text-[10px] text-zinc-400 block">Gross Sale</span>
+                <span className="text-zinc-100 font-bold tabular-nums">{fmtMoney(activeResalePrice)}</span>
               </div>
+              <div className="p-2 rounded bg-zinc-900 border border-zinc-800">
+                <span className="text-[10px] text-zinc-400 block">Cost of Goods</span>
+                <span className="text-rose-400 font-bold tabular-nums">−{fmtMoney(effectiveTagCost)}</span>
+              </div>
+              <div className="p-2 rounded bg-zinc-900 border border-zinc-800">
+                <span className="text-[10px] text-zinc-400 block">eBay Fees (~13.4%)</span>
+                <span className="text-rose-400 font-bold tabular-nums">−{fmtMoney(platformFee)}</span>
+              </div>
+              <div className="p-2 rounded bg-zinc-900 border border-zinc-800">
+                <span className="text-[10px] text-zinc-400 block">Postage ({isUsMarket ? "USPS" : "AusPost"})</span>
+                <span className="text-rose-400 font-bold tabular-nums">−{fmtMoney(estShipping)}</span>
+              </div>
+            </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 pt-0.5 text-center font-mono text-[11px]">
-                <div className="p-1.5 rounded bg-zinc-950 border border-zinc-800">
-                  <span className="text-[10px] text-zinc-400 block">Gross Sale</span>
-                  {isResolvingValuation && effectiveComps.length === 0 ? (
-                    <div className="h-4 w-12 bg-zinc-800 rounded animate-pulse mx-auto my-0.5" />
-                  ) : (
-                    <span className="text-zinc-100 font-bold tabular-nums">{fmtMoney(activeResalePrice)}</span>
-                  )}
-                </div>
-                <div className="p-1.5 rounded bg-zinc-950 border border-zinc-800">
-                  <span className="text-[10px] text-zinc-400 block">Cost of Goods</span>
-                  {isResolvingValuation && effectiveComps.length === 0 ? (
-                    <div className="h-4 w-12 bg-zinc-800 rounded animate-pulse mx-auto my-0.5" />
-                  ) : (
-                    <span className="text-rose-400 font-bold tabular-nums">−{fmtMoney(effectiveTagCost)}</span>
-                  )}
-                </div>
-                <div className="p-1.5 rounded bg-zinc-950 border border-zinc-800">
-                  <span className="text-[10px] text-zinc-400 block">eBay Fees (~13.4%)</span>
-                  {isResolvingValuation && effectiveComps.length === 0 ? (
-                    <div className="h-4 w-12 bg-zinc-800 rounded animate-pulse mx-auto my-0.5" />
-                  ) : (
-                    <span className="text-rose-400 font-bold tabular-nums">−{fmtMoney(platformFee)}</span>
-                  )}
-                </div>
-                <div className="p-1.5 rounded bg-zinc-950 border border-zinc-800">
-                  <span className="text-[10px] text-zinc-400 block">Postage ({isUsMarket ? "USPS" : "AusPost"})</span>
-                  {isResolvingValuation && effectiveComps.length === 0 ? (
-                    <div className="h-4 w-12 bg-zinc-800 rounded animate-pulse mx-auto my-0.5" />
-                  ) : (
-                    <span className="text-rose-400 font-bold tabular-nums">−{fmtMoney(estShipping)}</span>
-                  )}
+            {/* In-Store Tag Price Adjuster */}
+            <div className="flex items-center justify-between gap-2 pt-1 border-t border-zinc-800/80">
+              <div className="flex items-center gap-1.5 shrink-0">
+                <Tag className="w-3.5 h-3.5 text-zinc-400" />
+                <span className="text-xs font-medium text-zinc-300">Thrift tag cost:</span>
+                <div className="flex items-center gap-0.5 text-xs text-zinc-100 font-bold">
+                  <span>$</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.5"
+                    value={customTagCost || ""}
+                    onChange={(e) => handleTagCostChange(Math.max(0, parseFloat(e.target.value) || 0))}
+                    className="w-14 rounded bg-zinc-900 border border-zinc-700 px-1.5 py-0.5 text-right text-xs text-zinc-100 font-bold focus:outline-none focus:border-zinc-500 tabular-nums"
+                  />
                 </div>
               </div>
-
-              {/* In-Store Tag Price Adjuster */}
-              <div className="flex items-center justify-between gap-2 pt-2 border-t border-zinc-800">
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <Tag className="w-3.5 h-3.5 text-zinc-400" />
-                  <span className="text-xs font-medium text-zinc-300">Thrift tag cost:</span>
-                  <div className="flex items-center gap-0.5 text-xs text-zinc-100 font-bold">
-                    <span>$</span>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.5"
-                      value={customTagCost || ""}
-                      onChange={(e) => handleTagCostChange(Math.max(0, parseFloat(e.target.value) || 0))}
-                      className="w-14 rounded bg-zinc-950 border border-zinc-700 px-1.5 py-0.5 text-right text-xs text-zinc-100 font-bold focus:outline-none focus:border-zinc-500 tabular-nums"
-                    />
-                  </div>
-                </div>
-                <div className="flex items-center gap-1 overflow-x-auto py-0.5 custom-scrollbar">
-                  {[2, 5, 8, 10, 15, 20].map((preset) => (
-                    <button
-                      key={preset}
-                      type="button"
-                      onClick={() => handlePresetTagCost(preset)}
-                      className={`px-2 py-1 min-h-[30px] rounded text-[11px] font-semibold transition cursor-pointer tabular-nums ${
-                        customTagCost === preset
-                          ? "bg-zinc-800 text-zinc-100 border border-zinc-600 font-bold"
-                          : "bg-zinc-950 text-zinc-400 hover:text-zinc-200 border border-zinc-800"
-                      }`}
-                    >
-                      ${preset}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Regional Parcel Tier Override Picker */}
-              <div className="flex items-center justify-between gap-2 pt-1 border-t border-zinc-800/80">
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <Sliders className="w-3.5 h-3.5 text-zinc-400" />
-                  <span className="text-xs font-medium text-zinc-300">Postage rate:</span>
-                  <span className="text-xs text-zinc-400 font-mono tabular-nums">${estShipping.toFixed(2)}</span>
-                </div>
-                <div className="flex items-center gap-1 overflow-x-auto py-0.5 custom-scrollbar">
+              <div className="flex items-center gap-1 overflow-x-auto py-0.5 custom-scrollbar">
+                {[2, 5, 8, 10, 15, 20].map((preset) => (
                   <button
+                    key={preset}
                     type="button"
-                    onClick={() => { startTransition(() => { setCustomPostageTier(null); }); triggerTactileHaptic("light"); }}
-                    className={`px-2 py-1 min-h-[32px] rounded text-[11px] font-semibold transition cursor-pointer tabular-nums ${
-                      customPostageTier === null
+                    onClick={() => handlePresetTagCost(preset)}
+                    className={`px-2 py-1 min-h-[30px] rounded text-[11px] font-semibold transition cursor-pointer tabular-nums ${
+                      customTagCost === preset
                         ? "bg-zinc-800 text-zinc-100 border border-zinc-600 font-bold"
                         : "bg-zinc-900 text-zinc-400 hover:text-zinc-200 border border-zinc-800"
                     }`}
                   >
-                    Auto
+                    ${preset}
                   </button>
-                  {([
-                    { tier: "small" as AusPostParcelTier, label: `S $${parcelRates.small.toFixed(2)}` },
-                    { tier: "medium" as AusPostParcelTier, label: `M $${parcelRates.medium.toFixed(2)}` },
-                    { tier: "large" as AusPostParcelTier, label: `L $${parcelRates.large.toFixed(2)}` },
-                    { tier: "extraLarge" as AusPostParcelTier, label: `XL $${parcelRates.extraLarge.toFixed(2)}` },
-                  ] as const).map(({ tier, label }) => (
-                    <button
-                      key={tier}
-                      type="button"
-                      onClick={() => { startTransition(() => { setCustomPostageTier(tier); }); triggerTactileHaptic("light"); }}
-                      className={`px-2 py-1 min-h-[32px] rounded text-[11px] font-semibold transition cursor-pointer tabular-nums ${
-                        customPostageTier === tier
-                          ? "bg-zinc-800 text-zinc-100 border border-zinc-600 font-bold"
-                          : "bg-zinc-900 text-zinc-400 hover:text-zinc-200 border border-zinc-800"
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
+                ))}
               </div>
             </div>
 
-            {/* ── Multi-Photo Intake Tray (1 to 5 Photos) ── */}
-            <div className="p-3 rounded-xl bg-zinc-950 border border-zinc-800 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-zinc-300">Listing photos ({listingPhotos.length}/5)</span>
-                <span className="text-[11px] text-zinc-500 font-mono">1–5 angles for eBay sync</span>
+            {/* Regional Parcel Tier Override Picker */}
+            <div className="flex items-center justify-between gap-2 pt-1 border-t border-zinc-800/80">
+              <div className="flex items-center gap-1.5 shrink-0">
+                <Sliders className="w-3.5 h-3.5 text-zinc-400" />
+                <span className="text-xs font-medium text-zinc-300">Postage rate:</span>
+                <span className="text-xs text-zinc-400 font-mono tabular-nums">${estShipping.toFixed(2)}</span>
               </div>
-
-              {/* Photo Strip */}
-              <div className="flex items-center gap-2 overflow-x-auto py-1 custom-scrollbar">
-                {listingPhotos.map((photo, idx) => (
-                  <div
-                    key={idx}
-                    className="relative h-16 w-16 shrink-0 rounded-md overflow-hidden border border-zinc-800 bg-zinc-950 group"
+              <div className="flex items-center gap-1 overflow-x-auto py-0.5 custom-scrollbar">
+                <button
+                  type="button"
+                  onClick={() => { startTransition(() => { setCustomPostageTier(null); }); triggerTactileHaptic("light"); }}
+                  className={`px-2 py-1 min-h-[32px] rounded text-[11px] font-semibold transition cursor-pointer tabular-nums ${
+                    customPostageTier === null
+                      ? "bg-zinc-800 text-zinc-100 border border-zinc-600 font-bold"
+                      : "bg-zinc-900 text-zinc-400 hover:text-zinc-200 border border-zinc-800"
+                  }`}
+                >
+                  Auto
+                </button>
+                {([
+                  { tier: "small" as AusPostParcelTier, label: `S $${parcelRates.small.toFixed(2)}` },
+                  { tier: "medium" as AusPostParcelTier, label: `M $${parcelRates.medium.toFixed(2)}` },
+                  { tier: "large" as AusPostParcelTier, label: `L $${parcelRates.large.toFixed(2)}` },
+                  { tier: "extraLarge" as AusPostParcelTier, label: `XL $${parcelRates.extraLarge.toFixed(2)}` },
+                ] as const).map(({ tier, label }) => (
+                  <button
+                    key={tier}
+                    type="button"
+                    onClick={() => { startTransition(() => { setCustomPostageTier(tier); }); triggerTactileHaptic("light"); }}
+                    className={`px-2 py-1 min-h-[32px] rounded text-[11px] font-semibold transition cursor-pointer tabular-nums ${
+                      customPostageTier === tier
+                        ? "bg-zinc-800 text-zinc-100 border border-zinc-600 font-bold"
+                        : "bg-zinc-900 text-zinc-400 hover:text-zinc-200 border border-zinc-800"
+                    }`}
                   >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={photo}
-                      alt={`Angle ${idx + 1}`}
-                      className="h-full w-full object-cover"
-                    />
-                    <span className="absolute bottom-0 inset-x-0 bg-black/80 text-[8px] font-medium text-center text-zinc-300 py-0.5 font-mono">
-                      {idx === 0 ? "Cover" : `Angle ${idx + 1}`}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleRemovePhoto(idx)}
-                      className="absolute top-0 right-0 h-7 w-7 rounded-bl-md bg-black/80 text-zinc-300 hover:text-white flex items-center justify-center cursor-pointer touch-manipulation"
-                      title="Remove photo"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
+                    {label}
+                  </button>
                 ))}
+              </div>
+            </div>
+          </div>
 
-                {listingPhotos.length < 5 && (
+          {/* ── 4. Multi-Photo Intake Tray (1 to 5 Photos) ─────────────────── */}
+          <div className="p-4 space-y-2 bg-zinc-950">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-zinc-300">Listing photos ({listingPhotos.length}/5)</span>
+              <span className="text-[11px] text-zinc-500 font-mono">1–5 angles for eBay sync</span>
+            </div>
+
+            <div className="flex items-center gap-2 overflow-x-auto py-1 custom-scrollbar">
+              {listingPhotos.map((photo, idx) => (
+                <div
+                  key={idx}
+                  className="relative h-16 w-16 shrink-0 rounded-md overflow-hidden border border-zinc-800 bg-zinc-950 group"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={photo}
+                    alt={`Angle ${idx + 1}`}
+                    className="h-full w-full object-cover"
+                  />
+                  <span className="absolute bottom-0 inset-x-0 bg-black/80 text-[8px] font-medium text-center text-zinc-300 py-0.5 font-mono">
+                    {idx === 0 ? "Cover" : `Angle ${idx + 1}`}
+                  </span>
                   <button
                     type="button"
-                    onClick={() => photoInputRef.current?.click()}
-                    className="h-16 w-16 shrink-0 rounded-md border border-dashed border-zinc-800 hover:border-zinc-700 bg-zinc-900 flex flex-col items-center justify-center gap-1 text-zinc-400 hover:text-zinc-200 transition cursor-pointer"
+                    onClick={() => handleRemovePhoto(idx)}
+                    className="absolute top-0 right-0 h-7 w-7 rounded-bl-md bg-black/80 text-zinc-300 hover:text-white flex items-center justify-center cursor-pointer touch-manipulation"
+                    title="Remove photo"
                   >
-                    <Plus className="w-4 h-4" />
-                    <span className="text-[10px] font-medium">+ Photo</span>
+                    <X className="w-3.5 h-3.5" />
                   </button>
-                )}
+                </div>
+              ))}
 
-                <input
-                  ref={photoInputRef}
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={handleAddPhotos}
-                  className="hidden"
-                />
-              </div>
+              {listingPhotos.length < 5 && (
+                <button
+                  type="button"
+                  onClick={() => photoInputRef.current?.click()}
+                  className="h-16 w-16 shrink-0 rounded-md border border-dashed border-zinc-800 hover:border-zinc-700 bg-zinc-900 flex flex-col items-center justify-center gap-1 text-zinc-400 hover:text-zinc-200 transition cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span className="text-[10px] font-medium">+ Photo</span>
+                </button>
+              )}
+
+              <input
+                ref={photoInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handleAddPhotos}
+                className="hidden"
+              />
             </div>
           </div>
 
-
-          {/* ── 3. SEGMENTED COMPS INTELLIGENCE (Sold vs Active Asks) ──────────── */}
-          <div className="p-4 space-y-2.5 min-h-[240px]">
-            {/* Segmented Controller: Verified Sold Comps vs Live Active Asks */}
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center rounded-lg bg-zinc-900 border border-zinc-800 p-0.5 text-xs">
-                <button
-                  type="button"
-                  onClick={() => setCompsMarketTab("sold")}
-                  className={`px-2.5 py-1 rounded-md font-medium transition cursor-pointer ${
-                    compsMarketTab === "sold"
-                      ? "bg-zinc-800 text-white font-bold"
-                      : "text-zinc-400 hover:text-zinc-200"
-                  }`}
-                >
-                  Verified Sold ({soldCompCount})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCompsMarketTab("active")}
-                  className={`px-2.5 py-1 rounded-md font-medium transition cursor-pointer ${
-                    compsMarketTab === "active"
-                      ? "bg-zinc-800 text-white font-bold"
-                      : "text-zinc-400 hover:text-zinc-200"
-                  }`}
-                >
-                  Active Asks ({activeCompCount > 0 ? activeCompCount : isLoadingActiveComps ? "…" : 0})
-                </button>
-              </div>
-
-              {/* View Mode Toggle: Carousel vs List */}
-              <div className="flex items-center rounded-lg bg-zinc-900 border border-zinc-800 p-0.5 text-[11px]">
-                <button
-                  type="button"
-                  onClick={() => setCompsViewMode("carousel")}
-                  className={`px-2 py-0.5 rounded-md font-medium transition cursor-pointer ${
-                    compsViewMode === "carousel"
-                      ? "bg-zinc-800 text-white font-bold"
-                      : "text-zinc-400 hover:text-zinc-200"
-                  }`}
-                >
-                  Carousel
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCompsViewMode("list")}
-                  className={`px-2 py-0.5 rounded-md font-medium transition cursor-pointer ${
-                    compsViewMode === "list"
-                      ? "bg-zinc-800 text-white font-bold"
-                      : "text-zinc-400 hover:text-zinc-200"
-                  }`}
-                >
-                  List
-                </button>
-              </div>
-            </div>
-
-            {/* Display active tab comps */}
-            {(() => {
-              const currentList = compsMarketTab === "sold" ? soldCompsList : activeCompsList;
-              const displayComps = showAllComps ? currentList : currentList.slice(0, 3);
-              const remaining = Math.max(0, currentList.length - 3);
-
-              if (currentList.length === 0) {
-                const isTabResolving =
-                  compsMarketTab === "sold"
-                    ? isResolvingValuation && soldCompsList.length === 0
-                    : isLoadingActiveComps && activeCompsList.length === 0;
-
-                if (isTabResolving) {
-                  return compsViewMode === "carousel" ? (
-                    <div className="flex gap-2.5 overflow-x-auto snap-x snap-mandatory py-1 custom-scrollbar min-h-[210px]">
-                      {[0, 1, 2].map((idx) => (
-                        <div
-                          key={idx}
-                          className="w-44 sm:w-48 shrink-0 snap-start bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden p-2.5 flex flex-col justify-between animate-pulse"
-                        >
-                          <div className="h-28 w-full rounded-md bg-zinc-800/80 mb-2" />
-                          <div className="space-y-1.5">
-                            <div className="h-4 w-16 bg-zinc-800 rounded" />
-                            <div className="h-3 w-24 bg-zinc-800/60 rounded" />
-                            <div className="h-2.5 w-full bg-zinc-800/40 rounded" />
-                          </div>
-                          <div className="pt-2 border-t border-zinc-800/80 mt-2 flex items-center justify-between">
-                            <div className="h-2.5 w-12 bg-zinc-800/40 rounded" />
-                            <div className="h-3.5 w-3.5 bg-zinc-800/60 rounded" />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {[0, 1, 2].map((idx) => (
-                        <div
-                          key={idx}
-                          className="min-h-[64px] p-2.5 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-between gap-3 animate-pulse"
-                        >
-                          <div className="h-12 w-12 rounded-md bg-zinc-800 shrink-0" />
-                          <div className="flex-1 space-y-1.5 min-w-0">
-                            <div className="h-4 w-20 bg-zinc-800 rounded" />
-                            <div className="h-3 w-36 bg-zinc-800/60 rounded" />
-                          </div>
-                          <div className="h-3 w-12 bg-zinc-800/40 rounded shrink-0" />
-                        </div>
-                      ))}
-                    </div>
-                  );
-                }
-
-                return (
-                  <div className="p-4 rounded-lg bg-zinc-900 border border-zinc-800 text-center space-y-1.5">
-                    <div className="text-sm font-semibold text-zinc-200">
-                      {compsMarketTab === "active" && activeCompsError
-                        ? "Live eBay listings unavailable"
-                        : `No ${compsMarketTab === "sold" ? "verified sold" : "live active"} listings found`}
-                    </div>
-                    <div className="text-xs text-zinc-400">
-                      {compsMarketTab === "active" && activeCompsError
-                        ? activeCompsError
-                        : compsMarketTab === "active"
-                          ? "No current eBay listings matched this item. Sold comps remain separate."
-                          : "No verified completed sales were returned for this item."}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={(e) => openExternalUrlSafely(ebayActiveSearchUrl, title, e)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-zinc-800 border border-zinc-700 text-xs text-zinc-200 hover:bg-zinc-700 cursor-pointer font-medium transition mt-1"
-                    >
-                      <span>Search live {isUsMarket ? "eBay US" : "eBay AU"} listings</span>
-                      <ExternalLink className="w-3 h-3" />
-                    </button>
-                  </div>
-                );
-              }
-
-              return (
-                <>
-                  {compsViewMode === "carousel" ? (
-                    <div className="flex gap-2.5 overflow-x-auto snap-x snap-mandatory py-1 custom-scrollbar min-h-[210px]">
-                      {displayComps.map((comp, idx) => {
-                        const isCompActiveAsk = comp.soldDate === "Active Ask" || compsMarketTab === "active";
-                        const compImg = comp.thumbnail || (idx === 0 ? previewImageSrc : null);
-                        const conditionText = comp.condition ? cleanConditionText(comp.condition) : "Pre-Owned";
-
-                        return (
-                          <div
-                            key={comp.id || idx}
-                            className="w-44 sm:w-48 shrink-0 snap-start bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden p-2.5 flex flex-col justify-between"
-                          >
-                            <div className="space-y-2">
-                              {/* Thumbnail */}
-                              <div className="relative h-28 w-full rounded-md overflow-hidden bg-zinc-950 border border-zinc-800/80">
-                                {compImg ? (
-                                  // eslint-disable-next-line @next/next/no-img-element
-                                  <img
-                                    src={compImg}
-                                    alt={comp.title}
-                                    loading="lazy"
-                                    decoding="async"
-                                    className="h-full w-full object-cover"
-                                  />
-                                ) : (
-                                  <div className="h-full w-full flex items-center justify-center text-zinc-600">
-                                    <ShoppingBag className="w-8 h-8" />
-                                  </div>
-                                )}
-                                <span className="absolute bottom-1.5 right-1.5 px-1.5 py-0.5 rounded bg-black/80 text-[10px] font-medium text-zinc-300 tabular-nums">
-                                  {isCompActiveAsk ? "Active Ask" : comp.soldDate && comp.soldDate !== "Active Ask" ? comp.soldDate : "Recent"}
-                                </span>
-                              </div>
-
-                              {/* Price */}
-                              <div>
-                                <div className="text-base font-bold text-white tabular-nums">
-                                  {fmtMoney(comp.price)}
-                                </div>
-                                <div className="text-[11px] text-zinc-300 font-medium truncate mt-0.5">
-                                  {conditionText}
-                                </div>
-                                <div className="text-[10px] text-zinc-400 truncate mt-0.5">
-                                  {comp.title}
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Link Out */}
-                            <div className="pt-2 border-t border-zinc-800/80 mt-2 flex items-center justify-between text-[11px]">
-                              <span className="text-zinc-500">{isCompActiveAsk ? "Active Listing" : "Sold Comp"}</span>
-                              <button
-                                type="button"
-                                onClick={(e) => openExternalUrlSafely(comp.url || ebayActiveSearchUrl, comp.title || title, e)}
-                                className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 transition cursor-pointer"
-                                title="View on eBay"
-                              >
-                                <ExternalLink className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {displayComps.map((comp, idx) => {
-                        const isCompActiveAsk = comp.soldDate === "Active Ask" || compsMarketTab === "active";
-                        const compImg = comp.thumbnail || (idx === 0 ? previewImageSrc : null);
-                        const conditionText = comp.condition ? cleanConditionText(comp.condition) : "Pre-Owned";
-
-                        return (
-                          <div
-                            key={comp.id || idx}
-                            className="min-h-[64px] p-2.5 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-between gap-3"
-                          >
-                            <div className="h-12 w-12 rounded-md bg-zinc-950 border border-zinc-800 shrink-0 overflow-hidden">
-                              {compImg ? (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img
-                                  src={compImg}
-                                  alt={comp.title}
-                                  loading="lazy"
-                                  decoding="async"
-                                  className="h-full w-full object-cover"
-                                />
-                              ) : (
-                                <div className="h-full w-full flex items-center justify-center text-zinc-600">
-                                  <ShoppingBag className="w-5 h-5" />
-                                </div>
-                              )}
-                            </div>
-
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-1.5">
-                                <span className="text-sm font-bold text-white tabular-nums">
-                                  {fmtMoney(comp.price)}
-                                </span>
-                                <span className="text-[10px] text-zinc-400">
-                                  · {conditionText}
-                                </span>
-                              </div>
-                              <div className="text-xs text-zinc-400 truncate mt-0.5">
-                                {comp.title}
-                              </div>
-                            </div>
-
-                            <div className="shrink-0 flex items-center gap-2">
-                              <span className="text-xs tabular-nums text-zinc-400">
-                                {isCompActiveAsk ? "Active" : comp.soldDate || "Sold"}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={(e) => openExternalUrlSafely(comp.url || ebayActiveSearchUrl, comp.title || title, e)}
-                                className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition cursor-pointer"
-                                title="View on eBay"
-                              >
-                                <ExternalLink className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  {remaining > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setShowAllComps(!showAllComps)}
-                      className="w-full py-2 rounded-lg border border-zinc-800 bg-zinc-900 text-xs font-medium text-zinc-300 hover:text-white hover:bg-zinc-800 transition cursor-pointer flex items-center justify-center gap-1"
-                    >
-                      <span>{showAllComps ? "Show top 3 comps only" : `Show ${remaining} more comps`}</span>
-                      <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showAllComps ? "rotate-180" : ""}`} />
-                    </button>
-                  )}
-                </>
-              );
-            })()}
-          </div>
-
-          {/* ── 4. FOLD DOWN ACCORDION: ADVANCED ANALYTICS ───────────────────── */}
+          {/* ── 5. Advanced Market Analysis Accordion ────────────────────────── */}
           <div className="p-4 space-y-3">
             <button
               type="button"
@@ -1967,7 +1793,7 @@ export default function LensCompsModal({
             >
               <div className="flex items-center gap-2">
                 <Sliders className="w-3.5 h-3.5 text-zinc-400" />
-                <span>Advanced Analytics (Multi-Platform, Forensics, Velocity)</span>
+                <span>Advanced Analysis (Recommendation, Arbitrage, Depth)</span>
               </div>
               <ChevronDown
                 className={`w-4 h-4 text-zinc-400 transition-transform duration-200 ${
@@ -1978,6 +1804,44 @@ export default function LensCompsModal({
 
             {isAdvancedAnalyticsOpen && (
               <div className="space-y-3 pt-1">
+                {/* Algorithmic Margin & Turnover Verdict */}
+                <div className="p-3 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold tracking-wide border ${
+                        copVerdict === "MUST_COP" || recommendation === "HIGH PROFIT"
+                          ? "bg-emerald-950/60 text-emerald-300 border-emerald-800/80"
+                          : copVerdict === "PASS_RISKY" || recommendation === "PASS"
+                          ? "bg-rose-950/60 text-rose-300 border-rose-800/80"
+                          : "bg-zinc-900 text-zinc-200 border-zinc-800"
+                      }`}
+                    >
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full ${
+                          copVerdict === "MUST_COP" || recommendation === "HIGH PROFIT"
+                            ? "bg-emerald-400"
+                            : copVerdict === "PASS_RISKY" || recommendation === "PASS"
+                            ? "bg-rose-400"
+                            : "bg-emerald-400"
+                        }`}
+                      />
+                      <span>
+                        {copVerdict === "MUST_COP" || recommendation === "HIGH PROFIT"
+                          ? "BUY · HIGH MARGIN"
+                          : copVerdict === "PASS_RISKY" || recommendation === "PASS"
+                          ? "PASS · LOW MARGIN"
+                          : "BUY · SOLID MARGIN"}
+                      </span>
+                    </span>
+                    <span className="text-[11px] text-zinc-400 tabular-nums">
+                      {salesVelocity.turnoverTier === "RAPID_FIRE" ? "~1–3 days turn" : `${salesVelocity.estDaysToSell} days turn`}
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-zinc-400 shrink-0 tabular-nums">
+                    {trustLineText}
+                  </div>
+                </div>
+
                 {/* 1. Multi-Platform Net Realization */}
                 <div className="p-3 rounded-lg bg-zinc-900 border border-zinc-800 space-y-2">
                   <div className="flex items-center justify-between text-xs">

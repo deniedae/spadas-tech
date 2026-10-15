@@ -11,6 +11,7 @@ export interface RapidThriftItem {
   id: string;
   photoId: string;
   timestamp: number;
+  currency?: string;
   status: "queued" | "analyzing" | "fetching_comps" | "completed" | "error";
   productName?: string;
   brand?: string;
@@ -354,4 +355,3 @@ export function dataUriToBlob(dataUri: string): Blob {
     return new Blob([], { type: "image/jpeg" });
   }
 }
-

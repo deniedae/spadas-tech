@@ -1,4 +1,5 @@
 import { fetchEbayAustraliaSoldComps } from "@/app/lib/ebay-australia-comps";
+import { SupportedCurrency, detectGeoCurrency } from "@/app/lib/currency-routing";
 
 export interface EstimatedPriceResult {
   suggestedPrice: number;
@@ -13,11 +14,13 @@ export async function estimatePrice(product: {
   name: string;
   category: string;
   brand?: string;
+  currency?: SupportedCurrency;
 }): Promise<EstimatedPriceResult> {
   const cleanName = (product.name || "").trim();
   const brand = (product.brand || "").trim();
   const lower = cleanName.toLowerCase();
   const category = product.category || "General";
+  const currency = product.currency || (typeof window !== "undefined" ? detectGeoCurrency().currency : "USD");
 
   // 1. Supermarket / Grocery & Beverage Calibration (Realistic retail supermarket pricing)
   if (category === "Groceries & Beverages" || /\b(milk|drink|juice|soda|choc|chocolate|snack|chips|biscuit|cereal|dairy)\b/i.test(lower)) {
@@ -68,7 +71,7 @@ export async function estimatePrice(product: {
     : cleanName;
 
   try {
-    const comps = await fetchEbayAustraliaSoldComps(searchQuery, "AUD");
+    const comps = await fetchEbayAustraliaSoldComps(searchQuery, currency);
     if (comps && comps.median > 0) {
       return {
         suggestedPrice: comps.median,

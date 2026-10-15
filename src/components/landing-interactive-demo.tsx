@@ -331,18 +331,18 @@ export default function LandingInteractiveDemo() {
                       {selectedSample.name}
                     </h3>
                     <p className="text-xs text-slate-400">
-                      Real-time 30-day completed eBay Australia sales analysis.
+                      Real-time completed eBay sold sales analysis.
                     </p>
                   </div>
 
                   <div className="rounded-2xl bg-slate-900 p-4 border border-slate-800 space-y-3">
                     <div className="flex justify-between items-center text-xs">
-                      <span className="text-slate-400">Typical Op-Shop Cost:</span>
-                      <span className="font-bold text-slate-200">${selectedSample.cost.toFixed(2)} AUD</span>
+                      <span className="text-slate-400">Typical Op-Shop / Thrift Cost:</span>
+                      <span className="font-bold text-slate-200">${selectedSample.cost.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between items-center text-xs">
-                      <span className="text-slate-400">eBay AU Sold Median:</span>
-                      <span className="font-black text-white">${selectedSample.medianPrice.toFixed(2)} AUD</span>
+                      <span className="text-slate-400">eBay Sold Median:</span>
+                      <span className="font-black text-white">${selectedSample.medianPrice.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between items-center text-xs">
                       <span className="text-slate-400">Estimated eBay & Payment Fees (13.4%):</span>
@@ -416,7 +416,7 @@ export default function LandingInteractiveDemo() {
                         Offer Created: {selectedSample.name}
                       </h3>
                       <p className="text-xs text-slate-300 max-w-md mx-auto">
-                        Listed on eBay Australia at <strong className="text-emerald-400">${selectedSample.medianPrice}.00 AUD</strong> • Projected Profit: <strong className="text-emerald-400">+${estProfit.toFixed(2)} AUD</strong>
+                        Listed on eBay at <strong className="text-emerald-400">${selectedSample.medianPrice}.00</strong> • Projected Profit: <strong className="text-emerald-400">+${estProfit.toFixed(2)}</strong>
                       </p>
                     </div>
 
@@ -444,10 +444,10 @@ export default function LandingInteractiveDemo() {
                     </div>
                     <div className="space-y-1">
                       <h3 className="text-lg font-black text-white">
-                        Live eBay Australia API Publisher
+                        Live eBay API Publisher
                       </h3>
                       <p className="text-xs text-slate-400 max-w-md mx-auto">
-                        Spadas AI creates warehouse inventory, sets AUD pricing, generates specifics, and publishes your listing in 1 background API call.
+                        Spadas AI creates warehouse inventory, sets verified pricing, generates specifics, and publishes your listing in 1 background API call.
                       </p>
                     </div>
 

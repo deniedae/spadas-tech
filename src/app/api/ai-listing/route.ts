@@ -219,7 +219,7 @@ export async function POST(request: Request) {
             messages: [
               {
                 role: "user",
-                content: `You are an expert marketplace copywriter for eBay Australia, Facebook Marketplace, Depop, and Vinted.
+                content: `You are an expert marketplace copywriter for ${targetCurrency === "USD" ? "eBay US, Poshmark, Mercari, and Facebook Marketplace" : "eBay Australia, Facebook Marketplace, Depop, and Vinted"}.
 Generate professional multi-platform titles, descriptions, shipping estimate, and item specifics for this verified item:
 
 Product: ${pName}
@@ -2011,7 +2011,7 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
                   messages: [
                     {
                       role: "user",
-                      content: `You are an expert marketplace copywriter for eBay Australia, Facebook Marketplace, Depop, and Vinted.
+                      content: `You are an expert marketplace copywriter for ${targetCurrency === "USD" ? "eBay US, Poshmark, Mercari, and Facebook Marketplace" : "eBay Australia, Facebook Marketplace, Depop, and Vinted"}.
 Generate professional multi-platform titles, descriptions, shipping estimate, and item specifics for this verified item:
 
 Product: ${result.analysis.product_name}
@@ -2129,7 +2129,7 @@ RULES:
           messages: [
             {
               role: "user",
-              content: `You are an expert marketplace copywriter for eBay Australia, Facebook Marketplace, Depop, and Vinted.
+              content: `You are an expert marketplace copywriter for ${targetCurrency === "USD" ? "eBay US, Poshmark, Mercari, and Facebook Marketplace" : "eBay Australia, Facebook Marketplace, Depop, and Vinted"}.
 Generate professional multi-platform titles, descriptions, shipping estimate, and item specifics for this verified item:
 
 Product: ${result.analysis.product_name}

@@ -40,9 +40,59 @@ export const CURRENCY_CONFIGS: Record<SupportedCurrency, GeoCurrencyInfo> = {
 };
 
 /**
- * Detect currency from IP country code or Browser Timezone
+ * Detects whether the user is located in the United States / North America (USD zone)
+ */
+export function isUSGeo(countryHeader?: string | null): boolean {
+  if (countryHeader) {
+    const country = countryHeader.toUpperCase().trim();
+    if (country === "US" || country === "CA" || country === "PR") return true;
+    if (country === "AU" || country === "NZ" || country === "GB" || country === "UK") return false;
+  }
+
+  if (typeof Intl !== "undefined" && Intl.DateTimeFormat) {
+    try {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+      if (
+        tz.includes("America/") ||
+        tz.includes("US/") ||
+        tz.includes("Pacific/Honolulu") ||
+        tz.includes("Canada/") ||
+        tz === "EST" ||
+        tz === "CST" ||
+        tz === "MST" ||
+        tz === "PST"
+      ) {
+        return true;
+      }
+      if (tz.includes("Australia/") || tz.includes("Pacific/Auckland") || tz.includes("Europe/")) {
+        return false;
+      }
+    } catch {}
+  }
+
+  if (typeof navigator !== "undefined" && navigator.language) {
+    const lang = navigator.language.toLowerCase();
+    if (lang === "en-us" || lang.startsWith("es-us")) return true;
+    if (lang === "en-au" || lang === "en-gb") return false;
+  }
+
+  return false;
+}
+
+/**
+ * Detect currency from IP country code or Browser Timezone with strict US Geo-locking
  */
 export function detectGeoCurrency(countryHeader?: string | null): GeoCurrencyInfo {
+  // 1. STRICT US GEO-LOCK: US subscribers/users lock strictly to US MODE (USD)
+  if (isUSGeo(countryHeader)) {
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("spadas_selected_currency", "USD");
+      } catch {}
+    }
+    return CURRENCY_CONFIGS.USD;
+  }
+
   // Check local storage selection if on client
   if (typeof window !== "undefined") {
     try {

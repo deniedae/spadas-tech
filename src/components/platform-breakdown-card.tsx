@@ -2,6 +2,7 @@
 
 import { fmtMoney, getPlatformFeeRate } from "@/app/lib/listings";
 import { Layers, ShieldCheck, DollarSign } from "lucide-react";
+import { detectGeoCurrency } from "@/app/lib/currency-routing";
 
 interface ListingItem {
   id?: string;
@@ -12,8 +13,14 @@ interface ListingItem {
   status?: string | null;
 }
 
-export default function PlatformBreakdownCard({ items }: { items: ListingItem[] }) {
-  const platforms = [
+export default function PlatformBreakdownCard({ items, currency }: { items: ListingItem[]; currency?: string }) {
+  const isUs = (currency === "USD") || (typeof window !== "undefined" && detectGeoCurrency().currency === "USD");
+  const platforms = isUs ? [
+    { name: "eBay US", rateText: "13.25%", key: "ebay", color: "bg-blue-500 text-blue-500" },
+    { name: "Poshmark", rateText: "20.0%", key: "poshmark", color: "bg-rose-500 text-rose-400" },
+    { name: "Mercari", rateText: "0.0%", key: "mercari", color: "bg-amber-500 text-amber-500" },
+    { name: "Facebook Marketplace", rateText: "0.0%", key: "facebook", color: "bg-cyan-500 text-cyan-500" },
+  ] : [
     { name: "eBay Australia", rateText: "13.4%", key: "ebay", color: "bg-blue-500 text-blue-500" },
     { name: "Depop AU", rateText: "10.0%", key: "depop", color: "bg-rose-500 text-rose-400" },
     { name: "Gumtree AU", rateText: "0.0%", key: "gumtree", color: "bg-emerald-500 text-emerald-500" },
