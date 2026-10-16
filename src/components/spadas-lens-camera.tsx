@@ -1230,7 +1230,52 @@ function SpadasLensCameraCore({
         ? Number(finalNetProfit).toFixed(2)
         : Number((hit as any).takeHomeNet || (hit as any).trueNetProfit || 0).toFixed(2);
 
-      toast.success(`Identified: ${verifiedHit.name} (+$${toastNet} ${selectedCurrency} Net Profit)`, { id: `hit-toast-${verifiedHit.name}` });
+      // Auto-save profitable finds directly into Haul session with instant momentum feedback
+      let tripProfitFormatted = toastNet;
+      if (finalNetProfit > 0 && verifiedHit.copVerdict !== "PASS_RISKY" && verifiedHit.verdict !== "PASS") {
+        setSavedHitIds((prev) => {
+          const next = new Set(prev);
+          next.add(verifiedHit.id);
+          if (verifiedHit.name) next.add(verifiedHit.name.trim().toLowerCase());
+          if (typeof window !== "undefined") {
+            try {
+              localStorage.setItem("spadas_saved_hit_ids", JSON.stringify(Array.from(next)));
+            } catch {}
+          }
+          return next;
+        });
+
+        addItem({
+          id: verifiedHit.id,
+          photoId: verifiedHit.id,
+          timestamp: verifiedHit.timestamp || Date.now(),
+          status: "completed",
+          productName: verifiedHit.name,
+          searchTitle: verifiedHit.name,
+          brand: verifiedHit.brand || undefined,
+          category: verifiedHit.category || undefined,
+          condition: verifiedHit.condition || "Used - Good",
+          estimatedValue: finalMedian,
+          thriftCost,
+          trueNetProfit: finalNetProfit,
+          roiPercentage: copEstimate.roiPercentage,
+          copVerdict: copEstimate.copVerdict || "MUST_COP",
+          image: verifiedHit.image || previewImage || undefined,
+          compsCount: verifiedComps.length,
+          rawComps: verifiedComps,
+          comps: verifiedComps,
+        });
+
+        const newTripTotal = Math.round(((rapidStats?.totalProfit || 0) + finalNetProfit) * 100) / 100;
+        tripProfitFormatted = newTripTotal.toFixed(2);
+        syncProfitToAndroidWidget(newTripTotal, rapidItems.length + 1);
+
+        toast.success(`✨ Saved to Haul • Projected trip profit: +$${tripProfitFormatted} ${selectedCurrency}`, {
+          id: `hit-toast-${verifiedHit.name}`,
+        });
+      } else {
+        toast.success(`Identified: ${verifiedHit.name} (+$${toastNet} ${selectedCurrency} Net Profit)`, { id: `hit-toast-${verifiedHit.name}` });
+      }
 
       // 2. Hardware / Tactile Haptic Confirmation (Android Bridge + Web Vibration API)
       if (verifiedHit.copVerdict === "MUST_COP" || verifiedHit.isGrail) {
