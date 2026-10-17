@@ -1105,11 +1105,12 @@ export async function fetchEbayAustraliaSoldComps(
 
     // Multi-tier Waterfall Query Cascade: Test prioritized query variations until comps resolve
     const compsStart = Date.now();
-    for (let qIdx = 0; qIdx < Math.min(searchQueries.length, 5); qIdx++) {
+    // Allow up to 8 attempts to ensure we reach the "Universal Broad Fallback" queries at the end of the array
+    for (let qIdx = 0; qIdx < Math.min(searchQueries.length, 8); qIdx++) {
       if (Date.now() - compsStart >= 12000) break;
       const currentQuery = searchQueries[qIdx];
       if (qIdx > 0) {
-        console.log(`[eBay Comps] Waterfall cascade query [${qIdx + 1}/${Math.min(searchQueries.length, 5)}]: "${currentQuery}"`);
+        console.log(`[eBay Comps] Waterfall cascade query [${qIdx + 1}/${Math.min(searchQueries.length, 8)}]: "${currentQuery}"`);
       }
       const attempt = await querySoldCompsForTerm(currentQuery);
       if (attempt.comps.length >= 1) {

@@ -84,7 +84,8 @@ export async function executeParallelAppraisal(
   let compsSource: "sold_comps_api" | "browse_api" | "ai_estimate" = "ai_estimate";
 
   if (comps && comps.median > 0) {
-    estValue = comps.median;
+    // ALWAYS use the smart recommended price if available (this factors in active undercutting and 1-tap fast-sell logic)
+    estValue = comps.recommendedPrice || comps.median;
     compsCount = comps.count;
     compsSource = comps.source === "sold_comps_api" ? "sold_comps_api" : "browse_api";
   } else if (baseline && baseline.suggestedPrice > 0) {

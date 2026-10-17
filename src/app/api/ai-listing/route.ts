@@ -782,9 +782,11 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
 - Put every observed flaw explicitly in "defect_notes" (e.g. ["Surface scuff near bottom corner", "Minor hardware tarnish"]).
 - Set "inventory_condition": "used_working", "refurbished", "untested", or "faulty_for_parts".
 
-4. ESTIMATED SOLD PRICE (AUD):
-- Provide realistic pre-owned secondary market sold comps: suggested_price_min, suggested_price_max, and suggested_price_median.
+4. ESTIMATED SOLD PRICE (AUD) - **CRITICAL FAIL-SAFE**:
+- Provide highly accurate and realistic pre-owned secondary market sold comps: suggested_price_min, suggested_price_max, and suggested_price_median.
+- STRICT PROMPT: If the live eBay API fails to find a match, YOUR suggested_price_median is used directly for the user's 1-Tap eBay Publisher. You MUST provide a mathematically sound, fair market value estimate based on historical knowledge. Do NOT default to zero or lowball rare items.
 - Common mass-market/generic items: $3 - $20 AUD. Realistic authentic designer wallets: $180 - $480 AUD.
+- Used controllers/peripherals: factor in current market depreciation.
 
 5. ZERO BLIND VERDICTS & VARIANT / REPRINT DISCRIMINATION:
 - Populate "variant_audit":
