@@ -53,7 +53,8 @@ export async function callGeminiVision(
 
 PERFORM THOROUGH VISUAL IDENTIFICATION & SECONDARY MARKET RESEARCH:
 
-1. EXACT PRODUCT & BRAND IDENTIFICATION (FORENSIC OCR & LOGO INSPECTION):
+1. EXACT PRODUCT & BRAND IDENTIFICATION (FORENSIC OCR & LOGO INSPECTION) - **STRICT RULE: ZERO HALLUCINATIONS**:
+- You must NOT guess or invent brands. If there is NO visible logo, tag, or stamp, you MUST output brand as null and product_name as a generic descriptive name.
 - Read every visible word, brand stamp, care label, serial number, or typography via OCR.
 - Brand: Identify the exact brand (e.g., Nike, Jordan, Prada, Gucci, Sony, Nintendo, Carhartt, The North Face, Ralph Lauren, Apple, Bose, TP-Link, Canon).
 - Model / Silhouette: Identify the exact model name, edition, style code, or silhouette (e.g. "Air Jordan 4 Military Black", "Prada Saffiano Triangle Bifold Wallet", "Sony Cyber-shot DSC-W350").

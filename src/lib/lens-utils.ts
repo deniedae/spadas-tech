@@ -157,32 +157,30 @@ export function buildCleanListingDescription(options: {
   const safeCond = cleanConditionText(options.condition, "Used - Good");
 
   const lines: string[] = [
-    `${subject}.`,
+    `Up for sale is a ${subject}.`,
     "",
+    "Item Details:",
     `• Brand: ${safeBrand !== "Unbranded" ? safeBrand : "Unbranded"}`,
-    `• Item: ${safeTitle}`,
+    `• Type: ${safeTitle}`,
   ];
 
   if (options.materialColor) {
-    lines.push(`• Material/Color: ${options.materialColor}`);
+    lines.push(`• Features: ${options.materialColor}`);
   }
 
   if (options.category && options.category !== "General Resale" && isMeaningfulMeta(options.category)) {
     lines.push(`• Category: ${options.category}`);
   }
 
-  lines.push(`• Condition: ${safeCond}. Inspected and operating as intended.`);
-
-  if (typeof options.price === "number" && options.price > 0) {
-    const symbol = options.currency === "USD" ? "$" : options.currency === "GBP" ? "£" : "A$";
-    lines.push(`• Target Price: ${symbol}${options.price.toFixed(2)}`);
-  }
+  lines.push("");
+  lines.push("Condition & Notes:");
+  lines.push(`• ${safeCond}.`);
 
   if (options.extraNotes && options.extraNotes.trim()) {
-    lines.push(`• Details: ${options.extraNotes.trim()}`);
+    lines.push(`• ${options.extraNotes.trim()}`);
   }
 
-  lines.push("", "Please review all photos for exact item condition and cosmetic details.");
+  lines.push("", "Fast shipping available. Please review all high-resolution photos for exact item condition and cosmetic details prior to purchase. Feel free to message with any questions.");
   return lines.join("\n");
 }
 
