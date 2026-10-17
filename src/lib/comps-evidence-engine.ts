@@ -9,6 +9,8 @@
 import { fmtMoney } from "@/app/lib/listings";
 import { isBulkOrLotTitle, cleanBrandText, cleanConditionText } from "@/lib/lens-utils";
 import { APPLIANCE_FILTER_PATTERNS } from "@/app/lib/ebay-australia-comps";
+import { calculateMarketplaceFees, getDomesticShippingRate } from "@/lib/fee-engine";
+import { estimateThriftCost } from "@/lib/thrift-cop-engine";
 
 export type NormalizedCompsSource =
   | "sold_comps"        // Real eBay completed/sold transaction comps
@@ -88,6 +90,7 @@ export interface CompsEvidence {
     conditionFiltered: boolean;
   };
 
+  estimatedProfit?: number;
   cleanListings: CleanCompRecord[];
 }
 
@@ -137,8 +140,8 @@ function formatRelativeTime(timestamp?: number): string {
 
 function formatCurrencyAmount(val: number, currency = "AUD"): string {
   const rounded = Math.round(val);
-  const prefix = currency === "USD" ? "$" : "A$";
-  return `${prefix}${rounded.toLocaleString("en-AU")}`;
+  const prefix = currency === "USD" ? "$" : currency === "GBP" ? "£" : "A$";
+  return `${prefix}${rounded.toLocaleString(currency === "GBP" ? "en-GB" : currency === "USD" ? "en-US" : "en-AU")}`;
 }
 
 export function evaluateCompsEvidence(options: EvaluateCompsOptions): CompsEvidence {
@@ -149,6 +152,7 @@ export function evaluateCompsEvidence(options: EvaluateCompsOptions): CompsEvide
     targetTitle = "Scanned Item",
     brand,
     condition = "Used - Good",
+    category,
     currency: rawCurrency = "AUD",
     isUsMarket = false,
     timestamp = Date.now(),
@@ -165,8 +169,8 @@ export function evaluateCompsEvidence(options: EvaluateCompsOptions): CompsEvide
 
   const safeBrand = cleanBrandText(brand);
   const safeCondition = cleanConditionText(condition, "Used");
-  const currencySymbol = currency === "USD" ? "$" : "A$";
-  const marketName = currency === "USD" ? "eBay US" : "eBay Australia";
+  const currencySymbol = currency === "USD" ? "$" : currency === "GBP" ? "£" : "A$";
+  const marketName = currency === "USD" ? "eBay US" : currency === "GBP" ? "eBay UK" : "eBay Australia";
 
   // 1. Separate valid comps from malformed inputs
   const rawList = (rawComps || []).filter((c) => c && (c.title || parseCompPrice(c) > 0));
@@ -403,7 +407,13 @@ export function evaluateCompsEvidence(options: EvaluateCompsOptions): CompsEvide
   let soberVerdict: SoberVerdict;
   let soberVerdictLabel: string;
 
-  const estimatedProfit = soldMedian - estCost - (soldMedian * 0.134 + 0.30) - 9.5;
+  const marketplaceFee = calculateMarketplaceFees(soldMedian, currency);
+  const shippingRate = getDomesticShippingRate(category, targetTitle, undefined, currency).rate;
+  const effectiveCost =
+    typeof estCost === "number" && estCost > 0
+      ? estCost
+      : estimateThriftCost(category, currency);
+  const estimatedProfit = Math.round((soldMedian - effectiveCost - marketplaceFee - shippingRate) * 100) / 100;
 
   if (sourceState === "insufficient_data" || sampleSize === 0) {
     soberVerdict = "INSUFFICIENT_DATA";
@@ -470,6 +480,7 @@ export function evaluateCompsEvidence(options: EvaluateCompsOptions): CompsEvide
       iqrApplied,
       conditionFiltered,
     },
+    estimatedProfit: sourceState === "insufficient_data" ? 0 : estimatedProfit,
     cleanListings,
   };
 }

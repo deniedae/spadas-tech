@@ -3,7 +3,6 @@
 import React from "react";
 import {
   Scan,
-  Camera,
   Zap,
   TrendingUp,
   Layers,
@@ -56,7 +55,7 @@ export function FirstLaunchWelcomeModal({
               Spadas Lens
             </h2>
             <p className="text-xs sm:text-sm text-zinc-400 max-w-xs mx-auto leading-relaxed">
-              Instant camera scanner for resellers. Scan barcodes or thrift finds to calculate live eBay sold comps and net profit.
+              Point your camera at any thrift find and see comps, fees, and profit before you buy it.
             </p>
           </div>
         </div>
@@ -106,7 +105,7 @@ export function FirstLaunchWelcomeModal({
           </div>
         </div>
 
-        {/* Transparent Quota & Free Trial Bar */}
+        {/* Hook / value-first bar */}
         <div className="rounded-xl bg-white/[0.03] border border-white/[0.08] px-3.5 py-2.5 flex items-center justify-between text-xs">
           <div className="flex items-center gap-2">
             <div className="flex gap-1.5 items-center">
@@ -114,44 +113,42 @@ export function FirstLaunchWelcomeModal({
               <span className="w-2 h-2 rounded-full bg-emerald-400" />
               <span className="w-2 h-2 rounded-full bg-emerald-400" />
             </div>
-            <span className="font-medium text-zinc-200">3 free scans ready</span>
+            <span className="font-medium text-zinc-200">Your first scan takes under a minute</span>
           </div>
           <span className="text-emerald-400 font-mono text-[11px] font-semibold">
-            3-Day Free Trial Available
+            3 free scans ready
           </span>
         </div>
 
-        {/* Primary Free Trial & Fallback Scan Actions */}
+        {/* Primary scan-first CTA */}
         <div className="space-y-2.5 pt-1">
-          {/* Primary CTA: 3-Day Free Trial */}
-          <button
-            type="button"
-            onClick={() => {
-              triggerTactileHaptic("selection");
-              onUpgradePro();
-            }}
-            className="w-full h-11 rounded-xl bg-white hover:bg-zinc-100 active:scale-[0.99] text-zinc-950 font-bold text-xs sm:text-sm shadow-sm transition flex items-center justify-center gap-2 cursor-pointer"
-          >
-            <span>Start 3-Day Free Trial ($0 Today)</span>
-            <ArrowRight className="w-4 h-4 text-zinc-950" />
-          </button>
-
-          {/* Secondary CTA: Try 3 Free Scans First */}
           <button
             type="button"
             onClick={() => {
               triggerTactileHaptic("light");
               onStartScanning();
             }}
+            className="w-full h-11 rounded-xl bg-white hover:bg-zinc-100 active:scale-[0.99] text-zinc-950 font-bold text-xs sm:text-sm shadow-sm transition flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <span>Scan My First Item Now</span>
+            <ArrowRight className="w-4 h-4 text-zinc-950" />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              triggerTactileHaptic("selection");
+              onUpgradePro();
+            }}
             className="w-full h-10 rounded-xl bg-white/[0.05] hover:bg-white/[0.08] active:scale-[0.99] text-zinc-300 font-medium text-xs border border-white/[0.08] transition flex items-center justify-center gap-2 cursor-pointer"
           >
-            <Camera className="w-3.5 h-3.5 text-zinc-400" />
-            <span>Or test 3 free scans first (No card needed)</span>
+            <Sparkles className="w-3.5 h-3.5 text-zinc-400" />
+            <span>Start 3-Day Free Trial ($0 Today)</span>
           </button>
 
           {/* Micro Footer Notice */}
           <div className="flex items-center justify-between px-1 pt-0.5 text-[11px] text-zinc-500">
-            <span>$0 due today · Cancel anytime</span>
+            <span>3 free scans first · No card needed</span>
             {onViewGuide && (
               <button
                 type="button"

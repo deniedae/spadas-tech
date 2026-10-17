@@ -5,7 +5,16 @@
  */
 
 import { calculateSalesVelocity, type SalesVelocityProfile } from "./turnover-velocity-engine";
-import { getAusPostShippingRate, getDomesticShippingRate, EBAY_AU_FEE_RATE, EBAY_AU_FIXED_FEE } from "./fee-engine";
+import {
+  getAusPostShippingRate,
+  getDomesticShippingRate,
+  EBAY_AU_FEE_RATE,
+  EBAY_AU_FIXED_FEE,
+  EBAY_UK_FEE_RATE,
+  EBAY_UK_FIXED_FEE,
+  EBAY_US_FEE_RATE,
+  EBAY_US_FIXED_FEE,
+} from "./fee-engine";
 
 export interface ThriftPricingEstimate {
   estimatedResalePrice: number;
@@ -48,7 +57,8 @@ export const CATEGORY_THRIFT_COGS: Record<string, number> = {
 
 export function estimateThriftCost(category?: string | null, currency: string = "AUD"): number {
   const isUS = currency.toUpperCase() === "USD";
-  if (!category) return isUS ? 3.5 : 5.0;
+  const isUK = currency.toUpperCase() === "GBP";
+  if (!category) return isUK ? 2.75 : isUS ? 3.5 : 5.0;
   const c = category.toLowerCase().trim();
   let baseCost = 5.0;
   for (const [key, cost] of Object.entries(CATEGORY_THRIFT_COGS)) {
@@ -57,7 +67,11 @@ export function estimateThriftCost(category?: string | null, currency: string = 
       break;
     }
   }
-  return isUS ? Math.max(1.5, Math.round(baseCost * 0.7 * 100) / 100) : baseCost;
+  return isUK
+    ? Math.max(1.0, Math.round(baseCost * 0.55 * 100) / 100)
+    : isUS
+      ? Math.max(1.5, Math.round(baseCost * 0.7 * 100) / 100)
+      : baseCost;
 }
 
 /**
@@ -75,15 +89,12 @@ export function estimateCategoryShippingCost(
 
 export interface ThriftTrapResult {
   isTrap: boolean;
-  trapType?: "PENNY_MEDIA" | "COMMODITY_TECH" | "FRAGILE_MUG" | "FAST_FASHION" | "LOW_MARGIN";
+  trapType?: "LOW_MARGIN_MEDIA" | "COMMODITY_ELECTRONICS" | "HIGH_SHIPPING_RISK" | "FAST_FASHION" | "LOW_MARGIN";
   reason?: string;
 }
 
 /**
- * Detects common thrift store traps that fool amateur resellers:
- * - $5 common DVDs / CDs where shipping costs eat 100% of profit
- * - Amazon Basics / Onn / Insignia budget commodity tech that sells cheaper new on Amazon Prime
- * - Mass-market ceramic novelty coffee mugs with high breakage and heavy postal weight
+ * Detects categories with typically low net margins due to high shipping relative to value:
  */
 export function detectThriftTrap(
   productName?: string | null,
@@ -92,18 +103,18 @@ export function detectThriftTrap(
 ): ThriftTrapResult {
   const text = `${productName || ""} ${brand || ""}`.toLowerCase();
 
-  // Trap A: Common Mass-Market Media DVDs / CDs / VHS under $14
+  // Media
   const isMedia = text.includes("dvd") || text.includes("cd") || text.includes("vhs") || text.includes("blu-ray") || text.includes("bluray");
   const isRareMedia = text.includes("criterion") || text.includes("sealed") || text.includes("box set") || text.includes("out of print") || text.includes("rare") || text.includes("anime") || text.includes("steelbook");
   if (isMedia && !isRareMedia && resalePrice <= 14) {
     return {
       isTrap: true,
-      trapType: "PENNY_MEDIA",
-      reason: "Common mass-market media. Tracked postage ($4.20) + platform fees consume 100% of proceeds. Negative or zero net margin.",
+      trapType: "LOW_MARGIN_MEDIA",
+      reason: "Common media. Shipping and fees typically consume net margin.",
     };
   }
 
-  // Trap B: Budget Commodity Tech (Amazon Basics, Insignia, Onn, Mainstays, Blackweb, Anko)
+  // Budget Electronics
   const isCommodityBrand =
     text.includes("amazon basics") ||
     text.includes("amazonbasics") ||
@@ -116,29 +127,29 @@ export function detectThriftTrap(
   if (isCommodityBrand) {
     return {
       isTrap: true,
-      trapType: "COMMODITY_TECH",
-      reason: "Commodity budget brand. Sells cheaper brand-new on Amazon Prime; shipping cost ($9+) kills any margin. Zero secondary market demand.",
+      trapType: "COMMODITY_ELECTRONICS",
+      reason: "Commodity budget brand. Limited secondary market demand.",
     };
   }
 
-  // Trap C: Mass-Market Novelty Ceramic Mugs (unless rare vintage 80s/90s or Starbucks Been There)
+  // Mugs
   const isMug = text.includes("mug") || text.includes("coffee cup") || text.includes("ceramic cup");
   const isCollectorMug = text.includes("starbucks been there") || text.includes("vintage 198") || text.includes("vintage 197") || text.includes("fire-king") || text.includes("pyrex") || text.includes("tiki");
   if (isMug && !isCollectorMug && resalePrice <= 25) {
     return {
       isTrap: true,
-      trapType: "FRAGILE_MUG",
-      reason: "Mass-market novelty ceramic. Heavy fragile bubble packaging ($8.50+) and high breakage risk eliminate profit unless rare vintage.",
+      trapType: "HIGH_SHIPPING_RISK",
+      reason: "High shipping and packaging costs relative to item value.",
     };
   }
 
-  // Trap D: Fast Fashion (Shein, Temu, Primark)
+  // Fast Fashion
   const isFastFashion = text.includes("shein") || text.includes("temu") || text.includes("primark");
   if (isFastFashion) {
     return {
       isTrap: true,
       trapType: "FAST_FASHION",
-      reason: "Disposable fast fashion. No secondary market resale demand and zero margin after shipping.",
+      reason: "Fast fashion. Limited resale margin after shipping.",
     };
   }
 
@@ -158,6 +169,7 @@ export interface CalculateCopVerdictOptions {
   platformFeeRate?: number; // default EBAY_AU_FEE_RATE (13.4% eBay AU Pro Starter, incl. GST)
   fixedFee?: number; // default EBAY_AU_FIXED_FEE ($0.30 AUD, Pro Starter)
   shippingCost?: number;
+  currency?: string | null;
   confidenceScore?: number; // 0.0 to 1.0 or 0 to 100
   variantAudit?: {
     variantName?: string | null;
@@ -178,27 +190,31 @@ export interface CalculateCopVerdictOptions {
  * or near-match/reprint risks are detected, triggering explicit secondary fallback actions.
  */
 export function calculateThriftCopVerdict(options: CalculateCopVerdictOptions): ThriftPricingEstimate {
+  const currency = (options.currency || "AUD").toUpperCase();
+  const defaultFeeRate = currency === "GBP" ? EBAY_UK_FEE_RATE : currency === "USD" ? EBAY_US_FEE_RATE : EBAY_AU_FEE_RATE;
+  const defaultFixedFee = currency === "GBP" ? EBAY_UK_FIXED_FEE : currency === "USD" ? EBAY_US_FIXED_FEE : EBAY_AU_FIXED_FEE;
+
   const {
     resalePrice = 0,
     customCost,
     category,
     productName,
     brand,
-    platformFeeRate = EBAY_AU_FEE_RATE,
-    fixedFee = EBAY_AU_FIXED_FEE,
+    platformFeeRate = defaultFeeRate,
+    fixedFee = defaultFixedFee,
     shippingCost,
   } = options;
 
   const estimatedThriftCost =
     typeof customCost === "number" && customCost > 0
       ? customCost
-      : estimateThriftCost(category);
+      : estimateThriftCost(category, currency);
 
   // Automatically estimate category shipping if not explicitly passed
   const effectiveShipping =
     typeof shippingCost === "number" && shippingCost > 0
       ? shippingCost
-      : estimateCategoryShippingCost(category, productName);
+      : estimateCategoryShippingCost(category, productName, currency);
 
   const platformFees = Math.round((resalePrice * platformFeeRate + fixedFee) * 100) / 100;
   
@@ -227,7 +243,7 @@ export function calculateThriftCopVerdict(options: CalculateCopVerdictOptions): 
   });
 
   let copVerdict: ThriftPricingEstimate["copVerdict"] = "FAIR_MARGIN";
-  let verdictLabel = "⚖️ Fair Margin";
+  let verdictLabel = "Fair Margin";
   let verdictDescription = `Moderate margin. Turnover speed: ${salesVelocity.estDaysToSell} (${salesVelocity.sellThroughRate}% sold).`;
   let badgeStyle = {
     bg: "bg-blue-500/20",
@@ -262,20 +278,19 @@ export function calculateThriftCopVerdict(options: CalculateCopVerdictOptions): 
   // RUTHLESS RESELLER COP VERDICT
   if (trap.isTrap) {
     copVerdict = "PASS_RISKY";
-    verdictLabel = "🛑 HARD PASS (Thrift Trap)";
-    verdictDescription = trap.reason || "Postage & fees exceed market value. Leave on shelf.";
+    verdictLabel = "Pass (Low Margin)";
+    verdictDescription = trap.reason || "Postage & fees exceed market value.";
     badgeStyle = {
       bg: "bg-rose-500/20",
       text: "text-rose-400",
       border: "border-rose-500/40",
     };
   } else if (salesVelocity.isHoarderRisk) {
-    // Ruthless Hoarder Trap Filter: Low STR, sitting 45-180+ days tying up cash and shelf space
     copVerdict = "PASS_RISKY";
-    verdictLabel = "🛑 HARD PASS (Hoarder / Space Trap)";
+    verdictLabel = "Pass (Low Turnover)";
     verdictDescription =
       salesVelocity.warning ||
-      `Sluggish turnover (${salesVelocity.sellThroughRate}% sold, ${salesVelocity.estDaysToSell}). Ties up cash and shelf space.`;
+      `Sluggish turnover (${salesVelocity.sellThroughRate}% sold, ${salesVelocity.estDaysToSell}).`;
     badgeStyle = {
       bg: "bg-rose-500/20",
       text: "text-rose-400",
@@ -283,8 +298,8 @@ export function calculateThriftCopVerdict(options: CalculateCopVerdictOptions): 
     };
   } else if (netProfit <= 0 || (resalePrice < 14 && category?.toLowerCase().includes("media"))) {
     copVerdict = "PASS_RISKY";
-    verdictLabel = "🛑 HARD PASS (Loss)";
-    verdictDescription = `Net profit is negative ($${netProfit.toFixed(2)}) after $${effectiveShipping.toFixed(2)} shipping and platform fees. Leave on shelf.`;
+    verdictLabel = "Pass (Loss)";
+    verdictDescription = `Net profit is negative ($${netProfit.toFixed(2)}) after $${effectiveShipping.toFixed(2)} shipping and platform fees.`;
     badgeStyle = {
       bg: "bg-rose-500/20",
       text: "text-rose-400",
@@ -292,8 +307,8 @@ export function calculateThriftCopVerdict(options: CalculateCopVerdictOptions): 
     };
   } else if (netProfit < 7 || roiPercentage < 40) {
     copVerdict = "PASS_RISKY";
-    verdictLabel = "🛑 Risky / Low Profit";
-    verdictDescription = `Thin profit ($${netProfit.toFixed(2)}) after postage. High effort for low reward.`;
+    verdictLabel = "Pass (Low Profit)";
+    verdictDescription = `Thin profit ($${netProfit.toFixed(2)}) after postage.`;
     badgeStyle = {
       bg: "bg-rose-500/20",
       text: "text-rose-400",
@@ -310,28 +325,28 @@ export function calculateThriftCopVerdict(options: CalculateCopVerdictOptions): 
 
       if (isReprintRisk) {
         fallbackProtocol = "ZOOM_LABEL";
-        verdictLabel = "🔍 VERIFY FIRST (Reprint Risk)";
-        verificationReason = options.variantAudit?.reprintWarning || "Visual match resembles high-value vintage grail, but has modern reprint indicators. Zoom neck/care tag or copyright date.";
+        verdictLabel = "Verify First (Reprint Risk)";
+        verificationReason = options.variantAudit?.reprintWarning || "Visual match resembles high-value item, but requires tag confirmation.";
         verdictDescription = verificationReason;
       } else if (isIncompleteOrBundle) {
         fallbackProtocol = "SECOND_ANGLE";
-        verdictLabel = "🔍 VERIFY FIRST (Check Parity)";
-        verificationReason = `Unit detected as ${options.variantAudit?.completeness || "non-standard"}. Comps may reflect complete sets. Inspect accessories.`;
+        verdictLabel = "Verify First (Check Parity)";
+        verificationReason = `Unit detected as ${options.variantAudit?.completeness || "non-standard"}. Comps may reflect complete sets.`;
         verdictDescription = verificationReason;
       } else if (isModernOrBoxed) {
         fallbackProtocol = "SCAN_BARCODE";
-        verdictLabel = "🔍 VERIFY FIRST (Scan Barcode)";
-        verificationReason = `High potential margin (+$${netProfit.toFixed(0)}), but visual confidence (${Math.round(normConfidence * 100)}%) is below 88% strict gate. Scan barcode to confirm exact model & SKU parity.`;
+        verdictLabel = "Verify First (Scan Barcode)";
+        verificationReason = `Scan barcode to confirm exact model & SKU parity.`;
         verdictDescription = verificationReason;
       } else if (isApparelOrVintage) {
         fallbackProtocol = "ZOOM_LABEL";
-        verdictLabel = "🔍 VERIFY FIRST (Zoom Label / Tag)";
-        verificationReason = `High potential margin (+$${netProfit.toFixed(0)}), but visual match requires tag confirmation. Snap collar tag, care label, or size tag to confirm.`;
+        verdictLabel = "Verify First (Inspect Label)";
+        verificationReason = `Visual match requires tag confirmation. Inspect collar tag or care label.`;
         verdictDescription = verificationReason;
       } else {
         fallbackProtocol = "SECOND_ANGLE";
-        verdictLabel = "🔍 VERIFY FIRST (Second Angle)";
-        verificationReason = `Visual confidence (${Math.round(normConfidence * 100)}%) below 88% threshold. Snap secondary angle or serial label to confirm +$${netProfit.toFixed(0)} profit.`;
+        verdictLabel = "Verify First (Second Angle)";
+        verificationReason = `Visual confidence (${Math.round(normConfidence * 100)}%) below threshold. Inspect secondary angle.`;
         verdictDescription = verificationReason;
       }
 
@@ -342,8 +357,8 @@ export function calculateThriftCopVerdict(options: CalculateCopVerdictOptions): 
       };
     } else {
       copVerdict = "MUST_COP";
-      verdictLabel = "🔥 MUST COP (High Profit)";
-      verdictDescription = `Outstanding return! Projected +$${netProfit.toFixed(0)} profit (${roiPercentage}% ROI, ${salesVelocity.estDaysToSell} turnover).`;
+      verdictLabel = "High Profit";
+      verdictDescription = `Projected +$${netProfit.toFixed(0)} profit (${roiPercentage}% ROI, ${salesVelocity.estDaysToSell} turnover).`;
       badgeStyle = {
         bg: "bg-emerald-500/20",
         text: "text-emerald-400",
@@ -355,8 +370,8 @@ export function calculateThriftCopVerdict(options: CalculateCopVerdictOptions): 
       copVerdict = "VERIFY_FIRST";
       requiresSecondaryVerification = true;
       fallbackProtocol = "SECOND_ANGLE";
-      verdictLabel = "🔍 VERIFY FIRST (Low Confidence)";
-      verificationReason = `Visual confidence (${Math.round(normConfidence * 100)}%) below 88%. Check item or snap secondary angle before buying.`;
+      verdictLabel = "Verify First (Low Confidence)";
+      verificationReason = `Visual confidence (${Math.round(normConfidence * 100)}%) below threshold. Check item or snap secondary angle.`;
       verdictDescription = verificationReason;
       badgeStyle = {
         bg: "bg-amber-500/20",
@@ -365,8 +380,8 @@ export function calculateThriftCopVerdict(options: CalculateCopVerdictOptions): 
       };
     } else {
       copVerdict = "QUICK_FLIP";
-      verdictLabel = `⚡ Quick Flip (~${salesVelocity.estDaysToSell})`;
-      verdictDescription = `Solid net profit ($${netProfit.toFixed(0)}) with rapid turnaround (${salesVelocity.sellThroughRate}% sold).`;
+      verdictLabel = `Good Margin (~${salesVelocity.estDaysToSell})`;
+      verdictDescription = `Net profit ($${netProfit.toFixed(0)}) with steady turnaround (${salesVelocity.sellThroughRate}% sold).`;
       badgeStyle = {
         bg: "bg-cyan-500/20",
         text: "text-cyan-300",
@@ -379,13 +394,13 @@ export function calculateThriftCopVerdict(options: CalculateCopVerdictOptions): 
   let sourcingTip: string | undefined;
   const catLower = (category || "").toLowerCase();
   if (catLower.includes("apparel") || catLower.includes("vintage") || catLower.includes("shirt")) {
-    sourcingTip = "💡 Tip: Check tag for single stitching & Made in USA for vintage multiplier.";
+    sourcingTip = "Tip: Check tag for single stitching or manufacturing origin.";
   } else if (catLower.includes("shoe") || catLower.includes("sneaker")) {
-    sourcingTip = "💡 Tip: Inspect sole heel drag & inside size tag SKU for exact comps match.";
+    sourcingTip = "Tip: Inspect sole wear and inside size tag SKU.";
   } else if (catLower.includes("gaming") || catLower.includes("electronic")) {
-    sourcingTip = "💡 Tip: Verify battery compartment cleanliness and test switches.";
+    sourcingTip = "Tip: Verify battery compartment cleanliness and test functionality.";
   } else if (catLower.includes("media") || catLower.includes("dvd")) {
-    sourcingTip = "💡 Tip: Only buy DVDs if sealed, Criterion Collection, steelbooks, or rare anime.";
+    sourcingTip = "Tip: Inspect disc condition and completeness.";
   }
 
   return {

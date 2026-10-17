@@ -3,16 +3,14 @@
 import React, { useState, useEffect } from "react";
 import {
   Check,
-  Zap,
   ShieldCheck,
-  Crown,
   X,
   Loader2,
   ArrowRight,
   Sparkles,
   RotateCcw,
-  ExternalLink,
-  Layers,
+  Calendar,
+  Lock,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/app/lib/supabase";
@@ -22,8 +20,6 @@ import {
   purchaseGooglePlaySubscription,
   queryGooglePlaySubscriptionPlans,
   restoreGooglePlayPurchases,
-  isAndroidAppEnvironment,
-  isDigitalGoodsSupported,
   PlayProductDetail,
 } from "@/lib/google-play-billing";
 import { triggerTactileHaptic } from "@/lib/android-bridge";
@@ -42,8 +38,6 @@ export function SubscriptionPaywallModal({
   onClose,
   onSuccess,
   fromOnboarding = false,
-  currentScans,
-  onTryDemo,
 }: SubscriptionPaywallModalProps) {
   const [selectedPlan, setSelectedPlan] = useState<"weekly" | "monthly">("weekly");
   const [isLoading, setIsLoading] = useState(false);
@@ -93,6 +87,9 @@ export function SubscriptionPaywallModal({
 
   if (!isOpen || isOwner) return null;
 
+  const trialDays = weeklyPlan.trialDays ?? BILLING_CONFIG.plans.weekly.trialDays;
+  const isPlayBilling = isAppStoreClient && isAndroid;
+
   const handleSelectPlan = (plan: "weekly" | "monthly") => {
     triggerTactileHaptic("selection");
     setSelectedPlan(plan);
@@ -110,7 +107,7 @@ export function SubscriptionPaywallModal({
       if (res.active) {
         toast.success(
           selectedPlan === "weekly"
-            ? "🎉 3-Day Free Trial activated! Unlimited scanning unlocked."
+            ? `🎉 ${trialDays}-Day Free Trial activated! Unlimited scanning unlocked.`
             : "🎉 Welcome to Spadas Pro! Unlimited scanning unlocked."
         );
         if (onSuccess) onSuccess();
@@ -152,13 +149,9 @@ export function SubscriptionPaywallModal({
     }
   };
 
-
-
-  const isPlayBilling = isAppStoreClient && isAndroid;
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md select-none overflow-y-auto animate-fade-in">
-      <div className="relative w-full max-w-md max-h-[94vh] overflow-y-auto rounded-2xl border border-zinc-800 bg-[#0A0D16] p-5 sm:p-6 text-zinc-100 space-y-5 shadow-2xl custom-scrollbar">
+      <div className="relative w-full max-w-md max-h-[94vh] overflow-y-auto rounded-2xl border border-zinc-800 bg-[#0A0D16] p-5 sm:p-6 text-zinc-100 space-y-4 shadow-2xl custom-scrollbar">
         {/* Close button */}
         <button
           type="button"
@@ -170,47 +163,74 @@ export function SubscriptionPaywallModal({
         </button>
 
         {/* Header Section */}
-        <div className="space-y-2 pt-1 text-center">
+        <div className="space-y-1.5 pt-1 text-center">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-cyan-500/15 to-emerald-500/15 border border-cyan-500/30 text-[11px] font-mono font-bold text-emerald-300">
             <Sparkles className="h-3.5 w-3.5 text-emerald-400" />
-            <span>3-DAY FREE TRIAL · $0 TODAY</span>
+            <span>{trialDays}-DAY FREE TRIAL · $0 TODAY</span>
           </div>
 
           <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight leading-tight">
-            Try 3 Days Free ($0 Today)
+            Try {trialDays} Days Free
           </h2>
 
           <p className="text-xs text-zinc-400 max-w-xs mx-auto">
-            Experience unlimited 60FPS AR scans, live eBay sold comps, and profit calculations with zero risk. Cancel anytime.
+            Experience unlimited AR optical scans, verified eBay sold comps, and instant profit calculations. Cancel anytime.
           </p>
         </div>
 
         {/* Key Feature Bullets */}
-        <div className="p-3.5 rounded-xl bg-zinc-900/60 border border-zinc-800/80 space-y-2.5">
+        <div className="p-3.5 rounded-xl bg-zinc-900/60 border border-zinc-800/80 space-y-2">
           <div className="flex items-start gap-2.5 text-xs text-zinc-200">
             <div className="h-5 w-5 rounded-md bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center shrink-0 mt-0.5">
               <Check className="h-3.5 w-3.5 text-emerald-400" />
             </div>
-            <span><strong>Unlimited instant optical comps</strong> (30-day verified sold data)</span>
+            <span><strong>Unlimited instant optical comps</strong> (verified sold data)</span>
           </div>
 
           <div className="flex items-start gap-2.5 text-xs text-zinc-200">
             <div className="h-5 w-5 rounded-md bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center shrink-0 mt-0.5">
               <Check className="h-3.5 w-3.5 text-emerald-400" />
             </div>
-            <span><strong>Real-time eBay profit ledger</strong> &amp; automatic postage calculations</span>
+            <span><strong>Real-time eBay profit ledger</strong> &amp; postage calculations</span>
           </div>
 
           <div className="flex items-start gap-2.5 text-xs text-zinc-200">
             <div className="h-5 w-5 rounded-md bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center shrink-0 mt-0.5">
               <Check className="h-3.5 w-3.5 text-emerald-400" />
             </div>
-            <span><strong>Full active and sold listing market depth</strong> with velocity signals</span>
+            <span><strong>Full market depth</strong> with real-time velocity signals</span>
           </div>
         </div>
 
+        {/* Trial Timeline for Weekly Option */}
+        {selectedPlan === "weekly" && (
+          <div className="p-3.5 rounded-xl bg-cyan-950/20 border border-cyan-500/20 space-y-2.5">
+            <div className="text-[11px] font-bold uppercase tracking-wider text-cyan-400 flex items-center gap-1.5">
+              <Calendar className="w-3.5 h-3.5" />
+              <span>How your trial works</span>
+            </div>
+            <div className="relative pl-5 space-y-2 border-l border-cyan-500/30 text-xs">
+              <div className="relative">
+                <div className="absolute -left-[25px] top-1 w-2.5 h-2.5 rounded-full bg-cyan-400 ring-4 ring-[#0A0D16]" />
+                <div className="font-semibold text-zinc-100">Today: Instant Unlimited Access</div>
+                <div className="text-[11px] text-zinc-400">Unlock full optical scanning and comps. $0 due today.</div>
+              </div>
+              <div className="relative">
+                <div className="absolute -left-[25px] top-1 w-2.5 h-2.5 rounded-full bg-cyan-400/60 ring-4 ring-[#0A0D16]" />
+                <div className="font-semibold text-zinc-100">Day {trialDays - 1}: Trial Reminder</div>
+                <div className="text-[11px] text-zinc-400">Cancel easily in Google Play Subscriptions before day {trialDays}.</div>
+              </div>
+              <div className="relative">
+                <div className="absolute -left-[25px] top-1 w-2.5 h-2.5 rounded-full bg-emerald-400 ring-4 ring-[#0A0D16]" />
+                <div className="font-semibold text-zinc-100">Day {trialDays}: Renews at {weeklyPlan.price}/week</div>
+                <div className="text-[11px] text-zinc-400">Continuous Pro access unless cancelled before trial ends.</div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Subscription Plan Selection Cards */}
-        <div className="space-y-2.5">
+        <div className="space-y-2">
           {/* Plan 1: Weekly Plan (Free Trial) */}
           <div
             onClick={() => handleSelectPlan("weekly")}
@@ -234,13 +254,13 @@ export function SubscriptionPaywallModal({
 
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-white">Weekly Plan</span>
+                    <span className="text-sm font-bold text-white">{weeklyPlan.title}</span>
                     <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-cyan-500/15 border border-cyan-500/30 text-cyan-300">
-                      3-DAY FREE TRIAL
+                      {BILLING_CONFIG.plans.weekly.label}
                     </span>
                   </div>
                   <p className="text-xs text-zinc-400 pt-0.5">
-                    3-day free trial, then {weeklyPlan.price}/week
+                    {trialDays}-day free trial, then {weeklyPlan.price}/week
                   </p>
                 </div>
               </div>
@@ -252,7 +272,7 @@ export function SubscriptionPaywallModal({
             </div>
           </div>
 
-          {/* Plan 2: Monthly Plan (Best Value) */}
+          {/* Plan 2: Monthly Plan */}
           <div
             onClick={() => handleSelectPlan("monthly")}
             className={`relative p-3.5 rounded-xl border transition-all cursor-pointer ${
@@ -275,13 +295,13 @@ export function SubscriptionPaywallModal({
 
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-white">Monthly Plan</span>
+                    <span className="text-sm font-bold text-white">{monthlyPlan.title}</span>
                     <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/15 border border-emerald-500/30 text-emerald-300">
-                      BEST VALUE · SAVE 45%
+                      {BILLING_CONFIG.plans.monthly.label}
                     </span>
                   </div>
                   <p className="text-xs text-zinc-400 pt-0.5">
-                    {monthlyPlan.price}/month (Save $6/mo vs weekly)
+                    {monthlyPlan.price}/month · billed monthly
                   </p>
                 </div>
               </div>
@@ -306,8 +326,13 @@ export function SubscriptionPaywallModal({
               <Loader2 className="h-5 w-5 animate-spin text-slate-950" />
             ) : (
               <>
-                <span>{selectedPlan === "weekly" ? "Start 3-Day Free Trial" : "Subscribe Now"}</span>
-                <ArrowRight className="w-4 h-4" />
+                <Lock className="w-4 h-4 text-slate-950" />
+                <span>
+                  {selectedPlan === "weekly"
+                    ? `Start ${trialDays}-Day Free Trial`
+                    : "Subscribe to Spadas Pro"}
+                </span>
+                <ArrowRight className="w-4 h-4 text-slate-950" />
               </>
             )}
           </button>
@@ -317,9 +342,9 @@ export function SubscriptionPaywallModal({
             <button
               type="button"
               onClick={onClose}
-              className="w-full py-2 text-xs font-semibold text-zinc-400 hover:text-zinc-200 transition text-center cursor-pointer"
+              className="w-full py-1.5 text-xs font-semibold text-zinc-400 hover:text-zinc-200 transition text-center cursor-pointer"
             >
-              Maybe later (Continue with 3 free daily scans)
+              Maybe later (Continue with {BILLING_CONFIG.freeScanAllowance} free scans)
             </button>
           )}
         </div>

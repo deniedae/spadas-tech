@@ -106,7 +106,7 @@ export interface DetectedHit {
   };
   /** Cross-Border & Regional Geo Fallback Flags */
   isUsMarketOnly?: boolean;
-  marketOrigin?: "AU" | "US";
+  marketOrigin?: "AU" | "US" | "GB";
   usMedianUsd?: number;
   arbitrageSignal?: string;
   crossBorderShippingCost?: number;

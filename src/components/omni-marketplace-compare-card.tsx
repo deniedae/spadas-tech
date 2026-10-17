@@ -46,7 +46,7 @@ export function OmniMarketplaceCompareCard({
         return saved as SupportedCurrency;
       }
     }
-    return "AUD";
+    return detectGeoCurrency().currency;
   });
 
   React.useEffect(() => {

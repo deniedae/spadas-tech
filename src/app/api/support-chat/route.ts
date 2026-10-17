@@ -16,14 +16,15 @@ PLATFORM KNOWLEDGE BASE:
 2. GEO-STRICT COMPS ENGINE:
    - Domestic AU Comps: When in Australia, Spadas strictly queries eBay Australia sold items (LH_PrefLoc=1) in AUD, excluding international sellers.
    - Domestic US Comps: When in the United States, Spadas strictly queries eBay US sold items in USD.
+   - Domestic UK Comps: When in the United Kingdom, Spadas strictly queries eBay UK sold items (ebay.co.uk) in GBP.
    - No cross-border fallback: If domestic sold comps do not exist, Spadas reports no domestic comps and may show same-market active asks only.
 
 3. P&L & FEE CALCULATIONS:
    - Fair Market Value: Filtered via Interquartile Range (IQR) to exclude multi-packs and fake sales.
-   - Net Profit Formula: Resale Price minus In-Store Tag Price minus platform fees (US: 13.25% + $0.30, AU: 13.4% + $0.33) minus regional postage (USPS / AusPost).
+   - Net Profit Formula: Resale Price minus In-Store Tag Price minus platform fees (US: 13.25% + $0.30, UK: 12.8% + £0.30, AU: 13.4% + $0.33) minus regional postage (USPS / Royal Mail / AusPost).
 
 4. 1-CLICK EBAY PUBLISHING & INVENTORY:
-   - Direct OAuth connection to eBay allows 1-click drafts and live listing publishing for the active region (eBay US / eBay AU).
+   - Direct OAuth connection to eBay allows 1-click drafts and live listing publishing for the active region (eBay US / eBay UK / eBay AU).
    - Full inventory management with CSV/JSON exports and sales velocity tracking.
 
 5. SUBSCRIPTIONS & CREDITS:

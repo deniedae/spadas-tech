@@ -541,7 +541,7 @@ export default function SettingsPage() {
     },
     {
       q: "How does Spadas calculate net profit and sold comps?",
-      a: `Spadas Lens runs real-time queries against ${defaultCurrency === "USD" ? "eBay US (ebay.com)" : "eBay Australia (ebay.com.au)"}. Our automated algorithm calculates realistic net profit by deducting your purchase cost, estimated ${defaultCurrency === "USD" ? "USPS" : "AusPost"} parcel shipping, and eBay's ~${defaultCurrency === "USD" ? "13.25%" : "13.4%"} category selling fees and fixed processing charges.`,
+      a: `Spadas Lens runs real-time queries against ${defaultCurrency === "USD" ? "eBay US (ebay.com)" : defaultCurrency === "GBP" ? "eBay UK (ebay.co.uk)" : "eBay Australia (ebay.com.au)"}. Our automated algorithm calculates realistic net profit by deducting your purchase cost, estimated ${defaultCurrency === "USD" ? "USPS" : defaultCurrency === "GBP" ? "Royal Mail" : "AusPost"} parcel shipping, and eBay's ~${defaultCurrency === "USD" ? "13.25%" : defaultCurrency === "GBP" ? "12.8%" : "13.4%"} category selling fees and fixed processing charges.`,
     },
     {
       q: "How do I connect and publish drafts directly to eBay?",
@@ -883,7 +883,7 @@ export default function SettingsPage() {
               onChange={(e) => handleUpdateMarketplace(e.target.value)}
               className="w-full rounded-xl border border-zinc-800 bg-black/40 px-3.5 py-2.5 text-sm font-medium text-white focus:outline-none focus:border-cyan-500/50 transition cursor-pointer"
             >
-              <option value="eBay">{defaultCurrency === "USD" ? "eBay US (ebay.com)" : "eBay Australia (ebay.com.au)"}</option>
+              <option value="eBay">{defaultCurrency === "USD" ? "eBay US (ebay.com)" : defaultCurrency === "GBP" ? "eBay UK (ebay.co.uk)" : "eBay Australia (ebay.com.au)"}</option>
               <option value="Facebook Marketplace">Facebook Marketplace</option>
               <option value="Depop">Depop</option>
             </select>

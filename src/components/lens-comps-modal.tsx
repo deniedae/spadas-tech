@@ -58,10 +58,13 @@ import {
 import {
   AUSPOST_PARCEL_RATES,
   USPS_PARCEL_RATES,
+  ROYAL_MAIL_PARCEL_RATES,
   EBAY_AU_FEE_RATE,
   EBAY_AU_FIXED_FEE,
   EBAY_US_FEE_RATE,
   EBAY_US_FIXED_FEE,
+  EBAY_UK_FEE_RATE,
+  EBAY_UK_FIXED_FEE,
   type AusPostParcelTier,
 } from "@/lib/fee-engine";
 import { calculateSalesVelocity } from "@/lib/turnover-velocity-engine";
@@ -433,9 +436,20 @@ export default function LensCompsModal({
     const itemStatus = (item as any)?.status;
     const isPendingStatus = itemStatus === "fetching_comps" || itemStatus === "analyzing" || itemStatus === "pending";
     const isCompsPending = Boolean((item as any)?.is_comps_pending);
-    const isBaselineFallback = !item.estimatedValue || Number(item.estimatedValue) <= 8;
+    const hasFinalFallbackState = Boolean(
+      (item as any)?.noMarketData ||
+      (item as any)?.isActiveAskOnly ||
+      (item as any)?.compsSource === "browse_api" ||
+      (item as any)?.compsSource === "ai_estimate" ||
+      (item as any)?.compsSource === "cached_last_check"
+    );
 
-    return isPendingStatus || isCompsPending || isBaselineFallback;
+    if (!isPendingStatus && !isCompsPending && hasFinalFallbackState) {
+      if (currentItemId) resolvedItemIdsRef.current.add(currentItemId);
+      return false;
+    }
+
+    return isPendingStatus || isCompsPending;
   }, [currentItemId, effectiveComps.length, (item as any)?.status, (item as any)?.is_comps_pending, item?.estimatedValue]);
 
   const compsRange = useMemo(() => {
@@ -500,8 +514,13 @@ export default function LensCompsModal({
     effectiveComps.some((c) => (c as any).isUsComp) ||
     (typeof window !== "undefined" && localStorage.getItem("spadas_selected_currency") === "USD")
   );
-  const parcelRates = isUsMarket ? USPS_PARCEL_RATES : AUSPOST_PARCEL_RATES;
-  const targetCurrency = isUsMarket ? "USD" : "AUD";
+  const isUkMarket = Boolean(
+    currency === "GBP" ||
+    (item as any)?.currency === "GBP" ||
+    (typeof window !== "undefined" && localStorage.getItem("spadas_selected_currency") === "GBP")
+  );
+  const parcelRates = isUkMarket ? ROYAL_MAIL_PARCEL_RATES : isUsMarket ? USPS_PARCEL_RATES : AUSPOST_PARCEL_RATES;
+  const targetCurrency = isUkMarket ? "GBP" : isUsMarket ? "USD" : "AUD";
 
   const compsEvidence: CompsEvidence = useMemo(() => {
     return evaluateCompsEvidence({
@@ -512,10 +531,11 @@ export default function LensCompsModal({
       brand,
       condition,
       category,
+      currency: targetCurrency,
       isUsMarket,
       fallbackPrice: initialEstValue,
     });
-  }, [effectiveComps, item, title, brand, condition, category, isUsMarket, initialEstValue]);
+  }, [effectiveComps, item, title, brand, condition, category, targetCurrency, isUsMarket, initialEstValue]);
 
   const stableSearchQuery = useMemo(() => {
     return [brand, title].filter(Boolean).join(" ").trim().toLowerCase();
@@ -649,12 +669,12 @@ export default function LensCompsModal({
       productName: title,
       brand,
       shippingCost: estShipping,
-      platformFeeRate: isUsMarket ? EBAY_US_FEE_RATE : EBAY_AU_FEE_RATE,
-      fixedFee: isUsMarket ? EBAY_US_FIXED_FEE : EBAY_AU_FIXED_FEE,
+      platformFeeRate: isUkMarket ? EBAY_UK_FEE_RATE : isUsMarket ? EBAY_US_FEE_RATE : EBAY_AU_FEE_RATE,
+      fixedFee: isUkMarket ? EBAY_UK_FIXED_FEE : isUsMarket ? EBAY_US_FIXED_FEE : EBAY_AU_FIXED_FEE,
       confidenceScore,
       needsVerification: requiresSecondaryVerification,
     });
-  }, [activeResalePrice, effectiveTagCost, category, title, brand, estShipping, isUsMarket, confidenceScore, requiresSecondaryVerification]);
+  }, [activeResalePrice, effectiveTagCost, category, title, brand, estShipping, isUsMarket, isUkMarket, confidenceScore, requiresSecondaryVerification]);
 
   const {
     netProfit,
@@ -683,19 +703,22 @@ export default function LensCompsModal({
     return "FLIP";
   }, [netProfit, copVerdict, hasBrandOrModel, effectiveComps.length, roi, isGrail]);
 
-  const ebayDomain = isUsMarket ? "ebay.com" : "ebay.com.au";
+  const ebayDomain = isUkMarket ? "ebay.co.uk" : isUsMarket ? "ebay.com" : "ebay.com.au";
   const cleanSearchQuery = encodeURIComponent(title.replace(/[^\w\s-]/g, "").trim());
   const ebayActiveSearchUrl = `https://www.${ebayDomain}/sch/i.html?_nkw=${cleanSearchQuery}`;
 
   // ── Advanced Analytics Calculations ──────────────────────────────────────
   const marketplaceArbitrage = useMemo(() => {
     const ebayGross = activeResalePrice;
-    const ebayFees = Math.round((ebayGross * 0.134 + 0.30) * 100) / 100;
+    const feeRate = isUkMarket ? EBAY_UK_FEE_RATE : isUsMarket ? EBAY_US_FEE_RATE : EBAY_AU_FEE_RATE;
+    const fixedFee = isUkMarket ? EBAY_UK_FIXED_FEE : isUsMarket ? EBAY_US_FIXED_FEE : EBAY_AU_FIXED_FEE;
+    const ebayFees = Math.round((ebayGross * feeRate + fixedFee) * 100) / 100;
     const ebayNet = Math.max(0, Math.round((ebayGross - effectiveTagCost - ebayFees - estShipping) * 100) / 100);
 
-    const depopGross = Math.round(activeResalePrice * 0.96);
-    const depopFees = Math.round(depopGross * 0.10 * 100) / 100;
-    const depopNet = Math.max(0, Math.round((depopGross - effectiveTagCost - depopFees - estShipping) * 100) / 100);
+    const secondMarketGross = Math.round(activeResalePrice * 0.96);
+    const secondMarketFeeRate = isUkMarket ? 0.0 : 0.10;
+    const secondMarketFees = Math.round(secondMarketGross * secondMarketFeeRate * 100) / 100;
+    const secondMarketNet = Math.max(0, Math.round((secondMarketGross - effectiveTagCost - secondMarketFees - estShipping) * 100) / 100);
 
     const gumtreeGross = Math.round(activeResalePrice * 0.90);
     const gumtreeNet = Math.max(0, Math.round((gumtreeGross - effectiveTagCost) * 100) / 100);
@@ -703,15 +726,29 @@ export default function LensCompsModal({
     const fbGross = Math.round(activeResalePrice * 0.88);
     const fbNet = Math.max(0, Math.round((fbGross - effectiveTagCost) * 100) / 100);
 
-    const channels = [
-      { name: "eBay AU", gross: ebayGross, fees: ebayFees, net: ebayNet, code: "EBAY" },
-      { name: "Depop AU", gross: depopGross, fees: depopFees, net: depopNet, code: "DEPOP" },
-      { name: "Gumtree AU", gross: gumtreeGross, fees: 0, net: gumtreeNet, code: "GUMTREE" },
-      { name: "FB Marketplace", gross: fbGross, fees: 0, net: fbNet, code: "FB" },
-    ];
+    const channels = isUkMarket
+      ? [
+          { name: "eBay UK", gross: ebayGross, fees: ebayFees, net: ebayNet, code: "EBAY" },
+          { name: "Vinted UK", gross: secondMarketGross, fees: 0, net: secondMarketNet, code: "VINTED" },
+          { name: "Depop UK", gross: secondMarketGross, fees: Math.round(secondMarketGross * 0.10 * 100) / 100, net: Math.max(0, Math.round((secondMarketGross - effectiveTagCost - (secondMarketGross * 0.10) - estShipping) * 100) / 100), code: "DEPOP" },
+          { name: "FB Marketplace", gross: fbGross, fees: 0, net: fbNet, code: "FB" },
+        ]
+      : isUsMarket
+      ? [
+          { name: "eBay US", gross: ebayGross, fees: ebayFees, net: ebayNet, code: "EBAY" },
+          { name: "Poshmark", gross: secondMarketGross, fees: Math.round(secondMarketGross * 0.20 * 100) / 100, net: Math.max(0, Math.round((secondMarketGross - effectiveTagCost - (secondMarketGross * 0.20)) * 100) / 100), code: "POSH" },
+          { name: "Mercari US", gross: gumtreeGross, fees: Math.round(gumtreeGross * 0.10 * 100) / 100, net: Math.max(0, Math.round((gumtreeGross - effectiveTagCost - (gumtreeGross * 0.10)) * 100) / 100), code: "MERCARI" },
+          { name: "FB Marketplace", gross: fbGross, fees: 0, net: fbNet, code: "FB" },
+        ]
+      : [
+          { name: "eBay AU", gross: ebayGross, fees: ebayFees, net: ebayNet, code: "EBAY" },
+          { name: "Depop AU", gross: secondMarketGross, fees: secondMarketFees, net: secondMarketNet, code: "DEPOP" },
+          { name: "Gumtree AU", gross: gumtreeGross, fees: 0, net: gumtreeNet, code: "GUMTREE" },
+          { name: "FB Marketplace", gross: fbGross, fees: 0, net: fbNet, code: "FB" },
+        ];
     channels.sort((a, b) => b.net - a.net);
     return { channels, bestChannel: channels[0] };
-  }, [activeResalePrice, effectiveTagCost, estShipping]);
+  }, [activeResalePrice, effectiveTagCost, estShipping, isUkMarket, isUsMarket]);
 
   const conditionEvaluation = useMemo(() => {
     return calculateConditionValuation({
@@ -921,8 +958,8 @@ export default function LensCompsModal({
     const safeCond = cleanConditionText(condition, "Used - Good");
     const stableSessionId =
       (item as any)?.sessionId || (item as any)?.id || `session_${(item as any)?.timestamp || Date.now()}`;
-    const targetRegionLabel = isUsMarket ? "eBay US" : "eBay AU";
-    const targetDomain = isUsMarket ? "ebay.com" : "ebay.com.au";
+    const targetRegionLabel = isUkMarket ? "eBay UK" : isUsMarket ? "eBay US" : "eBay AU";
+    const targetDomain = isUkMarket ? "ebay.co.uk" : isUsMarket ? "ebay.com" : "ebay.com.au";
 
     const cleanSubject = buildCleanListingSubject(safeBrand, title);
     const itemDescription = buildCleanListingDescription({
@@ -1140,7 +1177,7 @@ export default function LensCompsModal({
               </h2>
               <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
                 <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-zinc-900 text-zinc-300 border border-zinc-800">
-                  {isUsMarket ? "US comps" : "AU comps"}
+                  {isUkMarket ? "UK comps" : isUsMarket ? "US comps" : "AU comps"}
                 </span>
                 {hasBrandOrModel ? (
                   <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-zinc-900 text-zinc-300 border border-zinc-800">
@@ -1402,7 +1439,7 @@ export default function LensCompsModal({
                       onClick={(e) => openExternalUrlSafely(ebayActiveSearchUrl, title, e)}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-zinc-800 border border-zinc-700 text-xs text-zinc-200 hover:bg-zinc-700 cursor-pointer font-medium transition mt-1"
                     >
-                      <span>Search {isUsMarket ? "eBay US" : "eBay Australia"} listings</span>
+                      <span>Search {isUkMarket ? "eBay UK" : isUsMarket ? "eBay US" : "eBay Australia"} listings</span>
                       <ExternalLink className="w-3 h-3" />
                     </button>
                   </div>
@@ -1643,11 +1680,11 @@ export default function LensCompsModal({
                 <span className="text-rose-400 font-bold tabular-nums">−{fmtMoney(effectiveTagCost)}</span>
               </div>
               <div className="p-2 rounded bg-zinc-900 border border-zinc-800">
-                <span className="text-[10px] text-zinc-400 block">eBay Fees (~13.4%)</span>
+                <span className="text-[10px] text-zinc-400 block">eBay Fees (~{isUkMarket ? "12.8%" : isUsMarket ? "13.25%" : "13.4%"})</span>
                 <span className="text-rose-400 font-bold tabular-nums">−{fmtMoney(platformFee)}</span>
               </div>
               <div className="p-2 rounded bg-zinc-900 border border-zinc-800">
-                <span className="text-[10px] text-zinc-400 block">Postage ({isUsMarket ? "USPS" : "AusPost"})</span>
+                <span className="text-[10px] text-zinc-400 block">Postage ({isUkMarket ? "Royal Mail" : isUsMarket ? "USPS" : "AusPost"})</span>
                 <span className="text-rose-400 font-bold tabular-nums">−{fmtMoney(estShipping)}</span>
               </div>
             </div>
@@ -1987,7 +2024,7 @@ export default function LensCompsModal({
                 <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                 <div className="min-w-0">
                   <div className="text-xs font-bold text-white truncate">
-                    Live on {isUsMarket ? "eBay US" : "eBay AU"}!
+                    Live on {isUkMarket ? "eBay UK" : isUsMarket ? "eBay US" : "eBay AU"}!
                   </div>
                   {publishedSku && (
                     <div className="text-[10px] font-mono text-emerald-300/80 truncate">
@@ -2044,7 +2081,7 @@ export default function LensCompsModal({
                 onClick={handle1TapPublishEbay}
                 disabled={isPublishingEbay}
                 className="h-11 flex items-center justify-center gap-1.5 rounded-md text-xs font-semibold active:scale-[0.98] transition cursor-pointer disabled:opacity-50 bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 truncate px-1"
-                title={`Publish Live to ${isUsMarket ? "eBay US" : "eBay AU"}`}
+                title={`Publish Live to ${isUkMarket ? "eBay UK" : isUsMarket ? "eBay US" : "eBay AU"}`}
               >
                 {isPublishingEbay ? (
                   <>
@@ -2068,7 +2105,7 @@ export default function LensCompsModal({
                 onClick={handleOpenEbayEditor}
                 className="text-[11px] text-zinc-400 hover:text-zinc-200 transition cursor-pointer inline-flex items-center gap-1"
               >
-                <span>Open full listing wizard for {isUsMarket ? "eBay US" : "eBay AU"}</span>
+                <span>Open full listing wizard for {isUkMarket ? "eBay UK" : isUsMarket ? "eBay US" : "eBay AU"}</span>
                 <ArrowUpRight className="w-3 h-3 text-zinc-500" />
               </button>
             </div>

@@ -80,10 +80,51 @@ export function isUSGeo(countryHeader?: string | null): boolean {
 }
 
 /**
- * Detect currency from IP country code or Browser Timezone with strict US Geo-locking
+ * Detects whether the user is located in the United Kingdom (GBP zone)
+ */
+export function isUKGeo(countryHeader?: string | null): boolean {
+  if (countryHeader) {
+    const country = countryHeader.toUpperCase().trim();
+    if (country === "GB" || country === "UK") return true;
+    if (country === "US" || country === "CA" || country === "AU" || country === "NZ") return false;
+  }
+
+  if (typeof Intl !== "undefined" && Intl.DateTimeFormat) {
+    try {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+      if (tz.includes("Europe/London") || tz === "GMT" || tz === "BST") {
+        return true;
+      }
+      if (tz.includes("America/") || tz.includes("Australia/") || tz.includes("Pacific/")) {
+        return false;
+      }
+    } catch {}
+  }
+
+  if (typeof navigator !== "undefined" && navigator.language) {
+    const lang = navigator.language.toLowerCase();
+    if (lang === "en-gb") return true;
+    if (lang === "en-us" || lang === "en-au") return false;
+  }
+
+  return false;
+}
+
+/**
+ * Detect currency from IP country code or Browser Timezone with strict US/UK Geo-locking
  */
 export function detectGeoCurrency(countryHeader?: string | null): GeoCurrencyInfo {
-  // 1. STRICT US GEO-LOCK: US subscribers/users lock strictly to US MODE (USD)
+  // 1. STRICT UK GEO-LOCK: UK subscribers/users lock strictly to UK MODE (GBP)
+  if (isUKGeo(countryHeader)) {
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("spadas_selected_currency", "GBP");
+      } catch {}
+    }
+    return CURRENCY_CONFIGS.GBP;
+  }
+
+  // 2. STRICT US GEO-LOCK: US subscribers/users lock strictly to US MODE (USD)
   if (isUSGeo(countryHeader)) {
     if (typeof window !== "undefined") {
       try {
@@ -105,9 +146,9 @@ export function detectGeoCurrency(countryHeader?: string | null): GeoCurrencyInf
 
   if (countryHeader) {
     const country = countryHeader.toUpperCase().trim();
+    if (country === "GB" || country === "UK") return CURRENCY_CONFIGS.GBP;
     if (country === "US" || country === "CA" || country === "PR") return CURRENCY_CONFIGS.USD;
     if (country === "AU" || country === "NZ") return CURRENCY_CONFIGS.AUD;
-    if (country === "GB" || country === "UK") return CURRENCY_CONFIGS.GBP;
     if (["DE", "FR", "IT", "ES", "NL", "BE", "AT", "IE", "EU", "CH", "SE", "NO", "DK"].includes(country)) return CURRENCY_CONFIGS.EUR;
     // Any other country outside AU/NZ/Europe defaults to global standard USD
     return CURRENCY_CONFIGS.USD;
@@ -117,9 +158,9 @@ export function detectGeoCurrency(countryHeader?: string | null): GeoCurrencyInf
   if (typeof Intl !== "undefined" && Intl.DateTimeFormat) {
     try {
       const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+      if (tz.includes("Europe/London")) return CURRENCY_CONFIGS.GBP;
       if (tz.includes("Australia/") || tz.includes("Pacific/Auckland") || tz.includes("Lord_Howe")) return CURRENCY_CONFIGS.AUD;
       if (tz.includes("America/") || tz.includes("US/") || tz.includes("Pacific/Honolulu") || tz.includes("Canada/")) return CURRENCY_CONFIGS.USD;
-      if (tz.includes("Europe/London")) return CURRENCY_CONFIGS.GBP;
       if (tz.includes("Europe/")) return CURRENCY_CONFIGS.EUR;
     } catch {}
   }
@@ -127,9 +168,9 @@ export function detectGeoCurrency(countryHeader?: string | null): GeoCurrencyInf
   // Check browser navigator language
   if (typeof navigator !== "undefined" && navigator.language) {
     const lang = navigator.language.toLowerCase();
+    if (lang === "en-gb") return CURRENCY_CONFIGS.GBP;
     if (lang === "en-au") return CURRENCY_CONFIGS.AUD;
     if (lang === "en-us" || lang.startsWith("es-us")) return CURRENCY_CONFIGS.USD;
-    if (lang === "en-gb") return CURRENCY_CONFIGS.GBP;
   }
 
   // Default to USD for global traction from Google Play Store

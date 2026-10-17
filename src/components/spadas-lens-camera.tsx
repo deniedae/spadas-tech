@@ -61,6 +61,7 @@ import {
 import LensHitCard from "@/components/lens-hit-card";
 import { ensureVerifiedSoldComps } from "@/components/AuditCompsLedger";
 import { estimateCategoryShippingCost, calculateThriftCopVerdict } from "@/lib/thrift-cop-engine";
+import { calculateMarketplaceFees } from "@/lib/fee-engine";
 import { checkNeedsVerification } from "@/lib/forensic-knowledge";
 import { GuestScanHud } from "@/components/guest-scan-hud";
 import { GuestScanLimitModal } from "@/components/guest-scan-limit-modal";
@@ -1452,9 +1453,16 @@ function SpadasLensCameraCore({
 
           const isGrocery = (pCat || "").toLowerCase().includes("grocer") || (pCat || "").toLowerCase().includes("beverage") || (pCat || "").toLowerCase().includes("food");
           const estValue = resolvedMedian;
-          const estCost = estValue <= 5 ? Math.max(1, Math.round(estValue * 0.65 * 100) / 100) : Math.max(2, Math.round(estValue * 0.15));
-          const ebayFee = estValue * 0.134 + 0.33;
-          const estProfit = Math.max(0, Math.round((estValue - estCost - ebayFee) * 100) / 100);
+          const isUK = selectedCurrency === "GBP";
+          const isUS = selectedCurrency === "USD";
+          const estCost = isUK
+            ? (estValue <= 4 ? Math.max(0.5, Math.round(estValue * 0.55 * 100) / 100) : Math.max(1, Math.round(estValue * 0.12)))
+            : isUS
+            ? (estValue <= 5 ? Math.max(1, Math.round(estValue * 0.60 * 100) / 100) : Math.max(1.5, Math.round(estValue * 0.14)))
+            : (estValue <= 5 ? Math.max(1, Math.round(estValue * 0.65 * 100) / 100) : Math.max(2, Math.round(estValue * 0.15)));
+          const ebayFee = calculateMarketplaceFees(estValue, selectedCurrency);
+          const estShipping = estimateCategoryShippingCost(pCat || "General", pName, selectedCurrency);
+          const estProfit = Math.max(0, Math.round((estValue - estCost - ebayFee - estShipping) * 100) / 100);
           const estRoi = estCost > 0 ? Math.round((estProfit / estCost) * 100) : 0;
           const copVerdict =
             estProfit < 3
@@ -1907,8 +1915,8 @@ function SpadasLensCameraCore({
               if (compsData && (compsData.compsCount > 0 || compsData.median)) {
                 const medianPrice = Number(compsData.median) || hit.estimatedValue || 35;
                 const cost = hit.tagPrice ?? hit.estCost ?? compsData.typicalOpShopCost ?? 6;
-                const fee = medianPrice * 0.134 + 0.33;
-                const shipping = compsData.crossBorderShippingCost ? 25 : 10.90;
+                const fee = calculateMarketplaceFees(medianPrice, selectedCurrency);
+                const shipping = compsData.crossBorderShippingCost ? (selectedCurrency === "GBP" ? 15 : selectedCurrency === "USD" ? 18 : 25) : estimateCategoryShippingCost(hit.category || "General", hit.name, selectedCurrency);
                 const recalculatedNet = Math.max(0, Math.round((medianPrice - cost - fee - shipping) * 100) / 100);
                 const recalculatedRoi = cost > 0 ? Math.round((recalculatedNet / cost) * 100) : 0;
                 const recalculatedVerdict = recalculatedNet >= 35 ? "MUST_COP" : recalculatedNet >= 12 ? "QUICK_FLIP" : "PASS_RISKY";
@@ -5540,6 +5548,11 @@ function SpadasLensCameraCore({
                 onSaveDraft={handleSaveDraftHit}
                 onDeepVerify={(hit) => handleOpenDeepVerify(hit)}
                 onViewComps={(hit) => setActiveCompsHit(hit)}
+                isPro={isPro || isOwner}
+                onRequirePro={() => {
+                  setIsScanPaused(true);
+                  setIsPaywallOpen(true);
+                }}
                 onListEbay={(hit) => {
                   setIsScanPaused(true);
                   const isolatedCapture = hit.image || (hit.id === activeValuationHit?.id ? frozenFrameUrl : undefined);
@@ -5665,13 +5678,18 @@ function SpadasLensCameraCore({
             activeValuationHit.brand
           );
 
+        const isUkMarket = Boolean(
+          selectedCurrency === "GBP" ||
+          (activeValuationHit as any).currency === "GBP" ||
+          activeValuationHit.marketOrigin === "GB"
+        );
         const isUsMarket = Boolean(
           selectedCurrency === "USD" ||
           (activeValuationHit as any).currency === "USD" ||
           activeValuationHit.marketOrigin === "US"
         );
-        const marketSiteName = isUsMarket ? "eBay US" : "eBay AU";
-        const marketDomain = isUsMarket ? "ebay.com" : "ebay.com.au";
+        const marketSiteName = isUkMarket ? "eBay UK" : isUsMarket ? "eBay US" : "eBay AU";
+        const marketDomain = isUkMarket ? "ebay.co.uk" : isUsMarket ? "ebay.com" : "ebay.com.au";
 
         const isZeroSoldActive = Boolean(
           activeValuationHit.isActiveAskOnly ||
@@ -5699,8 +5717,8 @@ function SpadasLensCameraCore({
         const netProfit = activeValuationHit.trueNetProfit ?? activeValuationHit.estimatedProfit ?? Math.max(0, resaleMedian - thriftCost);
         const roiPct = activeValuationHit.roiPercentage ?? activeValuationHit.estRoi ?? (thriftCost > 0 ? Math.round((netProfit / thriftCost) * 100) : 0);
 
-        const estFees = Math.round((resaleMedian * 0.134 + (isUsMarket ? 0.33 : 0.40)) * 100) / 100;
-        const estPost = Math.max(0, Math.round((resaleMedian - thriftCost - estFees - netProfit) * 100) / 100) || (isUsMarket ? 6.50 : 9.50);
+        const estFees = calculateMarketplaceFees(resaleMedian, isUkMarket ? "GBP" : isUsMarket ? "USD" : "AUD");
+        const estPost = Math.max(0, Math.round((resaleMedian - thriftCost - estFees - netProfit) * 100) / 100) || (isUkMarket ? 3.49 : isUsMarket ? 6.50 : 9.50);
 
         const ebaySearchQuery = encodeURIComponent(activeValuationHit.name ? activeValuationHit.name : "vintage items");
         const ebayUrl = isZeroSoldActive

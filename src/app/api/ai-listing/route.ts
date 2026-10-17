@@ -1681,7 +1681,8 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
       });
 
       // Muted Category Hint: Strictly displayed as an informational reference, NEVER feeds profit/verdict
-      (result as any).category_hint = `Similar brands often sell for $${catVal.minPrice}–$${catVal.maxPrice} — verify on eBay`;
+      const hintSym = targetCurrency === "GBP" ? "£" : targetCurrency === "EUR" ? "€" : "$";
+      (result as any).category_hint = `Similar brands often sell for ${hintSym}${catVal.minPrice}–${hintSym}${catVal.maxPrice} — verify on eBay`;
 
       const carrier = targetCurrency === "AUD"
         ? "Australia Post Standard Satchel"

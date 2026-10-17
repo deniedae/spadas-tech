@@ -52,6 +52,14 @@ const US_SUPPORT_PROMPT_CHIPS = [
   { label: "⚡ Starter vs Pro features?", prompt: "What are the key differences between the Starter and Pro plans?" },
 ];
 
+const UK_SUPPORT_PROMPT_CHIPS = [
+  { label: "🇬🇧 How does UK comping work?", prompt: "How does the geo-strict eBay UK comps engine work?" },
+  { label: "📦 Royal Mail postage & rates?", prompt: "How are domestic Royal Mail shipping costs calculated for valuations?" },
+  { label: "💰 P&L formula details?", prompt: "What exact fees and deductions are in the Net Profit calculation?" },
+  { label: "🛒 How to publish to eBay?", prompt: "How do I connect and publish items directly to eBay UK?" },
+  { label: "⚡ Starter vs Pro features?", prompt: "What are the key differences between the Starter and Pro plans?" },
+];
+
 const AU_SUPPORT_PROMPT_CHIPS = [
   { label: "🇦🇺 How does AU comping work?", prompt: "How does the geo-strict eBay Australia comps engine work?" },
   { label: "📦 AusPost postage & rates?", prompt: "How are domestic Australia Post shipping costs calculated?" },
@@ -933,7 +941,7 @@ export default function DashboardSupportDesk({
 
                 {/* Quick Diagnostics Chips */}
                 <div className="px-3 py-2 border-t border-zinc-850 bg-zinc-950/90 overflow-x-auto no-scrollbar flex items-center gap-1.5 shrink-0">
-                  {((typeof window !== "undefined" && detectGeoCurrency().currency === "USD") ? US_SUPPORT_PROMPT_CHIPS : AU_SUPPORT_PROMPT_CHIPS).map((chip, idx) => (
+                  {((typeof window !== "undefined" && detectGeoCurrency().currency === "GBP") ? UK_SUPPORT_PROMPT_CHIPS : (typeof window !== "undefined" && detectGeoCurrency().currency === "USD") ? US_SUPPORT_PROMPT_CHIPS : AU_SUPPORT_PROMPT_CHIPS).map((chip, idx) => (
                     <button
                       key={idx}
                       type="button"

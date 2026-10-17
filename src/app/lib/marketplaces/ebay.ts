@@ -63,6 +63,14 @@ export function resolveClientSecret(): string {
   return (process.env.EBAY_CLIENT_SECRET || "").trim();
 }
 
+export function getAuthHost(): string {
+  const clientId = resolveClientId();
+  if (clientId.includes("-PRD-") || process.env.EBAY_ENVIRONMENT === "production") {
+    return "auth.ebay.com";
+  }
+  return "auth.sandbox.ebay.com";
+}
+
 /**
  * Generate official eBay OAuth 2.0 Authorization URL
  * Setting prompt="login" forces eBay to present credentials sign-in screen,
@@ -73,7 +81,7 @@ export function getEbayAuthUrl(state: string, promptLogin: boolean = true): stri
   const clientId = resolveClientId();
   const ruName = resolveRuName();
 
-  const host = "auth.ebay.com";
+  const host = getAuthHost();
 
   const params = new URLSearchParams({
     client_id: clientId,

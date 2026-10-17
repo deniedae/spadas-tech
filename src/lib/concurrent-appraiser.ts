@@ -95,8 +95,9 @@ export async function executeParallelAppraisal(
   // Cost & Profit calculations
   const tagCost = input.tagPrice || Math.max(2, Math.round(estValue * 0.15));
   const isUs = targetCurrency === "USD";
-  const feeRate = isUs ? 0.1325 : 0.134;
-  const fixedFee = isUs ? 0.30 : 0.33;
+  const isUk = targetCurrency === "GBP";
+  const feeRate = isUk ? 0.128 : isUs ? 0.1325 : 0.134;
+  const fixedFee = isUk ? 0.30 : isUs ? 0.40 : 0.33;
   const ebayFee = Math.round((estValue * feeRate + fixedFee) * 100) / 100;
   const netProfit = Math.max(0, Math.round((estValue - tagCost - ebayFee) * 100) / 100);
   const roi = tagCost > 0 ? Math.round((netProfit / tagCost) * 100) : 0;

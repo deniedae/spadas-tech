@@ -77,7 +77,7 @@ const VELOCITY_RULES: CategoryVelocityRule[] = [
     baseStr: 18,
     avgDays: 65,
     tier: "HOARDER_RISK",
-    warning: "🛑 Junkyard Hoarder Trap: Heavy & bulky. Sells <20% sell-through with 60+ day holding time.",
+    warning: "Heavy/bulky item risk. Typically <20% sell-through with 60+ day holding time.",
   },
 
   // ── VINTAGE & STREETWEAR ───────────────────────────────────────────────────
@@ -98,7 +98,7 @@ const VELOCITY_RULES: CategoryVelocityRule[] = [
     baseStr: 12,
     avgDays: 90,
     tier: "HOARDER_RISK",
-    warning: "🛑 Fast Fashion Trap: Saturated secondary market. Zero turnover velocity.",
+    warning: "Low margin brand risk: Saturated secondary market with low turnover velocity.",
   },
 
   // ── RETRO TECH & CAMERAS ───────────────────────────────────────────────────
@@ -119,7 +119,7 @@ const VELOCITY_RULES: CategoryVelocityRule[] = [
     baseStr: 15,
     avgDays: 75,
     tier: "HOARDER_RISK",
-    warning: "🛑 Commodity Tech Trap: Heavy postage, high returns, sluggish 75+ day turnover.",
+    warning: "Commodity tech risk: Heavy postage, high returns, sluggish 75+ day turnover.",
   },
 
   // ── COLLECTIBLES & CARDS ───────────────────────────────────────────────────
@@ -134,7 +134,7 @@ const VELOCITY_RULES: CategoryVelocityRule[] = [
     baseStr: 14,
     avgDays: 95,
     tier: "HOARDER_RISK",
-    warning: "🛑 Penny Media Trap: Sits on shelf for 90+ days. Leave at thrift.",
+    warning: "Low margin media risk: Often takes 90+ days to sell.",
   },
 ];
 
@@ -167,7 +167,7 @@ export function calculateSalesVelocity(options: {
       str: rawStr,
       avgDays: estDays,
       tier,
-      customWarning: tier === "HOARDER_RISK" ? "🛑 Low Sell-Through (<25% sold): High hoarding risk." : undefined,
+      customWarning: tier === "HOARDER_RISK" ? "Low Sell-Through (<25% sold): High inventory holding risk." : undefined,
     });
   }
 
@@ -211,7 +211,7 @@ function formatVelocityProfile(params: {
   if (avgDays <= 4) estDaysToSell = "2-5 Days";
   else if (avgDays >= 45) estDaysToSell = "45+ Days";
 
-  let velocityLabel = "⚖️ Steady (~14d)";
+  let velocityLabel = `Steady (~14d)`;
   let badgeStyle = {
     bg: "bg-cyan-500/20",
     text: "text-cyan-300",
@@ -220,7 +220,7 @@ function formatVelocityProfile(params: {
   let demandScore = 65;
 
   if (tier === "RAPID_FIRE") {
-    velocityLabel = `⚡ Fast Flip (~${avgDays}d)`;
+    velocityLabel = `Fast Flip (~${avgDays}d)`;
     badgeStyle = {
       bg: "bg-emerald-500/20",
       text: "text-emerald-300",
@@ -228,7 +228,7 @@ function formatVelocityProfile(params: {
     };
     demandScore = Math.min(99, Math.round(75 + (str / 150) * 24));
   } else if (tier === "SLOW_BURNER") {
-    velocityLabel = `🐢 Slow Burner (~${avgDays}d)`;
+    velocityLabel = `Slow Burner (~${avgDays}d)`;
     badgeStyle = {
       bg: "bg-amber-500/20",
       text: "text-amber-300",
@@ -236,7 +236,7 @@ function formatVelocityProfile(params: {
     };
     demandScore = 40;
   } else if (tier === "HOARDER_RISK") {
-    velocityLabel = `🛑 Space Trap (45+d)`;
+    velocityLabel = `High Holding Risk (45+d)`;
     badgeStyle = {
       bg: "bg-rose-500/20",
       text: "text-rose-400",

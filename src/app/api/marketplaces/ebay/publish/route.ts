@@ -126,8 +126,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Check if Access Token is expired and refresh if necessary
-    const isExpired = tokenRow?.expires_at ? new Date(tokenRow.expires_at).getTime() < Date.now() : true;
+    // Check if Access Token is expired (or expiring in the next 2 minutes) and refresh if necessary
+    const isExpired = tokenRow?.expires_at
+      ? new Date(tokenRow.expires_at).getTime() < Date.now() + 120_000
+      : true;
 
     if (isExpired && refreshToken) {
       try {
@@ -150,6 +152,11 @@ export async function POST(req: NextRequest) {
           { status: 401 }
         );
       }
+    } else if (isExpired && !refreshToken) {
+      return NextResponse.json(
+        { error: "eBay connection expired. Please reconnect your eBay account in Settings." },
+        { status: 401 }
+      );
     }
 
     const result = await publishToEbayInventory(accessToken, {

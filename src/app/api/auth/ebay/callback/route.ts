@@ -31,13 +31,17 @@ export async function GET(req: NextRequest) {
     } = await supabase.auth.getUser();
 
     let resolvedUserId = user?.id;
+    let returnTo = "/settings";
 
-    // Fallback: decode userId from state if cookies were not passed across redirects
-    if (!resolvedUserId && state) {
+    // Fallback: decode userId and returnTo from state if cookies were not passed across redirects
+    if (state) {
       try {
         const decoded = JSON.parse(Buffer.from(state, "base64url").toString("utf-8"));
         if (decoded.userId && decoded.userId !== "guest") {
-          resolvedUserId = decoded.userId;
+          resolvedUserId = resolvedUserId || decoded.userId;
+        }
+        if (decoded.returnTo && typeof decoded.returnTo === "string" && decoded.returnTo.startsWith("/")) {
+          returnTo = decoded.returnTo;
         }
       } catch (parseErr) {
         console.warn("Could not parse OAuth state:", parseErr);
@@ -45,9 +49,9 @@ export async function GET(req: NextRequest) {
     }
 
     if (!resolvedUserId) {
-      return NextResponse.redirect(
-        new URL("/settings?ebayError=Could not identify your Spadas account. Please log in and retry.", req.url)
-      );
+      const destUrl = new URL(returnTo, req.url);
+      destUrl.searchParams.set("ebayError", "Could not identify your Spadas account. Please log in and retry.");
+      return NextResponse.redirect(destUrl);
     }
 
     // Save tokens using service role key to ensure permission
@@ -79,12 +83,14 @@ export async function GET(req: NextRequest) {
 
     if (upsertError) {
       console.error("Failed to save eBay marketplace tokens:", upsertError);
-      return NextResponse.redirect(
-        new URL(`/settings?ebayError=${encodeURIComponent(upsertError.message)}`, req.url)
-      );
+      const destUrl = new URL(returnTo, req.url);
+      destUrl.searchParams.set("ebayError", upsertError.message);
+      return NextResponse.redirect(destUrl);
     }
 
-    return NextResponse.redirect(new URL("/settings?ebayConnected=true", req.url));
+    const destUrl = new URL(returnTo, req.url);
+    destUrl.searchParams.set("ebayConnected", "true");
+    return NextResponse.redirect(destUrl);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "OAuth exchange failed";
     console.error("eBay Callback Exception:", err);

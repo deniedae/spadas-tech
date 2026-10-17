@@ -19,6 +19,8 @@
 
 # production
 /build
+android-native-backup/build/
+android-native-backup/.gradle/
 
 # scratch & extracted
 /base/
@@ -30,6 +32,7 @@ android/.gradle/
 
 # misc
 .DS_Store
+.idea/
 *.pem
 *.keystore
 *.jar

@@ -429,7 +429,7 @@ export function ScanItemCard({
                   setIsEbayModalOpen(true);
                 }}
                 className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 text-xs font-mono font-semibold transition cursor-pointer"
-                title={`Publish directly to ${(res?.suggested_price_currency === "USD" || res?.currency === "USD" || (typeof window !== "undefined" && detectGeoCurrency().currency === "USD")) ? "eBay US" : "eBay Australia"}`}
+                title={`Publish directly to ${(res?.suggested_price_currency === "GBP" || res?.currency === "GBP" || (typeof window !== "undefined" && detectGeoCurrency().currency === "GBP")) ? "eBay UK" : (res?.suggested_price_currency === "USD" || res?.currency === "USD" || (typeof window !== "undefined" && detectGeoCurrency().currency === "USD")) ? "eBay US" : "eBay Australia"}`}
               >
                 <ShoppingBag className="w-3 h-3 text-amber-400" />
                 <span>EBAY</span>

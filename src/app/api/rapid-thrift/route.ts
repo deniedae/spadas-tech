@@ -242,11 +242,12 @@ Output ONLY valid JSON adhering strictly to:
     });
 
     const isRegionUS = (currency || "").toUpperCase() === "USD";
+    const isRegionUK = (currency || "").toUpperCase() === "GBP";
     const estVal = hasRealComps ? compsData!.median : (compsData?.noMarketData ? 0 : catEst.estimatedMedian);
-    const estCost = Number(parsed.thrift_cost) || (isRegionUS ? Math.round(catEst.typicalOpShopCost * 0.7 * 100) / 100 : catEst.typicalOpShopCost);
+    const estCost = Number(parsed.thrift_cost) || (isRegionUK ? Math.round(catEst.typicalOpShopCost * 0.55 * 100) / 100 : isRegionUS ? Math.round(catEst.typicalOpShopCost * 0.7 * 100) / 100 : catEst.typicalOpShopCost);
     const ebayFee = estVal > 0 ? calculateMarketplaceFees(estVal, currency) : 0;
 
-    // Deduct realistic category parcel shipping (USPS for USD, AusPost for AUD)
+    // Deduct realistic category parcel shipping (Royal Mail for GBP, USPS for USD, AusPost for AUD)
     const shippingCost = estimateCategoryShippingCost(pCategory, pName, currency);
     const calculatedNetProfit = estVal > 0 ? Math.max(0, Math.round((estVal - estCost - ebayFee - shippingCost) * 100) / 100) : 0;
     const netProfit = typeof parsed.true_net_profit === "number" && parsed.true_net_profit < calculatedNetProfit

@@ -552,7 +552,7 @@ export default function AuditCompsLedger({
                         : "badge-verdict-pass"
                   }
                 >
-                  {copVerdict === "MUST_COP" ? "ACQUIRE" : copVerdict === "QUICK_FLIP" ? "QUICK FLIP" : copVerdict === "VERIFY_FIRST" ? "VERIFY" : "PASS"}
+                  {copVerdict === "MUST_COP" ? "HIGH PROFIT" : copVerdict === "QUICK_FLIP" ? "GOOD MARGIN" : copVerdict === "VERIFY_FIRST" ? "VERIFY" : "PASS"}
                 </span>
               )}
             </div>

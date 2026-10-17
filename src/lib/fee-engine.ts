@@ -35,6 +35,15 @@ export const EBAY_US_FIXED_FEE = 0.40;
 export const EBAY_US_HIGH_VALUE_THRESHOLD = 7500;
 export const EBAY_US_HIGH_VALUE_RATE = 0.0235;
 
+/**
+ * Official eBay UK standard final value fee rates.
+ * Standard category fee: 12.8% + £0.30 GBP fixed fee per order.
+ */
+export const EBAY_UK_FEE_RATE = 0.128;
+export const EBAY_UK_FIXED_FEE = 0.30;
+export const EBAY_UK_HIGH_VALUE_THRESHOLD = 4000;
+export const EBAY_UK_HIGH_VALUE_RATE = 0.03;
+
 /** AusPost Standard Parcel Post national delivery matrix (AUD) */
 export const AUSPOST_PARCEL_RATES = {
   small: 10.90,       // Small satchel/box: <500g (media, video games, books, small tech)
@@ -49,6 +58,14 @@ export const USPS_PARCEL_RATES = {
   medium: 6.80,       // USPS Ground Advantage 8oz–1lb (t-shirts, apparel, lightweight goods)
   large: 9.80,        // USPS Ground Advantage 1lb–3lbs (sneakers, hoodies, outerwear)
   extraLarge: 15.50,  // USPS Ground Advantage >3lbs (heavy tech, bulky goods)
+} as const;
+
+/** Royal Mail Tracked standard commercial delivery matrix (GBP) */
+export const ROYAL_MAIL_PARCEL_RATES = {
+  small: 3.49,        // Royal Mail Tracked 48 Small Parcel (<2kg compact, media, games, shirts)
+  medium: 5.99,       // Royal Mail Tracked 48 Medium Parcel (<2kg boxes, shoes, coats)
+  large: 9.95,        // Royal Mail Tracked Parcel (2kg–5kg heavier goods)
+  extraLarge: 14.50,  // Parcelforce Express (>5kg bulky goods)
 } as const;
 
 export type AusPostParcelTier = keyof typeof AUSPOST_PARCEL_RATES;
@@ -100,6 +117,40 @@ export function getAusPostShippingRate(
       rate: AUSPOST_PARCEL_RATES.extraLarge,
       weightBracket: "> 3kg",
       description: "AusPost Extra Large Box (>3kg)",
+    };
+  }
+
+  const normCategory = (category || "").toLowerCase().trim();
+  if (normCategory === "small") {
+    return {
+      tier: "small",
+      rate: AUSPOST_PARCEL_RATES.small,
+      weightBracket: "< 500g",
+      description: "AusPost Small Satchel (<500g, Media/Games)",
+    };
+  }
+  if (normCategory === "medium") {
+    return {
+      tier: "medium",
+      rate: AUSPOST_PARCEL_RATES.medium,
+      weightBracket: "500g–1kg",
+      description: "AusPost Medium Satchel (500g–1kg, Apparel/Goods)",
+    };
+  }
+  if (normCategory === "large") {
+    return {
+      tier: "large",
+      rate: AUSPOST_PARCEL_RATES.large,
+      weightBracket: "1kg–3kg",
+      description: "AusPost Large Satchel (1kg–3kg, Shoes/Outerwear)",
+    };
+  }
+  if (normCategory === "extralarge" || normCategory === "extra_large" || normCategory === "xl") {
+    return {
+      tier: "extraLarge",
+      rate: AUSPOST_PARCEL_RATES.extraLarge,
+      weightBracket: "> 3kg",
+      description: "AusPost Extra Large Box (>3kg, Bulky)",
     };
   }
 
@@ -210,6 +261,7 @@ export function calculateEbayAuFees(salePrice: number): number {
 
 /**
  * Resolves domestic parcel shipping according to active marketplace currency:
+ * - GBP: Royal Mail Tracked (£3.49 - £14.50 GBP)
  * - USD: USPS Ground Advantage ($4.80 - $15.50 USD)
  * - AUD: AusPost Standard Parcel Post ($10.90 - $22.75 AUD)
  */
@@ -220,33 +272,66 @@ export function getDomesticShippingRate(
   currency: string = "AUD"
 ): { rate: number; description: string; tier: string; weightBracket: string } {
   const auRate = getAusPostShippingRate(category, productName, weightGrams);
-  if (currency.toUpperCase() !== "USD") return auRate;
+  const curr = currency.toUpperCase();
 
-  const uspsTier = auRate.tier as keyof typeof USPS_PARCEL_RATES;
-  const uspsRate = USPS_PARCEL_RATES[uspsTier] || USPS_PARCEL_RATES.medium;
-  const uspsDescriptions: Record<keyof typeof USPS_PARCEL_RATES, string> = {
-    small: "USPS Ground Advantage (<8oz, Media/Games)",
-    medium: "USPS Ground Advantage (8oz–1lb, Apparel/Goods)",
-    large: "USPS Ground Advantage (1lb–3lbs, Shoes/Outerwear)",
-    extraLarge: "USPS Ground Advantage (>3lbs, Bulky)",
-  };
+  if (curr === "GBP") {
+    const rmTier = auRate.tier as keyof typeof ROYAL_MAIL_PARCEL_RATES;
+    const rmRate = ROYAL_MAIL_PARCEL_RATES[rmTier] || ROYAL_MAIL_PARCEL_RATES.medium;
+    const rmDescriptions: Record<keyof typeof ROYAL_MAIL_PARCEL_RATES, string> = {
+      small: "Royal Mail Tracked 48 (<2kg, Media/Apparel)",
+      medium: "Royal Mail Tracked 48 (<2kg, Footwear/Coats)",
+      large: "Royal Mail Tracked (2kg–5kg, Heavier Goods)",
+      extraLarge: "Parcelforce Express (>5kg, Bulky)",
+    };
+    return {
+      tier: auRate.tier,
+      rate: rmRate,
+      weightBracket: auRate.weightBracket,
+      description: rmDescriptions[rmTier] || "Royal Mail Tracked",
+    };
+  }
 
-  return {
-    tier: auRate.tier,
-    rate: uspsRate,
-    weightBracket: auRate.weightBracket,
-    description: uspsDescriptions[uspsTier] || "USPS Ground Advantage",
-  };
+  if (curr === "USD") {
+    const uspsTier = auRate.tier as keyof typeof USPS_PARCEL_RATES;
+    const uspsRate = USPS_PARCEL_RATES[uspsTier] || USPS_PARCEL_RATES.medium;
+    const uspsDescriptions: Record<keyof typeof USPS_PARCEL_RATES, string> = {
+      small: "USPS Ground Advantage (<8oz, Media/Games)",
+      medium: "USPS Ground Advantage (8oz–1lb, Apparel/Goods)",
+      large: "USPS Ground Advantage (1lb–3lbs, Shoes/Outerwear)",
+      extraLarge: "USPS Ground Advantage (>3lbs, Bulky)",
+    };
+
+    return {
+      tier: auRate.tier,
+      rate: uspsRate,
+      weightBracket: auRate.weightBracket,
+      description: uspsDescriptions[uspsTier] || "USPS Ground Advantage",
+    };
+  }
+
+  return auRate;
 }
 
 /**
  * Calculates marketplace final value fees tailored to active marketplace currency:
+ * - GBP: eBay UK standard rate (12.8% + £0.30 GBP)
  * - USD: eBay US standard rate (13.25% + $0.40 USD)
  * - AUD: eBay AU Pro Starter rate (13.4% + $0.30 AUD)
  */
 export function calculateMarketplaceFees(salePrice: number, currency: string = "AUD"): number {
   if (salePrice <= 0) return 0;
-  if (currency.toUpperCase() === "USD") {
+  const curr = currency.toUpperCase();
+
+  if (curr === "GBP") {
+    if (salePrice <= EBAY_UK_HIGH_VALUE_THRESHOLD) {
+      return Math.round((salePrice * EBAY_UK_FEE_RATE + EBAY_UK_FIXED_FEE) * 100) / 100;
+    }
+    const standard = Math.round(EBAY_UK_HIGH_VALUE_THRESHOLD * EBAY_UK_FEE_RATE * 100) / 100;
+    const excess = Math.round((salePrice - EBAY_UK_HIGH_VALUE_THRESHOLD) * EBAY_UK_HIGH_VALUE_RATE * 100) / 100;
+    return Math.round((standard + excess + EBAY_UK_FIXED_FEE) * 100) / 100;
+  }
+
+  if (curr === "USD") {
     if (salePrice <= EBAY_US_HIGH_VALUE_THRESHOLD) {
       return Math.round((salePrice * EBAY_US_FEE_RATE + EBAY_US_FIXED_FEE) * 100) / 100;
     }

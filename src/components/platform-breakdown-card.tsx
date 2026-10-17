@@ -14,8 +14,15 @@ interface ListingItem {
 }
 
 export default function PlatformBreakdownCard({ items, currency }: { items: ListingItem[]; currency?: string }) {
-  const isUs = (currency === "USD") || (typeof window !== "undefined" && detectGeoCurrency().currency === "USD");
-  const platforms = isUs ? [
+  const activeCurrency = currency || (typeof window !== "undefined" ? detectGeoCurrency().currency : "AUD");
+  const isUs = activeCurrency === "USD";
+  const isUk = activeCurrency === "GBP";
+  const platforms = isUk ? [
+    { name: "eBay UK", rateText: "12.8%", key: "ebay", color: "bg-blue-500 text-blue-500" },
+    { name: "Vinted UK", rateText: "0.0%", key: "vinted", color: "bg-teal-500 text-teal-400" },
+    { name: "Depop UK", rateText: "10.0%", key: "depop", color: "bg-rose-500 text-rose-400" },
+    { name: "Facebook Marketplace", rateText: "0.0%", key: "facebook", color: "bg-cyan-500 text-cyan-500" },
+  ] : isUs ? [
     { name: "eBay US", rateText: "13.25%", key: "ebay", color: "bg-blue-500 text-blue-500" },
     { name: "Poshmark", rateText: "20.0%", key: "poshmark", color: "bg-rose-500 text-rose-400" },
     { name: "Mercari", rateText: "0.0%", key: "mercari", color: "bg-amber-500 text-amber-500" },

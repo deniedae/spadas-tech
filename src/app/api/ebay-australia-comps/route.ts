@@ -116,7 +116,8 @@ async function handleCompsSearch(
       category,
       condition,
     });
-    categoryHint = `Similar brands often sell for $${catEstimate.minPrice}–$${catEstimate.maxPrice} — verify on eBay`;
+    const currSym = currency === "GBP" ? "£" : currency === "EUR" ? "€" : "$";
+    categoryHint = `Similar brands often sell for ${currSym}${catEstimate.minPrice}–${currSym}${catEstimate.maxPrice} — verify on eBay`;
   }
 
   // ── RETAIL CAP & PRICE-BAND SANITY GUARD (Multi-Pack & Pack-Size Normalizer) ──

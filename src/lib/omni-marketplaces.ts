@@ -107,24 +107,29 @@ export function calculateOmniMarketplaceComps(params: {
   const priceGumtree = isElectronics ? Math.round(basePrice * 0.92) : Math.round(basePrice * 0.88);
   const priceFacebook = Math.round(basePrice * 0.88); // Local deals typically move slightly lower for quick cash
 
-  // 1. eBay Australia: 13.25% + fixed fee + standard shipping deduction scaled to currency
+  const isUK = currency === "GBP";
+  const isUS = currency === "USD";
+
+  // 1. eBay: Domestic marketplace fee & postage calculation
+  const ebayFeeRate = isUK ? 0.128 : isUS ? 0.1325 : 0.134;
+  const fixedFee = isUK ? 0.30 : isUS ? 0.30 : 0.33;
   const rawEbayShipping = basePrice > 50 ? 12 : 9.5;
-  const ebayShipping = currency === "AUD" ? rawEbayShipping : convertCurrency(rawEbayShipping, "AUD", currency);
-  const fixedFee = currency === "GBP" ? 0.25 : currency === "USD" ? 0.30 : 0.33;
-  const ebayFee = Math.round((basePrice * 0.1325 + fixedFee) * 100) / 100;
+  const ebayShipping = isUK ? 3.49 : isUS ? 4.80 : (currency === "AUD" ? rawEbayShipping : convertCurrency(rawEbayShipping, "AUD", currency));
+  const ebayFee = Math.round((basePrice * ebayFeeRate + fixedFee) * 100) / 100;
   const ebayNet = Math.max(0, Math.round((basePrice - ebayFee - ebayShipping) * 100) / 100);
 
-  // 2. Depop AU: ~10% marketplace fee + ~3.3% transaction fee, buyer often covers shipping on lightweight items
-  const depopFee = Math.round((priceDepop * 0.10 + priceDepop * 0.033) * 100) / 100;
-  const depopShipping = isVintageStreetwear ? 4 : 8; // Buyer pays majority on Depop
+  // 2. Apparel channel (Vinted in UK with 0% fees, Depop in AU/US with 10% fee)
+  const fashionFeeRate = isUK ? 0.0 : 0.10;
+  const depopFee = Math.round((priceDepop * fashionFeeRate + (isUK ? 0 : priceDepop * 0.033)) * 100) / 100;
+  const depopShipping = isUK ? 0 : (isVintageStreetwear ? 4 : 8); // Buyer pays on Vinted
   const depopNet = Math.max(0, Math.round((priceDepop - depopFee - depopShipping) * 100) / 100);
 
-  // 3. Gumtree Australia: 0% fee for local sales & community pick-up!
+  // 3. Classifieds (Gumtree UK/AU, Mercari US)
   const gumtreeFee = 0;
   const gumtreeShipping = 0;
   const gumtreeNet = Math.max(0, priceGumtree);
 
-  // 4. Facebook Marketplace AU: 0% fee for local cash meetup!
+  // 4. Facebook Marketplace (0% local cash meetup)
   const fbFee = 0;
   const fbShipping = 0;
   const fbNet = Math.max(0, priceFacebook);
@@ -132,11 +137,11 @@ export function calculateOmniMarketplaceComps(params: {
   const rawPlatforms: Omit<MarketplaceComparison, "isBestProfit">[] = [
     {
       platformId: "ebay",
-      name: "eBay Australia",
-      tagline: "Highest Buyer Traffic & Liquidity in AU",
+      name: isUK ? "eBay UK" : isUS ? "eBay US" : "eBay Australia",
+      tagline: isUK ? "Highest Buyer Traffic & Liquidity in UK" : isUS ? "Highest Buyer Traffic & Liquidity in US" : "Highest Buyer Traffic & Liquidity in AU",
       icon: "🛍️",
       estimatedSalePrice: basePrice,
-      platformFeeRate: 0.1325,
+      platformFeeRate: ebayFeeRate,
       platformFeeAmount: ebayFee,
       estimatedShipping: ebayShipping,
       netPayout: ebayNet,
@@ -146,21 +151,21 @@ export function calculateOmniMarketplaceComps(params: {
     },
     {
       platformId: "depop",
-      name: "Depop AU",
-      tagline: "Top Prices for Vintage & Y2K Streetwear",
-      icon: "⚡",
+      name: isUK ? "Vinted UK" : isUS ? "Depop US" : "Depop AU",
+      tagline: isUK ? "0% Seller Fees · Enormous UK Apparel Audience" : "Top Prices for Vintage & Y2K Streetwear",
+      icon: isUK ? "👗" : "⚡",
       estimatedSalePrice: priceDepop,
-      platformFeeRate: 0.10,
+      platformFeeRate: fashionFeeRate,
       platformFeeAmount: depopFee,
       estimatedShipping: depopShipping,
       netPayout: depopNet,
       marginPercentage: priceDepop > 0 ? Math.round(((depopNet - customCost) / priceDepop) * 100) : 0,
-      searchUrl: buildMarketplaceCompUrl("depop", fullQuery, currency),
-      payoutBadge: isVintageStreetwear ? "Streetwear Premium" : "Gen-Z Audience",
+      searchUrl: isUK ? `https://www.vinted.co.uk/catalog?search_text=${encodeURIComponent(fullQuery)}` : buildMarketplaceCompUrl("depop", fullQuery, currency),
+      payoutBadge: isUK ? "0% Seller Fees" : isVintageStreetwear ? "Streetwear Premium" : "Gen-Z Audience",
     },
     {
       platformId: "gumtree",
-      name: "Gumtree AU",
+      name: isUK ? "Gumtree UK" : isUS ? "Mercari US" : "Gumtree AU",
       tagline: "Local Classifieds · Free Listing · 0% Fees",
       icon: "🌿",
       estimatedSalePrice: priceGumtree,
@@ -169,7 +174,7 @@ export function calculateOmniMarketplaceComps(params: {
       estimatedShipping: gumtreeShipping,
       netPayout: gumtreeNet,
       marginPercentage: priceGumtree > 0 ? Math.round(((gumtreeNet - customCost) / priceGumtree) * 100) : 0,
-      searchUrl: buildMarketplaceCompUrl("gumtree", fullQuery, currency),
+      searchUrl: isUK ? `https://www.gumtree.com/search?search_category=all&q=${encodeURIComponent(fullQuery)}` : buildMarketplaceCompUrl("gumtree", fullQuery, currency),
       payoutBadge: "0% Fees (Cash in Hand)",
     },
     {

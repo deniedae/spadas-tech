@@ -8,12 +8,36 @@ export const revalidate = 0;
 export async function GET(req: NextRequest) {
   try {
     const supabase = await createClient();
-    const {
+    let {
       data: { user },
     } = await supabase.auth.getUser();
 
-    const userId = user?.id || "guest";
-    const state = Buffer.from(JSON.stringify({ userId, timestamp: Date.now() })).toString("base64url");
+    // Check Authorization header or query param token if cookies are not present
+    const authHeader = req.headers.get("authorization");
+    const queryToken = req.nextUrl?.searchParams?.get("token") || req.nextUrl?.searchParams?.get("access_token");
+    const token = authHeader?.startsWith("Bearer ") ? authHeader.replace("Bearer ", "").trim() : queryToken;
+
+    if (!user && token) {
+      const { data } = await supabase.auth.getUser(token);
+      user = data?.user || null;
+    }
+
+    const returnTo = req.nextUrl?.searchParams?.get("returnTo") || "/settings";
+
+    if (!user) {
+      return NextResponse.redirect(
+        new URL(
+          `/login?redirectTo=${encodeURIComponent(returnTo)}&error=${encodeURIComponent(
+            "Please log in to your Spadas account before connecting eBay."
+          )}`,
+          req.url
+        )
+      );
+    }
+
+    const state = Buffer.from(
+      JSON.stringify({ userId: user.id, returnTo, timestamp: Date.now() })
+    ).toString("base64url");
 
     // Default to prompt=login so user is forced to authenticate afresh like a new user
     const promptParam = req.nextUrl?.searchParams?.get("prompt");

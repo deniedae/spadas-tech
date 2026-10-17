@@ -10,6 +10,7 @@ import {
   ChevronUp,
   Scale,
   TrendingUp,
+  Lock,
 } from "lucide-react";
 import { fmtMoney, formatAUD } from "@/app/lib/listings";
 import type { DetectedHit } from "@/types/lens";
@@ -28,6 +29,8 @@ interface LensHitCardProps {
   onListEbay: (item: DetectedHit) => void;
   onReport: (id: string, name: string) => void;
   onViewComps?: (item: DetectedHit) => void;
+  isPro?: boolean;
+  onRequirePro?: () => void;
 }
 
 export default function LensHitCard({
@@ -40,6 +43,8 @@ export default function LensHitCard({
   onListEbay,
   onReport,
   onViewComps,
+  isPro = false,
+  onRequirePro,
 }: LensHitCardProps) {
   const [grailExpanded, setGrailExpanded] = useState(false);
   const [showCompareModal, setShowCompareModal] = useState(false);
@@ -207,7 +212,7 @@ export default function LensHitCard({
       <div className="flex items-baseline justify-between gap-3 pt-1">
         <div>
           <div className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider mb-0.5">
-            Est. net after fees
+            Net (After Fees)
           </div>
           <div className={`text-2xl font-bold tabular-nums tracking-tight ${
             (item.trueNetProfit || item.estimatedProfit || 0) >= 0 ? "text-emerald-500" : "text-red-400"
@@ -230,14 +235,25 @@ export default function LensHitCard({
         {speedLabel && (
           <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] border ${speedStyle}`}>
             <span>{speedLabel}</span>
-            {item.salesVelocity?.est_days_to_sell && (
-              <span className="text-zinc-500">· {item.salesVelocity.est_days_to_sell}</span>
-            )}
-            {item.salesVelocity?.sell_through_rate && (
-              <span className="text-zinc-400">
-                · {item.salesVelocity.sell_through_rate.includes("%")
-                  ? item.salesVelocity.sell_through_rate
-                  : `${item.salesVelocity.sell_through_rate}% sold`}
+            {isPro ? (
+              <>
+                {item.salesVelocity?.est_days_to_sell && (
+                  <span className="text-zinc-500">· {item.salesVelocity.est_days_to_sell}</span>
+                )}
+                {item.salesVelocity?.sell_through_rate && (
+                  <span className="text-zinc-400">
+                    · {item.salesVelocity.sell_through_rate.includes("%")
+                      ? item.salesVelocity.sell_through_rate
+                      : `${item.salesVelocity.sell_through_rate}% sold`}
+                  </span>
+                )}
+              </>
+            ) : (
+              <span className="text-zinc-500 flex items-center gap-0.5" onClick={(e) => {
+                e.stopPropagation();
+                if (onRequirePro) onRequirePro();
+              }}>
+                · <Lock className="w-2.5 h-2.5" /> <span className="blur-[2px] opacity-70">3-5 days</span>
               </span>
             )}
           </span>
@@ -273,6 +289,10 @@ export default function LensHitCard({
             disabled={isSaved}
             onClick={() => {
               if (isSaved) return;
+              if (!isPro && onRequirePro) {
+                onRequirePro();
+                return;
+              }
               triggerTactileHaptic("success");
               onSaveDraft(item);
             }}
@@ -282,11 +302,15 @@ export default function LensHitCard({
                 : "bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 cursor-pointer"
             }`}
           >
-            {isSaved ? "Saved" : "+ Haul"}
+            {isSaved ? "Saved" : <>+ Haul {!isPro && <Lock className="w-3 h-3 ml-0.5 text-zinc-500" />}</>}
           </button>
           <button
             type="button"
             onClick={() => {
+              if (!isPro && onRequirePro) {
+                onRequirePro();
+                return;
+              }
               triggerTactileHaptic("medium");
               setShowCompareModal(true);
             }}
@@ -294,7 +318,7 @@ export default function LensHitCard({
             title="Compare net payouts across marketplaces"
           >
             <Scale className="w-3.5 h-3.5 text-zinc-400" />
-            <span>Compare</span>
+            <span>Compare {!isPro && <Lock className="w-3 h-3 ml-0.5 text-zinc-500" />}</span>
           </button>
           {verificationReq.needsVerification && (
             <button
@@ -313,12 +337,16 @@ export default function LensHitCard({
             type="button"
             onClick={(e) => {
               e.stopPropagation();
+              if (!isPro && onRequirePro) {
+                onRequirePro();
+                return;
+              }
               triggerTactileHaptic("light");
               onListEbay(item);
             }}
-            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 text-xs font-medium transition cursor-pointer"
+            className="inline-flex h-11 items-center gap-1 px-3 rounded-md bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 text-xs font-medium transition cursor-pointer"
           >
-            <span>List eBay</span>
+            <span>List eBay {!isPro && <Lock className="w-3 h-3 ml-0.5 text-zinc-500" />}</span>
           </button>
         </div>
         <button

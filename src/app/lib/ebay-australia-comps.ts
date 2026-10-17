@@ -57,7 +57,7 @@ async function getEbayAppToken(): Promise<string | null> {
 
   try {
     const env = (process.env.EBAY_ENVIRONMENT || "production").toLowerCase();
-    const host = env === "production" ? "api.ebay.com" : "api.sandbox.ebay.com";
+    const host = clientId.includes("-PRD-") || env === "production" ? "api.ebay.com" : "api.sandbox.ebay.com";
     const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
 
     const controller = new AbortController();
@@ -191,7 +191,7 @@ export async function fetchEbayActiveListings(
         title,
         price: Math.round(rawPrice * 100) / 100,
         condition: String(item.condition || "Used"),
-        url: item.itemWebUrl || (targetCurrency === "USD" ? `https://www.ebay.com/itm/${itemId}` : `https://www.ebay.com.au/itm/${itemId}`),
+        url: item.itemWebUrl || (targetCurrency === "USD" ? `https://www.ebay.com/itm/${itemId}` : targetCurrency === "GBP" ? `https://www.ebay.co.uk/itm/${itemId}` : `https://www.ebay.com.au/itm/${itemId}`),
         thumbnail: img,
         shippingIncluded: item.shippingOptions?.[0]?.shippingCost?.value === "0.00",
         shippingPrice: parseFloat(item.shippingOptions?.[0]?.shippingCost?.value || "0") || 0,
@@ -282,7 +282,7 @@ export interface EbayCompsResult {
   isActiveAskOnly?: boolean;
   noMarketData?: boolean;
   activeListingsCount?: number;
-  marketOrigin?: "AU" | "US";
+  marketOrigin?: "AU" | "US" | "GB";
   usMedianUsd?: number;
   arbitrageSignal?: string;
   crossBorderShippingCost?: number;
@@ -997,12 +997,19 @@ export async function fetchEbayAustraliaSoldComps(
 
         if (isValidUnitComp(title, finalPrice, isNormalized) && finalPrice >= (isLuxury ? 35 : 1) && finalPrice <= 10000) {
           const isAU = ebaySite.includes("australia") || ebaySite.includes(".au");
+          const isUK = ebaySite.includes(".co.uk") || ebaySite.includes("uk");
           let compUrl = item.url || item.viewItemUrl;
           if (isAU) {
             if (compUrl) {
               compUrl = compUrl.replace(/https?:\/\/(?:www\.)?ebay\.com\/itm\//i, "https://www.ebay.com.au/itm/");
             } else if (item.itemId) {
               compUrl = `https://www.ebay.com.au/itm/${item.itemId}`;
+            }
+          } else if (isUK) {
+            if (compUrl) {
+              compUrl = compUrl.replace(/https?:\/\/(?:www\.)?ebay\.(?:com|com\.au)\/itm\//i, "https://www.ebay.co.uk/itm/");
+            } else if (item.itemId) {
+              compUrl = `https://www.ebay.co.uk/itm/${item.itemId}`;
             }
           } else if (ebaySite.includes("ebay.com")) {
             if (compUrl) {
@@ -1017,7 +1024,7 @@ export async function fetchEbayAustraliaSoldComps(
             title,
             price: finalPrice,
             condition: String(item.condition || "Pre-Owned"),
-            soldDate: item.endedAt ? new Date(item.endedAt).toLocaleDateString(isAU ? "en-AU" : "en-US", { month: "short", day: "numeric" }) : (item.dateEnded ? new Date(item.dateEnded).toLocaleDateString(isAU ? "en-AU" : "en-US", { month: "short", day: "numeric" }) : "Recent"),
+            soldDate: item.endedAt ? new Date(item.endedAt).toLocaleDateString(isAU ? "en-AU" : isUK ? "en-GB" : "en-US", { month: "short", day: "numeric" }) : (item.dateEnded ? new Date(item.dateEnded).toLocaleDateString(isAU ? "en-AU" : isUK ? "en-GB" : "en-US", { month: "short", day: "numeric" }) : "Recent"),
             rawDate: item.endedAt ? new Date(item.endedAt).getTime() : (item.dateEnded ? new Date(item.dateEnded).getTime() : 0),
             shippingIncluded: item.shippingType === "free" || Number(item.shippingPrice) === 0 || item.shippingCost === 0 || item.freeShipping === true,
             shippingPrice: Number(item.shippingPrice) || Number(item.shippingCost) || 0,
@@ -1059,6 +1066,7 @@ export async function fetchEbayAustraliaSoldComps(
     const isTargetUsed = !condition || !/\b(brand new|new with tags|nwt|sealed|bnib|nib)\b/i.test(condition);
     const isRegionUS = targetCurrency === "USD";
     const isRegionAU = targetCurrency === "AUD";
+    const isRegionUK = targetCurrency === "GBP";
 
     let resolvedSoldComps: EbaySoldCompItem[] = [];
     let isUsMarketFallback = false;
@@ -1076,6 +1084,11 @@ export async function fetchEbayAustraliaSoldComps(
         if (auComps.length >= 1) {
           return { comps: auComps, isUsFallback: false };
         }
+        return { comps: [], isUsFallback: false };
+      } else if (isRegionUK) {
+        // STRICT UK COMPS: Query official UK marketplace (ebay.co.uk). No cross-market fallback.
+        const ukComps = await fetchSoldCompsFromApi(queryTerm, "ebay.co.uk", false, isTargetUsed);
+        if (ukComps.length >= 1) return { comps: ukComps, isUsFallback: false };
         return { comps: [], isUsFallback: false };
       } else {
         const regionalSite = CURRENCY_CONFIGS[targetCurrency]?.ebaySite || "ebay.com";
@@ -1159,7 +1172,7 @@ export async function fetchEbayAustraliaSoldComps(
         currency: targetCurrency,
         source: "sold_comps_api",
         isUsMarketOnly: false,
-        marketOrigin: isRegionUS ? "US" : "AU",
+        marketOrigin: isRegionUS ? "US" : isRegionUK ? "GB" : "AU",
         rawComps: (filteredComps.length > 0 ? filteredComps : activeComps)
           .sort((a, b) => (b.rawDate || 0) - (a.rawDate || 0))
           .slice(0, 7),
@@ -1195,6 +1208,7 @@ export async function fetchEbayAustraliaSoldComps(
     activeListings.sort((a, b) => a.price - b.price);
     const activePrices = activeListings.map((c) => c.price);
     const isRegionUS = targetCurrency === "USD";
+    const isRegionUK = targetCurrency === "GBP";
     const activeMedianVal = Math.round(calcMedian(activePrices) * 100) / 100;
     const activeMinVal = Math.round(activePrices[0] * 100) / 100;
     const activeMaxVal = Math.round(activePrices[activePrices.length - 1] * 100) / 100;
@@ -1217,13 +1231,15 @@ export async function fetchEbayAustraliaSoldComps(
       source: "browse_api",
       isActiveAskOnly: true,
       noMarketData: false,
-      marketOrigin: isRegionUS ? "US" : "AU",
+      marketOrigin: isRegionUS ? "US" : isRegionUK ? "GB" : "AU",
       rawComps: activeListings.slice(0, 7).map((c) => ({
         ...c,
         isActiveAsk: true,
         soldDate: "Active Ask",
       })),
-      arbitrageSignal: isRegionUS
+      arbitrageSignal: isRegionUK
+        ? "No recent UK sold comps found — showing live active asking prices on eBay UK with quick-sell recommendation."
+        : isRegionUS
         ? "No recent US sold comps found — showing live active asking prices on eBay US with quick-sell recommendation."
         : "No sold comps found on eBay — showing live active asking prices on eBay so you know what current sellers are listing it for.",
     };

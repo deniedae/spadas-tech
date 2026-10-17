@@ -76,7 +76,7 @@ export function SpadasHaulSection({
   const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({});
   const [loadingPhotos, setLoadingPhotos] = useState<boolean>(false);
   const [searchFilter, setSearchFilter] = useState<string>("");
-  const [activeTabFilter, setActiveTabFilter] = useState<"all" | "profitable" | "grails" | "traps">("all");
+  const [activeTabFilter, setActiveTabFilter] = useState<"all" | "profitable" | "high_profit" | "traps">("all");
   const [isHydrated, setIsHydrated] = useState<boolean>(false);
 
   useEffect(() => {
@@ -281,7 +281,7 @@ export function SpadasHaulSection({
       if (activeTabFilter === "profitable") {
         return (item.trueNetProfit || 0) >= 10;
       }
-      if (activeTabFilter === "grails") {
+      if (activeTabFilter === "high_profit") {
         return (item.trueNetProfit || 0) >= 40 || item.isGrail;
       }
       if (activeTabFilter === "traps") {
@@ -879,15 +879,15 @@ export function SpadasHaulSection({
             type="button"
             onClick={() => {
               triggerTactileHaptic("selection");
-              setActiveTabFilter("grails");
+              setActiveTabFilter("high_profit");
             }}
             className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer shrink-0 active:scale-95 ${
-              activeTabFilter === "grails"
-                ? "bg-amber-400 text-slate-950 font-bold shadow-sm"
-                : "text-zinc-400 hover:text-amber-300 bg-white/[0.04] border border-white/[0.06]"
+              activeTabFilter === "high_profit"
+                ? "bg-emerald-400 text-slate-950 font-bold shadow-sm"
+                : "text-zinc-400 hover:text-emerald-300 bg-white/[0.04] border border-white/[0.06]"
             }`}
           >
-            Grails (&gt;$40) [{stats.grailsCount}]
+            High Profit (&gt;$40) [{stats.grailsCount}]
           </button>
           <button
             type="button"
