@@ -27,6 +27,7 @@ android-native-backup/.gradle/
 /extracted_apk/
 /scratch_xapk/
 /scratch/
+test_api*.js
 .gradle/
 android/.gradle/
 

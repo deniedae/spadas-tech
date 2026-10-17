@@ -927,7 +927,10 @@ export async function fetchEbayAustraliaSoldComps(
     isTargetUsed: boolean
   ): Promise<EbaySoldCompItem[]> {
     try {
-      const conditionParam = isTargetUsed ? "&LH_ItemCondition=3000" : "";
+      // Intentionally omitting condition parameter.
+      // eBay's strict 3000 (Used) filter excludes Like New, Very Good, Good, Acceptable, Open Box etc.
+      // We pull everything and rely on our strict post-fetch title filtering.
+      const conditionParam = "";
       const locParam = prefLocAU ? "&LH_PrefLoc=1" : "";
       // count=10: cap payload to top-10 results — 6× less data, faster parse & transfer
       const url = `https://api.sold-comps.com/v1/scrape?keyword=${encodeURIComponent(q)}&ebaySite=${ebaySite}&page=1&count=25&daysToScrape=90&sortOrder=endedRecently${conditionParam}${locParam}`;
@@ -1102,11 +1105,11 @@ export async function fetchEbayAustraliaSoldComps(
 
     // Multi-tier Waterfall Query Cascade: Test prioritized query variations until comps resolve
     const compsStart = Date.now();
-    for (let qIdx = 0; qIdx < Math.min(searchQueries.length, 3); qIdx++) {
+    for (let qIdx = 0; qIdx < Math.min(searchQueries.length, 5); qIdx++) {
       if (Date.now() - compsStart >= 12000) break;
       const currentQuery = searchQueries[qIdx];
       if (qIdx > 0) {
-        console.log(`[eBay Comps] Waterfall cascade query [${qIdx + 1}/${Math.min(searchQueries.length, 3)}]: "${currentQuery}"`);
+        console.log(`[eBay Comps] Waterfall cascade query [${qIdx + 1}/${Math.min(searchQueries.length, 5)}]: "${currentQuery}"`);
       }
       const attempt = await querySoldCompsForTerm(currentQuery);
       if (attempt.comps.length >= 1) {
