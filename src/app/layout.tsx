@@ -27,7 +27,7 @@ export const metadata: Metadata = {
     template: "%s · Thrift Comps: Resale Scanner",
   },
   description:
-    "Optical scanner & sold comps app for thrift resellers. Scan items in thrift stores, yard sales & op shops with verified eBay sold comps, net profit calculation after fees & shipping, and fast listing.",
+    "Optical scanner & sold comps app for thrift resellers. Scan items in thrift stores, yard sales & op shops with verified eBay sold comps, net profit calculation after fees & shipping, and fast listing creation.",
   metadataBase: new URL(SITE_URL),
   applicationName: "Thrift Comps: Resale Scanner",
   authors: [{ name: "Spadas Tech" }],
@@ -112,8 +112,8 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  maximumScale: 5,
+  userScalable: true,
   viewportFit: "cover",
 };
 
@@ -125,10 +125,10 @@ export default function RootLayout({
   return (
     <html lang="en" className={cn("dark font-sans", geistSans.variable, geistMono.variable)}>
       <head>
-        {/* Google AdSense Verification & Auto-Ads Tag (Publisher ID: pub-7262955524032732) */}
-        <script
+        <Script
           async
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7262955524032732"
+          strategy="afterInteractive"
           crossOrigin="anonymous"
         />
         <link rel="preload" href="/icon-192.png" as="image" type="image/png" />
@@ -191,7 +191,6 @@ export default function RootLayout({
         <Analytics />
         <SpeedInsights sampleRate={1} />
         <WebVitals />
-        {/* Google tag (gtag.js) deferred to non-blocking afterInteractive execution */}
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=AW-18430569894"
           strategy="afterInteractive"
@@ -204,11 +203,11 @@ export default function RootLayout({
             gtag('config', 'AW-18430569894');
           `}
         </Script>
-        {/* Google Identity Services / One-Tap */}
         <Script
           src="https://accounts.google.com/gsi/client"
           strategy="afterInteractive"
         />
+        <Toaster />
       </body>
     </html>
   );
