@@ -172,12 +172,22 @@ async function handleCompsSearch(
   const activeCount = isZeroMarketData ? 0 : (compsResult?.activeListingsCount || (compsResult?.isActiveAskOnly ? finalComps.length : 0));
   const activeComps = isZeroMarketData ? [] : (compsResult?.activeComps || []);
   const recommendedPrice = isZeroMarketData ? 0 : (compsResult?.recommendedPrice || compsResult?.median || 0);
+  const recommendedQuickSalePrice = isZeroMarketData ? 0 : (compsResult?.recommendedQuickSalePrice || recommendedPrice);
+  const sourceTier = isZeroMarketData
+    ? "market_fallback_estimate"
+    : (compsResult?.sourceTier || (currency === "USD" ? "verified_sold_us" : currency === "GBP" ? "verified_sold_uk" : "verified_sold_au"));
+  const currencySymbol = compsResult?.currencySymbol || (currency === "GBP" ? "£" : currency === "EUR" ? "€" : "$");
+  const isEasyToSell = Boolean(compsResult?.isEasyToSell);
+  const liquidityScore = compsResult?.liquidityScore || 0;
+  const regionalFallbacks = compsResult?.regionalFallbacks || [];
 
   return NextResponse.json({
     success: true,
     productName: trimmed,
     queryUsed,
     attemptTier,
+    sourceTier,
+    currencySymbol,
     comps: finalComps,
     rawComps: finalComps,
     compsCount: finalCount,
@@ -191,6 +201,10 @@ async function handleCompsSearch(
     activeMin: isZeroMarketData ? 0 : (compsResult?.activeMin || 0),
     activeMax: isZeroMarketData ? 0 : (compsResult?.activeMax || 0),
     recommendedPrice,
+    recommendedQuickSalePrice,
+    isEasyToSell,
+    liquidityScore,
+    regionalFallbacks,
     isActiveAskOnly: Boolean(compsResult?.isActiveAskOnly),
     noMarketData: isZeroMarketData,
     minPrice: isZeroMarketData ? 0 : (compsResult?.min || 0),

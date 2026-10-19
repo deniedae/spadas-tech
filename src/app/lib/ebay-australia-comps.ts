@@ -2,14 +2,66 @@ import { CURRENCY_CONFIGS, SupportedCurrency, convertCurrency } from "./currency
 import { sanitizeResellerSearchQuery } from "@/lib/reseller-appraiser";
 
 /**
- * Maps Spadas currency codes to eBay marketplace IDs and AU contextual headers.
- * marketplaceId MUST be sent as a header — not a query param — or eBay returns US prices.
+ * Maps Spadas currency codes to eBay global IDs, site IDs, country codes, and contextual headers.
+ * marketplaceId/globalId MUST be sent as headers — not query params — to ensure strict geographic isolation.
  */
-const EBAY_MARKETPLACE: Record<SupportedCurrency, { id: string; country: string }> = {
-  AUD: { id: "EBAY_AU", country: "AU" },
-  USD: { id: "EBAY_US", country: "US" },
-  EUR: { id: "EBAY_DE", country: "DE" },
-  GBP: { id: "EBAY_GB", country: "GB" },
+export interface MarketplaceRegionConfig {
+  id: string; // for backward compatibility with code using .id
+  marketplaceId: string;
+  globalId: string;
+  siteId: string;
+  country: string;
+  currency: SupportedCurrency;
+  currencySymbol: string;
+  ebaySite: string;
+  domain: string;
+}
+
+export const EBAY_MARKETPLACE: Record<SupportedCurrency, MarketplaceRegionConfig> = {
+  AUD: {
+    id: "EBAY_AU",
+    marketplaceId: "EBAY_AU",
+    globalId: "EBAY-AU",
+    siteId: "15",
+    country: "AU",
+    currency: "AUD",
+    currencySymbol: "$",
+    ebaySite: "ebay.com.au",
+    domain: "www.ebay.com.au",
+  },
+  USD: {
+    id: "EBAY_US",
+    marketplaceId: "EBAY_US",
+    globalId: "EBAY-US",
+    siteId: "0",
+    country: "US",
+    currency: "USD",
+    currencySymbol: "$",
+    ebaySite: "ebay.com",
+    domain: "www.ebay.com",
+  },
+  GBP: {
+    id: "EBAY_GB",
+    marketplaceId: "EBAY_GB",
+    globalId: "EBAY-GB",
+    siteId: "3",
+    country: "GB",
+    currency: "GBP",
+    currencySymbol: "£",
+    ebaySite: "ebay.co.uk",
+    domain: "www.ebay.co.uk",
+  },
+  EUR: {
+    id: "EBAY_DE",
+    marketplaceId: "EBAY_DE",
+    globalId: "EBAY-DE",
+    siteId: "77",
+    country: "DE",
+    currency: "EUR",
+    currencySymbol: "€",
+    ebaySite: "ebay.de",
+    domain: "www.ebay.de",
+  },
 };
 
 /** Module-level app token cache — shared across all requests in the same server instance */
@@ -111,10 +163,11 @@ export async function fetchEbayActiveListings(
     const token = await getEbayAppToken();
     if (!token) return [];
 
-    const marketplaceId = EBAY_MARKETPLACE[targetCurrency]?.id || "EBAY_AU";
+    const regionConfig = EBAY_MARKETPLACE[targetCurrency] || EBAY_MARKETPLACE.AUD;
+    const marketplaceId = regionConfig.marketplaceId;
     const env = (process.env.EBAY_ENVIRONMENT || "production").toLowerCase();
     const host = env === "production" ? "api.ebay.com" : "api.sandbox.ebay.com";
-    const url = `https://${host}/buy/browse/v1/item_summary/search?q=${encodeURIComponent(query)}&limit=${limit}`;
+    const url = `https://${host}/buy/browse/v1/item_summary/search?q=${encodeURIComponent(query)}&limit=${limit}&filter=deliveryCountry:${regionConfig.country}`;
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 3500);
@@ -123,6 +176,8 @@ export async function fetchEbayActiveListings(
       headers: {
         Authorization: `Bearer ${token}`,
         "X-EBAY-C-MARKETPLACE-ID": marketplaceId,
+        "X-EBAY-SOA-GLOBAL-ID": regionConfig.globalId,
+        "GLOBAL-ID": regionConfig.globalId,
       },
       signal: controller.signal,
     }).catch((err) => {
@@ -144,6 +199,42 @@ export async function fetchEbayActiveListings(
     for (const item of itemSummaries) {
       const rawPrice = parseFloat(item.price?.value || "0");
       if (isNaN(rawPrice) || rawPrice <= 0) continue;
+
+      // Filter out auctions and opening bids (e.g. $0.99 auctions) so active median is strictly based on fixed-price / Buy-It-Now comps
+      const buyingOptions = Array.isArray(item.buyingOptions) ? item.buyingOptions : [];
+      const isAuction = buyingOptions.includes("AUCTION");
+      const isFixedPrice = buyingOptions.includes("FIXED_PRICE");
+      const hasBids = typeof item.bidCount === "number" && item.bidCount > 0;
+
+      if ((isAuction && !isFixedPrice) || hasBids) {
+        continue;
+      }
+      if (rawPrice < 2.0 && (!item.buyingOptions || isAuction)) {
+        continue;
+      }
+
+      // Geographic Isolation: Do NOT rely solely on string-checking item.viewItemURL domain.
+      // Strict response post-filtering: verify currency === targetCurrency and country === targetCountry
+      const itemCurrency = (
+        item.price?.currency ||
+        item.sellingStatus?.currentPrice?.["@currencyId"] ||
+        item.sellingStatus?.currentPrice?.currencyId ||
+        item.currency ||
+        ""
+      ).toString().toUpperCase();
+      if (itemCurrency && itemCurrency !== regionConfig.currency) {
+        continue;
+      }
+
+      const itemCountry = (
+        item.itemLocation?.country ||
+        item.country ||
+        item.shippingInfo?.shipToLocations ||
+        ""
+      ).toString().toUpperCase();
+      if (itemCountry && itemCountry.length === 2 && itemCountry !== regionConfig.country) {
+        continue;
+      }
 
       const title = String(item.title || "").trim();
       const lower = title.toLowerCase();
@@ -192,11 +283,13 @@ export async function fetchEbayActiveListings(
         title,
         price: Math.round(rawPrice * 100) / 100,
         condition: String(item.condition || "Used"),
-        url: item.itemWebUrl || (targetCurrency === "USD" ? `https://www.ebay.com/itm/${itemId}` : targetCurrency === "GBP" ? `https://www.ebay.co.uk/itm/${itemId}` : `https://www.ebay.com.au/itm/${itemId}`),
+        url: item.itemWebUrl || `https://${regionConfig.domain}/itm/${itemId}`,
         thumbnail: img,
         shippingIncluded: item.shippingOptions?.[0]?.shippingCost?.value === "0.00",
         shippingPrice: parseFloat(item.shippingOptions?.[0]?.shippingCost?.value || "0") || 0,
         isActiveAsk: true,
+        country: regionConfig.country,
+        currency: regionConfig.currency,
       });
     }
 
@@ -233,6 +326,7 @@ function trimIqrOutliers(prices: number[]): number[] {
 }
 
 export function calcMedian(sorted: number[]): number {
+  if (sorted.length === 0) return 0;
   const mid = Math.floor(sorted.length / 2);
   return sorted.length % 2 === 0
     ? (sorted[mid - 1] + sorted[mid]) / 2
@@ -240,6 +334,21 @@ export function calcMedian(sorted: number[]): number {
 }
 
 export type CompsSource = "browse_api" | "sold_comps_api" | "ai_estimate" | "category_valuation";
+
+export type CompsSourceTier =
+  | "verified_sold_au"
+  | "verified_sold_us"
+  | "verified_sold_uk"
+  | "market_fallback_estimate";
+
+export interface RegionalFallbackLink {
+  channel: string;
+  name: string;
+  url: string;
+  askingPrice?: number;
+  target: "_blank";
+  rel: "noopener noreferrer";
+}
 
 export interface EbaySoldCompItem {
   id: string;
@@ -254,6 +363,8 @@ export interface EbaySoldCompItem {
   rawDate?: number;
   isUsComp?: boolean;
   isActiveAsk?: boolean;
+  country?: string;
+  currency?: string;
   originalCurrency?: string;
   originalPrice?: number;
   isNormalized?: boolean;
@@ -267,7 +378,9 @@ export interface EbayCompsResult {
   median: number;
   count: number;
   currency: SupportedCurrency;
+  currencySymbol?: string;
   source: CompsSource;
+  sourceTier?: CompsSourceTier;
   rawComps?: EbaySoldCompItem[];
   activeComps?: EbaySoldCompItem[];
   activeMedian?: number;
@@ -278,6 +391,9 @@ export interface EbayCompsResult {
   soldMax?: number;
   soldCount?: number;
   recommendedPrice?: number;
+  recommendedQuickSalePrice?: number;
+  isEasyToSell?: boolean;
+  liquidityScore?: number;
   iqrBounds?: { lower: number; upper: number };
   isUsMarketOnly?: boolean;
   isActiveAskOnly?: boolean;
@@ -287,6 +403,107 @@ export interface EbayCompsResult {
   usMedianUsd?: number;
   arbitrageSignal?: string;
   crossBorderShippingCost?: number;
+  regionalFallbacks?: RegionalFallbackLink[];
+}
+
+/**
+ * Uniform 15-20% active listing markdown safeguard across all regions.
+ * 18% discount prevents overinflated Buy-It-Now active listings from distorting quick-sale targets.
+ */
+export const ACTIVE_FALLBACK_MARKDOWN_PERCENT = 0.18;
+
+/**
+ * Calculates liquidity speed and ease of sale based on transaction velocity and price spread consensus.
+ */
+export function computeLiquidityScore(
+  soldCount: number,
+  activeCount: number,
+  iqrSpreadRatio: number
+): { liquidityScore: number; isEasyToSell: boolean } {
+  let score = 50;
+  if (soldCount >= 5) score += 35;
+  else if (soldCount >= 3) score += 20;
+  else if (soldCount >= 2) score += 10;
+  else score -= 15;
+
+  // Tight spread bonus (IQR spread < 40% of median indicates high transaction consensus)
+  if (iqrSpreadRatio > 0 && iqrSpreadRatio < 0.40) {
+    score += 15;
+  } else if (iqrSpreadRatio > 0.80) {
+    score -= 10;
+  }
+
+  const liquidityScore = Math.max(5, Math.min(99, Math.round(score)));
+  const isEasyToSell = liquidityScore >= 65;
+  return { liquidityScore, isEasyToSell };
+}
+
+/**
+ * Builds regional fallback search links for classifieds & search engines
+ * with target="_blank" and rel="noopener noreferrer" for safe UI rendering.
+ */
+export function buildRegionalFallbackLinks(
+  query: string,
+  regionConfig: MarketplaceRegionConfig,
+  estimatedAskingPrice?: number
+): RegionalFallbackLink[] {
+  const encoded = encodeURIComponent(query.trim());
+  const links: RegionalFallbackLink[] = [];
+
+  // 1. Regional Active eBay Listings (Buy-It-Now)
+  links.push({
+    channel: "ebay_active",
+    name: `eBay ${regionConfig.country} Active`,
+    url: `https://${regionConfig.domain}/sch/i.html?_nkw=${encoded}&LH_BIN=1`,
+    askingPrice: estimatedAskingPrice,
+    target: "_blank",
+    rel: "noopener noreferrer",
+  });
+
+  // 2. Local Marketplaces & Classifieds (Gumtree AU/UK, Google Shopping)
+  if (regionConfig.country === "AU") {
+    links.push({
+      channel: "gumtree_au",
+      name: "Gumtree AU",
+      url: `https://www.gumtree.com.au/s-k0?q=${encoded}`,
+      askingPrice: estimatedAskingPrice ? Math.round(estimatedAskingPrice * 0.95) : undefined,
+      target: "_blank",
+      rel: "noopener noreferrer",
+    });
+    links.push({
+      channel: "google_shopping_au",
+      name: "Google Shopping AU",
+      url: `https://www.google.com.au/search?tbm=shop&gl=au&hl=en&q=${encoded}`,
+      target: "_blank",
+      rel: "noopener noreferrer",
+    });
+  } else if (regionConfig.country === "GB") {
+    links.push({
+      channel: "gumtree_uk",
+      name: "Gumtree UK",
+      url: `https://www.gumtree.com/search?search_category=all&q=${encoded}`,
+      askingPrice: estimatedAskingPrice ? Math.round(estimatedAskingPrice * 0.95) : undefined,
+      target: "_blank",
+      rel: "noopener noreferrer",
+    });
+    links.push({
+      channel: "google_shopping_uk",
+      name: "Google Shopping UK",
+      url: `https://www.google.co.uk/search?tbm=shop&gl=gb&hl=en&q=${encoded}`,
+      target: "_blank",
+      rel: "noopener noreferrer",
+    });
+  } else if (regionConfig.country === "US") {
+    links.push({
+      channel: "google_shopping_us",
+      name: "Google Shopping US",
+      url: `https://www.google.com/search?tbm=shop&gl=us&hl=en&q=${encoded}`,
+      target: "_blank",
+      rel: "noopener noreferrer",
+    });
+  }
+
+  return links;
 }
 
 // FX Conversion rates from source marketplace currency to target currency
@@ -936,23 +1153,23 @@ export async function fetchEbayAustraliaSoldComps(
   // Helper for scraping sold comps from api.sold-comps.com with strict country/location guards
   async function fetchSoldCompsFromApi(
     q: string,
-    ebaySite: string,
-    prefLocAU: boolean,
+    regionConfig: MarketplaceRegionConfig,
     isTargetUsed: boolean
   ): Promise<EbaySoldCompItem[]> {
     try {
-      // Intentionally omitting condition parameter.
-      // eBay's strict 3000 (Used) filter excludes Like New, Very Good, Good, Acceptable, Open Box etc.
-      // We pull everything and rely on our strict post-fetch title filtering.
       const conditionParam = "";
-      const locParam = prefLocAU ? "&LH_PrefLoc=1" : "";
-      // count=10: cap payload to top-10 results — 6× less data, faster parse & transfer
-      const url = `https://api.sold-comps.com/v1/scrape?keyword=${encodeURIComponent(q)}&ebaySite=${ebaySite}&page=1&count=25&daysToScrape=90&sortOrder=endedRecently${conditionParam}${locParam}`;
+      const locParam = regionConfig.country === "AU" ? "&LH_PrefLoc=1" : "";
+      const filterParam = `&itemFilter(1).name=LocatedIn&itemFilter(1).value=${regionConfig.country}`;
+      const url = `https://api.sold-comps.com/v1/scrape?keyword=${encodeURIComponent(q)}&ebaySite=${regionConfig.ebaySite}&page=1&count=25&daysToScrape=90&sortOrder=endedRecently&globalId=${regionConfig.globalId}&country=${regionConfig.country}${filterParam}${locParam}`;
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 8500); // 8.5s timeout for live eBay scraping
 
       const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${process.env.SOLD_COMPS_API_KEY}` },
+        headers: {
+          Authorization: `Bearer ${process.env.SOLD_COMPS_API_KEY}`,
+          "X-EBAY-SOA-GLOBAL-ID": regionConfig.globalId,
+          "GLOBAL-ID": regionConfig.globalId,
+        },
         signal: controller.signal,
       }).catch((fetchErr: any) => {
         const isTimeout = fetchErr?.name === "AbortError";
@@ -982,10 +1199,37 @@ export async function fetchEbayAustraliaSoldComps(
       const validCompItems: EbaySoldCompItem[] = [];
 
       for (const item of rawItems) {
+        // Strict geographic isolation validation:
+        // Enforce matching currency and country from raw item data
+        const rawItemCurrency = (
+          item.currency ||
+          item.sellingStatus?.currentPrice?.["@currencyId"] ||
+          item.sellingStatus?.currentPrice?.currencyId ||
+          item.currentPrice?.currencyId ||
+          ""
+        ).toString().toUpperCase();
+
+        if (rawItemCurrency && rawItemCurrency !== regionConfig.currency) {
+          // Reject foreign currency comps to prevent cross-contamination
+          continue;
+        }
+
+        const rawItemCountry = (
+          item.country ||
+          item.itemLocation?.country ||
+          item.shippingInfo?.shipToLocations ||
+          ""
+        ).toString().toUpperCase();
+
+        if (rawItemCountry && rawItemCountry.length === 2 && rawItemCountry !== regionConfig.country) {
+          // Reject non-matching country origin
+          continue;
+        }
+
         const rawPrice =
           typeof item.soldPrice === "number"
             ? item.soldPrice
-            : Number(String(item.soldPrice || "").replace(/^(aud|au|usd|us)?\s*\$+/i, "").trim().replace(/[^0-9.-]+/g, "")) || 0;
+            : Number(String(item.soldPrice || "").replace(/^(aud|au|usd|us|gbp|gb|eur)?\s*[\$£€]+/i, "").trim().replace(/[^0-9.-]+/g, "")) || 0;
         const title = String(item.title || "").trim();
         const itemId = String(item.itemId || item.id || `${title.toLowerCase()}::${rawPrice}`);
 
@@ -1013,35 +1257,20 @@ export async function fetchEbayAustraliaSoldComps(
         }
 
         if (isValidUnitComp(title, finalPrice, isNormalized) && finalPrice >= (isLuxury ? 35 : 1) && finalPrice <= 10000) {
-          const isAU = ebaySite.includes("australia") || ebaySite.includes(".au");
-          const isUK = ebaySite.includes(".co.uk") || ebaySite.includes("uk");
           let compUrl = item.url || item.viewItemUrl;
-          if (isAU) {
-            if (compUrl) {
-              compUrl = compUrl.replace(/https?:\/\/(?:www\.)?ebay\.com\/itm\//i, "https://www.ebay.com.au/itm/");
-            } else if (item.itemId) {
-              compUrl = `https://www.ebay.com.au/itm/${item.itemId}`;
-            }
-          } else if (isUK) {
-            if (compUrl) {
-              compUrl = compUrl.replace(/https?:\/\/(?:www\.)?ebay\.(?:com|com\.au)\/itm\//i, "https://www.ebay.co.uk/itm/");
-            } else if (item.itemId) {
-              compUrl = `https://www.ebay.co.uk/itm/${item.itemId}`;
-            }
-          } else if (ebaySite.includes("ebay.com")) {
-            if (compUrl) {
-              compUrl = compUrl.replace(/https?:\/\/(?:www\.)?ebay\.com\.au\/itm\//i, "https://www.ebay.com/itm/");
-            } else if (item.itemId) {
-              compUrl = `https://www.ebay.com/itm/${item.itemId}`;
-            }
+          if (compUrl) {
+            compUrl = compUrl.replace(/https?:\/\/(?:www\.)?ebay\.[a-z.]+\/itm\//i, `https://${regionConfig.domain}/itm/`);
+          } else if (item.itemId) {
+            compUrl = `https://${regionConfig.domain}/itm/${item.itemId}`;
           }
 
+          const locale = regionConfig.country === "AU" ? "en-AU" : regionConfig.country === "GB" ? "en-GB" : "en-US";
           const compItem: EbaySoldCompItem = {
             id: itemId,
             title,
             price: finalPrice,
             condition: String(item.condition || "Pre-Owned"),
-            soldDate: item.endedAt ? new Date(item.endedAt).toLocaleDateString(isAU ? "en-AU" : isUK ? "en-GB" : "en-US", { month: "short", day: "numeric" }) : (item.dateEnded ? new Date(item.dateEnded).toLocaleDateString(isAU ? "en-AU" : isUK ? "en-GB" : "en-US", { month: "short", day: "numeric" }) : "Recent"),
+            soldDate: item.endedAt ? new Date(item.endedAt).toLocaleDateString(locale, { month: "short", day: "numeric" }) : (item.dateEnded ? new Date(item.dateEnded).toLocaleDateString(locale, { month: "short", day: "numeric" }) : "Recent"),
             rawDate: item.endedAt ? new Date(item.endedAt).getTime() : (item.dateEnded ? new Date(item.dateEnded).getTime() : 0),
             shippingIncluded: item.shippingType === "free" || Number(item.shippingPrice) === 0 || item.shippingCost === 0 || item.freeShipping === true,
             shippingPrice: Number(item.shippingPrice) || Number(item.shippingCost) || 0,
@@ -1050,6 +1279,8 @@ export async function fetchEbayAustraliaSoldComps(
             isNormalized,
             packMultiplier,
             originalMultiPrice,
+            country: regionConfig.country,
+            currency: regionConfig.currency,
           };
           validCompItems.push(compItem);
         }
@@ -1071,7 +1302,9 @@ export async function fetchEbayAustraliaSoldComps(
     }
   }
 
+  const regionConfig = EBAY_MARKETPLACE[targetCurrency] || EBAY_MARKETPLACE.AUD;
   const primaryQuery = searchQueries[0] || productName;
+
   // Fire official eBay Browse API in parallel as guaranteed active-listings fallback
   const officialBrowsePromise = fetchEbayActiveListings(primaryQuery, targetCurrency).catch((err) => {
     console.warn("[eBay Browse API] Parallel active listings error:", err);
@@ -1081,60 +1314,27 @@ export async function fetchEbayAustraliaSoldComps(
   // ── 1. PRIMARY SOURCE: Real Sold Comps (api.sold-comps.com) ──────────────────
   if (process.env.SOLD_COMPS_API_KEY) {
     const isTargetUsed = !condition || !/\b(brand new|new with tags|nwt|sealed|bnib|nib)\b/i.test(condition);
-    const isRegionUS = targetCurrency === "USD";
-    const isRegionAU = targetCurrency === "AUD";
-    const isRegionUK = targetCurrency === "GBP";
-
     let resolvedSoldComps: EbaySoldCompItem[] = [];
-    let isUsMarketFallback = false;
 
-    // Helper to query sold comps strictly partitioned by target marketplace
-    const querySoldCompsForTerm = async (queryTerm: string): Promise<{ comps: EbaySoldCompItem[]; isUsFallback: boolean }> => {
-      if (isRegionUS) {
-        // STRICT US COMPS: Query official US marketplace (ebay.com)
-        const usComps = await fetchSoldCompsFromApi(queryTerm, "ebay.com", false, isTargetUsed);
-        if (usComps.length >= 1) return { comps: usComps, isUsFallback: false };
-      } else if (isRegionAU) {
-        // STRICT AU COMPS: Query only the AU marketplace. No US fallback.
-        const auComps = await fetchSoldCompsFromApi(queryTerm, "ebay.com.au", true, isTargetUsed);
-
-        if (auComps.length >= 1) {
-          return { comps: auComps, isUsFallback: false };
-        }
-        return { comps: [], isUsFallback: false };
-      } else if (isRegionUK) {
-        // STRICT UK COMPS: Query official UK marketplace (ebay.co.uk). No cross-market fallback.
-        const ukComps = await fetchSoldCompsFromApi(queryTerm, "ebay.co.uk", false, isTargetUsed);
-        if (ukComps.length >= 1) return { comps: ukComps, isUsFallback: false };
-        return { comps: [], isUsFallback: false };
-      } else {
-        const regionalSite = CURRENCY_CONFIGS[targetCurrency]?.ebaySite || "ebay.com";
-        const regComps = await fetchSoldCompsFromApi(queryTerm, regionalSite, false, isTargetUsed);
-        if (regComps.length >= 1) {
-          return { comps: regComps, isUsFallback: false };
-        }
-      }
-      return { comps: [], isUsFallback: false };
-    };
-
-    // Multi-tier Waterfall Query Cascade: Test prioritized query variations until comps resolve
+    // Multi-tier Waterfall Query Cascade strictly partitioned by target marketplace
     const compsStart = Date.now();
-    // Allow up to 8 attempts to ensure we reach the "Universal Broad Fallback" queries at the end of the array
     for (let qIdx = 0; qIdx < Math.min(searchQueries.length, 8); qIdx++) {
       if (Date.now() - compsStart >= 12000) break;
       const currentQuery = searchQueries[qIdx];
       if (qIdx > 0) {
-        console.log(`[eBay Comps] Waterfall cascade query [${qIdx + 1}/${Math.min(searchQueries.length, 8)}]: "${currentQuery}"`);
+        console.log(`[eBay Comps] Waterfall cascade query [${qIdx + 1}/${Math.min(searchQueries.length, 8)}]: "${currentQuery}" (${regionConfig.globalId})`);
       }
-      const attempt = await querySoldCompsForTerm(currentQuery);
-      if (attempt.comps.length >= 1) {
-        resolvedSoldComps = attempt.comps;
-        isUsMarketFallback = attempt.isUsFallback;
+      const comps = await fetchSoldCompsFromApi(currentQuery, regionConfig, isTargetUsed);
+      if (comps.length >= 2) {
+        resolvedSoldComps = comps;
         break;
+      } else if (comps.length === 1 && resolvedSoldComps.length === 0) {
+        resolvedSoldComps = comps;
       }
     }
 
-    if (resolvedSoldComps.length >= 1) {
+    // Require at least 2 verified sold comps for true sold comps status
+    if (resolvedSoldComps.length >= 2) {
       // Apply Tight Cluster & Price-Band Sanity Guard
       const sanity = applyTightClusterSanityGuard(resolvedSoldComps, isQueryMultiPack);
       const activeComps = sanity.appliedGuard ? sanity.filteredComps : resolvedSoldComps;
@@ -1170,17 +1370,21 @@ export async function fetchEbayAustraliaSoldComps(
         activeMedianVal = Math.round(calcMedian(activePrices) * 100) / 100;
       }
 
-      // Realistic Quick-Sell Price on eBay:
-      // If sellers are asking more, listing at the proven sold median sells quickly.
-      // If active sellers are undercutting, position slightly below active median to clear immediately.
       let recommendedListPrice = soldMedianVal;
-      if (activeMedianVal && activeMedianVal > 0) {
-        if (activeMedianVal < soldMedianVal) {
-          recommendedListPrice = Math.round(activeMedianVal * 0.97 * 100) / 100;
-        } else {
-          recommendedListPrice = soldMedianVal;
-        }
+      if (activeMedianVal && activeMedianVal > 0 && activeMedianVal < soldMedianVal) {
+        recommendedListPrice = Math.round(activeMedianVal * (1 - ACTIVE_FALLBACK_MARKDOWN_PERCENT) * 100) / 100;
       }
+
+      const spreadRatio = (upperBound - lowerBound) / (soldMedianVal || 1);
+      const { liquidityScore, isEasyToSell } = computeLiquidityScore(valid.length, activeCount, spreadRatio);
+      const regionalFallbacks = buildRegionalFallbackLinks(primaryQuery, regionConfig, soldMedianVal);
+
+      const sourceTier: CompsSourceTier =
+        regionConfig.country === "US"
+          ? "verified_sold_us"
+          : regionConfig.country === "GB"
+          ? "verified_sold_uk"
+          : "verified_sold_au";
 
       const domesticResult: EbayCompsResult = {
         min: soldMinVal,
@@ -1188,9 +1392,11 @@ export async function fetchEbayAustraliaSoldComps(
         median: soldMedianVal,
         count: valid.length,
         currency: targetCurrency,
+        currencySymbol: regionConfig.currencySymbol,
         source: "sold_comps_api",
+        sourceTier,
         isUsMarketOnly: false,
-        marketOrigin: isRegionUS ? "US" : isRegionUK ? "GB" : "AU",
+        marketOrigin: regionConfig.country as "AU" | "US" | "GB",
         rawComps: (filteredComps.length > 0 ? filteredComps : activeComps)
           .sort((a, b) => (b.rawDate || 0) - (a.rawDate || 0))
           .slice(0, 7),
@@ -1204,7 +1410,11 @@ export async function fetchEbayAustraliaSoldComps(
         soldMax: soldMaxVal,
         soldCount: valid.length,
         recommendedPrice: recommendedListPrice,
+        recommendedQuickSalePrice: recommendedListPrice,
+        isEasyToSell,
+        liquidityScore,
         iqrBounds: { lower: lowerBound, upper: upperBound },
+        regionalFallbacks,
         arbitrageSignal: undefined,
       };
       setCompsCacheEntry(cacheKey, domesticResult);
@@ -1212,8 +1422,11 @@ export async function fetchEbayAustraliaSoldComps(
     }
   }
 
-  // ── PHASE 2: Official eBay Browse API (Fallback when 0 sold comps exist) ────
-  // Show active listings data clearly labelled with asking price & quick-sell price guidance
+  // ── PHASE 2: Region-Specific Active/Marketplace Fallback Strategy (< 2 Sold Comps) ────
+  // When verified sold comps return fewer than 2 items, route strictly to local active fallback:
+  // US: Active eBay US + Google Shopping US
+  // UK: Active eBay UK + Gumtree UK / Google Shopping UK
+  // AU: Active eBay AU + Gumtree AU / Google Shopping AU
   let activeListings = await officialBrowsePromise;
 
   // If primaryQuery returned 0 active listings, try relaxed search query
@@ -1225,41 +1438,48 @@ export async function fetchEbayAustraliaSoldComps(
   if (activeListings.length > 0) {
     activeListings.sort((a, b) => a.price - b.price);
     const activePrices = activeListings.map((c) => c.price);
-    const isRegionUS = targetCurrency === "USD";
-    const isRegionUK = targetCurrency === "GBP";
     const activeMedianVal = Math.round(calcMedian(activePrices) * 100) / 100;
     const activeMinVal = Math.round(activePrices[0] * 100) / 100;
     const activeMaxVal = Math.round(activePrices[activePrices.length - 1] * 100) / 100;
-    // When 0 sold comps exist, recommend 7% below active median so user undercuts competitors and sells easily
-    const recPrice = Math.max(1, Math.round(activeMedianVal * 0.93 * 100) / 100);
+
+    // Uniform 15-20% active listing markdown safeguard (18%) across AUD, USD, and GBP
+    const recQuickSalePrice = Math.max(1, Math.round(activeMedianVal * (1 - ACTIVE_FALLBACK_MARKDOWN_PERCENT) * 100) / 100);
+    const regionalFallbacks = buildRegionalFallbackLinks(primaryQuery, regionConfig, activeMedianVal);
+    const { liquidityScore, isEasyToSell } = computeLiquidityScore(0, activeListings.length, 0.5);
 
     const activeResult: EbayCompsResult = {
       min: activeMinVal,
       max: activeMaxVal,
       median: activeMedianVal,
-      count: 0, // 0 sold comps!
+      count: 0,
       activeListingsCount: activeListings.length,
       activeComps: activeListings.slice(0, 5),
       activeMedian: activeMedianVal,
       activeMin: activeMinVal,
       activeMax: activeMaxVal,
       soldCount: 0,
-      recommendedPrice: recPrice,
+      recommendedPrice: recQuickSalePrice,
+      recommendedQuickSalePrice: recQuickSalePrice,
       currency: targetCurrency,
+      currencySymbol: regionConfig.currencySymbol,
       source: "browse_api",
+      sourceTier: "market_fallback_estimate",
       isActiveAskOnly: true,
       noMarketData: false,
-      marketOrigin: isRegionUS ? "US" : isRegionUK ? "GB" : "AU",
+      isEasyToSell,
+      liquidityScore,
+      regionalFallbacks,
+      marketOrigin: regionConfig.country as "AU" | "US" | "GB",
       rawComps: activeListings.slice(0, 7).map((c) => ({
         ...c,
         isActiveAsk: true,
         soldDate: "Active Ask",
       })),
-      arbitrageSignal: isRegionUK
-        ? "No recent UK sold comps found — showing live active asking prices on eBay UK with quick-sell recommendation."
-        : isRegionUS
-        ? "No recent US sold comps found — showing live active asking prices on eBay US with quick-sell recommendation."
-        : "No sold comps found on eBay — showing live active asking prices on eBay so you know what current sellers are listing it for.",
+      arbitrageSignal: regionConfig.country === "GB"
+        ? "Fewer than 2 UK sold comps found — showing live active asking prices on eBay UK with quick-sell recommendation (-18%)."
+        : regionConfig.country === "US"
+        ? "Fewer than 2 US sold comps found — showing live active asking prices on eBay US with quick-sell recommendation (-18%)."
+        : "Fewer than 2 sold comps found on eBay AU — showing live active asking prices on eBay with quick-sell recommendation (-18%).",
     };
     setCompsCacheEntry(cacheKey, activeResult);
     return activeResult;
@@ -1274,10 +1494,15 @@ export async function fetchEbayAustraliaSoldComps(
     count: 0,
     activeListingsCount: 0,
     currency: targetCurrency,
+    currencySymbol: regionConfig.currencySymbol,
     source: "browse_api",
+    sourceTier: "market_fallback_estimate",
     isActiveAskOnly: false,
     noMarketData: true,
+    isEasyToSell: false,
+    liquidityScore: 0,
     rawComps: [],
+    regionalFallbacks: buildRegionalFallbackLinks(primaryQuery, regionConfig),
     arbitrageSignal: "No domestic comps found.",
   };
   setCompsCacheEntry(cacheKey, zeroResult);
