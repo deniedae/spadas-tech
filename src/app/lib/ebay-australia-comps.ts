@@ -579,6 +579,21 @@ export function buildSearchQueries(
     queries.push(clean);
   }
 
+  // Roman Numeral / Arabic Number Parity for video games, movies, and numbered media franchises
+  if (/\b(3|iii)\b/i.test(clean)) {
+    const swapped = /\b3\b/.test(clean) ? clean.replace(/\b3\b/g, "III") : clean.replace(/\bIII\b/gi, "3");
+    if (swapped !== clean && !queries.includes(swapped)) queries.push(swapped);
+  } else if (/\b(2|ii)\b/i.test(clean)) {
+    const swapped = /\b2\b/.test(clean) ? clean.replace(/\b2\b/g, "II") : clean.replace(/\bII\b/gi, "2");
+    if (swapped !== clean && !queries.includes(swapped)) queries.push(swapped);
+  } else if (/\b(4|iv)\b/i.test(clean)) {
+    const swapped = /\b4\b/.test(clean) ? clean.replace(/\b4\b/g, "IV") : clean.replace(/\bIV\b/gi, "4");
+    if (swapped !== clean && !queries.includes(swapped)) queries.push(swapped);
+  } else if (/\b(5|v)\b/i.test(clean)) {
+    const swapped = /\b5\b/.test(clean) ? clean.replace(/\b5\b/g, "V") : clean.replace(/\bV\b/gi, "5");
+    if (swapped !== clean && !queries.includes(swapped)) queries.push(swapped);
+  }
+
   // 2. High-Demand Gaming Consoles & Hardware (PS5, Xbox, Switch, Retro)
   const isTargetPeripheral = /\b(controller|dualsense|gamepad|joy-con|joycon|headset|remote|stand|game|disc|edition disc|cover|faceplate|skin|cable|cord|adapter|dock)\b/i.test(clean);
   if (!isTargetPeripheral) {
@@ -1162,7 +1177,7 @@ export async function fetchEbayAustraliaSoldComps(
       const filterParam = `&itemFilter(1).name=LocatedIn&itemFilter(1).value=${regionConfig.country}`;
       const url = `https://api.sold-comps.com/v1/scrape?keyword=${encodeURIComponent(q)}&ebaySite=${regionConfig.ebaySite}&page=1&count=25&daysToScrape=90&sortOrder=endedRecently&globalId=${regionConfig.globalId}&country=${regionConfig.country}${filterParam}${locParam}`;
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 8500); // 8.5s timeout for live eBay scraping
+      const timer = setTimeout(() => controller.abort(), 11000); // 11s timeout for live eBay scraping
 
       const res = await fetch(url, {
         headers: {
@@ -1319,7 +1334,7 @@ export async function fetchEbayAustraliaSoldComps(
     // Multi-tier Waterfall Query Cascade strictly partitioned by target marketplace
     const compsStart = Date.now();
     for (let qIdx = 0; qIdx < Math.min(searchQueries.length, 8); qIdx++) {
-      if (Date.now() - compsStart >= 12000) break;
+      if (Date.now() - compsStart >= 16000) break;
       const currentQuery = searchQueries[qIdx];
       if (qIdx > 0) {
         console.log(`[eBay Comps] Waterfall cascade query [${qIdx + 1}/${Math.min(searchQueries.length, 8)}]: "${currentQuery}" (${regionConfig.globalId})`);

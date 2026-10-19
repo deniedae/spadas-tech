@@ -3619,6 +3619,38 @@ function SpadasLensCameraCore({
                         return [pendingScan];
                       });
                     }
+                  } else if (chunk.event === "comps_ready") {
+                    if (abortController.signal.aborted || cycleId !== activeCycleIdRef.current) return;
+                    const compsPayload = chunk.data || chunk;
+                    if (compsPayload.raw_sold_comps && compsPayload.raw_sold_comps.length > 0) {
+                      setActiveValuationHit((prev) => {
+                        if (!prev) return prev;
+                        const verifiedComps = ensureVerifiedSoldComps(
+                          compsPayload.raw_sold_comps,
+                          prev.name,
+                          Number(compsPayload.suggested_price_median) || prev.estimatedValue,
+                          prev.condition,
+                          prev.brand
+                        );
+                        if (verifiedComps.length === 0) return prev;
+                        const compPrices = verifiedComps.map((c) => Number(c.price)).filter((p) => p > 0).sort((a, b) => a - b);
+                        const settledMedian = compPrices.length > 0 ? compPrices[Math.floor(compPrices.length / 2)] : (Number(compsPayload.suggested_price_median) || prev.estimatedValue);
+                        const updated: DetectedHit = {
+                          ...prev,
+                          estimatedValue: settledMedian,
+                          suggestedPriceMin: Number(compsPayload.suggested_price_min) || prev.suggestedPriceMin,
+                          suggestedPriceMax: Number(compsPayload.suggested_price_max) || prev.suggestedPriceMax,
+                          ebayCompsCount: compsPayload.ebay_comps_count || verifiedComps.length,
+                          compsSource: compsPayload.comps_source || "sold_comps_api",
+                          rawComps: verifiedComps,
+                          compsRange: compsPayload.comps_range,
+                          noMarketData: false,
+                          isActiveAskOnly: Boolean(compsPayload.is_active_ask),
+                        };
+                        activeValuationHitRef.current = updated;
+                        return updated;
+                      });
+                    }
                   } else if (chunk.event === "complete") {
                     if (abortController.signal.aborted || cycleId !== activeCycleIdRef.current) return;
                     data = chunk.data;
@@ -3924,11 +3956,43 @@ function SpadasLensCameraCore({
 
       const currentMountedHit = (activeValuationHitRef as any).current as DetectedHit | null;
       if (currentMountedHit?.name) {
-        // Valuation was already mounted instantly in Phase 1 via valuation_ready (< 1.5s)
-        void persistHitAndSyncToSupabase(currentMountedHit, data);
+        // Valuation was mounted instantly in Phase 1 via valuation_ready (< 1.5s)
+        // Enrich the mounted card with verified comps if they arrived in data
+        if (data && data.raw_sold_comps && data.raw_sold_comps.length > 0) {
+          const itemCondition = cleanConditionText(currentMountedHit.condition || data.analysis?.condition, "Used");
+          const itemBrand = sanitizeMetaText(currentMountedHit.brand || data.analysis?.brand) || null;
+          const verifiedComps = ensureVerifiedSoldComps(
+            data.raw_sold_comps,
+            currentMountedHit.name,
+            Number(data.suggested_price_median) || currentMountedHit.estimatedValue,
+            itemCondition,
+            itemBrand
+          );
+          if (verifiedComps.length > 0) {
+            const compPrices = verifiedComps.map((c) => Number(c.price)).filter((p) => p > 0).sort((a, b) => a - b);
+            const settledMedian = compPrices.length > 0 ? compPrices[Math.floor(compPrices.length / 2)] : (Number(data.suggested_price_median) || currentMountedHit.estimatedValue);
+            const enrichedHit: DetectedHit = {
+              ...currentMountedHit,
+              estimatedValue: settledMedian,
+              suggestedPriceMin: Number(data.suggested_price_min) || currentMountedHit.suggestedPriceMin,
+              suggestedPriceMax: Number(data.suggested_price_max) || currentMountedHit.suggestedPriceMax,
+              ebayCompsCount: data.ebay_comps_count || verifiedComps.length,
+              compsSource: data.comps_source || "sold_comps_api",
+              rawComps: verifiedComps,
+              compsRange: data.comps_range,
+              noMarketData: false,
+              isActiveAskOnly: Boolean(data.is_active_ask),
+            };
+            activeValuationHitRef.current = enrichedHit;
+            setActiveValuationHit(enrichedHit);
+            setCapturedLog((prev) => [enrichedHit, ...prev.filter((h) => h.name !== enrichedHit.name)].slice(0, 50));
+            setCachedValuation(enrichedHit.name, enrichedHit);
+          }
+        }
+        void persistHitAndSyncToSupabase(activeValuationHitRef.current || currentMountedHit, data);
         recordCategoryTemplateQuery(currentMountedHit.name, currentMountedHit.category, categoryBias);
         if (!isAuthed && !hasUserPro) {
-          recordGuestScanIfGuest(currentMountedHit, cycleId);
+          recordGuestScanIfGuest(activeValuationHitRef.current || currentMountedHit, cycleId);
         }
         trace.markRenderCommitted();
         setAnalyzingRealFrame(false);

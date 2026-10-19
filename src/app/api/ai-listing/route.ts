@@ -2185,29 +2185,57 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
 
             if (request.signal?.aborted) return;
 
-            // Render the Grok result immediately; verified marketplace comps enrich this same scan below.
-            const provisionalResult: AiListingResult = {
-              ...result,
-              raw_sold_comps: [],
-              ebay_comps_count: 0,
-            };
-            (provisionalResult as any).comps_source = "ai_estimate";
-            (provisionalResult as any).no_market_data = true;
-            (provisionalResult as any).is_comps_pending = true;
-            (provisionalResult as any).status = "fetching_comps";
+            // 3. Fast Parallel Comps Synchronizer:
+            // Await comps resolution (up to 3.0s) so valuation_ready delivers genuine sold comps immediately whenever possible
+            await Promise.race([
+              runCompsAndFinalizeResult(),
+              new Promise((resolve) => setTimeout(resolve, 3000)),
+            ]);
+
+            if (request.signal?.aborted) return;
+
+            const hasCompsNow = Boolean(
+              result.raw_sold_comps &&
+              result.raw_sold_comps.length > 0 &&
+              !(result as any).no_market_data
+            );
+
+            // Render the identified valuation
+            const valuationPayload = hasCompsNow
+              ? result
+              : {
+                  ...result,
+                  raw_sold_comps: [],
+                  ebay_comps_count: 0,
+                  comps_source: "ai_estimate",
+                  no_market_data: true,
+                  is_comps_pending: true,
+                  status: "fetching_comps",
+                };
+
             const valuationReadyEvent = {
               event: "valuation_ready",
-              data: provisionalResult,
+              data: valuationPayload,
             };
             controller.enqueue(encoder.encode(JSON.stringify(valuationReadyEvent) + "\n"));
 
             if (request.signal?.aborted) return;
 
-            // Fetch verified eBay comps in parallel after the scan result is already visible.
-            await Promise.race([
-              runCompsAndFinalizeResult(),
-              new Promise((resolve) => setTimeout(resolve, 10000)),
-            ]);
+            // If comps needed more time, wait for completion and emit comps_ready event immediately
+            if (!hasCompsNow) {
+              await Promise.race([
+                runCompsAndFinalizeResult(),
+                new Promise((resolve) => setTimeout(resolve, 10000)),
+              ]);
+
+              if (request.signal?.aborted) return;
+
+              const compsReadyEvent = {
+                event: "comps_ready",
+                data: result,
+              };
+              controller.enqueue(encoder.encode(JSON.stringify(compsReadyEvent) + "\n"));
+            }
 
             if (request.signal?.aborted) return;
 
