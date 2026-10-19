@@ -112,8 +112,8 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  maximumScale: 5,
+  userScalable: true,
   viewportFit: "cover",
 };
 
@@ -126,9 +126,10 @@ export default function RootLayout({
     <html lang="en" className={cn("dark font-sans", geistSans.variable, geistMono.variable)}>
       <head>
         {/* Google AdSense Verification & Auto-Ads Tag (Publisher ID: pub-7262955524032732) */}
-        <script
+        <Script
           async
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7262955524032732"
+          strategy="afterInteractive"
           crossOrigin="anonymous"
         />
         <link rel="preload" href="/icon-192.png" as="image" type="image/png" />

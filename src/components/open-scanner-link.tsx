@@ -12,6 +12,7 @@ export function OpenScannerLink({ onClick, ...props }: OpenScannerLinkProps) {
       onClick={(event) => {
         try {
           localStorage.setItem("spadas_seen_home", "1");
+          localStorage.setItem("spadas_mobile_intent", "scanner");
         } catch {}
 
         onClick?.(event);
