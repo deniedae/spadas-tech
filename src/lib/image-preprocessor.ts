@@ -7,6 +7,7 @@
  * 4. Applies adaptive contrast enhancement & luminance sharpening to make faded tags,
  *    care labels, hallmarks, and hardware logos crisp for OCR.
  */
+import { isFrameWorkerSupported, executeOffThreadFocalCrop } from "./camera-frame-worker-engine";
 
 export interface PreprocessedImageResult {
   fullDataUrl: string;
@@ -222,6 +223,31 @@ export async function extractReticleMacroCropAsync(
   const cropHeight = Math.round(minDim * cropFactor);
   const cropX = Math.round((rawW - cropWidth) / 2);
   const cropY = Math.round((rawH - cropHeight) / 2);
+
+  // 1. Zero-latency Off-thread Web Worker hardware crop (0ms main-thread freeze)
+  if (isFrameWorkerSupported()) {
+    try {
+      const focalRes = await executeOffThreadFocalCrop(video, {
+        cropFactor,
+        maxDimension: targetDim,
+        quality,
+        contrastBoost: boostContrast ? 1.20 : 1.0,
+        normalizeExposure: true,
+      });
+      return {
+        cropDataUrl: focalRes.dataUrl,
+        fullDataUrl: focalRes.dataUrl,
+        cropWidth,
+        cropHeight,
+        targetWidth: focalRes.width,
+        targetHeight: focalRes.height,
+        payloadBytes: focalRes.sizeBytesApprox,
+        format: focalRes.format === "image/webp" ? "webp" : "jpeg",
+      };
+    } catch (wErr) {
+      console.warn("[image-preprocessor] Worker macro crop error, falling back to canvas:", wErr);
+    }
+  }
 
   const canvas = document.createElement("canvas");
   canvas.width = targetDim;

@@ -7,6 +7,8 @@
  * 4. Ultra-lightweight WebP export (0.82 quality) compressing raw 2.5MB frames to < 120KB.
  */
 
+import { isFrameWorkerSupported, executeOffThreadFocalCrop } from "./camera-frame-worker-engine";
+
 export interface FocalCropOptions {
   /** Crop factor relative to camera viewport dimensions (default: 0.60 for center 60%) */
   cropFactor?: number;
@@ -31,6 +33,8 @@ export interface FocalCropResult {
 /**
  * Extracts the center 60% reticle bounding crop from an active video element,
  * rescales it to <= 768px, applies contrast/gamma normalization, and compresses to WebP.
+ * 
+ * Uses off-thread ImageBitmap + OffscreenCanvas Web Worker engine for 60FPS zero-stutter performance.
  */
 export async function processFocalCrop(
   video: HTMLVideoElement,
@@ -49,6 +53,15 @@ export async function processFocalCrop(
 
   if (!vw || !vh || vw <= 0 || vh <= 0) {
     throw new Error("[image-processing] Video element has invalid dimensions or is not ready.");
+  }
+
+  // 1. Primary zero-latency path: Off-thread Web Worker with ImageBitmap (0ms main thread lock)
+  if (isFrameWorkerSupported()) {
+    try {
+      return await executeOffThreadFocalCrop(video, options);
+    } catch (workerErr) {
+      console.warn("[image-processing] Off-thread frame worker failed, falling back to main-thread canvas:", workerErr);
+    }
   }
 
   // 1. Center 60% reticle focal bounding crop

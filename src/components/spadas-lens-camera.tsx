@@ -1359,23 +1359,17 @@ function SpadasLensCameraCore({
       lastDetectedBarcodeRef.current = codeVal;
       lastBarcodeTimeRef.current = now;
 
-      // Capture frozen frame snapshot of what the camera was pointing at
+      // Capture frozen frame snapshot of what the camera was pointing at via off-thread worker
       let snapshotUrl: string | null = null;
       if (videoRef.current && videoRef.current.videoWidth > 0) {
         try {
-          const canvas = document.createElement("canvas");
-          canvas.width = videoRef.current.videoWidth;
-          canvas.height = videoRef.current.videoHeight;
-          const ctx = canvas.getContext("2d");
-          if (ctx) {
-            ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-            try {
-              const webp = canvas.toDataURL("image/webp", 0.70);
-              snapshotUrl = webp.startsWith("data:image/webp") ? webp : canvas.toDataURL("image/jpeg", 0.70);
-            } catch {
-              snapshotUrl = canvas.toDataURL("image/jpeg", 0.70);
-            }
-          }
+          const snapRes = await processFocalCrop(videoRef.current, {
+            cropFactor: 1.0,
+            maxDimension: 768,
+            quality: 0.70,
+            normalizeExposure: false,
+          });
+          snapshotUrl = snapRes.dataUrl;
         } catch (e) {
           console.warn("[Spadas Lens] Barcode snapshot capture skipped:", e);
         }
