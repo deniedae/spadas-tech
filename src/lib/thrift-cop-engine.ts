@@ -357,7 +357,7 @@ export function calculateThriftCopVerdict(options: CalculateCopVerdictOptions): 
       };
     } else {
       copVerdict = "MUST_COP";
-      verdictLabel = "High Profit";
+      verdictLabel = "High Profit (MUST COP)";
       verdictDescription = `Projected +$${netProfit.toFixed(0)} profit (${roiPercentage}% ROI, ${salesVelocity.estDaysToSell} turnover).`;
       badgeStyle = {
         bg: "bg-emerald-500/20",

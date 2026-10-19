@@ -158,6 +158,26 @@ function brandsDisagree(brand1?: string | null, brand2?: string | null): boolean
   return true;
 }
 
+function isItemUnidentified(res: AiListingResult | null | undefined): boolean {
+  if (!res) return true;
+  const raw = (res.analysis?.product_name || (res as any).product_name || "").trim();
+  if (!raw) return true;
+  if (
+    raw === "NO_CENTER_ITEM" ||
+    raw.toLowerCase() === "unidentified" ||
+    raw.toLowerCase() === "unknown product" ||
+    raw.toLowerCase() === "null" ||
+    raw.length < 2 ||
+    /^[.\/_\-–—:;,\s]+$/.test(raw)
+  ) {
+    return true;
+  }
+  if (res.status === "unidentified" || res.analysis?.status === "unidentified") {
+    return true;
+  }
+  return false;
+}
+
 export async function POST(request: Request) {
   let userId: string | null = null;
   let userIdentifier: string | null = null;
@@ -1034,19 +1054,25 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
       }
     }
 
-    // ── MULTI-MODEL CONSENSUS & ARBITRATION (OpenAI Vision + Gemini Flash) ──
-    if (result && hasGeminiVisionKey() && imageUrls.length > 0 && (!isFastPipeline || mode === "deep")) {
+    // Grounding Guard: if Model 1 returned "NO_CENTER_ITEM", "unidentified", or empty sentinel, clear result so it cascades
+    if (result && isItemUnidentified(result)) {
+      console.log(`[Tri-Model Cascade] Model 1 (OpenAI) unidentified ("${result.analysis?.product_name || (result as any).product_name}"). Clearing to cascade to Model 2 (Gemini)...`);
+      result = null;
+    }
+
+    // ── DOUBLE-VERIFICATION & CONSENSUS (when Model 1 identified an item) ──
+    if (result && hasGeminiVisionKey() && imageUrls.length > 0 && (!isFastPipeline || mode === "deep" || (result.analysis?.confidence_score ?? 1) < 0.90)) {
       const openAiBrand = result.analysis?.brand || "";
       const shouldRunConsensus =
         mode === "deep" ||
         result.analysis?.confidence !== "high" ||
-        (result.analysis?.confidence_score ?? 1) < 0.95 ||
+        (result.analysis?.confidence_score ?? 1) < 0.90 ||
         Boolean(openAiBrand);
 
       if (shouldRunConsensus) {
         try {
           const geminiResult = await callGeminiVision(imageUrls[0]);
-          if (geminiResult && geminiResult.analysis?.product_name) {
+          if (geminiResult && geminiResult.analysis?.product_name && !isItemUnidentified(geminiResult)) {
             const geminiBrand = geminiResult.analysis?.brand || "";
 
             // Check if models disagree on brand identification by a wide margin
@@ -1078,7 +1104,7 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
                 let grokResolved = false;
                 if (hasGrokApiKey() && imageUrls.length > 0) {
                   try {
-                    console.log(`[Consensus] Invoking Grok-2 Vision for tie-breaker arbitration between "${openAiBrand}" and "${geminiBrand}"...`);
+                    console.log(`[Consensus] Invoking Grok Vision for tie-breaker arbitration between "${openAiBrand}" and "${geminiBrand}"...`);
                     const grokArb = await callGrokArbitration(
                       imageUrls[0],
                       { brand: openAiBrand, product: result.analysis?.product_name || "" },
@@ -1086,16 +1112,16 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
                     );
 
                     if (grokArb?.winner === "B") {
-                      console.log(`[Consensus] Grok-2 Vision confirmed Gemini brand "${geminiBrand}": ${grokArb.reasoning}`);
+                      console.log(`[Consensus] Grok Vision confirmed Gemini brand "${geminiBrand}": ${grokArb.reasoning}`);
                       result = geminiResult;
                       activeProvider = "grok-arbitration-gemini";
                       grokResolved = true;
                     } else if (grokArb?.winner === "A") {
-                      console.log(`[Consensus] Grok-2 Vision confirmed OpenAI brand "${openAiBrand}": ${grokArb.reasoning}`);
+                      console.log(`[Consensus] Grok Vision confirmed OpenAI brand "${openAiBrand}": ${grokArb.reasoning}`);
                       activeProvider = "grok-arbitration-openai";
                       grokResolved = true;
                     } else if (grokArb?.verifiedBrand) {
-                      console.log(`[Consensus] Grok-2 Vision identified true third brand "${grokArb.verifiedBrand}": ${grokArb.reasoning}`);
+                      console.log(`[Consensus] Grok Vision identified true third brand "${grokArb.verifiedBrand}": ${grokArb.reasoning}`);
                       if (result.analysis) {
                         result.analysis.brand = grokArb.verifiedBrand;
                       }
@@ -1144,6 +1170,21 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
                   }
                 }
               }
+            } else {
+              // Double verification verified!
+              console.log(`[Double Verification] Models agree on identification ("${result.analysis?.product_name}"). Upgrading confidence to 0.98.`);
+              if (result.analysis) {
+                result.analysis.confidence = "high";
+                result.analysis.confidence_score = Math.max(result.analysis.confidence_score ?? 0.95, 0.98);
+                if (geminiResult.analysis?.visual_reasoning?.visible_text_detected?.length && result.analysis.visual_reasoning) {
+                  result.analysis.visual_reasoning.visible_text_detected = Array.from(
+                    new Set([
+                      ...(result.analysis.visual_reasoning.visible_text_detected || []),
+                      ...(geminiResult.analysis.visual_reasoning.visible_text_detected || []),
+                    ])
+                  );
+                }
+              }
             }
           }
         } catch (consensusErr) {
@@ -1152,18 +1193,136 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
       }
     }
 
-    // ── TIER 3: Fallback to Gemini 1.5 Flash ──
+    // ── TIER 2: Cascade to Model 2 (Google Gemini Flash) ──
     if (!result && imageUrls.length > 0 && hasGeminiVisionKey()) {
       try {
+        console.log(`[Tri-Model Cascade] Model 1 unavailable or unidentified — invoking Model 2 (Gemini Flash)...`);
         const geminiResult = await callGeminiVision(imageUrls[0]);
-        if (geminiResult && geminiResult.analysis?.product_name) {
+        if (geminiResult && !isItemUnidentified(geminiResult)) {
           result = geminiResult;
           activeProvider = "gemini";
-          activeModel = "gemini-1.5-flash";
+          activeModel = "gemini-flash";
           didFallback = true;
+          console.log(`[Tri-Model Cascade] Model 2 (Gemini Flash) successfully identified: "${result.analysis?.product_name}"`);
+        } else {
+          console.log(`[Tri-Model Cascade] Model 2 (Gemini Flash) also unidentified.`);
         }
       } catch (gemErr) {
-        console.warn("[ai-listing] Gemini vision fallback warning:", gemErr);
+        console.warn("[Tri-Model Cascade] Gemini vision fallback error:", gemErr);
+      }
+    }
+
+    // ── TIER 3: Cascade to Model 3 (xAI Grok Vision Full & Fast) ──
+    if (!result && imageUrls.length > 0 && hasGrokApiKey()) {
+      try {
+        console.log(`[Tri-Model Cascade] Models 1 & 2 unavailable or unidentified — invoking Model 3 (xAI Grok Vision)...`);
+        const grokFullResult = await callGrokVisionFull(imageUrls, {
+          categoryHint: categoryBias || undefined,
+          mode,
+          spatialMetadata,
+          targetCurrency,
+        });
+
+        if (grokFullResult && !isItemUnidentified(grokFullResult)) {
+          result = grokFullResult;
+          activeProvider = "grok";
+          activeModel = GROK_VISION_MODEL;
+          didFallback = true;
+          console.log(`[Tri-Model Cascade] Model 3 (xAI Grok Vision Full) successfully identified: "${result.analysis?.product_name}"`);
+        } else {
+          // Rapid Grok Vision fallback pass
+          const grokFastData = await callGrokVisionFast(imageUrls[0], {
+            categoryHint: categoryBias || undefined,
+            mode,
+            spatialMetadata,
+            targetCurrency,
+          });
+
+          if (grokFastData && grokFastData.product_name && !isItemUnidentified({ analysis: { product_name: grokFastData.product_name } } as any)) {
+            const pName = grokFastData.product_name.trim();
+            const brand = grokFastData.brand?.trim() || null;
+            const cat = grokFastData.category || "General";
+            const cond = grokFastData.condition || "Used - Good";
+            const estVal = Number(grokFastData.estimated_value) || 35;
+            const rawMin = Number(grokFastData.suggested_price_min) || Math.round(estVal * 0.7);
+            const rawMax = Number(grokFastData.suggested_price_max) || Math.round(estVal * 1.3);
+
+            result = {
+              status: "identified",
+              isMockFallback: false,
+              inventory_condition: "used_working",
+              condition_grade: grokFastData.condition_grade || "Good",
+              wear_inspection: null,
+              defect_notes: grokFastData.defect_notes || [],
+              media_format: grokFastData.media_format || undefined,
+              detected_objects: [
+                {
+                  id: `grok-obj-${Date.now()}`,
+                  product_name: pName,
+                  brand: brand,
+                  category: cat,
+                  condition: cond,
+                  confidence_score: grokFastData.confidence_score || 0.95,
+                  bbox: { x: 0.1, y: 0.1, width: 0.8, height: 0.8 },
+                },
+              ],
+              analysis: {
+                status: "identified",
+                visual_reasoning: {
+                  visible_text_detected: grokFastData.visible_text_detected || [],
+                  physical_object_description: pName,
+                  brand_identified: brand || null,
+                  identification_reasoning: `Identified by xAI Grok Vision: ${pName}`,
+                },
+                product_name: pName,
+                brand: brand,
+                model: null,
+                category: cat,
+                color: null,
+                material: null,
+                condition: cond,
+                condition_grade: grokFastData.condition_grade || "Good",
+                wear_inspection: null,
+                media_format: grokFastData.media_format || undefined,
+                defect_notes: grokFastData.defect_notes || [],
+                accessories_detected: [],
+                confidence: (grokFastData.confidence_score || 0.95) >= 0.85 ? "high" : "medium",
+                confidence_score: grokFastData.confidence_score || 0.95,
+                retake_recommended: grokFastData.retake_recommended || null,
+              },
+              market_titles: {
+                ebay: `${brand || ""} ${pName} ${cond}`.replace(/\s+/g, " ").trim().slice(0, 80),
+                facebook_marketplace: `${brand || ""} ${pName} - Great Condition`.trim(),
+                vinted: `${brand || ""} ${pName}`.trim(),
+                depop: `${pName.toLowerCase()} #resale #thrift`,
+              },
+              seo_description: "",
+              detailed_description: "",
+              shipping_estimate: {
+                size: "small",
+                estimated_weight_grams: 400,
+                dimensions_cm: null,
+                notes: null,
+              },
+              item_specifics: {
+                Brand: brand || "Authentic",
+                Category: cat,
+                Condition: cond,
+              },
+              suggested_keywords: [brand || "Resale", cat, "Pre-Owned"].filter(Boolean),
+              suggested_price_min: rawMin,
+              suggested_price_max: rawMax,
+              suggested_price_median: estVal,
+              suggested_price_currency: targetCurrency,
+            };
+            activeProvider = "grok";
+            activeModel = GROK_VISION_MODEL;
+            didFallback = true;
+            console.log(`[Tri-Model Cascade] Model 3 (xAI Grok Vision Fast) successfully identified: "${pName}"`);
+          }
+        }
+      } catch (grokErr) {
+        console.warn("[Tri-Model Cascade] Grok vision fallback error:", grokErr);
       }
     }
 
