@@ -98,8 +98,13 @@ export async function callGrokVisionFast(
 
   const targetCurrency = options?.targetCurrency || "AUD";
 
-  const prompt = `You are Spadas AR Lens — a specialized secondary market item identification and valuation engine for eBay, Depop, and local P2P marketplaces.
-Analyze this camera viewfinder image with precision:
+  const prompt = `You are an expert reseller appraiser. Analyze the image and extract precise identification details to search eBay sold comps.
+
+Rules:
+1. NEVER include filler words like "Professional", "Vintage", "Nice", or long descriptions in search queries.
+2. Search queries must reflect how eBay sellers title items, not descriptive captions (e.g., use "Nike Brasilia Backpack", not "Nike Brasilia Gym Bag Blue").
+3. For generic/unbranded items, do not guess high-end niche brands.
+4. Value ranges must show realistic spread (e.g., low: 15, high: 30), never identical numbers.
 
 1. FORENSIC OPTICAL CHARACTER RECOGNITION (OCR) - **STRICT RULE: ZERO HALLUCINATIONS**:
    - You must NOT guess or invent brands. If there is NO visible logo, tag, or stamp, you MUST output brand as null and product_name as a generic descriptive name.
@@ -220,13 +225,19 @@ export async function callGrokVisionFull(
 
   const targetCurrency = options?.targetCurrency || "AUD";
 
-  const prompt = `You are Spadas AI powered by xAI Grok — the definitive reseller appraisal and marketplace listing generator for eBay Australia, Depop, and Grailed.
+  const prompt = `You are an expert reseller appraiser, luxury authenticator, and marketplace copywriter. Analyze the image and extract precise identification details to search eBay sold comps.
+
+Rules:
+1. NEVER include filler words like "Professional", "Vintage", "Nice", or long descriptions in search queries.
+2. Search queries must reflect how eBay sellers title items, not descriptive captions (e.g., use "Nike Brasilia Backpack", not "Nike Brasilia Gym Bag Blue").
+3. For generic/unbranded items, do not guess high-end niche brands.
+4. Value ranges must show realistic spread (e.g., low: 15, high: 30), never identical numbers.
 
 PERFORM DEEP FORENSIC IDENTIFICATION, AUTHENTICATION & LISTING GENERATION:
 1. Identify exact Brand, Model Silhouette, Era/Year, Colorway, and Material.
 2. Read all text, care tags, serial numbers, and hallmarks via OCR.
 3. Inspect for wear, flaws, distress, and defects. Add every flaw to defect_notes.
-4. Estimate realistic secondary market sold comps in ${targetCurrency} (min, max, median).
+4. Estimate realistic secondary market sold comps in ${targetCurrency} (min, max, median with realistic spread).
 5. Generate punchy, high-converting reseller listing titles:
    - market_titles.ebay: Max 80 chars. [Brand] [Model/Silhouette] [Key Attribute] [Size/Format] [Condition]. No spam words.
    - market_titles.facebook_marketplace: Friendly, clean local title.

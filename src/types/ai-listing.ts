@@ -30,6 +30,19 @@ export interface WearInspection {
   packaging_completeness?: string | null;
 }
 
+export interface ResellerSearchQueries {
+  strict_query: string;
+  broad_query: string;
+  fallback_query: string;
+}
+
+export interface ResellerUsedValueAud {
+  low: number;
+  median: number;
+  high: number;
+  confidence: "High" | "Medium" | "Low";
+}
+
 /** What the vision model extracts from the uploaded photos. */
 export interface ProductAnalysis {
   status?: "identified" | "unidentified";
@@ -37,6 +50,13 @@ export interface ProductAnalysis {
   product_name: string | null;
   brand: string | null;
   model: string | null;
+  model_or_style?: string | null;
+  item_type?: string | null;
+  primary_color?: string | null;
+  condition_estimate?: "New" | "Like New" | "Good" | "Fair" | "Poor" | null;
+  search_queries?: ResellerSearchQueries | null;
+  estimated_used_value_aud?: ResellerUsedValueAud | null;
+  pricing_reasoning?: string | null;
   category: string;
   color: string | null;
   material: string | null;
@@ -178,6 +198,9 @@ export interface AiListingResult {
   suggested_price_max: number;
   suggested_price_median?: number;
   suggested_price_currency: "USD" | "AUD" | "GBP" | "EUR";
+  search_queries?: ResellerSearchQueries | null;
+  estimated_used_value_aud?: ResellerUsedValueAud | null;
+  pricing_reasoning?: string | null;
   ebay_comps_count?: number;
   raw_sold_comps?: RawSoldCompRecord[];
   comps_range?: { min: number; max: number; median: number };

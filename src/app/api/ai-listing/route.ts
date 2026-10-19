@@ -37,6 +37,12 @@ import { saveProductToCache, getCachedProductScan } from "@/app/lib/cache/produc
 import { appraiseItemLocally } from "@/app/lib/offline/offline-engine";
 import { estimateAustralianMarketValue } from "@/lib/valuation-heuristics";
 import { estimateCategoryShippingCost, detectThriftTrap, calculateThriftCopVerdict } from "@/lib/thrift-cop-engine";
+import {
+  sanitizeResellerSearchQuery,
+  enforceRealisticValueSpread,
+  constructResellerSearchQueries,
+  EXPERT_RESELLER_APPRAISER_SYSTEM_PROMPT,
+} from "@/lib/reseller-appraiser";
 import type { AiListingResult, SoldCompPricingBreakdown, VisionScanTelemetry } from "@/types/ai-listing";
 
 export const runtime = "nodejs";
@@ -672,21 +678,28 @@ Identify ONLY the single primary physical item positioned in the center target r
               messages: [
                 {
                   role: "system",
-                  content: `You are an expert commercial reseller appraiser and luxury authenticator with forensic OCR capabilities.
-Identify the centered physical item with the highest possible accuracy.
+                  content: `You are an expert reseller appraiser. Analyze the image and extract precise identification details to search eBay sold comps.
 
-CRITICAL IDENTIFICATION RULES:
-1. OPTICAL CHARACTER RECOGNITION (OCR): Read all visible text, brand logos, care tags, inner collar tags, serial numbers, model codes, and labels. Never output a generic noun when a brand or model is legible.
-2. COMMERCIAL SEARCH QUERY CONSTRUCTION:
-   Construct the exact commercial product search query that buyers and sellers use on eBay to find sold comps.
-   - For Apparel: [Brand] + [Model/Line/Fit] + [Item Type] + [Color/Pattern/Wash] (e.g. "Vintage Carhartt Detroit Jacket J97 DKB Brown", "Nike Tech Fleece Full Zip Hoodie Black", "Ralph Lauren Polo Bear Sweater Navy").
-   - For Electronics/Tech: [Brand] + [Exact Model Number] + [Device Type] (e.g. "Sony WH-1000XM4 Noise Canceling Headphones", "Nintendo Switch OLED Console White", "Bose QuietComfort 45 Headphones").
-   - For Media/Entertainment: [Title] + [Media Format] (e.g. "Interstellar 4K UHD Blu-ray", "Pokemon HeartGold Version Nintendo DS", "Pink Floyd Dark Side of the Moon Vinyl LP").
-   - For Shoes: [Brand] + [Silhouette/Model] + [Colorway] (e.g. "Nike Dunk Low Retro Panda White Black", "Air Jordan 4 Retro Military Black").
-   - For Collectibles/Toys: [Brand/Maker] + [Character/Set] + [Item Type] (e.g. "Lego Star Wars 75192 Millennium Falcon", "Pokemon Base Set Charizard Holo").
-   - For Unbranded/Vintage: Describe style, material, and type (e.g. "Mid Century Modern Amber Glass Ribbed Vase").
-3. NEVER return vague queries like "Shirt", "Jacket", "Shoe", "Pants", "Item", "Bottle", or "Box".
-4. If no physical product is centered or the frame is blank/empty background, return query: "NO_CENTER_ITEM".`,
+Rules:
+1. NEVER include filler words like "Professional", "Vintage", "Nice", or long descriptions in search queries.
+2. Search queries must reflect how eBay sellers title items, not descriptive captions (e.g., use "Nike Brasilia Backpack", not "Nike Brasilia Gym Bag Blue").
+3. For generic/unbranded items, do not guess high-end niche brands.
+4. Value ranges must show realistic spread (e.g., low: 15, high: 30), never identical numbers.
+5. OPTICAL CHARACTER RECOGNITION (OCR): Read all visible text, brand logos, care tags, inner collar tags, serial numbers, model codes, and labels. Never output a generic noun when a brand or model is legible.
+6. Populate all fields strictly:
+   - "brand": string or null
+   - "model_or_style": string or null (e.g., Brasilia, Tech Fleece)
+   - "item_type": string (e.g., Backpack, Hairdressing Scissors, Track Pants)
+   - "primary_color": string or null
+   - "condition_estimate": "New" | "Like New" | "Good" | "Fair" | "Poor"
+   - "search_queries":
+     * "strict_query": string (Brand + Model + Item Type, max 4-5 words, no fluff/colors unless critical)
+     * "broad_query": string (Brand + Item Type)
+     * "fallback_query": string (Item Type only if unbranded)
+   - "estimated_used_value_aud": { "low": number, "median": number, "high": number, "confidence": "High" | "Medium" | "Low" }
+   - "pricing_reasoning": "1 sentence explanation"
+   - "query": Same as search_queries.strict_query
+7. If no physical product is centered or the frame is blank/empty background, return query: "NO_CENTER_ITEM", strict_query: "NO_CENTER_ITEM".`,
                 },
                 {
                   role: "user",
@@ -866,16 +879,47 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
       try {
         if (isArScan) {
           const arData = JSON.parse(content) as MinimalArScanSchemaType;
-          const pName = (arData.query || "").trim();
-          const brand = (arData.brand || "").trim() || null;
+          
+          // Rule 1 & Rule 2: Clean and extract search queries
+          const rawStrict = arData.search_queries?.strict_query || arData.query || "";
+          const rawBroad = arData.search_queries?.broad_query || "";
+          const rawFallback = arData.search_queries?.fallback_query || arData.item_type || "";
+
+          const strictQuery = sanitizeResellerSearchQuery(rawStrict);
+          const broadQuery = sanitizeResellerSearchQuery(rawBroad);
+          const fallbackQuery = sanitizeResellerSearchQuery(rawFallback);
+
+          const pName = (strictQuery || sanitizeResellerSearchQuery(arData.query) || broadQuery || fallbackQuery || "").trim();
+          const brand = sanitizeResellerSearchQuery(arData.brand) || null;
           const cat = arData.category || "General";
-          const cond = arData.condition || "Used - Good";
+          const cond = arData.condition || arData.condition_estimate || "Used - Good";
+
+          // Rule 4: Value ranges must show realistic spread, never identical numbers
+          const initialSpread = arData.estimated_used_value_aud
+            ? enforceRealisticValueSpread(
+                arData.estimated_used_value_aud.low,
+                arData.estimated_used_value_aud.median,
+                arData.estimated_used_value_aud.high
+              )
+            : enforceRealisticValueSpread(
+                estimateAustralianMarketValue({ title: pName, brand, category: cat, condition: cond }).minPrice,
+                estimateAustralianMarketValue({ title: pName, brand, category: cat, condition: cond }).estimatedMedian,
+                estimateAustralianMarketValue({ title: pName, brand, category: cat, condition: cond }).maxPrice
+              );
+
+          const searchQueriesList = [strictQuery, broadQuery, fallbackQuery].filter((q) => q.length >= 3);
 
           // ── INSTANT COMPS FIRE: the moment query is parsed, immediately fire eBay
-          // comps fetch in parallel. Do NOT await — the downstream runCompsAndFinalizeResult
-          // will await this promise for a zero-wait cache hit if it resolves in time.
+          // comps fetch in parallel with prioritized custom queries.
           if (pName.length >= 3 && !parallelCompsPromise) {
-            parallelCompsPromise = fetchEbayAustraliaSoldComps(pName, initialTargetCurrency).catch((err) => {
+            parallelCompsPromise = fetchEbayAustraliaSoldComps(
+              pName,
+              initialTargetCurrency,
+              brand,
+              cat,
+              cond,
+              searchQueriesList
+            ).catch((err) => {
               console.warn("[ai-listing] Instant AR comps fire warning:", err);
               return null;
             });
@@ -890,8 +934,24 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
             undefined
           );
 
+          const resolvedQueries = {
+            strict_query: strictQuery || pName,
+            broad_query: broadQuery || (brand ? `${brand} ${arData.item_type || cat}`.trim() : pName),
+            fallback_query: fallbackQuery || arData.item_type || cat,
+          };
+
+          const resolvedUsedValue = {
+            low: initialSpread.low,
+            median: initialSpread.median,
+            high: initialSpread.high,
+            confidence: arData.estimated_used_value_aud?.confidence || "High",
+          };
+
+          const resolvedPricingReasoning =
+            arData.pricing_reasoning || `Appraised based on secondary market comps for ${pName}.`;
+
           result = {
-            status: pName && pName !== "NO_CENTER_ITEM" ? "identified" : "unidentified",
+            status: pName && pName !== "NO_CENTER_ITEM" && strictQuery !== "NO_CENTER_ITEM" ? "identified" : "unidentified",
             isMockFallback: false,
             inventory_condition: cond.toLowerCase().includes("part") ? "faulty_for_parts" : "used_working",
             condition_grade: cond.toLowerCase().includes("new") ? "Mint" : cond.toLowerCase().includes("fair") ? "Fair" : "Good",
@@ -899,6 +959,13 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
             defect_notes: [],
             as_is_disclaimer: undefined,
             media_format: detectedFormat,
+            suggested_price_min: initialSpread.low,
+            suggested_price_max: initialSpread.high,
+            suggested_price_median: initialSpread.median,
+            suggested_price_currency: targetCurrency,
+            search_queries: resolvedQueries,
+            estimated_used_value_aud: resolvedUsedValue,
+            pricing_reasoning: resolvedPricingReasoning,
             detected_objects: [
               {
                 id: `obj-${Date.now()}`,
@@ -911,13 +978,20 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
               },
             ],
             analysis: {
-              status: pName && pName !== "NO_CENTER_ITEM" ? "identified" : "unidentified",
+              status: pName && pName !== "NO_CENTER_ITEM" && strictQuery !== "NO_CENTER_ITEM" ? "identified" : "unidentified",
               visual_reasoning: null,
               product_name: pName,
               brand: brand,
-              model: null,
+              model: arData.model_or_style || null,
+              model_or_style: arData.model_or_style || null,
+              item_type: arData.item_type || null,
+              primary_color: arData.primary_color || null,
+              condition_estimate: arData.condition_estimate || null,
+              search_queries: resolvedQueries,
+              estimated_used_value_aud: resolvedUsedValue,
+              pricing_reasoning: resolvedPricingReasoning,
               category: cat,
-              color: null,
+              color: arData.primary_color || null,
               material: null,
               condition: cond,
               condition_grade: cond.toLowerCase().includes("new") ? "Mint" : "Good",
@@ -949,10 +1023,6 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
               Condition: cond,
             },
             suggested_keywords: [brand || "Resale", cat, "Pre-Owned"].filter(Boolean),
-            suggested_price_min: estimateAustralianMarketValue({ title: pName, brand, category: cat, condition: cond }).minPrice,
-            suggested_price_max: estimateAustralianMarketValue({ title: pName, brand, category: cat, condition: cond }).maxPrice,
-            suggested_price_median: estimateAustralianMarketValue({ title: pName, brand, category: cat, condition: cond }).estimatedMedian,
-            suggested_price_currency: targetCurrency,
             retake_recommended: null,
           };
         } else if (isFastPipeline) {

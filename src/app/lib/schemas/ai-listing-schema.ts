@@ -202,13 +202,62 @@ export const AiListingResultSchema = z.object({
 export type GenerateListingSchemaType = z.infer<typeof GenerateListingSchema>;
 export type AiListingResultSchemaType = z.infer<typeof AiListingResultSchema>;
 
+export const ResellerConditionEstimateEnum = z.enum([
+  "New",
+  "Like New",
+  "Good",
+  "Fair",
+  "Poor",
+]);
+
+export const ResellerSearchQueriesSchema = z.object({
+  strict_query: z
+    .string()
+    .describe("Brand + Model + Item Type, max 4-5 words, no fluff/colors unless critical (e.g. 'Nike Brasilia Backpack')"),
+  broad_query: z
+    .string()
+    .describe("Brand + Item Type (e.g. 'Nike Backpack')"),
+  fallback_query: z
+    .string()
+    .describe("Item Type only if unbranded (e.g. 'Backpack')"),
+});
+
+export const ResellerUsedValueAudSchema = z.object({
+  low: z.number().describe("Realistic lower-bound sold comp value in AUD with realistic spread"),
+  median: z.number().describe("Realistic fair-market median sold comp value in AUD"),
+  high: z.number().describe("Realistic higher-bound sold comp value in AUD (never identical to low)"),
+  confidence: z.enum(["High", "Medium", "Low"]).describe("Confidence level"),
+});
+
+export const ResellerAppraisalSchema = z.object({
+  brand: z.string().nullable().describe("Brand name or null if unbranded"),
+  model_or_style: z.string().nullable().describe("Model or style name (e.g., Brasilia, Tech Fleece) or null"),
+  item_type: z.string().describe("Item type (e.g., Backpack, Hairdressing Scissors, Track Pants)"),
+  primary_color: z.string().nullable().describe("Primary color or null"),
+  condition_estimate: ResellerConditionEstimateEnum,
+  search_queries: ResellerSearchQueriesSchema,
+  estimated_used_value_aud: ResellerUsedValueAudSchema,
+  pricing_reasoning: z.string().describe("1 sentence explanation"),
+});
+
+export type ResellerAppraisalSchemaType = z.infer<typeof ResellerAppraisalSchema>;
+export type ResellerSearchQueriesType = z.infer<typeof ResellerSearchQueriesSchema>;
+export type ResellerUsedValueAudType = z.infer<typeof ResellerUsedValueAudSchema>;
+
 /**
  * Minimal AR Camera Shutter Snap Schema (< 300ms inference)
  * Strictly extracts essential item query, brand, category, condition, and media format for instant eBay comps lookup.
  */
 export const MinimalArScanSchema = z.object({
-  query: z.string().describe("Exact commercial product search query to find marketplace sold comps (e.g. 'Sony WH-1000XM4', 'Vintage Carhartt Detroit Jacket J97', 'Nike Tech Fleece Hoodie Black')"),
+  query: z.string().describe("Exact commercial product search query to find marketplace sold comps (e.g. 'Sony WH-1000XM4', 'Carhartt Detroit Jacket J97', 'Nike Brasilia Backpack')"),
   brand: z.string().nullable().describe("Brand name or null if unbranded"),
+  model_or_style: z.string().nullable().describe("Model or style name (e.g., Brasilia, Tech Fleece) or null"),
+  item_type: z.string().describe("Item type (e.g., Backpack, Hairdressing Scissors, Track Pants)"),
+  primary_color: z.string().nullable().describe("Primary color or null"),
+  condition_estimate: ResellerConditionEstimateEnum.describe("Condition estimate: New | Like New | Good | Fair | Poor"),
+  search_queries: ResellerSearchQueriesSchema,
+  estimated_used_value_aud: ResellerUsedValueAudSchema,
+  pricing_reasoning: z.string().describe("1 sentence explanation of pricing"),
   category: z.string().describe("Primary resale category (e.g. Personal Care, Clothing, Electronics, Shoes, Media & Movies, Video Games, General)"),
   condition: z.string().describe("Item condition (e.g. 'New', 'Used - Good', 'Used - Fair', 'For Parts')"),
   media_format: MediaFormatEnum.nullable().describe("For movies/discs/games: '4K UHD', 'Blu-ray', 'DVD', 'Steelbook', 'VHS', 'CD', 'Vinyl' or null"),

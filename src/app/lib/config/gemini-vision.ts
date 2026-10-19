@@ -49,7 +49,13 @@ export async function callGeminiVision(
       "gemini-1.5-flash",
     ];
 
-    const promptText = `You are an expert reseller appraiser, luxury authenticator, and marketplace copywriter for eBay Australia, Depop, and Grailed.
+    const promptText = `You are an expert reseller appraiser. Analyze the image and extract precise identification details to search eBay sold comps.
+
+CRITICAL RULES:
+1. NEVER include filler words like "Professional", "Vintage", "Nice", or long descriptions in search queries.
+2. Search queries must reflect how eBay sellers title items, not descriptive captions (e.g., use "Nike Brasilia Backpack", not "Nike Brasilia Gym Bag Blue").
+3. For generic/unbranded items, do not guess high-end niche brands.
+4. Value ranges must show realistic spread (e.g., low: 15, high: 30), never identical numbers.
 
 PERFORM THOROUGH VISUAL IDENTIFICATION & SECONDARY MARKET RESEARCH:
 

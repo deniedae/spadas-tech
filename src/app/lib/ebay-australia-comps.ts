@@ -1,4 +1,5 @@
 import { CURRENCY_CONFIGS, SupportedCurrency, convertCurrency } from "./currency-routing";
+import { sanitizeResellerSearchQuery } from "@/lib/reseller-appraiser";
 
 /**
  * Maps Spadas currency codes to eBay marketplace IDs and AU contextual headers.
@@ -336,18 +337,30 @@ export function sanitizeTitleForBroadening(productName: string, brand?: string |
 /**
  * Builds prioritized search variations from a product title to maximize exact and category comp matches.
  */
-function buildSearchQueries(productName: string, brand?: string | null, category?: string | null): string[] {
-  const clean = productName
-    .replace(/["'’]/g, "")
-    .replace(/\b(model|item|authentic|genuine|used|pre-owned|tested|working|vintage|retro|clean|great|condition)\b/gi, "")
-    .replace(/\s+/g, " ")
-    .trim();
-
+export function buildSearchQueries(
+  productName: string,
+  brand?: string | null,
+  category?: string | null,
+  customQueries?: string[] | null
+): string[] {
+  const clean = sanitizeResellerSearchQuery(productName);
   const lower = clean.toLowerCase();
   const queries: string[] = [];
 
+  // Prioritize custom structured reseller queries (strict_query, broad_query, fallback_query)
+  if (customQueries && customQueries.length > 0) {
+    for (const q of customQueries) {
+      const sanitized = sanitizeResellerSearchQuery(q);
+      if (sanitized && sanitized.length >= 3) {
+        queries.push(sanitized);
+      }
+    }
+  }
+
   // 1. Attempt 1: Full identified query (Exact Title)
-  queries.push(clean);
+  if (clean && clean.length >= 3) {
+    queries.push(clean);
+  }
 
   // 2. High-Demand Gaming Consoles & Hardware (PS5, Xbox, Switch, Retro)
   const isTargetPeripheral = /\b(controller|dualsense|gamepad|joy-con|joycon|headset|remote|stand|game|disc|edition disc|cover|faceplate|skin|cable|cord|adapter|dock)\b/i.test(clean);
@@ -796,9 +809,10 @@ export async function fetchEbayAustraliaSoldComps(
   targetCurrency: SupportedCurrency = "AUD",
   brand?: string | null,
   category?: string | null,
-  condition?: string | null
+  condition?: string | null,
+  customQueries?: string[] | null
 ): Promise<EbayCompsResult | null> {
-  const searchQueries = buildSearchQueries(productName, brand, category);
+  const searchQueries = buildSearchQueries(productName, brand, category, customQueries);
   if (searchQueries.length === 0) return null;
 
   // ── CACHE HIT: return immediately (0ms) if this query was resolved recently ──
