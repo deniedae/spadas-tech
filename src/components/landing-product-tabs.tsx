@@ -21,10 +21,10 @@ const MODES: ProductMode[] = [
     badge: "LIVE 60FPS AR CAMERA",
     title: "Spadas Lens AR Vision",
     icon: "🔮",
-    description: "Continuous camera scanning over thrift shelves & clothing racks with real-time profit overlays, audio chimes, and live 30-day eBay AU sold comps.",
+    description: "Continuous camera scanning over thrift shelves & clothing racks with real-time profit overlays, audio chimes, and verified sold comps when marketplace evidence is available.",
     metrics: [
       { label: "Scan Speed", value: "< 1.2 Seconds" },
-      { label: "Comp Accuracy", value: "100% Live AUD" },
+      { label: "Comps Grounding", value: "Sold Evidence First" },
       { label: "Detection Mode", value: "Continuous 60FPS" },
     ],
     actionText: "Try Lens AR Scanner",

@@ -484,9 +484,9 @@ export function SpadasSnapStudio() {
             required: true,
             angleType: rec.angle_type || "tag",
             reason: rec.reason || "Secondary angle needed for accurate valuation",
-            promptLabel: rec.prompt_label || "📸 Snap Collar Tag or Hardware Detail for 100% Comp Accuracy",
+            promptLabel: rec.prompt_label || "📸 Snap Collar Tag or Hardware Detail for Verified Comps",
           });
-          toast.warning(rec.prompt_label || "📸 Snap a secondary angle (fabric, tag, or hardware) for 100% accuracy!", {
+          toast.warning(rec.prompt_label || "📸 Snap a secondary angle (fabric, tag, or hardware) for verified comps!", {
             duration: 6000,
           });
         } else {
@@ -501,21 +501,48 @@ export function SpadasSnapStudio() {
 
         const sizeVal = data?.item_specifics?.Size || data?.item_specifics?.size || "One Size";
         const condVal = data?.analysis?.condition || "Pre-owned - Like New";
-        const descVal =
+          const descVal =
           data?.detailed_description ||
           data?.seo_description ||
-          `Authentic ${rawPName} in ${condVal} condition. Fast dispatch from Australia.`;
+          `${rawPName} in ${condVal} condition. Fast dispatch from Australia.`;
 
         const priceMed = Number(data?.suggested_price_median) || 45;
         const itemCat = data?.analysis?.category || data?.category || "General Resale";
+        const confidenceScore = Number(data?.analysis?.confidence_score ?? data?.confidence_score ?? 0.95);
+        const requiresSecondaryVerification = Boolean(
+          data?.requires_secondary_verification ||
+          data?.retake_recommended?.required ||
+          data?.analysis?.retake_recommended?.required
+        );
         const cop = calculateThriftCopVerdict({
           resalePrice: priceMed,
           category: itemCat,
+          productName: rawPName,
+          brand: data?.analysis?.brand || data?.brand || "Unbranded",
+          confidenceScore,
+          variantAudit: data?.variant_audit,
+          needsVerification: requiresSecondaryVerification,
         });
+
+        const valuationState: SpadasListingData["valuationState"] = requiresSecondaryVerification
+          ? "VERIFY_FIRST"
+          : data?.no_market_data
+            ? "NO_MARKET_DATA"
+            : data?.is_active_ask || data?.comps_source === "browse_api"
+              ? "ACTIVE_ASKS_ONLY"
+              : "VERIFIED_SOLD_COMPS";
+
+        const valuationDetail = requiresSecondaryVerification
+          ? data?.verification_reason || rec?.reason || "Take a secondary angle, tag, barcode, or detail shot before trusting this valuation."
+          : data?.no_market_data
+            ? "No solid sold evidence was found for this item. Treat this price as guidance only."
+            : data?.is_active_ask || data?.comps_source === "browse_api"
+              ? "This value is grounded by current asking prices, not completed sold listings."
+              : "This value is grounded by recent sold listings after marketplace cleanup and filtering.";
 
         const listingPayload: SpadasListingData = {
           productName: rawPName,
-          brand: data?.analysis?.brand || data?.brand || "Authentic",
+          brand: data?.analysis?.brand || data?.brand || "Unbranded",
           category: itemCat,
           condition: condVal,
           size: sizeVal,
@@ -535,6 +562,10 @@ export function SpadasSnapStudio() {
           trueNetProfit: cop.netProfit,
           roiPercentage: cop.roiPercentage,
           copVerdict: cop.copVerdict,
+          valuationState,
+          valuationDetail,
+          ebayCompsCount: Number(data?.ebay_comps_count) || 0,
+          activeCompsCount: Number(data?.active_comps_count) || 0,
         };
 
         if (!isAuthed && !isPro && !isUserAdmin) {

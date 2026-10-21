@@ -103,7 +103,9 @@ export function ScanItemCard({
   // Dynamic pricing state for live recalculation
   const [minPrice, setMinPrice] = useState<number>(res?.suggested_price_min || 0);
   const [maxPrice, setMaxPrice] = useState<number>(res?.suggested_price_max || 0);
-  const [activeCompsCount, setActiveCompsCount] = useState<number>(Array.isArray(res?.comps) ? res.comps.length : 0);
+  const [activeCompsCount, setActiveCompsCount] = useState<number>(
+    Number(res?.ebay_comps_count) || (Array.isArray(res?.comps) ? res.comps.length : 0)
+  );
   const [isCompsModalOpen, setIsCompsModalOpen] = useState(false);
 
   const handleRecalculate = useCallback((newMin: number, newMax: number, _newAvg: number, activeCount: number) => {
@@ -249,6 +251,58 @@ export function ScanItemCard({
     return null;
   })();
 
+  const requiresSecondaryVerification = Boolean(
+    res?.requires_secondary_verification ||
+    res?.retake_recommended?.required ||
+    res?.analysis?.retake_recommended?.required
+  );
+  const noMarketData = Boolean(res?.no_market_data);
+  const isActiveAskOnly = Boolean(res?.is_active_ask || res?.isActiveAskOnly || res?.comps_source === "browse_api");
+  const verificationReason =
+    res?.verification_reason ||
+    res?.retake_recommended?.reason ||
+    res?.analysis?.retake_recommended?.reason ||
+    null;
+
+  const valuationEvidence = (() => {
+    if (requiresSecondaryVerification) {
+      return {
+        label: "Verify First",
+        detail: verificationReason || "A second angle, tag, barcode, or detail shot is recommended before trusting this saved valuation.",
+        badgeClass: "bg-amber-500/15 text-amber-300 border border-amber-500/40",
+        textClass: "text-amber-300",
+      };
+    }
+
+    if (noMarketData) {
+      return {
+        label: "No Market Data",
+        detail: "No solid sold evidence was found. Treat this saved valuation as guidance only.",
+        badgeClass: "bg-zinc-800 text-zinc-300 border border-zinc-700",
+        textClass: "text-zinc-400",
+      };
+    }
+
+    if (isActiveAskOnly) {
+      return {
+        label: "Active Asks Only",
+        detail: "This saved valuation is grounded by current asking prices, not completed sold listings.",
+        badgeClass: "bg-violet-500/15 text-violet-300 border border-violet-500/40",
+        textClass: "text-violet-300",
+      };
+    }
+
+    return {
+      label: "Verified Sold Comps",
+      detail:
+        activeCompsCount > 0
+          ? `Grounded by ${activeCompsCount} sold listing${activeCompsCount === 1 ? "" : "s"}.`
+          : "Grounded by sold marketplace evidence.",
+      badgeClass: "bg-emerald-500/15 text-emerald-300 border border-emerald-500/40",
+      textClass: "text-zinc-500",
+    };
+  })();
+
   return (
     <>
       <div
@@ -286,11 +340,11 @@ export function ScanItemCard({
             )}
           </div>
 
-          <div className="space-y-1 min-w-0 flex-1">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="font-bold text-zinc-100 text-sm sm:text-base truncate max-w-md">
-                {title}
-              </h3>
+            <div className="space-y-1 min-w-0 flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="font-bold text-zinc-100 text-sm sm:text-base truncate max-w-md">
+                  {title}
+                </h3>
               <span
                 className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider flex items-center gap-1 ${
                   isFailed
@@ -330,6 +384,12 @@ export function ScanItemCard({
                   </span>
                 )
               )}
+
+              {!isFailed && (
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider ${valuationEvidence.badgeClass}`}>
+                  {valuationEvidence.label}
+                </span>
+              )}
             </div>
 
             <div className="flex items-center gap-2 font-mono text-[11px] text-zinc-400 flex-wrap">
@@ -356,29 +416,29 @@ export function ScanItemCard({
         {/* Right Side: Resale Valuation & Action Suite */}
         <div className="flex items-center justify-between md:justify-end gap-3 pt-2 md:pt-0 border-t md:border-t-0 border-white/10 flex-wrap">
           {!isFailed && (minPrice > 0 || maxPrice > 0) ? (
-            <div className="text-left md:text-right pr-2">
+            <div className="min-w-[230px] rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 text-left md:text-right pr-2">
               <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider mb-1">
                 Resale Valuation
               </div>
               <div className="font-mono text-emerald-400 font-bold text-base tabular-nums">
                 ${minPrice.toFixed(2)} – ${maxPrice.toFixed(2)} AUD
               </div>
-              {activeCompsCount > 0 && (
-                <div className="flex items-center justify-start md:justify-end gap-2 mt-1">
-                  <div className="text-[9px] font-mono text-zinc-500">
-                    Based on {activeCompsCount} sold listings
-                  </div>
+              <div className="flex items-center justify-start md:justify-end gap-2 mt-1 flex-wrap">
+                <div className={`text-[9px] font-mono ${valuationEvidence.textClass}`}>
+                  {valuationEvidence.detail}
+                </div>
+                {activeCompsCount > 0 && !requiresSecondaryVerification && !noMarketData && (
                   <button 
                     onClick={() => setIsCompsModalOpen(true)}
                     className="text-[9px] font-mono text-zinc-400 hover:text-white font-medium underline cursor-pointer"
                   >
-                    View Comps
+                    Review Evidence
                   </button>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           ) : (
-            <div className="text-left md:text-right pr-2">
+            <div className="min-w-[230px] rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 text-left md:text-right pr-2">
               <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider">
                 Resale Valuation
               </div>
@@ -403,7 +463,7 @@ export function ScanItemCard({
                 title={isListed ? "Draft already created in Listings" : "Add to Listings as Draft"}
               >
                 {isListed ? <Check className="w-3 h-3" /> : <Sparkles className="w-3 h-3" />}
-                <span>{isListed ? "LISTED" : "+ LISTING"}</span>
+                <span>{isListed ? "SAVED" : "SAVE DRAFT"}</span>
               </button>
 
               {/* Add to Haul Action */}
@@ -419,7 +479,7 @@ export function ScanItemCard({
                 title={isInHaul ? "Already in current Haul batch" : "Add to active thrift Haul batch"}
               >
                 {isInHaul ? <Check className="w-3 h-3" /> : <ShoppingBasket className="w-3 h-3" />}
-                <span>{isInHaul ? "IN HAUL" : "+ HAUL"}</span>
+                <span>{isInHaul ? "IN HAUL" : "ADD TO HAUL"}</span>
               </button>
 
               <button
@@ -432,7 +492,7 @@ export function ScanItemCard({
                 title={`Publish directly to ${(res?.suggested_price_currency === "GBP" || res?.currency === "GBP" || (typeof window !== "undefined" && detectGeoCurrency().currency === "GBP")) ? "eBay UK" : (res?.suggested_price_currency === "USD" || res?.currency === "USD" || (typeof window !== "undefined" && detectGeoCurrency().currency === "USD")) ? "eBay US" : "eBay Australia"}`}
               >
                 <ShoppingBag className="w-3 h-3 text-amber-400" />
-                <span>EBAY</span>
+                <span>PUBLISH</span>
               </button>
             </div>
           )}

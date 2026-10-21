@@ -210,3 +210,28 @@ export function convertCurrency(
   return Math.max(1, Math.round(converted * 100) / 100);
 }
 
+function normalizeCurrencyCode(currency?: SupportedCurrency | string): SupportedCurrency {
+  const normalized = (currency || "AUD").toUpperCase();
+  if (normalized === "USD" || normalized === "GBP" || normalized === "EUR") {
+    return normalized;
+  }
+  return "AUD";
+}
+
+export function getEbayMarketplaceLabel(currency?: SupportedCurrency | string): string {
+  switch (normalizeCurrencyCode(currency)) {
+    case "USD":
+      return "eBay US";
+    case "GBP":
+      return "eBay UK";
+    case "EUR":
+      return "eBay DE";
+    default:
+      return "eBay AU";
+  }
+}
+
+export function getEbaySellerHubUrl(currency?: SupportedCurrency | string): string {
+  const ebaySite = CURRENCY_CONFIGS[normalizeCurrencyCode(currency)].ebaySite;
+  return `https://www.${ebaySite}/sh/ovw`;
+}

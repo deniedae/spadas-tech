@@ -36,6 +36,16 @@ export type MediaFormat = '4K UHD' | 'Blu-ray' | 'DVD' | 'Steelbook' | 'VHS' | '
 export interface DetectedHit {
   id: string;
   name: string;
+  title?: string;
+  productName?: string;
+  sessionId?: string;
+  currency?: string;
+  status?: "pending" | "analyzing" | "fetching_comps" | "valued" | "rejected";
+  isCompsPending?: boolean;
+  is_comps_pending?: boolean;
+  confidenceScore?: number;
+  comps?: RawSoldComp[];
+  has_brand_or_model?: boolean;
   brand?: string | null;
   category: string;
   condition: string;
@@ -153,6 +163,10 @@ export interface DetectedHit {
 export interface ActiveScanItem {
   id: string;
   productName: string;
+  name?: string;
+  title?: string;
+  sessionId?: string;
+  currency?: string;
   brand?: string | null;
   category: string;
   condition: string;
@@ -161,11 +175,15 @@ export interface ActiveScanItem {
   defectNotes?: string[];
   asIsDisclaimer?: string;
   bbox: { x: number; y: number; width: number; height: number };
-  status: "pending" | "valued" | "rejected";
+  status: "pending" | "analyzing" | "fetching_comps" | "valued" | "rejected";
+  isCompsPending?: boolean;
+  is_comps_pending?: boolean;
+  has_brand_or_model?: boolean;
   estimatedValue?: number;
   suggestedPriceMin?: number;
   suggestedPriceMax?: number;
   confidenceScore?: number;
+  confidence?: number;
   ebayCompsCount?: number;
   activeCompsCount?: number;
   isActiveAskOnly?: boolean;
@@ -174,6 +192,7 @@ export interface ActiveScanItem {
   arbitrageSignal?: string;
   compsSource?: "browse_api" | "sold_comps_api" | "ai_estimate" | "cached_last_check";
   rawComps?: RawSoldComp[];
+  comps?: RawSoldComp[];
   compsRange?: {
     min: number;
     max: number;
@@ -191,6 +210,13 @@ export interface ActiveScanItem {
   roiPercentage?: number;
   copVerdict?: CopVerdict;
   image?: string | null;
+  photos?: string[];
+  isGrail?: boolean;
+  usMedianUsd?: number;
+  recommendedPrice?: number;
+  isCachedFallback?: boolean;
   ocrText?: string[];
   timestamp: number;
 }
+
+export type LensModalItem = DetectedHit | ActiveScanItem;

@@ -5,11 +5,6 @@ import { useRouter, usePathname } from "next/navigation";
 import dynamic from "next/dynamic";
 import { performPrimeReset } from "@/lib/prime-reset";
 
-const FirstLaunchWelcomeModal = dynamic(
-  () => import("@/components/first-launch-welcome-modal").then((m) => m.FirstLaunchWelcomeModal),
-  { ssr: false }
-);
-
 const OnboardingCarousel = dynamic(
   () => import("@/components/onboarding-carousel").then((m) => m.OnboardingCarousel),
   { ssr: false }
@@ -29,7 +24,6 @@ const SubscriptionPaywallModal = dynamic(
 export function GlobalFirstLaunchFlow() {
   const router = useRouter();
   const pathname = usePathname();
-  const [showWelcome, setShowWelcome] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
 
@@ -53,39 +47,38 @@ export function GlobalFirstLaunchFlow() {
     try {
       // Diagnostic & QA query parameter support: ?onboarding=1 or ?welcome=1 or ?reset=1
       const searchParams = new URLSearchParams(window.location.search);
-        if (searchParams.get("reset") === "1") {
-          performPrimeReset({ resetWelcomeModal: true });
-          localStorage.removeItem("spadas_first_launch_welcome_v1");
-          localStorage.removeItem("hasCompletedOnboarding");
-          localStorage.removeItem("hasSeenOnboarding");
-          setShowWelcome(true);
-          setShowOnboarding(false);
-          setShowPaywall(false);
-          return;
-        }
-        if (searchParams.get("onboarding") === "1" || searchParams.get("welcome") === "1") {
-          setShowWelcome(false);
-          setShowOnboarding(true);
-          return;
-        }
-
-        const hasSeenWelcome = localStorage.getItem("spadas_first_launch_welcome_v1") === "true";
-        const hasCompleted =
-          localStorage.getItem("hasSeenOnboarding") === "true" ||
-          localStorage.getItem("hasCompletedOnboarding") === "true";
-
-        if (!hasSeenWelcome && !hasCompleted) {
-          setShowWelcome(true);
-          setShowOnboarding(false);
-        } else {
-          setShowWelcome(false);
-          setShowOnboarding(false);
-        }
-      } catch {
-        // In restricted or error conditions, never loop onboarding
-        setShowWelcome(false);
-        setShowOnboarding(false);
+      if (searchParams.get("reset") === "1") {
+        performPrimeReset({ resetWelcomeModal: true });
+        localStorage.removeItem("spadas_first_launch_welcome_v1");
+        localStorage.removeItem("hasCompletedOnboarding");
+        localStorage.removeItem("hasSeenOnboarding");
+        setShowOnboarding(true);
+        setShowPaywall(false);
+        return;
       }
+
+      if (searchParams.get("onboarding") === "1" || searchParams.get("welcome") === "1") {
+        setShowOnboarding(true);
+        setShowPaywall(false);
+        return;
+      }
+
+      const hasCompleted =
+        localStorage.getItem("hasSeenOnboarding") === "true" ||
+        localStorage.getItem("hasCompletedOnboarding") === "true";
+
+      if (!hasCompleted) {
+        setShowOnboarding(true);
+        setShowPaywall(false);
+      } else {
+        setShowOnboarding(false);
+        setShowPaywall(false);
+      }
+    } catch {
+      // In restricted or error conditions, never loop onboarding
+      setShowOnboarding(false);
+      setShowPaywall(false);
+    }
   }, [pathname]);
 
   const routeToScanner = useCallback(() => {
@@ -94,64 +87,37 @@ export function GlobalFirstLaunchFlow() {
     }
   }, [pathname, router]);
 
-  const markFirstLaunchSeen = useCallback(() => {
+  const markOnboardingSeen = useCallback(() => {
     try {
-      localStorage.setItem("spadas_first_launch_welcome_v1", "true");
       localStorage.setItem("hasSeenOnboarding", "true");
       localStorage.setItem("hasCompletedOnboarding", "true");
     } catch {}
   }, []);
 
-  const handleStartScanning = useCallback(() => {
-    setShowWelcome(false);
-    setShowOnboarding(false);
-    setShowPaywall(false);
-    markFirstLaunchSeen();
-    routeToScanner();
-  }, [markFirstLaunchSeen, routeToScanner]);
-
-  const handleOpenGuide = useCallback(() => {
-    setShowWelcome(false);
-    setShowOnboarding(true);
-  }, []);
-
-  const handleUpgradeFromWelcome = useCallback(() => {
-    setShowWelcome(false);
-    setShowPaywall(true);
-  }, []);
-
   const handleCompleteOnboarding = useCallback(() => {
     setShowOnboarding(false);
-    markFirstLaunchSeen();
-    routeToScanner();
-  }, [markFirstLaunchSeen, routeToScanner]);
+    setShowPaywall(true);
+    markOnboardingSeen();
+  }, [markOnboardingSeen]);
 
   const handleSkipOnboarding = useCallback(() => {
     setShowOnboarding(false);
-    markFirstLaunchSeen();
-    routeToScanner();
-  }, [markFirstLaunchSeen, routeToScanner]);
+    setShowPaywall(true);
+    markOnboardingSeen();
+  }, [markOnboardingSeen]);
 
   const handleClosePaywall = useCallback(() => {
     setShowPaywall(false);
-    markFirstLaunchSeen();
+    markOnboardingSeen();
     routeToScanner();
-  }, [markFirstLaunchSeen, routeToScanner]);
+  }, [markOnboardingSeen, routeToScanner]);
 
-  if (!showWelcome && !showOnboarding && !showPaywall) {
+  if (!showOnboarding && !showPaywall) {
     return null;
   }
 
   return (
     <>
-      {showWelcome && (
-        <FirstLaunchWelcomeModal
-          isOpen={showWelcome}
-          onStartScanning={handleStartScanning}
-          onUpgradePro={handleUpgradeFromWelcome}
-          onViewGuide={handleOpenGuide}
-        />
-      )}
       {showOnboarding && (
         <OnboardingCarousel
           onComplete={handleCompleteOnboarding}

@@ -21,7 +21,6 @@ import {
   getPrimaryAiApiKey,
   createOpenAiClient,
 } from "@/app/lib/config/ai-models";
-import { callClaudeVision } from "@/app/lib/config/claude-vision";
 import { callGeminiVision, hasGeminiVisionKey } from "@/app/lib/config/gemini-vision";
 import { callGlmVisionFast, hasGlmVisionKey } from "@/app/lib/config/glm-vision";
 import {
@@ -778,7 +777,7 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
 ` : ""}
 0. MULTI-FRAME OPTICAL COMPOSITE & MOTION BLUR ELIMINATION:
 - The input images feature an optical composite synthesized from rapid consecutive frames pooled when movement was detected, accompanied by focused macro center-crops.
-- Cross-reference the overview and macro insets across consecutive frames to resolve small text, care labels, serial codes, hallmarks, fabric texture, and condition flaws with 100% confidence, completely eliminating motion blur or misidentification.
+- Cross-reference the overview and macro insets across consecutive frames to resolve small text, care labels, serial codes, hallmarks, fabric texture, and condition flaws with high confidence, minimizing motion blur or misidentification.
 
 1. ACCURATE BRAND IDENTIFICATION:
 - Identify the EXACT brand (e.g. "Carhartt", "Prada", "Nike", "Sony", "Nintendo", "Lego", "TP-Link", "Patagonia", "Bose").
@@ -837,7 +836,7 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
       "required": true,
       "angle_type": "tag" | "hardware" | "material" | "focus" | "overall",
       "reason": "Specific issue (e.g., 'Care tag and brand label not visible' or 'Hardware engraving is blurred')",
-      "prompt_label": "Direct action prompt (e.g., '📸 Snap Collar Tag for 100% Comp Accuracy')"
+      "prompt_label": "Direct action prompt (e.g., '📸 Snap Collar Tag for Verified Comps')"
     }
   • If the item is clearly in focus with verifiable attributes, set "retake_recommended": null.
 

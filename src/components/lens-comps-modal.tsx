@@ -83,7 +83,7 @@ import {
   calculateFragranceLiquidMultiplier,
   sanitizeCompsForUsedCondition,
 } from "@/lib/fragrance-liquid-engine";
-import type { DetectedHit, ActiveScanItem, RawSoldComp } from "@/types/lens";
+import type { DetectedHit, ActiveScanItem, RawSoldComp, LensModalItem } from "@/types/lens";
 import { evaluateCompsEvidence, type CompsEvidence } from "@/lib/comps-evidence-engine";
 
 // Dynamic lazy import for non-critical modal drawer to reduce initial bundle and improve INP
@@ -93,7 +93,7 @@ const LensCopilotDrawer = dynamic(() => import("@/components/lens-copilot-drawer
 
 interface LensCompsModalProps {
   isOpen: boolean;
-  item: DetectedHit | ActiveScanItem | null;
+  item: LensModalItem | null;
   frozenFrameUrl?: string | null;
   currency?: string;
   isUserBookmarked?: boolean;
@@ -149,7 +149,7 @@ export default function LensCompsModal({
   const [conditionTier, setConditionTier] = useState<PhysicalConditionTier>("used_excellent");
   const [isRestorationApplied, setIsRestorationApplied] = useState<boolean>(false);
 
-  const currentItemId = (item as any)?.id ? String((item as any).id) : null;
+  const currentItemId = item?.id ? String(item.id) : null;
   const prevItemIdRef = useRef<string | null>(null);
   const prevFragranceItemIdRef = useRef<string | null>(null);
   const prevActiveItemIdRef = useRef<string | null>(null);
@@ -157,7 +157,7 @@ export default function LensCompsModal({
   const soldCompsCacheRef = useRef<Map<string, RawSoldComp[]>>(new Map());
   const resolvedItemIdsRef = useRef<Set<string>>(new Set());
 
-  const title = (item as any)?.name || (item as any)?.productName || (item as any)?.title || "Scanned Item";
+  const title = item?.name || item?.productName || item?.title || "Scanned Item";
   const brand = cleanBrandText(item?.brand, "Unbranded") || "Unbranded";
   const category = cleanCategoryText(item?.category, "General Resale") || "General Resale";
   const condition = cleanConditionText(item?.condition, "Used - Good");
@@ -187,7 +187,7 @@ export default function LensCompsModal({
   const initialPhotos = useMemo(() => {
     const p: string[] = [];
     if (frozenFrameUrl) p.push(frozenFrameUrl);
-    else if ((item as any)?.image) p.push((item as any).image);
+    else if (item?.image) p.push(item.image);
     if (Array.isArray((item as any)?.photos)) {
       for (const photo of (item as any).photos) {
         if (photo && !p.includes(photo)) p.push(photo);
@@ -269,7 +269,7 @@ export default function LensCompsModal({
     ];
     const catLower = (category || "").toLowerCase();
     const titleLower = (title || "").toLowerCase();
-    const hitTitleLower = (((item as any)?.title || (item as any)?.name || "") as string).toLowerCase();
+    const hitTitleLower = ((item?.title || item?.name || item?.productName || "") as string).toLowerCase();
 
     const matchesKeyword = liquidCategories.some((cat) => {
       const lower = cat.toLowerCase();
@@ -284,7 +284,7 @@ export default function LensCompsModal({
   }, [category, title, item]);
 
   const autoFragranceAttrs = useMemo(
-    () => detectFragranceAttributes(title, condition, (item as any)?.defectNotes || []),
+    () => detectFragranceAttributes(title, condition, item?.defectNotes || []),
     [title, condition, item]
   );
 
@@ -354,14 +354,14 @@ export default function LensCompsModal({
     prevFragranceItemIdRef.current = currentItemId;
 
     setIsFragranceActive(isLiquidOrFragrance);
-    const attrs = detectFragranceAttributes(title, condition, (item as any)?.defectNotes || []);
+    const attrs = detectFragranceAttributes(title, condition, item?.defectNotes || []);
     setFillLevel(attrs.fillLevelPercent);
     setHasCap(attrs.hasCap);
     setIsTester(attrs.isTester);
     setHasBox(attrs.hasBox);
     // Reset postage override for each new scan
     setCustomPostageTier(null);
-    const newCost = Number(item.tagPrice || (item as any).estCost) || categoryEstimate.typicalOpShopCost;
+    const newCost = Number(item.tagPrice || item.estCost) || categoryEstimate.typicalOpShopCost;
     setCustomTagCost(newCost);
   }, [currentItemId, item, title, category, condition, isLiquidOrFragrance, categoryEstimate.typicalOpShopCost]);
 
@@ -377,7 +377,7 @@ export default function LensCompsModal({
 
   // 1. Unbranded & Low-Confidence Comps Guardrail
   const hasBrandOrModel = Boolean(
-    (item as any)?.has_brand_or_model ??
+    item?.has_brand_or_model ??
     (brand &&
      brand.toLowerCase() !== "unbranded" &&
      brand.toLowerCase() !== "generic" &&
@@ -388,7 +388,7 @@ export default function LensCompsModal({
   // Extract raw comps and ensure 3 to 5 verified recent sold listings
   const rawComps: RawSoldComp[] = useMemo(() => {
     if (!item) return [];
-    const directComps = (item as any).rawComps || (item as any).comps;
+    const directComps = item.rawComps || item.comps;
     const verified = ensureVerifiedSoldComps(
       directComps,
       title,
@@ -404,7 +404,7 @@ export default function LensCompsModal({
       return soldCompsCacheRef.current.get(currentItemId)!;
     }
     return verified;
-  }, [currentItemId, (item as any)?.rawComps, (item as any)?.comps, title, initialEstValue, condition, brand]);
+  }, [currentItemId, item?.rawComps, item?.comps, title, initialEstValue, condition, brand]);
 
   // Condition-aware & fragrance fill-level sanitized comps
   // When condition is detected or toggled to Used: Exclude listings containing keywords: BNIB, NIB, Sealed, Brand New
@@ -433,15 +433,15 @@ export default function LensCompsModal({
       return false;
     }
 
-    const itemStatus = (item as any)?.status;
+    const itemStatus = item?.status;
     const isPendingStatus = itemStatus === "fetching_comps" || itemStatus === "analyzing" || itemStatus === "pending";
-    const isCompsPending = Boolean((item as any)?.is_comps_pending);
+    const isCompsPending = Boolean(item?.is_comps_pending || item?.isCompsPending);
     const hasFinalFallbackState = Boolean(
-      (item as any)?.noMarketData ||
-      (item as any)?.isActiveAskOnly ||
-      (item as any)?.compsSource === "browse_api" ||
-      (item as any)?.compsSource === "ai_estimate" ||
-      (item as any)?.compsSource === "cached_last_check"
+      item?.noMarketData ||
+      item?.isActiveAskOnly ||
+      item?.compsSource === "browse_api" ||
+      item?.compsSource === "ai_estimate" ||
+      item?.compsSource === "cached_last_check"
     );
 
     if (!isPendingStatus && !isCompsPending && hasFinalFallbackState) {
@@ -450,7 +450,7 @@ export default function LensCompsModal({
     }
 
     return isPendingStatus || isCompsPending;
-  }, [currentItemId, effectiveComps.length, (item as any)?.status, (item as any)?.is_comps_pending, item?.estimatedValue]);
+  }, [currentItemId, effectiveComps.length, item?.status, item?.is_comps_pending, item?.estimatedValue]);
 
   const compsRange = useMemo(() => {
     const baseDefault = (isLiquidOrFragrance && isFragranceActive)
@@ -1118,6 +1118,46 @@ export default function LensCompsModal({
     return `${effectiveComps.length} sold comps · last 5 days`;
   }, [isZeroSoldActive, activeCount, effectiveComps.length]);
 
+  const valuationState = useMemo(() => {
+    if (isResolvingValuation) {
+      return {
+        label: "Comps Pending",
+        detail: "Item identified. Pulling marketplace sold evidence now.",
+        className: "bg-cyan-500/10 border-cyan-500/30 text-cyan-300",
+      };
+    }
+
+    if (requiresSecondaryVerification) {
+      return {
+        label: "Verify First",
+        detail: (item as any)?.verificationReason || "A secondary angle, tag, barcode, or detail check is recommended before trusting this result.",
+        className: "bg-amber-500/10 border-amber-500/30 text-amber-300",
+      };
+    }
+
+    if (Boolean((item as any)?.noMarketData)) {
+      return {
+        label: "No Market Data",
+        detail: "No solid sold evidence was found for this item. Treat the price as guidance, not a verified resale market.",
+        className: "bg-zinc-800 border-zinc-700 text-zinc-300",
+      };
+    }
+
+    if (isZeroSoldActive) {
+      return {
+        label: "Active Asks Only",
+        detail: "This view is grounded by current asking prices, not completed sold listings.",
+        className: "bg-violet-500/10 border-violet-500/30 text-violet-300",
+      };
+    }
+
+    return {
+      label: "Verified Sold Comps",
+      detail: "This valuation is grounded by recent sold listings after cleanup and outlier trimming.",
+      className: "bg-emerald-500/10 border-emerald-500/30 text-emerald-300",
+    };
+  }, [isResolvingValuation, requiresSecondaryVerification, item, isZeroSoldActive]);
+
   const top3Comps = effectiveComps.slice(0, 3);
   const visibleComps = showAllComps ? effectiveComps : top3Comps;
   const remainingCount = Math.max(0, effectiveComps.length - 3);
@@ -1235,28 +1275,72 @@ export default function LensCompsModal({
             )}
 
             <div className="p-3.5 rounded-xl bg-zinc-900/90 border border-zinc-800 space-y-3">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <span className="text-xs text-zinc-400 font-medium block">
-                    {compsEvidence.valuationTitle}
-                  </span>
-                  <div className="text-3xl font-black text-white font-mono tracking-tight mt-0.5 tabular-nums">
-                    {compsEvidence.formattedValue}
+              {isResolvingValuation ? (
+                <>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <span className="text-xs text-cyan-300 font-medium block">
+                        Locking live sold comps…
+                      </span>
+                      <div className="mt-2 h-9 w-32 rounded bg-zinc-800 animate-pulse" />
+                    </div>
+                    <div className="text-right shrink-0">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-cyan-500/10 border border-cyan-500/30 text-cyan-300">
+                        Verifying
+                      </span>
+                    </div>
                   </div>
-                </div>
-                <div className="text-right shrink-0">
-                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-zinc-800 border border-zinc-700 text-zinc-200">
-                    {compsEvidence.sourceBadge}
-                  </span>
-                  <span className="block text-[10px] text-zinc-500 font-mono mt-0.5">
-                    {compsEvidence.currency}
-                  </span>
-                </div>
-              </div>
 
-              <p className="text-xs text-zinc-400 leading-snug">
-                {compsEvidence.evidenceSubtitle}
-              </p>
+                  <p className="text-xs text-zinc-400 leading-snug">
+                    We identified the item. Final price evidence is loading from marketplace sold listings now.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <span className="text-xs text-zinc-400 font-medium block">
+                        {compsEvidence.valuationTitle}
+                      </span>
+                      <div className="text-3xl font-black text-white font-mono tracking-tight mt-0.5 tabular-nums">
+                        {compsEvidence.formattedValue}
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-zinc-800 border border-zinc-700 text-zinc-200">
+                        {compsEvidence.sourceBadge}
+                      </span>
+                      <span className="block text-[10px] text-zinc-500 font-mono mt-0.5">
+                        {compsEvidence.currency}
+                      </span>
+                    </div>
+                  </div>
+
+                  <p className="text-xs text-zinc-400 leading-snug">
+                    {compsEvidence.evidenceSubtitle}
+                  </p>
+
+                  <div className={`rounded-lg border px-3 py-2 text-xs ${valuationState.className}`}>
+                    <div className="font-semibold">{valuationState.label}</div>
+                    <div className="mt-1 text-[11px] leading-relaxed text-zinc-300">{valuationState.detail}</div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="rounded-lg border border-zinc-800 bg-zinc-950/70 px-3 py-2">
+                      <div className="text-[10px] uppercase tracking-wide text-zinc-500">Sold evidence</div>
+                      <div className="mt-1 text-sm font-semibold text-white tabular-nums">{displaySoldCount}</div>
+                    </div>
+                    <div className="rounded-lg border border-zinc-800 bg-zinc-950/70 px-3 py-2">
+                      <div className="text-[10px] uppercase tracking-wide text-zinc-500">Active asks</div>
+                      <div className="mt-1 text-sm font-semibold text-white tabular-nums">{displayActiveCount}</div>
+                    </div>
+                    <div className="rounded-lg border border-zinc-800 bg-zinc-950/70 px-3 py-2">
+                      <div className="text-[10px] uppercase tracking-wide text-zinc-500">Confidence</div>
+                      <div className="mt-1 text-sm font-semibold text-white tabular-nums">{Math.round(confidenceScore * 100)}%</div>
+                    </div>
+                  </div>
+                </>
+              )}
 
               {/* Evidence Provenance Table */}
               <div className="pt-2.5 border-t border-zinc-800/80 space-y-1.5 text-xs font-mono">
@@ -1294,7 +1378,7 @@ export default function LensCompsModal({
                   }}
                   className="flex-1 py-2 px-3 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-xs font-medium text-zinc-100 text-center transition cursor-pointer"
                 >
-                  View sold listings ({compsEvidence.cleanListings.length})
+                  Review sold evidence ({compsEvidence.cleanListings.length})
                 </button>
                 <button
                   type="button"
@@ -1874,10 +1958,10 @@ export default function LensCompsModal({
                       {salesVelocity.turnoverTier === "RAPID_FIRE" ? "~1–3 days turn" : `${salesVelocity.estDaysToSell} days turn`}
                     </span>
                   </div>
-                  <div className="text-[11px] text-zinc-400 shrink-0 tabular-nums">
-                    {trustLineText}
+                    <span className="inline-flex items-center rounded-md border border-zinc-700 bg-zinc-950 px-2 py-1 text-[10px] font-medium text-zinc-300 tabular-nums">
+                      {trustLineText}
+                    </span>
                   </div>
-                </div>
 
                 {/* 1. Multi-Platform Net Realization */}
                 <div className="p-3 rounded-lg bg-zinc-900 border border-zinc-800 space-y-2">

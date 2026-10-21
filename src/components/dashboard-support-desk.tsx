@@ -26,7 +26,7 @@ import { toast } from "sonner";
 import { supabase } from "@/app/lib/supabase";
 import { isOwnerEmail } from "@/app/lib/auth-admin";
 import type { SupportTicketRecord } from "@/app/lib/support-tickets";
-import { detectGeoCurrency } from "@/app/lib/currency-routing";
+import { detectGeoCurrency, getEbayMarketplaceLabel, type SupportedCurrency } from "@/app/lib/currency-routing";
 
 interface ChatMessage {
   id: string;
@@ -83,6 +83,7 @@ export default function DashboardSupportDesk({
   hideFloatingButton = false,
   autoOpenOnMount = false,
 }: DashboardSupportDeskProps = {}) {
+  const [selectedCurrency, setSelectedCurrency] = useState<SupportedCurrency>("USD");
   const [isOpen, setIsOpen] = useState(autoOpenOnMount);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState("");
@@ -108,6 +109,10 @@ export default function DashboardSupportDesk({
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    setSelectedCurrency(detectGeoCurrency().currency);
+  }, []);
 
   // Check if current user is developer/owner
   useEffect(() => {
@@ -180,17 +185,18 @@ export default function DashboardSupportDesk({
         }
       } else {
         // Initial greeting
-        setMessages([
-          {
-            id: "welcome",
-            role: "assistant",
-            content: "👋 Welcome to the **Spadas Support Desk**! I'm your Resale Assistant. Ask me anything about camera scanning, eBay AU sold comps, P&L formulas, or tap **[Request Developer Support]** if you need a human engineer.",
-            timestamp: Date.now(),
-          },
-        ]);
-      }
-    } catch {}
-  }, []);
+          const marketLabel = getEbayMarketplaceLabel(selectedCurrency);
+          setMessages([
+            {
+              id: "welcome",
+              role: "assistant",
+              content: `👋 Welcome to the **Spadas Support Desk**! I'm your Resale Assistant. Ask me anything about camera scanning, ${marketLabel} sold comps, P&L formulas, or tap **[Request Developer Support]** if you need a human engineer.`,
+              timestamp: Date.now(),
+            },
+          ]);
+        }
+      } catch {}
+  }, [selectedCurrency]);
 
   // Sync to localStorage
   useEffect(() => {

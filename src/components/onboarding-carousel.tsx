@@ -311,20 +311,23 @@ export function OnboardingCarousel({ onComplete, onSkip }: OnboardingCarouselPro
         >
           <span>
             {currentSlide === slides.length - 1
-              ? "Start 3-Day Free Trial ($0 Today)"
+              ? "See My 3-Day Free Trial"
               : "Continue"}
           </span>
           <ArrowRight className="w-4 h-4 text-zinc-950" />
         </button>
 
         {currentSlide === slides.length - 1 ? (
-          <button
-            type="button"
-            onClick={handleSkip}
-            className="w-full py-1.5 text-xs font-semibold text-zinc-400 hover:text-white transition text-center cursor-pointer"
-          >
-            3 scans, no card →
-          </button>
+          <div className="space-y-1.5 text-center">
+            <button
+              type="button"
+              onClick={handleSkip}
+              className="w-full py-1.5 text-xs font-semibold text-zinc-400 hover:text-white transition text-center cursor-pointer"
+            >
+              Continue with 3 free scans →
+            </button>
+            <p className="text-[11px] text-zinc-500 font-medium">No card needed to start scanning</p>
+          </div>
         ) : (
           <div className="flex items-center justify-center gap-1.5 text-[11px] text-zinc-500 font-mono">
             <span>Card {currentSlide + 1} of {slides.length}</span>

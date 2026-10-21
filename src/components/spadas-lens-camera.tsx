@@ -48,6 +48,7 @@ import { enqueueScanForBackgroundUpload, flushScanHistoryQueue, initScanHistoryQ
 import dynamic from "next/dynamic";
 import CameraOnboardingOverlay from "@/components/camera-onboarding-overlay";
 import OpticalHorizonLeveler from "@/components/optical-horizon-leveler";
+import { useCameraHardwareControls } from "@/lib/use-camera-hardware-controls";
 import {
   playMechanicalShutterSound,
   playLockOnChime,
@@ -1196,6 +1197,8 @@ function SpadasLensCameraCore({
         brand: hit.brand,
         shippingCost,
         confidenceScore: hit.confidence || 0.95,
+        variantAudit: hit.variantAudit,
+        needsVerification: hit.requiresSecondaryVerification,
       });
 
       const finalNetProfit = copEstimate.netProfit;
@@ -2375,168 +2378,15 @@ function SpadasLensCameraCore({
     }
   };
 
-  // Hands-Free Voice Assistant State
-  const [voiceListening, setVoiceListening] = useState<boolean>(false);
-  const [voiceSupported, setVoiceSupported] = useState<boolean>(false);
-  const recognitionRef = useRef<any>(null);
-  const voiceListeningRef = useRef<boolean>(false);
-
-  useEffect(() => {
-    voiceListeningRef.current = voiceListening;
-  }, [voiceListening]);
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      if (SpeechRecognition) {
-        setVoiceSupported(true);
-      }
-    }
-  }, []);
-
-  const toggleVoiceAssistant = () => {
-    if (!voiceSupported) {
-      toast.error("Voice commands not supported on this browser.");
-      return;
-    }
-
-    if (voiceListening) {
-      if (recognitionRef.current) {
-        try { recognitionRef.current.stop(); } catch { }
-      }
-      setVoiceListening(false);
-      toast.info("Voice Assistant paused.");
-      return;
-    }
-
-    try {
-      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      const recognition = new SpeechRecognition();
-      recognition.continuous = true;
-      recognition.interimResults = false;
-      recognition.lang = "en-US";
-
-      recognition.onresult = (event: any) => {
-        const lastResult = event.results[event.results.length - 1];
-        if (lastResult && lastResult[0]) {
-          const transcript = lastResult[0].transcript.toLowerCase().trim();
-          console.log("[Voice Command Detected]:", transcript);
-
-          if (transcript.includes("scan") || transcript.includes("capture")) {
-            toast.success("🎙️ Voice Command: 'Scan' -> Processing frame!");
-            processCurrentFrame(true);
-          } else if (transcript.includes("clear")) {
-            toast.success("🎙️ Voice Command: 'Clear' -> Cleared hits list!");
-            setCapturedLog([]);
-            setSelectedHitIds([]);
-          } else if (transcript.includes("export") || transcript.includes("save")) {
-            toast.success("🎙️ Voice Command: 'Export' -> Exporting hits!");
-            exportSelectedHits();
-          } else if (transcript.includes("flash") || transcript.includes("torch") || transcript.includes("light")) {
-            if (torchSupported) {
-              void toggleTorch();
-            }
-          }
-        }
-      };
-
-      recognition.onerror = (event: any) => {
-        console.warn("[Voice Command Error]:", event.error);
-      };
-
-      recognition.onend = () => {
-        if (voiceListeningRef.current && recognitionRef.current) {
-          try { recognition.start(); } catch { }
-        }
-      };
-
-      recognition.start();
-      recognitionRef.current = recognition;
-      setVoiceListening(true);
-      toast.success("🎙️ Voice Commands Active! Say 'Scan', 'Clear', 'Export', or 'Flash'!");
-    } catch (err) {
-      console.error("[Voice Assistant Error]:", err);
-      toast.error("Could not start Voice Assistant.");
-    }
-  };
-
-  // WebRTC Hardware Controls State (Torch & Optical Zoom)
-  const [torchEnabled, setTorchEnabled] = useState<boolean>(false);
-  const [zoomLevel, setZoomLevel] = useState<number>(1);
-  const [torchSupported, setTorchSupported] = useState<boolean>(false);
-  const [zoomSupported, setZoomSupported] = useState<boolean>(false);
-  const [maxZoom, setMaxZoom] = useState<number>(3);
-
-  // WebRTC Hardware Capability Check (Torch & Optical Zoom)
-  useEffect(() => {
-    if (!stream) {
-      setTorchSupported(false);
-      setZoomSupported(false);
-      setTorchEnabled(false);
-      setZoomLevel(1);
-      return;
-    }
-    const track = stream.getVideoTracks()[0];
-    if (track && typeof track.getCapabilities === "function") {
-      try {
-        const capabilities: any = track.getCapabilities();
-        if ("torch" in capabilities) {
-          setTorchSupported(true);
-        }
-        if ("zoom" in capabilities) {
-          setZoomSupported(true);
-          if (capabilities.zoom?.max) {
-            setMaxZoom(Math.min(5, capabilities.zoom.max));
-          }
-        }
-      } catch (err) {
-        console.warn("[WebRTC] Capabilities check error:", err);
-      }
-    }
-  }, [stream]);
-
-  // Direct WebRTC Hardware Torch Toggle Handler (Safely checks hardware availability prior to triggering)
-  const toggleTorch = async () => {
-    if (!torchSupported || !stream) {
-      // Gracefully no-op if unsupported by the active lens
-      return;
-    }
-    const nextState = !torchEnabled;
-
-    const track = stream.getVideoTracks()[0];
-    if (track && typeof track.applyConstraints === "function") {
-      try {
-        await track.applyConstraints({
-          advanced: [{ torch: nextState } as any],
-        });
-        setTorchEnabled(nextState);
-        toast.success(nextState ? "🔦 Flashlight ON" : "Flashlight OFF");
-      } catch (err) {
-        console.warn("[WebRTC Torch Notice]: Torch unsupported on active lens:", err);
-        // Gracefully mark unsupported without firing intrusive toasts during active scanning
-        setTorchSupported(false);
-        setTorchEnabled(false);
-      }
-    } else {
-      setTorchSupported(false);
-      setTorchEnabled(false);
-    }
-  };
-
-  // Dynamically Apply Hardware Zoom Constraints
-  useEffect(() => {
-    if (!stream) return;
-    const track = stream.getVideoTracks()[0];
-    if (!track || typeof track.applyConstraints !== "function") return;
-
-    if (zoomSupported) {
-      track
-        .applyConstraints({ advanced: [{ zoom: zoomLevel } as any] })
-        .catch((err) => {
-          console.warn("[WebRTC] zoom applyConstraints error:", err);
-        });
-    }
-  }, [stream, zoomLevel, zoomSupported]);
+  // WebRTC Hardware Controls (Torch & Optical Zoom) extracted to useCameraHardwareControls
+  const {
+    torchEnabled,
+    torchSupported,
+    toggleTorch,
+    zoomLevel,
+    setZoomLevel,
+    zoomSupported,
+  } = useCameraHardwareControls(stream);
 
   // Load custom profit chime thresholds from localStorage
   useEffect(() => {
@@ -3283,7 +3133,7 @@ function SpadasLensCameraCore({
       void fireParallelCompsQuery(predictiveQuery, selectedCurrency, abortController.signal);
 
       let res: Response | null = null;
-      console.log('[Spadas Lens]', cycleId, 'Starting resilient fetch for frame with analyzingRealFrame:', analyzingRealFrame);
+
       trace.markRequestDispatched();
       const fetchStartTime = Date.now();
 
@@ -3313,7 +3163,7 @@ function SpadasLensCameraCore({
         }),
       }, { maxRetries: 2, initialDelayMs: 300 }).catch((e) => {
         if (e?.name === "AbortError" || abortController.signal.aborted) {
-          console.log('[Spadas Lens]', cycleId, 'Fetch aborted by new scan cycle');
+
           return null;
         }
         console.error('[Spadas Lens]', cycleId, 'Fetch error:', e);
@@ -3427,6 +3277,14 @@ function SpadasLensCameraCore({
 
                       const detectedTagPrice = Number(valData.detected_tag_price) || (settledMedian <= 4 ? 1 : Math.max(3, Math.round(settledMedian * 0.15 * 100) / 100));
                       const shippingCost = estimateCategoryShippingCost(itemCategory, rawPName);
+                      const valuationConfidence = Number(valData.analysis?.confidence_score ?? valData.confidence_score ?? 0.95);
+                      const isCompsPending = Boolean(valData.is_comps_pending);
+                      const requiresSecondaryVerification = Boolean(
+                        isCompsPending ||
+                        valData.requires_secondary_verification ||
+                        valData.retake_recommended?.required ||
+                        valData.analysis?.retake_recommended?.required
+                      );
 
                       const copEstimate = calculateThriftCopVerdict({
                         resalePrice: settledMedian,
@@ -3435,7 +3293,9 @@ function SpadasLensCameraCore({
                         productName: rawPName,
                         brand: itemBrand,
                         shippingCost,
-                        confidenceScore: 0.98,
+                        confidenceScore: valuationConfidence,
+                        variantAudit: valData.variant_audit,
+                        needsVerification: requiresSecondaryVerification,
                       });
 
                       const finalNetProfit = copEstimate.netProfit;
@@ -3453,6 +3313,8 @@ function SpadasLensCameraCore({
                       const verifiedHit: DetectedHit = {
                         id: `hit-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
                         name: rawPName,
+                        status: isCompsPending ? "fetching_comps" : "valued",
+                        isCompsPending,
                         brand: itemBrand,
                         category: itemCategory,
                         condition: itemCondition,
@@ -3471,12 +3333,21 @@ function SpadasLensCameraCore({
                         trueNetProfit,
                         roiPercentage,
                         copVerdict,
-                        verdict: trueNetProfit > 15 ? "BUY" : trueNetProfit >= 5 ? "CAUTION" : "PASS",
-                        confidence: 0.98,
+                        verdict: copVerdict === "VERIFY_FIRST" ? "CAUTION" : trueNetProfit > 15 ? "BUY" : trueNetProfit >= 5 ? "CAUTION" : "PASS",
+                        confidence: valuationConfidence,
                         ebayCompsCount: valData.ebay_comps_count,
+                        activeCompsCount: valData.active_comps_count,
+                        isActiveAskOnly: Boolean(valData.is_active_ask),
+                        noMarketData: Boolean(valData.no_market_data),
+                        isUsMarketOnly: Boolean(valData.is_us_market_only),
+                        arbitrageSignal: valData.arbitrage_signal,
                         compsSource: valData.comps_source || "browse_api",
                         rawComps: verifiedComps,
                         compsRange: valData.comps_range,
+                        variantAudit: valData.variant_audit,
+                        requiresSecondaryVerification,
+                        verificationReason: valData.verification_reason || copEstimate.verificationReason,
+                        fallbackProtocol: valData.fallback_protocol || copEstimate.fallbackProtocol,
                         bbox: valData.detected_objects?.[0]?.bbox || { x: 20, y: 20, width: 60, height: 60 },
                         timestamp: Date.now(),
                         isGrail: isGrailHit,
@@ -3494,15 +3365,25 @@ function SpadasLensCameraCore({
                         defectNotes: verifiedHit.defectNotes || [],
                         asIsDisclaimer: verifiedHit.asIsDisclaimer || "",
                         bbox: verifiedHit.bbox || { x: 20, y: 20, width: 60, height: 60 },
-                        status: "valued",
+                        status: isCompsPending ? "fetching_comps" : "valued",
+                        isCompsPending,
                         estimatedValue: baseVal,
                         suggestedPriceMin: rawMin,
                         suggestedPriceMax: rawMax,
-                        confidenceScore: 0.98,
+                        confidenceScore: valuationConfidence,
                         ebayCompsCount: verifiedHit.ebayCompsCount,
+                        activeCompsCount: verifiedHit.activeCompsCount,
                         compsSource: verifiedHit.compsSource,
                         rawComps: verifiedHit.rawComps,
                         compsRange: verifiedHit.compsRange,
+                        isActiveAskOnly: verifiedHit.isActiveAskOnly,
+                        noMarketData: verifiedHit.noMarketData,
+                        isUsMarketOnly: verifiedHit.isUsMarketOnly,
+                        arbitrageSignal: verifiedHit.arbitrageSignal,
+                        variantAudit: verifiedHit.variantAudit,
+                        requiresSecondaryVerification: verifiedHit.requiresSecondaryVerification,
+                        verificationReason: verifiedHit.verificationReason,
+                        fallbackProtocol: verifiedHit.fallbackProtocol,
                         estCost: detectedTagPrice,
                         estimatedProfit: trueNetProfit,
                         estRoi: roiPercentage,
@@ -3514,17 +3395,31 @@ function SpadasLensCameraCore({
                       };
 
                       setActiveScans([scanObj]);
-                      setCapturedLog((prev) => [verifiedHit, ...prev.filter((h) => h.name !== verifiedHit.name)].slice(0, 50));
-                      setCachedValuation(verifiedHit.name, verifiedHit);
-                      activeValuationHitRef.current = verifiedHit;
                       data = valData;
 
                       // Synchronously mount comps modal immediately upon valuation resolution (0ms delay)
                       setScanStage("complete");
-                      triggerActiveValuationHit(verifiedHit, snapImg);
-                      void persistHitAndSyncToSupabase(verifiedHit, valData);
-                      if (!isAuthed && !hasUserPro) {
-                        recordGuestScanIfGuest(verifiedHit, cycleId);
+                      if (isCompsPending) {
+                        activeValuationHitRef.current = verifiedHit;
+                        setActiveValuationHit(verifiedHit);
+                        activeCompsHitRef.current = verifiedHit;
+                        setActiveCompsHit(verifiedHit);
+                        isScanPausedRef.current = true;
+                        setIsScanPaused(true);
+                        if (typeof snapImg === "string") {
+                          setFrozenFrameUrl(snapImg);
+                        }
+                        setIsValuationCardMounted(true);
+                        setIsLoaderTransitioning(false);
+                      } else {
+                        setCapturedLog((prev) => [verifiedHit, ...prev.filter((h) => h.name !== verifiedHit.name)].slice(0, 50));
+                        setCachedValuation(verifiedHit.name, verifiedHit);
+                        activeValuationHitRef.current = verifiedHit;
+                        triggerActiveValuationHit(verifiedHit, snapImg);
+                        void persistHitAndSyncToSupabase(verifiedHit, valData);
+                        if (!isAuthed && !hasUserPro) {
+                          recordGuestScanIfGuest(verifiedHit, cycleId);
+                        }
                       }
                     } catch (valErr) {
                       console.error("[Spadas Lens] Error calculating valuation ready data:", valErr);
@@ -3605,7 +3500,7 @@ function SpadasLensCameraCore({
                         asIsDisclaimer: "",
                         bbox: pendingObj.bbox,
                         status: "pending",
-                        confidenceScore: 0.95,
+                        confidenceScore: Number(chunk.analysis?.confidence_score ?? chunk.confidence_score ?? 0.95),
                         timestamp: Date.now(),
                       };
                       setActiveScans((prev) => {
@@ -3637,15 +3532,53 @@ function SpadasLensCameraCore({
                         const settledMedian = compPrices.length > 0 ? compPrices[Math.floor(compPrices.length / 2)] : (Number(compsPayload.suggested_price_median) || prev.estimatedValue);
                         const updated: DetectedHit = {
                           ...prev,
+                          status: "valued",
+                          isCompsPending: false,
                           estimatedValue: settledMedian,
                           suggestedPriceMin: Number(compsPayload.suggested_price_min) || prev.suggestedPriceMin,
                           suggestedPriceMax: Number(compsPayload.suggested_price_max) || prev.suggestedPriceMax,
+                          confidence: Number(compsPayload.analysis?.confidence_score ?? compsPayload.confidence_score ?? prev.confidence),
                           ebayCompsCount: compsPayload.ebay_comps_count || verifiedComps.length,
+                          activeCompsCount: compsPayload.active_comps_count || prev.activeCompsCount,
                           compsSource: compsPayload.comps_source || "sold_comps_api",
                           rawComps: verifiedComps,
                           compsRange: compsPayload.comps_range,
-                          noMarketData: false,
+                          noMarketData: Boolean(compsPayload.no_market_data),
                           isActiveAskOnly: Boolean(compsPayload.is_active_ask),
+                          isUsMarketOnly: Boolean(compsPayload.is_us_market_only ?? prev.isUsMarketOnly),
+                          arbitrageSignal: compsPayload.arbitrage_signal || prev.arbitrageSignal,
+                          variantAudit: compsPayload.variant_audit || prev.variantAudit,
+                          requiresSecondaryVerification: compsPayload.requires_secondary_verification ?? prev.requiresSecondaryVerification,
+                          verificationReason: compsPayload.verification_reason || prev.verificationReason,
+                          fallbackProtocol: compsPayload.fallback_protocol || prev.fallbackProtocol,
+                        };
+                        activeValuationHitRef.current = updated;
+                        return updated;
+                      });
+                    } else if (compsPayload) {
+                      setActiveValuationHit((prev) => {
+                        if (!prev) return prev;
+                        const updated: DetectedHit = {
+                          ...prev,
+                          status: "valued",
+                          isCompsPending: false,
+                          estimatedValue: Number(compsPayload.suggested_price_median) || prev.estimatedValue,
+                          suggestedPriceMin: Number(compsPayload.suggested_price_min) || prev.suggestedPriceMin,
+                          suggestedPriceMax: Number(compsPayload.suggested_price_max) || prev.suggestedPriceMax,
+                          confidence: Number(compsPayload.analysis?.confidence_score ?? compsPayload.confidence_score ?? prev.confidence),
+                          ebayCompsCount: compsPayload.ebay_comps_count || 0,
+                          activeCompsCount: compsPayload.active_comps_count || prev.activeCompsCount,
+                          compsSource: compsPayload.comps_source || prev.compsSource,
+                          rawComps: [],
+                          compsRange: compsPayload.comps_range || prev.compsRange,
+                          noMarketData: Boolean(compsPayload.no_market_data),
+                          isActiveAskOnly: Boolean(compsPayload.is_active_ask),
+                          isUsMarketOnly: Boolean(compsPayload.is_us_market_only ?? prev.isUsMarketOnly),
+                          arbitrageSignal: compsPayload.arbitrage_signal || prev.arbitrageSignal,
+                          variantAudit: compsPayload.variant_audit || prev.variantAudit,
+                          requiresSecondaryVerification: compsPayload.requires_secondary_verification ?? prev.requiresSecondaryVerification,
+                          verificationReason: compsPayload.verification_reason || prev.verificationReason,
+                          fallbackProtocol: compsPayload.fallback_protocol || prev.fallbackProtocol,
                         };
                         activeValuationHitRef.current = updated;
                         return updated;
@@ -3699,11 +3632,11 @@ function SpadasLensCameraCore({
 
         if (!data) {
           raw = await res.text().catch(() => "");
-          console.log('[Spadas Lens]', cycleId, 'Fetch completed with status:', res.status, 'and length:', raw.length);
+
           try {
             data = JSON.parse(raw);
           } catch (e: any) {
-            console.log('[Spadas Lens]', cycleId, 'fetch threw:', String(e));
+
             console.error('[Spadas Lens]', cycleId, 'parse failed:', e.message, raw.slice(0, 300));
             data = null;
           }
@@ -3713,7 +3646,7 @@ function SpadasLensCameraCore({
       trace.markParseCompleted();
 
       if (abortController.signal.aborted || cycleId !== activeCycleIdRef.current) {
-        console.log('[Spadas Lens]', cycleId, 'discarding stale response (superseded or aborted)');
+
         return;
       }
 
@@ -3823,10 +3756,10 @@ function SpadasLensCameraCore({
           required: true,
           angleType: rec.angle_type || "tag",
           reason: rec.reason || "Secondary angle needed for accurate valuation",
-          promptLabel: rec.prompt_label || "📸 Snap Collar Tag or Detail Angle for 100% Accuracy",
+          promptLabel: rec.prompt_label || "📸 Snap Collar Tag or Detail Angle for Verified Comps",
         });
         setSecondaryImagePayload(snapshotImage);
-        toast.warning(rec.prompt_label || "📸 Snap Collar Tag or Hardware Detail for 100% Accuracy", {
+        toast.warning(rec.prompt_label || "📸 Snap Collar Tag or Hardware Detail for Verified Comps", {
           id: "retake-guidance",
           duration: 6000,
         });
@@ -3973,6 +3906,8 @@ function SpadasLensCameraCore({
             const settledMedian = compPrices.length > 0 ? compPrices[Math.floor(compPrices.length / 2)] : (Number(data.suggested_price_median) || currentMountedHit.estimatedValue);
             const enrichedHit: DetectedHit = {
               ...currentMountedHit,
+              status: "valued",
+              isCompsPending: false,
               estimatedValue: settledMedian,
               suggestedPriceMin: Number(data.suggested_price_min) || currentMountedHit.suggestedPriceMin,
               suggestedPriceMax: Number(data.suggested_price_max) || currentMountedHit.suggestedPriceMax,
@@ -3982,6 +3917,33 @@ function SpadasLensCameraCore({
               compsRange: data.comps_range,
               noMarketData: false,
               isActiveAskOnly: Boolean(data.is_active_ask),
+            };
+            activeValuationHitRef.current = enrichedHit;
+            setActiveValuationHit(enrichedHit);
+            setCapturedLog((prev) => [enrichedHit, ...prev.filter((h) => h.name !== enrichedHit.name)].slice(0, 50));
+            setCachedValuation(enrichedHit.name, enrichedHit);
+          } else if (data) {
+            const enrichedHit: DetectedHit = {
+              ...currentMountedHit,
+              status: "valued",
+              isCompsPending: false,
+              estimatedValue: Number(data.suggested_price_median) || currentMountedHit.estimatedValue,
+              suggestedPriceMin: Number(data.suggested_price_min) || currentMountedHit.suggestedPriceMin,
+              suggestedPriceMax: Number(data.suggested_price_max) || currentMountedHit.suggestedPriceMax,
+              confidence: Number(data.analysis?.confidence_score ?? data.confidence_score ?? currentMountedHit.confidence),
+              ebayCompsCount: data.ebay_comps_count || 0,
+              activeCompsCount: data.active_comps_count || currentMountedHit.activeCompsCount,
+              compsSource: data.comps_source || currentMountedHit.compsSource,
+              rawComps: [],
+              compsRange: data.comps_range || currentMountedHit.compsRange,
+              noMarketData: Boolean(data.no_market_data),
+              isActiveAskOnly: Boolean(data.is_active_ask),
+              isUsMarketOnly: Boolean(data.is_us_market_only ?? currentMountedHit.isUsMarketOnly),
+              arbitrageSignal: data.arbitrage_signal || currentMountedHit.arbitrageSignal,
+              variantAudit: data.variant_audit || currentMountedHit.variantAudit,
+              requiresSecondaryVerification: data.requires_secondary_verification ?? currentMountedHit.requiresSecondaryVerification,
+              verificationReason: data.verification_reason || currentMountedHit.verificationReason,
+              fallbackProtocol: data.fallback_protocol || currentMountedHit.fallbackProtocol,
             };
             activeValuationHitRef.current = enrichedHit;
             setActiveValuationHit(enrichedHit);
@@ -4039,6 +4001,8 @@ function SpadasLensCameraCore({
             brand: itemBrand,
             shippingCost,
             confidenceScore: obj.confidenceScore || 0.95,
+            variantAudit: data.variant_audit || obj.variantAudit,
+            needsVerification: (data.requires_secondary_verification ?? obj.requiresSecondaryVerification) || false,
           });
 
           const finalNetProfit = copEstimate.netProfit;
@@ -4160,8 +4124,8 @@ function SpadasLensCameraCore({
             trueNetProfit,
             roiPercentage,
             copVerdict,
-            verdict: estimatedProfit > 15 ? "BUY" : estimatedProfit >= 5 ? "CAUTION" : "PASS",
-            confidence: 0.98,
+            verdict: copVerdict === "VERIFY_FIRST" ? "CAUTION" : estimatedProfit > 15 ? "BUY" : estimatedProfit >= 5 ? "CAUTION" : "PASS",
+            confidence: obj.confidenceScore || Number(data?.analysis?.confidence_score) || 0.95,
             ebayCompsCount: obj.ebayCompsCount,
             activeCompsCount: obj.activeCompsCount,
             isActiveAskOnly: obj.isActiveAskOnly,
@@ -4784,10 +4748,10 @@ function SpadasLensCameraCore({
                 <div className="absolute inset-0 z-30 pointer-events-none select-none lens-ring-pulse rounded-[inherit]" />
               )}
 
-              {/* Top HUD Bar: Dynamic Confidence Indicator, Credit Badge & Camera Controls with Safe-Area Insets */}
+              {/* Top HUD Bar: Live scanner status, plan badge & controls with Safe-Area Insets */}
               {scanMode === "barcode" && (
                 <div className="absolute top-[max(3.25rem,calc(env(safe-area-inset-top,0px)+3rem))] left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 bg-amber-500/95 text-slate-950 font-bold px-3 py-1 rounded-full shadow-lg text-xs backdrop-blur-md pointer-events-auto">
-                  <span>Barcode Mode Active</span>
+                  <span>Barcode lookup mode</span>
                   <button
                     type="button"
                     onClick={(e) => {
@@ -4799,7 +4763,7 @@ function SpadasLensCameraCore({
                     }}
                     className="bg-black/20 hover:bg-black/30 px-2 py-0.5 rounded-full text-[10px] font-extrabold text-slate-950 border border-black/20 cursor-pointer active:scale-95"
                   >
-                    Turn Off ✕
+                    Exit ✕
                   </button>
                 </div>
               )}
@@ -4807,19 +4771,19 @@ function SpadasLensCameraCore({
                 activeCompsHit ? "opacity-0 pointer-events-none -translate-y-4" : "opacity-100"
               }`}>
                 {/* Dynamic Real-Time Focus & Telemetry Indicator */}
-                <div className="inline-flex items-center gap-1.5 rounded-full bg-slate-950/80 border border-white/20 px-3 py-1 shadow-lg backdrop-blur-xl pointer-events-auto text-[10px]">
+                <div className="inline-flex items-center gap-1.5 rounded-full bg-slate-950/88 border border-white/15 px-3 py-1.5 shadow-lg backdrop-blur-xl pointer-events-auto text-[10px]">
                   <div
                     className={`h-2 w-2 rounded-full shrink-0 ${
                       !cameraMoving ? "bg-emerald-400" : "bg-zinc-400"
                     }`}
                   />
-                  <span className="font-bold text-zinc-300 uppercase tracking-wider">Focus</span>
+                  <span className="font-bold text-zinc-300 uppercase tracking-wider">Lens Live</span>
                   <span className="text-white/20 text-[8px]">|</span>
                   <span className="font-semibold text-zinc-200">
-                    {isScanPaused ? "Locked" : cameraMoving ? "Panning" : "Steady"}
+                    {isScanPaused ? "Locked" : cameraMoving ? "Tracking" : "Steady"}
                   </span>
                   <span className="text-white/20 text-[8px]">|</span>
-                  <span className="font-bold text-cyan-300">eBay Comps</span>
+                  <span className="font-bold text-cyan-300">Sold Evidence</span>
                 </div>
 
                 {/* Geolocation & Category Biasing Prior Badge */}
@@ -4906,12 +4870,12 @@ function SpadasLensCameraCore({
                   {isOffline ? (
                     <div className="flex items-center gap-1 text-[10px] font-mono font-bold px-2.5 py-1 rounded-full glass text-zinc-300 backdrop-blur-md shadow-lg">
                       <WifiOff className="h-3 w-3 shrink-0 text-zinc-400" />
-                      <span className="hidden sm:inline">OFFLINE (LOCAL AI)</span>
+                      <span className="hidden sm:inline">OFFLINE · LOCAL MODE</span>
                       <span className="sm:hidden">OFFLINE</span>
                     </div>
                   ) : profitableCount > 0 ? (
                     <div className="hidden xs:inline-flex items-center gap-1.5 rounded-full bg-slate-950/85 border border-emerald-500/40 px-2.5 py-1 text-[10px] font-mono font-bold text-emerald-300 shadow-xl backdrop-blur-md">
-                      <span>💰 {profitableCount} Flips</span>
+                      <span>💰 {profitableCount} profitable finds</span>
                     </div>
                   ) : null}
 
@@ -4927,10 +4891,10 @@ function SpadasLensCameraCore({
                           ? "bg-cyan-500/25 border-cyan-400 text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.4)]"
                           : "bg-slate-950/85 border-slate-700/80 text-slate-200 hover:text-white hover:border-slate-500"
                         }`}
-                      title="Lens AR Tools & Controls"
+                      title="Scanner controls"
                     >
                       <SlidersHorizontal className="h-3.5 w-3.5 text-cyan-400" />
-                      <span className="text-[11px] font-bold">Tools</span>
+                      <span className="text-[11px] font-bold">Controls</span>
                       {isViewfinderToolsOpen ? (
                         <ChevronUp className="h-3 w-3 text-cyan-400" />
                       ) : (
@@ -4947,7 +4911,7 @@ function SpadasLensCameraCore({
                         <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
                           <span className="text-[11px] font-bold text-slate-200 flex items-center gap-1.5">
                             <SlidersHorizontal className="h-3.5 w-3.5 text-cyan-400" />
-                            Lens AR Viewfinder Tools
+                            Scanner Controls
                           </span>
                           <button
                             type="button"
@@ -5014,7 +4978,7 @@ function SpadasLensCameraCore({
                         {/* Telemetry Footer */}
                         <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[10px] text-slate-400 font-mono">
                           <span>Latency: {networkLatencyMs !== null ? `${networkLatencyMs}ms` : "Live"}</span>
-                          <span>Scanned: {sessionScanCount}</span>
+                          <span>Session scans: {sessionScanCount}</span>
                         </div>
                       </div>
                     )}
@@ -5040,7 +5004,7 @@ function SpadasLensCameraCore({
               {isCoolingDown && !analyzingRealFrame && !activeValuationHit && (
                 <div className="absolute top-[max(3.5rem,calc(env(safe-area-inset-top,0px)+3.25rem))] left-1/2 -translate-x-1/2 z-35 flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-950/85 border border-cyan-500/40 text-cyan-300 text-xs font-mono font-bold shadow-[0_0_20px_rgba(6,182,212,0.25)] backdrop-blur-md pointer-events-none animate-fade-in">
                   <Clock className="w-3.5 h-3.5 text-cyan-400 animate-spin" />
-                  <span>SHUTTER COOLDOWN (3.5s)</span>
+                  <span>Next scan ready in ~3s</span>
                 </div>
               )}
 
@@ -5250,15 +5214,21 @@ function SpadasLensCameraCore({
                     width: `${Math.max(15, Math.min(95, scan.bbox.width))}%`,
                     height: `${Math.max(15, Math.min(95, scan.bbox.height))}%`,
                   }}
-                  className={`absolute z-20 pointer-events-none border rounded-md overflow-hidden transition-all duration-150 ${scan.status === "valued"
-                      ? "border-emerald-500 bg-emerald-500/[0.04]"
-                      : "border-zinc-500 bg-zinc-900/20"
-                    } ${cameraMoving ? "opacity-60" : "opacity-100"}`}
+                    className={`absolute z-20 pointer-events-none border rounded-md overflow-hidden transition-all duration-150 ${scan.status === "valued"
+                        ? "border-emerald-500 bg-emerald-500/[0.04]"
+                        : "border-zinc-500 bg-zinc-900/20"
+                      } ${cameraMoving ? "opacity-60" : "opacity-100"}`}
                 >
                   <div className="absolute -top-6 left-0 flex items-center gap-1.5 bg-zinc-950 text-white border border-zinc-800 rounded px-2 py-0.5 text-[10px]">
                     <span className={`h-1.5 w-1.5 rounded-full ${scan.status === "valued" ? "bg-emerald-500" : "bg-zinc-400"}`} />
                     <span className="text-zinc-400 text-[9px] uppercase tracking-wider font-semibold">
-                      {scan.status === "valued" ? "LOCKED" : "EVALUATING"}
+                      {scan.status === "valued"
+                        ? "Locked"
+                        : scan.status === "fetching_comps"
+                          ? "Comps pending"
+                          : scan.status === "analyzing"
+                            ? "Analyzing"
+                            : "Scanning"}
                     </span>
                     <span className="text-zinc-100 font-semibold truncate max-w-[130px]">
                       {scan.productName}
@@ -5318,7 +5288,7 @@ function SpadasLensCameraCore({
                         id: "daily-limit-toast",
                       });
                     }}
-                    className="flex items-center gap-2 rounded-md bg-zinc-900 border border-zinc-700 px-4 py-2.5 text-xs font-semibold text-zinc-100 active:scale-95 transition cursor-pointer"
+                    className="flex items-center gap-2 rounded-xl bg-zinc-900/95 border border-zinc-700 px-4 py-2.5 text-xs font-semibold text-zinc-100 active:scale-95 transition cursor-pointer shadow-lg backdrop-blur-md"
                     title="Daily limit reached — Upgrade to Spadas Pro"
                   >
                     <Crown className="h-4 w-4 shrink-0 text-zinc-300" />
@@ -5333,7 +5303,7 @@ function SpadasLensCameraCore({
                       if (soundEnabled) playTactileClickSound();
                       handleResumeScanning();
                     }}
-                    className="flex items-center gap-2 rounded-md bg-zinc-900 border border-zinc-700 px-4 py-2.5 text-xs font-semibold text-zinc-100 active:scale-95 transition cursor-pointer hover:bg-zinc-800"
+                    className="flex items-center gap-2 rounded-xl bg-zinc-900/95 border border-zinc-700 px-4 py-2.5 text-xs font-semibold text-zinc-100 active:scale-95 transition cursor-pointer hover:bg-zinc-800 shadow-lg backdrop-blur-md"
                     title="Scan Next Item"
                   >
                     <RefreshCw className="h-4 w-4 shrink-0 text-zinc-300" />
@@ -5367,7 +5337,7 @@ function SpadasLensCameraCore({
                       flushScanState();
                       void processCurrentFrame(true);
                     }}
-                    className={`flex items-center justify-center h-18 w-18 sm:h-20 sm:w-20 rounded-full border-2 border-zinc-300 bg-zinc-950 p-1 transition-transform duration-100 ${
+                    className={`flex items-center justify-center h-18 w-18 sm:h-20 sm:w-20 rounded-full border-2 border-zinc-300/90 bg-zinc-950/95 p-1 transition-transform duration-100 shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur-md ${
                       isCoolingDown ? "cursor-not-allowed opacity-70" : "cursor-pointer active:scale-95"
                     }`}
                     title={isCoolingDown ? "Shutter cooling down..." : "Tap to scan"}
@@ -5418,11 +5388,11 @@ function SpadasLensCameraCore({
                   onPointerDown={(e) => {
                     e.stopPropagation();
                   }}
-                  className={`flex min-h-[40px] items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs font-medium transition cursor-pointer active:scale-95 ${
-                    scanMode === "barcode"
-                      ? "bg-zinc-800 border-zinc-600 text-zinc-100 font-semibold"
-                      : "bg-zinc-950/90 border-zinc-800 text-zinc-300 hover:text-white"
-                  }`}
+                    className={`flex min-h-[40px] items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-medium transition cursor-pointer active:scale-95 shadow-lg backdrop-blur-md ${
+                     scanMode === "barcode"
+                       ? "bg-zinc-800 border-zinc-600 text-zinc-100 font-semibold"
+                       : "bg-zinc-950/90 border-zinc-800 text-zinc-300 hover:text-white"
+                    }`}
                   title={scanMode === "barcode" ? "Exit barcode mode" : "Scan barcode"}
                   aria-label="Barcode Mode"
                 >
@@ -5445,7 +5415,7 @@ function SpadasLensCameraCore({
                     e.stopPropagation();
                   }}
                   disabled={isQuickSnapping}
-                  className="group flex min-h-[44px] min-w-[44px] touch-manipulation items-center gap-2 px-3.5 py-1.5 rounded-xl bg-[#0E1017]/90 border border-white/[0.12] hover:border-white/30 shadow-md backdrop-blur-md transition-transform duration-75 cursor-pointer active:scale-95 text-zinc-300 hover:text-white"
+                  className="group flex min-h-[44px] min-w-[44px] touch-manipulation items-center gap-2 px-3.5 py-1.5 rounded-2xl bg-[#0E1017]/90 border border-white/[0.12] hover:border-white/30 shadow-md backdrop-blur-md transition-transform duration-75 cursor-pointer active:scale-95 text-zinc-300 hover:text-white"
                   title="Rapid-fire shelf photo directly from live camera stream into background valuation queue"
                   aria-label="Quick Snap frame to Haul"
                 >
@@ -5484,7 +5454,7 @@ function SpadasLensCameraCore({
                     onPointerDown={(e) => {
                       e.stopPropagation();
                     }}
-                    className="group flex min-h-[44px] min-w-[44px] touch-manipulation items-center gap-2 px-3 py-1.5 rounded-xl bg-[#0E1017]/90 border border-white/[0.12] hover:border-white/30 shadow-md backdrop-blur-md transition cursor-pointer active:scale-95"
+                    className="group flex min-h-[44px] min-w-[44px] touch-manipulation items-center gap-2 px-3 py-1.5 rounded-2xl bg-[#0E1017]/90 border border-white/[0.12] hover:border-white/30 shadow-md backdrop-blur-md transition cursor-pointer active:scale-95"
                     title="Open Haul Review"
                     aria-label={`Haul telemetry: ${haulCount} items collected. Tap to open haul review.`}
                   >
@@ -5562,16 +5532,16 @@ function SpadasLensCameraCore({
 
       {/* Real-Time Scanned Hits Feed */}
       <div className="w-full px-3 sm:px-0 pb-[calc(env(safe-area-inset-bottom)+4.5rem)]">
-        <div id="scanned-hits-feed" className="mt-4 w-full max-w-full overflow-x-hidden box-border rounded-lg border border-zinc-800 bg-zinc-900 p-4 sm:p-5 space-y-4 mx-auto scroll-mt-20">
+        <div id="scanned-hits-feed" className="mt-4 w-full max-w-full overflow-x-hidden box-border rounded-2xl border border-zinc-800 bg-zinc-900/95 p-4 sm:p-5 space-y-4 mx-auto scroll-mt-20 shadow-[0_12px_40px_rgba(0,0,0,0.35)] backdrop-blur-md">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800 pb-3">
             <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-              <span>Scanned Finds Log</span>
+              <span>Session Evidence Log</span>
               <span className="px-2 py-0.5 rounded-md text-[11px] font-mono font-medium bg-emerald-950/60 text-emerald-400 border border-emerald-800/60">
                 {capturedLog.length} {capturedLog.length === 1 ? "Item" : "Items"}
               </span>
               {capturedLog.length === 0 && (
                 <span className="text-xs font-mono text-zinc-500 ml-1">
-                  (Aim at item or tap trigger to log comps)
+                  (Aim at an item or tap scan to start a verified session log)
                 </span>
               )}
             </h3>
@@ -5580,7 +5550,7 @@ function SpadasLensCameraCore({
               <button
                 type="button"
                 onClick={selectAllHits}
-                className="text-xs font-mono font-medium text-zinc-400 hover:text-zinc-200 transition-colors cursor-pointer"
+                className="inline-flex items-center rounded-lg border border-zinc-800 bg-zinc-950 px-2.5 py-1 text-xs font-mono font-medium text-zinc-400 hover:text-zinc-200 hover:border-zinc-700 transition-colors cursor-pointer"
               >
                 {selectedHitIds.length === capturedLog.length ? "Deselect All" : "Select All"}
               </button>
@@ -5588,7 +5558,7 @@ function SpadasLensCameraCore({
               <button
                 type="button"
                 onClick={clearAllHits}
-                className="inline-flex items-center gap-1 text-xs font-bold text-rose-400 hover:text-rose-300 transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1 rounded-lg border border-rose-500/20 bg-rose-500/10 px-2.5 py-1 text-xs font-bold text-rose-400 hover:text-rose-300 transition-colors cursor-pointer"
               >
                 <Trash2 className="h-3 w-3" /> Clear List
               </button>

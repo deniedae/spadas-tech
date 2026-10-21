@@ -30,6 +30,10 @@ export interface SpadasListingData {
   trueNetProfit?: number;
   roiPercentage?: number;
   copVerdict?: CopVerdict;
+  valuationState?: "VERIFIED_SOLD_COMPS" | "ACTIVE_ASKS_ONLY" | "VERIFY_FIRST" | "NO_MARKET_DATA";
+  valuationDetail?: string;
+  ebayCompsCount?: number;
+  activeCompsCount?: number;
 }
 
 interface Props {
@@ -127,6 +131,34 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
 
   const activeCurrency = ((data.currency || "AUD").toUpperCase()) as SupportedCurrency;
   const currConfig = CURRENCY_CONFIGS[activeCurrency] || CURRENCY_CONFIGS.AUD;
+  const valuationStateUi = (() => {
+    switch (data.valuationState) {
+      case "VERIFY_FIRST":
+        return {
+          label: "Verify First",
+          detail: data.valuationDetail || "Secondary verification is recommended before trusting this valuation.",
+          className: "bg-amber-500/10 border-amber-500/30 text-amber-300",
+        };
+      case "NO_MARKET_DATA":
+        return {
+          label: "No Market Data",
+          detail: data.valuationDetail || "No solid sold evidence was found. Treat this value as guidance only.",
+          className: "bg-zinc-800 border-zinc-700 text-zinc-300",
+        };
+      case "ACTIVE_ASKS_ONLY":
+        return {
+          label: "Active Asks Only",
+          detail: data.valuationDetail || "This value is grounded by current asking prices, not completed sold listings.",
+          className: "bg-violet-500/10 border-violet-500/30 text-violet-300",
+        };
+      default:
+        return {
+          label: "Verified Sold Comps",
+          detail: data.valuationDetail || "This value is grounded by recent sold listings after filtering and cleanup.",
+          className: "bg-emerald-500/10 border-emerald-500/30 text-emerald-300",
+        };
+    }
+  })();
 
   const handleCopyCrossList = () => {
     const formattedText = `🏷️ ${data.productName}\n💰 Price: ${currConfig.symbol}${data.priceMedian.toFixed(2)} ${activeCurrency}\n📏 Size: ${data.size || "One Size"}\n✨ Condition: ${data.condition || "Used - Good"}\n\n${data.description}\n\n📦 Fast dispatch. Message with any questions!`;
@@ -272,6 +304,18 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
             <p className="text-sm font-extrabold text-white line-clamp-1">{data.productName}</p>
           </div>
           <ChevronRight className="h-5 w-5 text-slate-500 shrink-0" />
+        </div>
+
+        <div className={`p-3.5 rounded-2xl border ${valuationStateUi.className}`}>
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-xs font-black uppercase tracking-wide">{valuationStateUi.label}</span>
+            <span className="text-[10px] font-mono text-slate-300">
+              {typeof data.ebayCompsCount === "number" || typeof data.activeCompsCount === "number"
+                ? `${data.ebayCompsCount || 0} sold · ${data.activeCompsCount || 0} active`
+                : "Evidence state"}
+            </span>
+          </div>
+          <p className="mt-1.5 text-xs leading-relaxed text-slate-300">{valuationStateUi.detail}</p>
         </div>
 
         {/* Resale Price Card with Transparent Profit Math */}

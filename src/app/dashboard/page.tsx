@@ -26,6 +26,7 @@ import { supabase } from "@/app/lib/supabase";
 import Link from "next/link";
 import Image from "next/image";
 import { fmtMoney, calcProfit } from "@/app/lib/listings";
+import { detectGeoCurrency, getEbayMarketplaceLabel, getEbaySellerHubUrl, type SupportedCurrency } from "@/app/lib/currency-routing";
 import PullToRefresh from "@/components/pull-to-refresh";
 import { calculateSalesVelocity } from "@/lib/turnover-velocity-engine";
 import dynamic from "next/dynamic";
@@ -190,6 +191,7 @@ export default function DashboardPage() {
   const [isPro, setIsPro] = useState(false);
   const [isEbayConnected, setIsEbayConnected] = useState(false);
   const [ebayPublishItem, setEbayPublishItem] = useState<Listing | null>(null);
+  const [selectedCurrency, setSelectedCurrency] = useState<SupportedCurrency>("USD");
 
   // High-Density Grid Filters with SessionStorage Persistence.
   // Start from SSR-safe defaults and hydrate from sessionStorage after mount
@@ -197,6 +199,10 @@ export default function DashboardPage() {
   const [gridFilter, setGridFilter] = useState<"ALL" | "FAST_FLIPS" | "TRAPS" | "SOLD">("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [prefsHydrated, setPrefsHydrated] = useState(false);
+
+  useEffect(() => {
+    setSelectedCurrency(detectGeoCurrency().currency);
+  }, []);
 
   useEffect(() => {
     try {
@@ -386,6 +392,9 @@ export default function DashboardPage() {
     [itemsWithVelocity]
   );
 
+  const ebayMarketLabel = useMemo(() => getEbayMarketplaceLabel(selectedCurrency), [selectedCurrency]);
+  const ebaySellerHubUrl = useMemo(() => getEbaySellerHubUrl(selectedCurrency), [selectedCurrency]);
+
   const displayedItems = useMemo(() => {
     return itemsWithVelocity.filter((item) => {
       if (gridFilter === "FAST_FLIPS" && item.velocity.sellThroughRate <= 90) return false;
@@ -433,7 +442,7 @@ export default function DashboardPage() {
                 {isEbayConnected ? (
                   <span className="inline-flex items-center gap-1.5 rounded-md bg-emerald-950/50 border border-emerald-800/60 px-2 py-0.5 text-[10px] font-medium text-emerald-400">
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                    <span>eBay AU Linked</span>
+                    <span>{ebayMarketLabel} Linked</span>
                   </span>
                 ) : (
                   <Link
@@ -805,7 +814,7 @@ export default function DashboardPage() {
                             {item.product}
                           </p>
                           <a
-                            href={`https://www.ebay.com.au/sl/prelist/suggest?keyword=${encodeURIComponent(
+                            href={`${ebaySellerHubUrl.replace("/sh/ovw", "/sl/prelist/suggest")}?keyword=${encodeURIComponent(
                               item.product
                             )}`}
                             target="_blank"
@@ -875,7 +884,7 @@ export default function DashboardPage() {
                               type="button"
                               onClick={() => setEbayPublishItem(item)}
                               className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 text-[10px] font-mono font-medium transition cursor-pointer shrink-0"
-                              title="Publish directly to eBay"
+                              title={`Publish directly to ${ebayMarketLabel}`}
                             >
                               <ShoppingBag className="w-2.5 h-2.5 text-zinc-400" />
                               <span>eBay</span>
@@ -1035,7 +1044,7 @@ export default function DashboardPage() {
                               type="button"
                               onClick={() => setEbayPublishItem(item)}
                               className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-zinc-850 hover:bg-zinc-800 text-zinc-200 border border-zinc-700 text-[10px] font-mono font-medium transition cursor-pointer shrink-0"
-                              title="Publish directly to eBay"
+                              title={`Publish directly to ${ebayMarketLabel}`}
                             >
                               <ShoppingBag className="w-2.5 h-2.5 text-zinc-400" />
                               <span>eBay</span>

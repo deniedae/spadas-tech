@@ -32,6 +32,7 @@ import { triggerTactileHaptic, openExternalUrlSafely } from "@/lib/android-bridg
 import { isMeaningfulMeta, sanitizeMetaText, cleanBrandText, cleanConditionText, isBulkOrLotTitle } from "@/lib/lens-utils";
 import { calculateIntrinsicBestPrice, type IntrinsicPriceAppraisal } from "@/lib/intrinsic-pricing-engine";
 import { APPLIANCE_FILTER_PATTERNS } from "@/app/lib/ebay-australia-comps";
+import { getEbayMarketplaceLabel } from "@/app/lib/currency-routing";
 
 export interface AuditCompRecord {
   id?: string;
@@ -498,7 +499,9 @@ export default function AuditCompsLedger({
   const fallbackEbaySearch = encodeURIComponent(
     targetTitle ? `${targetTitle} sold` : "vintage items"
   );
-  const globalEbayRegistryUrl = `https://www.ebay.com.au/sch/i.html?_nkw=${fallbackEbaySearch}&LH_Sold=1&LH_Complete=1`;
+  const marketLabel = getEbayMarketplaceLabel(currency);
+  const ebayDomain = currency === "GBP" ? "www.ebay.co.uk" : currency === "EUR" ? "www.ebay.de" : currency === "USD" ? "www.ebay.com" : "www.ebay.com.au";
+  const globalEbayRegistryUrl = `https://${ebayDomain}/sch/i.html?_nkw=${fallbackEbaySearch}&LH_Sold=1&LH_Complete=1`;
 
   return (
     <div
@@ -565,12 +568,12 @@ export default function AuditCompsLedger({
               {isAllActiveAsks && verifiedListings.length > 0 ? (
                 <>
                   <AlertCircle className="h-3.5 w-3.5 text-cyan-400 shrink-0" />
-                  <span>0 Sold on record • Live competitor asking prices on {currency === "USD" ? "eBay US" : "eBay Australia"} ({currency})</span>
+                  <span>0 Sold on record • Live competitor asking prices on {marketLabel} ({currency})</span>
                 </>
               ) : verifiedListings.length > 0 ? (
                 <>
                   <ShieldCheck className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-                  <span>Verified {currency === "USD" ? "eBay US" : "eBay Australia"} ({currency}) sold listings data</span>
+                  <span>Verified {marketLabel} ({currency}) sold listings data</span>
                 </>
               ) : (
                 <>
@@ -666,7 +669,7 @@ export default function AuditCompsLedger({
                     </span>
                   </div>
                   <div className="text-2xl font-black font-mono text-emerald-300 tabular-nums">
-                    {fmtMoney(intrinsicAppraisal.optimalListPrice)} <span className="text-xs font-bold text-emerald-400/80">AUD</span>
+                    {fmtMoney(intrinsicAppraisal.optimalListPrice)} <span className="text-xs font-bold text-emerald-400/80">{currency}</span>
                   </div>
                   <span className="text-[10px] text-zinc-400 block font-mono mt-0.5">
                     Buy It Now + Best Offer
@@ -689,7 +692,7 @@ export default function AuditCompsLedger({
                     </span>
                   </div>
                   <div className="text-2xl font-black font-mono text-zinc-200 tabular-nums">
-                    {fmtMoney(intrinsicAppraisal.quickFlipFloor)} <span className="text-xs font-bold text-zinc-400">AUD</span>
+                    {fmtMoney(intrinsicAppraisal.quickFlipFloor)} <span className="text-xs font-bold text-zinc-400">{currency}</span>
                   </div>
                   <span className="text-[10px] text-zinc-400 block font-mono mt-0.5">
                     Priced to liquidate in 24–48h
@@ -712,7 +715,7 @@ export default function AuditCompsLedger({
                     </span>
                   </div>
                   <div className="text-2xl font-black font-mono text-cyan-300 tabular-nums">
-                    {fmtMoney(intrinsicAppraisal.speculativeCeiling)} <span className="text-xs font-bold text-cyan-400/80">AUD</span>
+                    {fmtMoney(intrinsicAppraisal.speculativeCeiling)} <span className="text-xs font-bold text-cyan-400/80">{currency}</span>
                   </div>
                   <span className="text-[10px] text-zinc-400 block font-mono mt-0.5">
                     Top-dollar collector anchor
@@ -747,7 +750,7 @@ export default function AuditCompsLedger({
               <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.06] flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
                 <div className="space-y-0.5">
                   <span className="text-xs font-semibold text-zinc-200 block">Want to inspect active competitor listings?</span>
-                  <span className="text-[11px] text-zinc-400 block">Search {currency === "USD" ? "eBay US" : "eBay Australia"} directly to see current asking prices for similar items.</span>
+                  <span className="text-[11px] text-zinc-400 block">Search {marketLabel} directly to see current asking prices for similar items.</span>
                 </div>
                 <a
                   href={globalEbayRegistryUrl}
@@ -1026,7 +1029,7 @@ export default function AuditCompsLedger({
                 onClick={() => triggerTactileHaptic("light")}
                 className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-xs font-medium text-zinc-300 hover:text-white transition cursor-pointer active:scale-95"
               >
-                <span>Search eBay AU</span>
+                <span>Search {marketLabel}</span>
                 <ExternalLink className="h-3.5 w-3.5" />
               </a>
             </div>

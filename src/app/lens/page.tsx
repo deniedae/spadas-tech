@@ -1,7 +1,9 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { useEffect, useMemo, useState } from "react";
 import { Sparkles, Flame, TrendingUp, Zap, Trophy, Lightbulb, ArrowUpRight, DollarSign } from "lucide-react";
+import { detectGeoCurrency, getEbayMarketplaceLabel, type SupportedCurrency } from "@/app/lib/currency-routing";
 
 const UnifiedCameraHub = dynamic(() => import("@/components/unified-camera-hub"), {
   ssr: false,
@@ -24,52 +26,71 @@ const UnifiedCameraHub = dynamic(() => import("@/components/unified-camera-hub")
 });
 
 export default function LensPage() {
-  const hotTrends = [
-    {
-      category: "Vintage 90s Windbreakers",
-      emoji: "🧥",
-      tag: "Vintage Streetwear",
-      demand: "+340% YoY",
-      avgProfit: "$65 AUD",
-      velocity: "Very High",
-      gradient: "from-emerald-500/20 via-teal-500/10 to-transparent",
-      badgeColor: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
-      accent: "text-emerald-400",
-    },
-    {
-      category: "Game Boy Color & Retro Tech",
-      emoji: "🎮",
-      tag: "Nostalgia Tech",
-      demand: "+210% YoY",
-      avgProfit: "$85 AUD",
-      velocity: "Fast (1-2 Days)",
-      gradient: "from-cyan-500/20 via-blue-500/10 to-transparent",
-      badgeColor: "bg-cyan-500/15 text-cyan-300 border-cyan-500/30",
-      accent: "text-cyan-400",
-    },
-    {
-      category: "North Face 700 Nuptse Jackets",
-      emoji: "❄️",
-      tag: "Gorpcore Outerwear",
-      demand: "+190% YoY",
-      avgProfit: "$120 AUD",
-      velocity: "High",
-      gradient: "from-purple-500/20 via-indigo-500/10 to-transparent",
-      badgeColor: "bg-purple-500/15 text-purple-300 border-purple-500/30",
-      accent: "text-purple-400",
-    },
-    {
-      category: "Base Set Pokemon & TCG Cards",
-      emoji: "🃏",
-      tag: "TCG Collectibles",
-      demand: "+410% YoY",
-      avgProfit: "$190 AUD",
-      velocity: "Immediate",
-      gradient: "from-amber-500/20 via-orange-500/10 to-transparent",
-      badgeColor: "bg-amber-500/15 text-amber-300 border-amber-500/30",
-      accent: "text-amber-400",
-    },
-  ];
+  const [selectedCurrency, setSelectedCurrency] = useState<SupportedCurrency>("USD");
+
+  useEffect(() => {
+    setSelectedCurrency(detectGeoCurrency().currency);
+  }, []);
+
+  const marketLabel = getEbayMarketplaceLabel(selectedCurrency);
+
+  const hotTrends = useMemo(() => {
+    const profitByCurrency: Record<SupportedCurrency, [string, string, string, string]> = {
+      USD: ["$45 USD", "$65 USD", "$95 USD", "$140 USD"],
+      AUD: ["$65 AUD", "$85 AUD", "$120 AUD", "$190 AUD"],
+      GBP: ["£38 GBP", "£55 GBP", "£78 GBP", "£115 GBP"],
+      EUR: ["€42 EUR", "€60 EUR", "€88 EUR", "€130 EUR"],
+    };
+
+    const [jackets, retro, outerwear, cards] = profitByCurrency[selectedCurrency] || profitByCurrency.USD;
+
+    return [
+      {
+        category: "Vintage 90s Windbreakers",
+        emoji: "🧥",
+        tag: "Vintage Streetwear",
+        demand: "+340% YoY",
+        avgProfit: jackets,
+        velocity: "Very High",
+        gradient: "from-emerald-500/20 via-teal-500/10 to-transparent",
+        badgeColor: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
+        accent: "text-emerald-400",
+      },
+      {
+        category: "Game Boy Color & Retro Tech",
+        emoji: "🎮",
+        tag: "Nostalgia Tech",
+        demand: "+210% YoY",
+        avgProfit: retro,
+        velocity: "Fast (1-2 Days)",
+        gradient: "from-cyan-500/20 via-blue-500/10 to-transparent",
+        badgeColor: "bg-cyan-500/15 text-cyan-300 border-cyan-500/30",
+        accent: "text-cyan-400",
+      },
+      {
+        category: "North Face 700 Nuptse Jackets",
+        emoji: "❄️",
+        tag: "Gorpcore Outerwear",
+        demand: "+190% YoY",
+        avgProfit: outerwear,
+        velocity: "High",
+        gradient: "from-purple-500/20 via-indigo-500/10 to-transparent",
+        badgeColor: "bg-purple-500/15 text-purple-300 border-purple-500/30",
+        accent: "text-purple-400",
+      },
+      {
+        category: "Base Set Pokemon & TCG Cards",
+        emoji: "🃏",
+        tag: "TCG Collectibles",
+        demand: "+410% YoY",
+        avgProfit: cards,
+        velocity: "Immediate",
+        gradient: "from-amber-500/20 via-orange-500/10 to-transparent",
+        badgeColor: "bg-amber-500/15 text-amber-300 border-amber-500/30",
+        accent: "text-amber-400",
+      },
+    ];
+  }, [selectedCurrency]);
 
   return (
     <div className="w-full min-h-full flex-1 flex flex-col overflow-y-auto md:overflow-visible box-border animate-fade-in bg-gradient-to-b from-[#0A0E1A] via-[#0D1220] to-[#0A0E1A]">
@@ -108,7 +129,7 @@ export default function LensPage() {
               </div>
               <div className="rounded-2xl bg-white/[0.06] border border-white/10 p-3.5 text-center min-w-[110px] shadow-sm backdrop-blur-md">
                 <div className="text-[10px] uppercase font-mono font-bold text-zinc-400">Sold Comps</div>
-                <div className="text-lg font-black text-amber-300 font-mono mt-0.5">eBay AU</div>
+                <div className="text-lg font-black text-amber-300 font-mono mt-0.5">{marketLabel}</div>
               </div>
             </div>
           </div>
@@ -166,7 +187,7 @@ export default function LensPage() {
           </div>
         </div>
 
-        {/* Joyful Daily Op-Shop Pro Tip Card */}
+        {/* Joyful Daily Thrift Pro Tip Card */}
         <div className="rounded-3xl p-5 bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-amber-500/5 border border-amber-500/25 flex items-start gap-4 shadow-sm backdrop-blur-md">
           <div className="h-10 w-10 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center shrink-0">
             <Lightbulb className="h-5 w-5 text-amber-300" />
@@ -179,7 +200,7 @@ export default function LensPage() {
               </span>
             </h4>
             <p className="text-xs text-zinc-300 leading-relaxed">
-              When browsing thrift aisles, check for single-stitch hems on graphic tees, vintage Y2K compact digital cameras (Sony Cyber-shot, Canon PowerShot), and heavy metal zippers (YKK, Talon). These flip on eBay within 48 hours for 4x-10x tag cost!
+              When browsing thrift aisles, check for single-stitch hems on graphic tees, vintage Y2K compact digital cameras (Sony Cyber-shot, Canon PowerShot), and heavy metal zippers (YKK, Talon). These categories tend to convert fast when the local comps are clean.
             </p>
           </div>
         </div>

@@ -176,10 +176,10 @@ export default function LandingFeatures() {
                   <div className="text-xs text-zinc-400">How valuations and comps are computed</div>
                 </td>
                 <td className="py-4 px-4 sm:px-6 text-emerald-300 font-bold bg-cyan-950/10 border-x border-cyan-500/20">
-                  📊 <strong>100% Real Live 30-Day Sold Comps</strong> (eBay AU &amp; US realized sales with IQR statistical trimming)
+                  📊 <strong>Verified Sold Comps When Available</strong> (eBay AU &amp; US realized sales with IQR statistical trimming)
                 </td>
                 <td className="py-4 px-4 sm:px-6 text-zinc-400">
-                  ⚠️ AI guesswork or unsold active asking prices
+                  ⚠️ AI-only estimates or active asking prices without sold evidence
                 </td>
               </tr>
               <tr>
