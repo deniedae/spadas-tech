@@ -14,7 +14,7 @@ interface ListingItem {
 }
 
 export default function PlatformBreakdownCard({ items, currency }: { items: ListingItem[]; currency?: string }) {
-  const activeCurrency = currency || (typeof window !== "undefined" ? detectGeoCurrency().currency : "AUD");
+  const activeCurrency = currency || (typeof window !== "undefined" ? detectGeoCurrency().currency : "USD");
   const isUs = activeCurrency === "USD";
   const isUk = activeCurrency === "GBP";
   const platforms = isUk ? [

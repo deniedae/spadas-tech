@@ -9,7 +9,13 @@ import {
   EbayCompsResult,
   EbaySoldCompItem,
 } from "@/app/lib/ebay-australia-comps";
-import { SupportedCurrency, detectGeoCurrency } from "@/app/lib/currency-routing";
+import {
+  SupportedCurrency,
+  detectGeoCurrency,
+  extractCountryHeader,
+  resolveEffectiveCurrency,
+  convertCurrency,
+} from "@/app/lib/currency-routing";
 import { estimateAustralianMarketValue } from "@/lib/valuation-heuristics";
 
 export const runtime = "nodejs";
@@ -24,9 +30,8 @@ export async function GET(req: Request) {
     const category = url.searchParams.get("category") || undefined;
     const condition = url.searchParams.get("condition") || undefined;
 
-    const countryHeader = req.headers.get("x-vercel-ip-country") || req.headers.get("cf-ipcountry");
-    const detectedCurrency = detectGeoCurrency(countryHeader).currency;
-    const currency = (url.searchParams.get("currency") as SupportedCurrency) || detectedCurrency || "AUD";
+    const countryHeader = extractCountryHeader(req);
+    const currency = resolveEffectiveCurrency(url.searchParams.get("currency"), countryHeader);
 
     return await handleCompsSearch(query, brand, category, condition, currency);
   } catch (err: any) {
@@ -43,9 +48,8 @@ export async function POST(req: Request) {
     const category = body.category || undefined;
     const condition = body.condition || undefined;
 
-    const countryHeader = req.headers.get("x-vercel-ip-country") || req.headers.get("cf-ipcountry");
-    const detectedCurrency = detectGeoCurrency(countryHeader).currency;
-    const currency = (body.currency as SupportedCurrency) || detectedCurrency || "AUD";
+    const countryHeader = extractCountryHeader(req);
+    const currency = resolveEffectiveCurrency(body.currency, countryHeader);
 
     return await handleCompsSearch(query, brand, category, condition, currency);
   } catch (err: any) {
@@ -59,7 +63,7 @@ async function handleCompsSearch(
   brand?: string,
   category?: string,
   condition?: string,
-  currency: SupportedCurrency = "AUD"
+  currency: SupportedCurrency = "USD"
 ) {
   const trimmed = (query || "").trim();
   if (!trimmed) {
@@ -117,7 +121,9 @@ async function handleCompsSearch(
       condition,
     });
     const currSym = currency === "GBP" ? "£" : currency === "EUR" ? "€" : "$";
-    categoryHint = `Similar brands often sell for ${currSym}${catEstimate.minPrice}–${currSym}${catEstimate.maxPrice} — verify on eBay`;
+    const minP = currency === "AUD" ? catEstimate.minPrice : Math.round(convertCurrency(catEstimate.minPrice, "AUD", currency));
+    const maxP = currency === "AUD" ? catEstimate.maxPrice : Math.round(convertCurrency(catEstimate.maxPrice, "AUD", currency));
+    categoryHint = `Similar brands often sell for ${currSym}${minP}–${currSym}${maxP} — verify on eBay`;
   }
 
   // ── RETAIL CAP & PRICE-BAND SANITY GUARD (Multi-Pack & Pack-Size Normalizer) ──

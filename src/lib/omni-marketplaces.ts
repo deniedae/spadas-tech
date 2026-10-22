@@ -36,15 +36,15 @@ export interface OmniComparisonResult {
 export function buildMarketplaceCompUrl(
   platformId: "ebay" | "depop" | "gumtree" | "facebook" | "google_shopping",
   query: string,
-  currency: SupportedCurrency = "AUD"
+  currency: SupportedCurrency = "USD"
 ): string {
   const encoded = encodeURIComponent(query.trim());
 
   switch (platformId) {
     case "ebay": {
-      // Dynamic eBay marketplace routing based on currency
-      let domain = "www.ebay.com.au";
-      if (currency === "USD") domain = "www.ebay.com";
+      // Dynamic eBay marketplace routing based on currency (defaults to US)
+      let domain = "www.ebay.com";
+      if (currency === "AUD") domain = "www.ebay.com.au";
       else if (currency === "GBP") domain = "www.ebay.co.uk";
       else if (currency === "EUR") domain = "www.ebay.de";
       return `https://${domain}/sch/i.html?_nkw=${encoded}&LH_Sold=1&LH_Complete=1`;
@@ -83,9 +83,9 @@ export function calculateOmniMarketplaceComps(params: {
   customCost?: number;
 }): OmniComparisonResult {
   const { productName, brand, customCost = 0 } = params;
-  const currency = params.currency || "AUD";
-  const baseCurrency = (params.baseCurrency || "AUD") as SupportedCurrency;
-  const config = CURRENCY_CONFIGS[currency] || CURRENCY_CONFIGS.AUD;
+  const currency = params.currency || "USD";
+  const baseCurrency = (params.baseCurrency || "USD") as SupportedCurrency;
+  const config = CURRENCY_CONFIGS[currency] || CURRENCY_CONFIGS.USD;
   const sym = config.symbol;
 
   // Accurately convert basePrice to target currency if different
@@ -174,7 +174,7 @@ export function calculateOmniMarketplaceComps(params: {
       estimatedShipping: gumtreeShipping,
       netPayout: gumtreeNet,
       marginPercentage: priceGumtree > 0 ? Math.round(((gumtreeNet - customCost) / priceGumtree) * 100) : 0,
-      searchUrl: isUK ? `https://www.gumtree.com/search?search_category=all&q=${encodeURIComponent(fullQuery)}` : buildMarketplaceCompUrl("gumtree", fullQuery, currency),
+      searchUrl: isUK ? `https://www.gumtree.com/search?search_category=all&q=${encodeURIComponent(fullQuery)}` : isUS ? `https://www.mercari.com/search/?keyword=${encodeURIComponent(fullQuery)}` : buildMarketplaceCompUrl("gumtree", fullQuery, currency),
       payoutBadge: "0% Fees (Cash in Hand)",
     },
     {

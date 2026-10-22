@@ -506,7 +506,7 @@ export function IronmanHudCamera() {
         throw new Error(errMsg);
       }
 
-      const listingUrl = data.listingUrl || "https://www.ebay.com.au/sh/lst/active";
+      const listingUrl = data.listingUrl || "https://www.ebay.com/sh/lst/active";
       const updatedBeacon: HolographicBeacon = {
         ...beacon,
         isPublished: true,
@@ -839,7 +839,7 @@ export function IronmanHudCamera() {
           <div className="flex items-center gap-2 w-full sm:w-auto">
             {selectedBeacon.isPublished ? (
               <a
-                href={selectedBeacon.publishedUrl || "https://www.ebay.com.au/sh/lst/active"}
+                href={selectedBeacon.publishedUrl || "https://www.ebay.com/sh/lst/active"}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-black transition cursor-pointer shadow-lg shadow-emerald-500/30"

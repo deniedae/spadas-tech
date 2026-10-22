@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { detectGeoCurrency } from "@/app/lib/currency-routing";
 
 
 declare global {
@@ -192,13 +193,9 @@ export function openExternalUrlSafely(
     // 1. Sanitize raw URL
     let url = (rawUrl || "").trim();
 
-    const isUsMarket =
-      typeof window !== "undefined" &&
-      (localStorage.getItem("spadas_selected_currency") === "USD" ||
-        (!localStorage.getItem("spadas_selected_currency") &&
-          (navigator.language === "en-US" ||
-            Intl.DateTimeFormat().resolvedOptions().timeZone.includes("America/"))));
-    const defaultDomain = isUsMarket ? "www.ebay.com" : "www.ebay.com.au";
+    const geo = typeof window !== "undefined" ? detectGeoCurrency() : null;
+    const isAu = geo?.currency === "AUD";
+    const defaultDomain = isAu ? "www.ebay.com.au" : "www.ebay.com";
 
     // If empty or literal strings 'null' / 'undefined' or relative, fall back to safe search
     if (

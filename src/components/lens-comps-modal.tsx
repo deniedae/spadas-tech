@@ -48,6 +48,7 @@ import {
   buildCleanListingSubject,
   buildCleanListingDescription,
 } from "@/lib/lens-utils";
+import { isUSGeo, isUKGeo } from "@/app/lib/currency-routing";
 import { EBAY_RESTRICTION_NOTICE, isEbayAccountRestrictedError } from "@/app/lib/marketplaces/ebay";
 import { triggerTactileHaptic, syncProfitToAndroidWidget, openExternalUrlSafely } from "@/lib/android-bridge";
 import {
@@ -534,12 +535,16 @@ export default function LensCompsModal({
     (item as any)?.currency === "USD" ||
     (item as any)?.isUsMarketOnly ||
     effectiveComps.some((c) => (c as any).isUsComp) ||
+    (typeof window !== "undefined" && isUSGeo()) ||
     (typeof window !== "undefined" && localStorage.getItem("spadas_selected_currency") === "USD")
   );
   const isUkMarket = Boolean(
-    currency === "GBP" ||
-    (item as any)?.currency === "GBP" ||
-    (typeof window !== "undefined" && localStorage.getItem("spadas_selected_currency") === "GBP")
+    !isUsMarket && (
+      currency === "GBP" ||
+      (item as any)?.currency === "GBP" ||
+      (typeof window !== "undefined" && isUKGeo()) ||
+      (typeof window !== "undefined" && localStorage.getItem("spadas_selected_currency") === "GBP")
+    )
   );
   const parcelRates = isUkMarket ? ROYAL_MAIL_PARCEL_RATES : isUsMarket ? USPS_PARCEL_RATES : AUSPOST_PARCEL_RATES;
   const targetCurrency = isUkMarket ? "GBP" : isUsMarket ? "USD" : "AUD";

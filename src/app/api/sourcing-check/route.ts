@@ -3,7 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { checkUserUsage } from "@/app/lib/usage";
 import type { AiListingResult } from "@/types/ai-listing";
-import { detectGeoCurrency } from "@/app/lib/currency-routing";
+import { detectGeoCurrency, extractCountryHeader, resolveEffectiveCurrency } from "@/app/lib/currency-routing";
 
 export const preferredRegion = "syd1";
 
@@ -204,10 +204,10 @@ export async function POST(req: Request) {
       imageUrls: string[];
       cost: number;
     };
-    const countryHeader = req.headers.get("x-vercel-ip-country") || req.headers.get("cf-ipcountry");
-    const detectedCurrency = detectGeoCurrency(countryHeader).currency;
-    const ebaySite = detectedCurrency === "USD" ? "ebay.com" : "ebay.com.au";
-    const ebayDomain = detectedCurrency === "USD" ? "ebay.com" : "ebay.com.au";
+    const countryHeader = extractCountryHeader(req);
+    const detectedCurrency = resolveEffectiveCurrency(null, countryHeader);
+    const ebaySite = detectedCurrency === "AUD" ? "ebay.com.au" : detectedCurrency === "GBP" ? "ebay.co.uk" : "ebay.com";
+    const ebayDomain = detectedCurrency === "AUD" ? "ebay.com.au" : detectedCurrency === "GBP" ? "ebay.co.uk" : "ebay.com";
 
     if (!imageUrls || imageUrls.length === 0) {
       return NextResponse.json(

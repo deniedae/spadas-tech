@@ -40,13 +40,7 @@ export function OmniMarketplaceCompareCard({
 }: Props) {
   const [currentCurrency, setCurrentCurrency] = React.useState<SupportedCurrency>(() => {
     if (currency) return currency;
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("spadas_selected_currency");
-      if (saved && (saved === "AUD" || saved === "USD" || saved === "GBP" || saved === "EUR")) {
-        return saved as SupportedCurrency;
-      }
-    }
-    return detectGeoCurrency().currency;
+    return typeof window !== "undefined" ? detectGeoCurrency().currency : "USD";
   });
 
   React.useEffect(() => {
@@ -58,7 +52,7 @@ export function OmniMarketplaceCompareCard({
       productName,
       brand,
       basePrice: estimatedPrice,
-      baseCurrency: currency || "AUD",
+      baseCurrency: currency || "USD",
       currency: currentCurrency,
       customCost: costOfGoods,
     });

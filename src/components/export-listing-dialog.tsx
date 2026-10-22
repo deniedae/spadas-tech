@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Copy, Download, Sparkles, Check, Share2, Layers } from "lucide-react";
+import { detectGeoCurrency } from "@/app/lib/currency-routing";
 
 type ListingLike = {
   id?: string;
@@ -43,14 +44,20 @@ export default function ExportListingDialog({
     return title;
   };
 
+  const userCurrency = (listing as any).currency || (typeof window !== "undefined" ? detectGeoCurrency().currency : "USD");
+  const isUs = userCurrency === "USD";
+  const isUk = userCurrency === "GBP";
+  const ebayDomain = isUk ? "www.ebay.co.uk" : isUs ? "www.ebay.com" : "www.ebay.com.au";
+  const shippingCarrier = isUk ? "Royal Mail" : isUs ? "USPS Tracking" : "Auspost Satchel";
+
   const platformData = {
     ebay: {
       name: "eBay",
       icon: "🛍️",
       maxTitleChars: 80,
       title: getEbayTitle(),
-      description: `${descriptionText}\n\nItem Condition: Pre-owned / Authentic\nShipping: Fast Auspost Satchel Dispatch\nReturns: Accepted within 30 days`,
-      launchUrl: `https://www.ebay.com.au/sl/prelist/suggest?q=${encodeURIComponent(getEbayTitle())}`,
+      description: `${descriptionText}\n\nItem Condition: Pre-owned / Authentic\nShipping: Fast ${shippingCarrier} Dispatch\nReturns: Accepted within 30 days`,
+      launchUrl: `https://${ebayDomain}/sl/prelist/suggest?q=${encodeURIComponent(getEbayTitle())}`,
     },
     facebook: {
       name: "Facebook Marketplace",

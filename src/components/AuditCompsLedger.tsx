@@ -500,7 +500,7 @@ export default function AuditCompsLedger({
     targetTitle ? `${targetTitle} sold` : "vintage items"
   );
   const marketLabel = getEbayMarketplaceLabel(currency);
-  const ebayDomain = currency === "GBP" ? "www.ebay.co.uk" : currency === "EUR" ? "www.ebay.de" : currency === "USD" ? "www.ebay.com" : "www.ebay.com.au";
+  const ebayDomain = currency === "AUD" ? "www.ebay.com.au" : currency === "GBP" ? "www.ebay.co.uk" : currency === "EUR" ? "www.ebay.de" : "www.ebay.com";
   const globalEbayRegistryUrl = `https://${ebayDomain}/sch/i.html?_nkw=${fallbackEbaySearch}&LH_Sold=1&LH_Complete=1`;
 
   return (

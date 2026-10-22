@@ -571,23 +571,23 @@ export async function publishToEbayInventory(
   const apiHost = getApiHost();
   const isProduction = apiHost === "api.ebay.com";
   const rawCurrency = (listing.currency || "").toUpperCase().trim();
-  const isUsd = rawCurrency === "USD";
+  const isAud = rawCurrency === "AUD";
   const isGbp = rawCurrency === "GBP";
 
-  let currencyCode = "AUD";
-  let marketplaceId = "EBAY_AU";
-  let contentLanguage = "en-AU";
-  let ebayDomain = "ebay.com.au";
-  let merchantLocationKey = "spadas_store_au";
-  let region: EbayRegion = "AUD";
+  let currencyCode = "USD";
+  let marketplaceId = "EBAY_US";
+  let contentLanguage = "en-US";
+  let ebayDomain = "ebay.com";
+  let merchantLocationKey = "spadas_store_us";
+  let region: EbayRegion = "USD";
 
-  if (isUsd) {
-    currencyCode = "USD";
-    marketplaceId = "EBAY_US";
-    contentLanguage = "en-US";
-    ebayDomain = "ebay.com";
-    merchantLocationKey = "spadas_store_us";
-    region = "USD";
+  if (isAud) {
+    currencyCode = "AUD";
+    marketplaceId = "EBAY_AU";
+    contentLanguage = "en-AU";
+    ebayDomain = "ebay.com.au";
+    merchantLocationKey = "spadas_store_au";
+    region = "AUD";
   } else if (isGbp) {
     currencyCode = "GBP";
     marketplaceId = "EBAY_GB";

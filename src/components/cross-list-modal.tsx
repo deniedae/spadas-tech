@@ -8,6 +8,7 @@ import {
   generateOptimizedEbayTitle,
   generateEbayPrefillUrl,
 } from "@/app/lib/marketplaces/ebay-prefill";
+import { detectGeoCurrency } from "@/app/lib/currency-routing";
 
 interface CrossListModalProps {
   isOpen: boolean;
@@ -173,7 +174,7 @@ export default function CrossListModal({
 
         {/* 1-Tap Direct Fast-List on eBay */}
         {activePlatform === "ebay" && (() => {
-          const userCurrency = typeof window !== "undefined" ? localStorage.getItem("spadas_selected_currency") || "AUD" : "AUD";
+          const userCurrency = typeof window !== "undefined" ? detectGeoCurrency().currency : "USD";
           return (
             <button
               type="button"

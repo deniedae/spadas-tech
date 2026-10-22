@@ -211,7 +211,7 @@ export function HistoryFeedView({
                   estimated_profit: hit.trueNetProfit ?? hit.estimatedProfit,
                   sales_velocity: hit.salesVelocity ?? hit.turnoverRate,
                   comps: hit.comps || [],
-                  currency: hit.currency || "AUD",
+                  currency: hit.currency || "USD",
                 },
                 token_count: 0,
                 status: "completed",

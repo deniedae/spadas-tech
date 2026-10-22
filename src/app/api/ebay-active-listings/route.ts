@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { fetchEbayActiveListings } from "@/app/lib/ebay-australia-comps";
-import { SupportedCurrency, detectGeoCurrency } from "@/app/lib/currency-routing";
+import {
+  SupportedCurrency,
+  detectGeoCurrency,
+  extractCountryHeader,
+  resolveEffectiveCurrency,
+} from "@/app/lib/currency-routing";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,9 +16,8 @@ const SUPPORTED_CURRENCIES = new Set<SupportedCurrency>(["AUD", "USD", "GBP", "E
 export async function GET(request: Request) {
   const params = new URL(request.url).searchParams;
   const query = (params.get("q") || "").trim();
-  const countryHeader = request.headers.get("x-vercel-ip-country") || request.headers.get("cf-ipcountry");
-  const defaultCurrency = detectGeoCurrency(countryHeader).currency;
-  const requestedCurrency = (params.get("currency") || defaultCurrency).toUpperCase() as SupportedCurrency;
+  const countryHeader = extractCountryHeader(request);
+  const requestedCurrency = resolveEffectiveCurrency(params.get("currency"), countryHeader);
 
   if (!query) {
     return NextResponse.json({ error: "A search query is required." }, { status: 400 });

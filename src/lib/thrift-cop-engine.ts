@@ -190,7 +190,7 @@ export interface CalculateCopVerdictOptions {
  * or near-match/reprint risks are detected, triggering explicit secondary fallback actions.
  */
 export function calculateThriftCopVerdict(options: CalculateCopVerdictOptions): ThriftPricingEstimate {
-  const currency = (options.currency || "AUD").toUpperCase();
+  const currency = (options.currency || "USD").toUpperCase();
   const defaultFeeRate = currency === "GBP" ? EBAY_UK_FEE_RATE : currency === "USD" ? EBAY_US_FEE_RATE : EBAY_AU_FEE_RATE;
   const defaultFixedFee = currency === "GBP" ? EBAY_UK_FIXED_FEE : currency === "USD" ? EBAY_US_FIXED_FEE : EBAY_AU_FIXED_FEE;
 

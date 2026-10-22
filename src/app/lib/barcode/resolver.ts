@@ -7,6 +7,7 @@ import { estimatePrice } from "./pricing";
 import { normalizeProduct } from "./ai";
 import { BarcodeProduct } from "./types";
 import { createOpenAiClient } from "@/app/lib/config/ai-models";
+import { detectGeoCurrency } from "@/app/lib/currency-routing";
 
 const SERPAPI_KEY = "837f35e9709091f977c567789f8368b8263b49c1620ed4d47b7aa3825cd0591f";
 
@@ -56,7 +57,9 @@ async function lookupBarcodeLookup(barcode: string): Promise<BarcodeProduct | nu
 
 async function lookupEbayByBarcode(barcode: string): Promise<BarcodeProduct | null> {
   try {
-    const serpUrl = `https://serpapi.com/search.json?engine=ebay&ebay_domain=ebay.com.au&_nkw=${encodeURIComponent(barcode)}&api_key=${SERPAPI_KEY}`;
+    const geo = typeof window !== "undefined" ? detectGeoCurrency() : null;
+    const ebayDomain = geo?.currency === "AUD" ? "ebay.com.au" : geo?.currency === "GBP" ? "ebay.co.uk" : "ebay.com";
+    const serpUrl = `https://serpapi.com/search.json?engine=ebay&ebay_domain=${ebayDomain}&_nkw=${encodeURIComponent(barcode)}&api_key=${SERPAPI_KEY}`;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 3000);
 
@@ -220,7 +223,7 @@ export async function resolveBarcode(barcode: string): Promise<BarcodeProduct | 
     name: normalizedProduct.name,
     category: normalizedProduct.category,
     brand: normalizedProduct.brand,
-    currency: (typeof window !== "undefined" ? ((localStorage.getItem("spadas_selected_currency") as any) || "AUD") : "AUD"),
+    currency: typeof window !== "undefined" ? detectGeoCurrency().currency : "USD",
   });
 
   const finalPrice =

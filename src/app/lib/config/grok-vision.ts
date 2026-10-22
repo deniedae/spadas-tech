@@ -96,7 +96,7 @@ export async function callGrokVisionFast(
   const client = createGrokClient();
   if (!client) return null;
 
-  const targetCurrency = options?.targetCurrency || "AUD";
+  const targetCurrency = options?.targetCurrency || "USD";
 
   const prompt = `You are an expert reseller appraiser. Analyze the image and extract precise identification details to search eBay sold comps.
 
@@ -223,7 +223,7 @@ export async function callGrokVisionFull(
   const client = createGrokClient();
   if (!client || imageUrls.length === 0) return null;
 
-  const targetCurrency = options?.targetCurrency || "AUD";
+  const targetCurrency = options?.targetCurrency || "USD";
 
   const prompt = `You are an expert reseller appraiser, luxury authenticator, and marketplace copywriter. Analyze the image and extract precise identification details to search eBay sold comps.
 
@@ -444,9 +444,9 @@ export async function callGrokListingCopy(
   const client = createGrokClient();
   if (!client) return null;
 
-  const currency = details?.currency || "AUD";
+  const currency = details?.currency || "USD";
 
-  const prompt = `You are an elite marketplace seller on eBay Australia, Facebook Marketplace, and Depop.
+  const prompt = `You are an elite marketplace seller on ${currency === "USD" ? "eBay US, Poshmark, and Mercari" : currency === "GBP" ? "eBay UK, Vinted, and Depop" : "eBay Australia, Facebook Marketplace, and Depop"}.
 Write an irresistible, high-converting listing for:
 Product: "${product}"
 Brand: "${details?.brand || "Authentic"}"

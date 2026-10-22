@@ -147,9 +147,9 @@ async function fetchLoggedInFacebookMarketplaceDeals(
 /**
  * Fetches REAL LIVE Sold Items directly from Live Market Data APIs (sold-comps API)
  */
-async function fetchRealMarketData(searchQuery: string, currency = "AUD"): Promise<RealEbayItem[]> {
+async function fetchRealMarketData(searchQuery: string, currency = "USD"): Promise<RealEbayItem[]> {
   const keywordEnc = encodeURIComponent(searchQuery);
-  const ebaySite = currency === "USD" ? "ebay.com" : "ebay.com.au";
+  const ebaySite = currency === "AUD" ? "ebay.com.au" : currency === "GBP" ? "ebay.co.uk" : "ebay.com";
   const endpoint = `https://api.sold-comps.com/v1/scrape?keyword=${keywordEnc}&ebaySite=${ebaySite}&page=1&count=8&daysToScrape=90&sortOrder=endedRecently`;
 
   try {
@@ -178,7 +178,7 @@ async function fetchRealMarketData(searchQuery: string, currency = "AUD"): Promi
 
   // Backup eBay Sold Comps Scraper Feed
   try {
-    const ebayDomain = currency === "USD" ? "www.ebay.com" : "www.ebay.com.au";
+    const ebayDomain = currency === "AUD" ? "www.ebay.com.au" : currency === "GBP" ? "www.ebay.co.uk" : "www.ebay.com";
     const ebayUrl = `https://${ebayDomain}/sch/i.html?_nkw=${keywordEnc}&_sacat=0&LH_Sold=1&LH_Complete=1&_sop=12`;
     const res = await fetch(ebayUrl, {
       headers: {

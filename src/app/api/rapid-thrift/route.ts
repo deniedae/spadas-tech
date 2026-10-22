@@ -10,7 +10,7 @@ import { estimateCategoryShippingCost, detectThriftTrap, calculateThriftCopVerdi
 import { calculateMarketplaceFees } from "@/lib/fee-engine";
 import { calculateSalesVelocity } from "@/lib/turnover-velocity-engine";
 import { fetchEbayAustraliaSoldComps } from "@/app/lib/ebay-australia-comps";
-import { detectGeoCurrency } from "@/app/lib/currency-routing";
+import { detectGeoCurrency, extractCountryHeader, resolveEffectiveCurrency } from "@/app/lib/currency-routing";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -41,9 +41,9 @@ interface RapidThriftResponse {
 export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => ({}));
-    const countryHeader = req.headers.get("x-vercel-ip-country") || req.headers.get("cf-ipcountry");
-    const detectedCurrency = detectGeoCurrency(countryHeader).currency;
-    const { image, currency = detectedCurrency } = body;
+    const { image } = body;
+    const countryHeader = extractCountryHeader(req);
+    const currency = resolveEffectiveCurrency(body.currency, countryHeader);
 
     if (!image || typeof image !== "string") {
       return NextResponse.json(

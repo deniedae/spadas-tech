@@ -318,7 +318,7 @@ export async function fetchMarketplaceIntelligenceAsync(params: {
   estimatedValue?: number;
   currency?: string;
 }): Promise<MarketplaceIntelligence | null> {
-  const cacheKey = `${params.productName}_${params.brand || ""}_${params.currency || "AUD"}`.toLowerCase();
+  const cacheKey = `${params.productName}_${params.brand || ""}_${params.currency || "USD"}`.toLowerCase();
   const cached = marketplaceIntelCache.get(cacheKey);
   if (cached) {
     return cached;
@@ -334,7 +334,7 @@ export async function fetchMarketplaceIntelligenceAsync(params: {
         brand: params.brand,
         category: params.category,
         estimatedValue: params.estimatedValue,
-        currency: params.currency || "AUD",
+        currency: params.currency || "USD",
       }),
     });
 
@@ -348,7 +348,7 @@ export async function fetchMarketplaceIntelligenceAsync(params: {
       params.brand,
       params.category,
       params.estimatedValue || 30,
-      params.currency || "AUD"
+      params.currency || "USD"
     );
 
     const result: MarketplaceIntelligence = {

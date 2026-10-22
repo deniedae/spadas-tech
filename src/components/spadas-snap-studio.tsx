@@ -368,7 +368,6 @@ export function SpadasSnapStudio() {
 
     try {
       const activeCurrency =
-        (typeof window !== "undefined" && localStorage.getItem("spadas_selected_currency")) ||
         detectGeoCurrency().currency;
 
       const headers: Record<string, string> = { "Content-Type": "application/json" };
@@ -556,7 +555,7 @@ export function SpadasSnapStudio() {
           priceMedian: priceMed,
           priceMin: data?.suggested_price_min || Math.round(priceMed * 0.75),
           priceMax: data?.suggested_price_max || Math.round(priceMed * 1.25),
-          currency: data?.suggested_price_currency || "AUD",
+          currency: data?.suggested_price_currency || "USD",
           photos: capturedPhotos,
           buyCost: cop.estimatedThriftCost,
           trueNetProfit: cop.netProfit,

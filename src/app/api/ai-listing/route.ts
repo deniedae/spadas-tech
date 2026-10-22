@@ -31,7 +31,12 @@ import {
   GROK_VISION_MODEL,
 } from "@/app/lib/config/grok-vision";
 import { fetchEbayAustraliaSoldComps } from "@/app/lib/ebay-australia-comps";
-import { detectGeoCurrency, SupportedCurrency } from "@/app/lib/currency-routing";
+import {
+  detectGeoCurrency,
+  extractCountryHeader,
+  resolveEffectiveCurrency,
+  SupportedCurrency,
+} from "@/app/lib/currency-routing";
 import { saveProductToCache, getCachedProductScan } from "@/app/lib/cache/product-cache";
 import { appraiseItemLocally } from "@/app/lib/offline/offline-engine";
 import { estimateAustralianMarketValue } from "@/lib/valuation-heuristics";
@@ -228,9 +233,8 @@ export async function POST(request: Request) {
       const mediaFormat = body.mediaFormat || null;
       const defectNotes = Array.isArray(body.defectNotes) ? body.defectNotes : [];
       const medianPrice = Number(body.suggestedPriceMedian) || 25;
-      const countryHeader = request.headers.get("x-vercel-ip-country");
-      const geoInfo = detectGeoCurrency(countryHeader);
-      const targetCurrency: SupportedCurrency = (body.currency as SupportedCurrency) || geoInfo.currency;
+      const countryHeader = extractCountryHeader(request);
+      const targetCurrency: SupportedCurrency = resolveEffectiveCurrency(body.currency, countryHeader);
 
       const hasOpenAiKey = getPrimaryAiApiKey().length > 10 && !getPrimaryAiApiKey().includes("placeholder");
       if (hasOpenAiKey) {
@@ -329,9 +333,8 @@ RULES:
       return NextResponse.json(createEmptyScanResult());
     }
 
-    const countryHeader = request.headers.get("x-vercel-ip-country");
-    const geoInfo = detectGeoCurrency(countryHeader);
-    const targetCurrency: SupportedCurrency = (body.currency as SupportedCurrency) || geoInfo.currency;
+    const countryHeader = extractCountryHeader(request);
+    const targetCurrency: SupportedCurrency = resolveEffectiveCurrency(body.currency, countryHeader);
     const initialTargetCurrency: SupportedCurrency = targetCurrency;
 
     // ── INTELLIGENT PREFETCH: Fire parallel eBay sold comps query the instant optical composite is received ──
@@ -1209,8 +1212,8 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
                   const qB = `${geminiBrand} ${ocrKeywords}`.trim();
 
                   const [compsA, compsB] = await Promise.all([
-                    fetchEbayAustraliaSoldComps(qA, (body.currency as SupportedCurrency) || "AUD"),
-                    fetchEbayAustraliaSoldComps(qB, (body.currency as SupportedCurrency) || "AUD"),
+                    fetchEbayAustraliaSoldComps(qA, targetCurrency),
+                    fetchEbayAustraliaSoldComps(qB, targetCurrency),
                   ]);
 
                   const countA = compsA?.count || 0;

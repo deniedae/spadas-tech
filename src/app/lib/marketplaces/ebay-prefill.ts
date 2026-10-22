@@ -86,9 +86,9 @@ export function generateEbayPrefillUrl(params: {
   });
 
   const curr = (params.currency || "").toUpperCase().trim();
-  let domain = "www.ebay.com.au";
-  if (curr === "USD") {
-    domain = "www.ebay.com";
+  let domain = "www.ebay.com";
+  if (curr === "AUD") {
+    domain = "www.ebay.com.au";
   } else if (curr === "GBP") {
     domain = "www.ebay.co.uk";
   } else if (curr === "EUR") {

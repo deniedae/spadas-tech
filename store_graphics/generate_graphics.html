@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spadas - Google Play Assets</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: #0f172a;
+            color: white;
+            padding: 40px;
+            margin: 0;
+            text-align: center;
+        }
+        h1 { font-size: 2.5rem; margin-bottom: 10px; color: #38bdf8; }
+        p { color: #94a3b8; font-size: 1.1rem; margin-bottom: 40px; }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 16px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-shadow: 0 10px 30px -10px rgba(0,0,0,0.5);
+        }
+
+        .card h2 { font-size: 1.2rem; margin-bottom: 5px; color: #f8fafc; }
+        .card p.size { font-size: 0.9rem; color: #64748b; margin-top: 0; margin-bottom: 20px; font-family: monospace; }
+
+        canvas {
+            background: #000;
+            border-radius: 8px;
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #334155;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        button {
+            background: #0ea5e9;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        button:hover {
+            background: #0284c7;
+            transform: translateY(-2px);
+        }
+
+        .canvas-container {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #0f172a;
+            border-radius: 12px;
+            padding: 10px;
+            margin-bottom: 20px;
+        }
+
+        /* Responsive scaling for preview only */
+        canvas.portrait { max-height: 400px; }
+        canvas.landscape { max-height: 200px; }
+        canvas.square { max-height: 200px; }
+
+    </style>
+</head>
+<body>
+
+    <h1>📱 Spadas: Google Play Store Assets</h1>
+    <p>Click "Download" under each graphic. These are perfectly sized to Google's strict requirements.</p>
+
+    <div class="grid" id="container"></div>
+
+    <script>
+        // Design System Colors
+        const EMERALD = "#10b981";
+        const EMERALD_DARK = "#047857";
+        const CYAN = "#06b6d4";
+        const INDIGO = "#6366f1";
+        const SLATE_BG = "#0f1117";
+        const CARD_BG = "#18181b";
+        const RED = "#f43f5e";
+
+        function drawPhoneMockup(ctx, x, y, width, height) {
+            const radius = 30;
+            // Phone Bezel
+            ctx.fillStyle = "#27272a";
+            ctx.beginPath();
+            ctx.roundRect(x, y, width, height, radius);
+            ctx.fill();
+
+            // Screen
+            ctx.fillStyle = SLATE_BG;
+            ctx.beginPath();
+            ctx.roundRect(x + 10, y + 10, width - 20, height - 20, radius - 8);
+            ctx.fill();
+
+            // Dynamic Island / Notch
+            ctx.fillStyle = "#000000";
+            ctx.beginPath();
+            ctx.roundRect(x + (width/2) - 40, y + 15, 80, 20, 10);
+            ctx.fill();
+        }
+
+        function drawBadge(ctx, x, y, text, color, bg) {
+            ctx.fillStyle = bg;
+            ctx.beginPath();
+            ctx.roundRect(x, y, 180, 40, 8);
+            ctx.fill();
+
+            ctx.fillStyle = color;
+            ctx.font = "bold 16px monospace";
+            ctx.textAlign = "center";
+            ctx.fillText(text, x + 90, y + 25);
+        }
+
+        const assets = [
+            {
+                id: "icon",
+                title: "App Icon",
+                width: 512,
+                height: 512,
+                previewClass: "square",
+                draw: (ctx, w, h) => {
+                    // Deep space background
+                    const grad = ctx.createLinearGradient(0, 0, w, h);
+                    grad.addColorStop(0, "#020617");
+                    grad.addColorStop(1, "#0f172a");
+                    ctx.fillStyle = grad;
+                    ctx.fillRect(0, 0, w, h);
+
+                    // Glowing Scanner Reticle
+                    ctx.strokeStyle = CYAN;
+                    ctx.lineWidth = 16;
+                    ctx.lineJoin = "round";
+                    const s = 120;
+                    const cx = w/2;
+                    const cy = h/2;
+
+                    // TL
+                    ctx.beginPath(); ctx.moveTo(cx-s, cy-s+40); ctx.lineTo(cx-s, cy-s); ctx.lineTo(cx-s+40, cy-s); ctx.stroke();
+                    // TR
+                    ctx.beginPath(); ctx.moveTo(cx+s-40, cy-s); ctx.lineTo(cx+s, cy-s); ctx.lineTo(cx+s, cy-s+40); ctx.stroke();
+                    // BL
+                    ctx.beginPath(); ctx.moveTo(cx-s, cy+s-40); ctx.lineTo(cx-s, cy+s); ctx.lineTo(cx-s+40, cy+s); ctx.stroke();
+                    // BR
+                    ctx.beginPath(); ctx.moveTo(cx+s-40, cy+s); ctx.lineTo(cx+s, cy+s); ctx.lineTo(cx+s, cy+s-40); ctx.stroke();
+
+                    // Center Price Tag
+                    ctx.fillStyle = EMERALD;
+                    ctx.font = "900 120px 'Segoe UI', Arial";
+                    ctx.textAlign = "center";
+                    ctx.textBaseline = "middle";
+                    ctx.fillText("$", cx, cy + 10);
+                }
+            },
+            {
+                id: "feature",
+                title: "Feature Graphic",
+                width: 1024,
+                height: 500,
+                previewClass: "landscape",
+                draw: (ctx, w, h) => {
+                    const grad = ctx.createLinearGradient(0, 0, w, h);
+                    grad.addColorStop(0, "#064e3b"); // Emerald dark
+                    grad.addColorStop(1, "#020617"); // Slate 950
+                    ctx.fillStyle = grad;
+                    ctx.fillRect(0, 0, w, h);
+
+                    // Abstract scanner laser
+                    ctx.fillStyle = "rgba(16, 185, 129, 0.1)";
+                    ctx.fillRect(0, h/2 - 20, w, 40);
+                    ctx.fillStyle = "rgba(16, 185, 129, 0.4)";
+                    ctx.fillRect(0, h/2 - 2, w, 4);
+
+                    ctx.fillStyle = "white";
+                    ctx.font = "900 64px 'Segoe UI', Roboto, sans-serif";
+                    ctx.textAlign = "left";
+                    ctx.fillText("SPADAS LENS", 80, 200);
+
+                    ctx.fillStyle = EMERALD;
+                    ctx.font = "bold 36px 'Segoe UI', Roboto, sans-serif";
+                    ctx.fillText("Point. Scan. Profit.", 80, 260);
+
+                    ctx.fillStyle = "#94a3b8";
+                    ctx.font = "24px 'Segoe UI', Roboto, sans-serif";
+                    ctx.fillText("Instant eBay Sold Comps & Profit Ledger", 80, 310);
+
+                    // Draw abstract phone mockup on right
+                    drawPhoneMockup(ctx, 650, 50, 250, 500);
+
+                    // Card inside phone
+                    ctx.fillStyle = CARD_BG;
+                    ctx.beginPath(); ctx.roundRect(670, 100, 210, 160, 12); ctx.fill();
+
+                    ctx.fillStyle = "white";
+                    ctx.font = "bold 20px sans-serif";
+                    ctx.fillText("Sony PS5 Controller", 685, 130);
+
+                    ctx.fillStyle = EMERALD;
+                    ctx.font = "bold 36px sans-serif";
+                    ctx.fillText("+$48.50", 685, 180);
+
+                    drawBadge(ctx, 685, 200, "🔥 MUST COP", EMERALD, "rgba(16, 185, 129, 0.1)");
+                }
+            },
+            {
+                id: "shot1",
+                title: "Screenshot 1: The Hook",
+                width: 1080,
+                height: 1920,
+                previewClass: "portrait",
+                draw: (ctx, w, h) => {
+                    const grad = ctx.createLinearGradient(0, 0, 0, h);
+                    grad.addColorStop(0, "#064e3b");
+                    grad.addColorStop(0.3, "#020617");
+                    grad.addColorStop(1, "#020617");
+                    ctx.fillStyle = grad;
+                    ctx.fillRect(0, 0, w, h);
+
+                    ctx.fillStyle = "white";
+                    ctx.font = "900 85px 'Segoe UI', Arial";
+                    ctx.textAlign = "center";
+                    ctx.fillText("INSTANT", w/2, 200);
+                    ctx.fillStyle = EMERALD;
+                    ctx.fillText("PROFIT VISION", w/2, 300);
+
+                    ctx.fillStyle = "#cbd5e1";
+                    ctx.font = "40px 'Segoe UI', Arial";
+                    ctx.fillText("Point your camera. See what it sells for.", w/2, 400);
+
+                    drawPhoneMockup(ctx, 140, 500, 800, 1600);
+
+                    // Mock Camera View
+                    ctx.fillStyle = "#1c1917";
+                    ctx.fillRect(150, 510, 780, 1500);
+
+                    // Reticle
+                    ctx.strokeStyle = CYAN;
+                    ctx.lineWidth = 10;
+                    const cx = w/2;
+                    const cy = 900;
+                    const s = 150;
+                    ctx.strokeRect(cx-s, cy-s, 60, 10); ctx.strokeRect(cx-s, cy-s, 10, 60);
+                    ctx.strokeRect(cx+s-60, cy-s, 60, 10); ctx.strokeRect(cx+s-10, cy-s, 10, 60);
+                    ctx.strokeRect(cx-s, cy+s-10, 60, 10); ctx.strokeRect(cx-s, cy+s-60, 10, 60);
+                    ctx.strokeRect(cx+s-60, cy+s-10, 60, 10); ctx.strokeRect(cx+s-10, cy+s-60, 10, 60);
+
+                    // Pop up card
+                    ctx.fillStyle = CARD_BG;
+                    ctx.beginPath(); ctx.roundRect(180, 1200, 720, 400, 20); ctx.fill();
+                    ctx.strokeStyle = "#3f3f46";
+                    ctx.stroke();
+
+                    ctx.fillStyle = "white";
+                    ctx.font = "bold 45px sans-serif";
+                    ctx.textAlign = "left";
+                    ctx.fillText("Sony PS5 DualSense", 220, 1280);
+
+                    ctx.fillStyle = "#a1a1aa";
+                    ctx.font = "30px sans-serif";
+                    ctx.fillText("Net (After Fees)", 220, 1340);
+
+                    ctx.fillStyle = EMERALD;
+                    ctx.font = "bold 80px sans-serif";
+                    ctx.fillText("$45.50", 220, 1430);
+
+                    ctx.fillStyle = "#10b981";
+                    ctx.fillRect(220, 1480, 300, 60);
+                    ctx.fillStyle = "black";
+                    ctx.font = "bold 28px sans-serif";
+                    ctx.fillText("🔥 HIGH PROFIT", 250, 1520);
+                }
+            },
+            {
+                id: "shot2",
+                title: "Screenshot 2: The Proof",
+                width: 1080,
+                height: 1920,
+                previewClass: "portrait",
+                draw: (ctx, w, h) => {
+                    const grad = ctx.createLinearGradient(0, 0, 0, h);
+                    grad.addColorStop(0, "#1e1b4b"); // Deep Indigo
+                    grad.addColorStop(0.3, "#020617");
+                    grad.addColorStop(1, "#020617");
+                    ctx.fillStyle = grad;
+                    ctx.fillRect(0, 0, w, h);
+
+                    ctx.fillStyle = "white";
+                    ctx.font = "900 85px 'Segoe UI', Arial";
+                    ctx.textAlign = "center";
+                    ctx.fillText("VERIFIED", w/2, 200);
+                    ctx.fillStyle = INDIGO;
+                    ctx.fillText("EBAY COMPS", w/2, 300);
+
+                    ctx.fillStyle = "#cbd5e1";
+                    ctx.font = "40px 'Segoe UI', Arial";
+                    ctx.fillText("Live 90-day sold data. No more guessing.", w/2, 400);
+
+                    drawPhoneMockup(ctx, 140, 500, 800, 1600);
+
+                    // Mock Ledger UI
+                    ctx.fillStyle = CARD_BG;
+                    ctx.beginPath(); ctx.roundRect(180, 600, 720, 1200, 20); ctx.fill();
+
+                    ctx.fillStyle = "white";
+                    ctx.font = "bold 40px sans-serif";
+                    ctx.textAlign = "left";
+                    ctx.fillText("Market Data", 220, 680);
+
+                    ctx.fillStyle = "#3730a3";
+                    ctx.fillRect(220, 720, 640, 120);
+                    ctx.fillStyle = "white";
+                    ctx.font = "bold 35px sans-serif";
+                    ctx.fillText("⚡ Fast Flip (~4 Days)", 250, 770);
+                    ctx.font = "25px sans-serif";
+                    ctx.fillText("12 items sold this week", 250, 815);
+
+                    // List items
+                    for(let i=0; i<4; i++) {
+                        const y = 900 + (i * 150);
+                        ctx.fillStyle = "#27272a";
+                        ctx.fillRect(220, y, 640, 130);
+
+                        ctx.fillStyle = "white";
+                        ctx.font = "bold 28px sans-serif";
+                        ctx.fillText("Sold: Oct " + (15-i), 250, y + 50);
+
+                        ctx.fillStyle = EMERALD;
+                        ctx.font = "bold 40px sans-serif";
+                        ctx.textAlign = "right";
+                        ctx.fillText("$" + (65 + (Math.random()*5)).toFixed(2), 830, y + 80);
+                        ctx.textAlign = "left";
+                    }
+                }
+            },
+            {
+                id: "shot3",
+                title: "Screenshot 3: The Math",
+                width: 1080,
+                height: 1920,
+                previewClass: "portrait",
+                draw: (ctx, w, h) => {
+                    const grad = ctx.createLinearGradient(0, 0, 0, h);
+                    grad.addColorStop(0, "#334155"); // Slate
+                    grad.addColorStop(0.3, "#020617");
+                    grad.addColorStop(1, "#020617");
+                    ctx.fillStyle = grad;
+                    ctx.fillRect(0, 0, w, h);
+
+                    ctx.fillStyle = "white";
+                    ctx.font = "900 85px 'Segoe UI', Arial";
+                    ctx.textAlign = "center";
+                    ctx.fillText("KNOW YOUR", w/2, 200);
+                    ctx.fillStyle = "#38bdf8"; // Light blue
+                    ctx.fillText("REAL MARGIN", w/2, 300);
+
+                    ctx.fillStyle = "#cbd5e1";
+                    ctx.font = "40px 'Segoe UI', Arial";
+                    ctx.fillText("Auto-deducts fees & shipping.", w/2, 400);
+
+                    drawPhoneMockup(ctx, 140, 500, 800, 1600);
+
+                    // Big Zoomed Math Box
+                    ctx.fillStyle = CARD_BG;
+                    ctx.beginPath(); ctx.roundRect(160, 700, 760, 600, 20); ctx.fill();
+                    ctx.strokeStyle = "#475569"; ctx.lineWidth = 4; ctx.stroke();
+
+                    ctx.fillStyle = "white";
+                    ctx.font = "bold 45px monospace";
+                    ctx.textAlign = "left";
+
+                    ctx.fillText("Gross Sale", 200, 800);
+                    ctx.textAlign = "right";
+                    ctx.fillText("$65.00", 840, 800);
+
+                    ctx.fillStyle = "#f43f5e";
+                    ctx.textAlign = "left";
+                    ctx.fillText("Thrift Tag", 200, 900);
+                    ctx.textAlign = "right";
+                    ctx.fillText("-$8.00", 840, 900);
+
+                    ctx.textAlign = "left";
+                    ctx.fillText("eBay Fees (13.4%)", 200, 1000);
+                    ctx.textAlign = "right";
+                    ctx.fillText("-$8.71", 840, 1000);
+
+                    ctx.textAlign = "left";
+                    ctx.fillText("Shipping", 200, 1100);
+                    ctx.textAlign = "right";
+                    ctx.fillText("-$10.90", 840, 1100);
+
+                    ctx.fillStyle = "#334155";
+                    ctx.fillRect(200, 1150, 640, 4);
+
+                    ctx.fillStyle = EMERALD;
+                    ctx.textAlign = "left";
+                    ctx.fillText("ACTUAL NET PROFIT", 200, 1230);
+                    ctx.textAlign = "right";
+                    ctx.font = "bold 60px monospace";
+                    ctx.fillText("$37.39", 840, 1230);
+                }
+            },
+            {
+                id: "shot4",
+                title: "Screenshot 4: The Time Saver",
+                width: 1080,
+                height: 1920,
+                previewClass: "portrait",
+                draw: (ctx, w, h) => {
+                    const grad = ctx.createLinearGradient(0, 0, 0, h);
+                    grad.addColorStop(0, "#0891b2"); // Cyan
+                    grad.addColorStop(0.3, "#020617");
+                    grad.addColorStop(1, "#020617");
+                    ctx.fillStyle = grad;
+                    ctx.fillRect(0, 0, w, h);
+
+                    ctx.fillStyle = "white";
+                    ctx.font = "900 85px 'Segoe UI', Arial";
+                    ctx.textAlign = "center";
+                    ctx.fillText("1-TAP", w/2, 200);
+                    ctx.fillStyle = CYAN;
+                    ctx.fillText("EBAY PUBLISH", w/2, 300);
+
+                    ctx.fillStyle = "#cbd5e1";
+                    ctx.font = "40px 'Segoe UI', Arial";
+                    ctx.fillText("Auto-writes SEO titles & descriptions.", w/2, 400);
+
+                    drawPhoneMockup(ctx, 140, 500, 800, 1600);
+
+                    // Form
+                    ctx.fillStyle = CARD_BG;
+                    ctx.beginPath(); ctx.roundRect(180, 600, 720, 1200, 20); ctx.fill();
+
+                    ctx.fillStyle = "#94a3b8";
+                    ctx.font = "25px sans-serif";
+                    ctx.textAlign = "left";
+                    ctx.fillText("eBay Item Title (80/80)", 220, 680);
+
+                    ctx.fillStyle = "#27272a";
+                    ctx.fillRect(220, 710, 640, 80);
+                    ctx.fillStyle = "white";
+                    ctx.font = "bold 28px sans-serif";
+                    ctx.fillText("Sony PS5 DualSense Wireless Controller", 240, 760);
+
+                    ctx.fillStyle = "#94a3b8";
+                    ctx.font = "25px sans-serif";
+                    ctx.fillText("Item Description", 220, 850);
+
+                    ctx.fillStyle = "#27272a";
+                    ctx.fillRect(220, 880, 640, 250);
+                    ctx.fillStyle = "white";
+                    ctx.font = "24px sans-serif";
+                    ctx.fillText("Up for sale is a Sony PS5 Controller.", 240, 930);
+                    ctx.fillText("• Brand: Sony", 240, 980);
+                    ctx.fillText("• Condition: Used - Good", 240, 1030);
+
+                    // Button
+                    ctx.fillStyle = INDIGO;
+                    ctx.beginPath(); ctx.roundRect(220, 1200, 640, 100, 12); ctx.fill();
+                    ctx.fillStyle = "white";
+                    ctx.font = "bold 35px sans-serif";
+                    ctx.textAlign = "center";
+                    ctx.fillText("Publish Live to eBay", w/2, 1260);
+                }
+            },
+            {
+                id: "shot5",
+                title: "Screenshot 5: Loss Aversion",
+                width: 1080,
+                height: 1920,
+                previewClass: "portrait",
+                draw: (ctx, w, h) => {
+                    const grad = ctx.createLinearGradient(0, 0, 0, h);
+                    grad.addColorStop(0, "#881337"); // Rose Dark
+                    grad.addColorStop(0.3, "#020617");
+                    grad.addColorStop(1, "#020617");
+                    ctx.fillStyle = grad;
+                    ctx.fillRect(0, 0, w, h);
+
+                    ctx.fillStyle = "white";
+                    ctx.font = "900 85px 'Segoe UI', Arial";
+                    ctx.textAlign = "center";
+                    ctx.fillText("AVOID", w/2, 200);
+                    ctx.fillStyle = RED;
+                    ctx.fillText("THRIFT TRAPS", w/2, 300);
+
+                    ctx.fillStyle = "#cbd5e1";
+                    ctx.font = "40px 'Segoe UI', Arial";
+                    ctx.fillText("Instantly flags low-margin items.", w/2, 400);
+
+                    drawPhoneMockup(ctx, 140, 500, 800, 1600);
+
+                    ctx.fillStyle = "#1c1917";
+                    ctx.fillRect(150, 510, 780, 1500);
+
+                    // Pop up card
+                    ctx.fillStyle = CARD_BG;
+                    ctx.beginPath(); ctx.roundRect(180, 1200, 720, 400, 20); ctx.fill();
+                    ctx.strokeStyle = "#f43f5e"; ctx.lineWidth = 4; ctx.stroke();
+
+                    ctx.fillStyle = "white";
+                    ctx.font = "bold 45px sans-serif";
+                    ctx.textAlign = "left";
+                    ctx.fillText("Fast Fashion Jacket", 220, 1280);
+
+                    ctx.fillStyle = "#a1a1aa";
+                    ctx.font = "30px sans-serif";
+                    ctx.fillText("Net (After Fees)", 220, 1340);
+
+                    ctx.fillStyle = RED;
+                    ctx.font = "bold 80px sans-serif";
+                    ctx.fillText("-$2.50", 220, 1430);
+
+                    ctx.fillStyle = "#881337";
+                    ctx.fillRect(220, 1480, 640, 80);
+                    ctx.fillStyle = "#fda4af";
+                    ctx.font = "bold 28px sans-serif";
+                    ctx.fillText("🛑 HARD PASS (Thrift Trap)", 250, 1530);
+                }
+            }
+        ];
+
+        function renderAll() {
+            const container = document.getElementById("container");
+            container.innerHTML = '';
+
+            assets.forEach(asset => {
+                const card = document.createElement("div");
+                card.className = "card";
+
+                const title = document.createElement("h2");
+                title.innerText = asset.title;
+                card.appendChild(title);
+
+                const size = document.createElement("p");
+                size.className = "size";
+                size.innerText = `${asset.width} x ${asset.height}px`;
+                card.appendChild(size);
+
+                const canvasContainer = document.createElement("div");
+                canvasContainer.className = "canvas-container";
+
+                const canvas = document.createElement("canvas");
+                canvas.id = asset.id;
+                canvas.width = asset.width;
+                canvas.height = asset.height;
+                canvas.className = asset.previewClass;
+
+                const ctx = canvas.getContext("2d");
+                asset.draw(ctx, asset.width, asset.height);
+
+                canvasContainer.appendChild(canvas);
+                card.appendChild(canvasContainer);
+
+                const btn = document.createElement("button");
+                btn.innerHTML = `
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                    </svg>
+                    Download
+                `;
+                btn.onclick = () => {
+                    const link = document.createElement('a');
+                    link.download = `spadas_${asset.id}.png`;
+                    link.href = canvas.toDataURL('image/png');
+                    link.click();
+                };
+                card.appendChild(btn);
+
+                container.appendChild(card);
+            });
+        }
+
+        // Render on load
+        window.onload = renderAll;
+    </script>
+</body>
+</html>

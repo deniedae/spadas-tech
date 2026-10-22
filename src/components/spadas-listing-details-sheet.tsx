@@ -50,7 +50,7 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
   const [editValue, setEditValue] = useState("");
 
   const handleCurrencyChange = (newCurrency: SupportedCurrency) => {
-    const currentCurr = ((data.currency || "AUD").toUpperCase()) as SupportedCurrency;
+    const currentCurr = ((data.currency || "USD").toUpperCase()) as SupportedCurrency;
     if (newCurrency === currentCurr) return;
 
     const newMedian = Number(convertCurrency(data.priceMedian, currentCurr, newCurrency).toFixed(2));
@@ -129,8 +129,8 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
     }
   };
 
-  const activeCurrency = ((data.currency || "AUD").toUpperCase()) as SupportedCurrency;
-  const currConfig = CURRENCY_CONFIGS[activeCurrency] || CURRENCY_CONFIGS.AUD;
+  const activeCurrency = ((data.currency || "USD").toUpperCase()) as SupportedCurrency;
+  const currConfig = CURRENCY_CONFIGS[activeCurrency] || CURRENCY_CONFIGS.USD;
   const valuationStateUi = (() => {
     switch (data.valuationState) {
       case "VERIFY_FIRST":
@@ -420,17 +420,17 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
                   type="button"
                   onClick={() => {
                     const origBase = initialData.priceMedian;
-                    const origCurr = ((initialData.currency || "AUD").toUpperCase()) as SupportedCurrency;
+                    const origCurr = ((initialData.currency || "USD").toUpperCase()) as SupportedCurrency;
                     const convertedMedian = convertCurrency(origBase, origCurr, activeCurrency);
                     setData(prev => ({ ...prev, priceMedian: Number(convertedMedian.toFixed(2)) }));
                   }}
                   className={`py-2 px-2 rounded-xl text-[10px] font-black border transition cursor-pointer ${
-                    Math.abs(data.priceMedian - convertCurrency(initialData.priceMedian, ((initialData.currency || "AUD").toUpperCase()) as SupportedCurrency, activeCurrency)) < 0.5
+                    Math.abs(data.priceMedian - convertCurrency(initialData.priceMedian, ((initialData.currency || "USD").toUpperCase()) as SupportedCurrency, activeCurrency)) < 0.5
                       ? "bg-cyan-500 text-slate-950 border-cyan-400 shadow-md"
                       : "bg-slate-800/90 text-slate-300 border-slate-700 hover:text-white"
                   }`}
                 >
-                  Median ({sym}{convertCurrency(initialData.priceMedian, ((initialData.currency || "AUD").toUpperCase()) as SupportedCurrency, activeCurrency).toFixed(0)})
+                  Median ({sym}{convertCurrency(initialData.priceMedian, ((initialData.currency || "USD").toUpperCase()) as SupportedCurrency, activeCurrency).toFixed(0)})
                 </button>
                 <button
                   type="button"

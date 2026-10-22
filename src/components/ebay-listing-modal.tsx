@@ -20,7 +20,7 @@ import { toast } from "sonner";
 import { supabase } from "@/app/lib/supabase";
 import { createListing } from "@/app/lib/createlisting";
 import { generateEbayPrefillUrl } from "@/app/lib/marketplaces/ebay-prefill";
-import { convertCurrency, SupportedCurrency } from "@/app/lib/currency-routing";
+import { convertCurrency, detectGeoCurrency, isUSGeo, SupportedCurrency } from "@/app/lib/currency-routing";
 import { EBAY_RESTRICTION_NOTICE } from "@/app/lib/marketplaces/ebay";
 import {
   isMeaningfulMeta,
@@ -31,8 +31,8 @@ import {
 } from "@/lib/lens-utils";
 
 export const REGION_OPTIONS = [
-  { id: "AUD", label: "eBay AU", country: "Australia", flag: "🇦🇺", code: "AUD", symbol: "$", site: "ebay.com.au" },
   { id: "USD", label: "eBay US", country: "United States", flag: "🇺🇸", code: "USD", symbol: "$", site: "ebay.com" },
+  { id: "AUD", label: "eBay AU", country: "Australia", flag: "🇦🇺", code: "AUD", symbol: "$", site: "ebay.com.au" },
   { id: "GBP", label: "eBay UK", country: "United Kingdom", flag: "🇬🇧", code: "GBP", symbol: "£", site: "ebay.co.uk" },
 ] as const;
 
@@ -153,23 +153,11 @@ export default function EbayListingModal({
   const safeInitTitle = buildCleanListingSubject(initialBrand, initialTitle || "Scanned Item");
 
   const [selectedCurrency, setSelectedCurrency] = useState<string>(() => {
+    if (typeof window !== "undefined" && isUSGeo()) return "USD";
     if (initialCurrency && ["AUD", "USD", "GBP"].includes(initialCurrency.toUpperCase())) {
       return initialCurrency.toUpperCase();
     }
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("spadas_selected_currency");
-      if (stored && ["AUD", "USD", "GBP"].includes(stored.toUpperCase())) {
-        return stored.toUpperCase();
-      }
-      if (
-        navigator.language === "en-US" ||
-        Intl.DateTimeFormat().resolvedOptions().timeZone.includes("America/") ||
-        Intl.DateTimeFormat().resolvedOptions().timeZone.includes("US/")
-      ) {
-        return "USD";
-      }
-    }
-    return "USD";
+    return detectGeoCurrency().currency;
   });
   const [inputTitle, setInputTitle] = useState(safeInitTitle);
   const [inputPrice, setInputPrice] = useState(Number(initialPrice) || 25);
@@ -214,19 +202,10 @@ export default function EbayListingModal({
         );
 
         let initialCurr = (initialCurrency || "").toUpperCase();
-        if (!["AUD", "USD", "GBP"].includes(initialCurr)) {
-          if (typeof window !== "undefined") {
-            const stored = localStorage.getItem("spadas_selected_currency");
-            if (stored && ["AUD", "USD", "GBP"].includes(stored.toUpperCase())) {
-              initialCurr = stored.toUpperCase();
-            } else if (
-              navigator.language === "en-US" ||
-              Intl.DateTimeFormat().resolvedOptions().timeZone.includes("America/") ||
-              Intl.DateTimeFormat().resolvedOptions().timeZone.includes("US/")
-            ) {
-              initialCurr = "USD";
-            }
-          }
+        if (typeof window !== "undefined" && isUSGeo()) {
+          initialCurr = "USD";
+        } else if (!["AUD", "USD", "GBP"].includes(initialCurr)) {
+          initialCurr = typeof window !== "undefined" ? detectGeoCurrency().currency : "USD";
         }
         const targetCurr = (initialCurr && ["AUD", "USD", "GBP"].includes(initialCurr) ? initialCurr : "USD") as SupportedCurrency;
         

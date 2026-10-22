@@ -34,7 +34,7 @@ import { toast } from "sonner";
 import { fmtMoney, formatAUD } from "@/app/lib/listings";
 import { createListing } from "@/app/lib/createlisting";
 import { supabase } from "@/app/lib/supabase";
-import { detectGeoCurrency, CURRENCY_CONFIGS, SupportedCurrency } from "@/app/lib/currency-routing";
+import { detectGeoCurrency, isUSGeo, CURRENCY_CONFIGS, SupportedCurrency } from "@/app/lib/currency-routing";
 import { isOwnerEmail } from "@/app/lib/auth-admin";
 import { resilientFetch } from "@/app/lib/resilient-fetch";
 import { playScanBeep, triggerScanHaptic, createNativeBarcodeScanner, isNativeBarcodeDetectorSupported, CORE_BARCODE_FORMATS, decodeBarcodeFromImageSource } from "@/lib/barcode-detector";
@@ -622,12 +622,6 @@ function SpadasLensCameraCore({
   const [quickSnapFlash, setQuickSnapFlash] = useState<boolean>(false);
   const [isQuickSnapping, setIsQuickSnapping] = useState<boolean>(false);
   const [selectedCurrency, setSelectedCurrency] = useState<SupportedCurrency>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("spadas_selected_currency");
-      if (saved && (saved === "AUD" || saved === "USD" || saved === "EUR" || saved === "GBP")) {
-        return saved as SupportedCurrency;
-      }
-    }
     return detectGeoCurrency().currency;
   });
   const [isRapidDrawerOpen, setIsRapidDrawerOpen] = useState<boolean>(false);
@@ -5746,7 +5740,8 @@ function SpadasLensCameraCore({
         const isUsMarket = Boolean(
           selectedCurrency === "USD" ||
           (activeValuationHit as any).currency === "USD" ||
-          activeValuationHit.marketOrigin === "US"
+          activeValuationHit.marketOrigin === "US" ||
+          (typeof window !== "undefined" && isUSGeo())
         );
         const marketSiteName = isUkMarket ? "eBay UK" : isUsMarket ? "eBay US" : "eBay AU";
         const marketDomain = isUkMarket ? "ebay.co.uk" : isUsMarket ? "ebay.com" : "ebay.com.au";

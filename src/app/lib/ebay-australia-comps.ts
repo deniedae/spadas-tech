@@ -156,14 +156,14 @@ async function getEbayAppToken(): Promise<string | null> {
  */
 export async function fetchEbayActiveListings(
   query: string,
-  targetCurrency: SupportedCurrency = "AUD",
+  targetCurrency: SupportedCurrency = "USD",
   limit = 6
 ): Promise<EbaySoldCompItem[]> {
   try {
     const token = await getEbayAppToken();
     if (!token) return [];
 
-    const regionConfig = EBAY_MARKETPLACE[targetCurrency] || EBAY_MARKETPLACE.AUD;
+    const regionConfig = EBAY_MARKETPLACE[targetCurrency] || EBAY_MARKETPLACE.USD;
     const marketplaceId = regionConfig.marketplaceId;
     const env = (process.env.EBAY_ENVIRONMENT || "production").toLowerCase();
     const host = env === "production" ? "api.ebay.com" : "api.sandbox.ebay.com";
@@ -1038,7 +1038,7 @@ export function applyTightClusterSanityGuard(
  */
 export async function fetchEbayAustraliaSoldComps(
   productName: string,
-  targetCurrency: SupportedCurrency = "AUD",
+  targetCurrency: SupportedCurrency = "USD",
   brand?: string | null,
   category?: string | null,
   condition?: string | null,
@@ -1317,7 +1317,7 @@ export async function fetchEbayAustraliaSoldComps(
     }
   }
 
-  const regionConfig = EBAY_MARKETPLACE[targetCurrency] || EBAY_MARKETPLACE.AUD;
+  const regionConfig = EBAY_MARKETPLACE[targetCurrency] || EBAY_MARKETPLACE.USD;
   const primaryQuery = searchQueries[0] || productName;
 
   // Fire official eBay Browse API in parallel as guaranteed active-listings fallback

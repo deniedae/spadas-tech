@@ -34,7 +34,7 @@ import {
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { openPlayStoreReview } from "@/components/in-app-review-modal";
-import { CURRENCY_CONFIGS, SupportedCurrency, detectGeoCurrency } from "@/app/lib/currency-routing";
+import { CURRENCY_CONFIGS, SupportedCurrency, detectGeoCurrency, isUSGeo } from "@/app/lib/currency-routing";
 import { isOwnerEmail } from "@/app/lib/auth-admin";
 import type { SupportTicketRecord } from "@/app/lib/support-tickets";
 import {
@@ -81,7 +81,7 @@ export default function SettingsPage() {
 
   // Sourcing & Camera Preferences
   const [defaultMarketplace, setDefaultMarketplace] = useState("eBay");
-  const [defaultCurrency, setDefaultCurrency] = useState<SupportedCurrency>("AUD");
+  const [defaultCurrency, setDefaultCurrency] = useState<SupportedCurrency>("USD");
   const [autoAiDescriptions, setAutoAiDescriptions] = useState(true);
   const [minProfit, setMinProfit] = useState(20);
   const [minRoi, setMinRoi] = useState(50);
@@ -239,7 +239,10 @@ export default function SettingsPage() {
   useEffect(() => {
     if (typeof window !== "undefined") {
       const savedCurrency = localStorage.getItem("spadas_selected_currency");
-      if (savedCurrency && ["AUD", "USD", "EUR", "GBP"].includes(savedCurrency)) {
+      if (isUSGeo() && savedCurrency === "AUD") {
+        setDefaultCurrency("USD");
+        localStorage.setItem("spadas_selected_currency", "USD");
+      } else if (savedCurrency && ["AUD", "USD", "EUR", "GBP"].includes(savedCurrency)) {
         setDefaultCurrency(savedCurrency as SupportedCurrency);
       } else {
         setDefaultCurrency(detectGeoCurrency().currency);
@@ -866,8 +869,8 @@ export default function SettingsPage() {
               onChange={(e) => handleUpdateCurrency(e.target.value)}
               className="w-full rounded-xl border border-zinc-800 bg-black/40 px-3.5 py-2.5 text-sm font-medium text-white focus:outline-none focus:border-cyan-500/50 transition cursor-pointer"
             >
-              <option value="AUD">🇦🇺 AUD — Australian Dollar ($)</option>
               <option value="USD">🇺🇸 USD — US Dollar ($)</option>
+              <option value="AUD">🇦🇺 AUD — Australian Dollar ($)</option>
               <option value="EUR">🇪🇺 EUR — Euro (€)</option>
               <option value="GBP">🇬🇧 GBP — British Pound (£)</option>
             </select>

@@ -3,6 +3,7 @@ import { createClient } from "@/app/lib/server";
 import { publishToEbayInventory, refreshEbayToken } from "@/app/lib/marketplaces/ebay";
 import { convertBase64ToPublicUrls } from "@/app/lib/marketplaces/ebay-storage";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
+import { extractCountryHeader, resolveEffectiveCurrency } from "@/app/lib/currency-routing";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -45,7 +46,8 @@ export async function POST(req: NextRequest) {
     const targetProduct = product || listing?.product || "AI Scanned Item";
     const targetDesc = description || listing?.seo_description || listing?.detailed_description || "";
     const targetPrice = Number(price || listing?.suggested_price_max || listing?.suggested_price_min || 25);
-    const targetCurrency = currency || listing?.currency || "AUD";
+    const countryHeader = extractCountryHeader(req);
+    const targetCurrency = resolveEffectiveCurrency(currency || listing?.currency, countryHeader);
     const targetCondition = condition || listing?.analysis?.condition || "Used";
     const targetBrand = brand || listing?.analysis?.brand || "Unbranded";
     const targetCategory = category || listing?.category || listing?.analysis?.category || "Accessories";
