@@ -3526,149 +3526,66 @@ function SpadasLensCameraCore({
                   } else if (chunk.event === "comps_ready") {
                     if (abortController.signal.aborted || cycleId !== activeCycleIdRef.current) return;
                     const compsPayload = chunk.data || chunk;
-                    if (compsPayload.raw_sold_comps && compsPayload.raw_sold_comps.length > 0) {
-                      let updatedHit: DetectedHit | null = null;
-                      setActiveValuationHit((prev) => {
+                    const rawCompsList = compsPayload.raw_sold_comps || compsPayload.rawComps || [];
+                    const verifiedComps = rawCompsList.length > 0
+                      ? ensureVerifiedSoldComps(
+                          rawCompsList,
+                          (activeValuationHitRef.current?.name) || compsPayload.product_name || "Scanned Item",
+                          Number(compsPayload.suggested_price_median) || activeValuationHitRef.current?.estimatedValue || 35,
+                          activeValuationHitRef.current?.condition || "Used",
+                          activeValuationHitRef.current?.brand || null
+                        )
+                      : [];
+                    const compPrices = verifiedComps.map((c) => Number(c.price)).filter((p) => p > 0).sort((a, b) => a - b);
+                    const settledMedian = compPrices.length > 0
+                      ? compPrices[Math.floor(compPrices.length / 2)]
+                      : (Number(compsPayload.suggested_price_median) || activeValuationHitRef.current?.estimatedValue || 0);
+
+                    const buildSettledHit = (prev: any): DetectedHit => {
+                      return {
+                        ...prev,
+                        status: "valued",
+                        isCompsPending: false,
+                        is_comps_pending: false,
+                        estimatedValue: settledMedian || prev?.estimatedValue || 0,
+                        suggestedPriceMin: Number(compsPayload.suggested_price_min) || prev?.suggestedPriceMin,
+                        suggestedPriceMax: Number(compsPayload.suggested_price_max) || prev?.suggestedPriceMax,
+                        confidence: Number(compsPayload.analysis?.confidence_score ?? compsPayload.confidence_score ?? prev?.confidence ?? 0.95),
+                        ebayCompsCount: compsPayload.ebay_comps_count || verifiedComps.length,
+                        activeCompsCount: compsPayload.active_comps_count || prev?.activeCompsCount,
+                        compsSource: compsPayload.comps_source || (verifiedComps.length > 0 ? "sold_comps_api" : "browse_api"),
+                        rawComps: verifiedComps,
+                        raw_sold_comps: verifiedComps,
+                        compsRange: compsPayload.comps_range || prev?.compsRange,
+                        noMarketData: verifiedComps.length === 0 && Boolean(compsPayload.no_market_data),
+                        isActiveAskOnly: Boolean(compsPayload.is_active_ask),
+                        isUsMarketOnly: Boolean(compsPayload.is_us_market_only ?? prev?.isUsMarketOnly),
+                        arbitrageSignal: compsPayload.arbitrage_signal || prev?.arbitrageSignal,
+                        variantAudit: compsPayload.variant_audit || prev?.variantAudit,
+                        requiresSecondaryVerification: compsPayload.requires_secondary_verification ?? prev?.requiresSecondaryVerification,
+                        verificationReason: compsPayload.verification_reason || prev?.verificationReason,
+                        fallbackProtocol: compsPayload.fallback_protocol || prev?.fallbackProtocol,
+                      };
+                    };
+
+                    setActiveValuationHit((prev) => {
+                      if (!prev) return prev;
+                      const updated = buildSettledHit(prev);
+                      activeValuationHitRef.current = updated;
+                      return updated;
+                    });
+                    if (activeCompsHitRef.current) {
+                      setActiveCompsHit((prev) => {
                         if (!prev) return prev;
-                        const verifiedComps = ensureVerifiedSoldComps(
-                          compsPayload.raw_sold_comps,
-                          prev.name,
-                          Number(compsPayload.suggested_price_median) || prev.estimatedValue,
-                          prev.condition,
-                          prev.brand
-                        );
-                        if (verifiedComps.length === 0) return prev;
-                        const compPrices = verifiedComps.map((c) => Number(c.price)).filter((p) => p > 0).sort((a, b) => a - b);
-                        const settledMedian = compPrices.length > 0 ? compPrices[Math.floor(compPrices.length / 2)] : (Number(compsPayload.suggested_price_median) || prev.estimatedValue);
-                        const updated: DetectedHit = {
-                          ...prev,
-                          status: "valued",
-                          isCompsPending: false,
-                          estimatedValue: settledMedian,
-                          suggestedPriceMin: Number(compsPayload.suggested_price_min) || prev.suggestedPriceMin,
-                          suggestedPriceMax: Number(compsPayload.suggested_price_max) || prev.suggestedPriceMax,
-                          confidence: Number(compsPayload.analysis?.confidence_score ?? compsPayload.confidence_score ?? prev.confidence),
-                          ebayCompsCount: compsPayload.ebay_comps_count || verifiedComps.length,
-                          activeCompsCount: compsPayload.active_comps_count || prev.activeCompsCount,
-                          compsSource: compsPayload.comps_source || "sold_comps_api",
-                          rawComps: verifiedComps,
-                          compsRange: compsPayload.comps_range,
-                          noMarketData: Boolean(compsPayload.no_market_data),
-                          isActiveAskOnly: Boolean(compsPayload.is_active_ask),
-                          isUsMarketOnly: Boolean(compsPayload.is_us_market_only ?? prev.isUsMarketOnly),
-                          arbitrageSignal: compsPayload.arbitrage_signal || prev.arbitrageSignal,
-                          variantAudit: compsPayload.variant_audit || prev.variantAudit,
-                          requiresSecondaryVerification: compsPayload.requires_secondary_verification ?? prev.requiresSecondaryVerification,
-                          verificationReason: compsPayload.verification_reason || prev.verificationReason,
-                          fallbackProtocol: compsPayload.fallback_protocol || prev.fallbackProtocol,
-                        };
-                        activeValuationHitRef.current = updated;
-                        updatedHit = updated;
+                        const updated = buildSettledHit(prev);
+                        activeCompsHitRef.current = updated;
                         return updated;
                       });
-                      if (activeCompsHitRef.current) {
-                        setActiveCompsHit((prev) => {
-                          if (!prev) return prev;
-                          const verifiedComps = ensureVerifiedSoldComps(
-                            compsPayload.raw_sold_comps,
-                            prev.name || (prev as any).productName,
-                            Number(compsPayload.suggested_price_median) || (prev as any).estimatedValue,
-                            (prev as any).condition,
-                            (prev as any).brand
-                          );
-                          const compPrices = verifiedComps.map((c) => Number(c.price)).filter((p) => p > 0).sort((a, b) => a - b);
-                          const settledMedian = compPrices.length > 0 ? compPrices[Math.floor(compPrices.length / 2)] : (Number(compsPayload.suggested_price_median) || (prev as any).estimatedValue);
-                          return {
-                            ...prev,
-                            status: "valued",
-                            isCompsPending: false,
-                            estimatedValue: settledMedian,
-                            suggestedPriceMin: Number(compsPayload.suggested_price_min) || (prev as any).suggestedPriceMin,
-                            suggestedPriceMax: Number(compsPayload.suggested_price_max) || (prev as any).suggestedPriceMax,
-                            confidence: Number(compsPayload.analysis?.confidence_score ?? compsPayload.confidence_score ?? (prev as any).confidence ?? (prev as any).confidenceScore),
-                            ebayCompsCount: compsPayload.ebay_comps_count || verifiedComps.length,
-                            activeCompsCount: compsPayload.active_comps_count || (prev as any).activeCompsCount,
-                            compsSource: compsPayload.comps_source || "sold_comps_api",
-                            rawComps: verifiedComps,
-                            compsRange: compsPayload.comps_range,
-                            noMarketData: Boolean(compsPayload.no_market_data),
-                            isActiveAskOnly: Boolean(compsPayload.is_active_ask),
-                            isUsMarketOnly: Boolean(compsPayload.is_us_market_only ?? (prev as any).isUsMarketOnly),
-                            arbitrageSignal: compsPayload.arbitrage_signal || (prev as any).arbitrageSignal,
-                            variantAudit: compsPayload.variant_audit || (prev as any).variantAudit,
-                            requiresSecondaryVerification: compsPayload.requires_secondary_verification ?? (prev as any).requiresSecondaryVerification,
-                            verificationReason: compsPayload.verification_reason || (prev as any).verificationReason,
-                            fallbackProtocol: compsPayload.fallback_protocol || (prev as any).fallbackProtocol,
-                          };
-                        });
-                      }
-                      const finalHit = updatedHit || activeValuationHitRef.current;
-                      if (finalHit) {
-                        setCapturedLog((prev) => [finalHit, ...prev.filter((h) => h.name !== finalHit.name)].slice(0, 50));
-                        setCachedValuation(finalHit.name, finalHit);
-                      }
-                    } else if (compsPayload) {
-                      let updatedHit: DetectedHit | null = null;
-                      setActiveValuationHit((prev) => {
-                        if (!prev) return prev;
-                        const updated: DetectedHit = {
-                          ...prev,
-                          status: "valued",
-                          isCompsPending: false,
-                          estimatedValue: Number(compsPayload.suggested_price_median) || prev.estimatedValue,
-                          suggestedPriceMin: Number(compsPayload.suggested_price_min) || prev.suggestedPriceMin,
-                          suggestedPriceMax: Number(compsPayload.suggested_price_max) || prev.suggestedPriceMax,
-                          confidence: Number(compsPayload.analysis?.confidence_score ?? compsPayload.confidence_score ?? prev.confidence),
-                          ebayCompsCount: compsPayload.ebay_comps_count || 0,
-                          activeCompsCount: compsPayload.active_comps_count || prev.activeCompsCount,
-                          compsSource: compsPayload.comps_source || prev.compsSource,
-                          rawComps: [],
-                          compsRange: compsPayload.comps_range || prev.compsRange,
-                          noMarketData: Boolean(compsPayload.no_market_data),
-                          isActiveAskOnly: Boolean(compsPayload.is_active_ask),
-                          isUsMarketOnly: Boolean(compsPayload.is_us_market_only ?? prev.isUsMarketOnly),
-                          arbitrageSignal: compsPayload.arbitrage_signal || prev.arbitrageSignal,
-                          variantAudit: compsPayload.variant_audit || prev.variantAudit,
-                          requiresSecondaryVerification: compsPayload.requires_secondary_verification ?? prev.requiresSecondaryVerification,
-                          verificationReason: compsPayload.verification_reason || prev.verificationReason,
-                          fallbackProtocol: compsPayload.fallback_protocol || prev.fallbackProtocol,
-                        };
-                        activeValuationHitRef.current = updated;
-                        updatedHit = updated;
-                        return updated;
-                      });
-                      if (activeCompsHitRef.current) {
-                        setActiveCompsHit((prev) => {
-                          if (!prev) return prev;
-                          return {
-                            ...prev,
-                            status: "valued",
-                            isCompsPending: false,
-                            estimatedValue: Number(compsPayload.suggested_price_median) || (prev as any).estimatedValue,
-                            suggestedPriceMin: Number(compsPayload.suggested_price_min) || (prev as any).suggestedPriceMin,
-                            suggestedPriceMax: Number(compsPayload.suggested_price_max) || (prev as any).suggestedPriceMax,
-                            confidence: Number(compsPayload.analysis?.confidence_score ?? compsPayload.confidence_score ?? (prev as any).confidence ?? (prev as any).confidenceScore),
-                            ebayCompsCount: compsPayload.ebay_comps_count || 0,
-                            activeCompsCount: compsPayload.active_comps_count || (prev as any).activeCompsCount,
-                            compsSource: compsPayload.comps_source || (prev as any).compsSource,
-                            rawComps: [],
-                            compsRange: compsPayload.comps_range || (prev as any).compsRange,
-                            noMarketData: Boolean(compsPayload.no_market_data),
-                            isActiveAskOnly: Boolean(compsPayload.is_active_ask),
-                            isUsMarketOnly: Boolean(compsPayload.is_us_market_only ?? (prev as any).isUsMarketOnly),
-                            arbitrageSignal: compsPayload.arbitrage_signal || (prev as any).arbitrageSignal,
-                            variantAudit: compsPayload.variant_audit || (prev as any).variantAudit,
-                            requiresSecondaryVerification: compsPayload.requires_secondary_verification ?? (prev as any).requiresSecondaryVerification,
-                            verificationReason: compsPayload.verification_reason || (prev as any).verificationReason,
-                            fallbackProtocol: compsPayload.fallback_protocol || (prev as any).fallbackProtocol,
-                          };
-                        });
-                      }
-                      const finalHit = updatedHit || activeValuationHitRef.current;
-                      if (finalHit) {
-                        setCapturedLog((prev) => [finalHit, ...prev.filter((h) => h.name !== finalHit.name)].slice(0, 50));
-                        setCachedValuation(finalHit.name, finalHit);
-                      }
+                    }
+                    const finalHit = activeValuationHitRef.current;
+                    if (finalHit) {
+                      setCapturedLog((prev) => [finalHit, ...prev.filter((h) => h.name !== finalHit.name)].slice(0, 50));
+                      setCachedValuation(finalHit.name, finalHit);
                     }
                   } else if (chunk.event === "complete") {
                     if (abortController.signal.aborted || cycleId !== activeCycleIdRef.current) return;
@@ -4000,12 +3917,14 @@ function SpadasLensCameraCore({
               ...currentMountedHit,
               status: "valued",
               isCompsPending: false,
+              is_comps_pending: false,
               estimatedValue: settledMedian,
               suggestedPriceMin: Number(data.suggested_price_min) || currentMountedHit.suggestedPriceMin,
               suggestedPriceMax: Number(data.suggested_price_max) || currentMountedHit.suggestedPriceMax,
               ebayCompsCount: data.ebay_comps_count || verifiedComps.length,
               compsSource: data.comps_source || "sold_comps_api",
               rawComps: verifiedComps,
+              raw_sold_comps: verifiedComps,
               compsRange: data.comps_range,
               noMarketData: false,
               isActiveAskOnly: Boolean(data.is_active_ask),
@@ -4022,6 +3941,7 @@ function SpadasLensCameraCore({
               ...currentMountedHit,
               status: "valued",
               isCompsPending: false,
+              is_comps_pending: false,
               estimatedValue: Number(data.suggested_price_median) || currentMountedHit.estimatedValue,
               suggestedPriceMin: Number(data.suggested_price_min) || currentMountedHit.suggestedPriceMin,
               suggestedPriceMax: Number(data.suggested_price_max) || currentMountedHit.suggestedPriceMax,
@@ -4030,6 +3950,7 @@ function SpadasLensCameraCore({
               activeCompsCount: data.active_comps_count || currentMountedHit.activeCompsCount,
               compsSource: data.comps_source || currentMountedHit.compsSource,
               rawComps: [],
+              raw_sold_comps: [],
               compsRange: data.comps_range || currentMountedHit.compsRange,
               noMarketData: Boolean(data.no_market_data),
               isActiveAskOnly: Boolean(data.is_active_ask),
@@ -4047,6 +3968,19 @@ function SpadasLensCameraCore({
             }
             setCapturedLog((prev) => [enrichedHit, ...prev.filter((h) => h.name !== enrichedHit.name)].slice(0, 50));
             setCachedValuation(enrichedHit.name, enrichedHit);
+          }
+        } else if (data) {
+          const enrichedHit: DetectedHit = {
+            ...currentMountedHit,
+            status: "valued",
+            isCompsPending: false,
+            is_comps_pending: false,
+            noMarketData: Boolean(data.no_market_data ?? true),
+          };
+          activeValuationHitRef.current = enrichedHit;
+          setActiveValuationHit(enrichedHit);
+          if (activeCompsHitRef.current) {
+            setActiveCompsHit((prev) => prev ? { ...prev, ...enrichedHit, id: prev.id } : enrichedHit);
           }
         }
         void persistHitAndSyncToSupabase(activeValuationHitRef.current || currentMountedHit, data);

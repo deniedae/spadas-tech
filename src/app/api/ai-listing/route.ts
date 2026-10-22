@@ -2201,7 +2201,11 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
 
             // Render the identified valuation
             const valuationPayload = hasCompsNow
-              ? result
+              ? {
+                  ...result,
+                  is_comps_pending: false,
+                  status: "valued",
+                }
               : {
                   ...result,
                   raw_sold_comps: [],
@@ -2229,9 +2233,15 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
 
               if (request.signal?.aborted) return;
 
+              const compsReadyPayload = {
+                ...result,
+                is_comps_pending: false,
+                status: "valued",
+              };
+
               const compsReadyEvent = {
                 event: "comps_ready",
-                data: result,
+                data: compsReadyPayload,
               };
               controller.enqueue(encoder.encode(JSON.stringify(compsReadyEvent) + "\n"));
             }

@@ -96,6 +96,7 @@ export interface DetectedHit {
   isCachedFallback?: boolean;
   /** Underlying real sold listings for full auditability */
   rawComps?: RawSoldComp[];
+  raw_sold_comps?: RawSoldComp[];
   /** Verified active competitor listings on eBay */
   activeComps?: RawSoldComp[];
   activeMedian?: number;

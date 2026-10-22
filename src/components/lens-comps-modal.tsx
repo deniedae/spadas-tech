@@ -213,7 +213,7 @@ export default function LensCompsModal({
   const [activeCompsError, setActiveCompsError] = useState<string | null>(null);
   const [compsResolutionTimedOut, setCompsResolutionTimedOut] = useState(false);
 
-  // Auto-resolve pending comps after 5.5s fail-safe timeout so comps dialog is never trapped in loading skeletons
+  // Auto-resolve pending comps after 3.5s fail-safe timeout so comps dialog is never trapped in loading skeletons
   useEffect(() => {
     if (!isOpen || !currentItemId) {
       setCompsResolutionTimedOut(false);
@@ -222,7 +222,7 @@ export default function LensCompsModal({
     setCompsResolutionTimedOut(false);
     const timer = setTimeout(() => {
       setCompsResolutionTimedOut(true);
-    }, 5500);
+    }, 3500);
     return () => clearTimeout(timer);
   }, [isOpen, currentItemId]);
 
@@ -402,7 +402,7 @@ export default function LensCompsModal({
   // Extract raw comps and ensure 3 to 5 verified recent sold listings
   const rawComps: RawSoldComp[] = useMemo(() => {
     if (!item) return [];
-    const directComps = item.rawComps || item.comps;
+    const directComps = item.rawComps || item.comps || (item as any).raw_sold_comps || (item as any).rawSoldComps || [];
     const verified = ensureVerifiedSoldComps(
       directComps,
       title,
@@ -418,7 +418,7 @@ export default function LensCompsModal({
       return soldCompsCacheRef.current.get(currentItemId)!;
     }
     return verified;
-  }, [currentItemId, item?.rawComps, item?.comps, title, initialEstValue, condition, brand]);
+  }, [currentItemId, item?.rawComps, item?.comps, (item as any)?.raw_sold_comps, (item as any)?.rawSoldComps, title, initialEstValue, condition, brand]);
 
   // Condition-aware & fragrance fill-level sanitized comps
   // When condition is detected or toggled to Used: Exclude listings containing keywords: BNIB, NIB, Sealed, Brand New
@@ -453,15 +453,9 @@ export default function LensCompsModal({
     const itemStatus = item?.status;
     const isPendingStatus = itemStatus === "fetching_comps" || itemStatus === "analyzing" || itemStatus === "pending";
     const isCompsPending = Boolean(item?.is_comps_pending || item?.isCompsPending);
-    const hasFinalFallbackState = Boolean(
-      item?.noMarketData ||
-      item?.isActiveAskOnly ||
-      item?.compsSource === "browse_api" ||
-      item?.compsSource === "ai_estimate" ||
-      item?.compsSource === "cached_last_check"
-    );
 
-    if (!isPendingStatus && !isCompsPending && hasFinalFallbackState) {
+    // If neither status is pending, comps resolution is complete
+    if (!isPendingStatus && !isCompsPending) {
       if (currentItemId) resolvedItemIdsRef.current.add(currentItemId);
       return false;
     }
