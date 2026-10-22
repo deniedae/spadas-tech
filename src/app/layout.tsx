@@ -125,10 +125,10 @@ export default function RootLayout({
   return (
     <html lang="en" className={cn("dark font-sans", geistSans.variable, geistMono.variable)}>
       <head>
-        {/* Google AdSense Verification & Auto-Ads Tag (Publisher ID: pub-7262955524032732) */}
+        {/* Google AdSense / AdMob Tag (Publisher ID: pub-1804367864263274) */}
         <Script
           async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7262955524032732"
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1804367864263274"
           strategy="afterInteractive"
           crossOrigin="anonymous"
         />

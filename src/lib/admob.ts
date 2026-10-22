@@ -12,8 +12,8 @@ export const ADMOB_CONFIG = {
   // Production IDs
   publisherId: process.env.NEXT_PUBLIC_ADMOB_PUBLISHER_ID || "pub-1804367864263274",
   appId: process.env.NEXT_PUBLIC_ADMOB_APP_ID || "ca-app-pub-1804367864263274~1584918058",
-  // Banner unit intentionally left blank until a live production AdMob banner is created.
-  bannerAdUnitId: process.env.NEXT_PUBLIC_ADMOB_BANNER_ID?.trim() || "",
+  // Live production AdMob banner unit for Thrift Scanner
+  bannerAdUnitId: process.env.NEXT_PUBLIC_ADMOB_BANNER_ID?.trim() || "ca-app-pub-1804367864263274/9735058162",
 
   // Google Mobile Ads official test ad unit for Android Banners
   // (Safe for local dev, preview deployments, and internal testing)

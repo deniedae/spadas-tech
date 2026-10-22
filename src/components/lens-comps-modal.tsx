@@ -211,6 +211,20 @@ export default function LensCompsModal({
   const [liveActiveComps, setLiveActiveComps] = useState<RawSoldComp[]>([]);
   const [isLoadingActiveComps, setIsLoadingActiveComps] = useState(false);
   const [activeCompsError, setActiveCompsError] = useState<string | null>(null);
+  const [compsResolutionTimedOut, setCompsResolutionTimedOut] = useState(false);
+
+  // Auto-resolve pending comps after 5.5s fail-safe timeout so comps dialog is never trapped in loading skeletons
+  useEffect(() => {
+    if (!isOpen || !currentItemId) {
+      setCompsResolutionTimedOut(false);
+      return;
+    }
+    setCompsResolutionTimedOut(false);
+    const timer = setTimeout(() => {
+      setCompsResolutionTimedOut(true);
+    }, 5500);
+    return () => clearTimeout(timer);
+  }, [isOpen, currentItemId]);
 
   useEffect(() => {
     if (!currentItemId) return;
@@ -425,6 +439,9 @@ export default function LensCompsModal({
   // Hold initial valuation rendering with skeleton while comps and profit waterfall are resolving
   const isResolvingValuation = useMemo(() => {
     if (!item) return false;
+    if (compsResolutionTimedOut) {
+      return false;
+    }
     if (currentItemId && resolvedItemIdsRef.current.has(currentItemId)) {
       return false;
     }
@@ -450,7 +467,18 @@ export default function LensCompsModal({
     }
 
     return isPendingStatus || isCompsPending;
-  }, [currentItemId, effectiveComps.length, item?.status, item?.is_comps_pending, item?.estimatedValue]);
+  }, [
+    currentItemId,
+    effectiveComps.length,
+    compsResolutionTimedOut,
+    item?.status,
+    item?.is_comps_pending,
+    item?.isCompsPending,
+    item?.noMarketData,
+    item?.isActiveAskOnly,
+    item?.compsSource,
+    item?.estimatedValue,
+  ]);
 
   const compsRange = useMemo(() => {
     const baseDefault = (isLiquidOrFragrance && isFragranceActive)
@@ -545,6 +573,7 @@ export default function LensCompsModal({
 
   useEffect(() => {
     if (!isOpen || !currentItemId || !title.trim()) {
+      setIsLoadingActiveComps(false);
       return;
     }
 
@@ -571,8 +600,16 @@ export default function LensCompsModal({
     }
     setActiveCompsError(null);
 
+    // Fail-safe 6s client timeout so live comps never get stuck in loading skeleton
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+      setIsLoadingActiveComps(false);
+      setActiveCompsError("Live eBay active listings timed out.");
+    }, 6000);
+
     void fetch(`/api/ebay-active-listings?${params.toString()}`, { signal: controller.signal })
       .then(async (response) => {
+        clearTimeout(timeoutId);
         const data = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(data.error || "Live listings lookup failed.");
         const listings = Array.isArray(data.listings) ? data.listings : [];
@@ -587,15 +624,21 @@ export default function LensCompsModal({
         setLiveActiveComps(verified);
       })
       .catch((error: unknown) => {
+        clearTimeout(timeoutId);
         if (error instanceof Error && error.name === "AbortError") return;
         // Keep existing active comps on transient error
         setActiveCompsError(error instanceof Error ? error.message : "Live listings lookup failed.");
       })
       .finally(() => {
-        if (!controller.signal.aborted) setIsLoadingActiveComps(false);
+        clearTimeout(timeoutId);
+        setIsLoadingActiveComps(false);
       });
 
-    return () => controller.abort();
+    return () => {
+      clearTimeout(timeoutId);
+      controller.abort();
+      setIsLoadingActiveComps(false);
+    };
   }, [isOpen, currentItemId, activeCacheKey, targetCurrency]);
 
   // ── Active Asks vs Sold Comps Splits & Realistic Resale Price Engine ───────

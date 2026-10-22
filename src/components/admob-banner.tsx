@@ -21,25 +21,28 @@ export default function AdMobBanner({
   const [mounted, setMounted] = useState(false);
   const [adLoaded, setAdLoaded] = useState(false);
   const adRef = useRef<HTMLModElement>(null);
+  const pushedRef = useRef(false);
 
   useEffect(() => {
     setMounted(true);
-    if (!isPro) {
+  }, []);
+
+  useEffect(() => {
+    if (!mounted || isPro || pushedRef.current) return;
+    const adUnit = getActiveBannerAdUnitId();
+    if (!adUnit) return;
+
+    if (adRef.current && typeof window !== "undefined") {
       try {
-        if (typeof window !== "undefined") {
-          const adUnit = getActiveBannerAdUnitId();
-          const shouldLoad = Boolean(adUnit) && adUnit !== ADMOB_CONFIG.testBannerAdUnitId;
-          if (shouldLoad) {
-            ((window as unknown as { adsbygoogle?: unknown[] }).adsbygoogle =
-              (window as unknown as { adsbygoogle?: unknown[] }).adsbygoogle || []).push({});
-            setAdLoaded(true);
-          }
-        }
-      } catch {
-        // Fallback gracefully to sponsor card
+        pushedRef.current = true;
+        ((window as unknown as { adsbygoogle?: unknown[] }).adsbygoogle =
+          (window as unknown as { adsbygoogle?: unknown[] }).adsbygoogle || []).push({});
+        setAdLoaded(true);
+      } catch (err) {
+        console.warn("Failed to initialize ad unit:", err);
       }
     }
-  }, [isPro]);
+  }, [mounted, isPro]);
 
   // Pro subscribers never see ads. We also keep ads off until a live banner unit exists.
   const activeAdUnitId = getActiveBannerAdUnitId();
