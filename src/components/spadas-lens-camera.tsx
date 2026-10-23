@@ -149,6 +149,7 @@ import {
   isValidFramePayload,
   isBulkOrLotTitle,
   BULK_LOT_REGEX,
+  buildCleanListingDescription,
 } from "@/lib/lens-utils";
 import { cameraStreamManager } from "@/lib/camera-stream-provider";
 
@@ -5739,7 +5740,16 @@ function SpadasLensCameraCore({
           condition={cleanConditionText(activeEbayItem.condition, "Used - Good")}
           description={
             activeEbayItem.description ||
-            `Authentic ${cleanBrandText(activeEbayItem.brand, "") || ""} ${activeEbayItem.productName || activeEbayItem.name || "Scanned Item"}.\n\n• Brand: ${cleanBrandText(activeEbayItem.brand, "Unbranded")}\n• Model: ${activeEbayItem.productName || activeEbayItem.name || "Item"}\n• Material/Color: Standard finish\n• Condition: ${cleanConditionText(activeEbayItem.condition, "Used - Good")}. Tested and operating as intended.\n\nPlease review all photos for exact details.`
+            activeEbayItem.detailed_description ||
+            activeEbayItem.seo_description ||
+            buildCleanListingDescription({
+              brand: activeEbayItem.brand,
+              title: activeEbayItem.productName || activeEbayItem.name || "Scanned Item",
+              condition: activeEbayItem.condition,
+              category: activeEbayItem.category,
+              price: Number(activeEbayItem.estimatedValue),
+              currency: activeEbayItem.currency || selectedCurrency
+            })
           }
           activeScanImage={
             activeEbayItem.image ||
