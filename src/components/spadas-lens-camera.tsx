@@ -388,7 +388,8 @@ function SpadasLensCameraCore({
     type: "rate_limit_user" | "rate_limit_upstream" | "unauthorized" | "no_match" | "generic" | null;
     retryAfter?: number;
   }>({ type: null });
-  const [cameraMoving, setCameraMoving] = useState<boolean>(false);
+  const motionDotRef = useRef<HTMLDivElement | null>(null);
+  const motionStatusTextRef = useRef<HTMLSpanElement | null>(null);
   const [retakeRecommendation, setRetakeRecommendation] = useState<{
     required: boolean;
     angleType: string;
@@ -2006,6 +2007,40 @@ function SpadasLensCameraCore({
   const cameraMovingRef = useRef<boolean>(false);
   const lastMotionTimeRef = useRef<number>(0);
 
+  // Zero-overhead direct DOM telemetry update: bypasses 6500-line root React re-rendering
+  const updateMotionTelemetry = useCallback((moving: boolean) => {
+    cameraMovingRef.current = moving;
+    if (moving) {
+      lastMotionTimeRef.current = Date.now();
+    }
+    if (motionDotRef.current) {
+      motionDotRef.current.className = `h-2 w-2 rounded-full shrink-0 ${!moving ? "bg-emerald-400" : "bg-zinc-400"}`;
+    }
+    if (motionStatusTextRef.current) {
+      motionStatusTextRef.current.textContent = isScanPausedRef.current ? "Locked" : moving ? "Tracking" : "Steady";
+    }
+    if (reticleRef.current) {
+      const isLocked = isScanPausedRef.current || !moving;
+      if (isLocked) {
+        reticleRef.current.classList.add("scale-[1.01]");
+        reticleRef.current.classList.remove("scale-100");
+      } else {
+        reticleRef.current.classList.remove("scale-[1.01]");
+        reticleRef.current.classList.add("scale-100");
+      }
+      const corners = reticleRef.current.querySelectorAll<HTMLDivElement>("[data-reticle-corner]");
+      corners.forEach((c) => {
+        if (isLocked) {
+          c.classList.add("border-emerald-500");
+          c.classList.remove("border-zinc-500");
+        } else {
+          c.classList.remove("border-emerald-500");
+          c.classList.add("border-zinc-500");
+        }
+      });
+    }
+  }, []);
+
   // Verify Owner and Pro User status purely server-side
   useEffect(() => {
     async function checkOwnerAndProStatus() {
@@ -2707,8 +2742,7 @@ function SpadasLensCameraCore({
       forceManual ||
       scanMode === "snap";
 
-    setCameraMoving(false);
-    cameraMovingRef.current = false;
+    updateMotionTelemetry(false);
 
     // 4. Asynchronous Frame Capture off the Viewfinder Thread:
     // Decouple video rendering from image compression. Single draw call to offscreen canvas,
@@ -4594,20 +4628,25 @@ function SpadasLensCameraCore({
         diffSum += Math.abs(pixels[i] - prev[i]);
       }
       const avgDiff = diffSum / (pixels.length / 32) / 255;
-      prevFramePixelsRef.current = new Uint8ClampedArray(pixels);
+      // Buffer reuse: mutate existing buffer to eliminate GC allocations
+      prev.set(pixels);
 
       const isPanning = avgDiff > 0.085;
       const isStill = avgDiff <= 0.05;
 
       if (isPanning) {
-        setCameraMoving(true);
+        if (!cameraMovingRef.current) {
+          updateMotionTelemetry(true);
+        }
         cameraMovingRef.current = true;
         wasMoving = true;
         stableTicks = 0;
       } else if (isStill) {
-        setCameraMoving(false);
-        cameraMovingRef.current = false;
         stableTicks++;
+        if (stableTicks >= 3 && cameraMovingRef.current) {
+          updateMotionTelemetry(false);
+          cameraMovingRef.current = false;
+        }
       }
     }, SAMPLING_INTERVAL_MS);
 
@@ -4615,7 +4654,7 @@ function SpadasLensCameraCore({
       isDestroyed = true;
       clearInterval(interval);
     };
-  }, [stream, autoScanActive, scanMode, deepVerifyItem, isScanPaused, activeCompsHit, activeValuationHit, isRapidScanMode, analyzingRealFrame, isCoolingDown]);
+  }, [stream, autoScanActive, scanMode, deepVerifyItem, isScanPaused, activeCompsHit, activeValuationHit, analyzingRealFrame, isCoolingDown, updateMotionTelemetry]);
 
   // Preserve persistentMediaStream warm across tab switches and route re-renders
   useEffect(() => {
@@ -4625,7 +4664,7 @@ function SpadasLensCameraCore({
   }, []);
 
   // Focus lock state for viewfinder framing animation (steady or paused)
-  const isFocusLocked = isScanPaused || !cameraMoving;
+  const isFocusLocked = isScanPaused || !cameraMovingRef.current;
 
   return (
     <div className="spadas-lens-camera w-full min-h-full flex-1 flex flex-col max-w-full overflow-y-auto box-border mx-auto animate-fade-in">
@@ -4732,6 +4771,7 @@ function SpadasLensCameraCore({
                   setCameraStalled(false);
                 }}
                 className="h-full w-full object-cover"
+                style={{ transform: "translateZ(0)", willChange: "transform" }}
               />
               {/* Connecting optical sensor placeholder if stream is currently binding */}
               {!isCameraReady && (
@@ -4799,14 +4839,18 @@ function SpadasLensCameraCore({
                 {/* Dynamic Real-Time Focus & Telemetry Indicator */}
                 <div className="inline-flex items-center gap-1.5 rounded-full bg-slate-950/88 border border-white/15 px-3 py-1.5 shadow-lg backdrop-blur-xl pointer-events-auto text-[10px]">
                   <div
+                    ref={motionDotRef}
                     className={`h-2 w-2 rounded-full shrink-0 ${
-                      !cameraMoving ? "bg-emerald-400" : "bg-zinc-400"
+                      !cameraMovingRef.current ? "bg-emerald-400" : "bg-zinc-400"
                     }`}
                   />
                   <span className="font-bold text-zinc-300 uppercase tracking-wider">Lens Live</span>
                   <span className="text-white/20 text-[8px]">|</span>
-                  <span className="font-semibold text-zinc-200">
-                    {isScanPaused ? "Locked" : cameraMoving ? "Tracking" : "Steady"}
+                  <span
+                    ref={motionStatusTextRef}
+                    className="font-semibold text-zinc-200"
+                  >
+                    {isScanPaused ? "Locked" : cameraMovingRef.current ? "Tracking" : "Steady"}
                   </span>
                   <span className="text-white/20 text-[8px]">|</span>
                   <span className="font-bold text-cyan-300">Sold Evidence</span>
@@ -5204,24 +5248,28 @@ function SpadasLensCameraCore({
                   >
                     {/* Top Left */}
                     <div
+                      data-reticle-corner="true"
                       className={`absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2 rounded-tl-md transition-colors duration-150 ${
                         isFocusLocked ? "border-emerald-500" : "border-zinc-500"
                       }`}
                     />
                     {/* Top Right */}
                     <div
+                      data-reticle-corner="true"
                       className={`absolute top-0 right-0 w-6 h-6 border-t-2 border-r-2 rounded-tr-md transition-colors duration-150 ${
                         isFocusLocked ? "border-emerald-500" : "border-zinc-500"
                       }`}
                     />
                     {/* Bottom Left */}
                     <div
+                      data-reticle-corner="true"
                       className={`absolute bottom-0 left-0 w-6 h-6 border-b-2 border-l-2 rounded-bl-md transition-colors duration-150 ${
                         isFocusLocked ? "border-emerald-500" : "border-zinc-500"
                       }`}
                     />
                     {/* Bottom Right */}
                     <div
+                      data-reticle-corner="true"
                       className={`absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 rounded-br-md transition-colors duration-150 ${
                         isFocusLocked ? "border-emerald-500" : "border-zinc-500"
                       }`}
@@ -5243,7 +5291,7 @@ function SpadasLensCameraCore({
                     className={`absolute z-20 pointer-events-none border rounded-md overflow-hidden transition-all duration-150 ${scan.status === "valued"
                         ? "border-emerald-500 bg-emerald-500/[0.04]"
                         : "border-zinc-500 bg-zinc-900/20"
-                      } ${cameraMoving ? "opacity-60" : "opacity-100"}`}
+                      } opacity-100`}
                 >
                   <div className="absolute -top-6 left-0 flex items-center gap-1.5 bg-zinc-950 text-white border border-zinc-800 rounded px-2 py-0.5 text-[10px]">
                     <span className={`h-1.5 w-1.5 rounded-full ${scan.status === "valued" ? "bg-emerald-500" : "bg-zinc-400"}`} />
