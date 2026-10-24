@@ -312,7 +312,11 @@ export default function EbayListingModal({
     const safeBrandForList = cleanBrandText(initialBrand, "Unbranded") || "Unbranded";
     const safeCondForList = cleanConditionText(inputCondition, "Used - Good");
     const copyPayload = `Title: ${inputTitle}\nPrice: ${activeRegion.symbol}${Number(inputPrice).toFixed(2)} ${activeRegion.code}\nCondition: ${safeCondForList}\nBrand: ${safeBrandForList}\n\nDescription:\n${inputDescription}`;
-    navigator.clipboard.writeText(copyPayload);
+    try {
+      if (typeof navigator !== "undefined" && navigator.clipboard) {
+        void navigator.clipboard.writeText(copyPayload);
+      }
+    } catch {}
 
     const prefillUrl = generateEbayPrefillUrl({
       title: inputTitle,
@@ -322,7 +326,10 @@ export default function EbayListingModal({
     });
 
     toast.success(`📋 Listing details copied! Opening ${activeRegion.label} Sell wizard...`, { duration: 4500 });
-    window.open(prefillUrl, "_blank");
+    const opened = window.open(prefillUrl, "_blank");
+    if (!opened) {
+      window.location.href = prefillUrl;
+    }
   };
 
   // 3. Multi-Photo Capture Integration:
@@ -1007,18 +1014,28 @@ export default function EbayListingModal({
                 <span>Save to Spadas</span>
               </button>
 
-              <div className="flex items-center justify-end gap-2">
+              <div className="flex items-center justify-end gap-2 flex-wrap">
                 <button
                   type="button"
                   onClick={onClose}
-                  className="flex-1 sm:flex-initial px-3.5 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-semibold rounded text-xs transition cursor-pointer"
+                  className="px-3.5 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-semibold rounded text-xs transition cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
+                  type="button"
+                  onClick={handleFastList}
+                  disabled={loading || inputTitle.length === 0}
+                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 font-bold rounded text-xs transition active:scale-95 cursor-pointer shadow-sm"
+                  title="Copies title, price, description and opens eBay Sell wizard"
+                >
+                  <Zap className="w-3.5 h-3.5 text-amber-400" />
+                  <span>1-Tap eBay Wizard</span>
+                </button>
+                <button
                   type="submit"
                   disabled={loading || inputTitle.length === 0}
-                  className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-500 hover:bg-indigo-600 text-white font-semibold rounded text-xs transition disabled:opacity-50 cursor-pointer"
+                  className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold rounded text-xs shadow-md transition disabled:opacity-50 cursor-pointer"
                 >
                   {loading ? (
                     <>

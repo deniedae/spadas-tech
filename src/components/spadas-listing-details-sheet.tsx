@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, Check, Sparkles, ShoppingBag, Edit3, DollarSign, Tag, Info, Copy } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, Sparkles, ShoppingBag, Edit3, DollarSign, Tag, Info, Copy, Zap, Scale } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/app/lib/supabase";
 import { createListing } from "@/app/lib/createlisting";
 import { syncProfitToAndroidWidget, triggerTactileHaptic } from "@/lib/android-bridge";
-import { OmniMarketplaceCompareCard } from "@/components/omni-marketplace-compare-card";
+import { OmniMarketplaceCompareCard, OmniMarketplaceCompareModal } from "@/components/omni-marketplace-compare-card";
+import EbayListingModal from "@/components/ebay-listing-modal";
 import { generateEbayPrefillUrl } from "@/app/lib/marketplaces/ebay-prefill";
 import { convertCurrency, CURRENCY_CONFIGS, SupportedCurrency } from "@/app/lib/currency-routing";
 import type { CopVerdict } from "@/types/lens";
@@ -34,6 +35,7 @@ export interface SpadasListingData {
   valuationDetail?: string;
   ebayCompsCount?: number;
   activeCompsCount?: number;
+  rawComps?: any[];
 }
 
 interface Props {
@@ -48,6 +50,8 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
   const [isSaving, setIsSaving] = useState(false);
   const [editingField, setEditingField] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
+  const [isEbayModalOpen, setIsEbayModalOpen] = useState(false);
+  const [isCompsModalOpen, setIsCompsModalOpen] = useState(false);
 
   const handleCurrencyChange = (newCurrency: SupportedCurrency) => {
     const currentCurr = ((data.currency || "USD").toUpperCase()) as SupportedCurrency;
@@ -175,96 +179,13 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
   };
 
   const handleFastListEbay = () => {
-    const formattedDesc = `${data.description}\n\nSize: ${data.size || "N/A"}\nCondition: ${data.condition || "Pre-owned"}\nWeight: ${data.weight || "N/A"}\nDimensions: ${data.dimensions || "N/A"}`;
-    const copyPayload = `Title: ${data.productName}\nPrice: ${currConfig.symbol}${data.priceMedian.toFixed(2)} ${activeCurrency}\nCondition: ${data.condition || "Used - Good"}\nBrand: ${data.brand || "Unbranded"}\n\nDescription:\n${formattedDesc}`;
-    navigator.clipboard.writeText(copyPayload);
-
-    const prefillUrl = generateEbayPrefillUrl({
-      title: data.productName,
-      priceAud: data.priceMedian,
-      currency: activeCurrency,
-      brand: data.brand,
-    });
-
-    const marketLabel = activeCurrency === "USD" ? "eBay US" : activeCurrency === "GBP" ? "eBay UK" : "eBay AU";
-    const opened = window.open(prefillUrl, "_blank");
-    toast.success(opened ? `Listing details copied. Opened ${marketLabel}.` : `Listing details copied.`, {
-      duration: 8000,
-      action: opened ? undefined : { label: `Open ${marketLabel}`, onClick: () => window.open(prefillUrl, "_blank") },
-    });
+    triggerTactileHaptic("tap");
+    setIsEbayModalOpen(true);
   };
 
-  const handlePublishEbay = async () => {
-    setIsSaving(true);
-    try {
-      const { data: userData } = await supabase.auth.getUser();
-      const userId = userData?.user?.id;
-
-      if (!userId) {
-        toast.error("Please log in to publish listings.");
-        router.push("/login?redirect=/listings");
-        return;
-      }
-
-      const cost = Math.max(3, Math.round(data.priceMedian * 0.35));
-      await createListing({
-        userId,
-        product: data.productName,
-        description: `${data.description}\n\nSize: ${data.size || "N/A"}\nCondition: ${data.condition || "Pre-owned"}\nWeight: ${data.weight || "N/A"}\nDimensions: ${data.dimensions || "N/A"}`,
-        price: data.priceMedian,
-        cost,
-        status: "Active",
-      });
-
-      // 1-Tap Direct Live Publish to eBay
-      const { data: { session } } = await supabase.auth.getSession();
-      const publishHeaders: Record<string, string> = { "Content-Type": "application/json" };
-      if (session?.access_token) publishHeaders["Authorization"] = `Bearer ${session.access_token}`;
-      const publishRes = await fetch("/api/marketplaces/ebay/publish", {
-        method: "POST",
-        headers: publishHeaders,
-        body: JSON.stringify({
-          product: data.productName,
-          description: `${data.description}\n\nSize: ${data.size || "N/A"}\nCondition: ${data.condition || "Pre-owned"}\nWeight: ${data.weight || "N/A"}\nDimensions: ${data.dimensions || "N/A"}`,
-          price: data.priceMedian,
-          currency: activeCurrency,
-          condition: data.condition,
-          brand: data.brand,
-          imageUrls: data.photos,
-        }),
-      }).catch(() => null);
-
-      const pubData = await publishRes?.json().catch(() => null);
-      const marketLabel = activeCurrency === "USD" ? "eBay US" : activeCurrency === "GBP" ? "eBay UK" : "eBay AU";
-      const draftsUrl = activeCurrency === "USD" ? "https://www.ebay.com/sh/lst/drafts" : activeCurrency === "GBP" ? "https://www.ebay.co.uk/sh/lst/drafts" : "https://www.ebay.com.au/sh/lst/drafts";
-
-      if (pubData?.isDemoMode) {
-        toast.success(pubData.message);
-      } else if (publishRes?.ok && pubData?.success) {
-        if (pubData.isLive) {
-          toast.success(`Live on ${marketLabel} (${activeCurrency})! Listing published successfully.`);
-        } else {
-          toast.success(`Draft saved in your ${marketLabel} Seller Hub (${activeCurrency})! Review shipping to activate.`, {
-            duration: 6000,
-            action: {
-              label: "Open Seller Hub",
-              onClick: () => window.open(pubData.listingUrl || draftsUrl, "_blank"),
-            },
-          });
-        }
-      } else {
-        const errorMsg = pubData?.error || `Direct eBay sync failed. Opening 1-Tap Fast-List for ${marketLabel}...`;
-        toast.error(errorMsg, { duration: 5000 });
-        handleFastListEbay();
-      }
-
-      if (onSaved) onSaved();
-      else router.push("/listings");
-    } catch (err: any) {
-      toast.error(err?.message || "Failed to publish listing.");
-    } finally {
-      setIsSaving(false);
-    }
+  const handlePublishEbay = () => {
+    triggerTactileHaptic("tap");
+    setIsEbayModalOpen(true);
   };
 
   return (
@@ -487,6 +408,25 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
                   👑 Top Dollar ({sym}{Math.round(data.priceMax || data.priceMedian * 1.2)})
                 </button>
               </div>
+
+              {/* Professional Comps & Intelligence Dialogue Trigger */}
+              <button
+                type="button"
+                onClick={() => {
+                  triggerTactileHaptic("selection");
+                  setIsCompsModalOpen(true);
+                }}
+                className="w-full mt-2.5 py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-emerald-500/15 via-teal-500/15 to-cyan-500/15 hover:from-emerald-500/25 hover:to-cyan-500/25 border border-emerald-500/40 text-emerald-300 text-xs font-black flex items-center justify-between transition active:scale-95 cursor-pointer shadow-sm"
+              >
+                <div className="flex items-center gap-2">
+                  <Scale className="w-4 h-4 text-emerald-400" />
+                  <span>Deep Comps &amp; Market Intelligence</span>
+                </div>
+                <div className="flex items-center gap-1 text-[11px] text-emerald-400 font-bold">
+                  <span>Open Full Dialogue</span>
+                  <ChevronRight className="w-4 h-4" />
+                </div>
+              </button>
             </div>
           );
         })()}
@@ -495,9 +435,14 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
         <OmniMarketplaceCompareCard
           productName={data.productName}
           brand={data.brand}
+          category={data.category}
+          condition={data.condition}
           estimatedPrice={data.priceMedian}
           costOfGoods={data.buyCost}
           currency={activeCurrency}
+          rawComps={data.rawComps}
+          valuationState={data.valuationState}
+          valuationDetail={data.valuationDetail}
           onCurrencyChange={handleCurrencyChange}
         />
 
@@ -594,8 +539,9 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
             type="button"
             disabled={isSaving}
             onClick={handleFastListEbay}
-            className="py-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 font-bold text-[11px] border border-amber-500/30 transition active:scale-95 disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1"
+            className="py-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 font-bold text-[11px] border border-amber-500/30 transition active:scale-95 disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1.5 shadow-sm"
           >
+            <Zap className="h-3.5 w-3.5 text-amber-400" />
             <span>1-Tap eBay</span>
           </button>
 
@@ -603,8 +549,9 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
             type="button"
             disabled={isSaving}
             onClick={handlePublishEbay}
-            className="py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-[11px] shadow-[0_0_20px_rgba(37,99,235,0.5)] transition active:scale-95 disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1"
+            className="py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-[11px] shadow-[0_0_20px_rgba(37,99,235,0.5)] transition active:scale-95 disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1.5"
           >
+            <ShoppingBag className="h-3.5 w-3.5 text-white" />
             <span>Sync eBay</span>
           </button>
         </div>
@@ -667,6 +614,38 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
           </div>
         </div>
       )}
+
+      {/* 1-Tap Professional eBay Listing Modal */}
+      <EbayListingModal
+        isOpen={isEbayModalOpen}
+        onClose={() => setIsEbayModalOpen(false)}
+        sessionId={`snap_${Date.now()}`}
+        title={data.productName}
+        brand={data.brand}
+        price={data.priceMedian}
+        currency={activeCurrency}
+        condition={data.condition}
+        description={data.description}
+        imageUrls={data.photos}
+        activeScanImage={data.photos?.[0]}
+      />
+
+      {/* Professional Full Comps Dialogue Modal */}
+      <OmniMarketplaceCompareModal
+        isOpen={isCompsModalOpen}
+        onClose={() => setIsCompsModalOpen(false)}
+        productName={data.productName}
+        brand={data.brand}
+        category={data.category}
+        condition={data.condition}
+        estimatedPrice={data.priceMedian}
+        costOfGoods={data.buyCost}
+        currency={activeCurrency}
+        rawComps={data.rawComps}
+        valuationState={data.valuationState}
+        valuationDetail={data.valuationDetail}
+        onCurrencyChange={handleCurrencyChange}
+      />
     </div>
   );
 }

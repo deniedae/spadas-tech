@@ -613,6 +613,7 @@ export function SpadasSnapStudio() {
           valuationDetail,
           ebayCompsCount: Number(data?.ebay_comps_count) || 0,
           activeCompsCount: Number(data?.active_comps_count) || 0,
+          rawComps: data?.raw_sold_comps || data?.rawComps || [],
         };
 
         if (!isAuthed && !isPro && !isUserAdmin) {
