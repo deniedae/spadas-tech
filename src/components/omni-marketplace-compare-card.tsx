@@ -28,7 +28,8 @@ import {
   CURRENCY_CONFIGS,
   convertCurrency,
 } from "@/app/lib/currency-routing";
-import { openExternalUrlSafely } from "@/lib/android-bridge";
+import { openExternalUrlSafely, triggerTactileHaptic } from "@/lib/android-bridge";
+import { generateEbayPrefillUrl } from "@/app/lib/marketplaces/ebay-prefill";
 
 export interface NormalizedCompItem {
   id: string;
@@ -56,6 +57,7 @@ export interface Props {
   valuationState?: string;
   valuationDetail?: string;
   onCurrencyChange?: (currency: SupportedCurrency) => void;
+  onListEbay?: () => void;
   onClose?: () => void;
   compact?: boolean;
 }
@@ -89,6 +91,7 @@ export function OmniMarketplaceCompareCard({
   valuationState,
   valuationDetail,
   onCurrencyChange,
+  onListEbay,
   onClose,
   compact = false,
 }: Props) {
@@ -291,6 +294,30 @@ export function OmniMarketplaceCompareCard({
     return buildMarketplaceCompUrl("google_shopping", fullQuery, currentCurrency);
   }, [fullQuery, currentCurrency]);
 
+  const handleOneTapEbay = () => {
+    triggerTactileHaptic("tap");
+    if (onListEbay) {
+      onListEbay();
+      return;
+    }
+    try {
+      const prefillUrl = generateEbayPrefillUrl({
+        title: productName,
+        price: stats.median,
+        currency: currentCurrency,
+        brand: brand || undefined,
+        category: category || undefined,
+      });
+      const opened = window.open(prefillUrl, "_blank");
+      if (!opened) {
+        window.location.href = prefillUrl;
+      }
+    } catch {
+      const domain = currentCurrency === "AUD" ? "www.ebay.com.au" : currentCurrency === "GBP" ? "www.ebay.co.uk" : "www.ebay.com";
+      window.location.href = `https://${domain}/sl/prelist/suggest?keyword=${encodeURIComponent(productName)}`;
+    }
+  };
+
   return (
     <div className="w-full bg-slate-900/95 border border-slate-800 backdrop-blur-xl rounded-2xl p-4 sm:p-5 text-slate-100 shadow-2xl relative overflow-hidden select-none">
       {/* Decorative background glow */}
@@ -488,6 +515,24 @@ export function OmniMarketplaceCompareCard({
       {/* TAB 1: SOLD COMPS EVIDENCE LEDGER */}
       {activeTab === "comps" && (
         <div className="space-y-3 relative z-10">
+          {/* Quick 1-Tap Action Pill inside Comps Ledger */}
+          <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 text-xs gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0 animate-pulse" />
+              <span className="text-[11px] text-slate-300 font-medium truncate">
+                Target: <strong className="text-white font-mono font-bold">{sym}{stats.median.toFixed(2)}</strong> {currentCurrency}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={handleOneTapEbay}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black text-xs transition active:scale-95 cursor-pointer shadow-md shadow-amber-500/20 shrink-0"
+            >
+              <Zap className="w-3.5 h-3.5 fill-slate-950 text-slate-950" />
+              <span>1-Tap List</span>
+            </button>
+          </div>
+
           {/* Quick Search & Filter Bar */}
           {comps.length > 0 && (
             <div className="relative">
@@ -673,21 +718,72 @@ export function OmniMarketplaceCompareCard({
                   <div className="font-black text-emerald-400 font-mono">
                     {sym}{m.netPayout.toFixed(2)} <span className="text-[10px] font-normal text-slate-400">net</span>
                   </div>
-                  <a
-                    href={m.searchUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1 text-[10px] text-cyan-400 hover:text-cyan-300 font-bold transition hover:underline"
-                  >
-                    <span>Inspect</span>
-                    <ExternalLink className="w-2.5 h-2.5" />
-                  </a>
+                  {m.platformId === "ebay" ? (
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <button
+                        type="button"
+                        onClick={handleOneTapEbay}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black text-[10px] transition active:scale-95 cursor-pointer shadow-sm"
+                      >
+                        <Zap className="w-2.5 h-2.5 fill-slate-950" />
+                        <span>1-Tap List</span>
+                      </button>
+                      <a
+                        href={m.searchUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-0.5 text-[10px] text-cyan-400 hover:text-cyan-300 font-bold transition hover:underline"
+                      >
+                        <span>Comps</span>
+                        <ExternalLink className="w-2.5 h-2.5" />
+                      </a>
+                    </div>
+                  ) : (
+                    <a
+                      href={m.searchUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 text-[10px] text-cyan-400 hover:text-cyan-300 font-bold transition hover:underline"
+                    >
+                      <span>Inspect</span>
+                      <ExternalLink className="w-2.5 h-2.5" />
+                    </a>
+                  )}
                 </div>
               </div>
             ))}
           </div>
         </div>
       )}
+
+      {/* 1-Tap eBay Action Hero Banner */}
+      <div className="mt-3.5 p-3 sm:p-3.5 rounded-xl bg-gradient-to-r from-amber-500/20 via-amber-600/15 to-transparent border border-amber-500/40 flex items-center justify-between gap-3 relative z-10 shadow-lg shadow-amber-500/10">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="p-2 rounded-xl bg-amber-500/30 text-amber-300 shrink-0">
+            <Zap className="w-5 h-5 fill-amber-300 text-amber-300" />
+          </div>
+          <div className="min-w-0">
+            <div className="text-xs sm:text-sm font-black text-white flex items-center gap-1.5 truncate">
+              <span>1-Tap List on eBay</span>
+              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-amber-500/30 text-amber-200 border border-amber-400/40 font-bold">
+                {sym}{stats.median.toFixed(2)}
+              </span>
+            </div>
+            <div className="text-[11px] text-slate-300 truncate">
+              Launch official listing wizard with verified pricing &amp; specifics
+            </div>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleOneTapEbay}
+          className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 via-amber-500 to-amber-400 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black text-xs sm:text-sm transition active:scale-95 cursor-pointer shadow-md shadow-amber-500/30 flex items-center gap-1.5 shrink-0"
+        >
+          <Zap className="w-4 h-4 fill-slate-950 text-slate-950" />
+          <span>List Now</span>
+        </button>
+      </div>
 
       {/* Footer Info Strip */}
       <div className="mt-3.5 pt-3 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400 relative z-10">
@@ -747,6 +843,7 @@ export function OmniMarketplaceCompareModal({
   valuationState,
   valuationDetail,
   onCurrencyChange,
+  onListEbay,
 }: {
   isOpen: boolean;
   onClose: () => void;
@@ -761,6 +858,7 @@ export function OmniMarketplaceCompareModal({
   valuationState?: string;
   valuationDetail?: string;
   onCurrencyChange?: (currency: SupportedCurrency) => void;
+  onListEbay?: () => void;
 }) {
   if (!isOpen) return null;
 
@@ -784,6 +882,7 @@ export function OmniMarketplaceCompareModal({
           valuationState={valuationState}
           valuationDetail={valuationDetail}
           onCurrencyChange={onCurrencyChange}
+          onListEbay={onListEbay}
           onClose={onClose}
         />
       </div>

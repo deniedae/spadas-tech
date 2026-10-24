@@ -223,7 +223,7 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
           </div>
         )}
 
-        {/* Title / Product Name Field with SellRaze 80-Char Counter */}
+        {/* Title / Product Name Field with eBay 80-Char Counter */}
         <div className="space-y-2">
           <div
             onClick={() => openEditor("productName", "Product Name")}
@@ -444,6 +444,7 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
           valuationState={data.valuationState}
           valuationDetail={data.valuationDetail}
           onCurrencyChange={handleCurrencyChange}
+          onListEbay={handleFastListEbay}
         />
 
         {/* Size Card */}
@@ -645,6 +646,10 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
         valuationState={data.valuationState}
         valuationDetail={data.valuationDetail}
         onCurrencyChange={handleCurrencyChange}
+        onListEbay={() => {
+          setIsCompsModalOpen(false);
+          setIsEbayModalOpen(true);
+        }}
       />
     </div>
   );

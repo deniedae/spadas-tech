@@ -34,13 +34,14 @@ export interface AngleSlot {
   badge: string;
 }
 
-export const SELLRAZE_ANGLE_SLOTS: AngleSlot[] = [
+export const SPADAS_ANGLE_SLOTS: AngleSlot[] = [
   { id: "front", name: "Front / Cover", short: "Front", hint: "Frame entire front silhouette of item", badge: "Cover" },
   { id: "back", name: "Back / Reverse", short: "Back", hint: "Show back of garment or item condition", badge: "Back" },
   { id: "tag", name: "Brand Tag / Plaque", short: "Tag / Plaque", hint: "Close-up of logo, plaque, care tag, or serial", badge: "Tag / Plaque" },
   { id: "detail", name: "Details / Material", short: "Details", hint: "Focus on texture, stitching, or flaws", badge: "Details" },
   { id: "extra", name: "Extra / Packaging", short: "Extra", hint: "Boxes, accessories, interior, or labels", badge: "Extra" },
 ];
+export const SELLRAZE_ANGLE_SLOTS = SPADAS_ANGLE_SLOTS;
 
 export function SpadasSnapStudio() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -287,7 +288,7 @@ export function SpadasSnapStudio() {
     void startCamera(nextMode);
   };
 
-  // Capture Photo into Targeted SellRaze Angle Slot
+  // Capture Photo into Targeted Angle Slot
   const handleSnapPhoto = () => {
     const video = videoRef.current;
     if (!video || video.readyState < 2 || video.videoWidth <= 0 || video.videoHeight <= 0) return;
@@ -311,7 +312,7 @@ export function SpadasSnapStudio() {
     }
 
     if (dataUrl && dataUrl.length > 2000) {
-      const targetSlot = activeSlotIndex >= 0 && activeSlotIndex < SELLRAZE_ANGLE_SLOTS.length ? activeSlotIndex : 0;
+      const targetSlot = activeSlotIndex >= 0 && activeSlotIndex < SPADAS_ANGLE_SLOTS.length ? activeSlotIndex : 0;
       setSlots((prev) => {
         const next = [...prev];
         next[targetSlot] = dataUrl;
@@ -319,7 +320,7 @@ export function SpadasSnapStudio() {
       });
       setRetakePrompt(null);
       triggerTactileHaptic("shutter");
-      toast.success(`${SELLRAZE_ANGLE_SLOTS[targetSlot].short} captured!`, { duration: 1200 });
+      toast.success(`${SPADAS_ANGLE_SLOTS[targetSlot].short} captured!`, { duration: 1200 });
 
       // Advance to next empty angle slot
       const nextEmpty = slots.findIndex((s, i) => i > targetSlot && !s);
@@ -334,7 +335,7 @@ export function SpadasSnapStudio() {
     }
   };
 
-  // Handle File Upload from Gallery into SellRaze Angle Slots
+  // Handle File Upload from Gallery into Angle Slots
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -378,7 +379,7 @@ export function SpadasSnapStudio() {
       return next;
     });
     setActiveSlotIndex(index);
-    toast.info(`Cleared ${SELLRAZE_ANGLE_SLOTS[index].short} slot.`);
+    toast.info(`Cleared ${SPADAS_ANGLE_SLOTS[index].short} slot.`);
   };
 
   // Analyze Multi-Photo Payloads
@@ -721,7 +722,7 @@ export function SpadasSnapStudio() {
                   Snap to List
                 </span>
                 <span className="px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 uppercase tracking-wider">
-                  SellRaze Mode
+                  Studio Snap
                 </span>
               </div>
               <span className="text-[10px] text-zinc-400 font-mono block">
@@ -776,7 +777,7 @@ export function SpadasSnapStudio() {
           </div>
         </div>
 
-        {/* Active Angle Target Banner — SellRaze Style Guidance */}
+        {/* Active Angle Target Banner — Multi-Angle Guidance */}
         <div className="absolute top-16 left-1/2 -translate-x-1/2 z-25 w-[calc(100%-2rem)] max-w-sm pointer-events-none">
           <div className="flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-zinc-950/90 border border-zinc-700/80 shadow-2xl backdrop-blur-md">
             <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-400 animate-ping shrink-0" />
@@ -786,11 +787,11 @@ export function SpadasSnapStudio() {
                   Angle {activeSlotIndex + 1}/5
                 </span>
                 <span className="text-xs font-extrabold text-white truncate">
-                  {SELLRAZE_ANGLE_SLOTS[activeSlotIndex]?.name}
+                  {SPADAS_ANGLE_SLOTS[activeSlotIndex]?.name}
                 </span>
               </div>
               <p className="text-[11px] text-zinc-300 truncate">
-                {SELLRAZE_ANGLE_SLOTS[activeSlotIndex]?.hint}
+                {SPADAS_ANGLE_SLOTS[activeSlotIndex]?.hint}
               </p>
             </div>
           </div>
@@ -835,7 +836,7 @@ export function SpadasSnapStudio() {
                 ? "Tap shutter to snap Cover photo"
                 : capturedPhotos.length >= 5
                 ? "All 5 angles captured · Ready to value & list"
-                : `${capturedPhotos.length} captured · Next: ${SELLRAZE_ANGLE_SLOTS[activeSlotIndex]?.short}`}
+                : `${capturedPhotos.length} captured · Next: ${SPADAS_ANGLE_SLOTS[activeSlotIndex]?.short}`}
             </p>
           </div>
         </div>
@@ -853,11 +854,11 @@ export function SpadasSnapStudio() {
         )}
       </div>
 
-      {/* Bottom Controls Stage — SellRaze Style Flow */}
+      {/* Bottom Controls Stage */}
       <div className="w-full bg-zinc-950 border-t border-zinc-800 p-3 pb-[max(1rem,calc(env(safe-area-inset-bottom,0px)+0.75rem))] space-y-2.5 z-30">
-        {/* Quick Angle Selector Chips — SellRaze Flow */}
+        {/* Quick Angle Selector Chips */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 custom-scrollbar px-1">
-          {SELLRAZE_ANGLE_SLOTS.map((slot, idx) => {
+          {SPADAS_ANGLE_SLOTS.map((slot, idx) => {
             const isFilled = Boolean(slots[idx]);
             const isTarget = activeSlotIndex === idx;
             return (
@@ -889,7 +890,7 @@ export function SpadasSnapStudio() {
 
         {/* Guided Photo Slots Grid/Carousel */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1 custom-scrollbar min-h-[72px] px-1">
-          {SELLRAZE_ANGLE_SLOTS.map((slot, idx) => {
+          {SPADAS_ANGLE_SLOTS.map((slot, idx) => {
             const photoUrl = slots[idx];
             const isTarget = activeSlotIndex === idx;
 
@@ -969,7 +970,7 @@ export function SpadasSnapStudio() {
             type="button"
             onClick={handleSnapPhoto}
             className="flex h-16 w-16 items-center justify-center rounded-full border-2 border-emerald-400/80 bg-zinc-950 p-1 active:scale-90 transition-transform cursor-pointer shadow-[0_0_20px_rgba(16,185,129,0.35)]"
-            title={`Snap ${SELLRAZE_ANGLE_SLOTS[activeSlotIndex]?.short}`}
+            title={`Snap ${SPADAS_ANGLE_SLOTS[activeSlotIndex]?.short}`}
           >
             <div className="h-full w-full rounded-full bg-gradient-to-tr from-white via-zinc-100 to-zinc-300 flex items-center justify-center shadow-inner">
               <Camera className="h-5 w-5 text-zinc-950" />
