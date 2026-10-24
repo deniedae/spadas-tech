@@ -1,7 +1,4 @@
-/**
- * Shared types for Spadas Lens AR scanner.
- * Imported by spadas-lens-camera.tsx, lens-hit-card.tsx, lens-comps-modal.tsx, and lens-controls-bar.tsx.
- */
+import type { ScanAccuracyVerificationResult } from "@/lib/multi-ai-verifier";
 
 export interface RawSoldComp {
   id: string;
@@ -94,6 +91,8 @@ export interface DetectedHit {
   compsSource?: "browse_api" | "sold_comps_api" | "ai_estimate" | "cached_last_check";
   /** Flag indicating valuation was retrieved from local/timeout cache */
   isCachedFallback?: boolean;
+  /** Multi-AI continuous accuracy verification result */
+  consensusVerification?: ScanAccuracyVerificationResult;
   /** Underlying real sold listings for full auditability */
   rawComps?: RawSoldComp[];
   raw_sold_comps?: RawSoldComp[];

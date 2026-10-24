@@ -11,6 +11,7 @@ import { calculateMarketplaceFees } from "@/lib/fee-engine";
 import { calculateSalesVelocity } from "@/lib/turnover-velocity-engine";
 import { fetchEbayAustraliaSoldComps } from "@/app/lib/ebay-australia-comps";
 import { detectGeoCurrency, extractCountryHeader, resolveEffectiveCurrency } from "@/app/lib/currency-routing";
+import { crossCheckScanAccuracy, type ScanAccuracyVerificationResult } from "@/lib/multi-ai-verifier";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,6 +31,7 @@ interface RapidThriftResponse {
   is_grail: boolean;
   needs_verification: boolean;
   notes: string;
+  consensus_verification?: ScanAccuracyVerificationResult;
   sales_velocity?: {
     sell_speed: "FAST_FLIP" | "MODERATE" | "SLOW_BURNER";
     est_days_to_sell: string;
@@ -230,9 +232,34 @@ Output ONLY valid JSON adhering strictly to:
 
     const parsed = JSON.parse(rawContent);
 
-    const pName = parsed.product_name || "Thrift Item";
-    const pBrand = parsed.brand || "Authentic";
-    const pCategory = parsed.category || "General";
+    let pName = parsed.product_name || "Thrift Item";
+    let pBrand = parsed.brand || "Authentic";
+    let pCategory = parsed.category || "General";
+
+    // Continuous Multi-AI Accuracy Cross-Check:
+    // Secondary AI auditor inspects brand, model, and OCR integrity to verify accuracy before comps
+    const consensusVerification = await crossCheckScanAccuracy(image, {
+      productName: pName,
+      brand: pBrand === "Authentic" ? null : pBrand,
+      category: pCategory,
+      confidenceScore: typeof parsed.confidence_score === "number" ? parsed.confidence_score : 0.88,
+      primaryProvider: hasGrok ? "xAI-Grok" : "OpenAI",
+      ocrWords: Array.isArray(parsed.ocr_text) ? parsed.ocr_text : [],
+    }).catch((err) => {
+      console.warn("[Rapid Thrift API] Continuous cross-check non-blocking warning:", err);
+      return null;
+    });
+
+    if (consensusVerification) {
+      if (consensusVerification.status === "corrected" || consensusVerification.status === "verified_consensus") {
+        pName = consensusVerification.verifiedProductName || pName;
+        pBrand = consensusVerification.verifiedBrand || pBrand;
+        pCategory = consensusVerification.verifiedCategory || pCategory;
+      } else if (consensusVerification.status === "disputed_brand") {
+        // Disputed brand: neutralize brand so comps query doesn't hallucinate fake value
+        pBrand = "Unbranded";
+      }
+    }
 
     // Query real eBay sold comps to ground rapid-thrift in verified market data
     const compsData = await fetchEbayAustraliaSoldComps(pName, currency as any, pBrand, pCategory).catch((cErr: any) => {
@@ -311,6 +338,7 @@ Output ONLY valid JSON adhering strictly to:
       is_grail: copVerdict === "MUST_COP",
       needs_verification: Boolean(parsed.needs_verification || verificationCheck.needsVerification),
       notes,
+      consensus_verification: consensusVerification || undefined,
       sales_velocity: {
         sell_speed:
           velocity.turnoverTier === "RAPID_FIRE"

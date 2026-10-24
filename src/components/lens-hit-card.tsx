@@ -176,6 +176,18 @@ export default function LensHitCard({
                     • {validCondition}
                   </span>
                 )}
+                {item.consensusVerification?.status === "verified_consensus" && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-emerald-950/60 text-emerald-300 px-1.5 py-0.5 rounded border border-emerald-500/40 shadow-sm">
+                    <ShieldCheck className="w-3 h-3 text-emerald-400" />
+                    Dual-AI Verified
+                  </span>
+                )}
+                {item.consensusVerification?.status === "corrected" && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-amber-950/60 text-amber-300 px-1.5 py-0.5 rounded border border-amber-500/40 shadow-sm">
+                    <ShieldAlert className="w-3 h-3 text-amber-400" />
+                    AI Corrected
+                  </span>
+                )}
               </div>
             )}
 

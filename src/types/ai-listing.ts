@@ -1,4 +1,5 @@
 import type { MediaFormat } from "./lens";
+import type { ScanAccuracyVerificationResult } from "@/lib/multi-ai-verifier";
 export type { MediaFormat };
 
 // AI listing domain types — additive, no existing types touched.
@@ -179,6 +180,7 @@ export interface VisionScanTelemetry {
 export interface AiListingResult {
   status?: "identified" | "unidentified";
   telemetry?: VisionScanTelemetry;
+  consensus_verification?: ScanAccuracyVerificationResult;
   sold_comp_pricing?: SoldCompPricingBreakdown;
   inventory_condition?: InventoryCondition;
   condition_grade?: ConditionGrade | null;

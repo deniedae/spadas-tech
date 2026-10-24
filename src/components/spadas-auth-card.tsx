@@ -153,7 +153,6 @@ export function SpadasAuthCard({ initialMode = "signup" }: Props) {
         }
 
         if (data.user && !data.session) {
-          performPrimeReset({ newUserId: data.user.id, preserveAuth: true });
           toast.success("Account created! Check your email for the verification link.");
           setMode("login");
           return;

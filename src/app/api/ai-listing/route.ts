@@ -22,6 +22,7 @@ import {
   createOpenAiClient,
 } from "@/app/lib/config/ai-models";
 import { callGeminiVision, hasGeminiVisionKey } from "@/app/lib/config/gemini-vision";
+import { crossCheckScanAccuracy } from "@/lib/multi-ai-verifier";
 import { callGlmVisionFast, hasGlmVisionKey } from "@/app/lib/config/glm-vision";
 import {
   callGrokVisionFast,
@@ -1545,9 +1546,54 @@ ${spatialMetadata?.latitude && spatialMetadata?.longitude ? `- Coordinates: Lat 
     }
 
     result.status = "identified";
+
+    // CONTINUOUS MULTI-AI ACCURACY CROSS-CHECK:
+    // Secondary AI auditor inspects brand, model, and OCR integrity to verify accuracy before comps
+    if (imageUrls.length > 0 && !(result as any).consensus_verification) {
+      try {
+        const consensus = await crossCheckScanAccuracy(imageUrls[0], {
+          productName: rawProdName,
+          brand: result.analysis?.brand || null,
+          category: result.analysis?.category || "General",
+          confidenceScore: result.analysis?.confidence_score ?? 0.88,
+          primaryProvider: activeProvider,
+          ocrWords: result.analysis?.visual_reasoning?.visible_text_detected || [],
+        }, { targetCurrency });
+
+        if (consensus) {
+          result.consensus_verification = consensus;
+
+          if (consensus.status === "corrected" || consensus.status === "verified_consensus") {
+            if (result.analysis) {
+              result.analysis.product_name = consensus.verifiedProductName || result.analysis.product_name;
+              result.analysis.brand = consensus.verifiedBrand !== undefined ? consensus.verifiedBrand : result.analysis.brand;
+              result.analysis.category = consensus.verifiedCategory || result.analysis.category;
+              result.analysis.confidence_score = Math.max(result.analysis.confidence_score, consensus.confidenceScore);
+              result.analysis.confidence = result.analysis.confidence_score >= 0.88 ? "high" : "medium";
+            }
+          } else if (consensus.status === "disputed_brand") {
+            if (result.analysis) {
+              result.analysis.brand = null; // Neutralize disputed brand to prevent hallucinated luxury valuation
+              result.analysis.confidence = "medium";
+              result.analysis.confidence_score = 0.65;
+              result.analysis.retake_recommended = {
+                required: true,
+                angle_type: "tag",
+                reason: consensus.discrepancyReason || "Brand unverified by secondary auditor. Snap care tag or hallmark for verification.",
+                prompt_label: "📸 Snap Brand Tag to Confirm Brand",
+              };
+            }
+            result.retake_recommended = result.analysis?.retake_recommended;
+          }
+        }
+      } catch (consensusErr) {
+        console.warn("[ai-listing] Continuous Multi-AI cross-check non-blocking warning:", consensusErr);
+      }
+    }
+
     if (result.analysis) {
       result.analysis.status = "identified";
-      result.analysis.product_name = rawProdName;
+      result.analysis.product_name = result.analysis.product_name || rawProdName;
       if (!result.suggested_price_median || result.suggested_price_median === 0) {
         const catEst = estimateAustralianMarketValue({
           title: rawProdName,

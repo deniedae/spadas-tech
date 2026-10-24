@@ -192,22 +192,35 @@ export default function ListingsPage() {
     const {
       data: { user },
     } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) {
+      setListings(previous);
+      toast.error("Please sign in to delete listings.");
+      return;
+    }
 
     try {
-      await supabase
+      const { error: sbErr } = await supabase
         .from("listings")
         .delete()
         .eq("id", id)
         .eq("user_id", user.id);
-    } catch {}
 
-    try {
-      await deleteListingFromFirestore(id, user.id);
-    } catch {}
+      if (sbErr) {
+        throw new Error(sbErr.message);
+      }
 
-    toast.success("Listing deleted!");
-    loadListings();
+      await deleteListingFromFirestore(id, user.id).catch((fsErr) => {
+        console.warn("[Listings] Firestore sync delete warning:", fsErr);
+      });
+
+      toast.success("Listing deleted!");
+    } catch (err: unknown) {
+      setListings(previous);
+      const msg = err instanceof Error ? err.message : "Failed to delete listing";
+      toast.error(msg);
+    } finally {
+      void loadListings();
+    }
   }
 
   // Compute Items with Turnover Velocity Profiles
