@@ -77,13 +77,18 @@ export function evaluateBrandAgreement(
     }
   }
 
-  // Check OCR tokens for direct confirmation
+  // Check OCR tokens for direct physical confirmation
   const ocrBlob = ocrTags.map(normalizeToken).join(" ");
   const ocrMatchesPrimary = !isPrimaryGeneric && ocrBlob.includes(normPrimary);
   const ocrMatchesAuditor = !isAuditorGeneric && ocrBlob.includes(normAuditor);
 
+  // If OCR physically confirms either the primary brand or auditor brand, confirm agreement
   if (ocrMatchesPrimary || ocrMatchesAuditor) {
-    return { agreed: ocrMatchesPrimary && ocrMatchesAuditor, directOcrMatch: true };
+    if (ocrMatchesPrimary && !isAuditorGeneric && normAuditor !== normPrimary && !ocrMatchesAuditor) {
+      // Auditor specifically claimed an unconfirmed competitor, but OCR confirms primary
+      return { agreed: true, directOcrMatch: true };
+    }
+    return { agreed: true, directOcrMatch: true };
   }
 
   return { agreed: false, directOcrMatch: false };
@@ -156,15 +161,18 @@ A primary AI model identified this item from the camera as:
 
 YOUR TASK:
 Examine the image critically to confirm or refute this identification:
-1. FORENSIC OCR: Read any visible brand emblems, logos, care labels, size tags, serial numbers, or typography.
-2. BRAND INTEGRITY (ANTI-HALLUCINATION):
-   - Did the primary model guess a famous/luxury brand (e.g., Nike, Carhartt, Prada) without clear visible proof?
-   - If there is NO visible brand logo or label, you MUST reject the brand and set verified_brand to null.
+1. FORENSIC OCR & HARDWARE INSPECTION:
+   - Read any visible brand emblems, logos, care labels, size tags, serial numbers, heat stamps, or typography.
+   - For luxury & designer goods (e.g. Prada, Gucci, Louis Vuitton, Coach, Chanel): inspect signature hardware (inverted metal triangle plaque, engraved zipper pulls, interior gold foil stamps, Saffiano crosshatch leather texture).
+2. BRAND INTEGRITY:
+   - If signature hardware, plaque, typography, or silhouette matches the identified brand, CONFIRM it ("AGREED").
+   - If the item is clearly from a DIFFERENT brand, output "CORRECTED" with the actual brand.
+   - If the brand emblem is not fully legible from this angle, output "DISPUTED" and request a close-up of the logo plaque/stamp. Do NOT wipe out a legitimate designer item to a generic commodity if design language matches.
 3. MODEL ACCURACY: Is the model/silhouette name accurate? If wrong or too specific, provide the true description.
 4. VERDICT:
    - "AGREED": Primary identification is confirmed accurate.
    - "CORRECTED": Primary identification had incorrect brand or product name; provide the correct verified details.
-   - "DISPUTED": Brand is disputed or unconfirmed; recommend tag close-up.
+   - "DISPUTED": Brand emblem is unconfirmed from this angle; recommend tag/plaque close-up.
 
 Return STRICT JSON only (no markdown, no backticks):
 {
@@ -352,17 +360,25 @@ Return STRICT JSON only (no markdown, no backticks):
     }
 
     // Otherwise Disputed Brand
+    // If primary identified a brand and auditor didn't identify a conflicting competitor brand,
+    // preserve candidate.brand so eBay comps can still lookup the designer model while flagging the verification state!
+    const isAuditorGeneric = !auditorBrand || auditorBrand.toLowerCase() === "generic" || auditorBrand.toLowerCase() === "unbranded";
+    const hasConflictingBrand = auditorBrand && !isAuditorGeneric && normalizeToken(auditorBrand) !== normalizeToken(candidate.brand);
+    const finalBrand = hasConflictingBrand ? null : (candidate.brand || auditorBrand);
+
     return {
       isAccurate: false,
       status: "disputed_brand",
-      verifiedBrand: null, // Neutralize brand to prevent luxury hallucination comps
+      verifiedBrand: finalBrand,
       verifiedProductName: candidate.productName,
       verifiedCategory: candidate.category,
-      confidenceScore: 0.65,
+      confidenceScore: 0.70,
       auditorModel: auditorModelName,
       verifiedBy: [primaryProvider, auditorModelName],
       ocrMatches: ocrFound,
-      discrepancyReason: parsed.reason || `Dispute between ${candidate.brand} and ${auditorBrand}.`,
+      discrepancyReason: parsed.reason || (finalBrand
+        ? `Center camera closer on the ${finalBrand} logo plaque or interior heat stamp to confirm authentication.`
+        : `Dispute between ${candidate.brand} and ${auditorBrand}.`),
     };
   } catch (err: any) {
     console.warn("[Multi-AI Verifier] Exception during cross-check execution:", err?.message || err);

@@ -47,6 +47,12 @@ describe("Multi-AI Consensus Verifier", () => {
       const res = evaluateBrandAgreement("Prada", "Unbranded", ["100% cotton", "made in china"]);
       expect(res.agreed).toBe(false);
     });
+
+    it("confirms luxury brand when OCR detects iconic brand plaque text", () => {
+      const res = evaluateBrandAgreement("Prada", "Unbranded", ["prada milano dal 1913"]);
+      expect(res.agreed).toBe(true);
+      expect(res.directOcrMatch).toBe(true);
+    });
   });
 
   describe("crossCheckScanAccuracy candidate filtering", () => {

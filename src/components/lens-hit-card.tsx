@@ -188,14 +188,20 @@ export default function LensHitCard({
                     AI Corrected
                   </span>
                 )}
+                {item.consensusVerification?.status === "disputed_brand" && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-cyan-950/60 text-cyan-300 px-1.5 py-0.5 rounded border border-cyan-500/40 shadow-sm" title={item.consensusVerification?.discrepancyReason}>
+                    <ShieldAlert className="w-3 h-3 text-cyan-400" />
+                    Snap Plaque / Tag
+                  </span>
+                )}
               </div>
             )}
 
-            {/* Verification Requirement Alert */}
-            {verificationReq.needsVerification && (
+            {/* Verification Requirement Alert or Disputed Guidance */}
+            {(verificationReq.needsVerification || item.consensusVerification?.discrepancyReason) && (
               <div className="flex items-center gap-1.5 mt-1.5 px-2 py-0.5 rounded bg-zinc-800 border border-zinc-700 text-[10px] text-zinc-300 w-fit">
                 <ShieldCheck className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
-                <span>{verificationReq.reason}</span>
+                <span>{item.consensusVerification?.discrepancyReason || verificationReq.reason}</span>
               </div>
             )}
 
