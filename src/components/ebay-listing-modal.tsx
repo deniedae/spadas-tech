@@ -19,8 +19,12 @@ import {
 import { toast } from "sonner";
 import { supabase } from "@/app/lib/supabase";
 import { createListing } from "@/app/lib/createlisting";
-import { generateEbayPrefillUrl } from "@/app/lib/marketplaces/ebay-prefill";
-import { convertCurrency, detectGeoCurrency, isUSGeo, SupportedCurrency } from "@/app/lib/currency-routing";
+import {
+  generateEbayPrefillUrl,
+  generateOptimizedEbayTitle,
+  buildEbayPolicyCompliantDescription,
+} from "@/app/lib/marketplaces/ebay-prefill";
+import { convertCurrency, detectGeoCurrency, isUSGeo, isUKGeo, SupportedCurrency } from "@/app/lib/currency-routing";
 import { EBAY_RESTRICTION_NOTICE } from "@/app/lib/marketplaces/ebay";
 import {
   isMeaningfulMeta,
@@ -150,10 +154,20 @@ export default function EbayListingModal({
 
   const safeInitBrand = cleanBrandText(initialBrand, "Unbranded") || "Unbranded";
   const safeInitCond = cleanConditionText(initialCondition, "Used - Good");
-  const safeInitTitle = buildCleanListingSubject(initialBrand, initialTitle || "Scanned Item");
+  const rawInitTitle = buildCleanListingSubject(initialBrand, initialTitle || "Scanned Item");
+  const safeInitTitle = generateOptimizedEbayTitle(rawInitTitle, safeInitBrand);
 
   const [selectedCurrency, setSelectedCurrency] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("spadas_selected_currency");
+        if (saved && ["AUD", "USD", "GBP"].includes(saved.toUpperCase())) {
+          return saved.toUpperCase();
+        }
+      } catch {}
+    }
     if (typeof window !== "undefined" && isUSGeo()) return "USD";
+    if (typeof window !== "undefined" && isUKGeo()) return "GBP";
     if (initialCurrency && ["AUD", "USD", "GBP"].includes(initialCurrency.toUpperCase())) {
       return initialCurrency.toUpperCase();
     }
@@ -163,13 +177,13 @@ export default function EbayListingModal({
   const [inputPrice, setInputPrice] = useState(Number(initialPrice) || 25);
   const [inputCondition, setInputCondition] = useState(safeInitCond);
   const [inputDescription, setInputDescription] = useState(
-    initialDescription ||
-      buildCleanListingDescription({
-        brand: safeInitBrand,
-        title: safeInitTitle,
-        condition: safeInitCond,
-        materialColor: "Standard finish",
-      })
+    buildEbayPolicyCompliantDescription({
+      title: safeInitTitle,
+      brand: safeInitBrand,
+      condition: safeInitCond,
+      currency: typeof window !== "undefined" && isUSGeo() ? "USD" : typeof window !== "undefined" && isUKGeo() ? "GBP" : initialCurrency || "USD",
+      rawNotes: initialDescription,
+    })
   );
 
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -204,6 +218,8 @@ export default function EbayListingModal({
         let initialCurr = (initialCurrency || "").toUpperCase();
         if (typeof window !== "undefined" && isUSGeo()) {
           initialCurr = "USD";
+        } else if (typeof window !== "undefined" && isUKGeo()) {
+          initialCurr = "GBP";
         } else if (!["AUD", "USD", "GBP"].includes(initialCurr)) {
           initialCurr = typeof window !== "undefined" ? detectGeoCurrency().currency : "USD";
         }
@@ -230,8 +246,9 @@ export default function EbayListingModal({
         } else {
           // Normal Initialization
           setSelectedCurrency(targetCurr);
-          const safeTitle = buildCleanListingSubject(initialBrand, initialTitle || "Scanned Item");
           const safeBrand = cleanBrandText(initialBrand, "Unbranded") || "Unbranded";
+          const rawTitle = buildCleanListingSubject(initialBrand, initialTitle || "Scanned Item");
+          const safeTitle = generateOptimizedEbayTitle(rawTitle, safeBrand);
           const safeCond = cleanConditionText(initialCondition, "Used - Good");
           setInputTitle(safeTitle);
 
@@ -245,13 +262,13 @@ export default function EbayListingModal({
 
           setInputCondition(safeCond);
           setInputDescription(
-            initialDescription ||
-              buildCleanListingDescription({
-                brand: safeBrand,
-                title: safeTitle,
-                condition: safeCond,
-                materialColor: "Standard finish",
-              })
+            buildEbayPolicyCompliantDescription({
+              title: safeTitle,
+              brand: safeBrand,
+              condition: safeCond,
+              currency: targetCurr,
+              rawNotes: initialDescription,
+            })
           );
         }
       }
@@ -311,7 +328,15 @@ export default function EbayListingModal({
   const handleFastList = () => {
     const safeBrandForList = cleanBrandText(initialBrand, "Unbranded") || "Unbranded";
     const safeCondForList = cleanConditionText(inputCondition, "Used - Good");
-    const copyPayload = `Title: ${inputTitle}\nPrice: ${activeRegion.symbol}${Number(inputPrice).toFixed(2)} ${activeRegion.code}\nCondition: ${safeCondForList}\nBrand: ${safeBrandForList}\n\nDescription:\n${inputDescription}`;
+    const compliantTitle = generateOptimizedEbayTitle(inputTitle, safeBrandForList);
+    const compliantDesc = buildEbayPolicyCompliantDescription({
+      title: compliantTitle,
+      brand: safeBrandForList,
+      condition: safeCondForList,
+      currency: activeRegion.code,
+      rawNotes: inputDescription,
+    });
+    const copyPayload = `Title: ${compliantTitle}\nPrice: ${activeRegion.symbol}${Number(inputPrice).toFixed(2)} ${activeRegion.code}\nCondition: ${safeCondForList}\nBrand: ${safeBrandForList}\nMPN: Does Not Apply\n\nDescription:\n${compliantDesc}`;
     try {
       if (typeof navigator !== "undefined" && navigator.clipboard) {
         void navigator.clipboard.writeText(copyPayload);
@@ -319,7 +344,7 @@ export default function EbayListingModal({
     } catch {}
 
     const prefillUrl = generateEbayPrefillUrl({
-      title: inputTitle,
+      title: compliantTitle,
       priceAud: Number(inputPrice),
       brand: safeBrandForList,
       currency: activeRegion.code,
@@ -668,25 +693,32 @@ export default function EbayListingModal({
                 </div>
               </div>
 
-              {/* 1-Tap Fast-List Quick Trigger Bar */}
-              <div className="p-3.5 bg-indigo-950/20 border border-indigo-500/30 rounded-lg flex items-center justify-between gap-3 shadow-sm">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-400">
-                    <Zap className="w-4 h-4" />
-                    <span>List Faster with 1-Tap</span>
+              {/* 1-Tap Compliant eBay Quick Trigger */}
+              <div className="p-3.5 bg-indigo-950/25 border border-indigo-500/30 rounded-xl space-y-2.5 shadow-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-400">
+                      <Zap className="w-4 h-4 text-amber-400" />
+                      <span>1-Tap eBay Listing Flow</span>
+                    </div>
+                    <p className="text-[11px] text-zinc-400 leading-snug">
+                      Copies sanitized, compliant payload &amp; opens official {activeRegion.label} Sell wizard.
+                    </p>
                   </div>
-                  <p className="text-[11px] text-zinc-400 leading-snug">
-                    Bypasses this form and instantly pre-fills all data securely onto official {activeRegion.label}.
-                  </p>
+                  <button
+                    type="button"
+                    onClick={handleFastList}
+                    className="px-3.5 py-2 bg-gradient-to-r from-amber-500 to-indigo-600 hover:from-amber-400 hover:to-indigo-500 text-white font-bold rounded-lg text-xs transition flex items-center gap-1.5 cursor-pointer shrink-0 shadow-md active:scale-95"
+                  >
+                    <span>1-Tap List</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleFastList}
-                  className="px-3.5 py-2 bg-indigo-500 hover:bg-indigo-600 text-white font-bold rounded-lg text-xs transition flex items-center gap-1.5 cursor-pointer shrink-0 shadow-md active:scale-95"
-                >
-                  <span>1-Tap List</span>
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </button>
+                {/* Policy Guarantee Sub-badge */}
+                <div className="flex items-center gap-1.5 pt-1 border-t border-indigo-500/20 text-[10px] text-emerald-400 font-medium">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                  <span>VeRO Protected · MPN Preset · 30-Day Returns · Tracked Shipping</span>
+                </div>
               </div>
 
               {/* Error Notice */}

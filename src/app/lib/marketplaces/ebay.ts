@@ -1,3 +1,7 @@
+import {
+  generateOptimizedEbayTitle,
+  buildEbayPolicyCompliantDescription,
+} from "./ebay-prefill";
 
 export interface EbayOAuthTokens {
   access_token: string;
@@ -308,23 +312,23 @@ export async function ensureUserDefaultPolicies(
     if (!policies.fulfillmentPolicyId) {
       let fpName = "Spadas Standard AU Shipping";
       let fpDesc = "Standard delivery via Australia Post with tracking.";
-      let carrierCode = "GENERIC";
+      let carrierCode = "AustraliaPost";
       let serviceCode = "AU_StandardDelivery";
       let shippingCostVal = "10.00";
       let shippingCurrency = "AUD";
 
       if (isUsd) {
         fpName = "Spadas Standard US Shipping";
-        fpDesc = "Standard shipping via USPS Priority with tracking.";
+        fpDesc = "Standard shipping via USPS Ground Advantage with tracking.";
         carrierCode = "USPS";
-        serviceCode = "USPSPriority";
+        serviceCode = "USPSGroundAdvantage";
         shippingCostVal = "5.00";
         shippingCurrency = "USD";
       } else if (isGbp) {
         fpName = "Spadas Standard UK Shipping";
         fpDesc = "Standard delivery via Royal Mail with tracking.";
-        carrierCode = "GENERIC";
-        serviceCode = "UK_RoyalMailSecondClassStandard";
+        carrierCode = "RoyalMail";
+        serviceCode = "UK_RoyalMail48";
         shippingCostVal = "3.50";
         shippingCurrency = "GBP";
       }
@@ -433,7 +437,10 @@ export function buildEbayAspects(listing: {
   category?: string;
   description?: string;
 }): Record<string, string[]> {
-  const brand = (listing.brand || "Unbranded").trim();
+  const rawBrand = (listing.brand || "Unbranded").trim();
+  const brand = ["authentic", "genuine", "original", "guaranteed", "coa"].includes(rawBrand.toLowerCase())
+    ? "Unbranded"
+    : rawBrand || "Unbranded";
   const text = `${listing.product || ""} ${listing.description || ""}`.toLowerCase();
 
   // Department
@@ -478,8 +485,12 @@ export function buildEbayAspects(listing: {
 
   return {
     Brand: [brand],
+    MPN: ["Does Not Apply"],
+    UPC: ["Does Not Apply"],
     Department: [department],
+    Color: [colour],
     Colour: [colour],
+    "Exterior Color": [colour],
     "Exterior Colour": [colour],
     Material: [material],
     "Exterior Material": [material],
@@ -621,15 +632,24 @@ export async function publishToEbayInventory(
     description: listing.description,
   });
 
+  const compliantTitle = generateOptimizedEbayTitle(listing.product, listing.brand);
+  const compliantDescription = buildEbayPolicyCompliantDescription({
+    title: compliantTitle,
+    brand: listing.brand,
+    condition: listing.condition,
+    category: listing.category,
+    rawNotes: listing.description,
+  });
+
   const itemPayload: Record<string, unknown> = {
     product: {
-      title: listing.product.slice(0, 80),
-      description: listing.description || `Listed via Spadas Technology AI Platform. ${listing.product}`,
+      title: compliantTitle,
+      description: compliantDescription,
       aspects,
       imageUrls: validHttpImageUrls,
     },
     condition,
-    ...(condition !== "NEW" ? { conditionDescription: "Pre-owned in working condition." } : {}),
+    ...(condition !== "NEW" ? { conditionDescription: "Pre-owned in working condition. Carefully inspected." } : {}),
     availability: {
       shipToLocationAvailability: {
         quantity: 1,
@@ -699,7 +719,7 @@ export async function publishToEbayInventory(
           currency: currencyCode,
         },
       },
-      listingDescription: listing.description || `Listed via Spadas Technology AI Platform. ${listing.product}`,
+      listingDescription: compliantDescription,
     };
 
     if (policies.fulfillmentPolicyId) {

@@ -6,7 +6,8 @@ import { toast } from "sonner";
 import { SpadasListingDetailsSheet, SpadasListingData } from "@/components/spadas-listing-details-sheet";
 import { calculateThriftCopVerdict } from "@/lib/thrift-cop-engine";
 import { triggerTactileHaptic, syncProfitToAndroidWidget } from "@/lib/android-bridge";
-import { detectGeoCurrency } from "@/app/lib/currency-routing";
+import { detectGeoCurrency, convertCurrency, SupportedCurrency } from "@/app/lib/currency-routing";
+import { buildEbayPolicyCompliantDescription } from "@/app/lib/marketplaces/ebay-prefill";
 import { supabase } from "@/app/lib/supabase";
 import { GuestScanHud } from "@/components/guest-scan-hud";
 import { GuestScanLimitModal } from "@/components/guest-scan-limit-modal";
@@ -416,8 +417,10 @@ export function SpadasSnapStudio() {
     toast.info("🔍 AI identifying item, extracting tags, and finding eBay comps...", { duration: 3000 });
 
     try {
-      const activeCurrency =
-        detectGeoCurrency().currency;
+      const activeCurrency: SupportedCurrency =
+        typeof window !== "undefined" && localStorage.getItem("spadas_selected_currency")
+          ? (localStorage.getItem("spadas_selected_currency") as SupportedCurrency)
+          : detectGeoCurrency().currency;
 
       const headers: Record<string, string> = { "Content-Type": "application/json" };
       if (session?.access_token) {
@@ -549,13 +552,20 @@ export function SpadasSnapStudio() {
 
         const sizeVal = data?.item_specifics?.Size || data?.item_specifics?.size || "One Size";
         const condVal = data?.analysis?.condition || "Pre-owned - Like New";
-          const descVal =
+        const itemCat = data?.analysis?.category || data?.category || "General Resale";
+        const descVal =
           data?.detailed_description ||
           data?.seo_description ||
-          `${rawPName} in ${condVal} condition. Fast dispatch from Australia.`;
+          buildEbayPolicyCompliantDescription({
+            title: rawPName,
+            brand: data?.analysis?.brand || data?.brand || "Unbranded",
+            condition: condVal,
+            size: sizeVal,
+            category: itemCat,
+            currency: activeCurrency,
+          });
 
         const priceMed = Number(data?.suggested_price_median) || 45;
-        const itemCat = data?.analysis?.category || data?.category || "General Resale";
         const confidenceScore = Number(data?.analysis?.confidence_score ?? data?.confidence_score ?? 0.95);
         const requiresSecondaryVerification = Boolean(
           data?.requires_secondary_verification ||
@@ -588,6 +598,16 @@ export function SpadasSnapStudio() {
               ? "This value is grounded by current asking prices, not completed sold listings."
               : "This value is grounded by recent sold listings after marketplace cleanup and filtering.";
 
+        const returnedCurrency = (data?.suggested_price_currency || activeCurrency || "USD").toUpperCase() as SupportedCurrency;
+        let finalMedian = priceMed;
+        let finalMin = data?.suggested_price_min || Math.round(priceMed * 0.75);
+        let finalMax = data?.suggested_price_max || Math.round(priceMed * 1.25);
+        if (returnedCurrency !== activeCurrency) {
+          finalMedian = Number(convertCurrency(finalMedian, returnedCurrency, activeCurrency).toFixed(2));
+          finalMin = Number(convertCurrency(finalMin, returnedCurrency, activeCurrency).toFixed(2));
+          finalMax = Number(convertCurrency(finalMax, returnedCurrency, activeCurrency).toFixed(2));
+        }
+
         const listingPayload: SpadasListingData = {
           productName: rawPName,
           brand: data?.analysis?.brand || data?.brand || "Unbranded",
@@ -601,10 +621,10 @@ export function SpadasSnapStudio() {
           dimensions: data?.shipping_estimate?.dimensions_cm
             ? `${data.shipping_estimate.dimensions_cm.length} x ${data.shipping_estimate.dimensions_cm.width} x ${data.shipping_estimate.dimensions_cm.height} cm`
             : "4 x 4 x 10 in",
-          priceMedian: priceMed,
-          priceMin: data?.suggested_price_min || Math.round(priceMed * 0.75),
-          priceMax: data?.suggested_price_max || Math.round(priceMed * 1.25),
-          currency: data?.suggested_price_currency || "USD",
+          priceMedian: finalMedian,
+          priceMin: finalMin,
+          priceMax: finalMax,
+          currency: activeCurrency,
           photos: capturedPhotos,
           buyCost: cop.estimatedThriftCost,
           trueNetProfit: cop.netProfit,
@@ -659,7 +679,8 @@ export function SpadasSnapStudio() {
 
         triggerTactileHaptic(cop.copVerdict === "MUST_COP" ? "grail" : "success");
         setListingResult(listingPayload);
-        toast.success(`${cop.verdictLabel}: +$${cop.netProfit.toFixed(0)} Net Profit. Added to Haul.`);
+        const currSymbol = activeCurrency === "GBP" ? "£" : "$";
+        toast.success(`${cop.verdictLabel}: +${currSymbol}${cop.netProfit.toFixed(0)} Net Profit. Added to Haul.`);
       } else {
         toast.error("Could not analyze item. Please try another shot.");
       }

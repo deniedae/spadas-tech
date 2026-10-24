@@ -10,7 +10,7 @@ import { syncProfitToAndroidWidget, triggerTactileHaptic } from "@/lib/android-b
 import { OmniMarketplaceCompareCard, OmniMarketplaceCompareModal } from "@/components/omni-marketplace-compare-card";
 import EbayListingModal from "@/components/ebay-listing-modal";
 import { generateEbayPrefillUrl } from "@/app/lib/marketplaces/ebay-prefill";
-import { convertCurrency, CURRENCY_CONFIGS, SupportedCurrency } from "@/app/lib/currency-routing";
+import { convertCurrency, CURRENCY_CONFIGS, detectGeoCurrency, SupportedCurrency } from "@/app/lib/currency-routing";
 import type { CopVerdict } from "@/types/lens";
 
 export interface SpadasListingData {
@@ -46,7 +46,23 @@ interface Props {
 
 export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }: Props) {
   const router = useRouter();
-  const [data, setData] = useState<SpadasListingData>(initialData);
+  const [data, setData] = useState<SpadasListingData>(() => {
+    const detected = typeof window !== "undefined"
+      ? ((localStorage.getItem("spadas_selected_currency") || detectGeoCurrency().currency) as SupportedCurrency)
+      : "USD";
+    const cur = ((initialData.currency || detected).toUpperCase()) as SupportedCurrency;
+    if (detected && detected !== cur && initialData.priceMedian > 0) {
+      return {
+        ...initialData,
+        currency: detected,
+        priceMedian: Number(convertCurrency(initialData.priceMedian, cur, detected).toFixed(2)),
+        priceMin: Number(convertCurrency(initialData.priceMin, cur, detected).toFixed(2)),
+        priceMax: Number(convertCurrency(initialData.priceMax, cur, detected).toFixed(2)),
+        buyCost: initialData.buyCost ? Number(convertCurrency(initialData.buyCost, cur, detected).toFixed(2)) : undefined,
+      };
+    }
+    return initialData;
+  });
   const [isSaving, setIsSaving] = useState(false);
   const [editingField, setEditingField] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
@@ -286,8 +302,9 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
         {(() => {
           const sym = currConfig.symbol;
           const currentBuyCost = data.buyCost || Math.max(3, Math.round(data.priceMedian * 0.15));
+          const feeRate = activeCurrency === "GBP" ? 0.128 : activeCurrency === "USD" ? 0.1325 : 0.134;
           const fixedFee = activeCurrency === "GBP" ? 0.25 : activeCurrency === "USD" ? 0.30 : 0.33;
-          const currentEbayFee = (data.priceMedian * 0.134) + fixedFee;
+          const currentEbayFee = (data.priceMedian * feeRate) + fixedFee;
           const currentNetProfit = Math.max(0, data.priceMedian - currentBuyCost - currentEbayFee);
           const currentRoi = currentBuyCost > 0 ? Math.round((currentNetProfit / currentBuyCost) * 100) : 0;
 

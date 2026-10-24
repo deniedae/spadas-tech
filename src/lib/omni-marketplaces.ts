@@ -54,17 +54,23 @@ export function buildMarketplaceCompUrl(
       // Depop search query
       return `https://www.depop.com/search/?q=${encoded}`;
 
-    case "gumtree":
-      // Gumtree Australia local search
+    case "gumtree": {
+      if (currency === "USD") {
+        return `https://www.mercari.com/search/?keyword=${encoded}`;
+      } else if (currency === "GBP") {
+        return `https://www.gumtree.com/search?search_category=all&q=${encoded}`;
+      }
       return `https://www.gumtree.com.au/s-k0?q=${encoded}`;
+    }
 
     case "facebook":
-      // Facebook Marketplace search
       return `https://www.facebook.com/marketplace/search/?query=${encoded}`;
 
-    case "google_shopping":
-      // Google Shopping price comparison search
-      return `https://www.google.com/search?tbm=shop&q=${encoded}`;
+    case "google_shopping": {
+      const gl = currency === "USD" ? "us" : currency === "GBP" ? "gb" : "au";
+      const hl = currency === "USD" ? "en-US" : currency === "GBP" ? "en-GB" : "en-AU";
+      return `https://www.google.com/search?tbm=shop&q=${encoded}&gl=${gl}&hl=${hl}`;
+    }
 
     default:
       return `https://www.google.com/search?q=${encoded}`;

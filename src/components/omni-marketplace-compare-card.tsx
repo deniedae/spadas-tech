@@ -29,7 +29,12 @@ import {
   convertCurrency,
 } from "@/app/lib/currency-routing";
 import { openExternalUrlSafely, triggerTactileHaptic } from "@/lib/android-bridge";
-import { generateEbayPrefillUrl } from "@/app/lib/marketplaces/ebay-prefill";
+import { toast } from "sonner";
+import {
+  generateEbayPrefillUrl,
+  generateOptimizedEbayTitle,
+  buildEbayPolicyCompliantDescription,
+} from "@/app/lib/marketplaces/ebay-prefill";
 
 export interface NormalizedCompItem {
   id: string;
@@ -301,13 +306,29 @@ export function OmniMarketplaceCompareCard({
       return;
     }
     try {
-      const prefillUrl = generateEbayPrefillUrl({
-        title: productName,
-        price: stats.median,
-        currency: currentCurrency,
-        brand: brand || undefined,
+      const cleanBrand = brand?.trim() || "Unbranded";
+      const compliantTitle = generateOptimizedEbayTitle(productName, cleanBrand);
+      const compliantDesc = buildEbayPolicyCompliantDescription({
+        title: compliantTitle,
+        brand: cleanBrand,
+        condition: condition || "Used - Good",
         category: category || undefined,
       });
+      const copyPayload = `Title: ${compliantTitle}\nPrice: ${sym}${stats.median.toFixed(2)} ${currentCurrency}\nCondition: ${condition || "Used - Good"}\nBrand: ${cleanBrand}\nMPN: Does Not Apply\n\nDescription:\n${compliantDesc}`;
+      try {
+        if (typeof navigator !== "undefined" && navigator.clipboard) {
+          void navigator.clipboard.writeText(copyPayload);
+        }
+      } catch {}
+
+      const prefillUrl = generateEbayPrefillUrl({
+        title: compliantTitle,
+        price: stats.median,
+        currency: currentCurrency,
+        brand: cleanBrand,
+        category: category || undefined,
+      });
+      toast.success(`📋 Listing payload copied! Opening official eBay Sell wizard...`, { duration: 4000 });
       const opened = window.open(prefillUrl, "_blank");
       if (!opened) {
         window.location.href = prefillUrl;
@@ -770,7 +791,7 @@ export function OmniMarketplaceCompareCard({
               </span>
             </div>
             <div className="text-[11px] text-slate-300 truncate">
-              Launch official listing wizard with verified pricing &amp; specifics
+              VeRO-compliant · MPN preset · 30-day returns &amp; tracked dispatch
             </div>
           </div>
         </div>

@@ -7,8 +7,9 @@ import { triggerTactileHaptic } from "@/lib/android-bridge";
 import {
   generateOptimizedEbayTitle,
   generateEbayPrefillUrl,
+  buildEbayPolicyCompliantDescription,
 } from "@/app/lib/marketplaces/ebay-prefill";
-import { detectGeoCurrency } from "@/app/lib/currency-routing";
+import { detectGeoCurrency, CURRENCY_CONFIGS } from "@/app/lib/currency-routing";
 
 interface CrossListModalProps {
   isOpen: boolean;
@@ -25,7 +26,7 @@ export default function CrossListModal({
   isOpen,
   onClose,
   productName,
-  brand = "Authentic",
+  brand = "Unbranded",
   price = 25,
   condition = "Used - Good",
   category = "Resale",
@@ -36,28 +37,46 @@ export default function CrossListModal({
 
   if (!isOpen) return null;
 
-  const itemBrand = brand || "Authentic";
+  const itemBrand = brand && brand.toLowerCase() !== "authentic" ? brand : "Unbranded";
   const itemPrice = Number(price || 25);
   const itemCond = condition || "Used - Good";
+
+  const userGeo = typeof window !== "undefined" ? detectGeoCurrency() : CURRENCY_CONFIGS.USD;
+  const userCurr = userGeo.currency;
+  const sym = userGeo.symbol;
+  const isUs = userCurr === "USD";
+  const isUk = userCurr === "GBP";
+
+  const dispatchNotice = isUs
+    ? "Fast dispatch via USPS with tracking."
+    : isUk
+    ? "Fast dispatch via Royal Mail with tracking."
+    : "Fast dispatch via Australia Post tracked parcel.";
 
   // Pre-generate platform copy packages with optimized SEO titles
   const ebayTitle = generateOptimizedEbayTitle({
     brand: itemBrand,
     productName,
     category,
-    isAuthentic: true,
   });
-  const ebayDesc = description || `Authentic ${itemBrand} ${productName}.\nCondition: ${itemCond}.\nInspected and tested. Fast dispatch from Australia with tracking.`;
+  const ebayDesc = buildEbayPolicyCompliantDescription({
+    title: ebayTitle,
+    brand: itemBrand,
+    condition: itemCond,
+    category,
+    currency: userCurr,
+    rawNotes: description,
+  });
 
   const depopTitle = `${productName.toLowerCase()} #${itemBrand.toLowerCase().replace(/\s+/g, "")} #vintage`;
   const depopHashtags = `#${itemBrand.toLowerCase().replace(/\s+/g, "")} #vintage #y2k #streetwear #thrift`;
-  const depopDesc = `${productName}\nBrand: ${itemBrand}\nCondition: ${itemCond}\n\nPrice: $${itemPrice} AUD\n\n${depopHashtags}`;
+  const depopDesc = `${productName}\nBrand: ${itemBrand}\nCondition: ${itemCond}\n\nPrice: ${sym}${itemPrice} ${userCurr}\n\n${depopHashtags}`;
 
   const gumtreeTitle = `${itemBrand} ${productName}`.slice(0, 60);
-  const gumtreeDesc = `${itemBrand} ${productName}.\nCondition: ${itemCond}.\n\nPrice: $${itemPrice} AUD.\nPick up locally or happy to post Australia-wide via Australia Post tracked parcel.`;
+  const gumtreeDesc = `${itemBrand} ${productName}.\nCondition: ${itemCond}.\n\nPrice: ${sym}${itemPrice} ${userCurr}.\nPick up locally or ${dispatchNotice.toLowerCase()}`;
 
   const fbTitle = `${itemBrand} ${productName} - ${itemCond}`;
-  const fbDesc = `Authentic ${productName}.\nCondition: ${itemCond}.\n\nPrice: $${itemPrice} AUD.\nPick up available or fast dispatch with tracking across Australia.`;
+  const fbDesc = `${productName}.\nCondition: ${itemCond}.\n\nPrice: ${sym}${itemPrice} ${userCurr}.\nLocal pickup available or ${dispatchNotice.toLowerCase()}`;
 
   const currentTitle =
     activePlatform === "ebay"
@@ -88,7 +107,7 @@ export default function CrossListModal({
   };
 
   const handleCopyAllBundle = () => {
-    const fullBundle = `📌 TITLE:\n${currentTitle}\n\n💰 PRICE: $${itemPrice} AUD\n\n📝 DESCRIPTION:\n${currentDesc}`;
+    const fullBundle = `📌 TITLE:\n${currentTitle}\n\n💰 PRICE: ${sym}${itemPrice} ${userCurr}\n\n📝 DESCRIPTION:\n${currentDesc}`;
     if (typeof navigator !== "undefined" && navigator.clipboard) {
       void navigator.clipboard.writeText(fullBundle);
       triggerTactileHaptic("success");
@@ -136,7 +155,7 @@ export default function CrossListModal({
                 : "text-slate-400 hover:text-slate-200"
             }`}
           >
-            eBay
+            {isUs ? "eBay US" : isUk ? "eBay UK" : "eBay AU"}
           </button>
           <button
             type="button"
@@ -147,7 +166,7 @@ export default function CrossListModal({
                 : "text-slate-400 hover:text-slate-200"
             }`}
           >
-            Gumtree AU
+            {isUs ? "Mercari US" : isUk ? "Gumtree UK" : "Gumtree AU"}
           </button>
           <button
             type="button"
