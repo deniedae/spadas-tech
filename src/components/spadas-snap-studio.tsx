@@ -26,12 +26,30 @@ import { RapidThriftItem, dataUriToBlob, savePhotoBlob } from "@/lib/rapid-thrif
 import { cameraStreamManager } from "@/lib/camera-stream-provider";
 import { isValidFramePayload } from "@/lib/lens-utils";
 
+export interface AngleSlot {
+  id: string;
+  name: string;
+  short: string;
+  hint: string;
+  badge: string;
+}
+
+export const SELLRAZE_ANGLE_SLOTS: AngleSlot[] = [
+  { id: "front", name: "Front / Cover", short: "Front", hint: "Frame entire front silhouette of item", badge: "Cover" },
+  { id: "back", name: "Back / Reverse", short: "Back", hint: "Show back of garment or item condition", badge: "Back" },
+  { id: "tag", name: "Brand Tag / Plaque", short: "Tag / Plaque", hint: "Close-up of logo, plaque, care tag, or serial", badge: "Tag / Plaque" },
+  { id: "detail", name: "Details / Material", short: "Details", hint: "Focus on texture, stitching, or flaws", badge: "Details" },
+  { id: "extra", name: "Extra / Packaging", short: "Extra", hint: "Boxes, accessories, interior, or labels", badge: "Extra" },
+];
+
 export function SpadasSnapStudio() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
-  const [capturedPhotos, setCapturedPhotos] = useState<string[]>([]);
+  const [slots, setSlots] = useState<(string | null)[]>([null, null, null, null, null]);
+  const [activeSlotIndex, setActiveSlotIndex] = useState<number>(0);
+  const capturedPhotos = slots.filter((p): p is string => Boolean(p && p.length > 2000));
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisStage, setAnalysisStage] = useState<"vision" | "comps" | "profit" | "complete">("vision");
   const [detectedTitle, setDetectedTitle] = useState<string | undefined>(undefined);
@@ -269,27 +287,16 @@ export function SpadasSnapStudio() {
     void startCamera(nextMode);
   };
 
-  // Capture Photo from Live Video Feed
+  // Capture Photo into Targeted SellRaze Angle Slot
   const handleSnapPhoto = () => {
-    if (capturedPhotos.length >= 6) {
-      toast.info("Maximum 6 photos per item listing.");
-      return;
-    }
-
     const video = videoRef.current;
     if (!video || video.readyState < 2 || video.videoWidth <= 0 || video.videoHeight <= 0) return;
     if (!isValidFramePayload(video)) return;
 
+    let dataUrl: string | null = null;
     try {
       const preprocessed = processFrameForVision(video, { boostContrast: true, maxDimension: 850, quality: 0.75 });
-      const dataUrl = preprocessed.fullDataUrl;
-
-      if (dataUrl && dataUrl.length > 2000) {
-        setCapturedPhotos((prev) => [...prev, dataUrl]);
-        setRetakePrompt(null);
-        triggerTactileHaptic("shutter");
-        toast.success(`Photo ${capturedPhotos.length + 1} captured!`, { duration: 1200 });
-      }
+      dataUrl = preprocessed.fullDataUrl;
     } catch (err) {
       console.warn("[Snap Studio] Preprocessing fallback:", err);
       const fullW = video.videoWidth || video.clientWidth || 640;
@@ -300,37 +307,78 @@ export function SpadasSnapStudio() {
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
       ctx.drawImage(video, 0, 0, fullW, fullH, 0, 0, canvas.width, canvas.height);
-      const dataUrl = canvas.toDataURL("image/jpeg", 0.75);
-      if (dataUrl && dataUrl.length > 2000) {
-        setCapturedPhotos((prev) => [...prev, dataUrl]);
-        triggerTactileHaptic("shutter");
-        toast.success(`Photo ${capturedPhotos.length + 1} captured!`, { duration: 1200 });
+      dataUrl = canvas.toDataURL("image/jpeg", 0.75);
+    }
+
+    if (dataUrl && dataUrl.length > 2000) {
+      const targetSlot = activeSlotIndex >= 0 && activeSlotIndex < SELLRAZE_ANGLE_SLOTS.length ? activeSlotIndex : 0;
+      setSlots((prev) => {
+        const next = [...prev];
+        next[targetSlot] = dataUrl;
+        return next;
+      });
+      setRetakePrompt(null);
+      triggerTactileHaptic("shutter");
+      toast.success(`${SELLRAZE_ANGLE_SLOTS[targetSlot].short} captured!`, { duration: 1200 });
+
+      // Advance to next empty angle slot
+      const nextEmpty = slots.findIndex((s, i) => i > targetSlot && !s);
+      if (nextEmpty !== -1) {
+        setActiveSlotIndex(nextEmpty);
+      } else {
+        const anyEmpty = slots.findIndex((s, i) => i !== targetSlot && !s);
+        if (anyEmpty !== -1) {
+          setActiveSlotIndex(anyEmpty);
+        }
       }
     }
   };
 
-  // Handle File Upload from Gallery with Aggressive Client-Side Compression
+  // Handle File Upload from Gallery into SellRaze Angle Slots
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    const availableSlots = 6 - capturedPhotos.length;
-    const toProcess = Array.from(files).slice(0, availableSlots);
-
     toast.info("Compressing photos...", { duration: 1200 });
     const compressed = await Promise.all(
-      toProcess.map((file) => compressFileToDataUrl(file, { maxDimension: 850, quality: 0.75 }))
+      Array.from(files).slice(0, 5).map((file) => compressFileToDataUrl(file, { maxDimension: 850, quality: 0.75 }))
     );
 
     const validCompressed = compressed.filter((url) => url && url.length > 2000);
     if (validCompressed.length > 0) {
-      setCapturedPhotos((prev) => [...prev, ...validCompressed]);
-      toast.success(`Added ${validCompressed.length} compressed photo(s)!`);
+      setSlots((prev) => {
+        const next = [...prev];
+        let fileIdx = 0;
+        // First fill from activeSlotIndex if empty
+        for (let i = activeSlotIndex; i < next.length && fileIdx < validCompressed.length; i++) {
+          if (!next[i]) {
+            next[i] = validCompressed[fileIdx++];
+          }
+        }
+        // Then fill remaining empty slots
+        for (let i = 0; i < next.length && fileIdx < validCompressed.length; i++) {
+          if (!next[i]) {
+            next[i] = validCompressed[fileIdx++];
+          }
+        }
+        // Overwrite if needed
+        for (let i = 0; i < next.length && fileIdx < validCompressed.length; i++) {
+          next[i] = validCompressed[fileIdx++];
+        }
+        return next;
+      });
+      toast.success(`Assigned ${validCompressed.length} photo(s) into angle slots!`);
     }
   };
 
-  const removePhoto = (index: number) => {
-    setCapturedPhotos((prev) => prev.filter((_, i) => i !== index));
+  const removeSlotPhoto = (index: number) => {
+    setSlots((prev) => {
+      const next = [...prev];
+      next[index] = null;
+      return next;
+    });
+    setActiveSlotIndex(index);
+    toast.info(`Cleared ${SELLRAZE_ANGLE_SLOTS[index].short} slot.`);
   };
 
   // Analyze Multi-Photo Payloads
@@ -630,7 +678,8 @@ export function SpadasSnapStudio() {
         onBack={() => setListingResult(null)}
         onSaved={() => {
           setListingResult(null);
-          setCapturedPhotos([]);
+          setSlots([null, null, null, null, null]);
+          setActiveSlotIndex(0);
         }}
       />
     );
@@ -666,11 +715,16 @@ export function SpadasSnapStudio() {
             />
           ) : (
             <div className="text-center">
-              <span className="text-xs font-semibold text-zinc-200 block">
-                Multi-angle studio
-              </span>
-              <span className="text-[10px] text-zinc-500 block">
-                {capturedPhotos.length} of 5 photos
+              <div className="flex items-center justify-center gap-1.5">
+                <span className="text-xs font-black text-white tracking-tight">
+                  Snap to List
+                </span>
+                <span className="px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 uppercase tracking-wider">
+                  SellRaze Mode
+                </span>
+              </div>
+              <span className="text-[10px] text-zinc-400 font-mono block">
+                {capturedPhotos.length} of 5 angles captured
               </span>
             </div>
           )}
@@ -721,25 +775,48 @@ export function SpadasSnapStudio() {
           </div>
         </div>
 
+        {/* Active Angle Target Banner — SellRaze Style Guidance */}
+        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-25 w-[calc(100%-2rem)] max-w-sm pointer-events-none">
+          <div className="flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-zinc-950/90 border border-zinc-700/80 shadow-2xl backdrop-blur-md">
+            <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-400 animate-ping shrink-0" />
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] font-mono font-bold uppercase text-emerald-400 tracking-wider">
+                  Angle {activeSlotIndex + 1}/5
+                </span>
+                <span className="text-xs font-extrabold text-white truncate">
+                  {SELLRAZE_ANGLE_SLOTS[activeSlotIndex]?.name}
+                </span>
+              </div>
+              <p className="text-[11px] text-zinc-300 truncate">
+                {SELLRAZE_ANGLE_SLOTS[activeSlotIndex]?.hint}
+              </p>
+            </div>
+          </div>
+        </div>
+
         {/* Retake Prompt Badge */}
         {retakePrompt?.required && (
-          <div className="absolute top-16 left-1/2 -translate-x-1/2 z-30 w-[calc(100%-2rem)] max-w-md pointer-events-auto">
-            <div className="flex items-center justify-between gap-2.5 px-3 py-2 rounded-md bg-zinc-900 border border-zinc-700 text-zinc-200 text-xs">
-              <span className="truncate text-zinc-300">
+          <div className="absolute top-28 left-1/2 -translate-x-1/2 z-30 w-[calc(100%-2rem)] max-w-md pointer-events-auto">
+            <div className="flex items-center justify-between gap-2.5 px-3 py-2 rounded-xl bg-amber-950/90 border border-amber-500/50 text-amber-200 text-xs shadow-2xl backdrop-blur-md">
+              <span className="truncate font-semibold text-amber-200">
                 {retakePrompt.promptLabel || "Snap detail or tag angle"}
               </span>
               <div className="flex items-center gap-1.5 shrink-0">
                 <button
                   type="button"
-                  onClick={handleSnapPhoto}
-                  className="px-2.5 py-1 rounded-md bg-zinc-800 hover:bg-zinc-700 text-zinc-100 font-semibold text-[11px] transition cursor-pointer border border-zinc-700"
+                  onClick={() => {
+                    setActiveSlotIndex(2); // Jump to Tag/Plaque slot
+                    handleSnapPhoto();
+                  }}
+                  className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-[11px] transition cursor-pointer shadow"
                 >
-                  Snap
+                  Snap Tag
                 </button>
                 <button
                   type="button"
                   onClick={() => setRetakePrompt(null)}
-                  className="p-1 rounded-md text-zinc-400 hover:text-zinc-200 transition cursor-pointer"
+                  className="p-1 rounded-md text-amber-400 hover:text-white transition cursor-pointer"
                   title="Dismiss"
                 >
                   <X className="w-3.5 h-3.5" />
@@ -754,10 +831,10 @@ export function SpadasSnapStudio() {
           <div className="inline-block rounded-md bg-zinc-950/90 border border-zinc-800 px-3 py-1.5 max-w-sm">
             <p className="text-xs font-medium text-zinc-300">
               {capturedPhotos.length === 0
-                ? "Snap cover photo"
-                : capturedPhotos.length === 1
-                ? "Cover captured · Snap tag, back, or flaws"
-                : `${capturedPhotos.length} photos ready`}
+                ? "Tap shutter to snap Cover photo"
+                : capturedPhotos.length >= 5
+                ? "All 5 angles captured · Ready to value & list"
+                : `${capturedPhotos.length} captured · Next: ${SELLRAZE_ANGLE_SLOTS[activeSlotIndex]?.short}`}
             </p>
           </div>
         </div>
@@ -775,58 +852,104 @@ export function SpadasSnapStudio() {
         )}
       </div>
 
-      {/* Bottom Controls Stage */}
+      {/* Bottom Controls Stage — SellRaze Style Flow */}
       <div className="w-full bg-zinc-950 border-t border-zinc-800 p-3 pb-[max(1rem,calc(env(safe-area-inset-bottom,0px)+0.75rem))] space-y-2.5 z-30">
-        {/* Photo Tray Label */}
-        <div className="flex items-center justify-between px-1 text-xs text-zinc-400">
-          <span>
-            {capturedPhotos.length === 0 ? "No photos yet" : `${capturedPhotos.length} photo${capturedPhotos.length > 1 ? "s" : ""} in tray`}
-          </span>
-          {capturedPhotos.length > 0 && (
-            <span className="text-[11px] text-zinc-500">First photo is cover</span>
-          )}
-        </div>
-
-        {/* Photo Stack Tray with Cover Badge */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 custom-scrollbar min-h-[68px]">
-          {capturedPhotos.map((img, idx) => (
-            <div
-              key={idx}
-              className="relative h-16 w-16 shrink-0 rounded-md overflow-hidden border border-zinc-800 bg-zinc-900"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={img} alt={`Angle ${idx + 1}`} className="h-full w-full object-cover" />
-              <span className="absolute bottom-0 inset-x-0 bg-black/80 text-[8px] font-semibold text-center text-zinc-300 py-0.5">
-                {idx === 0 ? "Cover" : `Angle ${idx + 1}`}
-              </span>
+        {/* Quick Angle Selector Chips — SellRaze Flow */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 custom-scrollbar px-1">
+          {SELLRAZE_ANGLE_SLOTS.map((slot, idx) => {
+            const isFilled = Boolean(slots[idx]);
+            const isTarget = activeSlotIndex === idx;
+            return (
               <button
+                key={slot.id}
                 type="button"
                 onClick={() => {
-                  triggerTactileHaptic("light");
-                  removePhoto(idx);
+                  triggerTactileHaptic("selection");
+                  setActiveSlotIndex(idx);
                 }}
-                className="absolute top-0 right-0 h-7 w-7 rounded-bl-md bg-black/80 text-zinc-300 hover:text-white flex items-center justify-center cursor-pointer touch-manipulation"
-                title="Remove photo"
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer ${
+                  isTarget
+                    ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 shadow-md ring-1 ring-white/60 font-black"
+                    : isFilled
+                    ? "bg-zinc-800/90 text-emerald-400 border border-emerald-500/40"
+                    : "bg-zinc-900/90 text-zinc-400 border border-zinc-800 hover:text-zinc-200"
+                }`}
               >
-                <X className="w-3.5 h-3.5" />
+                {isFilled ? (
+                  <CheckCircle2 className="h-3 w-3 text-emerald-400 shrink-0" />
+                ) : (
+                  <span className="text-[9px] font-mono opacity-70">#{idx + 1}</span>
+                )}
+                <span>{slot.short}</span>
               </button>
-            </div>
-          ))}
+            );
+          })}
+        </div>
 
-          {capturedPhotos.length < 5 && (
-            <button
-              type="button"
-              onClick={handleSnapPhoto}
-              className="h-16 w-16 shrink-0 rounded-md border border-dashed border-zinc-800 flex flex-col items-center justify-center gap-0.5 text-zinc-500 hover:text-zinc-300 hover:border-zinc-700 transition cursor-pointer"
-            >
-              <Camera className="w-4 h-4" />
-              <span className="text-[10px] font-medium">+ Angle</span>
-            </button>
-          )}
+        {/* Guided Photo Slots Grid/Carousel */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 custom-scrollbar min-h-[72px] px-1">
+          {SELLRAZE_ANGLE_SLOTS.map((slot, idx) => {
+            const photoUrl = slots[idx];
+            const isTarget = activeSlotIndex === idx;
+
+            if (photoUrl) {
+              return (
+                <div
+                  key={slot.id}
+                  onClick={() => {
+                    triggerTactileHaptic("tap");
+                    setActiveSlotIndex(idx);
+                  }}
+                  className={`relative h-16 w-16 shrink-0 rounded-xl overflow-hidden border transition-all cursor-pointer bg-zinc-900 ${
+                    isTarget ? "ring-2 ring-emerald-400 border-transparent shadow-[0_0_12px_rgba(16,185,129,0.4)]" : "border-zinc-800"
+                  }`}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={photoUrl} alt={slot.name} className="h-full w-full object-cover" />
+                  <span className="absolute bottom-0 inset-x-0 bg-black/85 text-[8px] font-black tracking-tight text-center text-zinc-200 py-0.5 truncate px-0.5">
+                    {slot.badge}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      triggerTactileHaptic("light");
+                      removeSlotPhoto(idx);
+                    }}
+                    className="absolute top-0 right-0 h-6 w-6 rounded-bl-lg bg-black/80 text-zinc-300 hover:text-white flex items-center justify-center cursor-pointer"
+                    title={`Remove ${slot.short}`}
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              );
+            }
+
+            return (
+              <button
+                key={slot.id}
+                type="button"
+                onClick={() => {
+                  triggerTactileHaptic("selection");
+                  setActiveSlotIndex(idx);
+                }}
+                className={`h-16 w-16 shrink-0 rounded-xl border border-dashed flex flex-col items-center justify-center gap-0.5 transition-all cursor-pointer ${
+                  isTarget
+                    ? "border-emerald-400 bg-emerald-950/20 text-emerald-300 ring-2 ring-emerald-400/40 shadow-[0_0_12px_rgba(16,185,129,0.25)]"
+                    : "border-zinc-800 bg-zinc-950 text-zinc-500 hover:border-zinc-700 hover:text-zinc-300"
+                }`}
+              >
+                <Camera className={`w-3.5 h-3.5 ${isTarget ? "text-emerald-400 animate-pulse" : "text-zinc-500"}`} />
+                <span className="text-[9px] font-bold tracking-tight text-center line-clamp-1 px-0.5">
+                  +{slot.short}
+                </span>
+              </button>
+            );
+          })}
         </div>
 
         {/* Shutter & Actions Bar */}
-        <div className="flex items-center justify-between gap-3 px-1 pt-1">
+        <div className="flex items-center justify-between gap-3 px-1 pt-0.5">
           {/* Upload Button */}
           <button
             type="button"
@@ -834,20 +957,20 @@ export function SpadasSnapStudio() {
               triggerTactileHaptic("tap");
               fileInputRef.current?.click();
             }}
-            className="flex h-11 items-center gap-1.5 px-3.5 rounded-md bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white transition cursor-pointer text-xs font-medium"
+            className="flex h-11 items-center gap-1.5 px-3.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white transition cursor-pointer text-xs font-semibold"
           >
             <ImageIcon className="h-4 w-4 text-zinc-400" />
             <span>Upload</span>
           </button>
 
-          {/* Shutter Button */}
+          {/* Shutter Button — Center Focal Point */}
           <button
             type="button"
             onClick={handleSnapPhoto}
-            className="flex h-16 w-16 items-center justify-center rounded-full border-2 border-zinc-300 bg-zinc-950 p-1 active:scale-95 transition cursor-pointer"
-            title="Snap photo"
+            className="flex h-16 w-16 items-center justify-center rounded-full border-2 border-emerald-400/80 bg-zinc-950 p-1 active:scale-90 transition-transform cursor-pointer shadow-[0_0_20px_rgba(16,185,129,0.35)]"
+            title={`Snap ${SELLRAZE_ANGLE_SLOTS[activeSlotIndex]?.short}`}
           >
-            <div className="h-full w-full rounded-full bg-white flex items-center justify-center">
+            <div className="h-full w-full rounded-full bg-gradient-to-tr from-white via-zinc-100 to-zinc-300 flex items-center justify-center shadow-inner">
               <Camera className="h-5 w-5 text-zinc-950" />
             </div>
           </button>
@@ -861,15 +984,18 @@ export function SpadasSnapStudio() {
                 triggerTactileHaptic("medium");
                 void handleAnalyzeItem();
               }}
-              className="inline-flex h-11 items-center gap-1.5 px-4 rounded-md bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition cursor-pointer disabled:opacity-50"
+              className="inline-flex h-11 items-center gap-1.5 px-4 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-slate-950 text-xs font-extrabold shadow-[0_0_20px_rgba(16,185,129,0.45)] transition active:scale-95 cursor-pointer disabled:opacity-50"
             >
               {isAnalyzing ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin text-slate-950" />
                   <span>Valuing...</span>
                 </>
               ) : (
-                <span>View comps</span>
+                <>
+                  <Sparkles className="h-4 w-4 text-slate-950 fill-slate-950" />
+                  <span>List ({capturedPhotos.length})</span>
+                </>
               )}
             </button>
           ) : (
@@ -879,7 +1005,7 @@ export function SpadasSnapStudio() {
                 triggerTactileHaptic("tap");
                 toggleCameraFacing();
               }}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-md bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white transition cursor-pointer text-xs font-medium"
+              className="flex h-11 items-center gap-1.5 px-3.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white transition cursor-pointer text-xs font-medium"
             >
               <RefreshCw className="h-4 w-4 text-zinc-400" />
               <span>Rotate</span>

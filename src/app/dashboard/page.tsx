@@ -498,7 +498,7 @@ export default function DashboardPage() {
                 className="h-8 px-3 text-xs font-medium gap-1.5 rounded-md bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-200 transition flex items-center cursor-pointer"
               >
                 <Camera className="h-3.5 w-3.5 text-zinc-400" />
-                <span>Multi-Angle Studio</span>
+                <span>Snap to List (SellRaze)</span>
               </Link>
 
               <NewListingDialog

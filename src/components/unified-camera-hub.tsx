@@ -127,7 +127,7 @@ export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraH
               <span className="truncate tracking-tight font-extrabold">Lens AR</span>
             </button>
 
-            {/* Mode 2: Multi-Angle Studio (1–5 Photos) */}
+            {/* Mode 2: Snap to List (SellRaze Flow · 1–5 Photos) */}
             <button
               type="button"
               onClick={() => handleTabChange("studio")}
@@ -136,9 +136,11 @@ export default function UnifiedCameraHub({ initialTab = "lens" }: UnifiedCameraH
                   ? "bg-gradient-to-r from-cyan-400 via-teal-400 to-emerald-400 text-slate-950 shadow-[0_0_20px_rgba(6,182,212,0.45)] ring-1 ring-white/50"
                   : "text-zinc-300 hover:text-white hover:bg-white/[0.06]"
               }`}
+              title="Snap to List (SellRaze Flow · 1–5 Angles)"
             >
               <Camera className={`h-3.5 w-3.5 shrink-0 ${activeTab === "studio" ? "text-slate-950" : "text-cyan-400"}`} />
-              <span className="truncate tracking-tight font-extrabold">Multi-Angle Studio</span>
+              <span className="truncate tracking-tight font-extrabold">Snap to List</span>
+              <span className="hidden sm:inline-block text-[9px] font-mono px-1 py-0.2 rounded bg-black/30 text-white/90 font-bold">SellRaze</span>
             </button>
 
             {/* Mode 3: Haul Session */}

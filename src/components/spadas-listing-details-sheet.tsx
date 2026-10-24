@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, Check, Sparkles, ShoppingBag, Edit3, DollarSign, Tag, Info } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, Sparkles, ShoppingBag, Edit3, DollarSign, Tag, Info, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/app/lib/supabase";
 import { createListing } from "@/app/lib/createlisting";
@@ -89,6 +89,14 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
     }));
     setEditingField(null);
     toast.success("Updated field");
+  };
+
+  const copyToClipboard = (text: string, label: string) => {
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      void navigator.clipboard.writeText(text);
+      triggerTactileHaptic("tap");
+      toast.success(`Copied ${label} to clipboard!`);
+    }
   };
 
   const handleSaveDraft = async () => {
@@ -294,16 +302,51 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
           </div>
         )}
 
-        {/* Title / Product Name Field */}
-        <div
-          onClick={() => openEditor("productName", "Product Name")}
-          className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800/80 hover:border-slate-700 transition cursor-pointer flex items-center justify-between gap-3 shadow-lg"
-        >
-          <div className="space-y-0.5">
-            <span className="text-xs font-bold text-slate-400">Title</span>
-            <p className="text-sm font-extrabold text-white line-clamp-1">{data.productName}</p>
+        {/* Title / Product Name Field with SellRaze 80-Char Counter */}
+        <div className="space-y-2">
+          <div
+            onClick={() => openEditor("productName", "Product Name")}
+            className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800/80 hover:border-slate-700 transition cursor-pointer flex items-center justify-between gap-3 shadow-lg"
+          >
+            <div className="space-y-1 min-w-0 flex-1">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-bold text-slate-400">eBay Optimized Title</span>
+                <span
+                  className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full ${
+                    data.productName.length >= 60 && data.productName.length <= 80
+                      ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                      : data.productName.length > 80
+                      ? "bg-rose-500/20 text-rose-300 border border-rose-500/40"
+                      : "bg-slate-800 text-slate-400 border border-slate-700"
+                  }`}
+                >
+                  {data.productName.length}/80 chars {data.productName.length >= 60 && data.productName.length <= 80 ? "· Optimal" : ""}
+                </span>
+              </div>
+              <p className="text-sm font-extrabold text-white line-clamp-2">{data.productName}</p>
+            </div>
+            <ChevronRight className="h-5 w-5 text-slate-500 shrink-0" />
           </div>
-          <ChevronRight className="h-5 w-5 text-slate-500 shrink-0" />
+
+          {/* Quick Copy Chips for Cross-Posting */}
+          <div className="flex items-center gap-2 px-1">
+            <button
+              type="button"
+              onClick={() => copyToClipboard(data.productName, "title")}
+              className="flex-1 py-1.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white text-[11px] font-bold flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer shadow-sm"
+            >
+              <Copy className="h-3.5 w-3.5 text-cyan-400" />
+              <span>Copy Title</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => copyToClipboard(data.description, "description")}
+              className="flex-1 py-1.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white text-[11px] font-bold flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer shadow-sm"
+            >
+              <Copy className="h-3.5 w-3.5 text-emerald-400" />
+              <span>Copy Description</span>
+            </button>
+          </div>
         </div>
 
         <div className={`p-3.5 rounded-2xl border ${valuationStateUi.className}`}>
@@ -580,12 +623,30 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
                 className="w-full rounded-xl bg-slate-900 border border-slate-800 p-3 text-xs text-white focus:border-cyan-400 focus:outline-none"
               />
             ) : (
-              <input
-                type="text"
-                value={editValue}
-                onChange={(e) => setEditValue(e.target.value)}
-                className="w-full rounded-xl bg-slate-900 border border-slate-800 p-3 text-sm text-white focus:border-cyan-400 focus:outline-none"
-              />
+              <div className="space-y-1.5">
+                <input
+                  type="text"
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  className="w-full rounded-xl bg-slate-900 border border-slate-800 p-3 text-sm text-white focus:border-cyan-400 focus:outline-none"
+                />
+                {editingField === "productName" && (
+                  <div className="flex items-center justify-between text-[11px] font-mono px-1">
+                    <span className="text-slate-400">eBay 80-char limit</span>
+                    <span
+                      className={`font-bold ${
+                        editValue.length >= 60 && editValue.length <= 80
+                          ? "text-emerald-400"
+                          : editValue.length > 80
+                          ? "text-rose-400"
+                          : "text-slate-400"
+                      }`}
+                    >
+                      {editValue.length}/80 chars {editValue.length >= 60 && editValue.length <= 80 ? "(Optimal)" : ""}
+                    </span>
+                  </div>
+                )}
+              </div>
             )}
             <div className="flex gap-2">
               <button

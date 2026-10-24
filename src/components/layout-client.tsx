@@ -194,7 +194,7 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
   const navItems = [
     { href: "/lens", label: "Lens", icon: Scan },
     { href: "/haul", label: "Haul", icon: ShoppingBag },
-    { href: "/studio", label: "AR Studio", icon: Camera },
+    { href: "/studio", label: "Snap to List", icon: Camera },
     { href: "/history", label: "History", icon: History },
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/listings", label: "Listings", icon: Package },
@@ -210,8 +210,8 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
   const pageTitleMap: Record<string, string> = {
     "/lens": "Lens",
     "/haul": "Haul",
-    "/studio": "AR Studio",
-    "/snap": "AR Studio",
+    "/studio": "Snap to List",
+    "/snap": "Snap to List",
     "/history": "History",
     "/dashboard": "Dashboard",
     "/listings": "Listings",
