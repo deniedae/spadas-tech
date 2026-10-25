@@ -4,6 +4,11 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import dynamic from "next/dynamic";
 import { performPrimeReset } from "@/lib/prime-reset";
+import { supabase } from "@/app/lib/supabase";
+
+// UI hint only (not an entitlement): the paywall is owed once the user finishes signing in.
+const PENDING_PAYWALL_KEY = "spadas_pending_paywall_v1";
+const PAYWALL_SKIP_PATHS = ["/privacy", "/terms", "/delete-account", "/press", "/creators", "/login", "/signup"];
 
 const OnboardingCarousel = dynamic(
   () => import("@/components/onboarding-carousel").then((m) => m.OnboardingCarousel),
@@ -81,6 +86,29 @@ export function GlobalFirstLaunchFlow() {
     }
   }, [pathname]);
 
+  // After sign-in, reopen the paywall that was deferred when the user finished onboarding.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!pathname || PAYWALL_SKIP_PATHS.includes(pathname) || pathname.startsWith("/api/")) return;
+
+    let pending = false;
+    try {
+      pending = localStorage.getItem(PENDING_PAYWALL_KEY) === "1";
+    } catch {}
+    if (!pending) return;
+
+    let cancelled = false;
+    void supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!cancelled && session?.user) {
+        setShowOnboarding(false);
+        setShowPaywall(true);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname]);
+
   const routeToScanner = useCallback(() => {
     if (pathname !== "/lens") {
       router.push("/lens");
@@ -94,21 +122,46 @@ export function GlobalFirstLaunchFlow() {
     } catch {}
   }, []);
 
-  const handleCompleteOnboarding = useCallback(() => {
+  // Sequence: carousel -> sign in -> paywall -> scanner.
+  // Signed-in users see the paywall straight away; signed-out users are sent to login first
+  // and the paywall reopens on return, so the trial button never sends anyone away.
+  const continueToPaywall = useCallback(async () => {
     setShowOnboarding(false);
-    setShowPaywall(true);
     markOnboardingSeen();
-  }, [markOnboardingSeen]);
+
+    let signedIn = false;
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      signedIn = Boolean(session?.user);
+    } catch {}
+
+    if (signedIn) {
+      setShowPaywall(true);
+      return;
+    }
+
+    try {
+      localStorage.setItem(PENDING_PAYWALL_KEY, "1");
+    } catch {}
+    router.push(`/login?redirect=${encodeURIComponent("/lens")}`);
+  }, [markOnboardingSeen, router]);
+
+  const handleCompleteOnboarding = useCallback(() => {
+    void continueToPaywall();
+  }, [continueToPaywall]);
 
   const handleSkipOnboarding = useCallback(() => {
-    setShowOnboarding(false);
-    setShowPaywall(true);
-    markOnboardingSeen();
-  }, [markOnboardingSeen]);
+    void continueToPaywall();
+  }, [continueToPaywall]);
 
   const handleClosePaywall = useCallback(() => {
     setShowPaywall(false);
     markOnboardingSeen();
+    try {
+      localStorage.removeItem(PENDING_PAYWALL_KEY);
+    } catch {}
     if (typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("spadas:onboarding-complete"));
     }
