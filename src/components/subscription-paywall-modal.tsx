@@ -100,6 +100,18 @@ export function SubscriptionPaywallModal({
     setIsLoading(true);
 
     try {
+      // Subscriptions are linked to the server-side auth user id. Guests must sign in first,
+      // so send them to login and bring them back here instead of showing a dead-end error.
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session?.user) {
+        toast.info("Sign in to start your free trial. It takes a few seconds.");
+        const returnPath = `${window.location.pathname}${window.location.search}`;
+        window.location.assign(`/login?redirect=${encodeURIComponent(returnPath)}`);
+        return;
+      }
+
       const res = await purchaseGooglePlaySubscription({
         planId: selectedPlan,
       });
