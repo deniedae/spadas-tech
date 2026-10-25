@@ -126,11 +126,11 @@ export default function RootLayout({
     <html lang="en" className={cn("dark font-sans", geistSans.variable, geistMono.variable)}>
       <head>
         {/* Google AdSense Site Verification Meta Tag */}
-        <meta name="google-adsense-account" content="ca-pub-5362745474137454" />
-        {/* Google AdSense Script Tag (Publisher ID: pub-5362745474137454) */}
+        <meta name="google-adsense-account" content="ca-pub-7262955524032732" />
+        {/* Google AdSense Script Tag (Publisher ID: pub-7262955524032732) */}
         <script
           async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5362745474137454"
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7262955524032732"
           crossOrigin="anonymous"
         ></script>
         <link rel="preload" href="/icon-192.png" as="image" type="image/png" />

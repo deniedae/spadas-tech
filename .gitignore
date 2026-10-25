@@ -38,6 +38,7 @@ android/.gradle/
 *.keystore
 *.jar
 *.bak*
+.firebase/
 
 # debug & telemetry
 npm-debug.log*

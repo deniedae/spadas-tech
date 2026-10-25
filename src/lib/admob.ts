@@ -9,10 +9,10 @@
 
 export const ADMOB_CONFIG = {
   // Production IDs
-  publisherId: process.env.NEXT_PUBLIC_ADMOB_PUBLISHER_ID || "pub-5362745474137454",
+  publisherId: process.env.NEXT_PUBLIC_ADMOB_PUBLISHER_ID || "pub-7262955524032732",
   appId: process.env.NEXT_PUBLIC_ADMOB_APP_ID || "ca-app-pub-1804367864263274~1584918058",
   // Live production AdSense Web Banner unit for Spadas
-  bannerAdUnitId: process.env.NEXT_PUBLIC_ADMOB_BANNER_ID?.trim() || "7949256639",
+  bannerAdUnitId: process.env.NEXT_PUBLIC_ADMOB_BANNER_ID?.trim() || "6340873525",
 
   // Google Mobile Ads official test ad unit for Android Banners
   testBannerAdUnitId: "ca-app-pub-3940256099942544/6300978111",
