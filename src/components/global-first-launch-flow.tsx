@@ -5,6 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import dynamic from "next/dynamic";
 import { performPrimeReset } from "@/lib/prime-reset";
 import { supabase } from "@/app/lib/supabase";
+import { trackFunnel } from "@/lib/funnel-analytics";
 
 // UI hint only (not an entitlement): the paywall is owed once the user finishes signing in.
 const PENDING_PAYWALL_KEY = "spadas_pending_paywall_v1";
@@ -145,14 +146,17 @@ export function GlobalFirstLaunchFlow() {
     try {
       localStorage.setItem(PENDING_PAYWALL_KEY, "1");
     } catch {}
+    trackFunnel("signin_required", { from: "onboarding" });
     router.push(`/login?redirect=${encodeURIComponent("/lens")}`);
   }, [markOnboardingSeen, router]);
 
   const handleCompleteOnboarding = useCallback(() => {
+    trackFunnel("onboarding_completed");
     void continueToPaywall();
   }, [continueToPaywall]);
 
   const handleSkipOnboarding = useCallback(() => {
+    trackFunnel("onboarding_skipped");
     void continueToPaywall();
   }, [continueToPaywall]);
 

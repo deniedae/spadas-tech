@@ -7,6 +7,7 @@ import { supabase } from "@/app/lib/supabase";
 import { initGoogleIdentityServices, promptGoogleOneTap } from "@/lib/google-auth";
 import { performPrimeReset } from "@/lib/prime-reset";
 import { toast } from "sonner";
+import { trackFunnel } from "@/lib/funnel-analytics";
 import {
   Scan,
   Eye,
@@ -40,6 +41,7 @@ export function SpadasAuthCard({ initialMode = "signup" }: Props) {
     const cleanup = initGoogleIdentityServices({
       autoPrompt: true,
       onSuccess: () => {
+        trackFunnel("login_success", { method: "google_one_tap" });
         toast.success("Signed in with Google!");
         window.location.href = redirectTarget;
       },
@@ -140,6 +142,7 @@ export function SpadasAuthCard({ initialMode = "signup" }: Props) {
               setMode("login");
               return;
             }
+            trackFunnel("login_success", { method: "email" });
             toast.success("Welcome back! Signed in to Spadas Lens.");
             await new Promise((r) => setTimeout(r, 250));
             router.refresh();
@@ -159,6 +162,7 @@ export function SpadasAuthCard({ initialMode = "signup" }: Props) {
         }
 
         performPrimeReset({ newUserId: data.user?.id, preserveAuth: true });
+        trackFunnel("signup_success", { method: "email" });
         toast.success("Welcome to Spadas Lens! 3 Free Scans Ready.");
         await new Promise((r) => setTimeout(r, 250));
         router.refresh();
@@ -181,6 +185,7 @@ export function SpadasAuthCard({ initialMode = "signup" }: Props) {
         }
 
         performPrimeReset({ newUserId: data.user.id, preserveAuth: true });
+        trackFunnel("login_success", { method: "email" });
         toast.success("Authenticated successfully!");
         await new Promise((r) => setTimeout(r, 250));
         router.refresh();

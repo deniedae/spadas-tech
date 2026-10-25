@@ -23,6 +23,7 @@ import {
   PlayProductDetail,
 } from "@/lib/google-play-billing";
 import { triggerTactileHaptic } from "@/lib/android-bridge";
+import { trackFunnel } from "@/lib/funnel-analytics";
 
 export interface SubscriptionPaywallModalProps {
   isOpen: boolean;
@@ -85,6 +86,12 @@ export function SubscriptionPaywallModal({
     });
   }, []);
 
+  useEffect(() => {
+    if (isOpen) {
+      trackFunnel("paywall_viewed", { source: fromOnboarding ? "onboarding" : "in_app" });
+    }
+  }, [isOpen, fromOnboarding]);
+
   if (!isOpen || isOwner) return null;
 
   const trialDays = weeklyPlan.trialDays ?? BILLING_CONFIG.plans.weekly.trialDays;
@@ -95,8 +102,14 @@ export function SubscriptionPaywallModal({
     setSelectedPlan(plan);
   };
 
+  const handleDismiss = () => {
+    trackFunnel("paywall_dismissed", { plan: selectedPlan });
+    onClose();
+  };
+
   const handlePurchase = async () => {
     triggerTactileHaptic("medium");
+    trackFunnel("trial_cta_tapped", { plan: selectedPlan });
     setIsLoading(true);
 
     try {
@@ -106,6 +119,7 @@ export function SubscriptionPaywallModal({
         data: { session },
       } = await supabase.auth.getSession();
       if (!session?.user) {
+        trackFunnel("signin_required", { from: "paywall" });
         toast.info("Sign in to start your free trial. It takes a few seconds.");
         const returnPath = `${window.location.pathname}${window.location.search}`;
         window.location.assign(`/login?redirect=${encodeURIComponent(returnPath)}`);
@@ -117,6 +131,7 @@ export function SubscriptionPaywallModal({
       });
 
       if (res.active) {
+        trackFunnel("purchase_success", { plan: selectedPlan });
         toast.success(
           selectedPlan === "weekly"
             ? `🎉 ${trialDays}-Day Free Trial activated! Unlimited scanning unlocked.`
@@ -167,7 +182,7 @@ export function SubscriptionPaywallModal({
         {/* Close button */}
         <button
           type="button"
-          onClick={onClose}
+          onClick={handleDismiss}
           aria-label="Close"
           className="absolute top-3.5 right-3.5 h-10 w-10 flex items-center justify-center rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-800/80 transition cursor-pointer"
         >
@@ -353,7 +368,7 @@ export function SubscriptionPaywallModal({
           {fromOnboarding && (
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleDismiss}
               className="w-full py-1.5 text-xs font-semibold text-zinc-400 hover:text-zinc-200 transition text-center cursor-pointer"
             >
               Maybe later (Continue with {BILLING_CONFIG.freeScanAllowance} free scans)
