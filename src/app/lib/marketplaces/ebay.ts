@@ -529,10 +529,18 @@ export function isEbayAccountRestrictedError(errorData: any, rawText?: string): 
     .join(" ")
     .toLowerCase();
 
+  // ONLY authentic account suspension or trading limit error codes from eBay Sell API
+  // NOTE: Never include 21919301 (MPN required), 21916328 (Category aspects), 21919158 (Shipping service),
+  // 21919188 (Return policy), or 21919067 (Payment method) as they are normal listing parameter errors!
   const restrictionErrorIds = [
-    "25019", "25008", "25010", "25007", "25001", "25006",
-    "21919188", "21916328", "21919158", "21919182", "21919301",
-    "21919067", "121", "17", "21916293"
+    "25019", // Seller account has restrictions
+    "25008", // Seller account suspended
+    "25010", // Seller not allowed to list
+    "25007", // Selling limit reached
+    "25001", // Restricted from selling
+    "25006", // Trading limit exceeded
+    "121",   // Account not allowed to list
+    "17",    // Account payout verification required
   ];
 
   const hasRestrictionId = (errorData?.errors || []).some((e: any) =>
@@ -540,20 +548,13 @@ export function isEbayAccountRestrictedError(errorData: any, rawText?: string): 
   );
 
   const restrictionPhrases = [
-    "violation of ebay policy",
-    "seller may be in violation",
-    "selling restrictions",
-    "restricted from selling",
     "account is restricted",
+    "restricted from selling",
     "account has restrictions",
-    "your account has not met",
-    "trading limit",
-    "seller account status",
-    "pending verification",
-    "verify your account",
-    "unable to list items at this time",
-    "selling limit",
-    "suspended",
+    "seller account is suspended",
+    "account is suspended",
+    "selling limit reached",
+    "trading limit reached",
   ];
 
   const hasRestrictionPhrase = restrictionPhrases.some((phrase) => combinedText.includes(phrase));

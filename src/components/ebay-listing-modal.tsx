@@ -746,26 +746,28 @@ export default function EbayListingModal({
                     >
                       {error}
                     </p>
-                    {isAccountRestricted ? (
-                      <a
-                        href={activeRegion.id === "AUD" ? "https://www.ebay.com.au/sh/ovw" : "https://www.ebay.com/sh/ovw"}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1 mt-1 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-[11px] font-bold border border-amber-500/40 transition"
-                      >
-                        <span>Check eBay Seller Hub Verification</span>
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
-                    ) : (
+                    <div className="flex flex-wrap items-center gap-2 pt-1">
+                      {isAccountRestricted && (
+                        <a
+                          href={activeRegion.id === "AUD" ? "https://www.ebay.com.au/sh/ovw" : activeRegion.id === "GBP" ? "https://www.ebay.co.uk/sh/ovw" : "https://www.ebay.com/sh/ovw"}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-[11px] font-bold border border-amber-500/40 transition"
+                        >
+                          <span>Check eBay Seller Hub</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
                       <button
                         type="button"
                         onClick={handleFastList}
-                        className="text-[11px] text-cyan-400 underline hover:text-cyan-300 inline-flex items-center gap-1 mt-1 cursor-pointer font-bold"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 text-xs font-bold border border-cyan-500/40 transition active:scale-95 cursor-pointer shadow-sm"
                       >
-                        <span>Click to 1-Tap Fast-List directly on eBay</span>
+                        <Zap className="w-3.5 h-3.5 text-cyan-400" />
+                        <span>1-Tap Fast-List to eBay</span>
                         <ExternalLink className="w-3 h-3" />
                       </button>
-                    )}
+                    </div>
                   </div>
                 </div>
               )}

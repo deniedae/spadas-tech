@@ -9,7 +9,11 @@ import { createListing } from "@/app/lib/createlisting";
 import { syncProfitToAndroidWidget, triggerTactileHaptic } from "@/lib/android-bridge";
 import { OmniMarketplaceCompareCard, OmniMarketplaceCompareModal } from "@/components/omni-marketplace-compare-card";
 import EbayListingModal from "@/components/ebay-listing-modal";
-import { generateEbayPrefillUrl } from "@/app/lib/marketplaces/ebay-prefill";
+import {
+  generateEbayPrefillUrl,
+  generateOptimizedEbayTitle,
+  buildEbayPolicyCompliantDescription,
+} from "@/app/lib/marketplaces/ebay-prefill";
 import { convertCurrency, CURRENCY_CONFIGS, detectGeoCurrency, SupportedCurrency } from "@/app/lib/currency-routing";
 import type { CopVerdict } from "@/types/lens";
 
@@ -196,7 +200,41 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
 
   const handleFastListEbay = () => {
     triggerTactileHaptic("tap");
-    setIsEbayModalOpen(true);
+    try {
+      const cleanBrand = (data.brand || "Unbranded").trim();
+      const compliantTitle = generateOptimizedEbayTitle(data.productName, cleanBrand);
+      const compliantDesc = buildEbayPolicyCompliantDescription({
+        title: compliantTitle,
+        brand: cleanBrand,
+        condition: data.condition || "Used - Good",
+        category: data.category || undefined,
+        currency: activeCurrency,
+        rawNotes: data.description,
+      });
+      const copyPayload = `Title: ${compliantTitle}\nPrice: ${currConfig.symbol}${data.priceMedian.toFixed(2)} ${activeCurrency}\nCondition: ${data.condition || "Used - Good"}\nBrand: ${cleanBrand}\nMPN: Does Not Apply\n\nDescription:\n${compliantDesc}`;
+      try {
+        if (typeof navigator !== "undefined" && navigator.clipboard) {
+          void navigator.clipboard.writeText(copyPayload);
+        }
+      } catch {}
+
+      const prefillUrl = generateEbayPrefillUrl({
+        title: compliantTitle,
+        priceAud: data.priceMedian,
+        price: data.priceMedian,
+        brand: cleanBrand,
+        category: data.category || undefined,
+        currency: activeCurrency,
+      });
+
+      toast.success(`📋 Copied listing payload! Opening official eBay Sell wizard...`, { duration: 4000 });
+      const opened = window.open(prefillUrl, "_blank");
+      if (!opened) {
+        window.location.href = prefillUrl;
+      }
+    } catch {
+      setIsEbayModalOpen(true);
+    }
   };
 
   const handlePublishEbay = () => {
@@ -665,7 +703,7 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
         onCurrencyChange={handleCurrencyChange}
         onListEbay={() => {
           setIsCompsModalOpen(false);
-          setIsEbayModalOpen(true);
+          handleFastListEbay();
         }}
       />
     </div>

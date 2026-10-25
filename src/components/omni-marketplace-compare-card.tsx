@@ -313,6 +313,7 @@ export function OmniMarketplaceCompareCard({
         brand: cleanBrand,
         condition: condition || "Used - Good",
         category: category || undefined,
+        currency: currentCurrency,
       });
       const copyPayload = `Title: ${compliantTitle}\nPrice: ${sym}${stats.median.toFixed(2)} ${currentCurrency}\nCondition: ${condition || "Used - Good"}\nBrand: ${cleanBrand}\nMPN: Does Not Apply\n\nDescription:\n${compliantDesc}`;
       try {
