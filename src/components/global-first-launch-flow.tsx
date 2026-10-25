@@ -109,6 +109,9 @@ export function GlobalFirstLaunchFlow() {
   const handleClosePaywall = useCallback(() => {
     setShowPaywall(false);
     markOnboardingSeen();
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("spadas:onboarding-complete"));
+    }
     routeToScanner();
   }, [markOnboardingSeen, routeToScanner]);
 
@@ -128,6 +131,7 @@ export function GlobalFirstLaunchFlow() {
         <SubscriptionPaywallModal
           isOpen={showPaywall}
           onClose={handleClosePaywall}
+          onSuccess={handleClosePaywall}
           fromOnboarding={true}
         />
       )}

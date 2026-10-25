@@ -11,6 +11,7 @@ import {
   Activity,
 } from "lucide-react";
 import { triggerTactileHaptic } from "@/lib/android-bridge";
+import { detectGeoCurrency } from "@/app/lib/currency-routing";
 
 interface OnboardingCarouselProps {
   onComplete: () => void;
@@ -21,6 +22,19 @@ export function OnboardingCarousel({ onComplete, onSkip }: OnboardingCarouselPro
   const [currentSlide, setCurrentSlide] = useState(0);
   const touchStartXRef = useRef<number | null>(null);
   const touchDeltaXRef = useRef<number>(0);
+
+  const geo = useMemo(() => {
+    if (typeof window === "undefined") {
+      return { sym: "$", isUK: false, isAU: false, isUS: true };
+    }
+    const detected = detectGeoCurrency();
+    return {
+      sym: detected.symbol,
+      isUK: detected.currency === "GBP",
+      isAU: detected.currency === "AUD",
+      isUS: detected.currency === "USD",
+    };
+  }, []);
 
   const slides = useMemo(
     () => [
@@ -56,7 +70,7 @@ export function OnboardingCarousel({ onComplete, onSkip }: OnboardingCarouselPro
               <div className="z-10 p-2 rounded-lg bg-zinc-950/90 border border-cyan-500/40">
                 <div className="text-xs font-bold text-white truncate">Vintage 90s Ralph Lauren Polo</div>
                 <div className="flex items-center justify-between text-[11px] font-mono pt-1 text-emerald-400 font-bold">
-                  <span>Sold Median: $48.50</span>
+                  <span>Sold Median: {geo.sym}{geo.isUK ? "38.50" : "48.50"}</span>
                   <span className="text-[10px] text-zinc-400">18 sold comps</span>
                 </div>
               </div>
@@ -67,7 +81,7 @@ export function OnboardingCarousel({ onComplete, onSkip }: OnboardingCarouselPro
                 <CheckCircle2 className="w-3.5 h-3.5" />
                 Realized Sold Comps
               </span>
-              <span>eBay AU / US Depth</span>
+              <span>{geo.isUK ? "eBay UK Depth" : geo.isAU ? "eBay AU Depth" : "eBay US Depth"}</span>
             </div>
           </div>
         ),
@@ -76,8 +90,11 @@ export function OnboardingCarousel({ onComplete, onSkip }: OnboardingCarouselPro
         id: 1,
         badge: "REAL-TIME PROFIT WATERFALL",
         title: "Know your real net profit",
-        description:
-          "Never get burned by hidden fees. Auto-deduct your op-shop tag cost, 13.4% eBay seller cut, and regional postage tiers before buying.",
+        description: geo.isUK
+          ? "Never get burned by hidden fees. Auto-deduct your charity shop tag cost, 12.8% eBay seller cut, and Royal Mail postage before buying."
+          : geo.isAU
+          ? "Never get burned by hidden fees. Auto-deduct your op-shop tag cost, 13.4% eBay seller cut, and regional postage tiers before buying."
+          : "Never get burned by hidden fees. Auto-deduct your thrift tag cost, 13.25% eBay seller cut, and USPS postage tiers before buying.",
         icon: DollarSign,
         accentColor: "from-emerald-500 to-teal-600",
         tagColor: "bg-emerald-950/70 border-emerald-800/60 text-emerald-300",
@@ -86,32 +103,32 @@ export function OnboardingCarousel({ onComplete, onSkip }: OnboardingCarouselPro
             <div className="flex items-center justify-between text-[11px] pb-1.5 border-b border-zinc-800">
               <span className="text-zinc-400 font-semibold uppercase tracking-wider text-[10px]">Financial Ledger</span>
               <span className="text-emerald-400 font-bold text-xs bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
-                +$28.40 Net Take-Home
+                +{geo.sym}28.40 Net Take-Home
               </span>
             </div>
 
             <div className="grid grid-cols-2 gap-1.5 text-center text-[10px]">
               <div className="p-2 rounded bg-zinc-950 border border-zinc-800">
                 <span className="text-zinc-400 block text-[9px]">Gross Sale</span>
-                <span className="text-white font-bold text-xs">$52.00</span>
+                <span className="text-white font-bold text-xs">{geo.sym}52.00</span>
               </div>
               <div className="p-2 rounded bg-zinc-950 border border-zinc-800">
-                <span className="text-zinc-400 block text-[9px]">Thrift Tag</span>
-                <span className="text-rose-400 font-bold text-xs">−$8.00</span>
+                <span className="text-zinc-400 block text-[9px]">{geo.isUK ? "Charity Tag" : geo.isAU ? "Op-Shop Tag" : "Thrift Tag"}</span>
+                <span className="text-rose-400 font-bold text-xs">−{geo.sym}8.00</span>
               </div>
               <div className="p-2 rounded bg-zinc-950 border border-zinc-800">
-                <span className="text-zinc-400 block text-[9px]">eBay Fees (13.4%)</span>
-                <span className="text-rose-400 font-bold text-xs">−$7.27</span>
+                <span className="text-zinc-400 block text-[9px]">{geo.isUK ? "eBay Fees (12.8%)" : geo.isAU ? "eBay Fees (13.4%)" : "eBay Fees (13.25%)"}</span>
+                <span className="text-rose-400 font-bold text-xs">−{geo.sym}{geo.isUK ? "6.65" : geo.isAU ? "6.97" : "6.89"}</span>
               </div>
               <div className="p-2 rounded bg-zinc-950 border border-zinc-800">
-                <span className="text-zinc-400 block text-[9px]">Parcel Satchel</span>
-                <span className="text-rose-400 font-bold text-xs">−$8.33</span>
+                <span className="text-zinc-400 block text-[9px]">{geo.isUK ? "Royal Mail 48" : geo.isAU ? "AusPost Satchel" : "USPS Ground"}</span>
+                <span className="text-rose-400 font-bold text-xs">−{geo.sym}{geo.isUK ? "3.45" : geo.isAU ? "8.33" : "5.40"}</span>
               </div>
             </div>
 
             <div className="flex items-center justify-between pt-1 px-1 text-[10px] text-zinc-400">
               <span>ROI: <strong className="text-emerald-400">+355%</strong></span>
-              <span>AusPost Standard Satchel</span>
+              <span>{geo.isUK ? "Tracked Royal Mail 48" : geo.isAU ? "AusPost Standard Satchel" : "Tracked USPS Ground Advantage"}</span>
             </div>
           </div>
         ),
@@ -238,7 +255,7 @@ export function OnboardingCarousel({ onComplete, onSkip }: OnboardingCarouselPro
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
-      className="fixed inset-0 z-[99999] flex flex-col justify-between bg-[#06080F] text-zinc-100 p-4 sm:p-6 select-none overflow-hidden"
+      className="fixed inset-0 z-[99999] flex flex-col justify-between bg-[#06080F] text-zinc-100 p-4 sm:p-6 select-none overflow-y-auto overscroll-contain min-h-[100dvh]"
     >
       {/* Ambient Radial Glow Backdrop */}
       <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-xl h-72 bg-gradient-to-b from-cyan-500/10 via-emerald-500/5 to-transparent blur-3xl" />
@@ -279,7 +296,7 @@ export function OnboardingCarousel({ onComplete, onSkip }: OnboardingCarouselPro
       {/* Main Content Area (Animated Crossfade Slide Container) */}
       <div
         key={slide.id}
-        className="relative z-10 flex-1 flex flex-col justify-center items-center max-w-md mx-auto w-full py-6 space-y-6 text-center animate-in fade-in slide-in-from-right-4 duration-300"
+        className="relative z-10 flex-1 flex flex-col justify-center items-center max-w-md mx-auto w-full py-3 sm:py-6 space-y-3 sm:space-y-6 text-center animate-in fade-in slide-in-from-right-4 duration-300 my-auto"
       >
         {/* Visual Preview Graphic */}
         <div className="w-full transition-transform duration-300 transform scale-100">

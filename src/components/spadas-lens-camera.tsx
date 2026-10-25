@@ -2114,10 +2114,28 @@ function SpadasLensCameraCore({
       }
     } catch { }
 
-    // Mount camera stream via unified manager
-    void startCamera();
+    // Mount camera stream via unified manager (defer if first-launch onboarding is active)
+    const hasCompletedOnboarding =
+      typeof window !== "undefined" &&
+      (localStorage.getItem("hasSeenOnboarding") === "true" ||
+        localStorage.getItem("hasCompletedOnboarding") === "true");
+
+    let onboardingHandler: (() => void) | null = null;
+    if (hasCompletedOnboarding) {
+      void startCamera();
+    } else {
+      onboardingHandler = () => {
+        void startCamera();
+      };
+      if (typeof window !== "undefined") {
+        window.addEventListener("spadas:onboarding-complete", onboardingHandler, { once: true });
+      }
+    }
 
     return () => {
+      if (onboardingHandler && typeof window !== "undefined") {
+        window.removeEventListener("spadas:onboarding-complete", onboardingHandler);
+      }
       if (activeAbortControllerRef.current) {
         try {
           activeAbortControllerRef.current.abort();
