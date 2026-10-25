@@ -135,6 +135,11 @@ export function generateEbayPrefillUrl(params: {
     keyword: cleanTitle,
   });
 
+  const categoryId = resolveEbayCategoryId(params.category, params.title);
+  if (categoryId && categoryId !== "1") {
+    queryParams.set("categoryId", categoryId);
+  }
+
   const curr = (params.currency || "").toUpperCase().trim();
   let domain = "www.ebay.com";
   if (curr === "AUD") {
@@ -167,56 +172,132 @@ export function generateEbayItemSpecifics(params: {
   const aspects: Record<string, string[]> = {
     Brand: [brandVal],
     MPN: ["Does Not Apply"],
+    UPC: ["Does Not Apply"],
     Condition: [params.condition || "Pre-owned"],
   };
 
   const lowerProd = params.productName.toLowerCase();
   const lowerCat = (params.category || "").toLowerCase();
+  const text = `${lowerProd} ${lowerCat}`;
 
-  // Department
-  if (lowerProd.includes("women") || lowerCat.includes("women") || lowerProd.includes("lady") || lowerProd.includes("dress")) {
-    aspects["Department"] = ["Women"];
-  } else if (lowerProd.includes("men") || lowerCat.includes("men")) {
-    aspects["Department"] = ["Men"];
-  } else {
-    aspects["Department"] = ["Unisex Adults"];
+  // 1. DVDs / Movies
+  if (/\b(dvd|dvds|blu-ray|bluray|4k uhd|movie|movies|steelbook|criterion|vhs|film|films|cinema|box set|boxset)\b/i.test(text)) {
+    const isBluRay = /\b(blu-ray|bluray)\b/i.test(text);
+    const is4K = /\b(4k|4k uhd|ultra hd)\b/i.test(text);
+    const isVhs = /\b(vhs)\b/i.test(text);
+    const format = is4K ? "4K UHD" : isBluRay ? "Blu-ray" : isVhs ? "VHS" : "DVD";
+
+    aspects["Format"] = [format];
+    aspects["Type"] = [/\b(season|series|tv)\b/i.test(text) ? "TV Series" : "Movie"];
+    aspects["Movie/TV Title"] = [params.productName];
+    aspects["Language"] = ["English"];
+    return aspects;
   }
 
-  // Material detection
-  if (lowerProd.includes("leather") || lowerProd.includes("saffiano")) {
-    aspects["Material"] = ["Leather"];
-  } else if (lowerProd.includes("nylon") || lowerProd.includes("tessuto")) {
-    aspects["Material"] = ["Nylon"];
-  } else if (lowerProd.includes("canvas") || lowerProd.includes("oblique") || lowerProd.includes("monogram")) {
-    aspects["Material"] = ["Canvas"];
-  } else if (lowerProd.includes("cotton") || lowerProd.includes("denim")) {
-    aspects["Material"] = ["Cotton"];
-  } else if (lowerProd.includes("wool") || lowerProd.includes("cashmere")) {
-    aspects["Material"] = ["Wool"];
-  } else if (lowerProd.includes("gold") || lowerProd.includes("750")) {
-    aspects["Material"] = ["Yellow Gold"];
-  } else if (lowerProd.includes("silver") || lowerProd.includes("925")) {
-    aspects["Material"] = ["Sterling Silver"];
+  // 2. Music (CDs, Vinyl)
+  if (/\b(vinyl|record|cd|compact disc|cassette|album)\b/i.test(text)) {
+    const isVinyl = /\b(vinyl|record|lp)\b/i.test(text);
+    const isCassette = /\b(cassette)\b/i.test(text);
+    const format = isVinyl ? "Record" : isCassette ? "Cassette" : "CD";
+
+    aspects["Format"] = [format];
+    aspects["Type"] = ["Album"];
+    aspects["Release Title"] = [params.productName];
+    if (brandVal !== "Unbranded") aspects["Artist"] = [brandVal];
+    return aspects;
   }
 
-  // Color detection (supplying both US 'Color' and UK/AU 'Colour' for universal cross-border compliance)
-  const knownColors = ["black", "white", "blue", "red", "green", "brown", "grey", "gray", "pink", "purple", "yellow", "orange", "gold", "silver", "beige", "navy", "cream", "tan"];
-  let matchedColor = "Multicoloured";
-  for (const c of knownColors) {
-    if (lowerProd.includes(c)) {
-      matchedColor = c.charAt(0).toUpperCase() + c.slice(1);
-      break;
+  // 3. Video Games
+  if (/\b(video game|gamecube|ps5|ps4|ps3|ps2|ps1|playstation|xbox|nintendo|switch|n64|snes|nes|sega|game boy|gameboy)\b/i.test(text)) {
+    let platform = "Multi-Platform";
+    if (/ps5|playstation 5/i.test(text)) platform = "Sony PlayStation 5";
+    else if (/ps4|playstation 4/i.test(text)) platform = "Sony PlayStation 4";
+    else if (/ps3/i.test(text)) platform = "Sony PlayStation 3";
+    else if (/ps2/i.test(text)) platform = "Sony PlayStation 2";
+    else if (/ps1|playstation/i.test(text)) platform = "Sony PlayStation 1";
+    else if (/switch/i.test(text)) platform = "Nintendo Switch";
+    else if (/gamecube/i.test(text)) platform = "Nintendo GameCube";
+    else if (/n64/i.test(text)) platform = "Nintendo 64";
+    else if (/game boy|gameboy/i.test(text)) platform = "Nintendo Game Boy";
+    else if (/xbox series/i.test(text)) platform = "Microsoft Xbox Series X|S";
+    else if (/xbox one/i.test(text)) platform = "Microsoft Xbox One";
+    else if (/xbox 360/i.test(text)) platform = "Microsoft Xbox 360";
+    else if (/xbox/i.test(text)) platform = "Microsoft Xbox";
+
+    aspects["Platform"] = [platform];
+    aspects["Game Name"] = [params.productName];
+    aspects["Genre"] = ["Action & Adventure"];
+    return aspects;
+  }
+
+  // 4. Books & Comics
+  if (/\b(book|novel|comic|manga|textbook)\b/i.test(text)) {
+    aspects["Book Title"] = [params.productName];
+    aspects["Format"] = [/\b(hardcover|hardback)\b/i.test(text) ? "Hardcover" : "Paperback"];
+    aspects["Language"] = ["English"];
+    if (brandVal !== "Unbranded") aspects["Author"] = [brandVal];
+    return aspects;
+  }
+
+  // 5. Trading Cards
+  if (/\b(pokemon|pokémon|mtg|magic|yugioh|tcg|trading card)\b/i.test(text)) {
+    aspects["Game"] = [/\b(pokemon|pokémon)\b/i.test(text) ? "Pokémon TCG" : /\b(magic|mtg)\b/i.test(text) ? "Magic: The Gathering" : "Trading Card Game"];
+    aspects["Card Name"] = [params.productName];
+    aspects["Graded"] = ["No"];
+    return aspects;
+  }
+
+  // 6. Watches
+  if (/\b(watch|timepiece|chronograph)\b/i.test(text)) {
+    aspects["Type"] = ["Wristwatch"];
+    aspects["Department"] = [/\b(women|ladies)\b/i.test(text) ? "Women" : /\b(men)\b/i.test(text) ? "Men" : "Unisex Adults"];
+    return aspects;
+  }
+
+  // 7. Clothing, Shoes, Bags & Fashion (ONLY here do we add Department, Material, Color, Style)
+  const isFashion = /\b(jacket|coat|windbreaker|hoodie|sweater|sweatshirt|shirt|t-shirt|tee|pants|jeans|dress|skirt|shorts|sneaker|shoe|shoes|boots|bag|handbag|tote|crossbody|backpack|wallet|purse)\b/i.test(text);
+
+  if (isFashion) {
+    if (lowerProd.includes("women") || lowerCat.includes("women") || lowerProd.includes("lady") || lowerProd.includes("dress")) {
+      aspects["Department"] = ["Women"];
+    } else if (lowerProd.includes("men") || lowerCat.includes("men")) {
+      aspects["Department"] = ["Men"];
+    } else {
+      aspects["Department"] = ["Unisex Adults"];
     }
-  }
-  aspects["Color"] = [matchedColor];
-  aspects["Colour"] = [matchedColor];
-  aspects["UPC"] = ["Does Not Apply"];
 
-  // Country of origin
-  if (brandVal.toLowerCase().includes("prada") || brandVal.toLowerCase().includes("gucci") || brandVal.toLowerCase().includes("ferragamo") || brandVal.toLowerCase().includes("fendi")) {
-    aspects["Country/Region of Manufacture"] = ["Italy"];
-  } else if (brandVal.toLowerCase().includes("louis vuitton") || brandVal.toLowerCase().includes("chanel") || brandVal.toLowerCase().includes("dior") || brandVal.toLowerCase().includes("hermes")) {
-    aspects["Country/Region of Manufacture"] = ["France"];
+    if (lowerProd.includes("leather") || lowerProd.includes("saffiano")) {
+      aspects["Material"] = ["Leather"];
+    } else if (lowerProd.includes("nylon") || lowerProd.includes("tessuto")) {
+      aspects["Material"] = ["Nylon"];
+    } else if (lowerProd.includes("canvas") || lowerProd.includes("oblique") || lowerProd.includes("monogram")) {
+      aspects["Material"] = ["Canvas"];
+    } else if (lowerProd.includes("cotton") || lowerProd.includes("denim")) {
+      aspects["Material"] = ["Cotton"];
+    } else if (lowerProd.includes("wool") || lowerProd.includes("cashmere")) {
+      aspects["Material"] = ["Wool"];
+    } else if (lowerProd.includes("gold") || lowerProd.includes("750")) {
+      aspects["Material"] = ["Yellow Gold"];
+    } else if (lowerProd.includes("silver") || lowerProd.includes("925")) {
+      aspects["Material"] = ["Sterling Silver"];
+    }
+
+    const knownColors = ["black", "white", "blue", "red", "green", "brown", "grey", "gray", "pink", "purple", "yellow", "orange", "gold", "silver", "beige", "navy", "cream", "tan"];
+    let matchedColor = "Multicoloured";
+    for (const c of knownColors) {
+      if (lowerProd.includes(c)) {
+        matchedColor = c.charAt(0).toUpperCase() + c.slice(1);
+        break;
+      }
+    }
+    aspects["Color"] = [matchedColor];
+    aspects["Colour"] = [matchedColor];
+
+    if (brandVal.toLowerCase().includes("prada") || brandVal.toLowerCase().includes("gucci") || brandVal.toLowerCase().includes("ferragamo") || brandVal.toLowerCase().includes("fendi")) {
+      aspects["Country/Region of Manufacture"] = ["Italy"];
+    } else if (brandVal.toLowerCase().includes("louis vuitton") || brandVal.toLowerCase().includes("chanel") || brandVal.toLowerCase().includes("dior") || brandVal.toLowerCase().includes("hermes")) {
+      aspects["Country/Region of Manufacture"] = ["France"];
+    }
   }
 
   return aspects;
@@ -299,16 +380,67 @@ export function buildEbayPolicyCompliantDescription(params: {
 }
 
 /**
- * Maps item category and title to eBay leaf category IDs
+ * Maps item category and title to eBay leaf category IDs (universal across AU, US, UK)
  */
 export function resolveEbayCategoryId(category?: string, title?: string): string {
   const text = `${category || ""} ${title || ""}`.toLowerCase();
-  if (text.includes("watch") || text.includes("timepiece") || text.includes("rolex") || text.includes("omega")) return "31387";
-  if (text.includes("wallet") || text.includes("cardholder") || text.includes("purse")) return "45258";
-  if (text.includes("sneaker") || text.includes("shoe") || text.includes("athletic") || text.includes("jordan") || text.includes("nike") || text.includes("dunk")) return "15709";
-  if (text.includes("ring") || text.includes("necklace") || text.includes("pendant") || text.includes("jewelry") || text.includes("jewellery") || text.includes("bracelet") || text.includes("earring") || text.includes("chain") || text.includes("precious_metals") || text.includes("gold") || text.includes("silver") || text.includes("brooch")) return "164344";
-  if (text.includes("crystal") || text.includes("mineral") || text.includes("gemstone") || text.includes("quartz") || text.includes("geode") || text.includes("crystals_gems")) return "3225";
-  if (text.includes("card") || text.includes("pokemon") || text.includes("tcg") || text.includes("magic") || text.includes("yugioh") || text.includes("charizard") || text.includes("trading_cards")) return "183454";
-  if (text.includes("men") && (text.includes("bag") || text.includes("briefcase") || text.includes("backpack"))) return "52357";
-  return "169291"; // Default to Women's Bags & Handbags
+
+  // 1. DVDs, Blu-rays, Movies, VHS
+  if (/\b(dvd|dvds|blu-ray|bluray|4k uhd|movie|movies|steelbook|criterion|film|films|cinema|box set|boxset)\b/i.test(text)) return "617";
+  if (/\b(vhs|tape)\b/i.test(text)) return "309";
+
+  // 2. Music (Vinyl, CDs, Cassettes)
+  if (/\b(vinyl|record|lp|12"|7"|33 rpm|45 rpm)\b/i.test(text)) return "176985";
+  if (/\b(cd|compact disc|audio cd)\b/i.test(text)) return "176984";
+  if (/\b(cassette)\b/i.test(text)) return "176983";
+
+  // 3. Video Games & Consoles
+  if (/\b(ps5|ps4|ps3|ps2|ps1|playstation|xbox|nintendo|switch|gamecube|n64|snes|nes|sega|game boy|gameboy|wii|atari)\b/i.test(text)) {
+    if (/\b(console|system|hardware|bundle)\b/i.test(text)) return "139971";
+    return "139973"; // Video Games
+  }
+  if (/\b(video game|cartridge)\b/i.test(text)) return "139973";
+
+  // 4. Books, Comic Books & Manga
+  if (/\b(comic|manga|graphic novel)\b/i.test(text)) return "63";
+  if (/\b(book|novel|hardcover|paperback|textbook|author|isbn)\b/i.test(text)) return "267";
+
+  // 5. Trading Cards & Sports Cards
+  if (/\b(pokemon|pokémon|magic the gathering|mtg|yugioh|yu-gi-oh|tcg|charizard|booster|cardfight)\b/i.test(text)) return "183454";
+  if (/\b(trading card|baseball card|basketball card|football card|soccer card|sports card|panini|topps)\b/i.test(text)) return "213";
+
+  // 6. Watches & Timepieces
+  if (/\b(watch|timepiece|rolex|omega|seiko|casio|chronograph|g-shock|tag heuer|breitling|tudor)\b/i.test(text)) return "31387";
+
+  // 7. Jewelry & Precious Metals
+  if (/\b(ring|necklace|pendant|jewelry|jewellery|bracelet|earring|earrings|chain|brooch|gold|silver|diamond|\.925|14k|18k)\b/i.test(text)) return "164344";
+
+  // 8. Crystals & Minerals
+  if (/\b(crystal|mineral|gemstone|quartz|geode|amethyst|agate|cluster|crystals_gems)\b/i.test(text)) return "3225";
+
+  // 9. Consumer Electronics & Cameras
+  if (/\b(iphone|smartphone|cell phone|samsung galaxy|pixel)\b/i.test(text)) return "9355";
+  if (/\b(camera|lens|dslr|camcorder|digicam)\b/i.test(text)) return "31388";
+  if (/\b(headphone|headphones|earbuds|airpods)\b/i.test(text)) return "112529";
+  if (/\b(receiver|amplifier|turntable|speaker|vintage audio)\b/i.test(text)) return "14993";
+
+  // 10. Toys & Action Figures
+  if (/\b(action figure|funko|lego|hot wheels|hasbro|mattel|transformers|star wars toy)\b/i.test(text)) return "246";
+
+  // 11. Shoes & Sneakers
+  if (/\b(sneaker|sneakers|shoe|shoes|athletic|jordan|nike|dunk|boots|heels|sandals|loafers|cleats)\b/i.test(text)) return "15709";
+
+  // 12. Clothing & Apparel
+  if (/\b(jacket|coat|windbreaker|hoodie|sweater|sweatshirt|shirt|t-shirt|tee|pants|jeans|dress|skirt|shorts|blazer|fleece|parka|vest)\b/i.test(text)) {
+    if (/\b(women|ladies|dress|skirt)\b/i.test(text)) return "15724"; // Women's Clothing
+    return "1059"; // Men's Clothing
+  }
+
+  // 13. Bags, Wallets & Handbags
+  if (/\b(wallet|cardholder|bifold|coin purse)\b/i.test(text)) return "45258";
+  if (/\b(backpack|briefcase|messenger bag)\b/i.test(text)) return "52357";
+  if (/\b(bag|handbag|tote|crossbody|shoulder bag|clutch|purse)\b/i.test(text)) return "169291";
+
+  // 14. Neutral Fallback for General Collectibles & Household Goods (NOT clothing!)
+  return "1"; // Collectibles
 }

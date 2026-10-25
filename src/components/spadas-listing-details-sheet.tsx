@@ -678,6 +678,7 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
         sessionId={`snap_${Date.now()}`}
         title={data.productName}
         brand={data.brand}
+        category={data.category}
         price={data.priceMedian}
         currency={activeCurrency}
         condition={data.condition}

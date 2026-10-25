@@ -5753,6 +5753,7 @@ function SpadasLensCameraCore({
           sessionId={activeEbayItem.sessionId || activeEbayItem.id || `session_${activeEbayItem.timestamp || "item"}`}
           title={activeEbayItem.productName || activeEbayItem.name || "Scanned Item"}
           brand={cleanBrandText(activeEbayItem.brand, "Unbranded") || "Unbranded"}
+          category={activeEbayItem.category}
           price={Number(activeEbayItem.estimatedValue) || 25}
           currency={activeEbayItem.currency || selectedCurrency}
           condition={cleanConditionText(activeEbayItem.condition, "Used - Good")}

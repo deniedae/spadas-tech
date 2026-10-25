@@ -1324,6 +1324,7 @@ export function SpadasHaulSection({
           isOpen={!!ebayItem}
           onClose={handleCloseEbayModal}
           title={ebayItem.productName || "Sourced Thrift Item"}
+          category={ebayItem.category}
           price={Number(ebayItem.estimatedValue) || 25}
           currency={currency}
           description={[

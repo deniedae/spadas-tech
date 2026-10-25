@@ -1102,6 +1102,7 @@ export default function DashboardPage() {
             void handleRefresh();
           }}
           title={ebayPublishItem.product}
+          category={(ebayPublishItem as any).category}
           price={Number(ebayPublishItem.price) || 25}
           currency={(ebayPublishItem as any).currency}
           description={ebayPublishItem.description || `Authentic ${ebayPublishItem.product}. Logged in Spadas Inventory.`}

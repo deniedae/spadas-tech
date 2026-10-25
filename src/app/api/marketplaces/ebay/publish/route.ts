@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
     const targetCurrency = resolveEffectiveCurrency(currency || listing?.currency, countryHeader);
     const targetCondition = condition || listing?.analysis?.condition || "Used";
     const targetBrand = brand || listing?.analysis?.brand || "Unbranded";
-    const targetCategory = category || listing?.category || listing?.analysis?.category || "Accessories";
+    const targetCategory = category || listing?.category || listing?.analysis?.category || "";
     const targetImages: string[] = Array.isArray(imageUrls || listing?.imageUrls)
       ? (imageUrls || listing?.imageUrls || []).filter((u: unknown) => typeof u === "string")
       : [];

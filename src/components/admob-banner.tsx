@@ -91,8 +91,8 @@ export default function AdMobBanner({
           className="adsbygoogle"
           style={{ display: "block", minWidth: "300px", height: "50px", textAlign: "center" }}
           data-ad-client={adClientId}
-          data-ad-slot={adSlotId || ""}
-          data-ad-format="horizontal"
+          data-ad-slot={adSlotId || "7949256639"}
+          data-ad-format="auto"
           data-full-width-responsive="true"
         />
 

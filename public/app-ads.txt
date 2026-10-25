@@ -1,2 +1,3 @@
-# Google AdMob app-ads.txt for com.spadas.ai
+# Google AdMob & AdSense app-ads.txt for com.spadas.ai
+google.com, pub-5362745474137454, DIRECT, f08c47fec0942fa0
 google.com, pub-1804367864263274, DIRECT, f08c47fec0942fa0

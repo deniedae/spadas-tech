@@ -91,6 +91,7 @@ interface EbayListingModalProps {
   sessionId?: string;
   title?: string;
   brand?: string;
+  category?: string;
   price?: number;
   currency?: string;
   condition?: string;
@@ -106,6 +107,7 @@ export default function EbayListingModal({
   sessionId,
   title: initialTitle = "Scanned Item",
   brand: initialBrand = "Unbranded",
+  category: initialCategory,
   price: initialPrice = 25,
   currency: initialCurrency,
   condition: initialCondition = "Used - Good",
@@ -265,6 +267,7 @@ export default function EbayListingModal({
             buildEbayPolicyCompliantDescription({
               title: safeTitle,
               brand: safeBrand,
+              category: initialCategory || undefined,
               condition: safeCond,
               currency: targetCurr,
               rawNotes: initialDescription,
@@ -275,7 +278,7 @@ export default function EbayListingModal({
     } else {
       prevIsOpenRef.current = false;
     }
-  }, [isOpen, sessionId, resolvedScanImage, imageUrls, initialCurrency, initialTitle, initialPrice, initialCondition, initialDescription, initialBrand]);
+  }, [isOpen, sessionId, resolvedScanImage, imageUrls, initialCurrency, initialTitle, initialPrice, initialCondition, initialDescription, initialBrand, initialCategory]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   // Auto-save drafts to localStorage
@@ -347,6 +350,7 @@ export default function EbayListingModal({
       title: compliantTitle,
       priceAud: Number(inputPrice),
       brand: safeBrandForList,
+      category: initialCategory || undefined,
       currency: activeRegion.code,
     });
 
@@ -500,6 +504,7 @@ export default function EbayListingModal({
     const payload = {
       product: inputTitle,
       brand: cleanBrandText(initialBrand, "Unbranded") || "Unbranded",
+      category: initialCategory || undefined,
       price: Number(inputPrice),
       currency: selectedCurrency,
       condition: cleanConditionText(inputCondition, "Used - Good"),

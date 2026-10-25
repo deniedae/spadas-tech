@@ -902,6 +902,7 @@ export default function ListingsPage() {
             loadListings();
           }}
           title={ebayPublishItem.product}
+          category={(ebayPublishItem as any).category}
           price={Number(ebayPublishItem.price) || 25}
           currency={(ebayPublishItem as any).currency}
           description={ebayPublishItem.description || ""}

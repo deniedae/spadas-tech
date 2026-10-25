@@ -560,6 +560,7 @@ export default function AiNewListingPage() {
         onClose={() => setIsEbayModalOpen(false)}
         title={form.ebay_title || form.product}
         brand={form.brand || "Authentic"}
+        category={form.category}
         price={Number(form.price) || 25}
         currency={(form as any).currency}
         condition={form.condition || "Used - Good"}

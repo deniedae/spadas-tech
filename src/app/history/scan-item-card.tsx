@@ -534,6 +534,7 @@ export function ScanItemCard({
         onClose={() => setIsEbayModalOpen(false)}
         title={title}
         brand={brand}
+        category={res?.category || res?.analysis?.category}
         price={maxPrice || minPrice || 25}
         currency={res?.currency}
         condition={cleanConditionText(res?.analysis?.condition, "Used - Good")}

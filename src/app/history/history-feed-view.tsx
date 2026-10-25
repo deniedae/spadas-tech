@@ -742,6 +742,7 @@ export function HistoryFeedView({
           onClose={() => setActiveEbayItem(null)}
           title={activeEbayItem.name}
           brand={cleanBrandText(activeEbayItem.brand, "Unbranded") || "Unbranded"}
+          category={activeEbayItem.category || (activeEbayItem as any).analysis?.category}
           price={Number(activeEbayItem.estimatedValue) || 25}
           currency={(activeEbayItem as any).currency}
           condition={cleanConditionText(activeEbayItem.condition, "Used - Good")}
