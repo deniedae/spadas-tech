@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { triggerTactileHaptic } from "@/lib/android-bridge";
 import { detectGeoCurrency } from "@/app/lib/currency-routing";
+import { SnapToListingDemo } from "@/components/snap-to-listing-demo";
 
 interface OnboardingCarouselProps {
   onComplete: () => void;
@@ -38,6 +39,17 @@ export function OnboardingCarousel({ onComplete, onSkip }: OnboardingCarouselPro
 
   const slides = useMemo(
     () => [
+      {
+        id: 3,
+        badge: "SNAP TO LIVE ON EBAY",
+        title: "From a snap to a live listing",
+        description:
+          "Snap your find, see verified sold comps, get a ready-to-post listing, and send it to eBay. Example shown.",
+        icon: Zap,
+        accentColor: "from-cyan-500 to-emerald-600",
+        tagColor: "bg-cyan-950/70 border-cyan-800/60 text-cyan-300",
+        preview: <SnapToListingDemo sym={geo.sym} isUK={geo.isUK} />,
+      },
       {
         id: 0,
         badge: "INSTANT OPTICAL VISION",
@@ -171,7 +183,7 @@ export function OnboardingCarousel({ onComplete, onSkip }: OnboardingCarouselPro
         ),
       },
     ],
-    []
+    [geo]
   );
 
   const handleNext = useCallback(() => {
