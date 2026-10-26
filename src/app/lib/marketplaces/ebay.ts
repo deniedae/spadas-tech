@@ -639,6 +639,50 @@ export function resolveEbayCategoryId(category?: string, title?: string): string
 }
 
 /**
+ * Asks eBay's Taxonomy API for a LEAF category that fits the listing title on the seller's
+ * marketplace. The Inventory API rejects non-leaf categories, and category trees differ between
+ * EBAY_US / EBAY_AU / EBAY_GB, so a hard-coded ID is not reliable. Returns null on any failure
+ * so callers can fall back to resolveEbayCategoryId().
+ */
+export async function fetchEbayLeafCategoryId(
+  apiHost: string,
+  accessToken: string,
+  marketplaceId: string,
+  query: string
+): Promise<string | null> {
+  const q = (query || "").trim().slice(0, 100);
+  if (!q) return null;
+
+  try {
+    const headers = {
+      Authorization: `Bearer ${accessToken}`,
+      Accept: "application/json",
+    };
+
+    const treeRes = await fetch(
+      `https://${apiHost}/commerce/taxonomy/v1/get_default_category_tree_id?marketplace_id=${marketplaceId}`,
+      { headers }
+    );
+    if (!treeRes.ok) return null;
+    const treeData = await treeRes.json().catch(() => null);
+    const treeId = treeData?.categoryTreeId;
+    if (!treeId) return null;
+
+    const sugRes = await fetch(
+      `https://${apiHost}/commerce/taxonomy/v1/category_tree/${treeId}/get_category_suggestions?q=${encodeURIComponent(q)}`,
+      { headers }
+    );
+    if (!sugRes.ok) return null;
+    const sugData = await sugRes.json().catch(() => null);
+    const id = sugData?.categorySuggestions?.[0]?.category?.categoryId;
+    return id ? String(id) : null;
+  } catch (err) {
+    console.warn("eBay Taxonomy category lookup failed:", err);
+    return null;
+  }
+}
+
+/**
  * Publish Spadas AI Listing to eBay Inventory & Offer REST API
  */
 export const EBAY_RESTRICTION_NOTICE =
@@ -824,7 +868,13 @@ export async function publishToEbayInventory(
   }
 
   // 4. Resolve default business policies and category ID
-  const categoryId = resolveEbayCategoryId(listing.category, listing.product);
+  const suggestedCategoryId = await fetchEbayLeafCategoryId(
+    apiHost,
+    accessToken,
+    marketplaceId,
+    listing.product
+  );
+  const categoryId = suggestedCategoryId || resolveEbayCategoryId(listing.category, listing.product);
   const policies = await ensureUserDefaultPolicies(apiHost, accessToken, marketplaceId);
 
   // 5. Create an Offer for this inventory item
