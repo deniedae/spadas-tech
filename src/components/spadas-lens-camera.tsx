@@ -98,6 +98,11 @@ import { quickSnapQueue, useQuickSnapQueue } from "@/lib/quick-snap-queue";
 const SubscriptionPaywallModal = dynamic(() => import("@/components/subscription-paywall-modal"), { ssr: false });
 const InAppReviewModal = dynamic(() => import("@/components/in-app-review-modal"), { ssr: false });
 import { recordSuccessfulScanAndCheckReviewPrompt, checkWinDelightPrompt } from "@/components/in-app-review-modal";
+import {
+  generateEbayPrefillUrl,
+  generateOptimizedEbayTitle,
+  buildEbayPolicyCompliantDescription,
+} from "@/app/lib/marketplaces/ebay-prefill";
 const EbayListingModal = dynamic(() => import("@/components/ebay-listing-modal"), { ssr: false });
 const DeepVerifyModal = dynamic(() => import("@/components/deep-verify-modal").then((m) => m.DeepVerifyModal), { ssr: false });
 const LensCompsModal = dynamic(() => import("@/components/lens-comps-modal"), { ssr: false });
@@ -1831,10 +1836,37 @@ function SpadasLensCameraCore({
         action: opened ? undefined : { label: "View listing", onClick: () => openExternalUrlSafely(result.listingUrl, product) },
       });
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Direct eBay publishing failed.";
-      console.error("Direct scan-to-eBay publish failed:", err);
-      openRecoveryModal();
-      toast.error(`${message} Review the listing details to retry.`, { duration: 7000 });
+      console.warn("Direct scan-to-eBay publish failed, executing 1-Tap Fast-List fallback:", err);
+      try {
+        const cleanBrand = brand?.trim() || "Unbranded";
+        const compliantTitle = generateOptimizedEbayTitle(product, cleanBrand);
+        const compliantDesc = buildEbayPolicyCompliantDescription({
+          title: compliantTitle,
+          brand: cleanBrand,
+          condition: condition || "Used - Good",
+          category: category || undefined,
+          currency: selectedCurrency,
+        });
+        const prefillUrl = generateEbayPrefillUrl({
+          title: compliantTitle,
+          priceAud: price,
+          price,
+          brand: cleanBrand,
+          category: category || undefined,
+          currency: selectedCurrency,
+        });
+        const copyPayload = `Title: ${compliantTitle}\nPrice: ${price.toFixed(2)} ${selectedCurrency}\nCondition: ${condition || "Used - Good"}\nBrand: ${cleanBrand}\nMPN: Does Not Apply\n\nDescription:\n${compliantDesc}`;
+        try {
+          if (typeof navigator !== "undefined" && navigator.clipboard) {
+            void navigator.clipboard.writeText(copyPayload);
+          }
+        } catch {}
+        openEbay(prefillUrl);
+        toast.success("📋 Copied details! Opening official eBay Sell wizard...", { duration: 5000 });
+      } catch {
+        openRecoveryModal();
+        toast.error("Could not sync directly. Review listing details to retry.");
+      }
     } finally {
       isPublishingScannedEbayRef.current = false;
       setIsPublishingScannedEbay(false);

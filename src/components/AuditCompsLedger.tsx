@@ -33,6 +33,7 @@ import { isMeaningfulMeta, sanitizeMetaText, cleanBrandText, cleanConditionText,
 import { calculateIntrinsicBestPrice, type IntrinsicPriceAppraisal } from "@/lib/intrinsic-pricing-engine";
 import { APPLIANCE_FILTER_PATTERNS } from "@/app/lib/ebay-australia-comps";
 import { getEbayMarketplaceLabel } from "@/app/lib/currency-routing";
+import { PriceDistributionBellCurve } from "@/components/price-distribution-bell-curve";
 
 export interface AuditCompRecord {
   id?: string;
@@ -803,6 +804,17 @@ export default function AuditCompsLedger({
                     </span>
                   </div>
                 </div>
+              )}
+
+              {/* Live Sold Comps Price Spread Bell Curve */}
+              {verifiedListings.length > 0 && stats && (
+                <PriceDistributionBellCurve
+                  prices={verifiedListings.map((c) => c.price)}
+                  currency={currency}
+                  medianPrice={stats.median}
+                  minPrice={stats.min}
+                  maxPrice={stats.max}
+                />
               )}
 
               {/* Informative Guidance Banner for Active Asks Fallback */}

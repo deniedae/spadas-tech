@@ -2,13 +2,15 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, Check, Sparkles, ShoppingBag, Edit3, DollarSign, Tag, Info, Copy, Zap, Scale, CheckCircle2, Plus, X, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, Sparkles, ShoppingBag, Edit3, DollarSign, Tag, Info, Copy, Zap, Scale, CheckCircle2, Plus, X, Search, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/app/lib/supabase";
 import { createListing } from "@/app/lib/createlisting";
 import { syncProfitToAndroidWidget, triggerTactileHaptic } from "@/lib/android-bridge";
 import { OmniMarketplaceCompareCard, OmniMarketplaceCompareModal } from "@/components/omni-marketplace-compare-card";
 import EbayListingModal from "@/components/ebay-listing-modal";
+import { StudioLightboxModal } from "@/components/studio-lightbox-modal";
+import { FlawForensicsModal } from "@/components/flaw-forensics-modal";
 import {
   generateEbayPrefillUrl,
   generateOptimizedEbayTitle,
@@ -76,6 +78,34 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
   const [editValue, setEditValue] = useState("");
   const [isEbayModalOpen, setIsEbayModalOpen] = useState(false);
   const [isCompsModalOpen, setIsCompsModalOpen] = useState(false);
+  const [isStudioModalOpen, setIsStudioModalOpen] = useState(false);
+  const [selectedStudioPhotoIndex, setSelectedStudioPhotoIndex] = useState(0);
+  const [isFlawModalOpen, setIsFlawModalOpen] = useState(false);
+
+  const handleApplyStudioPhoto = (enhancedUrl: string) => {
+    setData((prev) => {
+      const nextPhotos = [...prev.photos];
+      if (selectedStudioPhotoIndex >= 0 && selectedStudioPhotoIndex < nextPhotos.length) {
+        nextPhotos[selectedStudioPhotoIndex] = enhancedUrl;
+      } else {
+        nextPhotos.unshift(enhancedUrl);
+      }
+      return { ...prev, photos: nextPhotos };
+    });
+    toast.success("✨ Studio photo updated! Ready for eBay Best Match.");
+  };
+
+  const handleApplyFlawShield = (result: {
+    recommendedCondition: string;
+    conditionDescriptor: string;
+    updatedDescription: string;
+  }) => {
+    setData((prev) => ({
+      ...prev,
+      condition: result.recommendedCondition,
+      description: result.updatedDescription,
+    }));
+  };
 
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>(() => {
     return resolveEbayCategoryId(initialData.category, initialData.productName);
@@ -357,21 +387,45 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
 
       {/* Main Form Fields Container */}
       <div className="p-4 space-y-3">
-        {/* Photo Carousel Preview */}
+        {/* Photo Carousel Preview with 1-Tap AI Studio Lightbox */}
         {data.photos && data.photos.length > 0 && (
-          <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
-            {data.photos.map((img, idx) => (
-              <div
-                key={idx}
-                className="relative h-24 w-24 shrink-0 rounded-2xl overflow-hidden border border-slate-800 bg-slate-900 shadow-md"
+          <div className="space-y-2">
+            <div className="flex items-center justify-between px-1">
+              <span className="text-xs font-bold text-slate-400">Photos ({data.photos.length})</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedStudioPhotoIndex(0);
+                  setIsStudioModalOpen(true);
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-indigo-950/70 hover:bg-indigo-900/80 text-indigo-300 border border-indigo-500/40 text-[11px] font-bold transition cursor-pointer shadow-sm active:scale-95"
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={img} alt={`Item angle ${idx + 1}`} className="h-full w-full object-cover" />
-                <span className="absolute bottom-1 right-1 bg-slate-950/80 px-1.5 py-0.5 rounded text-[9px] font-bold text-slate-300">
-                  {idx === 0 ? "Main" : `#${idx + 1}`}
-                </span>
-              </div>
-            ))}
+                <Sparkles className="h-3.5 w-3.5 text-indigo-400" />
+                <span>AI Studio Lightbox</span>
+              </button>
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+              {data.photos.map((img, idx) => (
+                <div
+                  key={idx}
+                  onClick={() => {
+                    setSelectedStudioPhotoIndex(idx);
+                    setIsStudioModalOpen(true);
+                  }}
+                  className="relative h-24 w-24 shrink-0 rounded-2xl overflow-hidden border border-slate-800 hover:border-indigo-500/60 bg-slate-900 shadow-md cursor-pointer group transition"
+                  title="Tap to enhance in AI Studio Lightbox"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={img} alt={`Item angle ${idx + 1}`} className="h-full w-full object-cover transition group-hover:scale-105" />
+                  <span className="absolute bottom-1 right-1 bg-slate-950/80 px-1.5 py-0.5 rounded text-[9px] font-bold text-slate-300">
+                    {idx === 0 ? "Main" : `#${idx + 1}`}
+                  </span>
+                  <div className="absolute top-1.5 right-1.5 bg-indigo-600/90 text-white rounded-full p-1 opacity-80 group-hover:opacity-100 shadow">
+                    <Sparkles className="w-2.5 h-2.5" />
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
@@ -686,16 +740,35 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
           <ChevronRight className="h-5 w-5 text-slate-500 shrink-0" />
         </div>
 
-        {/* Condition Card */}
+        {/* Condition Card with INAD Flaw Shield */}
         <div
           onClick={() => openEditor("condition", "Condition")}
           className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800/80 hover:border-slate-700 transition cursor-pointer flex items-center justify-between gap-3 shadow-lg"
         >
           <div className="space-y-0.5">
-            <span className="text-xs font-bold text-slate-400">Condition</span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-400">Condition</span>
+              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                INAD Shield
+              </span>
+            </div>
             <p className="text-sm font-bold text-emerald-400">{data.condition || "Pre-owned - Like New"}</p>
           </div>
-          <ChevronRight className="h-5 w-5 text-slate-500 shrink-0" />
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsFlawModalOpen(true);
+              }}
+              className="px-2.5 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/35 text-amber-300 text-xs font-bold flex items-center gap-1.5 transition active:scale-95 cursor-pointer shadow-sm"
+              title="Inspect flaws and generate dispute-proof eBay notice"
+            >
+              <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
+              <span>Inspect Flaws</span>
+            </button>
+            <ChevronRight className="h-5 w-5 text-slate-500 shrink-0" />
+          </div>
         </div>
 
         {/* Description Card */}
@@ -1049,6 +1122,28 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
           </div>
         </div>
       )}
+
+      {/* AI Studio Lightbox Modal */}
+      {data.photos && data.photos.length > 0 && (
+        <StudioLightboxModal
+          isOpen={isStudioModalOpen}
+          onClose={() => setIsStudioModalOpen(false)}
+          imageSrc={data.photos[selectedStudioPhotoIndex] || data.photos[0] || ""}
+          onApply={handleApplyStudioPhoto}
+          title={data.productName}
+        />
+      )}
+
+      {/* AI Flaw & Defect Forensics Modal (INAD Shield) */}
+      <FlawForensicsModal
+        isOpen={isFlawModalOpen}
+        onClose={() => setIsFlawModalOpen(false)}
+        itemTitle={data.productName}
+        initialDescription={data.description}
+        initialCondition={data.condition}
+        photos={data.photos}
+        onApplyShield={handleApplyFlawShield}
+      />
     </div>
   );
 }

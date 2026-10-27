@@ -38,7 +38,11 @@ import { createListing } from "@/app/lib/createlisting";
 import { supabase } from "@/app/lib/supabase";
 import { toast } from "sonner";
 import { compressFileToDataUrl } from "@/lib/image-preprocessor";
-import { generateEbayPrefillUrl } from "@/app/lib/marketplaces/ebay-prefill";
+import {
+  generateEbayPrefillUrl,
+  generateOptimizedEbayTitle,
+  buildEbayPolicyCompliantDescription,
+} from "@/app/lib/marketplaces/ebay-prefill";
 import {
   cleanBrandText,
   cleanCategoryText,
@@ -77,6 +81,7 @@ import {
 import { calculateSpectralComps } from "@/lib/comps-volatility-engine";
 import { calculateSeasonalityProfile } from "@/lib/seasonal-velocity-engine";
 import { ensureVerifiedSoldComps } from "@/components/AuditCompsLedger";
+import { PriceDistributionBellCurve } from "@/components/price-distribution-bell-curve";
 import { estimateAustralianMarketValue } from "@/lib/valuation-heuristics";
 import {
   isFragranceOrLiquid,
@@ -973,36 +978,14 @@ export default function LensCompsModal({
   };
 
   // Strict 1-Tap Live Publish to eBay AU:
-  // Mirrors exact payload verification and live syncing from EbayListingModal
+  // 1-Tap Live Publish to eBay AU / US / UK with Seamless Fast-List Fallback:
   const handle1TapPublishEbay = async () => {
     if (isPublishingEbay) return;
 
-    // 1. Strict Primary Photo Verification:
-    const primaryBlob =
-      listingPhotos[0]?.trim() || previewImageSrc?.trim() || (item as any)?.image?.trim() || null;
-
-    if (!primaryBlob || primaryBlob.includes("unsplash.com") || primaryBlob.includes("placeholder")) {
-      toast.warning("No active scan capture photo found. Please capture or attach a photo before syncing to eBay AU.", {
-        id: "empty-primary-photo-warning",
-      });
-      return;
-    }
-
-    // Filter secondary gallery photos (guaranteeing no duplicates of primaryBlob)
-    const validGallery = listingPhotos.filter(
-      (img) => typeof img === "string" && img.trim().length > 0 && img.trim() !== primaryBlob
-    );
-
-    // Final payload array: Index [0] is GUARANTEED to be the active scan capture photo
-    const submissionImageUrls = [primaryBlob, ...validGallery];
-
     const safeBrand = cleanBrandText(brand, "Unbranded") || "Unbranded";
     const safeCond = cleanConditionText(condition, "Used - Good");
-    const stableSessionId =
-      (item as any)?.sessionId || (item as any)?.id || `session_${(item as any)?.timestamp || Date.now()}`;
     const targetRegionLabel = isUkMarket ? "eBay UK" : isUsMarket ? "eBay US" : "eBay AU";
     const targetDomain = isUkMarket ? "ebay.co.uk" : isUsMarket ? "ebay.com" : "ebay.com.au";
-
     const cleanSubject = buildCleanListingSubject(safeBrand, title);
     const itemDescription = buildCleanListingDescription({
       title,
@@ -1013,17 +996,66 @@ export default function LensCompsModal({
       currency: targetCurrency,
     });
 
+    const compliantTitle = generateOptimizedEbayTitle(cleanSubject.slice(0, 80), safeBrand);
+    const compliantDesc = buildEbayPolicyCompliantDescription({
+      title: compliantTitle,
+      brand: safeBrand,
+      condition: safeCond,
+      category,
+      currency: targetCurrency,
+      rawNotes: itemDescription,
+    });
+
+    const prefillUrl = generateEbayPrefillUrl({
+      title: compliantTitle,
+      priceAud: Number(activeResalePrice),
+      price: Number(activeResalePrice),
+      brand: safeBrand,
+      category,
+      currency: targetCurrency,
+    });
+
+    const copyPayload = `Title: ${compliantTitle}\nPrice: ${targetCurrency === "GBP" ? "£" : "$"}${Number(activeResalePrice).toFixed(2)} ${targetCurrency}\nCondition: ${safeCond}\nBrand: ${safeBrand}\nMPN: Does Not Apply\n\nDescription:\n${compliantDesc}`;
+
+    const executeFastListFallback = () => {
+      try {
+        if (typeof navigator !== "undefined" && navigator.clipboard) {
+          void navigator.clipboard.writeText(copyPayload);
+        }
+      } catch {}
+      openExternalUrlSafely(prefillUrl, title);
+      toast.success(`📋 Copied listing details! Opening official ${targetRegionLabel} Sell wizard...`, { duration: 5000 });
+    };
+
+    // Primary Photo Resolution:
+    const primaryBlob =
+      listingPhotos[0]?.trim() || previewImageSrc?.trim() || (item as any)?.image?.trim() || null;
+
+    if (!primaryBlob || primaryBlob.includes("unsplash.com") || primaryBlob.includes("placeholder")) {
+      // Photo missing or placeholder: launch 1-Tap Fast-List with clipboard payload so user is never blocked
+      executeFastListFallback();
+      return;
+    }
+
+    const validGallery = listingPhotos.filter(
+      (img) => typeof img === "string" && img.trim().length > 0 && img.trim() !== primaryBlob
+    );
+
+    const submissionImageUrls = [primaryBlob, ...validGallery];
+    const stableSessionId =
+      (item as any)?.sessionId || (item as any)?.id || `session_${(item as any)?.timestamp || Date.now()}`;
+
     const payload = {
-      product: cleanSubject.slice(0, 80),
+      product: compliantTitle,
       brand: safeBrand,
       price: Number(activeResalePrice),
       currency: targetCurrency,
       condition: safeCond,
       category,
-      description: itemDescription,
+      description: compliantDesc,
       imageUrls: submissionImageUrls,
       sessionId: stableSessionId,
-      publishMode: "live", // Force active publish action rather than draft-save
+      publishMode: "live",
       forceLive: true,
     };
 
@@ -1047,18 +1079,9 @@ export default function LensCompsModal({
       });
 
       const data = await res.json().catch(() => ({}));
-
-      // Photo upload to Supabase Storage failed before eBay was even called
-      if (data.image_upload_failed) {
-        throw new Error(
-          data.error ||
-            "Photo upload to Supabase Storage failed. Make sure the 'listing-images' bucket exists and is public in your Supabase project."
-        );
-      }
-
       const errText = String(data.error || data.message || "");
 
-      // Catch eBay selling restrictions or account blocks
+      // Catch eBay selling restrictions
       if (data.accountRestricted || isEbayAccountRestrictedError(data, errText)) {
         setAccountBlockedNotice(EBAY_RESTRICTION_NOTICE);
         toast.error("Listing Blocked: Your eBay account currently has selling restrictions. Please check eBay Seller Hub.", {
@@ -1067,33 +1090,14 @@ export default function LensCompsModal({
         return;
       }
 
-      // If user is not authenticated or needs to connect eBay account:
+      // If user needs to connect eBay account or API publish was rejected, seamlessly fallback to Fast-List
       const needsConnection =
         res.status === 401 || (res.status === 400 && /connect|ebay seller account|token|reconnect/i.test(errText));
 
-      if (needsConnection) {
-        if (onListEbay) {
-          toast.info(`Please link your ${targetRegionLabel} account to publish live. Opening listing manager...`, {
-            duration: 4000,
-          });
-          handleOpenEbayEditor();
-          return;
-        } else {
-          const prefillUrl = generateEbayPrefillUrl({
-            title,
-            priceAud: Number(activeResalePrice),
-            brand: safeBrand,
-            currency: targetCurrency,
-          });
-          openExternalUrlSafely(prefillUrl, title);
-          toast.info(`Opened ${targetRegionLabel} Sell wizard with prefilled details.`, { duration: 5000 });
-          return;
-        }
-      }
-
-      // Force Live Sync: Ensure submission targets active publish action
-      if (!res.ok || !data.success || !data.isLive) {
-        throw new Error(errText || `Failed to publish live listing to ${targetRegionLabel}.`);
+      if (needsConnection || !res.ok || !data.success || !data.isLive) {
+        console.warn("Direct eBay API sync unavailable, launching 1-Tap Fast-List fallback:", errText);
+        executeFastListFallback();
+        return;
       }
 
       if (data.success && data.isLive) {
@@ -1104,7 +1108,6 @@ export default function LensCompsModal({
         setEbayPublishSuccess(true);
         triggerTactileHaptic("success");
 
-        // Also save to Spadas AI local listings with status "Active"
         try {
           const {
             data: { user },
@@ -1115,7 +1118,7 @@ export default function LensCompsModal({
               product: title,
               price: Number(activeResalePrice),
               cost: effectiveTagCost,
-              description: itemDescription,
+              description: compliantDesc,
               status: "Active",
               image: primaryBlob,
             });
@@ -1124,12 +1127,11 @@ export default function LensCompsModal({
           console.warn("Local inventory sync error after live eBay publish:", syncErr);
         }
 
-        toast.success(`🚀 Live on ${targetRegionLabel}! Listing published successfully with verified scan photo.`);
+        toast.success(`🚀 Live on ${targetRegionLabel}! Listing published successfully.`);
       }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Publish request failed";
-      console.error("1-Tap eBay Publish error:", err);
-      toast.error(message);
+      console.warn("1-Tap eBay Publish error, executing Fast-List fallback:", err);
+      executeFastListFallback();
     } finally {
       setIsPublishingEbay(false);
     }
@@ -1513,6 +1515,17 @@ export default function LensCompsModal({
                 </button>
               </div>
             </div>
+
+            {/* Live Sold Comps Price Spread Bell Curve */}
+            {compsMarketTab === "sold" && effectiveComps.length > 0 && (
+              <PriceDistributionBellCurve
+                prices={effectiveComps.map((c) => Number(c.price) || 0)}
+                currency={currency || "AUD"}
+                medianPrice={compsRange.median}
+                minPrice={compsRange.min}
+                maxPrice={compsRange.max}
+              />
+            )}
 
             {/* Display comps list or empty state */}
             {(() => {

@@ -15,10 +15,14 @@ import {
   Camera,
   Plus,
   Image as ImageIcon,
+  Sparkles,
+  ShieldAlert,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/app/lib/supabase";
 import { createListing } from "@/app/lib/createlisting";
+import { StudioLightboxModal } from "@/components/studio-lightbox-modal";
+import { FlawForensicsModal } from "@/components/flaw-forensics-modal";
 import {
   generateEbayPrefillUrl,
   generateOptimizedEbayTitle,
@@ -142,6 +146,44 @@ export default function EbayListingModal({
     }
     return [];
   });
+
+  // AI Studio Lightbox state
+  const [isStudioModalOpen, setIsStudioModalOpen] = useState(false);
+  const [studioTargetImage, setStudioTargetImage] = useState<string | null>(null);
+  const [isStudioTargetPrimary, setIsStudioTargetPrimary] = useState(true);
+  const [studioTargetGalleryIdx, setStudioTargetGalleryIdx] = useState<number>(-1);
+
+  const handleOpenStudio = (image: string, isPrimary: boolean, galleryIdx: number = -1) => {
+    setStudioTargetImage(image);
+    setIsStudioTargetPrimary(isPrimary);
+    setStudioTargetGalleryIdx(galleryIdx);
+    setIsStudioModalOpen(true);
+  };
+
+  const handleApplyStudioEnhanced = (enhancedUrl: string) => {
+    if (isStudioTargetPrimary) {
+      setPrimaryScanBlob(enhancedUrl);
+    } else if (studioTargetGalleryIdx >= 0) {
+      setGalleryPhotos((prev) => {
+        const next = [...prev];
+        next[studioTargetGalleryIdx] = enhancedUrl;
+        return next;
+      });
+    }
+    toast.success("✨ Studio photo updated! Ready for eBay Best Match.");
+  };
+
+  // AI Flaw Forensics (INAD Shield) state
+  const [isFlawModalOpen, setIsFlawModalOpen] = useState(false);
+
+  const handleApplyFlawShield = (result: {
+    recommendedCondition: string;
+    conditionDescriptor: string;
+    updatedDescription: string;
+  }) => {
+    setInputCondition(result.recommendedCondition);
+    setInputDescription(result.updatedDescription);
+  };
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -577,6 +619,11 @@ export default function EbayListingModal({
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Publish request failed";
+      if (/connect|token|fast-list|settings/i.test(message)) {
+        toast.info("Direct sync requires linked eBay account. Opening official 1-Tap Sell wizard...", { duration: 4000 });
+        handleFastList();
+        return;
+      }
       setError(message);
       toast.error(message);
     } finally {
@@ -790,8 +837,19 @@ export default function EbayListingModal({
                     </span>
                   </div>
 
-                  {/* Dual Multi-Photo Capture Action Buttons */}
+                  {/* Dual Multi-Photo Capture Action Buttons + AI Studio Lightbox */}
                   <div className="flex items-center gap-1.5">
+                    {primaryScanBlob && (
+                      <button
+                        type="button"
+                        onClick={() => handleOpenStudio(primaryScanBlob, true)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-indigo-950/70 hover:bg-indigo-900/80 text-indigo-300 border border-indigo-500/40 text-[11px] font-bold transition cursor-pointer shadow-sm active:scale-95"
+                        title="AI Studio Lightbox - Remove background & enhance lighting"
+                      >
+                        <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+                        <span>AI Studio</span>
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => cameraInputRef.current?.click()}
@@ -855,6 +913,14 @@ export default function EbayListingModal({
                       </div>
                       <button
                         type="button"
+                        onClick={() => handleOpenStudio(primaryScanBlob, true)}
+                        className="absolute bottom-1 right-1 p-1 rounded-full bg-indigo-600/90 hover:bg-indigo-500 text-white transition cursor-pointer shadow opacity-90 hover:opacity-100"
+                        title="Enhance in AI Studio Lightbox"
+                      >
+                        <Sparkles className="w-2.5 h-2.5" />
+                      </button>
+                      <button
+                        type="button"
                         onClick={handleRemovePrimaryPhoto}
                         className="absolute top-1 right-1 p-1 rounded-full bg-black/80 hover:bg-rose-600 text-zinc-300 hover:text-white transition cursor-pointer opacity-80 hover:opacity-100"
                         title="Remove primary photo"
@@ -886,6 +952,14 @@ export default function EbayListingModal({
                         title="Set as primary eBay listing photo"
                       >
                         Main
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenStudio(img, false, idx)}
+                        className="absolute bottom-1 right-1 p-1 rounded-full bg-indigo-600/90 hover:bg-indigo-500 text-white transition cursor-pointer shadow opacity-90 hover:opacity-100"
+                        title="Enhance in AI Studio Lightbox"
+                      >
+                        <Sparkles className="w-2.5 h-2.5" />
                       </button>
                       <button
                         type="button"
@@ -986,12 +1060,23 @@ export default function EbayListingModal({
                 </div>
 
                 <div className="space-y-1">
-                  <label
-                    htmlFor="ebay-condition"
-                    className="text-xs font-semibold text-zinc-300 block"
-                  >
-                    Condition
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label
+                      htmlFor="ebay-condition"
+                      className="text-xs font-semibold text-zinc-300 block"
+                    >
+                      Condition
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setIsFlawModalOpen(true)}
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-400 hover:text-amber-300 cursor-pointer transition active:scale-95"
+                      title="Inspect flaws and generate dispute-proof eBay notice"
+                    >
+                      <ShieldAlert className="w-3.5 h-3.5" />
+                      <span>Flaw Shield</span>
+                    </button>
+                  </div>
                   <select
                     id="ebay-condition"
                     value={inputCondition}
@@ -1093,6 +1178,28 @@ export default function EbayListingModal({
           </form>
         )}
       </div>
+
+      {/* AI Studio Lightbox Modal */}
+      {isStudioModalOpen && studioTargetImage && (
+        <StudioLightboxModal
+          isOpen={isStudioModalOpen}
+          onClose={() => setIsStudioModalOpen(false)}
+          imageSrc={studioTargetImage}
+          onApply={handleApplyStudioEnhanced}
+          title={inputTitle}
+        />
+      )}
+
+      {/* AI Flaw Forensics Modal (INAD Shield) */}
+      <FlawForensicsModal
+        isOpen={isFlawModalOpen}
+        onClose={() => setIsFlawModalOpen(false)}
+        itemTitle={inputTitle}
+        initialDescription={inputDescription}
+        initialCondition={inputCondition}
+        photos={([primaryScanBlob, ...galleryPhotos].filter(Boolean) as string[])}
+        onApplyShield={handleApplyFlawShield}
+      />
     </div>
   );
 
