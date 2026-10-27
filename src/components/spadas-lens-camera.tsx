@@ -1749,137 +1749,98 @@ function SpadasLensCameraCore({
     }
   };
 
-  const handleDirectPublishScannedHit = async (hit: DetectedHit, image?: string) => {
-    if (isPublishingScannedEbayRef.current) return;
-
+  const handleDirectPublishScannedHit = (hit: DetectedHit, image?: string) => {
+    triggerTactileHaptic("tap");
     const product = hit.name || "Scanned Item";
-    const brand = cleanBrandText(hit.brand, "Unbranded") || "Unbranded";
+    const cleanBrand = cleanBrandText(hit.brand, "Unbranded") || "Unbranded";
     const category = hit.category || "General Resale";
     const condition = cleanConditionText(hit.condition, "Used - Good");
     const price = Number(hit.estimatedValue || hit.suggestedPriceMax || hit.suggestedPriceMin) || 25;
     const primaryImage = image || hit.image || undefined;
-    const sessionId = hit.id || (hit.timestamp ? `hit_${hit.timestamp}` : `hit_${Date.now()}`);
+    const compliantTitle = generateOptimizedEbayTitle(product, cleanBrand);
+    const compliantDesc = buildEbayPolicyCompliantDescription({
+      title: compliantTitle,
+      brand: cleanBrand,
+      condition,
+      category,
+      currency: selectedCurrency,
+    });
+    const prefillUrl = generateEbayPrefillUrl({
+      title: compliantTitle,
+      priceAud: price,
+      price,
+      brand: cleanBrand,
+      category,
+      currency: selectedCurrency,
+    });
+    const copyPayload = `Title: ${compliantTitle}\nPrice: ${price.toFixed(2)} ${selectedCurrency}\nCondition: ${condition}\nBrand: ${cleanBrand}\nMPN: Does Not Apply\n\nDescription:\n${compliantDesc}`;
+
+    // 1. Immediately copy formatted listing payload to clipboard in the direct synchronous user gesture
+    try {
+      if (typeof navigator !== "undefined" && navigator.clipboard) {
+        void navigator.clipboard.writeText(copyPayload);
+      }
+    } catch {}
+
+    // 2. Synchronously open prefill URL or navigate directly to defeat mobile Safari/Chrome/PWA popup blockers
+    let opened = false;
     const hasNativeOpener =
       typeof window !== "undefined" && typeof window.AndroidBridge?.openExternalUrl === "function";
-    let pendingTab: Window | null = null;
 
-    if (!hasNativeOpener) {
+    if (hasNativeOpener) {
       try {
-        pendingTab = window.open("about:blank", "_blank");
-        if (pendingTab) {
-          pendingTab.opener = null;
-          pendingTab.document.title = "Publishing to eBay...";
-          pendingTab.document.body.textContent = "Publishing your scanned item to eBay...";
+        window.AndroidBridge?.openExternalUrl?.(prefillUrl);
+        opened = true;
+      } catch {}
+    }
+
+    if (!opened && typeof window !== "undefined") {
+      try {
+        const win = window.open(prefillUrl, "_blank");
+        if (win && !win.closed) {
+          opened = true;
         }
       } catch {
-        pendingTab = null;
+        opened = false;
+      }
+      if (!opened) {
+        window.location.href = prefillUrl;
+        opened = true;
       }
     }
 
-    const openEbay = (url: string) => {
-      if (pendingTab && !pendingTab.closed) {
-        try {
-          pendingTab.location.href = url;
-          return true;
-        } catch {}
-      }
-      return openExternalUrlSafely(url, product);
-    };
-
-    const openRecoveryModal = () => {
-      if (pendingTab && !pendingTab.closed) pendingTab.close();
-      setActiveEbayItem({
-        ...hit,
-        productName: product,
-        image: primaryImage,
-        imageUrls: primaryImage ? [primaryImage] : undefined,
-        sessionId,
-      });
-    };
-
-    isPublishingScannedEbayRef.current = true;
-    setIsPublishingScannedEbay(true);
-    setIsScanPaused(true);
-
-    try {
-      triggerTactileHaptic("medium");
-      const { data: { session } } = await supabase.auth.getSession();
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
-
-      const response = await fetch("/api/marketplaces/ebay/publish", {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          product,
-          brand,
-          category,
-          condition,
-          price,
-          currency: selectedCurrency,
-          description: `Sourced via Spadas Lens.\n\nBrand: ${brand}\nCategory: ${category}\nCondition: ${condition}\nPrice based on recent eBay sold comps.`,
-          imageUrls: primaryImage ? [primaryImage] : [],
-          sessionId,
-          publishMode: "live",
-          forceLive: true,
-        }),
-      });
-
-      const result = await response.json().catch(() => ({}));
-      if (!response.ok || !result.success || !result.isLive || !result.listingUrl) {
-        throw new Error(result.error || result.message || "eBay did not confirm a live listing.");
-      }
-
-      triggerTactileHaptic("success");
-      const opened = openEbay(result.listingUrl);
-      toast.success(opened ? "Scanned item published live on eBay." : "Published live. Tap the eBay link to view it.", {
-        action: opened ? undefined : { label: "View listing", onClick: () => openExternalUrlSafely(result.listingUrl, product) },
-      });
-    } catch (err) {
-      console.warn("Direct scan-to-eBay publish failed, executing 1-Tap Fast-List fallback:", err);
-      try {
-        const cleanBrand = brand?.trim() || "Unbranded";
-        const compliantTitle = generateOptimizedEbayTitle(product, cleanBrand);
-        const compliantDesc = buildEbayPolicyCompliantDescription({
-          title: compliantTitle,
-          brand: cleanBrand,
-          condition: condition || "Used - Good",
-          category: category || undefined,
-          currency: selectedCurrency,
-        });
-        const prefillUrl = generateEbayPrefillUrl({
-          title: compliantTitle,
-          priceAud: price,
-          price,
-          brand: cleanBrand,
-          category: category || undefined,
-          currency: selectedCurrency,
-        });
-        const copyPayload = `Title: ${compliantTitle}\nPrice: ${price.toFixed(2)} ${selectedCurrency}\nCondition: ${condition || "Used - Good"}\nBrand: ${cleanBrand}\nMPN: Does Not Apply\n\nDescription:\n${compliantDesc}`;
-        try {
-          if (typeof navigator !== "undefined" && navigator.clipboard) {
-            void navigator.clipboard.writeText(copyPayload);
+    triggerTactileHaptic("success");
+    toast.success("⚡ Copied details! Opening official eBay Sell wizard...", {
+      duration: 7000,
+      action: {
+        label: "Open eBay",
+        onClick: () => {
+          if (typeof window !== "undefined") {
+            window.location.href = prefillUrl;
           }
-        } catch {}
-        const opened = openEbay(prefillUrl);
-        toast.success("📋 Copied details! Opening official eBay Sell wizard...", {
-          duration: 7000,
-          action: {
-            label: "Open eBay",
-            onClick: () => openExternalUrlSafely(prefillUrl, product),
-          },
-        });
-        if (!opened) {
-          openRecoveryModal();
+        },
+      },
+    });
+
+    // 3. Background non-blocking inventory sync
+    void (async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await createListing({
+            userId: user.id,
+            product: compliantTitle,
+            price,
+            cost: Number(hit.tagPrice || hit.estCost) || 5,
+            description: compliantDesc,
+            status: "Active",
+            image: primaryImage,
+          });
         }
-      } catch {
-        openRecoveryModal();
-        toast.error("Could not sync directly. Review listing details to retry.");
+      } catch (err) {
+        console.warn("Background inventory sync note:", err);
       }
-    } finally {
-      isPublishingScannedEbayRef.current = false;
-      setIsPublishingScannedEbay(false);
-    }
+    })();
   };
 
   const handleSaveDraftHit = async (hit: DetectedHit) => {
