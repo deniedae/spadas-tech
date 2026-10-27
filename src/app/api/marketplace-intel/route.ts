@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
-import { createOpenAiClient, getPrimaryAiApiKey } from "@/app/lib/config/ai-models";
+import { createOpenAiClient, getPrimaryAiApiKey, LISTING_MODEL } from "@/app/lib/config/ai-models";
 import { hasGrokApiKey, createGrokClient, GROK_VISION_MODEL, GROK_REASONING_MODEL } from "@/app/lib/config/grok-vision";
 import { computeOffMarketIntelligence, OffMarketIntelligence } from "@/lib/off-market-engine";
 
@@ -314,7 +314,7 @@ Output strictly valid JSON adhering to:
       try {
         const openai = createOpenAiClient();
         const completion = await openai.chat.completions.create({
-          model: "gpt-4o-2024-08-06",
+          model: LISTING_MODEL,
           response_format: { type: "json_object" },
           temperature: 0.2,
           max_tokens: 700,

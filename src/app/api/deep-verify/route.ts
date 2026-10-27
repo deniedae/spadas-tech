@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import {
-  AR_SCAN_MODEL_FALLBACKS,
+  LISTING_MODEL,
   getPrimaryAiApiKey,
   createOpenAiClient,
 } from "@/app/lib/config/ai-models";
@@ -296,7 +296,7 @@ Respond ONLY with valid JSON adhering to this exact schema:
     if (!rawContent) {
       const openai = createOpenAiClient();
       const response = await openai.chat.completions.create({
-        model: AR_SCAN_MODEL_FALLBACKS[0] || "gpt-4o",
+        model: LISTING_MODEL,
         response_format: { type: "json_object" },
         messages: verifyPromptMessages,
         temperature: 0.1,

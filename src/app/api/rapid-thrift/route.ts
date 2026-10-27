@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { checkUserUsage } from "@/app/lib/usage";
-import { createOpenAiClient, getPrimaryAiApiKey } from "@/app/lib/config/ai-models";
+import { createOpenAiClient, getPrimaryAiApiKey, LISTING_MODEL } from "@/app/lib/config/ai-models";
 import { hasGrokApiKey, createGrokClient, GROK_VISION_MODEL } from "@/app/lib/config/grok-vision";
 import { checkNeedsVerification } from "@/lib/forensic-knowledge";
 import { estimateAustralianMarketValue } from "@/lib/valuation-heuristics";
@@ -110,38 +110,36 @@ export async function POST(req: Request) {
       );
     }
 
-    const systemPrompt = `You are an expert reseller appraiser and secondary market sourcing specialist. Analyze the photo with high accuracy to extract precise identification details to search eBay sold comps.
+    const systemPrompt = `<role>
+You are an expert secondary market resale appraiser and eBay comps sourcing specialist.
+Analyze the item photo to extract exact identification attributes and calculate net cleared profit.
+</role>
 
-Rules:
-1. NEVER include filler words like "Professional", "Vintage", "Nice", or long descriptions in search queries.
-2. Search queries must reflect how eBay sellers title items, not descriptive captions (e.g., use "Nike Brasilia Backpack", not "Nike Brasilia Gym Bag Blue").
-3. For generic/unbranded items, do not guess high-end niche brands.
-4. Value ranges must show realistic spread (e.g., low: 15, high: 30), never identical numbers.
+<search_query_protocol>
+- Query Format: [Brand] [Model/Number] [Key Specific] (e.g., "TP-Link RE305", "Carhartt J130 Duck Jacket", "Tous H2O 100ml").
+- Strip subjective qualifiers ("nice", "rare", "clean", "authentic", "vintage" unless part of model name).
+- Prioritize visible brand badges, model numbers, serial tags, care labels, and barcode/UPC text.
+- Inspect logos and badges (e.g. TP-Link, Netgear, Linksys, Cisco, Belkin, Anker, Sony, Nintendo, Apple, Logitech, Carhartt, Nike, Patagonia, Ralph Lauren).
+- For unbranded or generic items, do not guess high-end niche brands.
+</search_query_protocol>
 
-Identify the exact item, brand, category, condition, realistic secondary market resale value (cleared eBay sold comps in ${currency}), typical thrift store tag cost ($2-$20 ${currency}), and calculate True Net Profit:
-True Net Profit = Resale Value - Thrift Cost - Platform Fees (13.4% + $0.33) - Real Parcel Shipping ($4.20 - $11.00).
+<resale_profit_math>
+Currency: ${currency}
+Net Profit = Resale Value - Thrift Cost - Platform Fees (13.4% + $0.33) - Tracked Postage ($4.20 - $11.00).
 
-RESELLER MARKET RULES & TRAP DETECTION:
-1. LOW-DOLLAR MEDIA & PENNY ARBITRAGE:
-   Common mass-market DVDs, Blu-rays, and CDs sell on eBay for $3 - $5 gross. Tracked parcel postage ($4.20) + eBay fees means an individual seller loses money or nets $0.
-   -> Estimated Value: $4-$6. Cop Verdict: "PASS_RISKY". Notes: "Common media. Tracked postage eats profit."
-2. BUDGET COMMODITY TECH:
-   Brands like Amazon Basics, Insignia, Onn, Mainstays retail cheap brand new. Used items have near-zero resale demand ($5-$8) and shipping costs $9.50.
-   -> Cop Verdict: "PASS_RISKY". Notes: "Budget tech. Lower than shipping cost."
-3. NOVELTY CERAMIC MUGS & GLASSWARE:
-   Mass-market novelty coffee mugs sell for $6-$9, not $20. Shipping is $8.50 due to fragile packaging. Net profit is negative.
-   -> Cop Verdict: "PASS_RISKY". Notes: "Fragile ceramic novelty. Shipping exceeds margin."
-4. READ VISIBLE TEXT & BRAND LOGOS FIRST:
-   Inspect logos and badges (e.g. TP-Link, Netgear, Linksys, Cisco, Belkin, Anker, Sony, Nintendo, Apple, Logitech, Carhartt, Nike, Patagonia, Ralph Lauren).
-5. NEVER MISIDENTIFY COMPUTER/NETWORKING GEAR AS VAPES.
-6. PRECISE TITLES:
-   Formulate accurate title: [Brand] [Model/Type] [Category/Color] (e.g. "TP-Link AC1200 Wi-Fi Range Extender White", "Vintage Carhartt Canvas Work Jacket").
+Trap Identification:
+- Mass-Market Media (standard DVDs, CDs): Value $3-$5 gross -> PASS_RISKY (postage exceeds value).
+- Budget Commodity Electronics (Amazon Basics, Insignia, Onn): PASS_RISKY (postage exceeds resale value).
+- Bulky Low-Value Ceramics & Glassware: PASS_RISKY (fragile shipping cost exceeds margin).
+</resale_profit_math>
 
-Cop Verdict Criteria:
-- "MUST_COP": Net profit >= $40 after shipping & fees.
-- "QUICK_FLIP": Net profit >= $15 after shipping & fees with fast sell-through.
-- "PASS_RISKY": Net profit < $8 or flagged as a thrift trap (common DVD, Amazon Basics, novelty mug).
+<verdict_thresholds>
+- MUST_COP: Net profit >= $40 after fees and shipping.
+- QUICK_FLIP: Net profit >= $15 with rapid inventory turnover.
+- PASS_RISKY: Net profit < $8 or low demand/high shipping liability.
+</verdict_thresholds>
 
+<output_format>
 Output ONLY valid JSON adhering strictly to:
 {
   "product_name": string,
@@ -156,7 +154,8 @@ Output ONLY valid JSON adhering strictly to:
   "is_grail": boolean,
   "needs_verification": boolean,
   "notes": string
-}`;
+}
+</output_format>`;
 
     const cleanImage = image.trim().replace(/[\r\n]/g, "");
 
@@ -170,7 +169,7 @@ Output ONLY valid JSON adhering strictly to:
             type: "image_url",
             image_url: {
               url: cleanImage,
-              detail: "auto",
+              detail: "high",
             },
           },
         ],
@@ -198,12 +197,12 @@ Output ONLY valid JSON adhering strictly to:
       }
     }
 
-    // 2. Core Tier: OpenAI Vision
+    // 2. Core Tier: OpenAI Vision (Latest GPT-4o)
     if (!rawContent && apiKey) {
       try {
         const openai = createOpenAiClient();
         const completion = await openai.chat.completions.create({
-          model: "gpt-4o-2024-08-06",
+          model: LISTING_MODEL,
           response_format: { type: "json_object" },
           temperature: 0.1,
           max_tokens: 600,

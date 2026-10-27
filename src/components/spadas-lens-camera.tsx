@@ -5718,6 +5718,18 @@ function SpadasLensCameraCore({
         isOpen={isPaywallOpen && !isPro && !isOwner}
         onClose={() => setIsPaywallOpen(false)}
         currentScans={capturedLog.length}
+        bestFind={(() => {
+          if (!capturedLog || capturedLog.length === 0) return null;
+          const sorted = [...capturedLog].sort((a, b) => (b.estimatedProfit || 0) - (a.estimatedProfit || 0));
+          const top = sorted[0];
+          return top
+            ? {
+                name: top.name || top.title || top.productName || "Scanned Item",
+                profit: top.estimatedProfit || 0,
+                resalePrice: top.estimatedValue || 0,
+              }
+            : null;
+        })()}
       />
 
       {/* 5-Star Google Play In-App Review & Rating Modal */}

@@ -11,6 +11,7 @@ import {
   RotateCcw,
   Calendar,
   Lock,
+  TrendingUp,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/app/lib/supabase";
@@ -31,6 +32,11 @@ export interface SubscriptionPaywallModalProps {
   onSuccess?: () => void;
   fromOnboarding?: boolean;
   currentScans?: number;
+  bestFind?: {
+    name: string;
+    profit: number;
+    resalePrice?: number;
+  } | null;
   onTryDemo?: () => void;
 }
 
@@ -39,6 +45,8 @@ export function SubscriptionPaywallModal({
   onClose,
   onSuccess,
   fromOnboarding = false,
+  currentScans,
+  bestFind,
 }: SubscriptionPaywallModalProps) {
   const [selectedPlan, setSelectedPlan] = useState<"weekly" | "monthly">("weekly");
   const [isLoading, setIsLoading] = useState(false);
@@ -85,6 +93,42 @@ export function SubscriptionPaywallModal({
       }
     });
   }, []);
+
+  const [detectedBestFind, setDetectedBestFind] = useState<{
+    name: string;
+    profit: number;
+    resalePrice?: number;
+  } | null>(bestFind || null);
+
+  useEffect(() => {
+    if (bestFind) {
+      setDetectedBestFind(bestFind);
+      return;
+    }
+    if (typeof window !== "undefined" && isOpen) {
+      try {
+        const activeUserId = localStorage.getItem("spadas_active_user_id");
+        const key = activeUserId ? `spadas_hits_${activeUserId}` : "spadas_hits_guest";
+        const raw = localStorage.getItem(key);
+        if (raw) {
+          const hits = JSON.parse(raw);
+          if (Array.isArray(hits) && hits.length > 0) {
+            const top =
+              hits
+                .filter((h: any) => (h.estimatedProfit || 0) > 0)
+                .sort((a: any, b: any) => (b.estimatedProfit || 0) - (a.estimatedProfit || 0))[0] || hits[0];
+            if (top) {
+              setDetectedBestFind({
+                name: top.name || top.title || top.productName || "Scanned Item",
+                profit: top.estimatedProfit || 0,
+                resalePrice: top.estimatedValue || 0,
+              });
+            }
+          }
+        }
+      } catch {}
+    }
+  }, [bestFind, isOpen]);
 
   useEffect(() => {
     if (isOpen) {
@@ -197,13 +241,45 @@ export function SubscriptionPaywallModal({
           </div>
 
           <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight leading-tight">
-            Try {trialDays} Days Free
+            {detectedBestFind && (currentScans || 0) >= BILLING_CONFIG.freeScanAllowance
+              ? "Keep Your Profit Rolling"
+              : `Try ${trialDays} Days Free`}
           </h2>
 
           <p className="text-xs text-zinc-400 max-w-xs mx-auto">
-            Experience unlimited AR optical scans, verified eBay sold comps, and instant profit calculations. Cancel anytime.
+            {detectedBestFind && (currentScans || 0) >= BILLING_CONFIG.freeScanAllowance
+              ? `You've used your ${BILLING_CONFIG.freeScanAllowance} free test scans. Start your trial for unlimited optical comps and 1-tap eBay listing.`
+              : "Experience unlimited AR optical scans, verified eBay sold comps, and instant profit calculations. Cancel anytime."}
           </p>
         </div>
+
+        {/* Personalized Top Find Teaser Card */}
+        {detectedBestFind && (
+          <div className="p-3.5 rounded-xl bg-gradient-to-r from-emerald-950/40 via-zinc-900/80 to-cyan-950/30 border border-emerald-500/30 flex items-center justify-between gap-3 text-left shadow-lg">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5 text-[10px] font-mono font-bold text-emerald-400 uppercase tracking-wider">
+                <TrendingUp className="w-3.5 h-3.5 shrink-0" />
+                <span>Your Top Find Saved</span>
+              </div>
+              <p className="text-xs sm:text-sm font-bold text-white truncate mt-0.5">
+                {detectedBestFind.name}
+              </p>
+              {typeof detectedBestFind.resalePrice === "number" && detectedBestFind.resalePrice > 0 && (
+                <p className="text-[10px] text-zinc-400 font-mono mt-0.5">
+                  Est. Resale: ${detectedBestFind.resalePrice.toFixed(2)}
+                </p>
+              )}
+            </div>
+            {typeof detectedBestFind.profit === "number" && detectedBestFind.profit > 0 && (
+              <div className="text-right font-mono shrink-0 bg-emerald-500/10 px-2.5 py-1.5 rounded-lg border border-emerald-500/20">
+                <span className="text-[9px] uppercase text-zinc-400 block font-semibold">Net Profit</span>
+                <span className="text-sm sm:text-base font-extrabold text-emerald-400">
+                  +${detectedBestFind.profit.toFixed(2)}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Key Feature Bullets */}
         <div className="p-3.5 rounded-xl bg-zinc-900/60 border border-zinc-800/80 space-y-2">
