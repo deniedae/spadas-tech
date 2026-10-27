@@ -977,8 +977,7 @@ export default function LensCompsModal({
     onListEbay(enrichedItem as any);
   };
 
-  // Strict 1-Tap Live Publish to eBay AU:
-  // 1-Tap Live Publish to eBay AU / US / UK with Seamless Fast-List Fallback:
+  // Strict 1-Tap Live Publish to eBay AU / US / UK with Seamless Fast-List Fallback:
   const handle1TapPublishEbay = async () => {
     if (isPublishingEbay) return;
 
@@ -1017,14 +1016,68 @@ export default function LensCompsModal({
 
     const copyPayload = `Title: ${compliantTitle}\nPrice: ${targetCurrency === "GBP" ? "£" : "$"}${Number(activeResalePrice).toFixed(2)} ${targetCurrency}\nCondition: ${safeCond}\nBrand: ${safeBrand}\nMPN: Does Not Apply\n\nDescription:\n${compliantDesc}`;
 
-    const executeFastListFallback = () => {
+    // 1. Immediately copy formatted listing payload to clipboard in the direct synchronous user gesture
+    try {
+      if (typeof navigator !== "undefined" && navigator.clipboard) {
+        void navigator.clipboard.writeText(copyPayload);
+      }
+    } catch {}
+
+    // 2. Synchronously pre-open tab to defeat popup blockers on mobile browsers
+    const hasNativeOpener =
+      typeof window !== "undefined" && typeof window.AndroidBridge?.openExternalUrl === "function";
+    let pendingTab: Window | null = null;
+
+    if (!hasNativeOpener) {
       try {
-        if (typeof navigator !== "undefined" && navigator.clipboard) {
-          void navigator.clipboard.writeText(copyPayload);
+        pendingTab = window.open("about:blank", "_blank");
+        if (pendingTab) {
+          pendingTab.opener = null;
+          pendingTab.document.title = "Connecting to eBay...";
+          pendingTab.document.body.innerHTML = `
+            <div style="font-family:system-ui,-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;background:#09090b;color:#f4f4f5;text-align:center;padding:20px;">
+              <div style="max-width:320px;margin:auto;">
+                <div style="font-size:28px;margin-bottom:12px;">⚡</div>
+                <div style="font-size:16px;font-weight:700;margin-bottom:8px;">Connecting to ${targetRegionLabel}...</div>
+                <div style="font-size:13px;color:#a1a1aa;line-height:1.4;">Pre-filling your listing title, verified sold price & category...</div>
+              </div>
+            </div>
+          `;
         }
-      } catch {}
-      openExternalUrlSafely(prefillUrl, title);
-      toast.success(`📋 Copied listing details! Opening official ${targetRegionLabel} Sell wizard...`, { duration: 5000 });
+      } catch {
+        pendingTab = null;
+      }
+    }
+
+    const executeFastListFallback = () => {
+      setLiveEbayListingUrl(prefillUrl);
+      setEbayPublishSuccess(true);
+
+      let opened = false;
+      if (pendingTab && !pendingTab.closed) {
+        try {
+          pendingTab.location.href = prefillUrl;
+          opened = true;
+        } catch {
+          opened = false;
+        }
+      }
+
+      if (!opened) {
+        opened = openExternalUrlSafely(prefillUrl, title);
+      }
+
+      toast.success(`📋 Copied details! Opening official ${targetRegionLabel} Sell wizard...`, {
+        duration: 7000,
+        action: {
+          label: "Open eBay",
+          onClick: () => openExternalUrlSafely(prefillUrl, title),
+        },
+      });
+
+      if (!opened && onListEbay) {
+        handleOpenEbayEditor();
+      }
     };
 
     // Primary Photo Resolution:
@@ -1032,7 +1085,6 @@ export default function LensCompsModal({
       listingPhotos[0]?.trim() || previewImageSrc?.trim() || (item as any)?.image?.trim() || null;
 
     if (!primaryBlob || primaryBlob.includes("unsplash.com") || primaryBlob.includes("placeholder")) {
-      // Photo missing or placeholder: launch 1-Tap Fast-List with clipboard payload so user is never blocked
       executeFastListFallback();
       return;
     }
@@ -1083,6 +1135,7 @@ export default function LensCompsModal({
 
       // Catch eBay selling restrictions
       if (data.accountRestricted || isEbayAccountRestrictedError(data, errText)) {
+        if (pendingTab && !pendingTab.closed) pendingTab.close();
         setAccountBlockedNotice(EBAY_RESTRICTION_NOTICE);
         toast.error("Listing Blocked: Your eBay account currently has selling restrictions. Please check eBay Seller Hub.", {
           duration: 7000,
@@ -1102,6 +1155,11 @@ export default function LensCompsModal({
 
       if (data.success && data.isLive) {
         const liveUrl = data.listingUrl || `https://www.${targetDomain}/sh/lst/active`;
+        if (pendingTab && !pendingTab.closed) {
+          try {
+            pendingTab.location.href = liveUrl;
+          } catch {}
+        }
         setLiveEbayListingUrl(liveUrl);
         setPublishedSku(data.sku || null);
         setIsLiveListing(true);
@@ -1127,7 +1185,12 @@ export default function LensCompsModal({
           console.warn("Local inventory sync error after live eBay publish:", syncErr);
         }
 
-        toast.success(`🚀 Live on ${targetRegionLabel}! Listing published successfully.`);
+        toast.success(`🚀 Live on ${targetRegionLabel}! Listing published successfully.`, {
+          action: {
+            label: "View live",
+            onClick: () => openExternalUrlSafely(liveUrl, title),
+          },
+        });
       }
     } catch (err: unknown) {
       console.warn("1-Tap eBay Publish error, executing Fast-List fallback:", err);

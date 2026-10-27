@@ -1861,8 +1861,17 @@ function SpadasLensCameraCore({
             void navigator.clipboard.writeText(copyPayload);
           }
         } catch {}
-        openEbay(prefillUrl);
-        toast.success("📋 Copied details! Opening official eBay Sell wizard...", { duration: 5000 });
+        const opened = openEbay(prefillUrl);
+        toast.success("📋 Copied details! Opening official eBay Sell wizard...", {
+          duration: 7000,
+          action: {
+            label: "Open eBay",
+            onClick: () => openExternalUrlSafely(prefillUrl, product),
+          },
+        });
+        if (!opened) {
+          openRecoveryModal();
+        }
       } catch {
         openRecoveryModal();
         toast.error("Could not sync directly. Review listing details to retry.");
