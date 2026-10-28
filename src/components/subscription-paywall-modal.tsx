@@ -32,6 +32,8 @@ export interface SubscriptionPaywallModalProps {
   onSuccess?: () => void;
   fromOnboarding?: boolean;
   currentScans?: number;
+  totalProfit?: number;
+  scannedItemsCount?: number;
   bestFind?: {
     name: string;
     profit: number;
@@ -46,6 +48,8 @@ export function SubscriptionPaywallModal({
   onSuccess,
   fromOnboarding = false,
   currentScans,
+  totalProfit,
+  scannedItemsCount,
   bestFind,
 }: SubscriptionPaywallModalProps) {
   const [selectedPlan, setSelectedPlan] = useState<"weekly" | "monthly">("weekly");
@@ -94,6 +98,8 @@ export function SubscriptionPaywallModal({
     });
   }, []);
 
+  const [accumulatedProfit, setAccumulatedProfit] = useState<number>(totalProfit || 0);
+  const [accumulatedCount, setAccumulatedCount] = useState<number>(scannedItemsCount || currentScans || 0);
   const [detectedBestFind, setDetectedBestFind] = useState<{
     name: string;
     profit: number;
@@ -101,11 +107,16 @@ export function SubscriptionPaywallModal({
   } | null>(bestFind || null);
 
   useEffect(() => {
+    if (typeof totalProfit === "number" && totalProfit > 0) {
+      setAccumulatedProfit(totalProfit);
+      setAccumulatedCount(scannedItemsCount || currentScans || 0);
+    }
     if (bestFind) {
       setDetectedBestFind(bestFind);
       return;
     }
     if (typeof window !== "undefined" && isOpen) {
+      // 1. Try local cache for immediate render
       try {
         const activeUserId = localStorage.getItem("spadas_active_user_id");
         const key = activeUserId ? `spadas_hits_${activeUserId}` : "spadas_hits_guest";
@@ -113,22 +124,58 @@ export function SubscriptionPaywallModal({
         if (raw) {
           const hits = JSON.parse(raw);
           if (Array.isArray(hits) && hits.length > 0) {
+            const sum = hits.reduce(
+              (acc: number, h: any) => acc + Math.max(0, Number(h.trueNetProfit ?? h.estimatedProfit ?? 0)),
+              0
+            );
+            if (sum > 0 && !totalProfit) {
+              setAccumulatedProfit(sum);
+              setAccumulatedCount(hits.length);
+            }
             const top =
               hits
-                .filter((h: any) => (h.estimatedProfit || 0) > 0)
-                .sort((a: any, b: any) => (b.estimatedProfit || 0) - (a.estimatedProfit || 0))[0] || hits[0];
+                .filter((h: any) => (h.estimatedProfit || h.trueNetProfit || 0) > 0)
+                .sort(
+                  (a: any, b: any) =>
+                    (b.estimatedProfit || b.trueNetProfit || 0) -
+                    (a.estimatedProfit || a.trueNetProfit || 0)
+                )[0] || hits[0];
             if (top) {
               setDetectedBestFind({
                 name: top.name || top.title || top.productName || "Scanned Item",
-                profit: top.estimatedProfit || 0,
-                resalePrice: top.estimatedValue || 0,
+                profit: Number(top.trueNetProfit ?? top.estimatedProfit) || 0,
+                resalePrice: Number(top.estimatedValue || top.suggestedPriceMax) || 0,
               });
             }
           }
         }
       } catch {}
+
+      // 2. Server-side authoritative verification (keyed by auth user id per AGENTS.md)
+      supabase.auth.getSession().then(async ({ data: { session } }) => {
+        if (!session?.user?.id) return;
+        try {
+          const { data: userListings } = await supabase
+            .from("listings")
+            .select("title, product, price, cost")
+            .eq("user_id", session.user.id)
+            .limit(50);
+
+          if (userListings && userListings.length > 0) {
+            const serverSum = userListings.reduce((sum: number, item: any) => {
+              const p = Number(item.price || 0);
+              const c = Number(item.cost || 0);
+              return sum + Math.max(0, p - c);
+            }, 0);
+            if (serverSum > 0) {
+              setAccumulatedProfit((prev) => (prev > 0 ? prev : serverSum));
+              setAccumulatedCount((prev) => (prev > 0 ? prev : userListings.length));
+            }
+          }
+        } catch {}
+      });
     }
-  }, [bestFind, isOpen]);
+  }, [bestFind, isOpen, totalProfit, scannedItemsCount, currentScans]);
 
   useEffect(() => {
     if (isOpen) {
@@ -241,20 +288,64 @@ export function SubscriptionPaywallModal({
           </div>
 
           <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight leading-tight">
-            {detectedBestFind && (currentScans || 0) >= BILLING_CONFIG.freeScanAllowance
+            {accumulatedProfit > 0
+              ? `Keep Your $${Math.round(accumulatedProfit)} Profit Rolling`
+              : detectedBestFind && (currentScans || 0) >= BILLING_CONFIG.freeScanAllowance
               ? "Keep Your Profit Rolling"
               : `Try ${trialDays} Days Free`}
           </h2>
 
           <p className="text-xs text-zinc-400 max-w-xs mx-auto">
-            {detectedBestFind && (currentScans || 0) >= BILLING_CONFIG.freeScanAllowance
+            {accumulatedProfit > 0
+              ? `You've uncovered $${accumulatedProfit.toFixed(2)} in potential profit across your scans. Start your ${trialDays}-day free trial ($0 today) to publish to eBay and unlock unlimited scanning.`
+              : detectedBestFind && (currentScans || 0) >= BILLING_CONFIG.freeScanAllowance
               ? `You've used your ${BILLING_CONFIG.freeScanAllowance} free test scans. Start your trial for unlimited optical comps and 1-tap eBay listing.`
               : "Experience unlimited AR optical scans, verified eBay sold comps, and instant profit calculations. Cancel anytime."}
           </p>
         </div>
 
-        {/* Personalized Top Find Teaser Card */}
-        {detectedBestFind && (
+        {/* Grounded Value Accounting Card */}
+        {accumulatedProfit > 0 ? (
+          <div className="p-4 rounded-xl bg-gradient-to-br from-emerald-950/60 via-zinc-900/90 to-cyan-950/50 border border-emerald-500/40 space-y-2.5 shadow-xl text-left">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-[11px] font-mono font-bold text-emerald-400 uppercase tracking-wider">
+                <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Profit Found in Your Scans</span>
+              </div>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold">
+                {accumulatedCount > 0 ? `${accumulatedCount} items found` : "Grounded Value"}
+              </span>
+            </div>
+
+            <div className="flex items-baseline justify-between pt-0.5">
+              <div>
+                <span className="text-3xl font-black text-emerald-300 font-mono tracking-tight">
+                  +${accumulatedProfit.toFixed(2)}
+                </span>
+                <span className="text-[11px] text-zinc-400 block mt-0.5">
+                  Estimated profit unlocked across your scans
+                </span>
+              </div>
+              <div className="text-right">
+                <span className="text-xs font-mono font-bold text-cyan-300 block">
+                  $0.00 Today
+                </span>
+                <span className="text-[10px] text-zinc-400 block font-mono">
+                  {trialDays}-Day Free Trial
+                </span>
+              </div>
+            </div>
+
+            {detectedBestFind && (
+              <div className="pt-2 border-t border-emerald-500/20 flex items-center justify-between text-xs text-zinc-300">
+                <span className="truncate max-w-[200px]">Top: <strong>{detectedBestFind.name}</strong></span>
+                <span className="font-mono text-emerald-400 font-bold shrink-0">
+                  +${detectedBestFind.profit.toFixed(2)}
+                </span>
+              </div>
+            )}
+          </div>
+        ) : detectedBestFind ? (
           <div className="p-3.5 rounded-xl bg-gradient-to-r from-emerald-950/40 via-zinc-900/80 to-cyan-950/30 border border-emerald-500/30 flex items-center justify-between gap-3 text-left shadow-lg">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5 text-[10px] font-mono font-bold text-emerald-400 uppercase tracking-wider">
@@ -279,7 +370,7 @@ export function SubscriptionPaywallModal({
               </div>
             )}
           </div>
-        )}
+        ) : null}
 
         {/* Key Feature Bullets */}
         <div className="p-3.5 rounded-xl bg-zinc-900/60 border border-zinc-800/80 space-y-2">

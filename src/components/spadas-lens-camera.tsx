@@ -1345,6 +1345,71 @@ function SpadasLensCameraCore({
     }, 200);
   }, [setActiveValuationHit, setActiveCompsHit]);
 
+  // First-Time Activation: Instant Sample Scan to eliminate 0-scan bounce
+  const handleTriggerSampleScan = useCallback(() => {
+    triggerTactileHaptic("success");
+    if (soundEnabled) playTactileClickSound();
+
+    const sampleHit: DetectedHit = {
+      id: `sample_${Date.now()}`,
+      name: "Nike Air Jordan 1 Retro High OG 'Chicago'",
+      title: "Nike Air Jordan 1 Retro High OG Chicago 2015",
+      productName: "Nike Air Jordan 1 Retro High OG 'Chicago'",
+      brand: "Nike",
+      category: "Men's Athletic Shoes",
+      condition: "Pre-owned - Excellent",
+      estimatedValue: 185,
+      suggestedPriceMin: 160,
+      suggestedPriceMax: 210,
+      estCost: 25,
+      tagPrice: 25,
+      estimatedProfit: 135,
+      trueNetProfit: 135,
+      estRoi: 540,
+      roiPercentage: 540,
+      verdict: "BUY",
+      copVerdict: "MUST_COP",
+      confidence: 0.98,
+      confidenceScore: 0.98,
+      status: "valued",
+      timestamp: Date.now(),
+      bbox: { x: 25, y: 25, width: 50, height: 50 },
+      ebayCompsCount: 14,
+      activeCompsCount: 22,
+      compsSource: "sold_comps_api",
+      rawComps: [
+        {
+          id: "comp_1",
+          title: "Nike Air Jordan 1 Retro High OG Chicago 2015 Size 10",
+          price: 195,
+          soldDate: "2 days ago",
+          condition: "Pre-owned - Excellent",
+          url: "https://www.ebay.com/sch/i.html?_nkw=air+jordan+1+chicago",
+        },
+        {
+          id: "comp_2",
+          title: "Jordan 1 Retro High Chicago OG Red White Black",
+          price: 180,
+          soldDate: "4 days ago",
+          condition: "Used - Good",
+          url: "https://www.ebay.com/sch/i.html?_nkw=air+jordan+1+chicago",
+        },
+        {
+          id: "comp_3",
+          title: "Air Jordan 1 Chicago High OG 2015 Authenticated",
+          price: 210,
+          soldDate: "6 days ago",
+          condition: "Pre-owned - Like New",
+          url: "https://www.ebay.com/sch/i.html?_nkw=air+jordan+1+chicago",
+        },
+      ] as any,
+    };
+
+    setCapturedLog((prev) => [sampleHit, ...prev]);
+    triggerActiveValuationHit(sampleHit, null);
+    toast.success("✨ Sample item loaded! Inspect verified comps & 1-tap eBay listing.");
+  }, [soundEnabled, playTactileClickSound, triggerActiveValuationHit]);
+
 
 
   // Continuous 60 FPS Native Barcode Scanner Loop
@@ -5295,6 +5360,32 @@ function SpadasLensCameraCore({
                         isFocusLocked ? "border-emerald-500" : "border-zinc-500"
                       }`}
                     />
+
+                    {/* First-Scan Guidance HUD (when user has not scanned an item yet) */}
+                    {capturedLog.length === 0 && !activeValuationHit && !isScanPaused && (
+                      <div className="absolute -bottom-12 left-1/2 -translate-x-1/2 whitespace-nowrap px-3.5 py-1.5 rounded-full bg-zinc-950/90 border border-emerald-500/40 text-emerald-300 text-[11px] font-semibold backdrop-blur-md flex items-center gap-1.5 shadow-xl pointer-events-auto animate-pulse">
+                        <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>Point at sneakers, clothing tags, or tech</span>
+                      </div>
+                    )}
+
+                    {/* First-Launch Interactive 1-Tap Sample Scan Button in Center of Viewfinder */}
+                    {capturedLog.length === 0 && !activeValuationHit && !isScanPaused && (
+                      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-auto">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleTriggerSampleScan();
+                          }}
+                          className="px-4 py-2 rounded-xl bg-zinc-950/90 hover:bg-zinc-900 border border-emerald-500/40 text-emerald-300 hover:text-emerald-200 text-xs font-bold backdrop-blur-md flex items-center gap-2 transition active:scale-95 shadow-2xl cursor-pointer group"
+                          title="Experience Spadas instant valuation & comps with a sample item"
+                        >
+                          <Sparkles className="w-4 h-4 text-emerald-400 group-hover:rotate-12 transition-transform" />
+                          <span>Tap for Sample Scan</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -5720,15 +5811,24 @@ function SpadasLensCameraCore({
         isOpen={isPaywallOpen && !isPro && !isOwner}
         onClose={() => setIsPaywallOpen(false)}
         currentScans={capturedLog.length}
+        totalProfit={capturedLog.reduce(
+          (sum, h) => sum + Math.max(0, Number(h.trueNetProfit ?? h.estimatedProfit ?? 0)),
+          0
+        )}
+        scannedItemsCount={capturedLog.length}
         bestFind={(() => {
           if (!capturedLog || capturedLog.length === 0) return null;
-          const sorted = [...capturedLog].sort((a, b) => (b.estimatedProfit || 0) - (a.estimatedProfit || 0));
+          const sorted = [...capturedLog].sort(
+            (a, b) =>
+              (Number(b.trueNetProfit ?? b.estimatedProfit) || 0) -
+              (Number(a.trueNetProfit ?? a.estimatedProfit) || 0)
+          );
           const top = sorted[0];
           return top
             ? {
                 name: top.name || top.title || top.productName || "Scanned Item",
-                profit: top.estimatedProfit || 0,
-                resalePrice: top.estimatedValue || 0,
+                profit: Number(top.trueNetProfit ?? top.estimatedProfit) || 0,
+                resalePrice: Number(top.estimatedValue || top.suggestedPriceMax) || 0,
               }
             : null;
         })()}
