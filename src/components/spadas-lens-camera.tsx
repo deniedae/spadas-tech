@@ -187,7 +187,8 @@ function SpadasLensCameraCore({
   const reticleRef = useRef<HTMLDivElement | null>(null);
   const [scanMode, setScanMode] = useState<"snap" | "sweep" | "barcode" | "live">("snap");
   const [stream, setStream] = useState<MediaStream | null>(null);
-  const [isCameraPoweredOn, setIsCameraPoweredOn] = useState<boolean>(true);
+  const [isUserExplicitlyPoweredOff, setIsUserExplicitlyPoweredOff] = useState<boolean>(false);
+  const isCameraPoweredOn = !isUserExplicitlyPoweredOff;
   const [scanning, setScanning] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [autoScanActive, setAutoScanActive] = useState<boolean>(false);
@@ -288,7 +289,7 @@ function SpadasLensCameraCore({
 
       streamRef.current = mediaStream;
       setStream(mediaStream);
-      setIsCameraPoweredOn(true);
+      setIsUserExplicitlyPoweredOff(false);
       setScanning(true);
 
       const video = videoRef.current;
@@ -311,7 +312,6 @@ function SpadasLensCameraCore({
           ? "Camera permission denied — please allow camera access in browser settings"
           : "Camera unavailable — allow camera access in settings or tap retry"
       );
-      setIsCameraPoweredOn(false);
       setIsCameraReady(false);
       setScanning(false);
     } finally {
@@ -347,7 +347,6 @@ function SpadasLensCameraCore({
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
-    setIsCameraPoweredOn(false);
     setScanning(false);
     setActiveScans([]);
     setAnalyzingRealFrame(false);
@@ -802,6 +801,10 @@ function SpadasLensCameraCore({
         resetGuestScanState();
         setIsGuestUser(false);
         setIsGuestLimitModalOpen(false);
+
+        if (!streamRef.current || !streamRef.current.active) {
+          void startCamera();
+        }
 
         if (isUserAdmin || hasMetadataPro) {
           setIsOwner(isUserAdmin);
@@ -2181,26 +2184,33 @@ function SpadasLensCameraCore({
       }
     } catch { }
 
-    // Mount camera stream via unified manager (defer if first-launch onboarding is active)
+    // Mount camera stream via unified manager
+    // 1. Always listen for onboarding / paywall completion to safely start camera on modal dismissal
+    const onboardingHandler = () => {
+      void startCamera();
+    };
+    if (typeof window !== "undefined") {
+      window.addEventListener("spadas:onboarding-complete", onboardingHandler);
+    }
+
+    // 2. Check if onboarding was already completed OR if the user is already authenticated
     const hasCompletedOnboarding =
       typeof window !== "undefined" &&
       (localStorage.getItem("hasSeenOnboarding") === "true" ||
         localStorage.getItem("hasCompletedOnboarding") === "true");
 
-    let onboardingHandler: (() => void) | null = null;
-    if (hasCompletedOnboarding) {
-      void startCamera();
-    } else {
-      onboardingHandler = () => {
+    let isMounted = true;
+    void supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!isMounted) return;
+      // If user is already signed in or onboarding was completed, immediately acquire camera
+      if (hasCompletedOnboarding || session?.user) {
         void startCamera();
-      };
-      if (typeof window !== "undefined") {
-        window.addEventListener("spadas:onboarding-complete", onboardingHandler, { once: true });
       }
-    }
+    });
 
     return () => {
-      if (onboardingHandler && typeof window !== "undefined") {
+      isMounted = false;
+      if (typeof window !== "undefined") {
         window.removeEventListener("spadas:onboarding-complete", onboardingHandler);
       }
       if (activeAbortControllerRef.current) {
@@ -2216,7 +2226,7 @@ function SpadasLensCameraCore({
       }
       cameraStreamManager.releaseCamera("lens");
     };
-  }, []);
+  }, [startCamera]);
 
   // Reactive synchronization: keep localStorage up to date with capturedLog at all times
   useEffect(() => {
@@ -2595,16 +2605,16 @@ function SpadasLensCameraCore({
 
   // Camera Power Toggle (Explicitly releases all hardware tracks & stream locks)
   const handleToggleCameraPower = useCallback(() => {
-    if (isCameraPoweredOn && (stream || streamRef.current)) {
+    if (!isUserExplicitlyPoweredOff && (stream || streamRef.current)) {
       stopCamera(true); // Force release hardware tracks on explicit user power off
-      setIsCameraPoweredOn(false);
+      setIsUserExplicitlyPoweredOff(true);
       toast.info("Camera powered off. Hardware resources released.", { id: "cam-power" });
     } else {
-      setIsCameraPoweredOn(true);
+      setIsUserExplicitlyPoweredOff(false);
       void startCamera();
       toast.success("Camera powering on...", { id: "cam-power" });
     }
-  }, [isCameraPoweredOn, stream, stopCamera]);
+  }, [isUserExplicitlyPoweredOff, stream, stopCamera, startCamera]);
 
   // Hardware Camera Safety: fully stop camera and clear all track locks before opening DeepVerifyModal
   const handleOpenDeepVerify = useCallback((item: DetectedHit | ActiveScanItem) => {
@@ -2631,7 +2641,6 @@ function SpadasLensCameraCore({
     // 3. Clear stream state & camera power
     setStream(null);
     setIsCameraReady(false);
-    setIsCameraPoweredOn(false);
     setScanning(false);
     analyzingRef.current = false;
     setAnalyzingRealFrame(false);
@@ -2642,12 +2651,11 @@ function SpadasLensCameraCore({
 
   const handleCloseDeepVerify = useCallback(() => {
     setDeepVerifyItem(null);
-    setIsCameraPoweredOn(true);
     // Restart camera cleanly after modal unmounts
     setTimeout(() => {
       void startCamera();
     }, 250);
-  }, []);
+  }, [startCamera]);
 
   // Speak Voice Cue
   const speakCue = (text: string) => {
@@ -4769,7 +4777,7 @@ function SpadasLensCameraCore({
         className="relative w-full h-[calc(100dvh-3.25rem)] min-h-[420px] sm:h-auto sm:aspect-[16/9] sm:max-h-[75vh] max-w-full box-border overflow-hidden rounded-none sm:rounded-lg border-0 sm:border sm:border-zinc-800 bg-zinc-950 cursor-pointer"
       >
         <CameraViewportErrorBoundary onRestart={startCamera}>
-          {!isCameraPoweredOn ? (
+          {isUserExplicitlyPoweredOff ? (
             /* Camera Standby / Hardware Released View (Only engaged when explicitly powered off by user) */
             <div className="relative flex h-full w-full flex-col items-center justify-center p-6 text-center space-y-4 text-white bg-slate-950/95">
               {/* Standby Top HUD Bar with Safe-Area Inset */}
@@ -4805,7 +4813,7 @@ function SpadasLensCameraCore({
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  setIsCameraPoweredOn(true);
+                  setIsUserExplicitlyPoweredOff(false);
                   void startCamera();
                 }}
                 className="inline-flex h-12 items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 px-8 text-sm font-black text-slate-950 shadow-xl hover:brightness-110 active:scale-95 transition cursor-pointer"
