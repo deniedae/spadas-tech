@@ -29,6 +29,7 @@ import {
   ExternalLink,
   Lock,
   Scan,
+  Upload,
 } from "lucide-react";
 import { toast } from "sonner";
 import { fmtMoney, formatAUD } from "@/app/lib/listings";
@@ -187,6 +188,7 @@ function SpadasLensCameraCore({
   const reticleRef = useRef<HTMLDivElement | null>(null);
   const [scanMode, setScanMode] = useState<"snap" | "sweep" | "barcode" | "live">("snap");
   const [stream, setStream] = useState<MediaStream | null>(null);
+  const isUserGestureRef = useRef<boolean>(false);
   const [isUserExplicitlyPoweredOff, setIsUserExplicitlyPoweredOff] = useState<boolean>(false);
   const isCameraPoweredOn = !isUserExplicitlyPoweredOff;
   const [scanning, setScanning] = useState(true);
@@ -309,13 +311,16 @@ function SpadasLensCameraCore({
       const isPermDenied = err?.name === "NotAllowedError" || err?.name === "PermissionDeniedError";
       setCameraError(
         isPermDenied
-          ? "Camera permission denied — please allow camera access in browser settings"
-          : "Camera unavailable — allow camera access in settings or tap retry"
+          ? (isUserGestureRef.current
+              ? "Camera permission was not granted — tap Enable Camera to try again or check site permissions in your browser."
+              : "Camera access required — tap Enable Camera below to activate your live scanner.")
+          : "Camera unavailable — tap Enable Camera to retry or switch to Snap Studio."
       );
       setIsCameraReady(false);
       setScanning(false);
     } finally {
       isStartingCameraRef.current = false;
+      isUserGestureRef.current = false;
     }
   }, []);
 
@@ -4830,16 +4835,39 @@ function SpadasLensCameraCore({
               </p>
             </div>
           ) : cameraError ? (
-            <div className="flex h-full flex-col items-center justify-center p-6 text-center space-y-3 text-slate-300">
-              <ShieldAlert className="h-12 w-12 text-zinc-400" />
-              <p className="text-sm font-semibold">{cameraError}</p>
-              <button
-                type="button"
-                onClick={startCamera}
-                className="inline-flex h-10 items-center gap-2 rounded-xl bg-cyan-600 px-5 text-xs font-bold text-white shadow-md hover:bg-cyan-500 transition cursor-pointer"
-              >
-                <RefreshCw className="h-4 w-4" /> Retry Camera Access
-              </button>
+            <div className="flex h-full w-full flex-col items-center justify-center p-6 text-center space-y-4 text-slate-300 bg-slate-950/90">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 shadow-[0_0_24px_rgba(6,182,212,0.25)]">
+                <Camera className="h-8 w-8 text-cyan-400" />
+              </div>
+              <div className="space-y-1.5 max-w-sm">
+                <h3 className="text-lg font-black text-white">Camera Access Required</h3>
+                <p className="text-xs text-slate-300 leading-relaxed">{cameraError}</p>
+                <p className="text-[11px] text-slate-400">
+                  When prompted by your device, choose <strong className="text-emerald-400">&quot;While using the app&quot;</strong> or <strong className="text-emerald-400">&quot;Allow&quot;</strong>.
+                </p>
+              </div>
+              <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    isUserGestureRef.current = true;
+                    setCameraError(null);
+                    void startCamera();
+                  }}
+                  className="inline-flex h-11 items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 px-6 text-xs font-black text-slate-950 shadow-xl hover:brightness-110 active:scale-95 transition cursor-pointer"
+                >
+                  <Camera className="h-4 w-4" /> Enable Camera
+                </button>
+                {onOpenSnapStudio && (
+                  <button
+                    type="button"
+                    onClick={onOpenSnapStudio}
+                    className="inline-flex h-11 items-center gap-2 rounded-xl border border-white/20 bg-white/[0.08] hover:bg-white/[0.15] px-5 text-xs font-bold text-white transition active:scale-95 cursor-pointer"
+                  >
+                    <Upload className="h-4 w-4 text-cyan-400" /> Upload from Gallery
+                  </button>
+                )}
+              </div>
             </div>
           ) : (
             <>
