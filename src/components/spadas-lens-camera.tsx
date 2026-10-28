@@ -4841,10 +4841,10 @@ function SpadasLensCameraCore({
               </div>
               <div className="space-y-1.5 max-w-sm">
                 <h3 className="text-lg font-black text-white">Camera Access Required</h3>
-                <p className="text-xs text-slate-300 leading-relaxed">{cameraError}</p>
-                <p className="text-[11px] text-slate-400">
-                  When prompted by your device, choose <strong className="text-emerald-400">&quot;While using the app&quot;</strong> or <strong className="text-emerald-400">&quot;Allow&quot;</strong>.
-                </p>
+                <div className="rounded-xl bg-slate-900/80 border border-slate-800 p-3 text-left text-[11px] text-slate-300 space-y-1.5 mt-2">
+                  <p>• If prompted by your device, choose <strong className="text-emerald-400">&quot;While using the app&quot;</strong> or <strong className="text-emerald-400">&quot;Allow&quot;</strong>.</p>
+                  <p>• On Android: Check that your phone&apos;s top Quick Settings tile for <strong className="text-cyan-400">&quot;Camera access&quot;</strong> is toggled ON (not Blocked).</p>
+                </div>
               </div>
               <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
                 <button

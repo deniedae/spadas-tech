@@ -96,31 +96,27 @@ class CameraStreamManager {
         let stream: MediaStream | null = null;
 
         const requestWithFallbacks = async (facing: "environment" | "user"): Promise<MediaStream> => {
-          // Primary Tier: Back Camera with Full HD 1080p & Continuous Autofocus
+          // Primary Tier: Back Camera with ideal 1080p / 720p dimensions (no rigid minimums to prevent OverconstrainedError on portrait phones)
           try {
             return await navigator.mediaDevices.getUserMedia({
               video: {
                 facingMode: { ideal: facing },
-                width: { ideal: 1920, min: 1280 },
-                height: { ideal: 1080, min: 720 },
-                // @ts-ignore - Hardware hints for sharpest focus
-                focusMode: { ideal: "continuous" },
+                width: { ideal: 1920 },
+                height: { ideal: 1080 },
               },
               audio: false,
             });
-          } catch {
-            // Fallback Tier 1: Flexible 720p Mode
+          } catch (primaryErr) {
+            console.warn("[CameraStreamManager] Primary resolution rejected, trying flexible facingMode:", primaryErr);
             try {
               return await navigator.mediaDevices.getUserMedia({
                 video: {
                   facingMode: { ideal: facing },
-                  width: { ideal: 1280 },
-                  height: { ideal: 720 },
                 },
                 audio: false,
               });
-            } catch {
-              // Fallback Tier 2: Any Available Video Device
+            } catch (fallbackErr) {
+              console.warn("[CameraStreamManager] Flexible facingMode rejected, requesting any video device:", fallbackErr);
               return await navigator.mediaDevices.getUserMedia({
                 video: true,
                 audio: false,
@@ -133,13 +129,24 @@ class CameraStreamManager {
           stream = await requestWithFallbacks(targetFacing);
         } catch (initialErr: any) {
           if (initialErr?.name === "NotReadableError" || initialErr?.name === "TrackStartError") {
-            // Camera hardware releasing delay: wait 120ms and retry once
-            await new Promise((r) => setTimeout(r, 120));
+            // Camera hardware releasing delay: wait 150ms and retry once
+            await new Promise((r) => setTimeout(r, 150));
             stream = await requestWithFallbacks(targetFacing);
           } else {
             throw initialErr;
           }
         }
+
+        // Apply continuous autofocus hardware constraint safely post-acquisition if supported
+        try {
+          const track = stream.getVideoTracks()[0];
+          if (track && typeof track.applyConstraints === "function") {
+            const capabilities: any = track.getCapabilities ? track.getCapabilities() : {};
+            if (capabilities.focusMode && Array.isArray(capabilities.focusMode) && capabilities.focusMode.includes("continuous")) {
+              void track.applyConstraints({ advanced: [{ focusMode: "continuous" } as any] }).catch(() => {});
+            }
+          }
+        } catch {}
 
         this.activeStream = stream;
         this.currentMode = options.mode;
