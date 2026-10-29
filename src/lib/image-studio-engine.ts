@@ -303,3 +303,37 @@ export async function processStudioLightbox(
   const quality = preset === "transparent" ? undefined : 0.92;
   return outCanvas.toDataURL(mimeType, quality);
 }
+
+/**
+ * Frames an image into eBay's recommended 1:1 square canvas,
+ * centering the item with clean white padding to eliminate awkward cropped previews on marketplace search grids.
+ */
+export async function frameImageToSquare(
+  source: string | Blob | HTMLImageElement,
+  background = "#FFFFFF"
+): Promise<string> {
+  let img: HTMLImageElement;
+  if (typeof source === "string" || source instanceof Blob) {
+    img = await loadImageElement(source);
+  } else {
+    img = source;
+  }
+  const w = img.naturalWidth || img.width;
+  const h = img.naturalHeight || img.height;
+  if (!w || !h) return typeof source === "string" ? source : "";
+
+  const maxDim = Math.max(w, h);
+  const canvas = document.createElement("canvas");
+  canvas.width = maxDim;
+  canvas.height = maxDim;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return typeof source === "string" ? source : "";
+
+  ctx.fillStyle = background;
+  ctx.fillRect(0, 0, maxDim, maxDim);
+  const dx = Math.round((maxDim - w) / 2);
+  const dy = Math.round((maxDim - h) / 2);
+  ctx.drawImage(img, dx, dy, w, h);
+  return canvas.toDataURL("image/jpeg", 0.92);
+}
+

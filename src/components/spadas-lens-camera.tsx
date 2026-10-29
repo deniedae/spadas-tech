@@ -22,6 +22,7 @@ import {
   TrendingUp,
   AlertTriangle,
   Barcode,
+  Sliders,
   SlidersHorizontal,
   ChevronDown,
   ChevronUp,
@@ -103,6 +104,7 @@ import {
   generateEbayPrefillUrl,
   generateOptimizedEbayTitle,
   buildEbayPolicyCompliantDescription,
+  generateEbayItemSpecifics,
 } from "@/app/lib/marketplaces/ebay-prefill";
 const EbayListingModal = dynamic(() => import("@/components/ebay-listing-modal"), { ssr: false });
 const DeepVerifyModal = dynamic(() => import("@/components/deep-verify-modal").then((m) => m.DeepVerifyModal), { ssr: false });
@@ -155,6 +157,7 @@ import {
   isValidFramePayload,
   isBulkOrLotTitle,
   BULK_LOT_REGEX,
+  buildCleanListingSubject,
   buildCleanListingDescription,
 } from "@/lib/lens-utils";
 import { cameraStreamManager } from "@/lib/camera-stream-provider";
@@ -247,10 +250,9 @@ function SpadasLensCameraCore({
         if (node.srcObject !== activeStream) {
           node.srcObject = activeStream;
         }
-        node.play().then(() => {
-          setIsCameraReady(true);
-          setCameraStalled(false);
-        }).catch((err) => {
+        setIsCameraReady(true);
+        setCameraStalled(false);
+        node.play().catch((err) => {
           console.warn("[Spadas Lens] Video playback on mount caught:", err);
         });
       }
@@ -271,7 +273,7 @@ function SpadasLensCameraCore({
       if (!isCameraReadyRef.current) {
         setCameraStalled(true);
       }
-    }, 4500);
+    }, 2500);
 
     try {
       // 1. Instant stream reuse check from ref or singleton manager
@@ -293,16 +295,17 @@ function SpadasLensCameraCore({
       setStream(mediaStream);
       setIsUserExplicitlyPoweredOff(false);
       setScanning(true);
+      setIsCameraReady(true);
+      setCameraStalled(false);
 
       const video = videoRef.current;
       if (video) {
         if (video.srcObject !== mediaStream) {
           video.srcObject = mediaStream;
         }
-        video.play().then(() => {
-          setIsCameraReady(true);
-          setCameraStalled(false);
-        }).catch((err) => {
+        video.muted = true;
+        video.defaultMuted = true;
+        video.play().catch((err) => {
           console.warn("[Spadas Lens] Video play() in startCamera caught:", err);
         });
       }
@@ -362,23 +365,22 @@ function SpadasLensCameraCore({
   useEffect(() => {
     if (stream) {
       streamRef.current = stream;
+      setIsCameraReady(true);
+      setCameraStalled(false);
     }
     const video = videoRef.current;
     if (video && stream) {
       if (video.srcObject !== stream) {
         video.srcObject = stream;
       }
-      video.play().then(() => {
-        setIsCameraReady(true);
-        setCameraStalled(false);
-      }).catch(() => { });
+      video.muted = true;
+      video.defaultMuted = true;
+      video.play().catch(() => { });
 
       const watchdog = setTimeout(() => {
         if (video && (video.paused || video.readyState < 2)) {
-          video.play().then(() => {
-            setIsCameraReady(true);
-            setCameraStalled(false);
-          }).catch(() => { });
+          video.muted = true;
+          video.play().catch(() => { });
         }
       }, 500);
 
@@ -2074,6 +2076,93 @@ function SpadasLensCameraCore({
     } catch (err: any) {
       console.warn("[Spadas Lens] handleSaveDraftHit background error:", err);
     }
+  };
+
+  // Instant 1-Tap Fast-List Engine: Zero-latency eBay listing flow directly from viewfinder
+  const handle1TapFastListFromCard = (hit: DetectedHit | ActiveScanItem) => {
+    triggerTactileHaptic("tap");
+    const safeBrand = cleanBrandText(hit.brand, "Unbranded") || "Unbranded";
+    const safeCond = cleanConditionText(hit.condition, "Used - Good");
+    const targetCurrency = hit.currency || selectedCurrency;
+    const isUk = targetCurrency === "GBP";
+    const isUs = targetCurrency === "USD";
+    const marketSiteName = isUk ? "eBay UK" : isUs ? "eBay US" : "eBay AU";
+    const rawPrice = Number(hit.estimatedValue) || 25;
+    const itemName = hit.name || "Scanned Item";
+    const cleanSubject = buildCleanListingSubject(safeBrand, itemName);
+    const compliantTitle = generateOptimizedEbayTitle(cleanSubject.slice(0, 80), safeBrand);
+    const itemDescription = buildCleanListingDescription({
+      title: itemName,
+      brand: safeBrand,
+      category: hit.category,
+      condition: safeCond,
+      price: rawPrice,
+      currency: targetCurrency,
+    });
+    const compliantDesc = buildEbayPolicyCompliantDescription({
+      title: compliantTitle,
+      brand: safeBrand,
+      condition: safeCond,
+      category: hit.category,
+      currency: targetCurrency,
+      rawNotes: itemDescription,
+    });
+    const prefillUrl = generateEbayPrefillUrl({
+      title: compliantTitle,
+      priceAud: rawPrice,
+      price: rawPrice,
+      brand: safeBrand,
+      category: hit.category,
+      currency: targetCurrency,
+    });
+    const specifics = generateEbayItemSpecifics({
+      brand: safeBrand,
+      productName: itemName,
+      category: hit.category,
+      condition: safeCond,
+    });
+    const specificsLines = Object.entries(specifics)
+      .map(([k, v]) => `• ${k}: ${Array.isArray(v) ? v.join(", ") : v}`)
+      .join("\n");
+
+    const copyPayload = `Title: ${compliantTitle}\nPrice: ${targetCurrency === "GBP" ? "£" : "$"}${rawPrice.toFixed(2)} ${targetCurrency}\nCondition: ${safeCond}\nBrand: ${safeBrand}\n\n[Item Specifics (eBay Best Match Aspects)]\n${specificsLines}\n\nDescription:\n${compliantDesc}`;
+
+    try {
+      if (typeof navigator !== "undefined" && navigator.clipboard) {
+        void navigator.clipboard.writeText(copyPayload);
+      }
+    } catch {}
+
+    let opened = false;
+    const hasNativeBridge =
+      typeof window !== "undefined" && typeof (window as any).AndroidBridge?.openExternalUrl === "function";
+
+    if (hasNativeBridge) {
+      try {
+        (window as any).AndroidBridge?.openExternalUrl?.(prefillUrl);
+        opened = true;
+      } catch {}
+    }
+
+    if (!opened && typeof window !== "undefined") {
+      try {
+        const win = window.open(prefillUrl, "_blank");
+        if (win && !win.closed) {
+          opened = true;
+        }
+      } catch {}
+    }
+
+    if (!opened && typeof window !== "undefined") {
+      window.location.href = prefillUrl;
+    }
+
+    // Auto-save draft in background to Haul and local storage
+    void handleSaveDraftHit(hit as DetectedHit);
+
+    toast.success(`⚡ Fast-Listed to ${marketSiteName}! Details copied to clipboard.`, {
+      duration: 4500,
+    });
   };
 
 
@@ -4897,9 +4986,24 @@ function SpadasLensCameraCore({
               />
               {/* Connecting optical sensor placeholder if stream is currently binding */}
               {!isCameraReady && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/85 text-slate-400 space-y-2 pointer-events-auto">
+                <div
+                  onClick={() => {
+                    const v = videoRef.current;
+                    if (v) {
+                      v.muted = true;
+                      v.play().catch(() => {});
+                    }
+                    if (streamRef.current?.active) {
+                      setIsCameraReady(true);
+                    } else {
+                      void startCamera();
+                    }
+                  }}
+                  className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/85 text-slate-400 space-y-2 pointer-events-auto cursor-pointer"
+                >
                   <RefreshCw className="h-6 w-6 text-cyan-400 animate-spin" />
                   <span className="text-xs font-mono tracking-wider text-slate-300 font-semibold">CONNECTING OPTICAL SENSOR...</span>
+                  <span className="text-[11px] text-slate-400 font-medium">Tap anywhere to activate camera</span>
                   {cameraStalled && (
                     <button
                       type="button"
@@ -6487,6 +6591,21 @@ function SpadasLensCameraCore({
                         <span>View comps</span>
                       </button>
 
+                      {/* Instant 1-Tap Fast-List Action (Zero Latency direct to eBay Sell wizard) */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handle1TapFastListFromCard(activeValuationHit);
+                        }}
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-bold transition cursor-pointer bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-zinc-950 border border-amber-400 shadow-sm active:scale-95"
+                        title={`1-Tap Fast-List to ${marketSiteName} with auto-copied specifics`}
+                      >
+                        <Zap className="h-3.5 w-3.5 fill-current shrink-0" />
+                        <span>1-Tap List</span>
+                      </button>
+
+                      {/* Deep Listing Studio Modal Launcher */}
                       <button
                         type="button"
                         onClick={(e) => {
@@ -6512,12 +6631,11 @@ function SpadasLensCameraCore({
                             sessionId: stableSessionId,
                           });
                         }}
-                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium transition cursor-pointer bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-800"
-                        title={`List this item on ${marketSiteName}`}
+                        className="inline-flex items-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium transition cursor-pointer bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-800"
+                        title="Open deep listing studio with item specifics & AI photo tools"
                       >
-                        <ShoppingBag className="h-3.5 w-3.5 text-zinc-400 shrink-0" />
-                        <span className="hidden xs:inline">List on eBay</span>
-                        <span className="xs:hidden">List</span>
+                        <Sliders className="h-3.5 w-3.5 text-zinc-400 shrink-0" />
+                        <span className="hidden sm:inline">Studio</span>
                       </button>
 
                       {/* Expand / Collapse Comps Toggle Button */}

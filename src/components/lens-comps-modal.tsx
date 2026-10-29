@@ -42,6 +42,7 @@ import {
   generateEbayPrefillUrl,
   generateOptimizedEbayTitle,
   buildEbayPolicyCompliantDescription,
+  generateEbayItemSpecifics,
 } from "@/app/lib/marketplaces/ebay-prefill";
 import {
   cleanBrandText,
@@ -1012,7 +1013,17 @@ export default function LensCompsModal({
       currency: targetCurrency,
     });
 
-    const copyPayload = `Title: ${compliantTitle}\nPrice: ${targetCurrency === "GBP" ? "£" : "$"}${Number(activeResalePrice).toFixed(2)} ${targetCurrency}\nCondition: ${safeCond}\nBrand: ${safeBrand}\nMPN: Does Not Apply\n\nDescription:\n${compliantDesc}`;
+    const specifics = generateEbayItemSpecifics({
+      brand: safeBrand,
+      productName: title,
+      category,
+      condition: safeCond,
+    });
+    const specificsLines = Object.entries(specifics)
+      .map(([k, v]) => `• ${k}: ${Array.isArray(v) ? v.join(", ") : v}`)
+      .join("\n");
+
+    const copyPayload = `Title: ${compliantTitle}\nPrice: ${targetCurrency === "GBP" ? "£" : "$"}${Number(activeResalePrice).toFixed(2)} ${targetCurrency}\nCondition: ${safeCond}\nBrand: ${safeBrand}\n\n[Item Specifics (eBay Best Match Aspects)]\n${specificsLines || "• MPN: Does Not Apply"}\n\nDescription:\n${compliantDesc}`;
 
     // 1. Immediately copy formatted listing payload to clipboard in the direct synchronous user gesture
     try {

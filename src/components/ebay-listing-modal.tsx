@@ -17,6 +17,9 @@ import {
   Image as ImageIcon,
   Sparkles,
   ShieldAlert,
+  Sliders,
+  Crop,
+  RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/app/lib/supabase";
@@ -27,7 +30,10 @@ import {
   generateEbayPrefillUrl,
   generateOptimizedEbayTitle,
   buildEbayPolicyCompliantDescription,
+  generateEbayItemSpecifics,
 } from "@/app/lib/marketplaces/ebay-prefill";
+import { processStudioLightbox, frameImageToSquare } from "@/lib/image-studio-engine";
+import { triggerTactileHaptic } from "@/lib/android-bridge";
 import { convertCurrency, detectGeoCurrency, isUSGeo, isUKGeo, SupportedCurrency } from "@/app/lib/currency-routing";
 import { EBAY_RESTRICTION_NOTICE } from "@/app/lib/marketplaces/ebay";
 import {
@@ -153,6 +159,16 @@ export default function EbayListingModal({
   const [isStudioTargetPrimary, setIsStudioTargetPrimary] = useState(true);
   const [studioTargetGalleryIdx, setStudioTargetGalleryIdx] = useState<number>(-1);
 
+  // 1-Tap Photo Studio Quick Engine state
+  const [isStudioAutoPolishing, setIsStudioAutoPolishing] = useState(false);
+  const [originalScanBlob, setOriginalScanBlob] = useState<string | null>(null);
+
+  // Auto-populated eBay Item Specifics state
+  const [itemSpecifics, setItemSpecifics] = useState<Record<string, string[]>>({});
+  const [isAddingAspect, setIsAddingAspect] = useState(false);
+  const [newAspectKey, setNewAspectKey] = useState("");
+  const [newAspectValue, setNewAspectValue] = useState("");
+
   const handleOpenStudio = (image: string, isPrimary: boolean, galleryIdx: number = -1) => {
     setStudioTargetImage(image);
     setIsStudioTargetPrimary(isPrimary);
@@ -162,6 +178,9 @@ export default function EbayListingModal({
 
   const handleApplyStudioEnhanced = (enhancedUrl: string) => {
     if (isStudioTargetPrimary) {
+      if (!originalScanBlob && primaryScanBlob) {
+        setOriginalScanBlob(primaryScanBlob);
+      }
       setPrimaryScanBlob(enhancedUrl);
     } else if (studioTargetGalleryIdx >= 0) {
       setGalleryPhotos((prev) => {
@@ -171,6 +190,83 @@ export default function EbayListingModal({
       });
     }
     toast.success("✨ Studio photo updated! Ready for eBay Best Match.");
+  };
+
+  // 1-Tap Quick Studio Auto-Polish (Pure White Background & Contrast Boost)
+  const handleQuickStudioAutoPolish = async () => {
+    if (!primaryScanBlob) return;
+    setIsStudioAutoPolishing(true);
+    triggerTactileHaptic("light");
+    try {
+      if (!originalScanBlob) {
+        setOriginalScanBlob(primaryScanBlob);
+      }
+      const enhanced = await processStudioLightbox(primaryScanBlob, {
+        preset: "pure_white",
+        addShadow: true,
+        enhanceLighting: true,
+        autoCenter: true,
+      });
+      setPrimaryScanBlob(enhanced);
+      triggerTactileHaptic("success");
+      toast.success("✨ AI Studio Auto-Polish applied! Pure white background & balanced lighting.");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Studio enhancement failed.";
+      toast.error(msg);
+    } finally {
+      setIsStudioAutoPolishing(false);
+    }
+  };
+
+  // 1-Tap eBay 1:1 Square Frame Standardizer
+  const handleQuick1TapSquareFrame = async () => {
+    if (!primaryScanBlob) return;
+    setIsStudioAutoPolishing(true);
+    triggerTactileHaptic("light");
+    try {
+      if (!originalScanBlob) {
+        setOriginalScanBlob(primaryScanBlob);
+      }
+      const framed = await frameImageToSquare(primaryScanBlob, "#FFFFFF");
+      setPrimaryScanBlob(framed);
+      triggerTactileHaptic("success");
+      toast.success("📐 Padded to eBay 1:1 Square standard! Eliminates search thumbnail cutoffs.");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Square framing failed.";
+      toast.error(msg);
+    } finally {
+      setIsStudioAutoPolishing(false);
+    }
+  };
+
+  const handleRevertOriginalPhoto = () => {
+    if (!originalScanBlob) return;
+    setPrimaryScanBlob(originalScanBlob);
+    setOriginalScanBlob(null);
+    triggerTactileHaptic("tap");
+    toast.info("Reverted to original camera capture.");
+  };
+
+  const handleRemoveAspect = (key: string) => {
+    triggerTactileHaptic("light");
+    setItemSpecifics((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  };
+
+  const handleAddCustomAspect = () => {
+    if (!newAspectKey.trim() || !newAspectValue.trim()) return;
+    triggerTactileHaptic("success");
+    setItemSpecifics((prev) => ({
+      ...prev,
+      [newAspectKey.trim()]: [newAspectValue.trim()],
+    }));
+    setNewAspectKey("");
+    setNewAspectValue("");
+    setIsAddingAspect(false);
+    toast.success(`Added aspect: ${newAspectKey.trim()}`);
   };
 
   // AI Flaw Forensics (INAD Shield) state
@@ -284,6 +380,21 @@ export default function EbayListingModal({
           setInputPrice(Number(draft.price) || 25);
           setInputCondition(draft.condition || "");
           setInputDescription(draft.description || "");
+          if (draft.itemSpecifics) {
+            setItemSpecifics(draft.itemSpecifics);
+          } else {
+            const safeBrand = cleanBrandText(initialBrand, "Unbranded") || "Unbranded";
+            const rawTitle = buildCleanListingSubject(initialBrand, draft.title || initialTitle || "Scanned Item");
+            const safeTitle = generateOptimizedEbayTitle(rawTitle, safeBrand);
+            setItemSpecifics(
+              generateEbayItemSpecifics({
+                brand: safeBrand,
+                productName: safeTitle,
+                category: initialCategory || undefined,
+                condition: draft.condition || "Used - Good",
+              })
+            );
+          }
           if (draft.galleryPhotos && Array.isArray(draft.galleryPhotos)) {
             setGalleryPhotos(draft.galleryPhotos);
           }
@@ -295,6 +406,15 @@ export default function EbayListingModal({
           const safeTitle = generateOptimizedEbayTitle(rawTitle, safeBrand);
           const safeCond = cleanConditionText(initialCondition, "Used - Good");
           setInputTitle(safeTitle);
+
+          // Auto-detect item specifics for high search placement
+          const autoAspects = generateEbayItemSpecifics({
+            brand: safeBrand,
+            productName: safeTitle,
+            category: initialCategory || undefined,
+            condition: safeCond,
+          });
+          setItemSpecifics(autoAspects);
 
           // Accurately convert base price to selected currency
           const rawPrice = Number(initialPrice) || 25;
@@ -333,10 +453,11 @@ export default function EbayListingModal({
         description: inputDescription,
         currency: selectedCurrency,
         galleryPhotos: galleryPhotos,
+        itemSpecifics: itemSpecifics,
       };
       localStorage.setItem(`spadas_draft_${sessionId}`, JSON.stringify(draft));
     }
-  }, [inputTitle, inputPrice, inputCondition, inputDescription, selectedCurrency, galleryPhotos, isOpen, sessionId, isLiveListing, loading]);
+  }, [inputTitle, inputPrice, inputCondition, inputDescription, selectedCurrency, galleryPhotos, itemSpecifics, isOpen, sessionId, isLiveListing, loading]);
 
   const handleModalClose = () => {
     setPublishedUrl(null);
@@ -381,7 +502,10 @@ export default function EbayListingModal({
       currency: activeRegion.code,
       rawNotes: inputDescription,
     });
-    const copyPayload = `Title: ${compliantTitle}\nPrice: ${activeRegion.symbol}${Number(inputPrice).toFixed(2)} ${activeRegion.code}\nCondition: ${safeCondForList}\nBrand: ${safeBrandForList}\nMPN: Does Not Apply\n\nDescription:\n${compliantDesc}`;
+    const specificsLines = Object.entries(itemSpecifics)
+      .map(([k, v]) => `• ${k}: ${Array.isArray(v) ? v.join(", ") : v}`)
+      .join("\n");
+    const copyPayload = `Title: ${compliantTitle}\nPrice: ${activeRegion.symbol}${Number(inputPrice).toFixed(2)} ${activeRegion.code}\nCondition: ${safeCondForList}\nBrand: ${safeBrandForList}\n\n[Item Specifics (Best Match Aspects)]\n${specificsLines || "• MPN: Does Not Apply"}\n\nDescription:\n${compliantDesc}`;
     try {
       if (typeof navigator !== "undefined" && navigator.clipboard) {
         void navigator.clipboard.writeText(copyPayload);
@@ -396,7 +520,7 @@ export default function EbayListingModal({
       currency: activeRegion.code,
     });
 
-    toast.success(`📋 Listing details copied! Opening ${activeRegion.label} Sell wizard...`, { duration: 4500 });
+    toast.success(`📋 Listing details & aspects copied! Opening ${activeRegion.label} Sell wizard...`, { duration: 4500 });
     const opened = window.open(prefillUrl, "_blank");
     if (!opened) {
       window.location.href = prefillUrl;
@@ -551,6 +675,7 @@ export default function EbayListingModal({
       currency: selectedCurrency,
       condition: cleanConditionText(inputCondition, "Used - Good"),
       description: inputDescription,
+      aspects: itemSpecifics,
       imageUrls: submissionImageUrls, // Index [0] explicitly pulls active scan capture blob
       sessionId: sessionId || prevSessionIdRef.current || "scan_session",
       publishMode: "live", // Force active publish action rather than draft-save
@@ -1005,6 +1130,49 @@ export default function EbayListingModal({
                   )}
                 </div>
 
+                {/* 1-Tap Photo Studio Tools Strip */}
+                {primaryScanBlob && (
+                  <div className="flex items-center gap-1.5 flex-wrap pt-2 border-t border-zinc-800">
+                    <button
+                      type="button"
+                      onClick={handleQuickStudioAutoPolish}
+                      disabled={isStudioAutoPolishing}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-indigo-950/70 hover:bg-indigo-900/80 text-indigo-300 border border-indigo-500/40 text-[11px] font-bold transition cursor-pointer shadow-sm active:scale-95 disabled:opacity-50"
+                      title="AI Studio Lightbox - 1-tap pure white background and auto white-balance"
+                    >
+                      {isStudioAutoPolishing ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-400" />
+                      ) : (
+                        <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+                      )}
+                      <span>1-Tap White Studio</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleQuick1TapSquareFrame}
+                      disabled={isStudioAutoPolishing}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 text-[11px] font-semibold transition cursor-pointer active:scale-95 disabled:opacity-50"
+                      title="Pad photo to 1:1 square ratio for optimal eBay search thumbnail visibility"
+                    >
+                      <Crop className="w-3.5 h-3.5 text-zinc-400" />
+                      <span>1:1 Square Frame</span>
+                    </button>
+
+                    {originalScanBlob && (
+                      <button
+                        type="button"
+                        onClick={handleRevertOriginalPhoto}
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded bg-zinc-800/80 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 border border-zinc-700 text-[11px] transition active:scale-95 cursor-pointer"
+                        title="Revert to original camera scan"
+                      >
+                        <RotateCcw className="w-3 h-3 text-zinc-400" />
+                        <span>Revert</span>
+                      </button>
+                    )}
+                  </div>
+                )}
+
                 {!primaryScanBlob && galleryPhotos.length === 0 && (
                   <p className="text-[11px] text-amber-300 flex items-center gap-1">
                     <AlertCircle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
@@ -1088,6 +1256,98 @@ export default function EbayListingModal({
                     <option value="Brand New">Brand New</option>
                     <option value="For Parts / Repair">For Parts / Repair</option>
                   </select>
+                </div>
+              </div>
+
+              {/* Auto-Populated Item Specifics Grid (eBay Best Match Aspect Booster) */}
+              <div className="space-y-2 p-3 bg-zinc-900 border border-zinc-800 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <Sliders className="w-3.5 h-3.5 text-indigo-400" />
+                    <span className="text-xs font-semibold text-zinc-200">
+                      Item Specifics &amp; Aspects ({Object.keys(itemSpecifics).length})
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                    Aspects Locked: 100%
+                  </span>
+                </div>
+                <p className="text-[11px] text-zinc-400 leading-snug">
+                  Auto-detected from scan to maximize eBay Best Match placement and eliminate API rejection errors.
+                </p>
+
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {Object.entries(itemSpecifics).map(([key, val]) => (
+                    <div
+                      key={key}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-zinc-800/90 border border-zinc-700/80 text-xs text-zinc-200 shadow-xs"
+                    >
+                      <span className="text-zinc-400 font-medium">{key}:</span>
+                      <span className="font-semibold text-white">
+                        {Array.isArray(val) ? val.join(", ") : val}
+                      </span>
+                      {key !== "Brand" && key !== "MPN" && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveAspect(key)}
+                          className="ml-1 text-zinc-500 hover:text-rose-400 transition cursor-pointer"
+                          title={`Remove ${key}`}
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+
+                  {/* Add Custom Aspect Chip */}
+                  {isAddingAspect ? (
+                    <div className="inline-flex items-center gap-1 p-1 bg-zinc-950 rounded-md border border-indigo-500/50">
+                      <input
+                        type="text"
+                        placeholder="Aspect (e.g. Size)"
+                        value={newAspectKey}
+                        onChange={(e) => setNewAspectKey(e.target.value)}
+                        className="w-24 bg-transparent text-xs text-white px-1.5 py-0.5 outline-none font-medium"
+                      />
+                      <span className="text-zinc-500">:</span>
+                      <input
+                        type="text"
+                        placeholder="Value (e.g. XL)"
+                        value={newAspectValue}
+                        onChange={(e) => setNewAspectValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            handleAddCustomAspect();
+                          }
+                        }}
+                        className="w-24 bg-transparent text-xs text-white px-1.5 py-0.5 outline-none font-bold"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleAddCustomAspect}
+                        className="px-2 py-0.5 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold cursor-pointer"
+                      >
+                        Add
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsAddingAspect(false)}
+                        className="p-1 text-zinc-400 hover:text-zinc-200 cursor-pointer"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setIsAddingAspect(true)}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-zinc-800/50 hover:bg-zinc-800 border border-dashed border-zinc-700 text-xs text-zinc-400 hover:text-zinc-200 transition cursor-pointer"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>Add Aspect</span>
+                    </button>
+                  )}
                 </div>
               </div>
 
