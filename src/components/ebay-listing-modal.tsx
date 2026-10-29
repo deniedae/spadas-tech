@@ -291,6 +291,30 @@ export default function EbayListingModal({
   const [publishedUrl, setPublishedUrl] = useState<string | null>(null);
   const [publishedSku, setPublishedSku] = useState<string | null>(null);
   const [isLiveListing, setIsLiveListing] = useState<boolean>(false);
+  const [isEbayConnected, setIsEbayConnected] = useState<boolean | null>(null);
+  const [isCheckingConnection, setIsCheckingConnection] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let isCancelled = false;
+    setIsCheckingConnection(true);
+    fetch("/api/marketplaces/status")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!isCancelled && data) {
+          setIsEbayConnected(Boolean(data.isConnected));
+        }
+      })
+      .catch(() => {
+        if (!isCancelled) setIsEbayConnected(false);
+      })
+      .finally(() => {
+        if (!isCancelled) setIsCheckingConnection(false);
+      });
+    return () => {
+      isCancelled = true;
+    };
+  }, [isOpen]);
 
   const safeInitBrand = cleanBrandText(initialBrand, "Unbranded") || "Unbranded";
   const safeInitCond = cleanConditionText(initialCondition, "Used - Good");
@@ -491,7 +515,7 @@ export default function EbayListingModal({
     }
   };
 
-  const handleFastList = () => {
+  const handleCopyListingDetails = () => {
     const safeBrandForList = cleanBrandText(initialBrand, "Unbranded") || "Unbranded";
     const safeCondForList = cleanConditionText(inputCondition, "Used - Good");
     const compliantTitle = generateOptimizedEbayTitle(inputTitle, safeBrandForList);
@@ -511,20 +535,8 @@ export default function EbayListingModal({
         void navigator.clipboard.writeText(copyPayload);
       }
     } catch {}
-
-    const prefillUrl = generateEbayPrefillUrl({
-      title: compliantTitle,
-      priceAud: Number(inputPrice),
-      brand: safeBrandForList,
-      category: initialCategory || undefined,
-      currency: activeRegion.code,
-    });
-
-    toast.success(`📋 Listing details & aspects copied! Opening ${activeRegion.label} Sell wizard...`, { duration: 4500 });
-    const opened = window.open(prefillUrl, "_blank");
-    if (!opened) {
-      window.location.href = prefillUrl;
-    }
+    triggerTactileHaptic("tap");
+    toast.success("📋 Listing title, price, specifics & description copied to clipboard!");
   };
 
   // 3. Multi-Photo Capture Integration:
@@ -664,6 +676,12 @@ export default function EbayListingModal({
     // Final payload array: Index [0] is GUARANTEED to be the active scan capture blob
     const submissionImageUrls = [primaryBlob, ...validGallery];
 
+    if (isEbayConnected === false) {
+      toast.error("Please connect your eBay seller account first to publish live.");
+      setError("eBay seller account not linked. Click 'Connect eBay' to link your seller profile.");
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -744,9 +762,10 @@ export default function EbayListingModal({
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Publish request failed";
-      if (/connect|token|fast-list|settings/i.test(message)) {
-        toast.info("Direct sync requires linked eBay account. Opening official 1-Tap Sell wizard...", { duration: 4000 });
-        handleFastList();
+      if (/connect|token|settings/i.test(message)) {
+        setIsEbayConnected(false);
+        setError("eBay seller account not linked or token expired. Please connect your eBay account to publish live.");
+        toast.error("Please connect your eBay seller account first.");
         return;
       }
       setError(message);
@@ -786,18 +805,16 @@ export default function EbayListingModal({
           </button>
         </div>
 
-        {publishedUrl ? (
+        {publishedUrl && isLiveListing ? (
           /* Persistent Success Screen - Stays mounted until user explicitly taps Done or View Live */
           <div className="flex flex-col flex-1 min-h-0 overflow-y-auto animate-fade-in">
             <div className="flex-1 overflow-y-auto overscroll-contain p-6 pb-[calc(env(safe-area-inset-bottom,0px)+6rem)] sm:pb-6 space-y-4 text-center">
-              <div className={`w-14 h-14 ${isLiveListing ? "bg-emerald-900/30 text-emerald-500 border-emerald-900/50" : "bg-cyan-900/30 text-cyan-500 border-cyan-900/50"} rounded-full flex items-center justify-center mx-auto border`}>
+              <div className="w-14 h-14 bg-emerald-900/30 text-emerald-500 border-emerald-900/50 rounded-full flex items-center justify-center mx-auto border">
                 <CheckCircle2 className="w-8 h-8" />
               </div>
               <div className="space-y-1">
                 <h3 className="text-xl font-bold text-zinc-100">
-                  {isLiveListing
-                    ? `🚀 Live on ${activeRegion.label}!`
-                    : `📋 Draft Saved in ${activeRegion.label} Seller Hub!`}
+                  🚀 Live on {activeRegion.label}!
                 </h3>
                 <p className="text-xs text-zinc-400 max-w-sm mx-auto leading-relaxed">
                   {publishedSku ? (
@@ -805,9 +822,7 @@ export default function EbayListingModal({
                       SKU: {publishedSku}
                     </span>
                   ) : null}
-                  {isLiveListing
-                    ? `Your item has been published live and is now visible to buyers across ${activeRegion.country}.`
-                    : `Your item details, price, and photos are saved in your ${activeRegion.label} Seller Hub account. Open Seller Hub drafts to review and activate it live.`}
+                  Your item has been published live and is now visible to buyers across {activeRegion.country}.
                 </p>
               </div>
 
@@ -823,9 +838,9 @@ export default function EbayListingModal({
                 href={publishedUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className={`inline-flex items-center justify-center gap-2 px-5 py-2.5 ${isLiveListing ? "bg-emerald-500 hover:bg-emerald-600 text-white" : "bg-indigo-500 hover:bg-indigo-600 text-white"} font-semibold rounded text-xs transition cursor-pointer w-full sm:w-auto`}
+                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded text-xs transition cursor-pointer w-full sm:w-auto"
               >
-                <span>{isLiveListing ? `View Live on ${activeRegion.label}` : `Open ${activeRegion.label} Drafts`}</span>
+                <span>View Live on {activeRegion.label}</span>
                 <ExternalLink className="w-4 h-4" />
               </a>
 
@@ -870,25 +885,49 @@ export default function EbayListingModal({
                 </div>
               </div>
 
-              {/* 1-Tap Compliant eBay Quick Trigger */}
+              {/* eBay Account Connection Status Banner */}
+              {!isCheckingConnection && isEbayConnected === false && (
+                <div className="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-center justify-between gap-3 text-xs">
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-1.5 font-bold text-amber-300">
+                      <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                      <span>eBay Seller Account Not Connected</span>
+                    </div>
+                    <p className="text-[11px] text-zinc-300">
+                      Connect your eBay seller account to publish live directly from Spadas.
+                    </p>
+                  </div>
+                  <a
+                    href="/api/auth/ebay/connect?prompt=login"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold rounded-lg text-xs transition shrink-0 flex items-center gap-1 shadow-sm"
+                  >
+                    <span>Connect eBay</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+              )}
+
+              {/* Ready-to-List Details & Aspects Quick Action */}
               <div className="p-3.5 bg-indigo-950/25 border border-indigo-500/30 rounded-xl space-y-2.5 shadow-sm">
                 <div className="flex items-center justify-between gap-3">
                   <div className="space-y-0.5">
                     <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-400">
-                      <Zap className="w-4 h-4 text-amber-400" />
-                      <span>1-Tap eBay Listing Flow</span>
+                      <Copy className="w-4 h-4 text-indigo-400" />
+                      <span>Ready-to-List Details</span>
                     </div>
                     <p className="text-[11px] text-zinc-400 leading-snug">
-                      Copies sanitized, compliant payload &amp; opens official {activeRegion.label} Sell wizard.
+                      Copies sanitized title, price, description &amp; eBay Best Match item specifics.
                     </p>
                   </div>
                   <button
                     type="button"
-                    onClick={handleFastList}
-                    className="px-3.5 py-2 bg-gradient-to-r from-amber-500 to-indigo-600 hover:from-amber-400 hover:to-indigo-500 text-white font-bold rounded-lg text-xs transition flex items-center gap-1.5 cursor-pointer shrink-0 shadow-md active:scale-95"
+                    onClick={handleCopyListingDetails}
+                    className="px-3.5 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 font-bold rounded-lg text-xs transition flex items-center gap-1.5 cursor-pointer shrink-0 shadow-md active:scale-95"
                   >
-                    <span>1-Tap List</span>
-                    <ExternalLink className="w-3.5 h-3.5" />
+                    <Copy className="w-3.5 h-3.5 text-zinc-400" />
+                    <span>Copy Details</span>
                   </button>
                 </div>
                 {/* Policy Guarantee Sub-badge */}
@@ -937,12 +976,11 @@ export default function EbayListingModal({
                       )}
                       <button
                         type="button"
-                        onClick={handleFastList}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 text-xs font-bold border border-cyan-500/40 transition active:scale-95 cursor-pointer shadow-sm"
+                        onClick={handleCopyListingDetails}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-bold border border-zinc-700 transition active:scale-95 cursor-pointer shadow-sm"
                       >
-                        <Zap className="w-3.5 h-3.5 text-cyan-400" />
-                        <span>1-Tap Fast-List to eBay</span>
-                        <ExternalLink className="w-3 h-3" />
+                        <Copy className="w-3.5 h-3.5 text-zinc-400" />
+                        <span>Copy Details</span>
                       </button>
                     </div>
                   </div>
@@ -1408,13 +1446,13 @@ export default function EbayListingModal({
                 </button>
                 <button
                   type="button"
-                  onClick={handleFastList}
+                  onClick={handleCopyListingDetails}
                   disabled={loading || inputTitle.length === 0}
-                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 font-bold rounded text-xs transition active:scale-95 cursor-pointer shadow-sm"
-                  title="Copies title, price, description and opens eBay Sell wizard"
+                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 font-bold rounded text-xs transition active:scale-95 cursor-pointer shadow-sm"
+                  title="Copies title, price, description & specifics to clipboard"
                 >
-                  <Zap className="w-3.5 h-3.5 text-amber-400" />
-                  <span>1-Tap eBay Wizard</span>
+                  <Copy className="w-3.5 h-3.5 text-zinc-400" />
+                  <span>Copy Details</span>
                 </button>
                 <button
                   type="submit"

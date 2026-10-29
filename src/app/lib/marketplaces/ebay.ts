@@ -1089,10 +1089,10 @@ export async function publishToEbayInventory(
         listingId: null,
         accountRestricted: isRestricted,
         error: isRestricted ? EBAY_RESTRICTION_NOTICE : errMsg,
-        message: isRestricted ? EBAY_RESTRICTION_NOTICE : `Could not create offer: ${errMsg}. Use 1-Tap Fast-List to publish directly on eBay!`,
+        message: isRestricted ? EBAY_RESTRICTION_NOTICE : `Could not create offer: ${errMsg}.`,
         listingUrl: isRestricted
           ? `https://${isProduction ? "www" : "sandbox"}.${ebayDomain}/sh/ovw`
-          : `https://${isProduction ? "www" : "sandbox"}.${ebayDomain}/sl/prelist/suggest?keyword=${encodeURIComponent(listing.product)}`,
+          : null,
       };
     }
 
@@ -1146,10 +1146,10 @@ export async function publishToEbayInventory(
           listingId: null,
           accountRestricted: isRestricted,
           error: isRestricted ? EBAY_RESTRICTION_NOTICE : errMsg,
-          message: isRestricted ? EBAY_RESTRICTION_NOTICE : `Could not publish live to eBay: ${errMsg}. Use 1-Tap Fast-List to publish directly!`,
+          message: isRestricted ? EBAY_RESTRICTION_NOTICE : `Could not publish live to eBay: ${errMsg}.`,
           listingUrl: isRestricted
             ? `https://${isProduction ? "www" : "sandbox"}.${ebayDomain}/sh/ovw`
-            : `https://${isProduction ? "www" : "sandbox"}.${ebayDomain}/sh/lst/drafts`,
+            : null,
         };
       }
     } else if (offerId && isExplicitDraft) {
@@ -1173,8 +1173,8 @@ export async function publishToEbayInventory(
       isLive: false,
       listingId: null,
       error: offerErr?.message || "Failed to create offer",
-      message: `Error: ${offerErr?.message || "Offer failed"}. Use 1-Tap Fast-List to publish.`,
-      listingUrl: `https://${isProduction ? "www" : "sandbox"}.${ebayDomain}/sl/prelist/suggest?keyword=${encodeURIComponent(listing.product)}`,
+      message: `Error: ${offerErr?.message || "Offer failed"}.`,
+      listingUrl: null,
     };
   }
 
@@ -1185,8 +1185,8 @@ export async function publishToEbayInventory(
     isLive: false,
     listingId: null,
     error: "No offer ID created",
-    message: "Could not create offer. Use 1-Tap Fast-List to publish.",
-    listingUrl: `https://${isProduction ? "www" : "sandbox"}.${ebayDomain}/sl/prelist/suggest?keyword=${encodeURIComponent(listing.product)}`,
+    message: "Could not create offer.",
+    listingUrl: null,
   };
 }
 

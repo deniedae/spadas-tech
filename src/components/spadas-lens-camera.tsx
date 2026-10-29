@@ -2078,93 +2078,6 @@ function SpadasLensCameraCore({
     }
   };
 
-  // Instant 1-Tap Fast-List Engine: Zero-latency eBay listing flow directly from viewfinder
-  const handle1TapFastListFromCard = (hit: DetectedHit | ActiveScanItem) => {
-    triggerTactileHaptic("tap");
-    const safeBrand = cleanBrandText(hit.brand, "Unbranded") || "Unbranded";
-    const safeCond = cleanConditionText(hit.condition, "Used - Good");
-    const targetCurrency = hit.currency || selectedCurrency;
-    const isUk = targetCurrency === "GBP";
-    const isUs = targetCurrency === "USD";
-    const marketSiteName = isUk ? "eBay UK" : isUs ? "eBay US" : "eBay AU";
-    const rawPrice = Number(hit.estimatedValue) || 25;
-    const itemName = hit.name || "Scanned Item";
-    const cleanSubject = buildCleanListingSubject(safeBrand, itemName);
-    const compliantTitle = generateOptimizedEbayTitle(cleanSubject.slice(0, 80), safeBrand);
-    const itemDescription = buildCleanListingDescription({
-      title: itemName,
-      brand: safeBrand,
-      category: hit.category,
-      condition: safeCond,
-      price: rawPrice,
-      currency: targetCurrency,
-    });
-    const compliantDesc = buildEbayPolicyCompliantDescription({
-      title: compliantTitle,
-      brand: safeBrand,
-      condition: safeCond,
-      category: hit.category,
-      currency: targetCurrency,
-      rawNotes: itemDescription,
-    });
-    const prefillUrl = generateEbayPrefillUrl({
-      title: compliantTitle,
-      priceAud: rawPrice,
-      price: rawPrice,
-      brand: safeBrand,
-      category: hit.category,
-      currency: targetCurrency,
-    });
-    const specifics = generateEbayItemSpecifics({
-      brand: safeBrand,
-      productName: itemName,
-      category: hit.category,
-      condition: safeCond,
-    });
-    const specificsLines = Object.entries(specifics)
-      .map(([k, v]) => `• ${k}: ${Array.isArray(v) ? v.join(", ") : v}`)
-      .join("\n");
-
-    const copyPayload = `Title: ${compliantTitle}\nPrice: ${targetCurrency === "GBP" ? "£" : "$"}${rawPrice.toFixed(2)} ${targetCurrency}\nCondition: ${safeCond}\nBrand: ${safeBrand}\n\n[Item Specifics (eBay Best Match Aspects)]\n${specificsLines}\n\nDescription:\n${compliantDesc}`;
-
-    try {
-      if (typeof navigator !== "undefined" && navigator.clipboard) {
-        void navigator.clipboard.writeText(copyPayload);
-      }
-    } catch {}
-
-    let opened = false;
-    const hasNativeBridge =
-      typeof window !== "undefined" && typeof (window as any).AndroidBridge?.openExternalUrl === "function";
-
-    if (hasNativeBridge) {
-      try {
-        (window as any).AndroidBridge?.openExternalUrl?.(prefillUrl);
-        opened = true;
-      } catch {}
-    }
-
-    if (!opened && typeof window !== "undefined") {
-      try {
-        const win = window.open(prefillUrl, "_blank");
-        if (win && !win.closed) {
-          opened = true;
-        }
-      } catch {}
-    }
-
-    if (!opened && typeof window !== "undefined") {
-      window.location.href = prefillUrl;
-    }
-
-    // Auto-save draft in background to Haul and local storage
-    void handleSaveDraftHit(hit as DetectedHit);
-
-    toast.success(`⚡ Fast-Listed to ${marketSiteName}! Details copied to clipboard.`, {
-      duration: 4500,
-    });
-  };
-
 
   const prevFramePixelsRef = useRef<Uint8ClampedArray | null>(null);
   const lastScanTimeRef = useRef<number>(0);
@@ -6591,21 +6504,7 @@ function SpadasLensCameraCore({
                         <span>View comps</span>
                       </button>
 
-                      {/* Instant 1-Tap Fast-List Action (Zero Latency direct to eBay Sell wizard) */}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handle1TapFastListFromCard(activeValuationHit);
-                        }}
-                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-bold transition cursor-pointer bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-zinc-950 border border-amber-400 shadow-sm active:scale-95"
-                        title={`1-Tap Fast-List to ${marketSiteName} with auto-copied specifics`}
-                      >
-                        <Zap className="h-3.5 w-3.5 fill-current shrink-0" />
-                        <span>1-Tap List</span>
-                      </button>
-
-                      {/* Deep Listing Studio Modal Launcher */}
+                      {/* Direct eBay Listing Studio Action (Pre-populated with scan photo, title, price, and specs) */}
                       <button
                         type="button"
                         onClick={(e) => {
@@ -6631,11 +6530,11 @@ function SpadasLensCameraCore({
                             sessionId: stableSessionId,
                           });
                         }}
-                        className="inline-flex items-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium transition cursor-pointer bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-800"
-                        title="Open deep listing studio with item specifics & AI photo tools"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition cursor-pointer bg-gradient-to-r from-blue-600 via-indigo-600 to-indigo-700 hover:from-blue-500 hover:to-indigo-600 text-white shadow-sm active:scale-95 border border-blue-400/30"
+                        title="List this item on eBay with photos, price, and specifics"
                       >
-                        <Sliders className="h-3.5 w-3.5 text-zinc-400 shrink-0" />
-                        <span className="hidden sm:inline">Studio</span>
+                        <ShoppingBag className="h-3.5 w-3.5 shrink-0" />
+                        <span>List on eBay</span>
                       </button>
 
                       {/* Expand / Collapse Comps Toggle Button */}
