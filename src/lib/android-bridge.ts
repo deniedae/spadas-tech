@@ -215,6 +215,14 @@ export function openExternalUrlSafely(
       url = url.replace(/^http:\/\//i, "https://");
     }
 
+    // Intercept deprecated /sl/prelist/suggest links which eBay drops into empty draft search screens
+    if (url.includes("/sl/prelist/suggest")) {
+      try {
+        const parsed = new URL(url);
+        url = `https://${parsed.host || defaultDomain}/sh/lst/active`;
+      } catch {}
+    }
+
     // Validate URL object
     try {
       new URL(url);

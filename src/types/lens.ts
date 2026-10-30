@@ -79,6 +79,7 @@ export interface DetectedHit {
   };
   conditionModifier?: number;
   image?: string | null;
+  imageUrls?: string[];
   /** Number of eBay listings found (active or sold depending on compsSource) */
   ebayCompsCount?: number;
   /** Number of active ask listings when 0 sold comps exist */

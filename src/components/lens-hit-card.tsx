@@ -387,6 +387,7 @@ export default function LensHitCard({
         productName={item.name}
         brand={item.brand}
         estimatedPrice={item.estimatedValue}
+        onListEbay={() => onListEbay(item)}
       />
     </div>
   );

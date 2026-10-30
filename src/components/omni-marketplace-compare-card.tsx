@@ -336,7 +336,7 @@ export function OmniMarketplaceCompareCard({
       }
     } catch {
       const domain = currentCurrency === "AUD" ? "www.ebay.com.au" : currentCurrency === "GBP" ? "www.ebay.co.uk" : "www.ebay.com";
-      window.location.href = `https://${domain}/sl/prelist/suggest?keyword=${encodeURIComponent(productName)}`;
+      openExternalUrlSafely(`https://${domain}/sh/lst/active`);
     }
   };
 

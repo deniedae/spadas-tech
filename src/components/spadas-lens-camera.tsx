@@ -1825,97 +1825,19 @@ function SpadasLensCameraCore({
   };
 
   const handleDirectPublishScannedHit = (hit: DetectedHit, image?: string) => {
-    triggerTactileHaptic("tap");
-    const product = hit.name || "Scanned Item";
-    const cleanBrand = cleanBrandText(hit.brand, "Unbranded") || "Unbranded";
-    const category = hit.category || "General Resale";
-    const condition = cleanConditionText(hit.condition, "Used - Good");
-    const price = Number(hit.estimatedValue || hit.suggestedPriceMax || hit.suggestedPriceMin) || 25;
-    const primaryImage = image || hit.image || undefined;
-    const compliantTitle = generateOptimizedEbayTitle(product, cleanBrand);
-    const compliantDesc = buildEbayPolicyCompliantDescription({
-      title: compliantTitle,
-      brand: cleanBrand,
-      condition,
-      category,
-      currency: selectedCurrency,
+    triggerTactileHaptic("medium");
+    setIsScanPaused(true);
+    const isolatedCapture = image || hit.image || (hit.id === activeValuationHit?.id ? frozenFrameUrl : undefined);
+    const stableSessionId = hit.id || (hit.timestamp ? `hit_${hit.timestamp}` : "hit_audit");
+    const photoArray = hit.imageUrls && hit.imageUrls.length > 0
+      ? hit.imageUrls
+      : isolatedCapture ? [isolatedCapture] : [];
+    setActiveEbayItem({
+      ...hit,
+      image: isolatedCapture,
+      imageUrls: photoArray,
+      sessionId: stableSessionId,
     });
-    const prefillUrl = generateEbayPrefillUrl({
-      title: compliantTitle,
-      priceAud: price,
-      price,
-      brand: cleanBrand,
-      category,
-      currency: selectedCurrency,
-    });
-    const copyPayload = `Title: ${compliantTitle}\nPrice: ${price.toFixed(2)} ${selectedCurrency}\nCondition: ${condition}\nBrand: ${cleanBrand}\nMPN: Does Not Apply\n\nDescription:\n${compliantDesc}`;
-
-    // 1. Immediately copy formatted listing payload to clipboard in the direct synchronous user gesture
-    try {
-      if (typeof navigator !== "undefined" && navigator.clipboard) {
-        void navigator.clipboard.writeText(copyPayload);
-      }
-    } catch {}
-
-    // 2. Synchronously open prefill URL or navigate directly to defeat mobile Safari/Chrome/PWA popup blockers
-    let opened = false;
-    const hasNativeOpener =
-      typeof window !== "undefined" && typeof window.AndroidBridge?.openExternalUrl === "function";
-
-    if (hasNativeOpener) {
-      try {
-        window.AndroidBridge?.openExternalUrl?.(prefillUrl);
-        opened = true;
-      } catch {}
-    }
-
-    if (!opened && typeof window !== "undefined") {
-      try {
-        const win = window.open(prefillUrl, "_blank");
-        if (win && !win.closed) {
-          opened = true;
-        }
-      } catch {
-        opened = false;
-      }
-      if (!opened) {
-        window.location.href = prefillUrl;
-        opened = true;
-      }
-    }
-
-    triggerTactileHaptic("success");
-    toast.success("⚡ Copied details! Opening official eBay Sell wizard...", {
-      duration: 7000,
-      action: {
-        label: "Open eBay",
-        onClick: () => {
-          if (typeof window !== "undefined") {
-            window.location.href = prefillUrl;
-          }
-        },
-      },
-    });
-
-    // 3. Background non-blocking inventory sync
-    void (async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          await createListing({
-            userId: user.id,
-            product: compliantTitle,
-            price,
-            cost: Number(hit.tagPrice || hit.estCost) || 5,
-            description: compliantDesc,
-            status: "Active",
-            image: primaryImage,
-          });
-        }
-      } catch (err) {
-        console.warn("Background inventory sync note:", err);
-      }
-    })();
   };
 
   const handleSaveDraftHit = async (hit: DetectedHit) => {
@@ -6523,10 +6445,14 @@ function SpadasLensCameraCore({
                           setActiveValuationHit(null);
                           activeValuationHitRef.current = null;
 
+                          const photoArray = currentHit?.imageUrls && currentHit.imageUrls.length > 0
+                            ? currentHit.imageUrls
+                            : isolatedCapture ? [isolatedCapture] : [];
+
                           setActiveEbayItem({
                             ...currentHit,
                             image: isolatedCapture,
-                            imageUrls: isolatedCapture ? [isolatedCapture] : undefined,
+                            imageUrls: photoArray,
                             sessionId: stableSessionId,
                           });
                         }}
@@ -6646,12 +6572,15 @@ function SpadasLensCameraCore({
           setIsScanPaused(true);
           const isolatedCapture = hit?.image || (hit?.id === activeValuationHit?.id ? frozenFrameUrl : undefined);
           const stableSessionId = hit?.id || (hit?.timestamp ? `hit_${hit.timestamp}` : "hit_comps");
+          const photoArray = Array.isArray(hit?.imageUrls) && hit.imageUrls.length > 0
+            ? hit.imageUrls
+            : isolatedCapture ? [isolatedCapture] : [];
           setActiveEbayItem(
             hit
               ? {
                 ...hit,
                 image: isolatedCapture,
-                imageUrls: isolatedCapture ? [isolatedCapture] : undefined,
+                imageUrls: photoArray,
                 sessionId: stableSessionId,
               }
               : null

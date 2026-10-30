@@ -323,46 +323,8 @@ export function SpadasListingDetailsSheet({ data: initialData, onBack, onSaved }
   };
 
   const handleFastListEbay = () => {
-    triggerTactileHaptic("tap");
-    try {
-      const cleanBrand = (data.brand || "Unbranded").trim();
-      const compliantTitle = generateOptimizedEbayTitle(data.productName, cleanBrand);
-      const compliantDesc = buildEbayPolicyCompliantDescription({
-        title: compliantTitle,
-        brand: cleanBrand,
-        condition: data.condition || "Used - Good",
-        category: data.category || undefined,
-        currency: activeCurrency,
-        rawNotes: data.description,
-      });
-      const specificsFormatted = Object.entries(specifics)
-        .map(([k, v]) => `• ${k}: ${v}`)
-        .join("\n");
-
-      const copyPayload = `Title: ${compliantTitle}\nPrice: ${currConfig.symbol}${data.priceMedian.toFixed(2)} ${activeCurrency}\nCondition: ${data.condition || "Used - Good"}\nBrand: ${cleanBrand}\nLeaf Category: ${getEbayCategoryLabel(selectedCategoryId)} (ID: ${selectedCategoryId})\n\nItem Specifics:\n${specificsFormatted}\n\nDescription:\n${compliantDesc}`;
-      try {
-        if (typeof navigator !== "undefined" && navigator.clipboard) {
-          void navigator.clipboard.writeText(copyPayload);
-        }
-      } catch {}
-
-      const prefillUrl = generateEbayPrefillUrl({
-        title: compliantTitle,
-        priceAud: data.priceMedian,
-        price: data.priceMedian,
-        brand: cleanBrand,
-        category: selectedCategoryId,
-        currency: activeCurrency,
-      });
-
-      toast.success(`📋 Copied listing payload! Opening official eBay Sell wizard...`, { duration: 4000 });
-      const opened = window.open(prefillUrl, "_blank");
-      if (!opened) {
-        window.location.href = prefillUrl;
-      }
-    } catch {
-      setIsEbayModalOpen(true);
-    }
+    triggerTactileHaptic("medium");
+    setIsEbayModalOpen(true);
   };
 
   const handlePublishEbay = () => {

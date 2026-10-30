@@ -978,13 +978,14 @@ export default function LensCompsModal({
     onListEbay(enrichedItem as any);
   };
 
-  // Instant 0ms 1-Tap Fast-List to eBay AU / US / UK directly from Comps:
-  const handle1TapPublishEbay = () => {
+  // Automated 1-Tap eBay Listing Action directly from Comps / Valuation screen
+  const handle1TapPublishEbay = async () => {
     triggerTactileHaptic("tap");
     const safeBrand = cleanBrandText(brand, "Unbranded") || "Unbranded";
     const safeCond = cleanConditionText(condition, "Used - Good");
     const targetRegionLabel = isUkMarket ? "eBay UK" : isUsMarket ? "eBay US" : "eBay AU";
     const cleanSubject = buildCleanListingSubject(safeBrand, title);
+    const compliantTitle = generateOptimizedEbayTitle(cleanSubject.slice(0, 80), safeBrand);
     const itemDescription = buildCleanListingDescription({
       title,
       brand: safeBrand,
@@ -993,8 +994,6 @@ export default function LensCompsModal({
       price: Number(activeResalePrice),
       currency: targetCurrency,
     });
-
-    const compliantTitle = generateOptimizedEbayTitle(cleanSubject.slice(0, 80), safeBrand);
     const compliantDesc = buildEbayPolicyCompliantDescription({
       title: compliantTitle,
       brand: safeBrand,
@@ -1003,91 +1002,98 @@ export default function LensCompsModal({
       currency: targetCurrency,
       rawNotes: itemDescription,
     });
-
-    const prefillUrl = generateEbayPrefillUrl({
-      title: compliantTitle,
-      priceAud: Number(activeResalePrice),
-      price: Number(activeResalePrice),
-      brand: safeBrand,
-      category,
-      currency: targetCurrency,
-    });
-
     const specifics = generateEbayItemSpecifics({
       brand: safeBrand,
       productName: title,
       category,
       condition: safeCond,
     });
-    const specificsLines = Object.entries(specifics)
-      .map(([k, v]) => `• ${k}: ${Array.isArray(v) ? v.join(", ") : v}`)
-      .join("\n");
-
-    const copyPayload = `Title: ${compliantTitle}\nPrice: ${targetCurrency === "GBP" ? "£" : "$"}${Number(activeResalePrice).toFixed(2)} ${targetCurrency}\nCondition: ${safeCond}\nBrand: ${safeBrand}\n\n[Item Specifics (eBay Best Match Aspects)]\n${specificsLines || "• MPN: Does Not Apply"}\n\nDescription:\n${compliantDesc}`;
-
-    // 1. Immediately copy formatted listing payload to clipboard in the direct synchronous user gesture
-    try {
-      if (typeof navigator !== "undefined" && navigator.clipboard) {
-        void navigator.clipboard.writeText(copyPayload);
-      }
-    } catch {}
-
-    // 2. Synchronously open prefill URL or navigate directly to defeat mobile Safari/Chrome/PWA popup blockers
-    let opened = false;
-    const hasNativeBridge =
-      typeof window !== "undefined" && typeof window.AndroidBridge?.openExternalUrl === "function";
-
-    if (hasNativeBridge) {
-      try {
-        window.AndroidBridge?.openExternalUrl?.(prefillUrl);
-        opened = true;
-      } catch {}
-    }
-
-    if (!opened && typeof window !== "undefined") {
-      try {
-        const win = window.open(prefillUrl, "_blank");
-        if (win && !win.closed) {
-          opened = true;
-        }
-      } catch {
-        opened = false;
-      }
-      if (!opened) {
-        // Fallback for strict mobile popup blockers: directly navigate window
-        window.location.href = prefillUrl;
-        opened = true;
-      }
-    }
-
-    // 3. Update state
-    setLiveEbayListingUrl(prefillUrl);
-    setEbayPublishSuccess(true);
-    triggerTactileHaptic("success");
-
-    toast.success(`⚡ Copied details! Opening official ${targetRegionLabel} Sell wizard...`, {
-      duration: 6000,
-      action: {
-        label: "Open eBay",
-        onClick: () => {
-          if (typeof window !== "undefined") {
-            window.location.href = prefillUrl;
-          }
-        },
-      },
-    });
-
-    // 4. Background non-blocking inventory sync
     const primaryBlob =
       listingPhotos[0]?.trim() || (frozenFrameUrl || (item as any)?.image || null)?.trim() || null;
-    void (async () => {
-      try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        if (user) {
+    const photoArray =
+      listingPhotos.length > 0
+        ? listingPhotos
+        : primaryBlob
+          ? [primaryBlob]
+          : [];
+    const stableSessionId =
+      (item as any)?.sessionId || (item as any)?.id || `hit_${(item as any)?.timestamp || Date.now()}`;
+
+    const enrichedItem = {
+      ...item,
+      productName: compliantTitle,
+      name: compliantTitle,
+      title: compliantTitle,
+      brand: safeBrand,
+      category,
+      condition: safeCond,
+      estimatedValue: Number(activeResalePrice),
+      price: Number(activeResalePrice),
+      currency: targetCurrency,
+      description: compliantDesc,
+      aspects: specifics,
+      image: primaryBlob,
+      imageUrls: photoArray,
+      sessionId: stableSessionId,
+    };
+
+    setIsPublishingEbay(true);
+
+    try {
+      // 1. Verify user session
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session) {
+        if (onListEbay) {
+          triggerTactileHaptic("medium");
+          onListEbay(enrichedItem as any);
+        } else {
+          toast.info("Please sign in to list items on eBay.");
+          router.push("/login?redirect=/lens");
+        }
+        return;
+      }
+
+      // 2. Direct live publish to eBay inventory API with automated payload
+      const payload = {
+        product: compliantTitle,
+        brand: safeBrand,
+        category,
+        price: Number(activeResalePrice),
+        currency: targetCurrency,
+        condition: safeCond,
+        description: compliantDesc,
+        aspects: specifics,
+        imageUrls: photoArray,
+        sessionId: stableSessionId,
+        publishMode: "live",
+        forceLive: true,
+      };
+
+      const res = await fetch("/api/marketplaces/ebay/publish", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok && data.success && data.isLive && data.listingUrl) {
+        setLiveEbayListingUrl(data.listingUrl);
+        setPublishedSku(data.sku || null);
+        setIsLiveListing(true);
+        setEbayPublishSuccess(true);
+        triggerTactileHaptic("success");
+
+        // Background save to local haul
+        try {
           await createListing({
-            userId: user.id,
+            userId: session.user.id,
             product: compliantTitle,
             price: Number(activeResalePrice),
             cost: effectiveTagCost,
@@ -1095,11 +1101,55 @@ export default function LensCompsModal({
             status: "Active",
             image: primaryBlob || undefined,
           });
-        }
-      } catch (err) {
-        console.warn("Background inventory sync note:", err);
+        } catch {}
+
+        toast.success(`🚀 Live on ${targetRegionLabel}! Item published directly to eBay.`);
+        return;
       }
-    })();
+
+      // 3. If eBay seller account not connected or requires configuration:
+      // Transition directly to the in-app eBay Listing Studio with full pre-populated payload
+      const errMsg = data.error || data.message || "";
+      const isAccountNotLinked =
+        res.status === 401 ||
+        /connect|token|settings|unauthorized|not linked/i.test(errMsg);
+
+      if (onListEbay) {
+        triggerTactileHaptic("medium");
+        toast.info(
+          isAccountNotLinked
+            ? "Connect your eBay seller account to publish live."
+            : "Reviewing listing details in studio...",
+          { duration: 3500 }
+        );
+        onListEbay(enrichedItem as any);
+        return;
+      }
+
+      if (isAccountNotLinked) {
+        toast.error("eBay seller account not linked.", {
+          action: {
+            label: "Connect eBay",
+            onClick: () => {
+              if (typeof window !== "undefined") {
+                window.location.href = "/api/auth/ebay/connect?prompt=login";
+              }
+            },
+          },
+          duration: 6000,
+        });
+      } else {
+        toast.error(errMsg || "Failed to publish listing to eBay.");
+      }
+    } catch (err: any) {
+      if (onListEbay) {
+        onListEbay(enrichedItem as any);
+      } else {
+        toast.error(err?.message || "Failed to publish listing to eBay.");
+      }
+    } finally {
+      setIsPublishingEbay(false);
+    }
   };
 
   const previewImageSrc = frozenFrameUrl || (item as any)?.image || null;
@@ -2168,7 +2218,7 @@ export default function LensCompsModal({
             >
               {isSaved ? "Saved" : isSaving ? "Saving..." : "Save draft"}
             </button>
-            {liveEbayListingUrl && !isPublishingEbay && ebayPublishSuccess ? (
+            {liveEbayListingUrl && isLiveListing && !isPublishingEbay && ebayPublishSuccess ? (
               <a
                 href={liveEbayListingUrl}
                 target="_blank"
@@ -2183,11 +2233,21 @@ export default function LensCompsModal({
               <button
                 type="button"
                 onClick={handle1TapPublishEbay}
-                className="h-11 flex items-center justify-center gap-1.5 rounded-md text-xs font-bold active:scale-[0.98] transition cursor-pointer bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-zinc-950 border border-amber-400 shadow-md shadow-amber-500/20 truncate px-1"
+                disabled={isPublishingEbay}
+                className="h-11 flex items-center justify-center gap-1.5 rounded-md text-xs font-bold active:scale-[0.98] transition cursor-pointer bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-zinc-950 border border-amber-400 shadow-md shadow-amber-500/20 truncate px-1 disabled:opacity-75 disabled:cursor-wait"
                 title={`Instantly 1-Tap List to ${isUkMarket ? "eBay UK" : isUsMarket ? "eBay US" : "eBay AU"}`}
               >
-                <Zap className="w-3.5 h-3.5 fill-current shrink-0" />
-                <span className="truncate">1-Tap eBay</span>
+                {isPublishingEbay ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0 text-zinc-950" />
+                    <span className="truncate">Publishing...</span>
+                  </>
+                ) : (
+                  <>
+                    <Zap className="w-3.5 h-3.5 fill-current shrink-0" />
+                    <span className="truncate">1-Tap eBay</span>
+                  </>
+                )}
               </button>
             )}
           </div>
