@@ -12,7 +12,6 @@ import EbayListingModal from "@/components/ebay-listing-modal";
 import { StudioLightboxModal } from "@/components/studio-lightbox-modal";
 import { FlawForensicsModal } from "@/components/flaw-forensics-modal";
 import {
-  generateEbayPrefillUrl,
   generateOptimizedEbayTitle,
   buildEbayPolicyCompliantDescription,
   generateEbayItemSpecifics,

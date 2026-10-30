@@ -3,10 +3,9 @@
 import React, { useState } from "react";
 import { Copy, Check, X, Share2, Sparkles, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
-import { triggerTactileHaptic } from "@/lib/android-bridge";
+import { triggerTactileHaptic, openExternalUrlSafely } from "@/lib/android-bridge";
 import {
   generateOptimizedEbayTitle,
-  generateEbayPrefillUrl,
   buildEbayPolicyCompliantDescription,
 } from "@/app/lib/marketplaces/ebay-prefill";
 import { detectGeoCurrency, CURRENCY_CONFIGS } from "@/app/lib/currency-routing";
@@ -198,20 +197,13 @@ export default function CrossListModal({
             <button
               type="button"
               onClick={() => {
-                const url = generateEbayPrefillUrl({
-                  title: ebayTitle,
-                  priceAud: itemPrice,
-                  brand: itemBrand,
-                  category,
-                  currency: userCurrency,
-                });
-                handleCopyAllBundle();
-                window.open(url, "_blank", "noopener,noreferrer");
+                const domain = userCurrency === "AUD" ? "www.ebay.com.au" : userCurrency === "GBP" ? "www.ebay.co.uk" : "www.ebay.com";
+                openExternalUrlSafely(`https://${domain}/sh/lst/active`);
               }}
               className="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs flex items-center justify-center gap-1.5 shadow-md cursor-pointer transition active:scale-95"
             >
               <ExternalLink className="w-3.5 h-3.5" />
-              <span>⚡ 1-Tap Fast-List on eBay ({userCurrency}) (Opens Pre-Filled Wizard)</span>
+              <span>⚡ Open eBay Active Seller Hub ({userCurrency})</span>
             </button>
           );
         })()}

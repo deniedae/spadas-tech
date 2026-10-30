@@ -39,7 +39,6 @@ import { supabase } from "@/app/lib/supabase";
 import { toast } from "sonner";
 import { compressFileToDataUrl } from "@/lib/image-preprocessor";
 import {
-  generateEbayPrefillUrl,
   generateOptimizedEbayTitle,
   buildEbayPolicyCompliantDescription,
   generateEbayItemSpecifics,
@@ -2172,7 +2171,7 @@ export default function LensCompsModal({
 
         {/* ── 5. STICKY ACTIONS (Bottom, Equal Height 44px, Solid Fills, 8px Radius) ── */}
         <div className="shrink-0 p-3 border-t border-zinc-800 bg-zinc-950 z-20 pb-[max(0.75rem,calc(env(safe-area-inset-bottom,0px)+0.5rem))] space-y-2">
-          {ebayPublishSuccess && (
+          {ebayPublishSuccess && isLiveListing && liveEbayListingUrl && (
             <div className="p-2.5 rounded-lg bg-emerald-950/60 border border-emerald-700/60 flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 min-w-0">
                 <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />

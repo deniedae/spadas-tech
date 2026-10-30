@@ -172,10 +172,13 @@ export function mapToEbayCondition(cond: string): EbayInventoryItemPayload["cond
   const lower = (cond || "").toLowerCase();
   if (lower.includes("brand new") || lower === "new") return "NEW";
   if (lower.includes("like new") || lower.includes("mint")) return "LIKE_NEW";
+  if (lower.includes("very good")) return "USED_VERY_GOOD";
+  if (lower.includes("good")) return "USED_GOOD";
+  if (lower.includes("excellent")) return "USED_EXCELLENT";
   if (lower.includes("fair") || lower.includes("acceptable")) return "USED_ACCEPTABLE";
   if (lower.includes("parts") || lower.includes("untested") || lower.includes("faulty")) return "FOR_PARTS_OR_NOT_WORKING";
-  // Default pre-owned items to USED_EXCELLENT (universally supported across eBay AU fashion and goods)
-  return "USED_EXCELLENT";
+  // Default pre-owned items to USED_GOOD
+  return "USED_GOOD";
 }
 
 export type EbayRegion = "USD" | "GBP" | "AUD";

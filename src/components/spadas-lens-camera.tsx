@@ -101,7 +101,6 @@ const SubscriptionPaywallModal = dynamic(() => import("@/components/subscription
 const InAppReviewModal = dynamic(() => import("@/components/in-app-review-modal"), { ssr: false });
 import { recordSuccessfulScanAndCheckReviewPrompt, checkWinDelightPrompt } from "@/components/in-app-review-modal";
 import {
-  generateEbayPrefillUrl,
   generateOptimizedEbayTitle,
   buildEbayPolicyCompliantDescription,
   generateEbayItemSpecifics,

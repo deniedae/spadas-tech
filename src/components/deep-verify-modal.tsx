@@ -32,6 +32,7 @@ import {
   Cpu,
 } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/app/lib/supabase";
 import type { DeepVerifyResult } from "@/app/api/deep-verify/route";
 import {
   FORENSIC_CATEGORIES,
@@ -53,7 +54,6 @@ import {
 } from "@/lib/arbitrage-calc";
 import {
   generateOptimizedEbayTitle,
-  generateEbayPrefillUrl,
 } from "@/app/lib/marketplaces/ebay-prefill";
 import { compressFileToDataUrl } from "@/lib/image-preprocessor";
 import { cameraStreamManager } from "@/lib/camera-stream-provider";
@@ -611,24 +611,13 @@ Verified by Spadas AI Forensic Pre-Screening Assistant`;
     const listingMarkdown = generateMarketplaceListingMarkdown(coaPayload);
 
     try {
-      await navigator.clipboard.writeText(`${optimizedTitle}\n\n${listingMarkdown}`);
-      toast.success("Copied 80-char SEO Title & Forensic Provenance description to clipboard!");
-    } catch {}
-
-    try {
       await downloadCoaImageCard(coaPayload);
       toast.success("COA photo card downloaded for your listing gallery!");
     } catch (coaErr) {
       console.warn("Could not download COA card:", coaErr);
     }
 
-    const prefillUrl = generateEbayPrefillUrl({
-      title: optimizedTitle,
-      brand: result.brand,
-      category: result.category,
-    });
-
-    window.open(prefillUrl, "_blank", "noopener,noreferrer");
+    await handleDirectPushEbayDraft();
   };
 
   const handleDirectPushEbayDraft = async () => {
@@ -665,9 +654,15 @@ Verified by Spadas AI Forensic Pre-Screening Assistant`;
       const listingMarkdown = generateMarketplaceListingMarkdown(coaPayload);
       const suggestedPrice = parseFloat(result.market_spread?.match(/\$(\d+)/)?.[1] || "50");
 
+      const { data: sessionData } = await supabase.auth.getSession();
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (sessionData?.session?.access_token) {
+        headers["Authorization"] = `Bearer ${sessionData.session.access_token}`;
+      }
+
       const res = await fetch("/api/marketplaces/ebay/publish", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({
           product: optimizedTitle,
           description: listingMarkdown,
@@ -676,6 +671,8 @@ Verified by Spadas AI Forensic Pre-Screening Assistant`;
           category: result.category,
           condition: result.cleanup_advisory || "Pre-owned",
           imageUrls: capturedImages.filter(Boolean),
+          publishMode: "live",
+          forceLive: true,
         }),
       });
 

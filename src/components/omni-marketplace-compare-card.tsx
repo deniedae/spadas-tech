@@ -31,7 +31,6 @@ import {
 import { openExternalUrlSafely, triggerTactileHaptic } from "@/lib/android-bridge";
 import { toast } from "sonner";
 import {
-  generateEbayPrefillUrl,
   generateOptimizedEbayTitle,
   buildEbayPolicyCompliantDescription,
 } from "@/app/lib/marketplaces/ebay-prefill";
@@ -305,39 +304,8 @@ export function OmniMarketplaceCompareCard({
       onListEbay();
       return;
     }
-    try {
-      const cleanBrand = brand?.trim() || "Unbranded";
-      const compliantTitle = generateOptimizedEbayTitle(productName, cleanBrand);
-      const compliantDesc = buildEbayPolicyCompliantDescription({
-        title: compliantTitle,
-        brand: cleanBrand,
-        condition: condition || "Used - Good",
-        category: category || undefined,
-        currency: currentCurrency,
-      });
-      const copyPayload = `Title: ${compliantTitle}\nPrice: ${sym}${stats.median.toFixed(2)} ${currentCurrency}\nCondition: ${condition || "Used - Good"}\nBrand: ${cleanBrand}\nMPN: Does Not Apply\n\nDescription:\n${compliantDesc}`;
-      try {
-        if (typeof navigator !== "undefined" && navigator.clipboard) {
-          void navigator.clipboard.writeText(copyPayload);
-        }
-      } catch {}
-
-      const prefillUrl = generateEbayPrefillUrl({
-        title: compliantTitle,
-        price: stats.median,
-        currency: currentCurrency,
-        brand: cleanBrand,
-        category: category || undefined,
-      });
-      toast.success(`📋 Listing payload copied! Opening official eBay Sell wizard...`, { duration: 4000 });
-      const opened = window.open(prefillUrl, "_blank");
-      if (!opened) {
-        window.location.href = prefillUrl;
-      }
-    } catch {
-      const domain = currentCurrency === "AUD" ? "www.ebay.com.au" : currentCurrency === "GBP" ? "www.ebay.co.uk" : "www.ebay.com";
-      openExternalUrlSafely(`https://${domain}/sh/lst/active`);
-    }
+    const domain = currentCurrency === "AUD" ? "www.ebay.com.au" : currentCurrency === "GBP" ? "www.ebay.co.uk" : "www.ebay.com";
+    openExternalUrlSafely(`https://${domain}/sh/lst/active`);
   };
 
   return (
